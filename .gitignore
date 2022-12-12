@@ -1,0 +1,26 @@
+# Ignore compiled python file
+*.pyc
+
+# Ignore a python enviroment
+env/
+
+# Egg info if we install editable (pip install --editable)
+python/refractor_omi.egg-info
+
+# Various files written by emacs
+*~
+\#*#
+.#*
+
+# Ignore Jupyter temporaries
+.ipynb_checkpoints/
+
+# Mac Finder puts these into directories
+.DS_Store
+
+# Vim swap files
+*.swp
+.tramp_history
+
+# py.test cache directories
+.cache/

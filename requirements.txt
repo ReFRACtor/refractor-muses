@@ -1,0 +1,9 @@
+# Required Python packages
+# Use with pip install -r requirements.txt
+numpy
+
+# For unit testing
+pytest
+
+# Also depends on py_retrieve.app, but that isn't a normal pip
+# package so don't list here
