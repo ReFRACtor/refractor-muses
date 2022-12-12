@@ -14,6 +14,6 @@ setup(
                                      where="python"),
     package_dir={"": "python"},
     install_requires=[
-        'numpy', 
+        'numpy', 'refractor-framework', 
     ],
 )

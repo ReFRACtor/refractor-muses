@@ -133,8 +133,8 @@ class RefractorUip:
         # Depending on where this is called from, uip may be a dict or
         # an ObjectView. Just to make things simpler, we always store this
         # as a dict.
-        if(hasattr(uip, 'as_dict')) :
-            self.uip = uip.as_dict()
+        if(hasattr(uip, 'as_dict')): 
+            self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
         self.strategy_table = strategy_table
@@ -142,7 +142,7 @@ class RefractorUip:
         # Depending on where this comes from, it may or may not have the
         # uip_OMI stuff included. If not, add this in. 'obs_table' happens
         # to be something not in the original uip, that gets added with omi
-        if('jacobians' not in self.uip):
+        if('jacobians' not in self.uip and 'uip_OMI' in self.uip):
             self.uip_all = mpy.struct_combine(self.uip, self.uip['uip_OMI'])
         else:
             self.uip_all = self.uip
@@ -155,13 +155,16 @@ class RefractorUip:
         ReFRACtor doesn't need this.'''
         fh = io.BytesIO()
         dirbase = os.path.dirname(self.strategy_table)
+        osp_src_path = os.path.join(dirbase, "../OSP/OMI/")
         relpath = "./" + os.path.basename(dirbase)
         relpath2 = "./OSP/OMI"
+        relpath3 = "./OSP/OMI/OMI_Solar"
         with tarfile.open(fileobj=fh, mode="x:bz2") as tar:
-            for f in ("RamanInputs", "Input", "StepFM/VLIDORTInput"):
+            for f in ("RamanInputs", "Input", self.uip['uip_OMI']["vlidort_input"]):
                 tar.add(f"{dirbase}/{f}", f"{relpath}/{f}")
-            for f in ("omi_rtm_driver", "ring"):
-                tar.add(f"{dirbase}/{f}", f"{relpath2}/{f}")
+            for f in ("omi_rtm_driver", "ring", "ring_cli", "vlidort_cli"):
+                tar.add(f"{osp_src_path}/{f}", f"{relpath2}/{f}")
+            tar.add(f"{osp_src_path}/OMI_Solar/omisol_v003_avg_nshi_backup.h5", f"{relpath2}/OMI_Solar/omisol_v003_avg_nshi_backup.h5")
         self.capture_directory = fh.getvalue()
 
     def extract_directory(self, path=".", change_to_dir = False,
@@ -364,13 +367,33 @@ class RefractorUip:
             ],]), "nm")
 
     @property
-    def state_vector_list(self):
-        '''List of state vector elements to include'''
-        jacall = self.uip["jacobians_all"]
-        sv_list = [jacall[i] for i in range(len(jacall)) if
-                   i == 0 or (jacall[i] != jacall[i-1])]
+    def state_vector_params(self):
+        '''List of parameter types to include in the state vector.'''
+
+        return self.uip['uip_OMI']['jacobians']
+
+    @property
+    def state_vector_names(self):
+        '''Full list of the name for each state vector list item'''
+
+        sv_list = []
+        for jac_name in self.uip['speciesListFM']:
+            if jac_name in self.uip['uip_OMI']['jacobians']:
+                sv_list.append(jac_name)
+
         return sv_list
-        
+
+    @property
+    def state_vector_update_indexes(self):
+        '''Indexes for this instrument's state vector element updates from the full update vector'''
+
+        sv_extract_index = []
+        for full_idx, jac_name in enumerate(self.uip['speciesListFM']):
+            if jac_name in self.uip['uip_OMI']['jacobians']:
+                sv_extract_index.append(full_idx)
+
+        return np.array(sv_extract_index)
+
     @property
     def earth_sun_distance(self):
         '''Earth sun distance, in meters. Right now this is OMI specific'''
@@ -382,20 +405,42 @@ class RefractorUip:
         these, but these are the values before the microwindow gets applied.
 
         Right now this is omi specific.'''
-        res = []
-        all_freq = self.uip_omi['fullbandfrequency']
-        filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
-        return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
 
-    def muses_fm_spectral_domain(self, ii_mw):
+        if self.ils_method(ii_mw) == "FASTCONV":
+            ils_uip_info = self.ils_params(ii_mw)
+
+            return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
+        else:
+            all_freq = self.uip_omi['fullbandfrequency']
+            filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
+            return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
+
+    def muses_fm_spectral_domain(self, mw_index, ii_mw):
         '''Wavelengths do to do the forward model on. This is read from
         the ILS. Not sure how this compares to what we already get from
         the base_config or OmiForwardModel, but for now we give separate
         access to this.
 
         Right now this is omi specific.'''
-        return rf.SpectralDomain(
-            self.uip_omi["ils_%02d" % (ii_mw+1)]["X0_fm"], rf.Unit("nm"))
+
+        ils_uip_info = self.ils_params(mw_index)
+
+        if self.ils_method(ii_mw) == "FASTCONV":
+            return rf.SpectralDomain(ils_uip_info["monochromgrid"], rf.Unit("nm"))
+        else:
+            return rf.SpectralDomain(ils_uip_info["X0_fm"], rf.Unit("nm"))
+
+    def ils_params(self, mw_index):
+        '''Returns ILS information for the given microwindow'''
+
+        ils_uip_info = self.uip_omi["ils_%02d" % (mw_index+1)]
+
+        return ils_uip_info
+
+    def ils_method(self, ii_mw):
+        '''Returns a string describing the ILS method configured by MUSES'''
+
+        return self.uip_omi['ils_omi_xsection']
 
     def solar_irradiance(self, ii_mw, input_directory):
         '''This is a bit convoluted. It comes from a python pickle file that
@@ -453,8 +498,8 @@ class RefractorUip:
         return self._avg_obs("ViewingAzimuthAngle", ii_mw)
 
     def observation_azimuth_with_unit(self, ii_mw):
-        return rf.DoubleWithUnit(float(self.observation_azimuth(ii_mw)), "deg")
         '''Observation azimuth angle for the microwindow index ii_mw'''
+        return rf.DoubleWithUnit(float(self.observation_azimuth(ii_mw)), "deg")
 
     def solar_azimuth(self, ii_mw):
         '''Solar azimuth angle for the microwindow index ii_mw'''

@@ -2,6 +2,7 @@ import refractor.muses.muses_py as mpy
 import refractor.framework as rf
 import os
 import tempfile
+import copy
 
 class MusesPyForwardModel:
     '''This is an adapter than makes a muse-py forward model call look
@@ -63,7 +64,7 @@ class MusesPyForwardModel:
                 os.environ["MUSES_DEFAULT_RUN_DIR"] = dirname
                 os.chdir(dirname)
                 # This is (o_radianceOut, o_jacobianOut, o_bad_flag, o_measured_radiance_omi, o_measured_radiance_tropomi)
-                rad, jac, _, _, _ = mpy.fm_wrapper(self.rf_uip.uip, None, None)
+                rad, jac, _, _, _ = mpy.fm_wrapper(self.rf_uip.uip, None)
         finally:
             if(old_run_dir):
                 os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
@@ -77,7 +78,13 @@ class MusesPyForwardModel:
         if(channel_index != 0):
             raise IndexError("channel_index should be 0, was %d" % channel_index)
         if(self.use_current_dir):
-            rad, jac, _, _, _ = mpy.fm_wrapper(self.rf_uip.uip, None, None)
+            # This should not have had struct_combine called on it,
+            # remove duplicate if needed
+            uip = copy.copy(self.rf_uip.uip)
+            if('jacobians' in uip):
+                for k in uip['uip_OMI'].keys():
+                    del uip[k]
+            rad, jac, _, _, _ = mpy.fm_wrapper(uip, None)
         else:
             rad, jac = self._radiance_extracted_dir()
         jac = jac.transpose()
