@@ -5,7 +5,7 @@
 env/
 
 # Egg info if we install editable (pip install --editable)
-python/refractor_omi.egg-info
+python/refractor_muses.egg-info
 
 # Various files written by emacs
 *~
