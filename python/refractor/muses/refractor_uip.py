@@ -400,14 +400,14 @@ class RefractorUip:
         # Same value for all the bands, so just grab the first one
         return self.omi_obs_table['EarthSunDistance'][0]
         
-    def sample_grid(self, ii_mw):
+    def sample_grid(self, mw_index, ii_mw):
         '''This is the full set of samples. We only actually use a subset of
         these, but these are the values before the microwindow gets applied.
 
         Right now this is omi specific.'''
 
-        if self.ils_method(ii_mw) == "FASTCONV":
-            ils_uip_info = self.ils_params(ii_mw)
+        if self.ils_method(mw_index) == "FASTCONV":
+            ils_uip_info = self.ils_params(mw_index)
 
             return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
         else:
@@ -415,7 +415,7 @@ class RefractorUip:
             filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
             return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
 
-    def muses_fm_spectral_domain(self, mw_index, ii_mw):
+    def muses_fm_spectral_domain(self, mw_index):
         '''Wavelengths do to do the forward model on. This is read from
         the ILS. Not sure how this compares to what we already get from
         the base_config or OmiForwardModel, but for now we give separate
@@ -425,7 +425,7 @@ class RefractorUip:
 
         ils_uip_info = self.ils_params(mw_index)
 
-        if self.ils_method(ii_mw) == "FASTCONV":
+        if self.ils_method(mw_index) == "FASTCONV":
             return rf.SpectralDomain(ils_uip_info["monochromgrid"], rf.Unit("nm"))
         else:
             return rf.SpectralDomain(ils_uip_info["X0_fm"], rf.Unit("nm"))
@@ -437,7 +437,7 @@ class RefractorUip:
 
         return ils_uip_info
 
-    def ils_method(self, ii_mw):
+    def ils_method(self, mw_index):
         '''Returns a string describing the ILS method configured by MUSES'''
 
         return self.uip_omi['ils_omi_xsection']
