@@ -70,6 +70,12 @@ def base_command(instrument):
     '''The part of the amuse_me command that is in common for
     setup-targets and run-retrieval'''
     check_osp_path()
+    # Note, you can look at examples at
+    # https://github.jpl.nasa.gov/MUSES-Processing/amuse-me/blob/develop/docs/examples.md.
+    # We run one day in each case, the day that we grab the test sounding
+    # for. For right now, we use the same soundings as used in the
+    # py-retrieve smoke tests.
+    
     cmd = [amuse_me_path(),
            "--output", os.path.abspath("./output"),
            "--clear-output",
@@ -85,15 +91,17 @@ def base_command(instrument):
                     "--profile", "Global_Survey",
                     "--date", "2016-04-14",
                     ])
+        sounding = "20160414_23_394_11_23"
     elif(instrument == "tropomi"):
         cmd.extend(["--sensor-set", "TROPOMI",
                     "--tropomi-band", "3",
                     "--profile", "Global_Survey_Grid_4.0",
                     "--date", "2019-08-07",
                     ])
+        sounding="20190807_9401_351_176"
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
-    return cmd
+    return cmd, sounding
         
 @click.group()
 def cli():
@@ -114,11 +122,28 @@ def setup_targets(instrument):
     # We run one day in each case, the day that we grab the test sounding
     # for. For right now, we use the same soundings as used in the
     # py-retrieve smoke tests. 
-    logger.info("In setup_target")
-    cmd = base_command(instrument)
+    logger.info("In setup-targets")
+    cmd, _ = base_command(instrument)
     cmd.extend(["--start-step", "geolocate",
                 "--end-step", "setup_targets"])
     logger.info(f'Running: {" ".join(cmd)}')
+    subprocess.run(cmd, check=True)
+
+@cli.command()
+@click.argument("instrument", type=str)
+def run_retrieval(instrument):
+    '''Run the retrieval on a single sounding. '''
+    logger.info("In run-retrival")
+    cmd, sounding = base_command(instrument)
+    cmd.extend(["--start-step", "retrieve_one",
+                "--end-step", "retrieve_one",
+                "--retrieve-one", sounding])
+    logger.info(f'Running: {" ".join(cmd)}')
+    # Temporary, make sure libgfortran.so.4 is in path. See
+    # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
+    # Note that currently omi uses muses-vlidort repository build, which
+    # doesn't have this problem any longer. But tropomi does still
+    os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
     subprocess.run(cmd, check=True)
     
 if __name__ == '__main__':

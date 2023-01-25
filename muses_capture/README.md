@@ -29,18 +29,30 @@ To run:
 2. Make sure amuse-me in on your path (e.g.
    export PATH=/home/smyth/muses/amuse-me/bin:$PATH )
 
-3. Make sure libgfortran.so.4 is in the path (needed by vlidort_cli)
-   export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+3. Make muses-vlidort (not currently part of build by amuse me)
+   
+        git clone git@github.jpl.nasa.gov:MUSES-Processing/muses-vlidort.git
+		cd muses-vlidort/build/release
+		cmake -DCMAKE_BUILD_TYPE=Release ../..
+		make
+
+4. While omi runs use the new muses-vlidort,  tropomi still uses a version
+   in the OSP directory. For this one, there is a bug for libgfortran.so.4
+   isn't in the path. Our capture code works around this, but if you want to
+   run py_retrieve directly make sure you have
+   
+        export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+
    (this is temporary, see https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079)
 
-4. Run 
+5. Run 
 
         ./muses_capture setup-targets <instrument>
 
    to create files needed by
    run-retrieval. This goes into the output directory.
 
-5. Run
+6. Run
 
         ./muses_capture run-retrieval <instrument>
 
