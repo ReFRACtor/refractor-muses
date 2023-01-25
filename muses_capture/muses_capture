@@ -1,0 +1,126 @@
+#!/usr/bin/env python 
+import click
+import logging
+import subprocess
+import os
+
+logger = logging.getLogger('muses_capture')
+# Setup logging
+class ColorLogFormatter(logging.Formatter):
+    '''Set logging format, optionally with color'''
+    def __init__(self, add_color = True):
+        self.add_color = add_color
+
+    def color_text(self, text, levelno):
+        # ANSI colors
+        HEADER = '\033[95m'
+        OKBLUE = '\033[94m'
+        OKGREEN = '\033[92m'
+        WARNING = '\033[93m'
+        FAIL = '\033[91m'
+        ENDC = '\033[0m'
+        BOLD = '\033[1m'
+        UNDERLINE = '\033[4m'
+        if(not self.add_color):
+            return text
+        if(levelno == logging.DEBUG):
+            return OKBLUE + text + ENDC
+        elif(levelno == logging.INFO):
+            return OKGREEN + text + ENDC
+        elif(levelno == logging.WARNING):
+            return WARNING + text + ENDC
+        elif(levelno == logging.ERROR):
+            return FAIL + text + ENDC
+        elif(levelno == logging.CRITICAL):
+            return FAIL + text + ENDC
+        return text
+    def format(self, record):
+        return (self.color_text(record.levelname + " " +
+                                self.formatTime(record) +
+                                ": ", record.levelno) + record.getMessage())
+
+loglevel = logging.INFO
+h = logging.StreamHandler()
+h.setLevel(loglevel)
+h.setFormatter(ColorLogFormatter(add_color=True))
+logger.addHandler(h)
+logger.setLevel(loglevel)
+
+def amuse_me_path():
+    '''Determine the amuse_me path, and also do some basic checks.'''
+    try:
+        r = subprocess.run(["which", "amuse-me"], check=True,
+                           capture_output=True)
+    except:
+        logger.error("Unable to find amuse-me from environment PATH")
+        exit(1)
+    return r.stdout.decode('utf-8').rstrip()
+
+def program_root():
+    '''Base used to find various programs.'''
+    return os.path.dirname(os.path.dirname(os.path.dirname(amuse_me_path())))
+
+def check_osp_path():
+    '''Check that MUSES_OSP_PATH is set'''
+    if not "MUSES_OSP_PATH" in os.environ:
+        logger.error("Please set the MUSES_OSP_PATH environment variable to point to the OSP root directory")
+        exit(1)
+
+def base_command(instrument):
+    '''The part of the amuse_me command that is in common for
+    setup-targets and run-retrieval'''
+    check_osp_path()
+    cmd = [amuse_me_path(),
+           "--output", os.path.abspath("./output"),
+           "--clear-output",
+           "--OSP", os.environ["MUSES_OSP_PATH"],
+           "--programs", program_root(),
+           "--hosts", "tb_1-2",
+           "--tasks-per-host", "8",
+           "--python", 
+           ]
+           
+    if(instrument == "omi"):
+        cmd.extend(["--sensor-set", "OMI",
+                    "--profile", "Global_Survey",
+                    "--date", "2016-04-14",
+                    ])
+    elif(instrument == "tropomi"):
+        cmd.extend(["--sensor-set", "TROPOMI",
+                    "--tropomi-band", "3",
+                    "--profile", "Global_Survey_Grid_4.0",
+                    "--date", "2019-08-07",
+                    ])
+    else:
+        logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
+    return cmd
+        
+@click.group()
+def cli():
+    '''This is various utility routines for running the MUSES pipeline,
+    which we then separately capture with capture tests in the instrument
+    repositories.
+
+    See README.md for more details.
+    '''
+    pass
+
+@cli.command()
+@click.argument("instrument", type=str)
+def setup_targets(instrument):
+    '''Run the pipeline through the setup_targets step'''
+    # Note, you can look at examples at
+    # https://github.jpl.nasa.gov/MUSES-Processing/amuse-me/blob/develop/docs/examples.md.
+    # We run one day in each case, the day that we grab the test sounding
+    # for. For right now, we use the same soundings as used in the
+    # py-retrieve smoke tests. 
+    logger.info("In setup_target")
+    cmd = base_command(instrument)
+    cmd.extend(["--start-step", "geolocate",
+                "--end-step", "setup_targets"])
+    logger.info(f'Running: {" ".join(cmd)}')
+    subprocess.run(cmd, check=True)
+    
+if __name__ == '__main__':
+    cli()
+
