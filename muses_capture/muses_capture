@@ -3,6 +3,7 @@ import click
 import logging
 import subprocess
 import os
+from refractor.muses import RefractorUip
 
 logger = logging.getLogger('muses_capture')
 # Setup logging
@@ -66,7 +67,18 @@ def check_osp_path():
         logger.error("Please set the MUSES_OSP_PATH environment variable to point to the OSP root directory")
         exit(1)
 
-def base_command(instrument):
+def sounding_dir(instrument, sounding, output_dir="./output"):
+    res = os.path.abspath(output_dir)
+    if(instrument == "omi"):
+        res += "/omi/2016-04-14/setup-targets/Global_Survey/"
+    elif(instrument == "tropomi"):
+        res += "/tropomi/2019-08-07/setup-targets/Global_Survey_Grid_4.0/"
+    else:
+        logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
+    res += sounding
+    return res
+
+def base_command(instrument,output_dir="./output"):
     '''The part of the amuse_me command that is in common for
     setup-targets and run-retrieval'''
     check_osp_path()
@@ -77,7 +89,7 @@ def base_command(instrument):
     # py-retrieve smoke tests.
     
     cmd = [amuse_me_path(),
-           "--output", os.path.abspath("./output"),
+           "--output", os.path.abspath(output_dir),
            "--clear-output",
            "--OSP", os.environ["MUSES_OSP_PATH"],
            "--programs", program_root(),
@@ -91,17 +103,17 @@ def base_command(instrument):
                     "--profile", "Global_Survey",
                     "--date", "2016-04-14",
                     ])
-        sounding = "20160414_23_394_11_23"
+        sounding1 = "20160414_23_394_11_23"
     elif(instrument == "tropomi"):
         cmd.extend(["--sensor-set", "TROPOMI",
                     "--tropomi-band", "3",
                     "--profile", "Global_Survey_Grid_4.0",
                     "--date", "2019-08-07",
                     ])
-        sounding="20190807_9401_351_176"
+        sounding1="20190807_9401_351_176"
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
-    return cmd, sounding
+    return cmd, [sounding1,]
         
 @click.group()
 def cli():
@@ -115,7 +127,9 @@ def cli():
 
 @cli.command()
 @click.argument("instrument", type=str)
-def setup_targets(instrument):
+@click.option("--output-dir", default="./output",
+              help="Location the output of amuse-me goes")
+def setup_targets(instrument, output_dir="./output"):
     '''Run the pipeline through the setup_targets step'''
     # Note, you can look at examples at
     # https://github.jpl.nasa.gov/MUSES-Processing/amuse-me/blob/develop/docs/examples.md.
@@ -123,7 +137,7 @@ def setup_targets(instrument):
     # for. For right now, we use the same soundings as used in the
     # py-retrieve smoke tests. 
     logger.info("In setup-targets")
-    cmd, _ = base_command(instrument)
+    cmd, _ = base_command(instrument,output_dir=output_dir)
     cmd.extend(["--start-step", "geolocate",
                 "--end-step", "setup_targets"])
     logger.info(f'Running: {" ".join(cmd)}')
@@ -131,13 +145,43 @@ def setup_targets(instrument):
 
 @cli.command()
 @click.argument("instrument", type=str)
-def run_retrieval(instrument):
+@click.option("--output-dir", default="./output",
+              help="Location the output of amuse-me goes")
+@click.option("--test-data-dir", default="../../refractor_test_data",
+              help="Location where the captures data goes")
+def capture_run(instrument,output_dir="./output",
+                test_data_dir="../../refractor_test_data"):
+    '''Update the pickle/save files for processing the given instrument.'''
+    logger.info("In capture-run")
+    _, sounding_list = base_command(instrument,output_dir=output_dir)
+    # Temporary, make sure libgfortran.so.4 is in path. See
+    # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
+    # Note that currently omi uses muses-vlidort repository build, which
+    # doesn't have this problem any longer. But tropomi does still
+    os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
+    for i, sounding in enumerate(sounding_list):
+        capoutdir = f"{os.path.abspath(test_data_dir)}/{instrument}/sounding_{i+1}"
+        logger.info(f"Writing output to {capoutdir}")
+        with open(f"{capoutdir}/sounding.txt", "w") as fh:
+            print(sounding, file=fh)
+        fname = sounding_dir(instrument, sounding,output_dir=output_dir) + "/Table.asc"
+        for step_number in [1,2]:
+            logger.info(f"Capturing UIP for step {step_number}")
+            _ = RefractorUip.create_from_table(fname, step=step_number,
+                     capture_directory=True,
+                     save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl")
+    
+@cli.command()
+@click.argument("instrument", type=str)
+@click.option("--output-dir", default="./output",
+              help="Location the output of amuse-me goes")
+def run_retrieval(instrument, output_dir="./output"):
     '''Run the retrieval on a single sounding. '''
     logger.info("In run-retrival")
-    cmd, sounding = base_command(instrument)
+    cmd, soundings = base_command(instrument, output_dir=output_di)
     cmd.extend(["--start-step", "retrieve_one",
                 "--end-step", "retrieve_one",
-                "--retrieve-one", sounding])
+                "--retrieve-one", soundings[0]])
     logger.info(f'Running: {" ".join(cmd)}')
     # Temporary, make sure libgfortran.so.4 is in path. See
     # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.

@@ -50,15 +50,26 @@ To run:
         ./muses_capture setup-targets <instrument>
 
    to create files needed by
-   run-retrieval. This goes into the output directory.
-
+   capture-run (or run-retrieval). This goes into the output directory.
+   
 6. Run
+
+        ./muses_capture capture-run <instrument>
+		
+	This generates various pickle/save file for the different steps of the
+	processing, that can then be used by the other repositories for testing.
+	This updates the files in omi_sounding_1 and tropomi_sounding_1 (we
+	currently have just one sounding, but we might potentially want to have
+    unit tests for multiple soundings).
+
+7. Can optionally run the full retrieval by
 
         ./muses_capture run-retrieval <instrument>
 
-   we separate the 2 because setup-target takes a while to be run, and
-   typically needs to be updated much less frequently than run-retrieval,
-   so it is useful to be able to run the steps separately.
+   I'm not sure how useful this is any longer. We had this in place when
+   we initially developed the capture, and it might be nice to be able to
+   to look at a full run some times to see the output. So we've left this
+   in place for now.
 
 All files will be locate in the output/ sub directory of this directory.
 

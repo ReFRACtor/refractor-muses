@@ -2,8 +2,9 @@ from test_support import *
 from refractor.muses import RefractorUip
 
 @require_muses_py
-def test_refractor_uip(uip_step_1):
-    m = RefractorUip(uip=uip_step_1.uip)
+def test_refractor_uip(isolated_dir):
+    m = RefractorUip.load_uip(f"{test_base_path}/omi/sounding_1/uip_step_1.pkl",
+                              change_to_dir=False)
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
     ii_mw = 0

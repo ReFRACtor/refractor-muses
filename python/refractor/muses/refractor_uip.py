@@ -1,5 +1,6 @@
 from . import muses_py as mpy
 from .replace_function_helper import register_replacement_function_in_block
+from .refractor_capture_directory import RefractorCaptureDirectory
 import refractor.framework as rf
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
@@ -9,7 +10,6 @@ import numpy as np
 import glob
 from weakref import WeakSet
 import pickle
-import tarfile
 
 if(mpy.have_muses_py):
     class _FakeUipExecption(Exception):
@@ -138,7 +138,7 @@ class RefractorUip:
         else:
             self.uip = uip
         self.strategy_table = strategy_table
-        self.capture_directory = None
+        self.capture_directory = RefractorCaptureDirectory()
         # Depending on where this comes from, it may or may not have the
         # uip_OMI stuff included. If not, add this in. 'obs_table' happens
         # to be something not in the original uip, that gets added with omi
@@ -147,53 +147,10 @@ class RefractorUip:
         else:
             self.uip_all = self.uip
            
-
-    def tar_directory(self):
-        '''Capture information from the directory that self.strategy_table is 
-        in so we can recreate the directory later. This is only needed by
-        muses-py which uses a lot of files as "hidden" arguments to functions.
-        ReFRACtor doesn't need this.'''
-        fh = io.BytesIO()
-        dirbase = os.path.dirname(self.strategy_table)
-        osp_src_path = os.path.join(dirbase, "../OSP/OMI/")
-        relpath = "./" + os.path.basename(dirbase)
-        relpath2 = "./OSP/OMI"
-        relpath3 = "./OSP/OMI/OMI_Solar"
-        with tarfile.open(fileobj=fh, mode="x:bz2") as tar:
-            for f in ("RamanInputs", "Input", self.uip['uip_OMI']["vlidort_input"]):
-                tar.add(f"{dirbase}/{f}", f"{relpath}/{f}")
-            for f in ("omi_rtm_driver", "ring", "ring_cli", "vlidort_cli"):
-                tar.add(f"{osp_src_path}/{f}", f"{relpath2}/{f}")
-            tar.add(f"{osp_src_path}/OMI_Solar/omisol_v003_avg_nshi_backup.h5", f"{relpath2}/OMI_Solar/omisol_v003_avg_nshi_backup.h5")
-        self.capture_directory = fh.getvalue()
-
-    def extract_directory(self, path=".", change_to_dir = False,
-                          osp_dir=None):
-        '''Extract a directory that has been previously saved.
-        This gets extracted into the directory passed in the path. You can
-        optionally change into the run directory.
-
-        For pretty much everything below run_retrieval, the small OSP content
-        we have stashed is sufficient to run. But for higher level functions,
-        you need the full OSP directory. We don't carry this in this class,
-        but if you supply a osp_dir we use that instead of the OSP we have
-        stashed.'''
-        if(self.capture_directory is None):
-            raise RuntimeError("extract_directory can only be called if this object previously captured a directory")
-        fh = io.BytesIO(self.capture_directory)
-        with tarfile.open(fileobj=fh, mode="r:bz2") as tar:
-            tar.extractall(path=path)
-        if(osp_dir is not None):
-            os.rename(path + "/OSP", path + "/OSP_not_used")
-            os.symlink(osp_dir, path + "/OSP")
-        if(change_to_dir):
-            runbase = os.path.basename(os.path.dirname(self.strategy_table))
-            rundir = os.path.abspath(path + "/" + runbase)
-            os.environ["MUSES_DEFAULT_RUN_DIR"] = rundir
-            os.chdir(rundir)
-                
     @classmethod
-    def create_from_table(cls, strategy_table, step=1, capture_directory=False):
+    def create_from_table(cls, strategy_table, step=1, capture_directory=False,
+              save_pickle_file=None,
+              vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''This creates a UIP from a run directory (e.g., created
         by earlier steps of amuse-me).  The table is passed in that
         points to everything, usually this is called 'Table.asc' in
@@ -206,6 +163,9 @@ class RefractorUip:
         ReFRACtor forward model doesn't need this. You can set 
         capture_directory to True if you intend on using the UIP to run
         MusesPyForwardModel.
+
+        Because it is common to do, you can optionally supply a pickle file
+        name and we'll save the uip to the pickle file after creating it.
 
         Note I'm not exactly sure how to extract steps other than by
         doing a full run. What we currently do is run the retrieval
@@ -237,6 +197,7 @@ class RefractorUip:
         # call.
         curdir = os.getcwd()
         old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
+        mpy.cli_options.vlidort_cli=vlidort_cli
         try:
             os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.dirname(strategy_table)
             os.chdir(os.path.dirname(strategy_table))
@@ -255,9 +216,23 @@ class RefractorUip:
                 del os.environ["MUSES_DEFAULT_RUN_DIR"]
             os.chdir(curdir)
         if(capture_directory):
-            res.tar_directory()
+            res.capture_directory.save_directory(os.path.dirname(strategy_table), res.uip['uip_OMI']["vlidort_input"])
+        if(save_pickle_file is not None):
+            pickle.dump(res, open(save_pickle_file, "wb"))
         return res
 
+    @classmethod
+    def load_uip(cls, save_pickle_file, path=".", change_to_dir = False,
+                 osp_dir=None, gmao_dir=None):
+        '''This is the pair to create_from_table, it loads a RefractorUip
+        from a pickle file, extracts the saved directory, and optionally
+        changes to that directory.'''
+        uip = pickle.load(open(save_pickle_file, "rb"))
+        uip.capture_directory.extract_directory(path=path,
+                              change_to_dir=change_to_dir, osp_dir=osp_dir,
+                              gmao_dir=gmao_dir)
+        return uip
+    
     def atmosphere_column(self, param_name):
         '''Return the atmospheric column. Note that MUSES use 
         a decreasing pressure order (to surface to TOA). This is
