@@ -161,7 +161,7 @@ def capture_run(instrument,output_dir="./output",
     # doesn't have this problem any longer. But tropomi does still
     os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
     for i, sounding in enumerate(sounding_list):
-        capoutdir = f"{os.path.abspath(test_data_dir)}/{instrument}/sounding_{i+1}"
+        capoutdir = f"{os.path.abspath(test_data_dir)}/{instrument}/in/sounding_{i+1}"
         logger.info(f"Writing output to {capoutdir}")
         sdir = sounding_dir(instrument, sounding,output_dir=output_dir)
         MusesRunDir.save_run_directory(sdir, capoutdir)

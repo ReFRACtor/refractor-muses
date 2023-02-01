@@ -36,7 +36,7 @@ class MusesRunDir:
                   "TROPOMI_Cloud_filename"):
             if k in d['preferences']:
                 f = d['preferences'][k]
-                freplace = os.path.abspath(f"{refractor_sounding_dir}/../in/{os.path.basename(f)}")
+                freplace = os.path.abspath(f"{refractor_sounding_dir}/../{os.path.basename(f)}")
                 d['preferences'][k] = freplace
         mpy.write_all_tes(d, f"{self.run_dir}/Measurement_ID.asc")
 
@@ -79,7 +79,7 @@ class MusesRunDir:
         test in directory'''
         for f in ("Table", "Measurement_ID", "DateTime"):
             shutil.copy(f"{amuse_me_run_dir}/{f}.asc",
-                        f"{refractor_sounding_dir}/{f}.asc")
+                        f"{refractor_sounding_dir}")
         _, d = mpy.read_all_tes(f"{amuse_me_run_dir}/Measurement_ID.asc")
         for k in ("OMI_filename", "OMI_Cloud_filename",
                   "TROPOMI_filename_BAND3",
@@ -87,7 +87,7 @@ class MusesRunDir:
                   "TROPOMI_Cloud_filename"):
             if k in d['preferences']:
                 f = d['preferences'][k]
-                fdest = os.path.abspath(f"{refractor_sounding_dir}/../in/{os.path.basename(f)}")
+                fdest = os.path.abspath(f"{refractor_sounding_dir}/../{os.path.basename(f)}")
                 if(not os.path.exists(fdest)):
                     logger.info(f"Copying {f} to {fdest}")
                     shutil.copy(f, fdest)
