@@ -3,9 +3,10 @@ import click
 import logging
 import subprocess
 import os
-from refractor.muses import RefractorUip
+from refractor.muses import RefractorUip, MusesRunDir
+import shutil
 
-logger = logging.getLogger('muses_capture')
+logger = logging.getLogger('refractor.muses')
 # Setup logging
 class ColorLogFormatter(logging.Formatter):
     '''Set logging format, optionally with color'''
@@ -162,9 +163,11 @@ def capture_run(instrument,output_dir="./output",
     for i, sounding in enumerate(sounding_list):
         capoutdir = f"{os.path.abspath(test_data_dir)}/{instrument}/sounding_{i+1}"
         logger.info(f"Writing output to {capoutdir}")
+        sdir = sounding_dir(instrument, sounding,output_dir=output_dir)
+        MusesRunDir.save_run_directory(sdir, capoutdir)
         with open(f"{capoutdir}/sounding.txt", "w") as fh:
             print(sounding, file=fh)
-        fname = sounding_dir(instrument, sounding,output_dir=output_dir) + "/Table.asc"
+        fname =  f"{sdir}/Table.asc"
         for step_number in [1,2]:
             logger.info(f"Capturing UIP for step {step_number}")
             _ = RefractorUip.create_from_table(fname, step=step_number,

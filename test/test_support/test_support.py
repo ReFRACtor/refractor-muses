@@ -39,9 +39,9 @@ def osp_dir():
 @pytest.fixture(scope="function")
 def gmao_dir():
     '''Location of GAMO directory.'''
-    gmao_path = os.environ.get("GMAO_PATH", None)
+    gmao_path = os.environ.get("MUSES_GMAO_PATH", None)
     if gmao_path is None or not os.path.exists(gmao_path):
-        raise pytest.skip('test requires GMAO directory set by through the GMAO_PATH environment variable')
+        raise pytest.skip('test requires GMAO directory set by through the MUSES_GMAO_PATH environment variable')
     return gmao_path
 
 @pytest.fixture(scope="function")
