@@ -11,6 +11,8 @@ class RefractorCaptureDirectory:
     This class handles this, wrapping everything up.'''
     def __init__(self):
         self.capture_directory = None
+        self.runbase = None
+        
     def save_directory(self, dirbase, vlidort_input):
         '''Capture information from the run directory so we can recreate the
         directory later. This is only needed by muses-py which uses a
@@ -19,6 +21,7 @@ class RefractorCaptureDirectory:
         '''
         fh = io.BytesIO()
         dirbase = os.path.abspath(dirbase)
+        self.runbase = os.path.basename(dirbase)
         # TODO This is probably too OMI specific
         osp_src_path = os.path.join(dirbase, "../OSP/OMI/")
         relpath = "./" + os.path.basename(dirbase)
@@ -26,8 +29,10 @@ class RefractorCaptureDirectory:
         relpath3 = "./OSP/OMI/OMI_Solar"
         with tarfile.open(fileobj=fh, mode="x:bz2") as tar:
             for f in ("RamanInputs", "Input", vlidort_input):
-                tar.add(f"{dirbase}/{f}", f"{relpath}/{f}")
-            for f in ("omi_rtm_driver", "ring", "ring_cli", "vlidort_cli"):
+                if(f is not None):
+                    tar.add(f"{dirbase}/{f}", f"{relpath}/{f}")
+            for f in ("omi_rtm_driver", "ring", "ring_cli", "vlidort_cli",
+                      "rayTable-NADIR.asc"):
                 tar.add(f"{osp_src_path}/{f}", f"{relpath2}/{f}")
             tar.add(f"{osp_src_path}/OMI_Solar/omisol_v003_avg_nshi_backup.h5", f"{relpath2}/OMI_Solar/omisol_v003_avg_nshi_backup.h5")
         self.capture_directory = fh.getvalue()
@@ -54,8 +59,7 @@ class RefractorCaptureDirectory:
         if(gmao_dir is not None):
             os.symlink(gmao_dir, path+"/GMAO")
         if(change_to_dir):
-            runbase = os.path.basename(os.path.dirname(self.strategy_table))
-            rundir = os.path.abspath(path + "/" + runbase)
+            rundir = os.path.abspath(path + "/" + self.runbase)
             os.environ["MUSES_DEFAULT_RUN_DIR"] = rundir
             os.chdir(rundir)
 

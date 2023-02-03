@@ -3,7 +3,7 @@ import click
 import logging
 import subprocess
 import os
-from refractor.muses import RefractorUip, MusesRunDir
+from refractor.muses import RefractorUip, MusesRunDir, MusesRetrievalStep
 import shutil
 
 logger = logging.getLogger('refractor.muses')
@@ -105,6 +105,7 @@ def base_command(instrument,output_dir="./output"):
                     "--date", "2016-04-14",
                     ])
         sounding1 = "20160414_23_394_11_23"
+        step_list = [1,2]
     elif(instrument == "tropomi"):
         cmd.extend(["--sensor-set", "TROPOMI",
                     "--tropomi-band", "3",
@@ -112,9 +113,10 @@ def base_command(instrument,output_dir="./output"):
                     "--date", "2019-08-07",
                     ])
         sounding1="20190807_9401_351_176"
+        step_list = [1,2,3]
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
-    return cmd, [sounding1,]
+    return cmd, [sounding1,], step_list
         
 @click.group()
 def cli():
@@ -138,7 +140,7 @@ def setup_targets(instrument, output_dir="./output"):
     # for. For right now, we use the same soundings as used in the
     # py-retrieve smoke tests. 
     logger.info("In setup-targets")
-    cmd, _ = base_command(instrument,output_dir=output_dir)
+    cmd, _, _ = base_command(instrument,output_dir=output_dir)
     cmd.extend(["--start-step", "geolocate",
                 "--end-step", "setup_targets"])
     logger.info(f'Running: {" ".join(cmd)}')
@@ -154,7 +156,7 @@ def capture_run(instrument,output_dir="./output",
                 test_data_dir="../../refractor_test_data"):
     '''Update the pickle/save files for processing the given instrument.'''
     logger.info("In capture-run")
-    _, sounding_list = base_command(instrument,output_dir=output_dir)
+    _, sounding_list, step_list = base_command(instrument,output_dir=output_dir)
     # Temporary, make sure libgfortran.so.4 is in path. See
     # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
     # Note that currently omi uses muses-vlidort repository build, which
@@ -168,11 +170,15 @@ def capture_run(instrument,output_dir="./output",
         with open(f"{capoutdir}/sounding.txt", "w") as fh:
             print(sounding, file=fh)
         fname =  f"{sdir}/Table.asc"
-        for step_number in [1,2]:
+        for step_number in step_list:
             logger.info(f"Capturing UIP for step {step_number}")
             _ = RefractorUip.create_from_table(fname, step=step_number,
                      capture_directory=True,
                      save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl")
+            logger.info(f"Capturing MusesRetrievalStep for step {step_number}")
+            _ = MusesRetrievalStep.create_from_table(fname, step=step_number,
+                     capture_directory=True,
+                     save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl")
     
 @cli.command()
 @click.argument("instrument", type=str)
@@ -181,7 +187,7 @@ def capture_run(instrument,output_dir="./output",
 def run_retrieval(instrument, output_dir="./output"):
     '''Run the retrieval on a single sounding. '''
     logger.info("In run-retrival")
-    cmd, soundings = base_command(instrument, output_dir=output_di)
+    cmd, soundings, _ = base_command(instrument, output_dir=output_di)
     cmd.extend(["--start-step", "retrieve_one",
                 "--end-step", "retrieve_one",
                 "--retrieve-one", soundings[0]])
