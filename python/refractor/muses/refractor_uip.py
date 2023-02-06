@@ -216,15 +216,19 @@ class RefractorUip:
                 del os.environ["MUSES_DEFAULT_RUN_DIR"]
             os.chdir(curdir)
         if(capture_directory):
-            vlidort_input = None
-            if("uip_OMI" in res.uip):
-                vlidort_input = res.uip['uip_OMI']["vlidort_input"]
-            if("uip_TROPOMI" in res.uip):
-                vlidort_input = res.uip['uip_TROPOMI']["vlidort_input"]
-            res.capture_directory.save_directory(os.path.dirname(strategy_table), vlidort_input)
+            res.tar_directory()
         if(save_pickle_file is not None):
             pickle.dump(res, open(save_pickle_file, "wb"))
         return res
+
+    def tar_directory(self):
+        vlidort_input = None
+        if("uip_OMI" in self.uip):
+            vlidort_input = self.uip['uip_OMI']["vlidort_input"]
+        if("uip_TROPOMI" in self.uip):
+            vlidort_input = self.uip['uip_TROPOMI']["vlidort_input"]
+        self.capture_directory.save_directory(os.path.dirname(self.strategy_table), vlidort_input)
+        
 
     @classmethod
     def load_uip(cls, save_pickle_file, path=".", change_to_dir = False,

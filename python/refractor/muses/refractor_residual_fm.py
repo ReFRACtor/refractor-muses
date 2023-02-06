@@ -1,7 +1,10 @@
 from . import muses_py as mpy
 from .replace_function_helper import suppress_replacement
+from .refractor_uip import RefractorUip
 import logging
 import numpy as np
+import os
+import pickle
 
 logger = logging.getLogger('py-retrieve')
 
@@ -117,6 +120,12 @@ class RefractorResidualFmJac2Call(RefractorResidualFmJac):
         # Capture input, so we can run steps outside of a retrieval
         rf_uip = RefractorUip(uip_arr[1],
                               strategy_table=os.environ.get("MUSES_DEFAULT_RUN_DIR") + "/Table.asc")
+        vlidort_input = None
+        if("uip_OMI" in rf_uip.uip):
+            vlidort_input = rf_uip.uip['uip_OMI']["vlidort_input"]
+        if("uip_TROPOMI" in rf_uip.uip):
+            vlidort_input = res.uip['uip_TROPOMI']["vlidort_input"]
+            res.capture_directory.save_directory(os.path.dirname(strategy_table), vlidort_input)
         rf_uip.tar_directory()
         pickle.dump({ "rf_uip" : rf_uip,
                       "ret_info" : ret_info,
