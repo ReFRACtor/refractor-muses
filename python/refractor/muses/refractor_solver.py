@@ -14,7 +14,21 @@ class RefractorRunRetrieval(mpy.ReplaceFunctionObject if mpy.have_muses_py else 
 
     This class just turns around and runs the existing retrieval code in
     py-retrieve. Derived classes might do something else. As is, this base
-    class is useful for checking that we have the plumbing in place.'''
+    class is useful for checking that we have the plumbing in place.
+
+    Note because I keep needing to look this up, the call tree for a
+    retrieval is:
+
+      cli - top level entry point
+      script_retrieval_ms- Handles all the strategy steps
+    -> run_retrieval - Solves a single step of the strategy
+      levmar_nllsq_elanor - Solver
+      residual_fm_jacobian - cost function
+      fm_wrapper - Forward model. Note this handles combining instruments
+                   (e.g., AIRS+OMI)
+      omi_fm (for OMI) Forward model
+      rtf_omi - lower level of omi forward model
+    '''
     def register_with_muses_py(self):
         '''Register this object with muses-py, to replace a call 
         to residual_fm_jacobian.

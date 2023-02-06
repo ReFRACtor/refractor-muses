@@ -78,8 +78,8 @@ Currently (1/2023) the instruments we have are:
 - omi
 - tropomi
 
-Once these two scripts have finished you can run capture tests for each of
-the instruments. We preface all the capture tests with "test_capture",
+In addtion to the muses capture, indivual repositories might have capture
+tests. We preface all the capture tests with "test_capture",
 so you can run the full set (in the instrument repository) with 
 
     pytest -rxXs test/ -k test_capture --run-capture
@@ -93,11 +93,5 @@ OMI
 
 Individual tests (as of 1/2023, the list might grow).
 
-    pytest -rxXs test/retrieval_test.py -k test_capture_uip[1] --run-capture
-    pytest -rxXs test/retrieval_test.py -k test_capture_uip[2] --run-capture
-    pytest -rxXs test/retrieval_test.py -k test_capture_retrieval_data[1] --run-capture
-    pytest -rxXs test/retrieval_test.py -k test_capture_retrieval_data[2] --run-capture
-    pytest -rxXs test/refractor_fm_Test.py -k test_capture_fm_wrapper[1] --run-capture
-    pytest -rxXs test/refractor_fm_Test.py -k test_capture_fm_wrapper[2] --run-capture
     pytest -rxXs test/radiance_test.py -k test_capture_atmposphere --run-capture
     pytest -rxXs test/radiance_test.py -k test_capture_expected_xsec --run-capture
