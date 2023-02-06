@@ -1,6 +1,7 @@
 from . import muses_py as mpy
 from .replace_function_helper import suppress_replacement
 import logging
+import numpy as np
 
 logger = logging.getLogger('py-retrieve')
 
