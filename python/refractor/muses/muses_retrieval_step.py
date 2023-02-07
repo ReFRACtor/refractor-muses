@@ -55,15 +55,21 @@ class MusesRetrievalStep:
         # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
         # Note that currently omi uses muses-vlidort repository build, which
         # doesn't have this problem any longer. But tropomi does still
+        old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
         old_ld_library_path = None
         if('CONDA_PREFIX' in os.environ):
             old_ld_library_path = os.environ.get("LD_LIBRARY_PATH")
             os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
         try:
+            os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(self.run_path+"/"+self.capture_directory.runbase)
             os.chdir(self.run_path+"/"+self.capture_directory.runbase)
             mpy.run_retrieval(**self.params)
         finally:
             os.chdir(curdir)
+            if(old_run_dir):
+                os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
+            else:
+                del os.environ["MUSES_DEFAULT_RUN_DIR"]
             if(old_ld_library_path):
                 os.environ["LD_LIBRARY_PATH"] = old_ld_library_path
             
