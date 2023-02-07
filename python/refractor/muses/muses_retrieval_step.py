@@ -1,6 +1,7 @@
 from . import muses_py as mpy
 from .replace_function_helper import register_replacement_function_in_block
-from .refractor_capture_directory import RefractorCaptureDirectory
+from .refractor_capture_directory import (RefractorCaptureDirectory,
+                                          muses_py_call)
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
@@ -49,29 +50,9 @@ class MusesRetrievalStep:
     def run_retrieval(self,
                 vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''Run the retrieval step with the saved parameters'''
-        curdir = os.getcwd()
-        mpy.cli_options.vlidort_cli=vlidort_cli
-        # Temporary, make sure libgfortran.so.4 is in path. See
-        # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
-        # Note that currently omi uses muses-vlidort repository build, which
-        # doesn't have this problem any longer. But tropomi does still
-        old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
-        old_ld_library_path = None
-        if('CONDA_PREFIX' in os.environ):
-            old_ld_library_path = os.environ.get("LD_LIBRARY_PATH")
-            os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
-        try:
-            os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(self.run_path+"/"+self.capture_directory.runbase)
-            os.chdir(self.run_path+"/"+self.capture_directory.runbase)
+        with muses_py_call(self.run_path+"/"+self.capture_directory.runbase,
+                           vlidort_cli=vlidort_cli):
             mpy.run_retrieval(**self.params)
-        finally:
-            os.chdir(curdir)
-            if(old_run_dir):
-                os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
-            else:
-                del os.environ["MUSES_DEFAULT_RUN_DIR"]
-            if(old_ld_library_path):
-                os.environ["LD_LIBRARY_PATH"] = old_ld_library_path
             
     @classmethod
     def create_from_table(cls, strategy_table, step=1, capture_directory=False,
@@ -84,26 +65,17 @@ class MusesRetrievalStep:
         # somehow into a base class. But right now we only have these
         # two classes, so this probably isn't worth it. So we are currently
         # just duplicating the code.
-        curdir = os.getcwd()
-        old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
-        mpy.cli_options.vlidort_cli=vlidort_cli
-        try:
-            os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.dirname(strategy_table)
-            os.chdir(os.path.dirname(strategy_table))
-            with register_replacement_function_in_block("run_retrieval",
+        with muses_py_call(os.path.dirname(strategy_table),
+                           vlidort_cli=vlidort_cli):
+            try:
+                with register_replacement_function_in_block("run_retrieval",
                                  _CaptureParams(func_count=step)):
-                # This is pretty noisy, so suppress printing. We can revisit
-                # this if needed, but I think this is a good idea
-                with _all_output_disabled() as f:
-                    mpy.script_retrieval_ms(os.path.basename(strategy_table))
-        except _FakeParamsExecption as e:
-            res = cls(params=e.params)
-        finally:
-            if(old_run_dir):
-                os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
-            else:
-                del os.environ["MUSES_DEFAULT_RUN_DIR"]
-            os.chdir(curdir)
+                    # This is pretty noisy, so suppress printing. We can revisit
+                    # this if needed, but I think this is a good idea
+                    with _all_output_disabled() as f:
+                        mpy.script_retrieval_ms(os.path.basename(strategy_table))
+            except _FakeParamsExecption as e:
+                res = cls(params=e.params)
         if(capture_directory):
             # Not needed, run_retrieval creates this itself
             vlidort_input = None

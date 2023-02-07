@@ -1,7 +1,48 @@
 import os
 import io
 import tarfile
+from contextlib import contextmanager
+from . import muses_py as mpy
 
+@contextmanager
+def muses_py_call(rundir,
+         vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
+    '''There is some cookie cutter code needed to call a py_retrieve function.
+    We collect that here as a context manager, so you can just do something
+    like:
+    
+    with muses_py_call(rundir):
+       mpy.run_retrieval(...)
+
+    without all the extra stuff. Note that we handle changing to the rundir
+    before calling, so you don't need to do that before hand (or just
+    pass "." if for whatever reason you have done that.'''
+    curdir = os.getcwd()
+    mpy.cli_options.vlidort_cli=vlidort_cli
+    old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
+    # Temporary, make sure libgfortran.so.4 is in path. See
+    # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
+    # Note that currently omi uses muses-vlidort repository build, which
+    # doesn't have this problem any longer. But tropomi does still
+    old_ld_library_path = None
+    if('CONDA_PREFIX' in os.environ):
+        old_ld_library_path = os.environ.get("LD_LIBRARY_PATH")
+        os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
+    try:
+        os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(rundir)
+        os.chdir(rundir)
+        yield
+    finally:
+        os.chdir(curdir)
+        if(old_run_dir):
+            os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
+        else:
+            del os.environ["MUSES_DEFAULT_RUN_DIR"]
+        if(old_ld_library_path):
+            os.environ["LD_LIBRARY_PATH"] = old_ld_library_path
+        else:
+            del os.environ["LD_LIBRARY_PATH"]
+   
 class RefractorCaptureDirectory:
     '''py-retrieve code requires a number of files in a directory,
     these are essentially like hidden arguments to various py-retrieve
@@ -63,5 +104,5 @@ class RefractorCaptureDirectory:
             os.environ["MUSES_DEFAULT_RUN_DIR"] = rundir
             os.chdir(rundir)
 
-__all__ = ["RefractorCaptureDirectory",]
+__all__ = ["RefractorCaptureDirectory", "muses_py_call"]
             
