@@ -187,7 +187,7 @@ def capture_run(instrument,output_dir="./output",
 def run_retrieval(instrument, output_dir="./output"):
     '''Run the retrieval on a single sounding. '''
     logger.info("In run-retrival")
-    cmd, soundings, _ = base_command(instrument, output_dir=output_di)
+    cmd, soundings, _ = base_command(instrument, output_dir=output_dir)
     cmd.extend(["--start-step", "retrieve_one",
                 "--end-step", "retrieve_one",
                 "--retrieve-one", soundings[0]])
