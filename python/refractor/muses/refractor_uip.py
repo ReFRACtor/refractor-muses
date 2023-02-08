@@ -140,10 +140,13 @@ class RefractorUip:
         self.strategy_table = strategy_table
         self.capture_directory = RefractorCaptureDirectory()
         # Depending on where this comes from, it may or may not have the
-        # uip_OMI stuff included. If not, add this in. 'obs_table' happens
+        # uip_OMI stuff included. If not, add this in. 'jacobians' happens
         # to be something not in the original uip, that gets added with omi
+        # This duplicates what py_retrieve does in fm_wrapper
         if('jacobians' not in self.uip and 'uip_OMI' in self.uip):
             self.uip_all = mpy.struct_combine(self.uip, self.uip['uip_OMI'])
+        elif('jacobians' not in self.uip and 'uip_TROPOMI' in self.uip):
+            self.uip_all = mpy.struct_combine(self.uip, self.uip['uip_TROPOMI'])
         else:
             self.uip_all = self.uip
            
