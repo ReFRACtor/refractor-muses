@@ -30,6 +30,7 @@ def muses_py_call(rundir,
         os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
     try:
         os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(rundir)
+        os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
         os.chdir(rundir)
         yield
     finally:
