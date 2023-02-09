@@ -4,6 +4,7 @@ import logging
 import subprocess
 import os
 from refractor.muses import RefractorUip, MusesRunDir, MusesRetrievalStep
+import refractor.muses.muses_py as mpy
 import shutil
 
 logger = logging.getLogger('refractor.muses')
@@ -74,6 +75,8 @@ def sounding_dir(instrument, sounding, output_dir="./output"):
         res += "/omi/2016-04-14/setup-targets/Global_Survey/"
     elif(instrument == "tropomi"):
         res += "/tropomi/2019-08-07/setup-targets/Global_Survey_Grid_4.0/"
+    elif(instrument == "airs_omi"):
+        res += "/airs_omi/2016-04-01/setup-targets/Western_Boundary/"
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
     res += sounding
@@ -106,6 +109,17 @@ def base_command(instrument,output_dir="./output"):
                     ])
         sounding1 = "20160414_23_394_11_23"
         step_list = [1,2]
+    if(instrument == "airs_omi"):
+        cmd.extend(["--sensor-set", "AIRS_OMI",
+                    "--profile", "Western_Boundary",
+                    "--date", "2016-04-01",
+                    ])
+        # I just grabbed a sounding here, not sure how good this is
+        sounding1 = "20160401_231_049_87"
+        #step_list = [1,2,3,4,5,6,7,8]
+        # Temp, grab the joint step. We'll get the rest also,
+        # but that will take a chunk of time to run
+        step_list = [7,]
     elif(instrument == "tropomi"):
         cmd.extend(["--sensor-set", "TROPOMI",
                     "--tropomi-band", "3",
@@ -162,6 +176,7 @@ def capture_run(instrument,output_dir="./output",
     # Note that currently omi uses muses-vlidort repository build, which
     # doesn't have this problem any longer. But tropomi does still
     os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
+    os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
     for i, sounding in enumerate(sounding_list):
         capoutdir = f"{os.path.abspath(test_data_dir)}/{instrument}/in/sounding_{i+1}"
         logger.info(f"Writing output to {capoutdir}")

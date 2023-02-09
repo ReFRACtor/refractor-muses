@@ -114,15 +114,19 @@ class RefractorUip:
     somewhat from changes to the uip (so changed names just need to be 
     updated here).
 
-    Right now a number of things are OMI specific. As we get more experience
-    with the uip hopefully we can relax some of this.
-
     Note that although some thing need access to muses_py (e.g., 
     create_from_table), a lot of this functionality doesn't actually 
     depend on muses-py. So if we have a pickled version of this object
     or the original uip, you can do things with it w/o muses-py. This
     can be useful for example for having pytest tests that don't depend
     on having muses-py available.
+
+    Note that there are two microwindow indexes floating around. We have
+    ii_mw which goes through all the instruments, so for step 7 in
+    AIRS+OMI ii_mw goes through 12 values (only 10 and 11 are OMI).
+    mw_index (also call fm_idx) is relative to a instrument,
+    so if we are working with OMI the first microwindow has ii_mw = 10, but
+    mw_index is 0 (UV1, with the second UV2).
 
     It isn't 100% clear what the right interface is here, so we may modify
     this class a bit in the future.'''
@@ -257,23 +261,31 @@ class RefractorUip:
         param_index = param_list.index(param_name.lower())
         return self.uip['atmosphere'][param_index,:]
 
+    # I'm not positive about the design here. But for a lot of purposes
+    # we really do want to separate omi from tropomi. So we have specific
+    # properties here rather than indexing by the instrument type
+    
     @property
     def uip_omi(self):
         '''Short cut to uip_OMI'''
-        return self.uip['uip_OMI']
+        return self.uip.get('uip_OMI')
 
     @property
     def omi_params(self):
         '''Short cut for omiPars'''
-        return self.uip['omiPars']
+        return self.uip.get('omiPars')
 
     @property
-    def omi_radiance(self):
-        '''Results of mpy.get_omi_radiance'''
-        return mpy.get_omi_radiance(self.omi_params)
+    def uip_tropomi(self):
+        '''Short cut to uip_TROPOMI'''
+        return self.uip.get('uip_TROPOMI')
 
     @property
-    def omi_measured_radiance(self):
+    def tropomi_params(self):
+        '''Short cut for tropomiPars'''
+        return self.uip.get('tropomiPars')
+    
+    def measured_radiance(self, instrument):
         '''Note muses-py handles the radiance data in pretty much the reverse
         way that ReFRACtor does.
 
@@ -294,19 +306,34 @@ class RefractorUip:
         solar model state vector elements/jacobians separate from the
         ReFRACtor ForwardModel.
         '''
-        omirad = self.omi_radiance
+        if(instrument == "OMI"):
+            rad = mpy.get_omi_radiance(self.omi_params)
+            freqindex = self.uip_omi['freqIndex']
+        elif(instrument == "TROPOMI"):
+            rad = mpy.get_tropomi_radiance(self.tropomi_params)
+            freqindex = self.uip_tropomi['freqIndex']
+        else:
+            raise RuntimeError(f"Invalid instrument {instrument}")
         return {
-            'measured_radiance_field': omirad['normalized_rad'][self.uip_omi['freqIndex']],  
-            'measured_nesr': omirad['nesr'][self.uip_omi['freqIndex']],
-            'normwav_jac': omirad['normwav_jac'][self.uip_omi['freqIndex']],
-            'odwav_jac': omirad['odwav_jac'][self.uip_omi['freqIndex']],
-            'odwav_slope_jac': omirad['odwav_slope_jac'][self.uip_omi['freqIndex']],
+            'measured_radiance_field': rad['normalized_rad'][freqindex],  
+            'measured_nesr': rad['nesr'][freqindex],
+            'normwav_jac': rad['normwav_jac'][freqindex],
+            'odwav_jac': rad['odwav_jac'][freqindex],
+            'odwav_slope_jac': rad['odwav_slope_jac'][freqindex],
         }
 
-    def nfreq_mw(self, ii_mw):
+    def nfreq_mw(self, mw_index, instrument):
         '''Number of frequencies for microwindow.'''
-        startmw_fm = self.uip_omi["microwindows"][ii_mw]["startmw"][ii_mw]
-        endmw_fm = self.uip_omi["microwindows"][ii_mw]["enddmw"][ii_mw]
+        if(instrument == "OMI"):
+            # It is a bit odd that mw_index get used twice here, but this
+            # really is how this is set up. So although this looks odd, it
+            # is correct
+            startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
+            endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
+        elif(instrument == "TROPOMI"):
+            startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw"][mw_index]
+            endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw"][mw_index]
+            
         return endmw_fm - startmw_fm + 1
 
     @property
@@ -330,12 +357,26 @@ class RefractorUip:
     def omi_cloud_fraction(self):
         '''Cloud fraction for OMI'''
         return self.omi_params['cloud_fraction']
+
+    @property
+    def tropomi_cloud_fraction(self):
+        '''Cloud fraction for TROPOMI'''
+        return self.tropomi_params['cloud_fraction']
     
     @property
     def omi_obs_table(self):
         '''Short cut to omi_obs_table'''
-        return self.uip_omi["omi_obs_table"]
+        if(self.uip_omi is not None):
+            return self.uip_omi["omi_obs_table"]
+        return None
 
+    @property
+    def tropomi_obs_table(self):
+        '''Short cut to tropomi_obs_table'''
+        if(self.uip_tropomi):
+            return self.uip_tropomi["tropomi_obs_table"]
+        return None
+    
     @property
     def number_micro_windows(self):
         '''Total number of microwindows. This is like a channel_index,
@@ -356,18 +397,20 @@ class RefractorUip:
     @property
     def state_vector_params(self):
         '''List of parameter types to include in the state vector.'''
-
-        return self.uip['uip_OMI']['jacobians']
+        if(self.uip_omi is not None):
+            return self.uip_omi['jacobians']
+        elif(self.uip_tropomi is not None):
+            return self.uip_tropomi['jacobians']
+        return []
+        
 
     @property
     def state_vector_names(self):
         '''Full list of the name for each state vector list item'''
-
         sv_list = []
         for jac_name in self.uip['speciesListFM']:
-            if jac_name in self.uip['uip_OMI']['jacobians']:
+            if jac_name in self.state_vector_params:
                 sv_list.append(jac_name)
-
         return sv_list
 
     @property
@@ -376,7 +419,7 @@ class RefractorUip:
 
         sv_extract_index = []
         for full_idx, jac_name in enumerate(self.uip['speciesListFM']):
-            if jac_name in self.uip['uip_OMI']['jacobians']:
+            if jac_name in self.state_vector_params:
                 sv_extract_index.append(full_idx)
 
         return np.array(sv_extract_index)
@@ -385,7 +428,12 @@ class RefractorUip:
     def earth_sun_distance(self):
         '''Earth sun distance, in meters. Right now this is OMI specific'''
         # Same value for all the bands, so just grab the first one
-        return self.omi_obs_table['EarthSunDistance'][0]
+        if(self.omi_obs_table is not None):
+            return self.omi_obs_table['EarthSunDistance'][0]
+        elif(self.tropomi_obs_table is not None):
+            return self.tropomi_obs_table['EarthSunDistance'][0]
+        else:
+            RuntimeError("Didn't find a observation table")
         
     def sample_grid(self, mw_index, ii_mw):
         '''This is the full set of samples. We only actually use a subset of
@@ -398,8 +446,14 @@ class RefractorUip:
 
             return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
         else:
-            all_freq = self.uip_omi['fullbandfrequency']
-            filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
+            if(self.uip_omi is not None):
+                all_freq = self.uip_omi['fullbandfrequency']
+                filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
+            elif(self.uip_tropomi is not None):
+                all_freq = self.uip_tropomi['fullbandfrequency']
+                filt_loc = np.array(self.uip_tropomi['frequencyfilterlist'])
+            else:
+                raise RuntimeError("Don't know how to get sample grid")
             return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
 
     def muses_fm_spectral_domain(self, mw_index):
@@ -420,16 +474,20 @@ class RefractorUip:
     def ils_params(self, mw_index):
         '''Returns ILS information for the given microwindow'''
 
-        ils_uip_info = self.uip_omi["ils_%02d" % (mw_index+1)]
-
-        return ils_uip_info
+        if(self.uip_omi):
+            return self.uip_omi["ils_%02d" % (mw_index+1)]
+        if(self.uip_tropomi):
+            return self.uip_tropomi["ils_%02d" % (mw_index+1)]
+        raise RuntimeError("Don't know how to get ils_params")
 
     def ils_method(self, mw_index):
         '''Returns a string describing the ILS method configured by MUSES'''
+        if(self.uip_omi):
+            return self.uip_omi['ils_omi_xsection']
+        elif(self.uip_tropomi):
+            return self.uip_tropomi['ils_tropomi_xsection']
 
-        return self.uip_omi['ils_omi_xsection']
-
-    def solar_irradiance(self, ii_mw, input_directory):
+    def solar_irradiance(self, mw_index, input_directory):
         '''This is a bit convoluted. It comes from a python pickle file that
         gets created before the retrieval starts. So this is 
         "control coupling". On the other hand, most of the UIP is sort of 
@@ -444,8 +502,8 @@ class RefractorUip:
         '''
         fname = glob.glob(input_directory + "Radiance_OMI*.pkl")[0]
         omi_info = pickle.load(open(fname, "rb"))
-        startmw_fm = self.uip_omi["microwindows"][ii_mw]["startmw_fm"][ii_mw]
-        endmw_fm = self.uip_omi["microwindows"][ii_mw]["enddmw_fm"][ii_mw]
+        startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw_fm"][mw_index]
+        endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw_fm"][mw_index]
         return omi_info['Solar_Radiance']['AdjustedSolarRadiance'][slice(startmw_fm, endmw_fm+1)]
 
     def filter_name(self, ii_mw):
@@ -454,14 +512,18 @@ class RefractorUip:
         
     def channel_indexes(self, ii_mw):
         '''Determine the channel indexes that we are processing.
-
-        Right now this is omi specific.
         '''
         # You would think this would just be an argument, but it
         # isn't. We need to get the filter name from one place, and
         # use that to look up the channel index in another.
-        return np.where(np.asarray(self.omi_obs_table["Filter_Band_Name"])
-                        == self.filter_name(ii_mw))[0]
+        if(self.instrument_name(ii_mw) == "OMI"):
+            return np.where(np.asarray(self.omi_obs_table["Filter_Band_Name"])
+                            == self.filter_name(ii_mw))[0]
+        if(self.instrument_name(ii_mw) == "TROPOMI"):
+            return np.where(np.asarray(self.tropomi_obs_table["Filter_Band_Name"])
+                            == self.filter_name(ii_mw))[0]
+        else:
+            raise RuntimeError("Don't know how to find observation table")
 
     def _avg_obs(self, nm, ii_mw):
         '''Average values that match the self.channel_indexes. 
@@ -470,8 +532,12 @@ class RefractorUip:
         does.
 
         Right now this is omi specific'''
-        return np.mean(np.asarray(self.omi_obs_table[nm])[self.channel_indexes(ii_mw)])
-
+        if(self.omi_obs_table):
+            return np.mean(np.asarray(self.omi_obs_table[nm])[self.channel_indexes(ii_mw)])
+        if(self.tropomi_obs_table):
+            return np.mean(np.asarray(self.tropomi_obs_table[nm])[self.channel_indexes(ii_mw)])
+        raise RuntimeError("Don't know how to find observation table")
+      
     def observation_zenith(self, ii_mw):
         '''Observation zenith angle for the microwindow index ii_mw'''
         return self._avg_obs("ViewingZenithAngle", ii_mw)
@@ -542,7 +608,11 @@ class RefractorUip:
         Right now this is omi specific'''
         # Can't really average these to have anything that makes sense.
         # So for now we just pick the first one that matches
-        return np.asarray(self.omi_obs_table["XTRACK"])[self.channel_indexes(ii_mw)]
+        if(self.omi_obs_table):
+            return np.asarray(self.omi_obs_table["XTRACK"])[self.channel_indexes(ii_mw)]
+        if(self.tropomi_obs_table):
+            return np.asarray(self.tropomi_obs_table["XTRACK"])[self.channel_indexes(ii_mw)]
+        raise RuntimeError("Don't know how to find observation table")
 
 
 __all__ = ["RefractorUip", "WatchUipCreation", "WatchUipUpdate"]            

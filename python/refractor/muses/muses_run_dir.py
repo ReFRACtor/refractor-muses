@@ -31,7 +31,7 @@ class MusesRunDir:
             shutil.copy(f"{refractor_sounding_dir}/{f}.asc",
                         f"{self.run_dir}/{f}.asc")
         _, d = mpy.read_all_tes(f"{refractor_sounding_dir}/Measurement_ID.asc")
-        for k in ("OMI_filename", "OMI_Cloud_filename",
+        for k in ("AIRS_filename", "OMI_filename", "OMI_Cloud_filename",
                   "TROPOMI_filename_BAND3",
                   "TROPOMI_IRR_filename",
                   "TROPOMI_Cloud_filename"):
@@ -71,7 +71,7 @@ class MusesRunDir:
             shutil.copy(f"{amuse_me_run_dir}/{f}.asc",
                         f"{refractor_sounding_dir}")
         _, d = mpy.read_all_tes(f"{amuse_me_run_dir}/Measurement_ID.asc")
-        for k in ("OMI_filename", "OMI_Cloud_filename",
+        for k in ("AIRS_filename", "OMI_filename", "OMI_Cloud_filename",
                   "TROPOMI_filename_BAND3",
                   "TROPOMI_IRR_filename",
                   "TROPOMI_Cloud_filename"):

@@ -20,6 +20,10 @@ if(not have_muses_py):
     def __getattr__(name):
         raise NameError("py_retrieve is not available, so can't import '%s'" % name)
 
+# Location of pyoss
+import py_retrieve
+pyoss_dir = _os.path.dirname(py_retrieve.__file__) + "/pyoss"
+
 # Modules in py-retrieve that don't actually load correctly, or that
 # don't actually want
 _broken = ["Plotters", "haversine", "map_2points", "truncate_me", "verify_me"]

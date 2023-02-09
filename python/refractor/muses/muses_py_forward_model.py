@@ -82,8 +82,12 @@ class MusesPyForwardModel:
             # remove duplicate if needed
             uip = copy.copy(self.rf_uip.uip)
             if('jacobians' in uip):
-                for k in uip['uip_OMI'].keys():
-                    del uip[k]
+                if('uip_OMI' in uip):
+                    for k in uip['uip_OMI'].keys():
+                        del uip[k]
+                if('uip_TROPOMI' in uip):
+                    for k in uip['uip_TROPOMI'].keys():
+                        del uip[k]
             rad, jac, _, _, _ = mpy.fm_wrapper(uip, None)
         else:
             rad, jac = self._radiance_extracted_dir()
