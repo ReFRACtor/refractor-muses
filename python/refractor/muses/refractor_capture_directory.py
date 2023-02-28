@@ -54,6 +54,7 @@ class RefractorCaptureDirectory:
     def __init__(self):
         self.capture_directory = None
         self.runbase = None
+        self.rundir = "."
         
     def save_directory(self, dirbase, vlidort_input):
         '''Capture information from the run directory so we can recreate the
@@ -100,10 +101,10 @@ class RefractorCaptureDirectory:
             os.symlink(osp_dir, path + "/OSP")
         if(gmao_dir is not None):
             os.symlink(gmao_dir, path+"/GMAO")
+        self.rundir = os.path.abspath(path + "/" + self.runbase)
         if(change_to_dir):
-            rundir = os.path.abspath(path + "/" + self.runbase)
-            os.environ["MUSES_DEFAULT_RUN_DIR"] = rundir
-            os.chdir(rundir)
+            os.environ["MUSES_DEFAULT_RUN_DIR"] = self.rundir
+            os.chdir(self.rundir)
 
 __all__ = ["RefractorCaptureDirectory", "muses_py_call"]
             

@@ -456,8 +456,30 @@ class RefractorUip:
                 raise RuntimeError("Don't know how to get sample grid")
             return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
 
+    def raman_fm_spectral_domain(self, mw_index, instrument):
+        '''Frequency grid that py-retrieve calculates raman scatter'''
+        if(instrument == "OMI"):
+            # It is a bit odd that mw_index get used twice here, but this
+            # really is how this is set up. So although this looks odd, it
+            # is correct
+            startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
+            endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
+        elif(instrument == "TROPOMI"):
+            startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw"][mw_index]
+            endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw"][mw_index]
+            
+        return endmw_fm - startmw_fm + 1
+        
+
     def muses_fm_spectral_domain(self, mw_index):
-        '''Wavelengths do to do the forward model on. This is read from
+        '''
+        NOTE - The logic here has changed in py-retrieve. We only ever
+        used this for the Raman calculation, and it isn't used there 
+        anymore. Leave this is place for now, but we should be able to
+        remove this once all the old code gets updated. Look to
+        raman_spectral_domain instead.
+
+        Wavelengths do to do the forward model on. This is read from
         the ILS. Not sure how this compares to what we already get from
         the base_config or OmiForwardModel, but for now we give separate
         access to this.
@@ -487,7 +509,7 @@ class RefractorUip:
         elif(self.uip_tropomi):
             return self.uip_tropomi['ils_tropomi_xsection']
 
-    def solar_irradiance(self, mw_index, input_directory):
+    def radiance_info(self, mw_index):
         '''This is a bit convoluted. It comes from a python pickle file that
         gets created before the retrieval starts. So this is 
         "control coupling". On the other hand, most of the UIP is sort of 
@@ -496,15 +518,44 @@ class RefractorUip:
         We 1) want to just directly evaluate this using ReFRACtor code or 
         2) track down what exactly py-retrieve is doing to create this and
         do it directly. 
-
-        This is currently just used for the Raman calculation of the 
-        RefractorRtfOmi class
         '''
-        fname = glob.glob(input_directory + "Radiance_OMI*.pkl")[0]
-        omi_info = pickle.load(open(fname, "rb"))
-        startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw_fm"][mw_index]
-        endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw_fm"][mw_index]
-        return omi_info['Solar_Radiance']['AdjustedSolarRadiance'][slice(startmw_fm, endmw_fm+1)]
+        input_directory = f"{self.capture_directory.rundir}/Input/"
+        if(self.uip_omi):
+            fname = glob.glob(input_directory + "Radiance_OMI*.pkl")[0]
+            startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw_fm"][mw_index]
+            endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw_fm"][mw_index]
+        elif(self.uip_tropomi):
+            fname = glob.glob(input_directory + "Radiance_TROPOMI*.pkl")[0]
+            startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw_fm"][mw_index]
+            endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw_fm"][mw_index]
+        else:
+            raise RuntimeError("Don't know how to get radiance other than for OMI and TROPOMI")
+        return pickle.load(open(fname, "rb")), slice(startmw_fm, endmw_fm+1)
+
+    def rad_wavelength(self, mw_index):
+        '''This is the wavelengths that the L1B data was measured at, truncated
+        to fit our microwindow'''
+        rad_info, slc = self.radiance_info(mw_index)
+        return rf.SpectralDomain(rad_info['Earth_Radiance']['Wavelength'][slc],
+                                 rf.Unit("nm"))        
+
+    def solar_irradiance(self, mw_index):
+        '''This is currently just used for the Raman calculation of the 
+        RefractorRtfOmi class. This has been adjusted for the 
+        '''
+        rad_info, slc = self.radiance_info(mw_index)
+
+        # Note this looks wrong (why not use Solar_Radiance Wavelength here?),
+        # but is actually correct. The solar data has already been interpolated
+        # to the same wavelengths as  the Earth_Radiance, this happens in
+        # daily_tropomi_irad for TROPOMI, and similarly for OMI. Not sure
+        # why the original wavelengths are left in rad_info['Solar_Radiance'],
+        # that is actually misleading.
+        sol_domain = rf.SpectralDomain(rad_info['Earth_Radiance']['Wavelength'][slc],
+                                       rf.Unit("nm"))
+        sol_range = rf.SpectralRange(rad_info['Solar_Radiance']['AdjustedSolarRadiance'][slc],
+                                     rf.Unit("ph / nm / s"))
+        return rf.Spectrum(sol_domain, sol_range)
 
     def filter_name(self, ii_mw):
         '''The filter name (e.g., UV1 or UV2)'''
