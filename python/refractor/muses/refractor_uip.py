@@ -285,7 +285,7 @@ class RefractorUip:
         '''Short cut for tropomiPars'''
         return self.uip.get('tropomiPars')
     
-    def measured_radiance(self, instrument):
+    def measured_radiance(self, instrument_name):
         '''Note muses-py handles the radiance data in pretty much the reverse
         way that ReFRACtor does.
 
@@ -306,14 +306,14 @@ class RefractorUip:
         solar model state vector elements/jacobians separate from the
         ReFRACtor ForwardModel.
         '''
-        if(instrument == "OMI"):
+        if(instrument_name == "OMI"):
             rad = mpy.get_omi_radiance(self.omi_params)
             freqindex = self.uip_omi['freqIndex']
-        elif(instrument == "TROPOMI"):
+        elif(instrument_name == "TROPOMI"):
             rad = mpy.get_tropomi_radiance(self.tropomi_params)
             freqindex = self.uip_tropomi['freqIndex']
         else:
-            raise RuntimeError(f"Invalid instrument {instrument}")
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return {
             'measured_radiance_field': rad['normalized_rad'][freqindex],  
             'measured_nesr': rad['nesr'][freqindex],
@@ -322,15 +322,15 @@ class RefractorUip:
             'odwav_slope_jac': rad['odwav_slope_jac'][freqindex],
         }
 
-    def nfreq_mw(self, mw_index, instrument):
+    def nfreq_mw(self, mw_index, instrument_name):
         '''Number of frequencies for microwindow.'''
-        if(instrument == "OMI"):
+        if(instrument_name == "OMI"):
             # It is a bit odd that mw_index get used twice here, but this
             # really is how this is set up. So although this looks odd, it
             # is correct
             startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
             endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
-        elif(instrument == "TROPOMI"):
+        elif(instrument_name == "TROPOMI"):
             startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw"][mw_index]
             endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw"][mw_index]
             
@@ -441,35 +441,20 @@ class RefractorUip:
 
         Right now this is omi specific.'''
 
-        if self.ils_method(mw_index) == "FASTCONV":
+        if self.ils_method(mw_index,self.instrument_name(ii_mw)) == "FASTCONV":
             ils_uip_info = self.ils_params(mw_index)
 
             return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
         else:
-            if(self.uip_omi is not None):
+            if(self.instrument_name(ii_mw) == "OMI"):
                 all_freq = self.uip_omi['fullbandfrequency']
                 filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
-            elif(self.uip_tropomi is not None):
+            elif(self.instrument_name(ii_mw)):
                 all_freq = self.uip_tropomi['fullbandfrequency']
                 filt_loc = np.array(self.uip_tropomi['frequencyfilterlist'])
             else:
-                raise RuntimeError("Don't know how to get sample grid")
+                raise RuntimeError(f"Invalid instrument {self.instrument_name(ii_mw)}")
             return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
-
-    def raman_fm_spectral_domain(self, mw_index, instrument):
-        '''Frequency grid that py-retrieve calculates raman scatter'''
-        if(instrument == "OMI"):
-            # It is a bit odd that mw_index get used twice here, but this
-            # really is how this is set up. So although this looks odd, it
-            # is correct
-            startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
-            endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
-        elif(instrument == "TROPOMI"):
-            startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw"][mw_index]
-            endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw"][mw_index]
-            
-        return endmw_fm - startmw_fm + 1
-        
 
     def muses_fm_spectral_domain(self, mw_index):
         '''
@@ -493,23 +478,25 @@ class RefractorUip:
         else:
             return rf.SpectralDomain(ils_uip_info["X0_fm"], rf.Unit("nm"))
 
-    def ils_params(self, mw_index):
+    def ils_params(self, mw_index, instrument_name):
         '''Returns ILS information for the given microwindow'''
-
-        if(self.uip_omi):
+        if(instrument_name == "OMI"):
             return self.uip_omi["ils_%02d" % (mw_index+1)]
-        if(self.uip_tropomi):
+        elif(instrument_name == "TROPOMI"):
             return self.uip_tropomi["ils_%02d" % (mw_index+1)]
-        raise RuntimeError("Don't know how to get ils_params")
+        else: 
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def ils_method(self, mw_index):
+    def ils_method(self, mw_index, instrument_name):
         '''Returns a string describing the ILS method configured by MUSES'''
-        if(self.uip_omi):
+        if(instrument_name == "OMI"):
             return self.uip_omi['ils_omi_xsection']
-        elif(self.uip_tropomi):
+        elif(instrument_name == "TROPOMI"):
             return self.uip_tropomi['ils_tropomi_xsection']
+        else: 
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def radiance_info(self, mw_index):
+    def radiance_info(self, mw_index, instrument_name):
         '''This is a bit convoluted. It comes from a python pickle file that
         gets created before the retrieval starts. So this is 
         "control coupling". On the other hand, most of the UIP is sort of 
@@ -520,30 +507,58 @@ class RefractorUip:
         do it directly. 
         '''
         input_directory = f"{self.capture_directory.rundir}/Input/"
-        if(self.uip_omi):
+        if(instrument_name == "OMI"):
             fname = glob.glob(input_directory + "Radiance_OMI*.pkl")[0]
+        elif(instrument_name == "TROPOMI"):
+            fname = glob.glob(input_directory + "Radiance_TROPOMI*.pkl")[0]
+        else:
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+        return pickle.load(open(fname, "rb"))
+
+    def mw_fm_slice(self, mw_index, instrument_name):
+        '''This is the portion of the full microwindow frequencies that we are
+        using in calculations such as RamanSioris. This is a bit
+        bigger than the instrument_spectral_domain in
+        RefractorObjectCreator, which is the range fitted in the
+        retrieval. This has extra padding for things like the
+        RamanSioris calculation'''
+        if(instrument_name == "OMI"):
             startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw_fm"][mw_index]
             endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw_fm"][mw_index]
-        elif(self.uip_tropomi):
-            fname = glob.glob(input_directory + "Radiance_TROPOMI*.pkl")[0]
+        elif(instrument_name == "TROPOMI"):
             startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw_fm"][mw_index]
             endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw_fm"][mw_index]
         else:
-            raise RuntimeError("Don't know how to get radiance other than for OMI and TROPOMI")
-        return pickle.load(open(fname, "rb")), slice(startmw_fm, endmw_fm+1)
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+        return slice(startmw_fm, endmw_fm+1)
+        
+    def full_band_frequency(self, instrument_name):
+        '''This is the full frequency range for the instrument. I believe
+        this is the same as the wavelengths found in the radiance pickle
+        file (self.radiance_info), but this comes for a different source in
+        the UIP object so we have this in case this is somehow different.'''
+        if(instrument_name == "OMI"):
+            return self.uip_omi["fullbandfrequency"]
+        elif(instrument_name == "TROPOMI"):
+            return self.uip_tropomi["fullbandfrequency"]
+        else:
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+            
+    def rad_wavelength(self, mw_index, instrument_name):
 
-    def rad_wavelength(self, mw_index):
         '''This is the wavelengths that the L1B data was measured at, truncated
         to fit our microwindow'''
-        rad_info, slc = self.radiance_info(mw_index)
+        slc = self.mw_fm_slice(mw_index, instrument_name)
+        rad_info = self.radiance_info(mw_index, instrument_name)
         return rf.SpectralDomain(rad_info['Earth_Radiance']['Wavelength'][slc],
                                  rf.Unit("nm"))        
 
-    def solar_irradiance(self, mw_index):
+    def solar_irradiance(self, mw_index, instrument_name):
         '''This is currently just used for the Raman calculation of the 
         RefractorRtfOmi class. This has been adjusted for the 
         '''
-        rad_info, slc = self.radiance_info(mw_index)
+        slc = self.mw_fm_slice(mw_index, instrument_name)
+        rad_info = self.radiance_info(mw_index, instrument_name)
 
         # Note this looks wrong (why not use Solar_Radiance Wavelength here?),
         # but is actually correct. The solar data has already been interpolated
