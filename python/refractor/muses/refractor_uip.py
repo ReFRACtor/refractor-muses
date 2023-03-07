@@ -527,6 +527,8 @@ class RefractorUip:
         do it directly. 
         '''
         input_directory = f"{self.rundir}/Input/"
+        if(not os.path.exists(input_directory)):
+            raise RuntimeError(f"Input directory {input_directory} not found.")
         if(instrument_name == "OMI"):
             fname = glob.glob(input_directory + "Radiance_OMI*.pkl")[0]
         elif(instrument_name == "TROPOMI"):
