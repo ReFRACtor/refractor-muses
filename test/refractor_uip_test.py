@@ -22,7 +22,7 @@ def test_refractor_omi_uip(isolated_dir):
     print(m.across_track_indexes(ii_mw))
     print(m.atm_params)
     print(m.ray_info)
-    print(m.solar_irradiance(ii_mw))
+    print(m.solar_irradiance(ii_mw, "OMI"))
 
 @require_muses_py
 def test_refractor_joint_uip(isolated_dir):
