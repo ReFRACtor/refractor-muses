@@ -143,6 +143,7 @@ class RefractorUip:
             self.uip = uip
         self.strategy_table = strategy_table
         self.capture_directory = RefractorCaptureDirectory()
+        self.rundir = "."
         # Depending on where this comes from, it may or may not have the
         # uip_OMI stuff included. If not, add this in. 'jacobians' happens
         # to be something not in the original uip, that gets added with omi
@@ -237,6 +238,24 @@ class RefractorUip:
         self.capture_directory.save_directory(os.path.dirname(self.strategy_table), vlidort_input)
         
 
+    @property
+    def vlidort_input(self):
+        if(self.uip_omi):
+            return self.uip_omi["vlidort_input"]
+        elif(self.uip_tropomi):
+            return self.uip_tropomi["vlidort_input"]
+        else:
+            raise RuntimeError("Only support omi and tropomi")
+
+    @property
+    def vlidort_output(self):
+        if(self.uip_omi):
+            return self.uip_omi["vlidort_output"]
+        elif(self.uip_tropomi):
+            return self.uip_tropomi["vlidort_output"]
+        else:
+            raise RuntimeError("Only support omi and tropomi")
+        
     @classmethod
     def load_uip(cls, save_pickle_file, path=".", change_to_dir = False,
                  osp_dir=None, gmao_dir=None):
@@ -247,6 +266,7 @@ class RefractorUip:
         uip.capture_directory.extract_directory(path=path,
                               change_to_dir=change_to_dir, osp_dir=osp_dir,
                               gmao_dir=gmao_dir)
+        uip.rundir = uip.capture_directory.rundir
         return uip
     
     def atmosphere_column(self, param_name):
@@ -506,7 +526,7 @@ class RefractorUip:
         2) track down what exactly py-retrieve is doing to create this and
         do it directly. 
         '''
-        input_directory = f"{self.capture_directory.rundir}/Input/"
+        input_directory = f"{self.rundir}/Input/"
         if(instrument_name == "OMI"):
             fname = glob.glob(input_directory + "Radiance_OMI*.pkl")[0]
         elif(instrument_name == "TROPOMI"):
