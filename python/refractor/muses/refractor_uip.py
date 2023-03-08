@@ -13,8 +13,9 @@ import pickle
 
 if(mpy.have_muses_py):
     class _FakeUipExecption(Exception):
-        def __init__(self, uip):
+        def __init__(self, uip, ret_info):
             self.uip = uip
+            self.ret_info = ret_info
         
     class _CaptureUip(mpy.ReplaceFunctionObject):
         def __init__(self, func_count=1):
@@ -27,7 +28,7 @@ if(mpy.have_muses_py):
             return False
             
         def replace_function(self, func_name, parms):
-            raise _FakeUipExecption(parms['uip'])
+            raise _FakeUipExecption(parms['uip'], parms['ret_info'])
 
 @contextmanager
 def _all_output_disabled():
@@ -131,7 +132,7 @@ class RefractorUip:
     It isn't 100% clear what the right interface is here, so we may modify
     this class a bit in the future.'''
 
-    def __init__(self, uip = None, strategy_table = None):
+    def __init__(self, uip = None, strategy_table = None, ret_info = None):
         '''Constructor. This takes the uip structure (the muses-py dictionary)
         and/or the strategy_table file name'''
         # Depending on where this is called from, uip may be a dict or
@@ -141,6 +142,7 @@ class RefractorUip:
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
+        self.ret_info = ret_info
         self.strategy_table = strategy_table
         self.capture_directory = RefractorCaptureDirectory()
         self.rundir = "."
@@ -216,7 +218,7 @@ class RefractorUip:
                 with _all_output_disabled() as f:
                     mpy.script_retrieval_ms(os.path.basename(strategy_table))
         except _FakeUipExecption as e:
-            res = cls(uip=e.uip,strategy_table=strategy_table)
+            res = cls(uip=e.uip,strategy_table=strategy_table, ret_info=e.ret_info)
         finally:
             if(old_run_dir):
                 os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
