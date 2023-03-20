@@ -29,8 +29,14 @@ if(mpy.have_muses_py):
             return False
             
         def replace_function(self, func_name, parms):
-            raise _FakeUipExecption(parms['uip'], parms['ret_info'],
-                                    parms['xInit'])
+            # The UIP passed in is *before* updating with xInit. We
+            # want this after the update, so call that before passing
+            # value back.
+            o_x_vector = parms['xInit']
+            uip = parms['uip']
+            ret_info = parms['ret_info']
+            (uip, o_x_vector) = mpy.update_uip(uip, ret_info, o_x_vector)
+            raise _FakeUipExecption(uip, ret_info, o_x_vector)
 
 @contextmanager
 def _all_output_disabled():
@@ -716,6 +722,8 @@ class RefractorUip:
         Note that this is the retrieval vector, not the state vector.'''
         self.retrieval_vec = np.copy(retrieval_vec)
         self.uip, _ = mpy.update_uip(self.uip, self.ret_info, retrieval_vec)
+        if(hasattr(self.uip, 'as_dict')): 
+            self.uip = self.uip.as_dict(self.uip)
         if('jacobians' not in self.uip and 'uip_OMI' in self.uip):
             self.uip_all = mpy.struct_combine(self.uip, self.uip['uip_OMI'])
         elif('jacobians' not in self.uip and 'uip_TROPOMI' in self.uip):
