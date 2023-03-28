@@ -6,7 +6,8 @@ from . import muses_py as mpy
 
 @contextmanager
 def muses_py_call(rundir,
-         vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
+                  vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
+                  debug=False):
     '''There is some cookie cutter code needed to call a py_retrieve function.
     We collect that here as a context manager, so you can just do something
     like:
@@ -16,15 +17,21 @@ def muses_py_call(rundir,
 
     without all the extra stuff. Note that we handle changing to the rundir
     before calling, so you don't need to do that before hand (or just
-    pass "." if for whatever reason you have done that.'''
+    pass "." if for whatever reason you have already done that).
+
+    The "debug" flag turns on the per iteration directory diagnostics in omi and
+    tropomi. I don't think it actually changes anything else, as far as I can tell
+    only this get changed by the flags. The per iteration stuff is needed for some
+    of the diagnostics (e.g., RefractorTropOmiFmMusesPy.surface_albedo).'''
     curdir = os.getcwd()
-    mpy.cli_options.vlidort_cli=vlidort_cli
     old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
     # Temporary, make sure libgfortran.so.4 is in path. See
     # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
     # Note that currently omi uses muses-vlidort repository build, which
     # doesn't have this problem any longer. But tropomi does still
     old_ld_library_path = None
+    old_vlidort_cli = mpy.cli_options.get("vlidort_cli")
+    old_debug = mpy.cli_options.get("debug")
     if('CONDA_PREFIX' in os.environ):
         old_ld_library_path = os.environ.get("LD_LIBRARY_PATH")
         os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
@@ -32,9 +39,13 @@ def muses_py_call(rundir,
         os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(rundir)
         os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
         os.chdir(rundir)
+        mpy.cli_options.vlidort_cli=vlidort_cli
+        mpy.cli_options.debug=debug
         yield
     finally:
         os.chdir(curdir)
+        mpy.cli_options.vlidort_cli=old_vlidort_cli
+        mpy.cli_options.debug=old_debug
         if(old_run_dir):
             os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
         else:
