@@ -7,7 +7,9 @@ from . import muses_py as mpy
 @contextmanager
 def muses_py_call(rundir,
                   vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
-                  debug=False):
+                  debug=False,
+                  vlidort_nstokes=2,
+                  vlidort_nstreams=4):
     '''There is some cookie cutter code needed to call a py_retrieve function.
     We collect that here as a context manager, so you can just do something
     like:
@@ -32,6 +34,8 @@ def muses_py_call(rundir,
     old_ld_library_path = None
     old_vlidort_cli = mpy.cli_options.get("vlidort_cli")
     old_debug = mpy.cli_options.get("debug")
+    old_vlidort_nstokes = mpy.cli_options.vlidort.get("nstokes")
+    old_vlidort_nstreams = mpy.cli_options.vlidort.get("nstreams")
     if('CONDA_PREFIX' in os.environ):
         old_ld_library_path = os.environ.get("LD_LIBRARY_PATH")
         os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
@@ -41,11 +45,15 @@ def muses_py_call(rundir,
         os.chdir(rundir)
         mpy.cli_options.vlidort_cli=vlidort_cli
         mpy.cli_options.debug=debug
+        mpy.cli_options.vlidort.nstokes = vlidort_nstokes
+        mpy.cli_options.vlidort.nstreams = vlidort_nstreams
         yield
     finally:
         os.chdir(curdir)
         mpy.cli_options.vlidort_cli=old_vlidort_cli
         mpy.cli_options.debug=old_debug
+        mpy.cli_options.vlidort.nstokes = old_vlidort_nstokes
+        mpy.cli_options.vlidort.nstreams = old_vlidort_nstreams
         if(old_run_dir):
             os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
         else:
