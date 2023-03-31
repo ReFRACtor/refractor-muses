@@ -170,7 +170,8 @@ class RefractorUip:
     @classmethod
     def create_from_table(cls, strategy_table, step=1, capture_directory=False,
               save_pickle_file=None,
-              vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
+              vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
+              suppress_noisy_output=True):
         '''This creates a UIP from a run directory (e.g., created
         by earlier steps of amuse-me).  The table is passed in that
         points to everything, usually this is called 'Table.asc' in
@@ -225,7 +226,10 @@ class RefractorUip:
                                  _CaptureUip(func_count=step)):
                 # This is pretty noisy, so suppress printing. We can revisit
                 # this if needed, but I think this is a good idea
-                with _all_output_disabled() as f:
+                if(suppress_noisy_output):
+                    with _all_output_disabled() as f:
+                        mpy.script_retrieval_ms(os.path.basename(strategy_table))
+                else:
                     mpy.script_retrieval_ms(os.path.basename(strategy_table))
         except _FakeUipExecption as e:
             res = cls(uip=e.uip,strategy_table=strategy_table,
