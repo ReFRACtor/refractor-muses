@@ -93,7 +93,7 @@ class RefractorCaptureDirectory:
             for f in ("RamanInputs", "Input", vlidort_input):
                 if(f is not None):
                     tar.add(f"{dirbase}/{f}", f"{relpath}/{f}")
-            for f in ("omi_rtm_driver", "ring", "ring_cli", "vlidort_cli",
+            for f in ("omi_rtm_driver", "ring", "ring_cli", 
                       "rayTable-NADIR.asc"):
                 tar.add(f"{osp_src_path}/{f}", f"{relpath2}/{f}")
             tar.add(f"{osp_src_path}/OMI_Solar/omisol_v003_avg_nshi_backup.h5", f"{relpath2}/OMI_Solar/omisol_v003_avg_nshi_backup.h5")
