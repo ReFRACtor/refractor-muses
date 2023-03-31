@@ -6,6 +6,8 @@ import os
 from refractor.muses import RefractorUip, MusesRunDir, MusesRetrievalStep
 import refractor.muses.muses_py as mpy
 import shutil
+import h5py
+import glob
 
 logger = logging.getLogger('refractor.muses')
 # Setup logging
@@ -75,12 +77,34 @@ def sounding_dir(instrument, sounding, output_dir="./output"):
         res += "/omi/2016-04-14/setup-targets/Global_Survey/"
     elif(instrument == "tropomi"):
         res += "/tropomi/2019-08-07/setup-targets/Global_Survey_Grid_4.0/"
+    elif(instrument == "cris_tropomi"):
+        res += "/cris_tropomi/2019-08-07/setup-targets/Global_Survey_Grid_4.0/"
     elif(instrument == "airs_omi"):
         res += "/airs_omi/2016-04-01/setup-targets/Western_Boundary/"
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
     res += sounding
     return res
+
+def cloud_fraction_dict(instrument, output_dir="./output"):
+    cloud_fraction_data = {}
+    res = {}
+    for slist in glob.glob(sounding_dir(instrument, "2*", output_dir=output_dir)):
+        _, d = mpy.read_all_tes(f"{slist}/Measurement_ID.asc")
+        sid = d['preferences']["SOUNDINGID"]
+        if(instrument in ("tropomi", "cris_tropomi")):
+            cfname = d['preferences']["TROPOMI_Cloud_filename"]
+            if(cfname not in cloud_fraction_data):
+                fh = h5py.File(cfname)
+                cloud_fraction_data[cfname] = fh["PRODUCT/cloud_fraction"][0,:,:]
+                fh.close()
+            atrack = int(d['preferences']["TROPOMI_ATrack_Index"])
+            xtrack = int(d['preferences']["TROPOMI_XTrack_Index_BAND3"])
+            res[sid] = cloud_fraction_data[cfname][atrack,xtrack]
+        else:
+            raise RuntimeError("Unrecognized instrument type")
+    return res
+
 
 def base_command(instrument,output_dir="./output"):
     '''The part of the amuse_me command that is in common for
@@ -128,8 +152,20 @@ def base_command(instrument,output_dir="./output"):
                     ])
         sounding1="20190807_9401_351_176"
         step_list = [1,2,3]
+    elif(instrument == "cris_tropomi"):
+        cmd.extend(["--sensor-set", "CrIS_TROPOMI",
+                    "--profile", "Global_Survey_Grid_4.0",
+                    "--date", "2019-08-07",
+                    ])
+        sounding1="20190807_065_03_00_4"
+        # Grab just the one joint step, so we can test against that
+        # Note step 2 actually gets skipped in the processing, so what it
+        # calls step 10 (the last one) is actually step 9 from a counting
+        # of how many times levmar_nllsq_elanor gets called. This is kind of
+        # sloppy here, but it isn't really clear how to do this more cleanly
+        step_list = [10-1,]
     else:
-        logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
+        logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi', 'airs_omi', 'tropomi', or 'cris_tropomi'")
     return cmd, [sounding1,], step_list
         
 @click.group()
@@ -213,6 +249,16 @@ def run_retrieval(instrument, output_dir="./output"):
     # doesn't have this problem any longer. But tropomi does still
     os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
     subprocess.run(cmd, check=True)
+
+@cli.command()
+@click.argument("instrument", type=str)
+@click.option("--output-dir", default="./output",
+              help="Location the output of amuse-me goes")
+def cloud_fraction(instrument, output_dir="./output"):
+    '''Report cloud fraction for each sounding, can be used to select a good sounding'''
+    res = cloud_fraction_dict(instrument, output_dir="./output")
+    for k in sorted(res.keys()):
+        print(f"{k}: {res[k]}")
     
 if __name__ == '__main__':
     cli()
