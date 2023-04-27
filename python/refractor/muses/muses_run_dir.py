@@ -23,7 +23,7 @@ class MusesRunDir:
         This handles updating the paths in Measurement_ID to the data
         saved in the test/in directory'''
         sid = open(f"{refractor_sounding_dir}/sounding.txt").read().rstrip()
-        self.run_dir = f"{path_prefix}/{sid}"
+        self.run_dir = os.path.abspath(f"{path_prefix}/{sid}")
         subprocess.run(["mkdir","-p",self.run_dir])
         os.symlink(osp_dir, f"{path_prefix}/OSP")
         os.symlink(gmao_dir, f"{path_prefix}/GMAO")
