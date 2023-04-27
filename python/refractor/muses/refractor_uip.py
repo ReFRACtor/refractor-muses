@@ -19,12 +19,19 @@ if(mpy.have_muses_py):
             self.retrieval_vec = retrieval_vec
         
     class _CaptureUip(mpy.ReplaceFunctionObject):
+        '''Note a complication. For CrIS-TROPOMI we have some steps that
+        don't actually call levmar_nllsq_elanor. So we get the registered
+        twice, once to run_retrieval and once to levmar_nllsq_elanor. We then
+        count the number of run_retrieval calls, but once the total is reached
+        we replace only the *next* levmar_nllsq_elanor call.'''
         def __init__(self, func_count=1):
             self.func_count = func_count
 
         def should_replace_function(self, func_name, parms):
-            self.func_count -= 1
-            if self.func_count <= 0:
+            if func_name == "run_retrieval":
+                self.func_count -= 1
+                print(f"In run_retrieval, func_count is {self.func_count}")
+            if self.func_count <= 0 and func_name == "levmar_nllsq_elanor":
                 return True
             return False
             
@@ -222,15 +229,16 @@ class RefractorUip:
         try:
             os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.dirname(strategy_table)
             os.chdir(os.path.dirname(strategy_table))
-            with register_replacement_function_in_block("levmar_nllsq_elanor",
-                                 _CaptureUip(func_count=step)):
-                # This is pretty noisy, so suppress printing. We can revisit
-                # this if needed, but I think this is a good idea
-                if(suppress_noisy_output):
-                    with _all_output_disabled() as f:
+            cfun = _CaptureUip(func_count=step)
+            with register_replacement_function_in_block("run_retrieval", cfun):
+                with register_replacement_function_in_block("levmar_nllsq_elanor", cfun):
+                    # This is pretty noisy, so suppress printing. We can revisit
+                    # this if needed, but I think this is a good idea
+                    if(suppress_noisy_output):
+                        with _all_output_disabled() as f:
+                            mpy.script_retrieval_ms(os.path.basename(strategy_table))
+                    else:
                         mpy.script_retrieval_ms(os.path.basename(strategy_table))
-                else:
-                    mpy.script_retrieval_ms(os.path.basename(strategy_table))
         except _FakeUipExecption as e:
             res = cls(uip=e.uip,strategy_table=strategy_table,
                       ret_info=e.ret_info, retrieval_vec=e.retrieval_vec)

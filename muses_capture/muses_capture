@@ -159,11 +159,7 @@ def base_command(instrument,output_dir="./output"):
                     ])
         sounding1="20190807_065_03_00_4"
         # Grab just the one joint step, so we can test against that
-        # Note step 2 actually gets skipped in the processing, so what it
-        # calls step 10 (the last one) is actually step 9 from a counting
-        # of how many times levmar_nllsq_elanor gets called. This is kind of
-        # sloppy here, but it isn't really clear how to do this more cleanly
-        step_list = [10-1,]
+        step_list = [10,]
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi', 'airs_omi', 'tropomi', or 'cris_tropomi'")
     return cmd, [sounding1,], step_list
@@ -202,8 +198,9 @@ def setup_targets(instrument, output_dir="./output"):
               help="Location the output of amuse-me goes")
 @click.option("--test-data-dir", default="../../refractor_test_data",
               help="Location where the captures data goes")
+@click.option("--suppress-output/--show-output", default=True)
 def capture_run(instrument,output_dir="./output",
-                test_data_dir="../../refractor_test_data"):
+                test_data_dir="../../refractor_test_data",suppress_output=True):
     '''Update the pickle/save files for processing the given instrument.'''
     logger.info("In capture-run")
     _, sounding_list, step_list = base_command(instrument,output_dir=output_dir)
@@ -225,11 +222,13 @@ def capture_run(instrument,output_dir="./output",
             logger.info(f"Capturing UIP for step {step_number}")
             _ = RefractorUip.create_from_table(fname, step=step_number,
                      capture_directory=True,
-                     save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl")
+                     save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl",
+                     suppress_noisy_output=suppress_output)
             logger.info(f"Capturing MusesRetrievalStep for step {step_number}")
             _ = MusesRetrievalStep.create_from_table(fname, step=step_number,
                      capture_directory=True,
-                     save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl")
+                     save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl",
+                     suppress_noisy_output=suppress_output)
     
 @cli.command()
 @click.argument("instrument", type=str)

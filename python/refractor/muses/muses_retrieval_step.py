@@ -19,6 +19,7 @@ if(mpy.have_muses_py):
 
         def should_replace_function(self, func_name, params):
             self.func_count -= 1
+            print(f"hi there, in replace. func_count = {self.func_count}")
             if self.func_count <= 0:
                 return True
             return False
@@ -57,7 +58,8 @@ class MusesRetrievalStep:
     @classmethod
     def create_from_table(cls, strategy_table, step=1, capture_directory=False,
               save_pickle_file=None,
-              vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
+              vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
+              suppress_noisy_output=True):
         '''This grabs the arguments passed to run_retrieval and stores them
         to allow calling this later.'''
         # TODO Note there is some duplication with create_from_table we
@@ -72,7 +74,10 @@ class MusesRetrievalStep:
                                  _CaptureParams(func_count=step)):
                     # This is pretty noisy, so suppress printing. We can revisit
                     # this if needed, but I think this is a good idea
-                    with _all_output_disabled() as f:
+                    if(suppress_noisy_output):
+                        with _all_output_disabled() as f:
+                            mpy.script_retrieval_ms(os.path.basename(strategy_table))
+                    else:
                         mpy.script_retrieval_ms(os.path.basename(strategy_table))
             except _FakeParamsExecption as e:
                 res = cls(params=e.params)
