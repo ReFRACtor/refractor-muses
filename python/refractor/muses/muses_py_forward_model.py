@@ -64,7 +64,7 @@ class MusesPyForwardModel:
                 os.environ["MUSES_DEFAULT_RUN_DIR"] = dirname
                 os.chdir(dirname)
                 # This is (o_radianceOut, o_jacobianOut, o_bad_flag, o_measured_radiance_omi, o_measured_radiance_tropomi)
-                rad, jac, _, _, _ = mpy.fm_wrapper(self.rf_uip.uip, None)
+                rad, jac, _, _, _ = mpy.fm_wrapper(self.rf_uip.uip, self.rf_uip.windows, self.rf_uip.oco_info)
         finally:
             if(old_run_dir):
                 os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir

@@ -148,7 +148,8 @@ class RefractorUip:
     this class a bit in the future.'''
 
     def __init__(self, uip = None, strategy_table = None, ret_info = None,
-                 retrieval_vec = None):
+                 retrieval_vec = None,
+                 windows=None, oco_info=None):
         '''Constructor. This takes the uip structure (the muses-py dictionary)
         and/or the strategy_table file name'''
         # Depending on where this is called from, uip may be a dict or
@@ -158,6 +159,8 @@ class RefractorUip:
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
+        self.windows = windows
+        self.oco_info = oco_info
         self.ret_info = ret_info
         self.retrieval_vec = retrieval_vec
         self.strategy_table = strategy_table
