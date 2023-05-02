@@ -88,7 +88,7 @@ class MusesPyForwardModel:
                 if('uip_TROPOMI' in uip):
                     for k in uip['uip_TROPOMI'].keys():
                         del uip[k]
-            rad, jac, _, _, _ = mpy.fm_wrapper(uip, None)
+            rad, jac, _, _, _ = mpy.fm_wrapper(uip, self.rf_uip.windows, self.rf_uip.oco_info)
         else:
             rad, jac = self._radiance_extracted_dir()
         jac = jac.transpose()
