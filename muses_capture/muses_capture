@@ -234,10 +234,15 @@ def capture_run(instrument,output_dir="./output",
 @click.argument("instrument", type=str)
 @click.option("--output-dir", default="./output",
               help="Location the output of amuse-me goes")
-def run_retrieval(instrument, output_dir="./output"):
+@click.option("--refractor-config", default=None,
+              help="If supplied, use refractor and the given config file")
+def run_retrieval(instrument, refractor_config = None,
+                  output_dir="./output"):
     '''Run the retrieval on a single sounding. '''
     logger.info("In run-retrival")
     cmd, soundings, _ = base_command(instrument, output_dir=output_dir)
+    if(refractor_config is not None):
+        cmd.extend(["--refractor", "--refractor-config", refractor_config])
     cmd.extend(["--start-step", "retrieve_one",
                 "--end-step", "retrieve_one",
                 "--retrieve-one", soundings[0]])
