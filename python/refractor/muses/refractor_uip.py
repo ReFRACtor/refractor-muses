@@ -363,6 +363,7 @@ class RefractorUip:
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return {
+            'wavelength'  : rad['wavelength'][freqindex],
             'measured_radiance_field': rad['normalized_rad'][freqindex],  
             'measured_nesr': rad['nesr'][freqindex],
             'normwav_jac': rad['normwav_jac'][freqindex],
