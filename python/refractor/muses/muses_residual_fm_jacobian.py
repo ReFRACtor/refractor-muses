@@ -39,67 +39,62 @@ def _all_output_disabled():
     finally:
         logging.disable(previous_level)
 
-class MusesRetrievalStep:
+class MusesResidualFmJacobian:
     '''This class is used to capture the arguments to a py-retrieve
-    retrieval step, and to then call that step. This is little more than
-    the argument list plus a bit of support code.'''
+    residual_fm_jacobian step, and to then call that step. This is little
+    more than the argument list plus a bit of support code.'''
     def __init__(self, params = None):
         self.params = params
         self.capture_directory = RefractorCaptureDirectory()
         self.run_path = None
 
     @property
-    def run_retrieval_path(self):
-        '''The path we run run_retrieval in.'''
+    def residual_fm_jacobian_path(self):
+        '''The path we run residual_fm_jacobian in.'''
         return self.run_path+"/"+self.capture_directory.runbase
     
-    def run_retrieval(self,
+    def residual_fm_jacobian(self,
                 vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''Run the retrieval step with the saved parameters'''
-        with muses_py_call(self.run_retrieval_path, vlidort_cli=vlidort_cli):
-            mpy.run_retrieval(**self.params)
+        with muses_py_call(self.residual_fm_jacobian, vlidort_cli=vlidort_cli):
+            mpy.residual_fm_jacobian(**self.params)
             
     @classmethod
-    def create_from_table(cls, strategy_table, step=1, capture_directory=False,
+    def create_from_retrieval_step(cls, rstep,
+              iteration=1, capture_directory=False,
               save_pickle_file=None,
               vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
               suppress_noisy_output=True):
-        '''This grabs the arguments passed to run_retrieval and stores them
-        to allow calling this later.'''
-        # TODO Note there is some duplication with create_from_table we
-        # have in RefractorUip. We could possible extract this out
-        # somehow into a base class. But right now we only have these
-        # two classes, so this probably isn't worth it. So we are currently
-        # just duplicating the code.
-        with muses_py_call(os.path.dirname(strategy_table),
-                           vlidort_cli=vlidort_cli):
-            try:
-                with register_replacement_function_in_block("run_retrieval",
-                                 _CaptureParams(func_count=step)):
-                    # This is pretty noisy, so suppress printing. We can revisit
-                    # this if needed, but I think this is a good idea
-                    if(suppress_noisy_output):
-                        with _all_output_disabled() as f:
-                            mpy.script_retrieval_ms(os.path.basename(strategy_table))
-                    else:
-                        mpy.script_retrieval_ms(os.path.basename(strategy_table))
-            except _FakeParamsExecption as e:
-                res = cls(params=e.params)
+        '''This grabs the arguments passed to residual_fm_jacobian and stores
+        them to allow calling this later.'''
+        try:
+            with register_replacement_function_in_block("residual_fm_jacobian",
+                                 _CaptureParams(func_count=iteration)):
+                # This is pretty noisy, so suppress printing. We can revisit
+                # this if needed, but I think this is a good idea
+                if(suppress_noisy_output):
+                    with _all_output_disabled() as f:
+                        rstep.run_retrieval(vlidort_cli=vlidort_cli)
+                else:
+                    rstep.run_retrieval(vlidort_cli=vlidort_cli)
+        except _FakeParamsExecption as e:
+            res = cls(params=e.params)
         if(capture_directory):
-            # Not needed, run_retrieval creates this itself
+            # Not needed, residual_fm_jacobian creates this itself
             vlidort_input = None
-            res.capture_directory.save_directory(os.path.dirname(strategy_table), vlidort_input)
+            res.capture_directory.save_directory(rstep.run_retrieval_path,
+                                                 vlidort_input)
         if(save_pickle_file is not None):
             pickle.dump(res, open(save_pickle_file, "wb"))
         return res
 
     @classmethod
-    def load_retrieval_step(cls, save_pickle_file, path=".",
-                            change_to_dir = False,
-                            osp_dir=None, gmao_dir=None):
-        '''This is the pair to create_from_table, it loads a MusesRetrievalStep
-        from a pickle file, extracts the saved directory, and optionally
-        changes to that directory.'''
+    def load_residual_fm_jacobian(cls, save_pickle_file, path=".",
+                                  change_to_dir = False,
+                                  osp_dir=None, gmao_dir=None):
+        '''This is the pair to create_from_table, it loads a
+        MusesResidualFmJacobian from a pickle file, extracts the
+        saved directory, and optionally changes to that directory.'''
         res = pickle.load(open(save_pickle_file, "rb"))
         res.run_path = os.path.abspath(path)
         res.capture_directory.extract_directory(path=path,
