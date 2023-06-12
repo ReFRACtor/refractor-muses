@@ -56,8 +56,9 @@ class MusesResidualFmJacobian:
     def residual_fm_jacobian(self,
                 vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''Run the retrieval step with the saved parameters'''
-        with muses_py_call(self.residual_fm_jacobian, vlidort_cli=vlidort_cli):
-            mpy.residual_fm_jacobian(**self.params)
+        with muses_py_call(self.residual_fm_jacobian_path,
+                           vlidort_cli=vlidort_cli):
+            return mpy.residual_fm_jacobian(**self.params)
             
     @classmethod
     def create_from_retrieval_step(cls, rstep,
@@ -82,6 +83,10 @@ class MusesResidualFmJacobian:
         if(capture_directory):
             # Not needed, residual_fm_jacobian creates this itself
             vlidort_input = None
+            if("uip_OMI" in res.params["uip"].__dict__):
+                vlidort_input = res.params["uip"].__dict__['uip_OMI']["vlidort_input"]
+            if("uip_TROPOMI" in res.params["uip"].__dict__):
+                vlidort_input = res.params["uip"].__dict__['uip_TROPOMI']["vlidort_input"]
             res.capture_directory.save_directory(rstep.run_retrieval_path,
                                                  vlidort_input)
         if(save_pickle_file is not None):
