@@ -8,14 +8,14 @@ class ConstantDict(UserDict):
 
     This class is a simple wrapper around a dict, e.g., the UIP. It
     treats any attempt to modify this as an error if the attribute
-    "writeable" is False.
+    "writable" is False.
 
     To handle nesting, we return any dict as a ConstantDict and any
-    numpy array as a view that has the flags.writeable attribute set to
+    numpy array as a view that has the flags.writable attribute set to
     the same state as this class.
 
     This allows us to prevent "surprises". If we think that a function
-    shouldn't modify an argument then we can set writeable as False. If
+    shouldn't modify an argument then we can set writable as False. If
     the code does actually change this, we will catch this as a error.
     
     We can then either modify the function to *not* update this or
@@ -25,21 +25,21 @@ class ConstantDict(UserDict):
     updated, but right now I don't have an immediate use for that.
     We can add it in the future if this proves useful.
     '''
-    def __init__(self, d, writeable=False):
+    def __init__(self, d, writable=False):
         super().__init__()
         self.data = d
-        self.writeable  = writeable
+        self.writable  = writable
 
     def __delitem__(self, key):
         # Don't all items to be deleted unless we are writable
-        if(not self.writeable):
-            raise ValueError("ConstantDict is marked as not writeable, so can't delete item")
+        if(not self.writable):
+            raise ValueError("ConstantDict is marked as not writable, so can't delete item")
         super().__delitem__(key)
 
     def __setitem__(self, key, val):
         # Don't all items to be modified unless we are writable
-        if(not self.writeable):
-            raise ValueError("ConstantDict is marked as not writeable, so can't set item")
+        if(not self.writable):
+            raise ValueError("ConstantDict is marked as not writable, so can't set item")
         super().__setitem__(key, val)
 
     def __getitem__(self, key):
@@ -52,11 +52,28 @@ class ConstantDict(UserDict):
         # look at adding that if needed.
         v = super().__getitem__(key)
         if(isinstance(v, dict)):
-            return ConstantDict(v, writeable=self.writeable)
+            return ConstantDict(v, writable=self.writable)
         if(isinstance(v, np.ndarray)):
             r = v.view()
-            r.flags.writeable = self.writeable
+            # numpy uses the alternative spelling writeable, so this is correct.
+            # Note this is one of the odd words with two spellings
+            r.flags.writeable = self.writable
             return r
         return v
+
+    # Some of py-retrieve likes to have an ObjectView, so go ahead and toss in that
+    # functionality
+    def __getattr__(self, nm):
+        if(nm in self.data):
+            return self[nm]
+        raise AttributeError
+
+    def __setattr__(self, nm, value):
+        if(nm in ("data", "writable")):
+            super().__setattr__(nm, value)
+        if(nm in self.data):
+            self[nm] = value
+        else:
+            super().__setattr__(nm, value)
     
 __all__ = ["ConstantDict",]

@@ -12,14 +12,14 @@ def test_constant_dict():
         cdict['k2']['k2_k1']=5
     with pytest.raises(ValueError):
         cdict['k3'][2] = 5
-    # Mark as writeable, we should be able to change things now
+    # Mark as writable, we should be able to change things now
     assert cdict['k1'] != 5
     assert cdict['k2']['k2_k1'] != 5
     assert cdict['k3'][2] != 5
     assert underlying_dict['k1'] != 5
     assert underlying_dict['k2']['k2_k1'] != 5
     assert underlying_dict['k3'][2] != 5
-    cdict.writeable = True
+    cdict.writable = True
     cdict['k1'] = 5
     cdict['k2']['k2_k1'] = 5
     cdict['k3'][2] = 5

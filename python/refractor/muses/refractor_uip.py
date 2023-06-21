@@ -1,6 +1,7 @@
 from . import muses_py as mpy
 from .replace_function_helper import register_replacement_function_in_block
 from .refractor_capture_directory import RefractorCaptureDirectory
+from .constant_dict import ConstantDict
 import refractor.framework as rf
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
@@ -159,6 +160,12 @@ class RefractorUip:
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
+        # Thought this would be useful to make sure UIP isn't changed behind the
+        # scenes. But this turns out to break a bunch of stuff. We could probably
+        # eventually sort this out, but this seems like a lot or work for little
+        # gain. Instead, we can just check by inspection if the UIP is changed in
+        # any py-retrieve code
+        #self.uip = ConstantDict(self.uip)
         self.windows = windows
         self.oco_info = oco_info
         self.ret_info = ret_info
@@ -177,6 +184,17 @@ class RefractorUip:
         else:
             self.uip_all = self.uip
            
+    @property
+    def refractor_cache(self):
+        '''Return a simple dict we use for caching values. Note that by design this
+        really is a cache, if this is missing or anything in it is then we just create
+        on first use. Note this is the equivalent of a "mutable" in C++ - we allow things
+        to get updated in the cache in places that should otherwise want the UIP to be
+        held constant.'''
+        if("refractor_cache" not in self.rf_uip.uip):
+            self.uip["refractor_cache"] = {}
+        return self.uip["refractor_cache"]
+    
     @classmethod
     def create_from_table(cls, strategy_table, step=1, capture_directory=False,
               save_pickle_file=None,
@@ -388,18 +406,26 @@ class RefractorUip:
     @property
     def atm_params(self):
         pangle_original = self.uip_all['obs_table']['pointing_angle']
-        self.uip_all['obs_table']['pointing_angle'] = 0.0
-        res = mpy.atmosphere_level(self.uip_all)
-        self.uip_all['obs_table']['pointing_angle'] = pangle_original
+        # Note uip_all is logically const in this function, even though we change it
+        # temporarily 
+        try:
+            self.uip_all['obs_table']['pointing_angle'] = 0.0
+            res = mpy.atmosphere_level(self.uip_all)
+        finally:
+            self.uip_all['obs_table']['pointing_angle'] = pangle_original
         return res
 
     @property
     def ray_info(self):
         pangle_original = self.uip_all['obs_table']['pointing_angle']
-        self.uip_all['obs_table']['pointing_angle'] = 0.0
-        res = mpy.raylayer_nadir(mpy.ObjectView(self.uip_all),
-                                 mpy.ObjectView(self.atm_params))
-        self.uip_all['obs_table']['pointing_angle'] = pangle_original
+        # Note uip_all is logically const in this function, even though we change it
+        # temporarily
+        try:
+            self.uip_all['obs_table']['pointing_angle'] = 0.0
+            res = mpy.raylayer_nadir(mpy.ObjectView(self.uip_all),
+                                     mpy.ObjectView(self.atm_params))
+        finally:
+            self.uip_all['obs_table']['pointing_angle'] = pangle_original
         return res
     
     @property

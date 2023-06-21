@@ -54,10 +54,12 @@ class MusesResidualFmJacobian:
         return self.run_path+"/"+self.capture_directory.runbase
     
     def residual_fm_jacobian(self,
+                vlidort_nstokes=2,
                 vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''Run the retrieval step with the saved parameters'''
         with muses_py_call(self.residual_fm_jacobian_path,
-                           vlidort_cli=vlidort_cli):
+                           vlidort_cli=vlidort_cli,
+                           vlidort_nstokes=vlidort_nstokes):
             return mpy.residual_fm_jacobian(**self.params)
             
     @classmethod
