@@ -191,7 +191,7 @@ class RefractorUip:
         on first use. Note this is the equivalent of a "mutable" in C++ - we allow things
         to get updated in the cache in places that should otherwise want the UIP to be
         held constant.'''
-        if("refractor_cache" not in self.rf_uip.uip):
+        if("refractor_cache" not in self.uip):
             self.uip["refractor_cache"] = {}
         return self.uip["refractor_cache"]
     
