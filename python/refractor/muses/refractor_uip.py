@@ -314,6 +314,52 @@ class RefractorUip:
                               gmao_dir=gmao_dir)
         uip.rundir = uip.capture_directory.rundir
         return uip
+
+    def atmosphere_basis_matrix(self, param_name):
+        '''Muses does the retrieval on a subset of the full forward model
+        grid. The mapping between the two sets is handled by the
+        basis_matrix. We subset this for just this particular param_name
+        (e.g, O3).'''
+        t1 = np.array(self.uip['speciesList']) == param_name
+        t2 = np.array(self.uip['speciesListFM']) == param_name
+        return self.ret_info["basis_matrix"][t1,:][:,t2]
+
+    def atmosphere_basis_matrix_calc(self, param_name):
+        '''Rather than return the basis matrix in ret_info, calculate
+        this like get_species_information does in py-retrieve.
+
+        Note that this is a bit circular, we use
+        atmosphere_retrieval_level_subset which depends on the basis matrix
+        already in ret_info (because we don't have this information
+        available at this level of the processing tree).
+
+        But go ahead and have this function, it is a nice documentation
+        of how we would possibly move this calculation into refractor, and
+        that our data is consistent.'''
+        # Note this is in Pa rather than hPa. make_maps expects this, so
+        # it is consistent. But this is different than what refractor uses
+        # elsewhere.
+        plev = self.atmosphere_column("pressure")
+        # +1 here is because make_maps is expecting 1 based levels rather
+        # the 0 based we return from atmosphere_retrieval_level_subset.
+        return mpy.make_maps(plev, self.atmosphere_retrieval_level_subset(param_name)+1)['toState']
+    
+    def atmosphere_retrieval_level_subset(self, param_name):
+        '''This is the levels of the forward model grid that we do
+        the retrieval on.
+
+        It would be nice to get this directly, this is a value
+        determined by get_species_information, which is called by
+        script_retrieval_ms. But for now, we can indirectly back
+        out this information by looking at the structure of the
+        basis_matrix.
+
+        Note that this is 0 based, although the py_retrieve function is
+        in terms of 1 based. 
+        '''
+        i_levels = np.any(self.atmosphere_basis_matrix(param_name) == 1,
+                          axis=0).nonzero()[0]
+        return i_levels
     
     def atmosphere_column(self, param_name):
         '''Return the atmospheric column. Note that MUSES use 
