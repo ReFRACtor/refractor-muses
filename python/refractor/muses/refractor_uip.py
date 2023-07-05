@@ -173,16 +173,21 @@ class RefractorUip:
         self.strategy_table = strategy_table
         self.capture_directory = RefractorCaptureDirectory()
         self.rundir = "."
-        # Depending on where this comes from, it may or may not have the
-        # uip_OMI stuff included. If not, add this in. 'jacobians' happens
+
+    @property
+    def uip_all(self):
+        '''Depending on where this comes from, it may or may not have the
+        uip_OMI stuff included. If not, add this in. This duplicates what
+        py_retrieve does in fm_wrapper'''
+        # 'jacobians' happens
         # to be something not in the original uip, that gets added with omi
-        # This duplicates what py_retrieve does in fm_wrapper
         if('jacobians' not in self.uip and 'uip_OMI' in self.uip):
-            self.uip_all = mpy.struct_combine(self.uip, self.uip['uip_OMI'])
+            return mpy.struct_combine(self.uip, self.uip['uip_OMI'])
         elif('jacobians' not in self.uip and 'uip_TROPOMI' in self.uip):
-            self.uip_all = mpy.struct_combine(self.uip, self.uip['uip_TROPOMI'])
+            return mpy.struct_combine(self.uip, self.uip['uip_TROPOMI'])
         else:
-            self.uip_all = self.uip
+            return self.uip
+        
            
     @property
     def refractor_cache(self):
@@ -451,27 +456,31 @@ class RefractorUip:
 
     @property
     def atm_params(self):
-        pangle_original = self.uip_all['obs_table']['pointing_angle']
-        # Note uip_all is logically const in this function, even though we change it
-        # temporarily 
+        uall = self.uip_all
+        pangle_original = uall['obs_table']['pointing_angle']
+        # Note uall is logically const in this function, even though we
+        # change it temporarily. We do want to restore it, self.uip_all
+        # may be a reference to self.uip which we don't want to get updated
         try:
-            self.uip_all['obs_table']['pointing_angle'] = 0.0
-            res = mpy.atmosphere_level(self.uip_all)
+            uall['obs_table']['pointing_angle'] = 0.0
+            res = mpy.atmosphere_level(uall)
         finally:
-            self.uip_all['obs_table']['pointing_angle'] = pangle_original
+            uall['obs_table']['pointing_angle'] = pangle_original
         return res
 
     @property
     def ray_info(self):
-        pangle_original = self.uip_all['obs_table']['pointing_angle']
-        # Note uip_all is logically const in this function, even though we change it
-        # temporarily
+        uall = self.uip_all
+        pangle_original = uall['obs_table']['pointing_angle']
+        # Note uall is logically const in this function, even though we
+        # change it temporarily. We do want to restore it, self.uip_all
+        # may be a reference to self.uip which we don't want to get updated
         try:
-            self.uip_all['obs_table']['pointing_angle'] = 0.0
-            res = mpy.raylayer_nadir(mpy.ObjectView(self.uip_all),
+            uall['obs_table']['pointing_angle'] = 0.0
+            res = mpy.raylayer_nadir(mpy.ObjectView(uall),
                                      mpy.ObjectView(self.atm_params))
         finally:
-            self.uip_all['obs_table']['pointing_angle'] = pangle_original
+            uall['obs_table']['pointing_angle'] = pangle_original
         return res
     
     @property
@@ -812,12 +821,5 @@ class RefractorUip:
         self.uip, _ = mpy.update_uip(self.uip, self.ret_info, retrieval_vec)
         if(hasattr(self.uip, 'as_dict')): 
             self.uip = self.uip.as_dict(self.uip)
-        if('jacobians' not in self.uip and 'uip_OMI' in self.uip):
-            self.uip_all = mpy.struct_combine(self.uip, self.uip['uip_OMI'])
-        elif('jacobians' not in self.uip and 'uip_TROPOMI' in self.uip):
-            self.uip_all = mpy.struct_combine(self.uip, self.uip['uip_TROPOMI'])
-        else:
-            self.uip_all = self.uip
-
 
 __all__ = ["RefractorUip", "WatchUipCreation", "WatchUipUpdate"]            
