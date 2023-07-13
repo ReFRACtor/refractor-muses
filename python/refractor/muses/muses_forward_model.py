@@ -8,6 +8,33 @@ import numpy as np
 # ForwardModel.
 # Also set up Observation
 
+class MusesObservationBase(rf.ObservationSvImpBase):
+    def __init__(self, rf_uip : RefractorUip, instrument_name):
+        super().__init__([])
+        self.rf_uip = rf_uip
+        self.instrument_name = instrument_name
+
+    def _v_num_channels(self):
+        return 1
+
+    def spectral_domain(self, sensor_index):
+        return rf.SpectralDomain(self.uip_all["frequencyList"], rf.Unit("nm"))
+
+    def radiance(self, sensor_index, skip_jacobian = False):
+        if(sensor_index !=0):
+            raise ValueError("sensor_index must be 0")
+        sd = self.spectral_domain(sensor_index)
+        ret_info = self.rf_uip.ret_info
+        subset = [t == self.instrument_name for t in self.rf_uip.uip["instrumentList"]]
+        r = ret_info["obs_rad"][subset]
+        uncer = ret_info["meas_err"][subset]
+        sr = rf.SpectralRange(r, rf.Unit("sr^-1"), uncer)
+        return rf.Spectrum(sd, sr)
+    
+    @property
+    def uip_all(self):
+        return mpy.struct_combine(self.rf_uip.uip, self.rf_uip.uip[f"uip_{self.instrument_name}"])
+
 # There are a number of things in common with the different forward models,
 # so we capture these in these base classes.
 
@@ -70,6 +97,34 @@ class MusesCrisForwardModel(MusesOssForwardModelBase):
     def __init__(self, rf_uip : RefractorUip):
         super().__init__(rf_uip, "CRIS")
 
+class MusesCrisObservation(MusesObservationBase):
+    '''Wrapper that just returns the passed in measured radiance
+    and uncertainty for CRIS'''
+    def __init__(self, rf_uip : RefractorUip):
+        super().__init__(rf_uip, "CRIS")
 
-    
+class StateVectorPlaceHolder(rf.StateVectorObserver):
+    '''Place holder for parts of the StateVector that ReFRACtor objects
+    don't need. Just gives the right name in the state vector, and
+    act as a placeholder for any future stuff.'''
+    def __init__(self, pstart, plen, species_name):
+        super().__init__()
+        self.pstart = pstart
+        self.plen = plen
+        self.species_name = species_name
+        self.coeff = None
+
+    def notify_update(self, sv):
+        self.coeff = sv.state[self.pstart:(self.pstart+self.plen)]
+
+    def state_vector_name(self, sv, sv_namev):
+        svnm = ["",] * len(sv.state)
+        for i in range(self.plen):
+            svnm[i+self.pstart] = f"{self.species_name} coefficient {i+1}"
+        self.sv_name = svnm
+        super().state_vector_name(sv,sv_namev)
         
+__all__ = ["MusesObservationBase", "MusesForwardModelBase", 
+           "MusesOssForwardModelBase", "MusesCrisForwardModel",
+           "MusesCrisObservation", "StateVectorPlaceHolder"]
+
