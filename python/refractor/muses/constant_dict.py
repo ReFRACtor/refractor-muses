@@ -1,6 +1,13 @@
 from collections import UserDict
 import numpy as np
 
+#============================================
+# Note - This we something we tried out. It turned out to be
+# more work than it was worth, so this is actually dead code.
+# We'll leave this here in case we ever need to return to this,
+# but for now this isn't actually used for anything
+#============================================
+
 class ConstantDict(UserDict):
     '''One of the issues with py-retrieve is that things get modified
     in multiple places - so you don't always know that an argument to

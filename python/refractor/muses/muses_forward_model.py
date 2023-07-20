@@ -5,8 +5,9 @@ import os
 import numpy as np
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
-# ForwardModel.
-# Also set up Observation
+# ForwardModel, and wrapper for Observation. This is used by
+# CostFuncCreator to use the using muses-py code for different
+# instruments rather than ReFRACtor.
 
 class MusesObservationBase(rf.ObservationSvImpBase):
     def __init__(self, rf_uip : RefractorUip, instrument_name):

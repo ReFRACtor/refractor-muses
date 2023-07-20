@@ -210,13 +210,13 @@ class RefractorUip:
         points to everything, usually this is called 'Table.asc' in
         the run directory (e.g. ~/output_py/omi/2016-04-14/setup-targets/Global_Survey/20160414_23_394_23/Table.asc).
 
-        In addition to a uip, the muses-py code requires a number of files
-        in a directory. To allow running the MusesPyForwardModel, we can
-        also capture information form the directory the strategy_table is
-        located at. This is only needed for MusesPyForwardModel, the 
-        ReFRACtor forward model doesn't need this. You can set 
-        capture_directory to True if you intend on using the UIP to run
-        MusesPyForwardModel.
+        In addition to a uip, the muses-py code requires a number of
+        files in a directory. To allow running the
+        e.g. MusesTropomiForwardModell, we can also capture
+        information form the directory the strategy_table is located
+        at. This is only needed for muses-py code, the ReFRACtor
+        forward model doesn't need this. You can set capture_directory
+        to True if you intend on using the UIP to run muses-py code.
 
         Because it is common to do, you can optionally supply a pickle file
         name and we'll save the uip to the pickle file after creating it.
