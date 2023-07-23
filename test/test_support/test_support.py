@@ -4,7 +4,7 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import RefractorUip
+from refractor.muses import RefractorUip, WatchUipUpdate, WatchUipCreation
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
 from scipy.io import readsav
@@ -64,7 +64,49 @@ def isolated_dir(tmpdir):
         yield curdir
     finally:
         os.chdir(curdir)
-
         
+@pytest.fixture(scope="function")
+def clean_up_replacement_function():
+    '''Remove any replacement functions that have been added when the
+    test ends'''
+    if not mpy.have_muses_py:
+        raise pytest.skip('test requires muses_py')
+    try:
+        yield
+    finally:
+        mpy.unregister_replacement_function_all()
+        # Add back in the watch functions. This is a bit clumsy, but
+        # hopefully we'll get this whole replacement function thing
+        # removed with a redesign of py-retrieve.
+        mpy.register_observer_function("update_uip", WatchUipUpdate())
+        mpy.register_observer_function("make_uip_master", WatchUipCreation())
 
 
+def load_tropomi_uip(step_number=1, osp_dir=None, gmao_dir=None):
+    return  RefractorUip.load_uip(
+        test_base_path + "/tropomi/in/sounding_1/uip_step_%d.pkl" % step_number,
+        change_to_dir=True,
+        osp_dir=osp_dir,gmao_dir=gmao_dir)
+
+@pytest.fixture(scope="function")
+def tropomi_uip_step_1(isolated_dir):
+    '''Return a RefractorUip for strategy step 1, and also unpack all the 
+    support files into a directory'''
+    return load_tropomi_uip(step_number=1)
+
+
+@pytest.fixture(scope="function")
+def tropomi_uip_step_2(isolated_dir):
+    '''Return a RefractorUip for strategy step 2, and also unpack all the 
+    support files into a directory'''
+    return load_tropomi_uip(step_number=2)
+
+@pytest.fixture(scope="function")
+def tropomi_uip_step_3(isolated_dir):
+    '''Return a RefractorUip for strategy step 3, and also unpack all the 
+    support files into a directory'''
+    return load_tropomi_uip(step_number=3)
+
+@pytest.fixture(scope="function")
+def vlidort_cli():
+    return os.environ.get("MUSES_VLIDORT_CLI", "~/muses/muses-vlidort/build/release/vlidort_cli")

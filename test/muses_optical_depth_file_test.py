@@ -1,14 +1,17 @@
 import numpy as np
 import numpy.testing as npt
-
-from refractor.tropomi import (RefractorObjectCreator, MusesOpticalDepthFile,
-                               AbsorberVmrToUip)
+from refractor.muses import (MusesOpticalDepthFile, AbsorberVmrToUip)
 from test_support import *
 import refractor.framework as rf
 
 @require_muses_py
-def test_muses_optical_depth_file(uip_step_3, clean_up_replacement_function):
-    obj_creator = RefractorObjectCreator(uip_step_3, use_full_state_vector=False)
+def test_muses_optical_depth_file(tropomi_uip_step_3, clean_up_replacement_function):
+    try:
+        from refractor.tropomi import TropomiFmObjectCreator
+    except ImportError:
+        raise pytest.skip("test requires tropomi to be available")
+    
+    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_3, use_full_state_vector=False)
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
@@ -25,10 +28,10 @@ def test_muses_optical_depth_file(uip_step_3, clean_up_replacement_function):
     sv = rf.StateVector()
     sv.add_observer(obj_creator.absorber_vmr[0])
     sv_val = []
-    if(obj_creator.state_vector_retrieval):
-        sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3")[obj_creator.rf_uip.atmosphere_retrieval_level_subset("O3")])
-    else:
+    if(obj_creator.use_full_state_vector):
         sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3"))
+    else:
+        sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3")[obj_creator.rf_uip.atmosphere_retrieval_level_subset("O3")])
     sv.update_state(sv_val)
     # Make sure update to sv gets reflected in UIP
     obj_creator.rf_uip.refractor_cache["atouip_O3"] =  \

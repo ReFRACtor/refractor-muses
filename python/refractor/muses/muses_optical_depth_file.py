@@ -33,7 +33,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         self._absorber_vmr = absorber_vmr
 
         # Where MUSES stores the computations it makes for VLIDORT we are leveraging
-        self.input_dir = os.path.join(os.getenv('MUSES_DEFAULT_RUN_DIR', '.'), self.rf_uip.uip_omi["vlidort_input"])
+        self.input_dir = os.path.join(os.getenv('MUSES_DEFAULT_RUN_DIR', '.'), self.rf_uip.vlidort_input)
 
         # Reverse profile order to OD computation order
         self.map_vmr_l = rf_uip.ray_info['map_vmr_l'][::-1]

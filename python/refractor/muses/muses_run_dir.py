@@ -51,7 +51,8 @@ class MusesRunDir:
                            vlidort_cli=vlidort_cli):
             from py_retrieve.cli import cli
             try:
-                cli.main(["--targets", self.run_dir])
+                cli.main(["--targets", self.run_dir,
+                          "--vlidort-cli", vlidort_cli])
             except SystemExit as e:
                 # cli.main always ends with throwing an exception. Sort of an odd
                 # interface, but this is just the way it works. We just check
