@@ -19,7 +19,6 @@ if(mpy.have_muses_py):
 
         def should_replace_function(self, func_name, params):
             self.func_count -= 1
-            print(f"hi there, in replace. func_count = {self.func_count}")
             if self.func_count <= 0:
                 return True
             return False
