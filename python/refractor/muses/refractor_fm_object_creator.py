@@ -67,7 +67,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                  # Short term, so we can flip between pca vs lidort
                  use_pca=True, use_lrad=False, lrad_second_order=False,
                  use_raman=True,
-                 use_full_state_vector=True):
+                 use_full_state_vector=True,
+                 remove_bad_sample=False,
+                 ):
         '''Constructor. This takes a RefractorUip (so *not* the
         muses-py dictionary, but rather a RefractorUip created from
         that).
@@ -94,6 +96,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
         self.use_full_state_vector = use_full_state_vector
+        self.remove_bad_sample = remove_bad_sample
 
         self.rf_uip = rf_uip
 
@@ -155,7 +158,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def spec_win(self):
         t = np.vstack([np.array([self.rf_uip.micro_windows(i).value])
                        for i in self.channel_list()])
-        return rf.SpectralWindowRange(rf.ArrayWithUnit(t, "nm"))
+        swin= rf.SpectralWindowRange(rf.ArrayWithUnit(t, "nm"))
+        if(self.remove_bad_sample):
+            for i in range(swin.number_spectrometer):
+                swin.bad_sample_mask(self.observation.bad_sample_mask(i), i)
+        return swin
 
     @cached_property
     def spectrum_sampling(self):

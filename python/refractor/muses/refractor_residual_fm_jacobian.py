@@ -78,6 +78,9 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
         # that includes any bad samples in the Observation
         m, m_jac, m_cov = cfunc.max_a_posteriori.measurement_with_bad_pixel()
         ret_info["obs_rad"] = m
+        # Covariance for bad pixels get set to sqr(-999), so meas_err is
+        # 999 rather than -999 here. Work around this by only updating the
+        # good pixels.
         gpt = ret_info["meas_err"] >= 0
         ret_info["meas_err"][gpt] = np.sqrt(cfunc.max_a_posteriori.measurement_error_cov)
         residual = cfunc.residual
