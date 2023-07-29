@@ -73,8 +73,13 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
         rf_uip.update_uip(retrieval_vec)
 
         cfunc.parameters = retrieval_vec
-        ret_info["obs_rad"] = cfunc.max_a_posteriori.measurement
-        ret_info["meas_err"] = np.sqrt(cfunc.max_a_posteriori.measurement_error_cov)
+        # obs_rad and meas_err includes bad samples, so we can't use
+        # cfunc.max_a_posteriori.measurement here. Instead use the version
+        # that includes any bad samples in the Observation
+        m, m_jac, m_cov = cfunc.max_a_posteriori.measurement_with_bad_pixel()
+        ret_info["obs_rad"] = m
+        gpt = ret_info["meas_err"] >= 0
+        ret_info["meas_err"][gpt] = np.sqrt(cfunc.max_a_posteriori.measurement_error_cov)
         residual = cfunc.residual
         jac_residual = cfunc.jacobian.transpose()
         radiance_fm = cfunc.max_a_posteriori.model

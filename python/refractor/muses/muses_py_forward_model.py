@@ -423,29 +423,38 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         # The ForwardModel currently doesn't have the solar model shift
         # included in it, this gets accounted for in get_omi_radiance
         # called by self.rf_uip.omi_measured_radiance. So we need to
-        # attach this piece into the o_jacobian. We should get this
-        # moved in the ForwardModel so we can avoid doing this, but
-        # for now we have special handling.
+        # attach this piece into the o_jacobian. Note that our
+        # replacement RefractorResidualFmJacobian handles this, it is just
+        # this old code that needs this handling. Also TROPOMI get handled
+        # (we needed this to fix a problem in the jacobian) - only OMI
+        # needs this code here.
+        #
         # This here duplicates what pack_omi_jacobian does
         mw = [slice(0, self.rf_uip.nfreq_mw(0, "OMI")),
               slice(self.rf_uip.nfreq_mw(0, "OMI"), None)]
-        if('OMINRADWAVUV1' in self.sv_extra_index):
-            o_jacobian[self.sv_extra_index["OMINRADWAVUV1"], mw[0]] = \
+        if('OMINRADWAVUV1' in self.rf_uip.state_vector_params):
+            indx = self.rf_uip.uip["speciesListFM"].index('OMINRADWAVUV1')
+            o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['normwav_jac'][mw[0]]
-        if('OMINRADWAVUV2' in self.sv_extra_index):
-            o_jacobian[self.sv_extra_index["OMINRADWAVUV2"], mw[1]] = \
+        if('OMINRADWAVUV2' in self.rf_uip.state_vector_params):
+            indx = self.rf_uip.uip["speciesListFM"].index('OMINRADWAVUV2')
+            o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['normwav_jac'][mw[1]]
-        if('OMIODWAVUV1' in self.sv_extra_index):
-            o_jacobian[self.sv_extra_index["OMIODWAVUV1"], mw[0]] = \
+        if('OMIODWAVUV1' in self.rf_uip.state_vector_params):
+            indx = self.rf_uip.uip["speciesListFM"].index('OMIODWAVUV1')
+            o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['odwav_jac'][mw[0]]
-        if('OMIODWAVUV2' in self.sv_extra_index):
-            o_jacobian[self.sv_extra_index["OMIODWAVUV2"], mw[1]] = \
+        if('OMIODWAVUV2' in self.rf_uip.state_vector_params):
+            indx = self.rf_uip.uip["speciesListFM"].index('OMIODWAVUV2')
+            o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['odwav_jac'][mw[1]]
-        if('OMIODWAVSLOPEUV1' in self.sv_extra_index):
-            o_jacobian[self.sv_extra_index["OMIODWAVSLOPEUV1"], mw[0]] = \
+        if('OMIODWAVSLOPEUV1' in self.rf_uip.state_vector_params):
+            indx = self.rf_uip.uip["speciesListFM"].index('OMIODWAVSLOPEUV1')
+            o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['odwav_slope_jac'][mw[0]]
-        if('OMIODWAVSLOPEUV2' in self.sv_extra_index):
-            o_jacobian[self.sv_extra_index["OMIODWAVSLOPEUV2"], mw[1]] = \
+        if('OMIODWAVSLOPEUV2' in self.rf_uip.state_vector_params):
+            indx = self.rf_uip.uip["speciesListFM"].index('OMIODWAVSLOPEUV2')
+            o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['odwav_slope_jac'][mw[1]]
 
         return (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag)

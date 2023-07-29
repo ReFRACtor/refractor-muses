@@ -204,15 +204,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         res = []
         for fm_idx, ii_mw in enumerate(self.channel_list()):
             full_sd = self.rf_uip.sample_grid(fm_idx, ii_mw)
-
-            # Set we are including in forward model calculation
-            gindex = np.array(self.spec_win.grid_indexes(full_sd, fm_idx))
-
-            if len(gindex) == 0:
-                raise Exception(f"Empty spectral window range at index: {idx} for microwindow: {ii_mw}")
-
-            res.append(rf.SpectralDomain(full_sd.wavelength("nm")[gindex],
-                                         rf.Unit("nm")))
+            mw = self.rf_uip.micro_windows(ii_mw).value[0]
+            sd = rf.SpectralDomain(full_sd.data[np.logical_and(full_sd.data>=mw[0],full_sd.data<=mw[1])], full_sd.units)
+            res.append(rf.SpectralDomain(sd.wavelength("nm"), rf.Unit("nm")))
         return res
 
     @cached_property
