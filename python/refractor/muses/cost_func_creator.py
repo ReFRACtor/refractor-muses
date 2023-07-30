@@ -2,6 +2,7 @@ from .refractor_uip import RefractorUip
 from .priority_handle_set import PriorityHandleSet
 import refractor.framework as rf
 import abc
+import copy
 
 class StateVectorHandle(object, metaclass=abc.ABCMeta):
     '''Base class for StateVectorHandle. Note we use duck typing, so you
@@ -70,7 +71,7 @@ class StateVectorHandleSet(PriorityHandleSet):
     def handle_h(self, h : StateVectorHandle, sv: rf.StateVector,
                  species_name : str, pstart : int, plen : int):
         '''Process a registered function'''
-        handled = h.add_sv(sv, species_name, pstart, len)
+        handled = h.add_sv(sv, species_name, pstart, plen)
         return (handled, None)
 
 class InstrumentHandle(object, metaclass=abc.ABCMeta):
@@ -140,12 +141,12 @@ class CostFuncCreator:
     actually pretty simple to use.
     '''
     def __init__(self):
-        self.instrument_handle_set = InstrumentHandleSet.default_handle_set()
+        self.instrument_handle_set = copy.deepcopy(InstrumentHandleSet.default_handle_set())
 
     def create_cost_func(self, rf_uip : RefractorUip):
         fm_list = rf.Vector_ForwardModel()
         obs_list = rf.Vector_Observation()
-        state_vector_handle_set = StateVectorHandleSet.default_handle_set()
+        state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
         for instrument_name in rf_uip.uip["instruments"]:
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
                                     rf_uip, state_vector_handle_set)

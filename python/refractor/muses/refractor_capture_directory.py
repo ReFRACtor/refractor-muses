@@ -4,6 +4,50 @@ import tarfile
 from contextlib import contextmanager
 from . import muses_py as mpy
 
+class osswrapper:
+    '''The OSS library is odd in that it needs to be initialized, have windows
+    set up, and freed. But it is a global set, e.g., you can't have two
+    window sets available. Depending on how a function that needs the
+    OSS is called this may or may not have already been set up.
+
+    This simple class provides a context manager than ensure that we only
+    do the initialization once, and clean up wherever that occurs. This
+    wrapper can then be nested - so a function in an osswrapper can call
+    another function that uses the osswrapper and the OSS initialization
+    will only happen once.
+
+    We unfortunately can't do anything to ensure that we don't try
+    creating two oss_wrapper with different uip. This doesn't work
+    and will fail.
+    '''
+    have_oss = False
+    def __init__(self, uip):
+        if(hasattr(uip, 'as_dict')): 
+            self.uip = uip.as_dict(uip)
+        else:
+            self.uip = uip
+        self.need_cleanup = False
+
+    def __enter__(self):
+        if(not osswrapper.have_oss):
+            for inst in ('CRIS','AIRS',):
+                if(f'uip_{inst}' in self.uip):
+                    print("Doing fm_init")
+                    os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
+                    uip_all = mpy.struct_combine(self.uip, self.uip[f"uip_{inst}"])
+                    (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                    mpy.fm_oss_windows(mpy.ObjectView(uip_all))
+                    self.need_cleanup = True
+                    osswrapper.have_oss =  True
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if(self.need_cleanup):
+            print("Doing fm_oss_delete")
+            mpy.fm_oss_delete()
+            self.need_cleanup = False
+            osswrapper.have_oss = False
+
 @contextmanager
 def muses_py_call(rundir,
                   vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
@@ -125,5 +169,5 @@ class RefractorCaptureDirectory:
             os.environ["MUSES_DEFAULT_RUN_DIR"] = self.rundir
             os.chdir(self.rundir)
 
-__all__ = ["RefractorCaptureDirectory", "muses_py_call"]
+__all__ = ["RefractorCaptureDirectory", "muses_py_call", "osswrapper"]
             

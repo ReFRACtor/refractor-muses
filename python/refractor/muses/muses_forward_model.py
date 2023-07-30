@@ -1,5 +1,8 @@
 from . import muses_py as mpy
 from .refractor_uip import RefractorUip
+from .cost_func_creator import (InstrumentHandle, StateVectorHandle,
+                                InstrumentHandleSet, StateVectorHandleSet)
+from .refractor_capture_directory import osswrapper
 import refractor.framework as rf
 import os
 import numpy as np
@@ -18,10 +21,11 @@ class MusesObservationBase(rf.ObservationSvImpBase):
     def _v_num_channels(self):
         return 1
 
-    def spectral_domain(self, sensor_index):
+    def spectral_domain(self, sensor_index, include_bad_sample=False):
         return rf.SpectralDomain(self.uip_all["frequencyList"], rf.Unit("nm"))
 
-    def radiance(self, sensor_index, skip_jacobian = False):
+    def radiance(self, sensor_index, skip_jacobian = False,
+                 include_bad_sample=False):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         sd = self.spectral_domain(sensor_index)
@@ -72,14 +76,8 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
     def radiance(self, sensor_index, skip_jacobian = False):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
-        try:
-            os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
-            uall = self.uip_all
-            uall,_,_ = mpy.fm_oss_init(mpy.ObjectView(uall), self.instrument_name)
-            uall = mpy.fm_oss_windows(mpy.ObjectView(uall))
+        with osswrapper(self.rf_uip.uip):
             rad, jac = mpy.fm_oss_stack(self.uip_all)
-        finally:
-            mpy.fm_oss_delete()            
         sd = self.spectral_domain(sensor_index)
         if(skip_jacobian):
             sr = rf.SpectralRange(rad, rf.Unit("sr^-1"))
@@ -124,8 +122,38 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
             svnm[i+self.pstart] = f"{self.species_name} coefficient {i+1}"
         self.sv_name = svnm
         super().state_vector_name(sv,sv_namev)
+
+class MusesStateVectorHandle(StateVectorHandle):
+    def __init__(self):
+        self.sv_holder=[]
+    def add_sv(self, sv, species_name, pstart, plen):
+        svh = StateVectorPlaceHolder(pstart, plen, species_name)
+        self.sv_holder.append(svh)
+        sv.add_observer(svh)
+        return True
+    
+class MusesCrisInstrumentHandle(InstrumentHandle):
+    def __init__(self, **creator_kwargs):
+        self.creator_kwargs = creator_kwargs
         
+    def fm_and_obs(self, instrument_name, rf_uip, svhandle):
+        if(instrument_name != "CRIS"):
+            return (None, None)
+        # This has already been handled below
+        #svhandle.add_handle(MusesStateVectorHandle(),
+        #                    priority_order=-1)
+        return (MusesCrisForwardModel(rf_uip), MusesCrisObservation(rf_uip))
+        
+
+
+# The Muses code is the fallback, so add with the lowest priority
+StateVectorHandleSet.add_default_handle(MusesStateVectorHandle(),
+                                        priority_order=-1)
+InstrumentHandleSet.add_default_handle(MusesCrisInstrumentHandle(),
+                                       priority_order=-1)
+
 __all__ = ["MusesObservationBase", "MusesForwardModelBase", 
            "MusesOssForwardModelBase", "MusesCrisForwardModel",
-           "MusesCrisObservation", "StateVectorPlaceHolder"]
+           "MusesCrisObservation", "StateVectorPlaceHolder",
+           "MusesCrisInstrumentHandle"]
 

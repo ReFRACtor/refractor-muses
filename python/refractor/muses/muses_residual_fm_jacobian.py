@@ -1,7 +1,7 @@
 from . import muses_py as mpy
 from .replace_function_helper import register_replacement_function_in_block
 from .refractor_capture_directory import (RefractorCaptureDirectory,
-                                          muses_py_call)
+                                          muses_py_call, osswrapper)
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
@@ -59,7 +59,8 @@ class MusesResidualFmJacobian:
         with muses_py_call(self.residual_fm_jacobian_path,
                            vlidort_cli=vlidort_cli,
                            vlidort_nstokes=vlidort_nstokes):
-            return mpy.residual_fm_jacobian(**self.params)
+            with osswrapper(self.params['uip']):
+                return mpy.residual_fm_jacobian(**self.params)
             
     @classmethod
     def create_from_retrieval_step(cls, rstep,
