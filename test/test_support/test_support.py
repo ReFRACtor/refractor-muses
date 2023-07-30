@@ -4,7 +4,8 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import RefractorUip, WatchUipUpdate, WatchUipCreation
+from refractor.muses import (RefractorUip, WatchUipUpdate, WatchUipCreation,
+                             osswrapper)
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
 from scipy.io import readsav
@@ -80,6 +81,7 @@ def clean_up_replacement_function():
         # removed with a redesign of py-retrieve.
         mpy.register_observer_function("update_uip", WatchUipUpdate())
         mpy.register_observer_function("make_uip_master", WatchUipCreation())
+        osswrapper.register_with_muses_py()
 
 
 def load_tropomi_uip(step_number=1, osp_dir=None, gmao_dir=None):

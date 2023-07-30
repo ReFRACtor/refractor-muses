@@ -146,17 +146,23 @@ class CostFuncCreator:
     def create_cost_func(self, rf_uip : RefractorUip):
         fm_list = rf.Vector_ForwardModel()
         obs_list = rf.Vector_Observation()
+        # Stash observation, so we have a copy that includes extra
+        # python functions. This is just needed to get the measurements
+        # with bad samples
+        obs_python_list = []
         state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
         for instrument_name in rf_uip.uip["instruments"]:
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
                                     rf_uip, state_vector_handle_set)
             fm_list.push_back(fm)
             obs_list.push_back(obs)
+            obs_python_list.append(obs)
         sv = state_vector_handle_set.create_state_vector(rf_uip)
         ret_info = rf_uip.ret_info
         mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, sv,
             ret_info["const_vec"], ret_info["sqrt_constraint"].transpose())
         mprob = rf.NLLSMaxAPosteriori(mstand)
+        mprob.obs_list = obs_python_list
         return mprob
 
 __all__ = ["CostFuncCreator",  "StateVectorHandle", "StateVectorHandleSet",

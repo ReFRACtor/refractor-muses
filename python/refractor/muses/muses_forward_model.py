@@ -2,7 +2,7 @@ from . import muses_py as mpy
 from .refractor_uip import RefractorUip
 from .cost_func_creator import (InstrumentHandle, StateVectorHandle,
                                 InstrumentHandleSet, StateVectorHandleSet)
-from .refractor_capture_directory import osswrapper
+from .osswrapper import osswrapper
 import refractor.framework as rf
 import os
 import numpy as np
