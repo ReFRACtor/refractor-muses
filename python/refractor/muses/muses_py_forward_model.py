@@ -397,8 +397,11 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         if(not mrad.spectral_range.data_ad.is_constant):
             # - because we are giving the jacobian of fm - rad
             o_jacobian -= mrad.spectral_range.data_ad.jacobian.transpose()
-
-        return (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag)
+        # We've calculated the jacobian relative to the full state vector,
+        # including specifies that aren't used by OMI/TROPOMI. py-retrieve
+        # expects just the subset, so we need to subset the jacobian
+        our_jac = [spec in self.rf_uip.uip_all['jacobians'] for spec in i_uip['speciesListFM'] ]
+        return (o_jacobian[our_jac,:], o_radiance, o_measured_radiance_tropomi, o_success_flag)
 
     def omi_fm(self, i_uip, **kwargs):
         '''Substitutes for the py-retrieve omi_fm function
