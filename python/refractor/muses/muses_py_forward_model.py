@@ -109,6 +109,10 @@ class MusesPyForwardModel:
         # TODO Fill this in, should be able to extract this from uip
         pass
 
+    @property
+    def have_obj_creator(self):
+        return False
+    
     def radiance_all(self, skip_jacobian = False):
         # This is automatic if we eventually derive from rf.ForwardModel,
         # so we can remove this.
@@ -487,27 +491,27 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         mw = [slice(0, self.rf_uip.nfreq_mw(0, "OMI")),
               slice(self.rf_uip.nfreq_mw(0, "OMI"), None)]
         if('OMINRADWAVUV1' in self.rf_uip.state_vector_params):
-            indx = self.rf_uip.uip["speciesListFM"].index('OMINRADWAVUV1')
+            indx = list(self.rf_uip.uip["speciesListFM"]).index('OMINRADWAVUV1')
             o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['normwav_jac'][mw[0]]
         if('OMINRADWAVUV2' in self.rf_uip.state_vector_params):
-            indx = self.rf_uip.uip["speciesListFM"].index('OMINRADWAVUV2')
+            indx = list(self.rf_uip.uip["speciesListFM"]).index('OMINRADWAVUV2')
             o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['normwav_jac'][mw[1]]
         if('OMIODWAVUV1' in self.rf_uip.state_vector_params):
-            indx = self.rf_uip.uip["speciesListFM"].index('OMIODWAVUV1')
+            indx = list(self.rf_uip.uip["speciesListFM"]).index('OMIODWAVUV1')
             o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['odwav_jac'][mw[0]]
         if('OMIODWAVUV2' in self.rf_uip.state_vector_params):
-            indx = self.rf_uip.uip["speciesListFM"].index('OMIODWAVUV2')
+            indx = list(self.rf_uip.uip["speciesListFM"]).index('OMIODWAVUV2')
             o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['odwav_jac'][mw[1]]
         if('OMIODWAVSLOPEUV1' in self.rf_uip.state_vector_params):
-            indx = self.rf_uip.uip["speciesListFM"].index('OMIODWAVSLOPEUV1')
+            indx = list(self.rf_uip.uip["speciesListFM"]).index('OMIODWAVSLOPEUV1')
             o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['odwav_slope_jac'][mw[0]]
         if('OMIODWAVSLOPEUV2' in self.rf_uip.state_vector_params):
-            indx = self.rf_uip.uip["speciesListFM"].index('OMIODWAVSLOPEUV2')
+            indx = list(self.rf_uip.uip["speciesListFM"]).index('OMIODWAVSLOPEUV2')
             o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['odwav_slope_jac'][mw[1]]
 
@@ -798,7 +802,8 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
     def update_state(self, fm_vec, parms=None):
         self.ret_info = parms['i_ret_info']
         self.retrieval_vec = parms['i_retrieval_vec']
-        if(self.rf_uip):
+        self.rf_uip = RefractorUip(i_uip)
+        if(self.have_obj_creator):
             self.obj_creator.state_vector_for_testing.update_state(fm_vec)
             
     @property

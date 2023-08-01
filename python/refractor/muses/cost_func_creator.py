@@ -49,11 +49,11 @@ class StateVectorHandleSet(PriorityHandleSet):
         for species_name in rf_uip.uip["jacobians_all"]:
             # Determine the range in the state vector for the species
             if(not use_full_state_vector):
-                pstart = rf_uip.uip["speciesList"].index(species_name)
-                plen = rf_uip.uip["speciesList"].count(species_name)
+                pstart = list(rf_uip.uip["speciesList"]).index(species_name)
+                plen = list(rf_uip.uip["speciesList"]).count(species_name)
             else:
-                pstart = rf_uip.uip["speciesListFM"].index(species_name)
-                plen = rf_uip.uip["speciesListFM"].count(species_name)
+                pstart = list(rf_uip.uip["speciesListFM"]).index(species_name)
+                plen = list(rf_uip.uip["speciesListFM"]).count(species_name)
             self.add_sv(sv, species_name, pstart, plen)
         return sv
     
