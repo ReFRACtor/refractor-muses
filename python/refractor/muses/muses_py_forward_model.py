@@ -443,7 +443,10 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
 
         spec = self.radiance_all()
         o_radiance = spec.spectral_range.data.copy()
-        o_jacobian = spec.spectral_range.data_ad.jacobian.transpose().copy()
+        if(spec.spectral_range.data_ad.is_constant):
+            o_jacobian = np.array([])
+        else:
+            o_jacobian = spec.spectral_range.data_ad.jacobian.transpose().copy()
 
         if(not mrad.spectral_range.data_ad.is_constant):
             # - because we are giving the jacobian of fm - rad
@@ -452,8 +455,10 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         # including specifies that aren't used by OMI/TROPOMI. py-retrieve
         # expects just the subset, so we need to subset the jacobian
         our_jac = [spec in self.rf_uip.uip_all['jacobians'] for spec in i_uip['speciesListFM'] ]
-        return (o_jacobian[our_jac,:], o_radiance, o_measured_radiance_tropomi, o_success_flag)
-
+        if(len(o_jacobian) > 0):
+            o_jacobian = o_jacobian[our_jac,:]
+        return (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag)
+    
     def omi_fm(self, i_uip, **kwargs):
         '''Substitutes for the py-retrieve omi_fm function
 
@@ -476,7 +481,10 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
 
         spec = self.radiance_all()
         o_radiance = spec.spectral_range.data.copy()
-        o_jacobian = spec.spectral_range.data_ad.jacobian.transpose().copy()
+        if(spec.spectral_range.data_ad.is_constant):
+            o_jacobian = np.array([])
+        else:
+            o_jacobian = spec.spectral_range.data_ad.jacobian.transpose().copy()
 
         # The ForwardModel currently doesn't have the solar model shift
         # included in it, this gets accounted for in get_omi_radiance
@@ -515,6 +523,12 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
             o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['odwav_slope_jac'][mw[1]]
 
+        # We've calculated the jacobian relative to the full state vector,
+        # including specifies that aren't used by OMI/TROPOMI. py-retrieve
+        # expects just the subset, so we need to subset the jacobian
+        our_jac = [spec in self.rf_uip.uip_all['jacobians'] for spec in i_uip['speciesListFM'] ]
+        if(len(o_jacobian) > 0):
+            o_jacobian = o_jacobian[our_jac,:]
         return (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag)
     
     def radiance_all(self, skip_jacobian=False):
