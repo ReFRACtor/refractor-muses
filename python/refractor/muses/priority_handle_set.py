@@ -25,7 +25,7 @@ class PriorityHandleSet(collections.abc.Set):
 
     The PriorityHandleSet has members for adding and removing
     “Handles”. A handle is purposely vague, it is any object that the
-    derived class wants to be. And in some cases the object is
+    derived class wants it to be. And in some cases the object is
     actually a class.
 
     The handles are called in priority order, and the first handle to
