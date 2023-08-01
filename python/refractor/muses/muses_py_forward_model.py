@@ -802,7 +802,7 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
     def update_state(self, fm_vec, parms=None):
         self.ret_info = parms['i_ret_info']
         self.retrieval_vec = parms['i_retrieval_vec']
-        self.rf_uip = RefractorUip(i_uip)
+        self.rf_uip = RefractorUip(parms['i_uip'])
         if(self.have_obj_creator):
             self.obj_creator.state_vector_for_testing.update_state(fm_vec)
             
