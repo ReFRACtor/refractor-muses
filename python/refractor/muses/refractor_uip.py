@@ -9,7 +9,6 @@ import io
 import logging
 import numpy as np
 import glob
-from weakref import WeakSet
 import pickle
 
 if(mpy.have_muses_py):
@@ -57,66 +56,6 @@ def _all_output_disabled():
                 yield
     finally:
         logging.disable(previous_level)
-
-# We should perhaps add singleton/multiple observer attachment. But as
-# a short term work around, we use a singleton pattern here and just keep
-# a list of objects to notify
-class WatchUipUpdate(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
-    '''Helper object to watch calls to UtilUIP.UtilUIP. This is basically
-    the muses-py equivalent of StateVector.update_state in ReFRACtor.
-    Unfortunately this doesn't get passed down to the forward model
-    call, so we just intercept it here.  
-
-    This object just forwards the calls to the object in the notify_set'''
-    _instance = None
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance.notify_set = WeakSet()
-        return cls._instance
-
-    def add_notify_object(self, obj):
-        self.notify_set.add(obj)
-
-    def remove_notify_object(self, obj):
-        self.notify_set.remove(obj)
-        
-    def notify_function_call(self, func_name, parms):
-        fm_vec = np.matmul(parms["i_retrieval_vec"],
-                           parms["i_ret_info"]["basis_matrix"])
-        for obj in self.notify_set:
-            obj.update_state(fm_vec, parms=parms)
-
-class WatchUipCreation(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
-    '''Helper object to watch calls to make_uip_master. This gets called for
-    each strategy step, and basically invalidates any cached forward 
-    model we have. On the next call for RefractorFm, we'll need to create
-    a new ForwardModel.
-
-    This object just forwards the calls to the object passed in when it was
-    created.'''
-    _instance = None
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance.notify_set = WeakSet()
-        return cls._instance
-
-    def add_notify_object(self, obj):
-        self.notify_set.add(obj)
-
-    def remove_notify_object(self, obj):
-        self.notify_set.remove(obj)
-        
-    def notify_function_call(self, func_name, parms):
-        for obj in self.notify_set:
-            obj.invalidate_cache()
-
-# TODO Clean this up by allowing multiple observer functions in
-# muses-py
-if(mpy.have_muses_py):
-    mpy.register_observer_function("update_uip", WatchUipUpdate())
-    mpy.register_observer_function("make_uip_master", WatchUipCreation())
 
 class RefractorUip:
     '''The 'uip' is a central variable in muses-py. It is a python dict
@@ -822,4 +761,4 @@ class RefractorUip:
         if(hasattr(self.uip, 'as_dict')): 
             self.uip = self.uip.as_dict(self.uip)
 
-__all__ = ["RefractorUip", "WatchUipCreation", "WatchUipUpdate"]            
+__all__ = ["RefractorUip"]            

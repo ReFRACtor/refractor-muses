@@ -124,12 +124,9 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
         super().state_vector_name(sv,sv_namev)
 
 class MusesStateVectorHandle(StateVectorHandle):
-    def __init__(self):
-        self.sv_holder=[]
     def add_sv(self, sv, species_name, pstart, plen):
         svh = StateVectorPlaceHolder(pstart, plen, species_name)
-        self.sv_holder.append(svh)
-        sv.add_observer(svh)
+        sv.add_observer_and_keep_reference(svh)
         return True
     
 class MusesCrisInstrumentHandle(InstrumentHandle):

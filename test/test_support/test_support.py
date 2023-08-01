@@ -4,8 +4,7 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import (RefractorUip, WatchUipUpdate, WatchUipCreation,
-                             osswrapper)
+from refractor.muses import RefractorUip, osswrapper
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
 from scipy.io import readsav
@@ -76,11 +75,6 @@ def clean_up_replacement_function():
         yield
     finally:
         mpy.unregister_replacement_function_all()
-        # Add back in the watch functions. This is a bit clumsy, but
-        # hopefully we'll get this whole replacement function thing
-        # removed with a redesign of py-retrieve.
-        mpy.register_observer_function("update_uip", WatchUipUpdate())
-        mpy.register_observer_function("make_uip_master", WatchUipCreation())
         osswrapper.register_with_muses_py()
 
 

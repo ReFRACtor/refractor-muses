@@ -1,6 +1,6 @@
 import refractor.muses.muses_py as mpy
 import refractor.framework as rf
-from .refractor_uip import RefractorUip, WatchUipCreation, WatchUipUpdate
+from .refractor_uip import RefractorUip
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .refractor_capture_directory import muses_py_call
@@ -11,6 +11,7 @@ import logging
 import copy
 import numpy as np
 import pandas as pd
+from weakref import WeakSet
 
 logger = logging.getLogger('py-retrieve')
 
@@ -32,6 +33,36 @@ logger = logging.getLogger('py-retrieve')
 # muses-py. But we'll leave this in place, it may be useful when diagnosing
 # some issue.
 #============================================================================
+
+class WatchUipUpdate(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
+    '''We  unfortunately can't just use the uip passed to tropomi_fm or
+    omi_fm because we also need the retrieval_vec and basis_matrix to
+    get the state vector update. So we watch calls to update_uip.
+
+    This object just forwards the calls to the object in the notify_set.
+
+    This class is a singleton, so it is ok if it gets created multiple times -
+    it is the same underlying object each time.'''
+    instance = None
+    def __new__(cls):
+        if cls.instance is None:
+            cls.instance = super().__new__(cls)
+            cls.instance.notify_set = WeakSet()
+        return cls.instance
+
+    def add_notify_object(self, obj):
+        self.notify_set.add(obj)
+
+    def remove_notify_object(self, obj):
+        self.notify_set.remove(obj)
+
+    def notify_function_call(self, func_name, parms):
+        fm_vec = np.matmul(parms["i_retrieval_vec"],
+                           parms["i_ret_info"]["basis_matrix"])
+        for obj in self.notify_set:
+            obj.update_state(fm_vec, parms=parms)
+
+watch_uip = WatchUipUpdate()            
 
 class MusesPyForwardModel:
     '''
@@ -191,19 +222,32 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.py_retrieve_vlidort_nstreams=py_retrieve_vlidort_nstreams
         self.func_name = func_name
 
+    def __enter__(self):
+        self.register_with_muses_py()
+        return self
+    
+    def __exit__(self, *exc):
+        self.unregister_with_muses_py()
+        return False
+    
     def register_with_muses_py(self):
         '''Register this object and the helper objects with muses-py,
         to replace a call to omi_fm.
+
+        Note for testing you can also use this object as a context manager,
+        which handles registration and then cleanup - so
+        rt = RefractorOmiFm()
+        with rt:
+           call to muses-py function that calls omi_fm
         '''
         mpy.register_replacement_function(self.func_name, self)
-        WatchUipCreation().add_notify_object(self)
-        WatchUipUpdate().add_notify_object(self)
+        mpy.register_observer_function("update_uip", watch_uip)
+        watch_uip.add_notify_object(self)
 
     def unregister_with_muses_py(self):
         mpy.unregister_replacement_function(self.func_name)
-        WatchUipCreation().remove_notify_object(self)
-        WatchUipUpdate().remove_notify_object(self)
-
+        watch_uip.remove_notify_object(self)
+        
     def should_replace_function(self, func_name, parms):
         # Currently we only handle the OMI instrument. For other
         # instruments just continue using the normal omi_fm.
@@ -371,7 +415,6 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.retrieval_vec = np.copy(retrieval_vec)
         fm_vec = np.matmul(retrieval_vec,
                            self.ret_info['basis_matrix'])
-        print(retrieval_vec, fm_vec)
         self.update_state(fm_vec)
 
     def tropomi_fm(self, i_uip, **kwargs):
@@ -386,6 +429,10 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.rf_uip.rundir = os.getcwd()
         self.rf_uip.ret_info = self.ret_info
         self.rf_uip.retrieval_vec = np.copy(self.retrieval_vec)
+        if(hasattr(self, "obj_creator")):
+            fm_vec = np.matmul(self.retrieval_vec,
+                               self.ret_info['basis_matrix'])
+            self.obj_creator.state_vector_for_testing.update_state(fm_vec)
         mrad = self.observation.radiance(0)
         o_measured_radiance_tropomi = {"measured_radiance_field" : mrad.spectral_range.data, "measured_nesr" : mrad.spectral_range.uncertainty}
         o_success_flag = 1
@@ -416,6 +463,10 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.rf_uip.rundir = os.getcwd()
         self.rf_uip.ret_info = self.ret_info
         self.rf_uip.retrieval_vec = np.copy(self.retrieval_vec)
+        if(hasattr(self, "obj_creator")):
+            fm_vec = np.matmul(self.retrieval_vec,
+                               self.ret_info['basis_matrix'])
+            self.obj_creator.state_vector_for_testing.update_state(fm_vec)
         o_measured_radiance_omi = self.rf_uip.measured_radiance("OMI")
         o_success_flag = 1
 
@@ -466,16 +517,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         '''The forward model radiance_all results'''
         raise NotImplementedError()
 
-    def invalidate_cache(self):
-        '''Called when a new strategy step starts, should invalidate any 
-        caching (e.g., a ForwardModel)'''
-        pass
-
-    def update_state(self, rvec, parms=None):
-        '''Called with muses-py updated the state vector.'''
-        self.update_state_do(rvec, parms)
-
-    def update_state_do(self, rvec, parms=None):
+    def update_state(self, fm_vec, parms=None):
         '''Called with muses-py updated the state vector.'''
         pass
 
@@ -573,7 +615,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
             fm = MusesPyForwardModel(self.rf_uip, use_current_dir=True)
             return fm.radiance_all(skip_jacobian=skip_jacobian)
     
-    def update_state_do(self, rvec, parms=None):
+    def update_state(self, rvec, parms=None):
         '''Called with muses-py updated the state vector.'''
         logger.info(f"RefractorTropOrOmiFmMusesPy updating state to: {rvec.shape} : {rvec}")
 
@@ -750,38 +792,19 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
 
     def __init__(self, func_name, **kwargs):
         super().__init__(func_name=func_name)
-        self._fm_cache = None
-        self._obj_creator_cache = None
-        self._sv = None
         self.xsec_table_to_notify = None
         self.obj_creator_args = kwargs
 
-    def invalidate_cache(self):
-        self._fm_cache = None
-        self._obj_creator_cache = None
-        self._sv = None
-
-    def update_state_do(self, rvec, parms=None):
-        # Mild logic complication, we can always create a state vector
-        # from self.obj_creator.state_vector, but here we only want to
-        # update a state vector that has already been created and attached
-        # to a forward model. So we cache a copy in self._sv when we
-        # create the forward model, and only update that one.
-        if(self._sv is not None):
-
-            update_vec = rvec[self.rf_uip.state_vector_update_indexes]
-
-            self._sv.update_state(update_vec)
-
-            logger.info(f"RefractorTropOrOmiFm updating state to:\n{self._sv}")
-
+    def update_state(self, fm_vec, parms=None):
+        self.ret_info = parms['i_ret_info']
+        self.retrieval_vec = parms['i_retrieval_vec']
+        if(self.rf_uip):
+            self.obj_creator.state_vector_for_testing.update_state(fm_vec)
+            
     @property
     def fm(self):
         '''Forward model, creating a new one if needed'''
-        if(self._fm_cache is None):
-            self._fm_cache = self.obj_creator.forward_model
-            self._sv = self.obj_creator.state_vector
-        return self._fm_cache
+        return self.obj_creator.forward_model
 
     @property
     def observation(self):
@@ -790,7 +813,7 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
         raise NotImplementedError()
 
     def radiance_all(self, skip_jacobian=False):
-        logger.info(f"FM state vector:\n{self.obj_creator.state_vector}")
+        logger.info(f"FM state vector:\n{self.obj_creator.state_vector_for_testing}")
         spec = self.fm.radiance_all(skip_jacobian=skip_jacobian)
         return spec
 
