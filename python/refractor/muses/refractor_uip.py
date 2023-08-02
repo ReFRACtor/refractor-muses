@@ -10,6 +10,7 @@ import logging
 import numpy as np
 import glob
 import pickle
+from collections import UserDict
 
 if(mpy.have_muses_py):
     class _FakeUipExecption(Exception):
@@ -57,6 +58,24 @@ def _all_output_disabled():
     finally:
         logging.disable(previous_level)
 
+class RefractorCache(UserDict):
+    '''We ran into an issue where run_retrieval in muses-py tries to
+    do a deepcopy of the final UIP and we had a failure because
+    refractor_cache can't be deepcopied (some of the object can't be
+    pickled, which is what deepcopy does).
+
+    So we use a cache object that is just dict but returns an empty
+    cache when we do a deepcopy.
+
+    Even if we fix the pickle issue, this is probably what we want to
+    do anyways - the cache really is just that. If we don't have an object
+    already in the cache our code just recreates it, we just use the cache
+    to be able to reuse objects between calls to ReFRACtor from muses-py.
+
+    '''
+    def __deepcopy__(self, memo):
+        return RefractorCache()
+    
 class RefractorUip:
     '''The 'uip' is a central variable in muses-py. It is a python dict
     object, which contains all the input data need to generate the 
@@ -135,8 +154,9 @@ class RefractorUip:
         on first use. Note this is the equivalent of a "mutable" in C++ - we allow things
         to get updated in the cache in places that should otherwise want the UIP to be
         held constant.'''
-        if("refractor_cache" not in self.uip):
-            self.uip["refractor_cache"] = {}
+        if("refractor_cache" not in self.uip or
+           self.uip['refractor_cache'] is None):
+            self.uip["refractor_cache"] = RefractorCache()
         return self.uip["refractor_cache"]
     
     @classmethod
