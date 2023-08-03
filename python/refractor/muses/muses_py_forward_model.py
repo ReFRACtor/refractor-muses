@@ -433,7 +433,8 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.rf_uip.rundir = os.getcwd()
         self.rf_uip.ret_info = self.ret_info
         self.rf_uip.retrieval_vec = np.copy(self.retrieval_vec)
-        if(hasattr(self, "obj_creator")):
+        if(hasattr(self, "obj_creator") and self.ret_info and
+           self.retrieval_vec):
             fm_vec = np.matmul(self.retrieval_vec,
                                self.ret_info['basis_matrix'])
             self.obj_creator.state_vector_for_testing.update_state(fm_vec)

@@ -31,9 +31,15 @@ class MusesObservationBase(rf.ObservationSvImpBase):
         sd = self.spectral_domain(sensor_index)
         ret_info = self.rf_uip.ret_info
         subset = [t == self.instrument_name for t in self.rf_uip.uip["instrumentList"]]
-        r = ret_info["obs_rad"][subset]
-        uncer = ret_info["meas_err"][subset]
+        if(ret_info):
+            r = ret_info["obs_rad"][subset]
+            uncer = ret_info["meas_err"][subset]
+        else:
+            r = np.zeros(sd.data.shape)
+            uncer = np.ones(r.shape)
         sr = rf.SpectralRange(r, rf.Unit("sr^-1"), uncer)
+        if(sr.data.shape != sd.data.shape):
+            raise RuntimeError("sd and sr are different lengths")
         return rf.Spectrum(sd, sr)
     
     @property
@@ -52,7 +58,12 @@ class MusesForwardModelBase(rf.ForwardModel):
         # The jacobians from muses forward model routines only contains
         # the subset of
         # the columns that are listed in uip_all["jacobians"]
-        self.sub_basis_matrix = rf_uip.ret_info["basis_matrix"][:,[t in list(self.uip_all["jacobians"]) for t in rf_uip.uip["speciesListFM"]]]
+        # If we are called with a basis_matrix
+        if(rf_uip.ret_info):
+            self.sub_basis_matrix = rf_uip.ret_info["basis_matrix"][:,[t in list(self.uip_all["jacobians"]) for t in rf_uip.uip["speciesListFM"]]]
+        else:
+            # If not, we are just have an identity here
+            self.sub_basis_matrix = np.identity(len(rf_uip.uip["speciesListFM"]))
 
     def setup_grid(self):
         # Nothing that we need to do for this
@@ -133,7 +144,8 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle):
+    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+                   use_full_state_vector=False):
         if(instrument_name != "CRIS"):
             return (None, None)
         # This has already been handled below

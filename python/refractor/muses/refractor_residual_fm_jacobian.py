@@ -11,8 +11,15 @@ from .muses_residual_fm_jacobian import MusesResidualFmJacobian
 import numpy as np
 
 class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
-    '''This replaces residual_fm_jacobian. This is pretty much the ReFRACtor cost function,
-    plus some extra stuff calculated.
+    '''This replaces residual_fm_jacobian. This is pretty much the ReFRACtor
+    cost function, plus some extra stuff calculated.
+
+    It is sort of an awkward interface, but script_retrieval_ms also calls
+    run_forward_model to calculate the systematic jacobian in some cases
+    I'm not really sure of the logic of this, but we need to interact with
+    that function here because basically this is very tied to
+    residual_fm_jacobian,  we just don't do the extra residual part. So
+    we use this same function to interact with that.
 
     Note because I keep needing to look this up, the call tree for a
     py-retrieve is:
@@ -44,13 +51,55 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
         to replace a call to omi_fm.
         '''
         mpy.register_replacement_function("residual_fm_jacobian", self)
+        mpy.register_replacement_function("run_forward_model", self)
         
     def should_replace_function(self, func_name, parms):
         return True
 
     def replace_function(self, func_name, parms):
-        return self.residual_fm_jacobian(**parms)
-    
+        if(func_name == "residual_fm_jacobian"):
+            return self.residual_fm_jacobian(**parms)
+        elif(func_name == "run_forward_model"):
+            return self.run_forward_model(parms)
+        elif(func_name == "fm_wrapper"):
+            return self.fm_wrapper(**parms)
+
+    def run_forward_model(self, parms):
+        # We need to calculate the uip from all the parms. Rather than
+        # duplicating what muses-py does, just call it back and intercept
+        # the fm_wrapper it does after it has generated the uip
+        with suppress_replacement("run_forward_model"):
+            with register_replacement_function_in_block("fm_wrapper", self):
+                return mpy.run_forward_model(**parms)
+
+    def fm_wrapper(self, i_uip, i_windows, oco_info):
+        # Some of the forward model wrappers might call muses-py code
+        # that in turn calls fm_wrapper. We don't want to intercept
+        # these lower level function calls
+        with suppress_replacement("fm_wrapper"):
+            rf_uip = RefractorUip(i_uip)
+            if(not "cost_func" in rf_uip.refractor_cache):
+                rf_uip.refractor_cache["cost_func"] = \
+                    self.cost_func_creator.create_cost_func(rf_uip,
+                                            use_full_state_vector=True)
+                
+            cfunc = rf_uip.refractor_cache["cost_func"]
+            cfunc.parameters = rf_uip.uip["currentGuessListFM"]
+            radiance_fm = cfunc.max_a_posteriori.model
+            jac_fm = \
+                cfunc.max_a_posteriori.model_measure_diff_jacobian.transpose()
+            bad_flag = 0
+            # We'll have these as None for now, I don't think these get
+            # used
+            freq_fm = np.concatenate([fm.spectral_domain_all().data
+                 for fm in cfunc.max_a_posteriori.forward_model])
+            o_radiance = { 'detectors' : [radiance_fm],
+                           'frequency' : freq_fm }
+            o_measured_radiance_omi = None
+            o_measured_radiance_tropomi = None
+            return (o_radiance, jac_fm, bad_flag,
+                    o_measured_radiance_omi, o_measured_radiance_tropomi)
+            
     def residual_fm_jacobian(self, uip, ret_info, retrieval_vec, iterNum,
                              oco_info = {}):
         # In addition to the returned items, the uip gets updated (and
