@@ -89,12 +89,29 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
             jac_fm = \
                 cfunc.max_a_posteriori.model_measure_diff_jacobian.transpose()
             bad_flag = 0
-            # We'll have these as None for now, I don't think these get
-            # used
             freq_fm = np.concatenate([fm.spectral_domain_all().data
                  for fm in cfunc.max_a_posteriori.forward_model])
-            o_radiance = { 'detectors' : [radiance_fm],
-                           'frequency' : freq_fm }
+            # This duplicates what mpy.fm_wrapper does. It looks like
+            # a number of these are placeholders, but the struct returned
+            # by mpy.radiance_data looks like something that is just dumped
+            # to a file, so I guess the placeholders make sense in an output
+            # file where we don't have these values.
+
+            # Seems to by indexed by detector, of which we only have one
+            # dummy one
+            detectors=[-1]
+            radiance_fm = np.array([radiance_fm])
+            nesr_fm = np.zeros(radiance_fm.shape)
+            # Oddly frequency isn't indexed by detectors
+            # freq_fm = np.array([freq_fm])
+            # Not sure what filters is, but fm_wrapper just supplies this
+            # as a empty array
+            filters = []
+            instrument = ''
+            o_radiance = mpy.radiance_data(radiance_fm,  nesr_fm, detectors,
+                                           freq_fm, filters, instrument)
+            # We can fill these in if needed, but run_forward_model doesn't
+            # actually use these values so we don't bother.
             o_measured_radiance_omi = None
             o_measured_radiance_tropomi = None
             return (o_radiance, jac_fm, bad_flag,
