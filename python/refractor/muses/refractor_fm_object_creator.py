@@ -101,7 +101,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.rf_uip = rf_uip
 
         if(self.input_dir is None):
-            breakpoint()
             self.input_dir = os.path.realpath(os.path.join(rf_uip.uip_all(instrument_name)['L2_OSP_PATH'], "OMI"))
 
         self.num_channel = len(self.channel_list())
@@ -356,7 +355,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         of the forward model. They may include a convolution with the ILS.
         '''
 
-        res = MusesOpticalDepthFile(self.rf_uip, self.pressure,
+        res = MusesOpticalDepthFile(self.rf_uip, self.instrument_name,
+                                    self.pressure,
                                     self.temperature, self.altitude,
                                     self.absorber_vmr, self.num_channel)
         return res
@@ -431,7 +431,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             #     self.temperature, self.rf_uip.latitude_with_unit(i),
             #     self.rf_uip.surface_height_with_unit(i))
 
-            chan_alt = MusesAltitude(self.rf_uip, self.pressure, self.rf_uip.latitude_with_unit(i))
+            chan_alt = MusesAltitude(self.rf_uip, self.instrument_name,
+                        self.pressure, self.rf_uip.latitude_with_unit(i))
             res.push_back(chan_alt)
         return res
 

@@ -3,12 +3,13 @@ import refractor.framework as rf
 
 class MusesAltitude(rf.Altitude):
 
-    def __init__(self, rf_uip, pressure, latitude):
+    def __init__(self, rf_uip, instrument_name, pressure, latitude):
 
         # Initialize director
         super().__init__()
 
         self.rf_uip = rf_uip
+        self.instrument_name = instrument_name
         self._pressure = pressure
         self._latitude = latitude
 
@@ -22,7 +23,7 @@ class MusesAltitude(rf.Altitude):
         if self.altitude_grid is not None and self.altitude_grid.shape[0] == nlev:
             return
 
-        hlev = self.rf_uip.ray_info['level_params']['radius'][:] - self.rf_uip.ray_info['level_params']['radius'][0]
+        hlev = self.rf_uip.ray_info(self.instrument_name)['level_params']['radius'][:] - self.rf_uip.ray_info(self.instrument_name)['level_params']['radius'][0]
         self.altitude_grid = np.flip(hlev, axis=0)[:nlev]
 
     def altitude(self, pressure_value):

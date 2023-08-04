@@ -100,7 +100,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             # 2) tranposed from the ReFRACtor convention of the
             # column being the state vector variables. So
             # translate the oss jac to what we want from ReFRACtor
-            if(self.sub_basis_matrix):
+            if(self.sub_basis_matrix is not None):
                 jac = np.matmul(self.sub_basis_matrix, jac).transpose()
             else:
                 jac = jac.transpose()

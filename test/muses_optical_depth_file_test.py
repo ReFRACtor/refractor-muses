@@ -16,7 +16,8 @@ def test_muses_optical_depth_file(tropomi_uip_step_3, clean_up_replacement_funct
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
     obj_creator.rf_uip.uip_tropomi["jacobians"] = ["O3",]
-    mod  = MusesOpticalDepthFile(obj_creator.rf_uip, obj_creator.pressure,
+    mod  = MusesOpticalDepthFile(obj_creator.rf_uip, "TROPOMI",
+                                 obj_creator.pressure,
                                  obj_creator.temperature, obj_creator.altitude,
                                  obj_creator.absorber_vmr,
                                  obj_creator.num_channel)

@@ -10,7 +10,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
     the nearest value to the wavenumber given to optical_depth_each_layer.
     """
 
-    def __init__(self, rf_uip, pressure, temperature, altitude, absorber_vmr, num_channel):
+    def __init__(self, rf_uip, instrument_name, pressure, temperature, altitude, absorber_vmr, num_channel):
 
         # Dummy since we are overwriting the optical_depth function
         xsec_tables = rf.vector_xsec_table()
@@ -26,6 +26,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
 
         self.rf_uip = rf_uip
         self.num_channel = num_channel
+        self.instrument_name = instrument_name
 
         self._pressure = pressure
         self._temperature = temperature
@@ -36,8 +37,8 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         self.input_dir = os.path.join(os.getenv('MUSES_DEFAULT_RUN_DIR', '.'), self.rf_uip.vlidort_input)
 
         # Reverse profile order to OD computation order
-        self.map_vmr_l = rf_uip.ray_info['map_vmr_l'][::-1]
-        self.map_vmr_u = rf_uip.ray_info['map_vmr_u'][::-1]
+        self.map_vmr_l = rf_uip.ray_info(instrument_name)['map_vmr_l'][::-1]
+        self.map_vmr_u = rf_uip.ray_info(instrument_name)['map_vmr_u'][::-1]
 
         # Initialize caches
         self.xsect_data = None
@@ -112,7 +113,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         # Return the MUSES value for consistency
 
         nlay = self._pressure.number_layer
-        dry_air_density = self.rf_uip.ray_info['column_air'][::-1][:nlay]
+        dry_air_density = self.rf_uip.ray_info(self.instrument_name)['column_air'][::-1][:nlay]
 
         return rf.ArrayAdWithUnit_double_1(rf.ArrayAd_double_1(dry_air_density), rf.Unit("cm^-2")) 
 
@@ -127,10 +128,10 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         if self.cache_valid_flag and self.gas_density_lay is not None and self.gas_density_lay.shape[0] == nlay:
             return
 
-        o3_ind = np.where(np.asarray(self.rf_uip.ray_info['level_params']['species']) == 'O3')[0]
+        o3_ind = np.where(np.asarray(self.rf_uip.ray_info(self.instrument_name)['level_params']['species']) == 'O3')[0]
 
         # Reverse from MUSES increasing altitude to internal increasing pressure order
-        self.gas_density_lay = self.rf_uip.ray_info['column_species'][o3_ind, ::-1].squeeze()[:nlay]
+        self.gas_density_lay = self.rf_uip.ray_info(self.instrument_name)['column_species'][o3_ind, ::-1].squeeze()[:nlay]
         self.cache_valid_flag = True
 
     def gas_number_density_layer(self, spec_index):

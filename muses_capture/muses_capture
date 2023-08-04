@@ -133,7 +133,7 @@ def base_command(instrument,output_dir="./output"):
                     ])
         sounding1 = "20160414_23_394_11_23"
         step_list = [1,2]
-    if(instrument == "airs_omi"):
+    elif(instrument == "airs_omi"):
         cmd.extend(["--sensor-set", "AIRS_OMI",
                     "--profile", "Western_Boundary",
                     "--date", "2016-04-01",
