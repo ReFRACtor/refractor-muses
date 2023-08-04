@@ -36,7 +36,7 @@ logger = logging.getLogger('py-retrieve')
 
 class WatchUipUpdate(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
     '''We  unfortunately can't just use the uip passed to tropomi_fm or
-    omi_fm because we also need the retrieval_vec and basis_matrix to
+    omi_fm because we also need the basis_matrix to
     get the state vector update. So we watch calls to update_uip.
 
     This object just forwards the calls to the object in the notify_set.
@@ -219,7 +219,6 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.sv_extra_index = {}
         self.rundir = "."
         self.ret_info = None
-        self.retrieval_vec = None
         self.rf_uip = None
         self.py_retrieve_debug=py_retrieve_debug
         self.py_retrieve_vlidort_nstokes=py_retrieve_vlidort_nstokes
@@ -280,7 +279,6 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
                 except _FakeUipExecption as e:
                     res = RefractorUip(uip=e.uip, ret_info=cretinfo.ret_info,
                         windows=e.windows, oco_info=e.oco_info,
-                        retrieval_vec=cretinfo.retrieval_vec,
                         strategy_table=os.environ["MUSES_DEFAULT_RUN_DIR"] + "/Table.asc")
         res.tar_directory()
         pickle.dump(res, open(pickle_file, "wb"))
@@ -297,7 +295,6 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
                                         change_to_dir=True, osp_dir=osp_dir,
                                         gmao_dir=gmao_dir)
             self.ret_info = uip.ret_info
-            self.retrieval_vec = np.copy(uip.retrieval_vec)
             self.rundir = uip.capture_directory.rundir
             # This might not be the best place for this, but we need to initialize
             # OSS code if it is going to be used
@@ -383,7 +380,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         how accurate the tropomi_fm/omi_fm jacobian is.
         '''
         # Save so we can reset this value before exiting.
-        retrieval_vec_0 = np.copy(self.rf_uip.retrieval_vec)
+        retrieval_vec_0 = np.copy(self.rf_uip.current_state_x)
         if(self.func_name == "tropomi_fm"):
             f = self.tropomi_fm
         else:
@@ -416,10 +413,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         '''Update the retrieval vector, both saved in this class and used
         by py-retrieve'''
         self.rf_uip.update_uip(retrieval_vec)
-        self.retrieval_vec = np.copy(retrieval_vec)
-        fm_vec = np.matmul(retrieval_vec,
-                           self.ret_info['basis_matrix'])
-        self.update_state(fm_vec)
+        self.update_state(self.rf_uip.current_state_x_fm)
 
     def tropomi_fm(self, i_uip, **kwargs):
         '''Substitutes for the py-retrieve tropomi_fm function
@@ -432,11 +426,8 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.rf_uip = RefractorUip(i_uip)
         self.rf_uip.rundir = os.getcwd()
         self.rf_uip.ret_info = self.ret_info
-        self.rf_uip.retrieval_vec = np.copy(self.retrieval_vec)
         if(hasattr(self, "obj_creator")):
-            fm_vec = np.matmul(self.retrieval_vec,
-                               self.ret_info['basis_matrix'])
-            self.obj_creator.state_vector_for_testing.update_state(fm_vec)
+            self.obj_creator.state_vector_for_testing.update_state(self.rf_uip.current_state_x_fm)
         mrad = self.observation.radiance(0)
         o_measured_radiance_tropomi = {"measured_radiance_field" : mrad.spectral_range.data, "measured_nesr" : mrad.spectral_range.uncertainty}
         o_success_flag = 1
@@ -471,11 +462,8 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.rf_uip = RefractorUip(i_uip)
         self.rf_uip.rundir = os.getcwd()
         self.rf_uip.ret_info = self.ret_info
-        self.rf_uip.retrieval_vec = np.copy(self.retrieval_vec)
         if(hasattr(self, "obj_creator")):
-            fm_vec = np.matmul(self.retrieval_vec,
-                               self.ret_info['basis_matrix'])
-            self.obj_creator.state_vector_for_testing.update_state(fm_vec)
+            self.obj_creator.state_vector_for_testing.update_state(self.rf_uip.current_state_x_fm)
         o_measured_radiance_omi = self.rf_uip.measured_radiance("OMI")
         o_success_flag = 1
 
@@ -608,7 +596,6 @@ class RefractorTropOrOmiFmPyRetrieve(RefractorTropOrOmiFmBase):
         self.rf_uip = RefractorUip(i_uip)
         self.rf_uip.rundir = os.getcwd()
         self.rf_uip.ret_info = self.ret_info
-        self.rf_uip.retrieval_vec = np.copy(self.retrieval_vec)
         with suppress_replacement("omi_fm"):
             return mpy.omi_fm(i_uip)
 
@@ -616,7 +603,6 @@ class RefractorTropOrOmiFmPyRetrieve(RefractorTropOrOmiFmBase):
         self.rf_uip = RefractorUip(i_uip)
         self.rf_uip.rundir = os.getcwd()
         self.rf_uip.ret_info = self.ret_info
-        self.rf_uip.retrieval_vec = np.copy(self.retrieval_vec)
         with suppress_replacement("tropomi_fm"):
             return mpy.tropomi_fm(i_uip)
     
@@ -815,7 +801,6 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
 
     def update_state(self, fm_vec, parms=None):
         self.ret_info = parms['i_ret_info']
-        self.retrieval_vec = parms['i_retrieval_vec']
         self.rf_uip = RefractorUip(parms['i_uip'])
         if(self.have_obj_creator):
             self.obj_creator.state_vector_for_testing.update_state(fm_vec)

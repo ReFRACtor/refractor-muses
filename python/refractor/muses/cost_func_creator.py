@@ -3,6 +3,7 @@ from .priority_handle_set import PriorityHandleSet
 import refractor.framework as rf
 import abc
 import copy
+import numpy as np
 
 class StateVectorHandle(object, metaclass=abc.ABCMeta):
     '''Base class for StateVectorHandle. Note we use duck typing, so you
@@ -45,10 +46,23 @@ class StateVectorHandleSet(PriorityHandleSet):
         it is useful to have the option of supporting this. Set
         use_full_state_vector to True to use the full state vector.
         '''
+        # For BT retrieval, the species aren't set. Mark this, since
+        # we need to do special handling. This is a really obscure way to
+        # indicate BT, but it is what fm_wrapper does.
+        is_bt_retrieval = (len(rf_uip.uip["speciesListFM"]) == 1
+                           and rf_uip.uip["speciesListFM"] == ['',])
         sv = rf.StateVector()
         for species_name in rf_uip.uip["jacobians_all"]:
             # Determine the range in the state vector for the species
-            if(not use_full_state_vector):
+            
+            if(is_bt_retrieval):
+                # Special handling for BT retrieval. BTW, this is really just
+                # sort of a "magic" logic in fm_wrapper, there is nothing that
+                # indicates the length is 1 here except the hard coded logic
+                # in fm_wrapper.
+                pstart = 0
+                plen = 1
+            elif(not use_full_state_vector):
                 pstart = list(rf_uip.uip["speciesList"]).index(species_name)
                 plen = list(rf_uip.uip["speciesList"]).count(species_name)
             else:
@@ -81,7 +95,8 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
     that a class is intended for this.'''
     @abc.abstractmethod
     def fm_and_obs(instrument_name : str, rf_uip : RefractorUip,
-                   svhandle: StateVectorHandleSet):
+                   svhandle: StateVectorHandleSet,
+                   use_full_state_vector=False):
         '''Turn ForwardModel and Observation if we can process the given
         instrument_name, or (None, None) if we can't. Add any StateVectorHandle
         to the passed in set.
@@ -94,19 +109,23 @@ class InstrumentHandleSet(PriorityHandleSet):
     '''This takes  the instrument name and RefractorUip, and
     creates a FowardModel and Observation for that instrument.'''
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
-                   svhandle : StateVectorHandleSet):
+                   svhandle : StateVectorHandleSet,
+                   use_full_state_vector=False):
         '''Create a ForwardModel and Observation for the given instrument.
         
         The StateVectorHandleSet svhandle is modified by having any
         StateVectorHandle added to it.'''
 
-        return self.handle(instrument_name, rf_uip, svhandle)
+        return self.handle(instrument_name, rf_uip, svhandle,
+                           use_full_state_vector=use_full_state_vector)
     
     def handle_h(self, h : InstrumentHandle, instrument_name : str,
                  rf_uip : RefractorUip,
-                 svhandle : StateVectorHandleSet):
+                 svhandle : StateVectorHandleSet,
+                 use_full_state_vector=False):
         '''Process a registered function'''
-        fm, obs = h.fm_and_obs(instrument_name, rf_uip, svhandle)
+        fm, obs = h.fm_and_obs(instrument_name, rf_uip, svhandle,
+                               use_full_state_vector=use_full_state_vector)
         if(fm is None):
             return (False, None)
         return (True, (fm, obs))
@@ -143,7 +162,8 @@ class CostFuncCreator:
     def __init__(self):
         self.instrument_handle_set = copy.deepcopy(InstrumentHandleSet.default_handle_set())
 
-    def create_cost_func(self, rf_uip : RefractorUip):
+    def create_cost_func(self, rf_uip : RefractorUip,
+                         use_full_state_vector=False):
         fm_list = rf.Vector_ForwardModel()
         obs_list = rf.Vector_Observation()
         # Stash observation, so we have a copy that includes extra
@@ -153,14 +173,21 @@ class CostFuncCreator:
         state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
         for instrument_name in rf_uip.uip["instruments"]:
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
-                                    rf_uip, state_vector_handle_set)
+                                  rf_uip, state_vector_handle_set,
+                                  use_full_state_vector=use_full_state_vector)
             fm_list.push_back(fm)
             obs_list.push_back(obs)
             obs_python_list.append(obs)
-        sv = state_vector_handle_set.create_state_vector(rf_uip)
+        sv = state_vector_handle_set.create_state_vector(rf_uip,
+                                use_full_state_vector=use_full_state_vector)
         ret_info = rf_uip.ret_info
-        mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, sv,
-            ret_info["const_vec"], ret_info["sqrt_constraint"].transpose())
+        if(ret_info):
+            mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, sv,
+               ret_info["const_vec"], ret_info["sqrt_constraint"].transpose())
+        else:
+            mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, sv,
+                               np.zeros(sv.observer_claimed_size),
+                               np.identity(sv.observer_claimed_size))
         mprob = rf.NLLSMaxAPosteriori(mstand)
         mprob.obs_list = obs_python_list
         return mprob

@@ -101,7 +101,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.rf_uip = rf_uip
 
         if(self.input_dir is None):
-            self.input_dir = os.path.realpath(os.path.join(rf_uip.uip_all['L2_OSP_PATH'], "OMI"))
+            breakpoint()
+            self.input_dir = os.path.realpath(os.path.join(rf_uip.uip_all(instrument_name)['L2_OSP_PATH'], "OMI"))
 
         self.num_channel = len(self.channel_list())
 
@@ -279,7 +280,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # "cloud pressure level" that gives the same number of layers. We
         # could change ReFRACtor to use layers, but there doesn't seem to be
         # much point.
-        ncloud_lay = np.count_nonzero(self.rf_uip.ray_info["pbar"] <= self.uip_params['cloud_pressure'])
+        ncloud_lay = np.count_nonzero(self.rf_uip.ray_info(self.instrument_name)["pbar"] <= self.uip_params['cloud_pressure'])
         pgrid = self.pressure_fm.pressure_grid().value.value
         if(ncloud_lay+1 < pgrid.shape[0]):
             cloud_pressure_level = (pgrid[ncloud_lay] + pgrid[ncloud_lay+1]) / 2

@@ -28,6 +28,9 @@ class osswrapper:
     another function that uses the osswrapper and the OSS initialization
     will only happen once.
 
+    Note that if we do the initialization, the uip passed in is modified
+    to add oss_jacobianList. This duplicates what muses-py does.
+
     We also interact with muse py to catch calls to fm_oss_init and
     fm_oss_delete done outside of ReFRACtor (e.g., in run_retrieval).
 
@@ -59,7 +62,7 @@ class osswrapper:
         
     def __enter__(self):
         if(not osswrapper.have_oss):
-            for inst in ('CRIS','AIRS',):
+            for inst in ('CRIS','AIRS', 'TES'):
                 if(f'uip_{inst}' in self.uip):
                     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
                     uip_all = mpy.struct_combine(self.uip, self.uip[f"uip_{inst}"])
@@ -75,6 +78,7 @@ class osswrapper:
                         
                     with suppress_replacement("fm_oss_init"):
                         (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                        self.uip['oss_jacobianList'] = jacobianList
                     mpy.fm_oss_windows(mpy.ObjectView(uip_all))
                     self.need_cleanup = True
                     osswrapper.have_oss =  True

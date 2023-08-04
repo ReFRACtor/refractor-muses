@@ -132,20 +132,10 @@ class RefractorUip:
         self.capture_directory = RefractorCaptureDirectory()
         self.rundir = "."
 
-    @property
-    def uip_all(self):
-        '''Depending on where this comes from, it may or may not have the
-        uip_OMI stuff included. If not, add this in. This duplicates what
-        py_retrieve does in fm_wrapper'''
-        # 'jacobians' happens
-        # to be something not in the original uip, that gets added with omi
-        if('jacobians' not in self.uip and 'uip_OMI' in self.uip):
-            return mpy.struct_combine(self.uip, self.uip['uip_OMI'])
-        elif('jacobians' not in self.uip and 'uip_TROPOMI' in self.uip):
-            return mpy.struct_combine(self.uip, self.uip['uip_TROPOMI'])
-        else:
-            return self.uip
-        
+    def uip_all(self, instrument_name):
+        '''Add in the stuff for the given instrument name. This is
+        used in a number of places in muses-py calls.'''
+        return mpy.struct_combine(self.uip, self.uip[f'uip_{instrument_name}'])
            
     @property
     def refractor_cache(self):
@@ -248,6 +238,19 @@ class RefractorUip:
         self.capture_directory.save_directory(os.path.dirname(self.strategy_table), vlidort_input)
         
 
+    @property
+    def current_state_x(self):
+        '''Return the current guess. This is the same thing as retrieval_vec,
+        update_uip sets this so we know this.'''
+        return self.uip["currentGuessList"]
+
+    @property
+    def current_state_x_fm(self):
+        '''Return the current guess for the full state model (called fm_vec
+        in some places) This is the same thing as retrieval_vec @ basis_matrix
+        update_uip sets this so we know this.'''
+        return self.uip["currentGuessListFM"]
+    
     @property
     def vlidort_input(self):
         if(self.uip_omi):
@@ -360,6 +363,16 @@ class RefractorUip:
     def tropomi_params(self):
         '''Short cut for tropomiPars'''
         return self.uip.get('tropomiPars')
+
+    def freq_index(self, instrument_name):
+        '''Return frequency index for given instrument'''
+        if(instrument_name == "OMI"):
+            return self.uip_omi['freqIndex']
+        elif(instrument_name == "TROPOMI"):
+            return self.uip_tropomi['freqIndex']
+        else:
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+        
     
     def measured_radiance(self, instrument_name):
         '''Note muses-py handles the radiance data in pretty much the reverse
@@ -413,34 +426,18 @@ class RefractorUip:
             
         return endmw_fm - startmw_fm + 1
 
-    @property
-    def atm_params(self):
-        uall = self.uip_all
-        pangle_original = uall['obs_table']['pointing_angle']
-        # Note uall is logically const in this function, even though we
-        # change it temporarily. We do want to restore it, self.uip_all
-        # may be a reference to self.uip which we don't want to get updated
-        try:
-            uall['obs_table']['pointing_angle'] = 0.0
-            res = mpy.atmosphere_level(uall)
-        finally:
-            uall['obs_table']['pointing_angle'] = pangle_original
-        return res
+    def atm_params(self, instrument_name):
+        return mpy.atmosphere_level(self.uip_all(instrument_name))
 
-    @property
-    def ray_info(self):
-        uall = self.uip_all
-        pangle_original = uall['obs_table']['pointing_angle']
-        # Note uall is logically const in this function, even though we
-        # change it temporarily. We do want to restore it, self.uip_all
-        # may be a reference to self.uip which we don't want to get updated
-        try:
+    def ray_info(self, instrument_name, set_pointing_angle_zero=True):
+        uall = self.uip_all(instrument_name)
+        # tropomi_fm and omi_fm set this to zero before calling raylayer_nadir.
+        # I'm not sure if always want to do this or not. Note that uall
+        # is a copy of uip, so no need to set this back.
+        if(set_pointing_angle_zero):
             uall['obs_table']['pointing_angle'] = 0.0
-            res = mpy.raylayer_nadir(mpy.ObjectView(uall),
-                                     mpy.ObjectView(self.atm_params))
-        finally:
-            uall['obs_table']['pointing_angle'] = pangle_original
-        return res
+        return mpy.raylayer_nadir(mpy.ObjectView(self.uip_all(instrument_name)),
+                                  mpy.ObjectView(self.atm_params(instrument_name)))
     
     @property
     def omi_cloud_fraction(self):

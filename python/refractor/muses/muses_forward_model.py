@@ -31,9 +31,15 @@ class MusesObservationBase(rf.ObservationSvImpBase):
         sd = self.spectral_domain(sensor_index)
         ret_info = self.rf_uip.ret_info
         subset = [t == self.instrument_name for t in self.rf_uip.uip["instrumentList"]]
-        r = ret_info["obs_rad"][subset]
-        uncer = ret_info["meas_err"][subset]
+        if(ret_info):
+            r = ret_info["obs_rad"][subset]
+            uncer = ret_info["meas_err"][subset]
+        else:
+            r = np.zeros(sd.data.shape)
+            uncer = np.ones(r.shape)
         sr = rf.SpectralRange(r, rf.Unit("sr^-1"), uncer)
+        if(sr.data.shape != sd.data.shape):
+            raise RuntimeError("sd and sr are different lengths")
         return rf.Spectrum(sd, sr)
     
     @property
@@ -52,7 +58,15 @@ class MusesForwardModelBase(rf.ForwardModel):
         # The jacobians from muses forward model routines only contains
         # the subset of
         # the columns that are listed in uip_all["jacobians"]
-        self.sub_basis_matrix = rf_uip.ret_info["basis_matrix"][:,[t in list(self.uip_all["jacobians"]) for t in rf_uip.uip["speciesListFM"]]]
+        # If we are called with a basis_matrix
+        self.sub_basis_matrix = None
+        if(rf_uip.ret_info):
+            self.sub_basis_matrix = rf_uip.ret_info["basis_matrix"][:,[t in list(self.uip_all["jacobians"]) for t in rf_uip.uip["speciesListFM"]]]
+        # For BT retrieval, the species aren't set. Mark this, since
+        # we need to do special handling. This is a really obscure way to
+        # indicate BT, but it is what fm_wrapper does.
+        self.is_bt_retrieval = (len(self.rf_uip.uip["speciesListFM"]) == 1
+                                and self.rf_uip.uip["speciesListFM"] == ['',])
 
     def setup_grid(self):
         # Nothing that we need to do for this
@@ -86,7 +100,14 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             # 2) tranposed from the ReFRACtor convention of the
             # column being the state vector variables. So
             # translate the oss jac to what we want from ReFRACtor
-            jac = np.matmul(self.sub_basis_matrix, jac).transpose()
+            if(self.sub_basis_matrix):
+                jac = np.matmul(self.sub_basis_matrix, jac).transpose()
+            else:
+                jac = jac.transpose()
+            if(self.is_bt_retrieval):
+                # Only one column has data, although oss returns a larger
+                # jacobian
+                jac = jac[:,0:1]
             a = rf.ArrayAd_double_1(rad, jac)
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
@@ -133,7 +154,8 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle):
+    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+                   use_full_state_vector=False):
         if(instrument_name != "CRIS"):
             return (None, None)
         # This has already been handled below
