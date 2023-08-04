@@ -325,7 +325,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # before mapping to a different number of levels
         mappings = rf.vector_state_mapping()
         if(not self.use_full_state_vector):
-            mappings.push_back(rf.StateMappingBasisMatrix(self.rf_uip.atmosphere_basis_matrix("O3").transpose()))
+            basis_matrix = self.rf_uip.atmosphere_basis_matrix("O3").transpose()
+            if(len(basis_matrix) > 0):
+                mappings.push_back(rf.StateMappingBasisMatrix(basis_matrix))
         mappings.push_back(rf.StateMappingLog())
 
         smap = rf.StateMappingComposite(mappings)
