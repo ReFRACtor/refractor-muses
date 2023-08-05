@@ -39,6 +39,18 @@ class MusesRunDir:
             if k in d['preferences']:
                 f = d['preferences'][k]
                 freplace = os.path.abspath(f"{refractor_sounding_dir}/../{os.path.basename(f)}")
+                # Special handling for CRIS_filename, it uses the
+                # string nasa_fsr normally found in the path to
+                # know the type of file. Since we are mucking with the
+                # path and removing the nasa_fsr directory this breaks
+                # muses-py. We work around this by embedding this string 
+                # in the file name - this is enough to satisfy the 
+                # logic in muses-py for determining the file type.
+                # refractor_test_data already has the file
+                # available with this additional piece in the name -
+                # we manually added a symbolic link with this name.
+                if(k == "CRIS_filename"):
+                    freplace = os.path.abspath(f"{refractor_sounding_dir}/../nasa_fsr_{os.path.basename(f)}")
                 d['preferences'][k] = freplace
         mpy.write_all_tes(d, f"{self.run_dir}/Measurement_ID.asc")
 
