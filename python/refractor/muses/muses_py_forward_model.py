@@ -218,7 +218,6 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
                  py_retrieve_vlidort_nstreams=4):
         self.sv_extra_index = {}
         self.rundir = "."
-        self.ret_info = None
         self.rf_uip = None
         self.py_retrieve_debug=py_retrieve_debug
         self.py_retrieve_vlidort_nstokes=py_retrieve_vlidort_nstokes
@@ -277,8 +276,8 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
                 try:
                     rstep.run_retrieval()
                 except _FakeUipExecption as e:
-                    res = RefractorUip(uip=e.uip, ret_info=cretinfo.ret_info,
-                        windows=e.windows, oco_info=e.oco_info,
+                    res = RefractorUip(uip=e.uip,
+                        basis_matrix=cretinfo.ret_info['basis_matrix'],
                         strategy_table=os.environ["MUSES_DEFAULT_RUN_DIR"] + "/Table.asc")
         res.tar_directory()
         pickle.dump(res, open(pickle_file, "wb"))
@@ -294,7 +293,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
             uip = RefractorUip.load_uip(pickle_file,path=path,
                                         change_to_dir=True, osp_dir=osp_dir,
                                         gmao_dir=gmao_dir)
-            self.ret_info = uip.ret_info
+            self.basis_matrix = uip.basis_matrix
             self.rundir = uip.capture_directory.rundir
             # This might not be the best place for this, but we need to initialize
             # OSS code if it is going to be used
@@ -404,9 +403,9 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
             # it gives an extra row of zeros that then gets trimmed before
             # leaving
             # fm_wrapper. But we need to trim this to do this step
-            if(jac.shape[0] > self.ret_info['basis_matrix'].shape[1]):
-                jac = jac[:self.ret_info['basis_matrix'].shape[1], :]
-            jaccalc = np.matmul(self.ret_info['basis_matrix'], jac)[index]
+            if(jac.shape[0] > self.rf_uip.basis_matrix.shape[1]):
+                jac = jac[:self.rf_uip.basis_matrix.shape[1], :]
+            jaccalc = np.matmul(self.rf_uip.basis_matrix, jac)[index]
             return jacfd, jaccalc
 
     def update_retrieval_vec(self, retrieval_vec):
@@ -423,9 +422,8 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
 
         o_success_flag is 1 if the data is good, 0 otherwise.
         '''
-        self.rf_uip = RefractorUip(i_uip)
+        self.rf_uip = RefractorUip(i_uip, basis_matrix=self.basis_matrix)
         self.rf_uip.rundir = os.getcwd()
-        self.rf_uip.ret_info = self.ret_info
         if(hasattr(self, "obj_creator")):
             self.obj_creator.state_vector_for_testing.update_state(self.rf_uip.current_state_x_fm)
         mrad = self.observation.radiance(0)
@@ -459,9 +457,8 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         o_success_flag is 1 if the data is good, 0 otherwise.
         '''
 
-        self.rf_uip = RefractorUip(i_uip)
+        self.rf_uip = RefractorUip(i_uip, basis_matrix=self.basis_matrix)
         self.rf_uip.rundir = os.getcwd()
-        self.rf_uip.ret_info = self.ret_info
         if(hasattr(self, "obj_creator")):
             self.obj_creator.state_vector_for_testing.update_state(self.rf_uip.current_state_x_fm)
         o_measured_radiance_omi = self.rf_uip.measured_radiance("OMI")

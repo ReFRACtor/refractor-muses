@@ -22,7 +22,7 @@ class MusesObservationBase(rf.ObservationSvImpBase):
         return 1
 
     def spectral_domain(self, sensor_index, include_bad_sample=False):
-        return rf.SpectralDomain(self.uip_all["frequencyList"], rf.Unit("nm"))
+        return rf.SpectralDomain(self.rf_uip.uip_all(self.instrument_name)["frequencyList"], rf.Unit("nm"))
 
     def radiance(self, sensor_index, skip_jacobian = False,
                  include_bad_sample=False):
@@ -41,10 +41,6 @@ class MusesObservationBase(rf.ObservationSvImpBase):
         if(sr.data.shape != sd.data.shape):
             raise RuntimeError("sd and sr are different lengths")
         return rf.Spectrum(sd, sr)
-    
-    @property
-    def uip_all(self):
-        return mpy.struct_combine(self.rf_uip.uip, self.rf_uip.uip[f"uip_{self.instrument_name}"])
 
 # There are a number of things in common with the different forward models,
 # so we capture these in these base classes.
@@ -61,7 +57,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         # If we are called with a basis_matrix
         self.sub_basis_matrix = None
         if(rf_uip.ret_info):
-            self.sub_basis_matrix = rf_uip.ret_info["basis_matrix"][:,[t in list(self.uip_all["jacobians"]) for t in rf_uip.uip["speciesListFM"]]]
+            self.sub_basis_matrix = rf_uip.ret_info["basis_matrix"][:,[t in list(self.rf_uip.uip_all(self.instrument_name)["jacobians"]) for t in rf_uip.uip["speciesListFM"]]]
         # For BT retrieval, the species aren't set. Mark this, since
         # we need to do special handling. This is a really obscure way to
         # indicate BT, but it is what fm_wrapper does.
@@ -76,11 +72,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         return 1
 
     def spectral_domain(self, sensor_index):
-        return rf.SpectralDomain(self.uip_all["frequencyList"], rf.Unit("nm"))
-
-    @property
-    def uip_all(self):
-        return mpy.struct_combine(self.rf_uip.uip, self.rf_uip.uip[f"uip_{self.instrument_name}"])
+        return rf.SpectralDomain(self.rf_uip.uip_all(self.instrument_name)["frequencyList"], rf.Unit("nm"))
 
 class MusesOssForwardModelBase(MusesForwardModelBase):
     '''Common behavior for the OSS based forward models'''
@@ -91,7 +83,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         with osswrapper(self.rf_uip.uip):
-            rad, jac = mpy.fm_oss_stack(self.uip_all)
+            rad, jac = mpy.fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
         sd = self.spectral_domain(sensor_index)
         if(skip_jacobian):
             sr = rf.SpectralRange(rad, rf.Unit("sr^-1"))

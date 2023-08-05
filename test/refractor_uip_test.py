@@ -19,9 +19,9 @@ def test_refractor_omi_uip(isolated_dir):
     print(m.latitude(ii_mw))
     print(m.longitude(ii_mw))
     print(m.surface_height(ii_mw))
-    print(m.across_track_indexes(ii_mw))
-    print(m.atm_params)
-    print(m.ray_info)
+    print(m.across_track_indexes(ii_mw, "OMI"))
+    print(m.atm_params("OMI"))
+    print(m.ray_info("OMI"))
     print(m.solar_irradiance(ii_mw, "OMI"))
 
 @require_muses_py
@@ -43,9 +43,9 @@ def test_refractor_joint_uip(isolated_dir):
     print(m.latitude(ii_mw))
     print(m.longitude(ii_mw))
     print(m.surface_height(ii_mw))
-    print(m.across_track_indexes(ii_mw))
-    print(m.atm_params)
-    print(m.ray_info)
+    print(m.across_track_indexes(ii_mw, "OMI"))
+    print(m.atm_params("OMI"))
+    print(m.ray_info("OMI"))
     
 @require_muses_py
 def test_refractor_tropomi_uip(isolated_dir):
@@ -68,6 +68,6 @@ def test_refractor_tropomi_uip(isolated_dir):
     print(m.latitude(ii_mw))
     print(m.longitude(ii_mw))
     print(m.surface_height(ii_mw))
-    print(m.across_track_indexes(ii_mw))
-    print(m.atm_params)
-    print(m.ray_info)
+    print(m.across_track_indexes(ii_mw, "TROPOMI"))
+    print(m.atm_params("TROPOMI"))
+    print(m.ray_info("TROPOMI"))

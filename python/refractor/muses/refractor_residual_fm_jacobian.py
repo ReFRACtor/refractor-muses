@@ -128,8 +128,7 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
         # but the values get used in run_retrieval of py-retrieval, so
         # we need to update this.
         uip.iteration = iterNum
-        rf_uip = RefractorUip(uip, ret_info=ret_info,
-                              retrieval_vec=retrieval_vec)
+        rf_uip = RefractorUip(uip, basis_matrix=ret_info['basis_matrix'])
         if(not "cost_func" in rf_uip.refractor_cache):
             rf_uip.refractor_cache["cost_func"] = \
                 self.cost_func_creator.create_cost_func(rf_uip)

@@ -89,6 +89,17 @@ class RefractorUip:
     somewhat from changes to the uip (so changed names just need to be 
     updated here).
 
+    Note that the UIP doesn't include the basis matrix needed to map
+    from the retrieval vector to the full model vector ('z' and 'x' in
+    the notation of the TES paper “Tropospheric Emission Spectrometer:
+    Retrieval Method and Error Analysis” (IEEE TRANSACTIONS ON
+    GEOSCIENCE AND REMOTE SENSING, VOL. 44, NO. 5, MAY 2006). There
+    really isn't another natural place to put this, so we stash this
+    matrix into this class. Depending on the call chain, this may or
+    may not be available, so code should check if this is None and somehow
+    handle this (including throwing an exception. We store this
+    as basis_matrix
+
     Note that although some thing need access to muses_py (e.g., 
     create_from_table), a lot of this functionality doesn't actually 
     depend on muses-py. So if we have a pickled version of this object
@@ -104,13 +115,14 @@ class RefractorUip:
     mw_index is 0 (UV1, with the second UV2).
 
     It isn't 100% clear what the right interface is here, so we may modify
-    this class a bit in the future.'''
+    this class a bit in the future.
 
-    def __init__(self, uip = None, strategy_table = None, ret_info = None,
-                 retrieval_vec = None,
-                 windows=None, oco_info=None):
+    '''
+
+    def __init__(self, uip = None, strategy_table = None, basis_matrix = None):
         '''Constructor. This takes the uip structure (the muses-py dictionary)
-        and/or the strategy_table file name'''
+        and/or the strategy_table file name.
+        '''
         # Depending on where this is called from, uip may be a dict or
         # an ObjectView. Just to make things simpler, we always store this
         # as a dict.
@@ -122,12 +134,9 @@ class RefractorUip:
         # scenes. But this turns out to break a bunch of stuff. We could probably
         # eventually sort this out, but this seems like a lot or work for little
         # gain. Instead, we can just check by inspection if the UIP is changed in
-        # any py-retrieve code
+        # any muses-py code
         #self.uip = ConstantDict(self.uip)
-        self.windows = windows
-        self.oco_info = oco_info
-        self.ret_info = ret_info
-        self.retrieval_vec = retrieval_vec
+        self.basis_matrix = basis_matrix
         self.strategy_table = strategy_table
         self.capture_directory = RefractorCaptureDirectory()
         self.rundir = "."
@@ -146,11 +155,13 @@ class RefractorUip:
            
     @property
     def refractor_cache(self):
-        '''Return a simple dict we use for caching values. Note that by design this
-        really is a cache, if this is missing or anything in it is then we just create
-        on first use. Note this is the equivalent of a "mutable" in C++ - we allow things
-        to get updated in the cache in places that should otherwise want the UIP to be
-        held constant.'''
+        '''Return a simple dict we use for caching values. Note that
+        by design this really is a cache, if this is missing or
+        anything in it is then we just create on first use. Note this
+        is the equivalent of a "mutable" in C++ - we allow things to
+        get updated in the cache in places that should otherwise want
+        the UIP to be held constant.
+        '''
         if("refractor_cache" not in self.uip or
            self.uip['refractor_cache'] is None):
             self.uip["refractor_cache"] = RefractorCache()
@@ -187,7 +198,6 @@ class RefractorUip:
         work out a way to do this more directly.
 
         '''
-
         strategy_table = os.path.abspath(strategy_table)
         # We would like to just call a function in muses-py to generate
         # the UIP. Unfortunately, one doesn't exist. Instead this is
@@ -223,7 +233,7 @@ class RefractorUip:
                         mpy.script_retrieval_ms(os.path.basename(strategy_table))
         except _FakeUipExecption as e:
             res = cls(uip=e.uip,strategy_table=strategy_table,
-                      ret_info=e.ret_info, retrieval_vec=e.retrieval_vec)
+                      basis_matrix = e.ret_info["basis_matrix"])
         finally:
             if(old_run_dir):
                 os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
@@ -244,19 +254,6 @@ class RefractorUip:
             vlidort_input = self.uip['uip_TROPOMI']["vlidort_input"]
         self.capture_directory.save_directory(os.path.dirname(self.strategy_table), vlidort_input)
         
-    @property
-    def current_state_x(self):
-        '''Return the current guess. This is the same thing as retrieval_vec,
-        update_uip sets this so we know this.'''
-        return self.uip["currentGuessList"]
-
-    @property
-    def current_state_x_fm(self):
-        '''Return the current guess for the full state model (called fm_vec
-        in some places) This is the same thing as retrieval_vec @ basis_matrix
-        update_uip sets this so we know this.'''
-        return self.uip["currentGuessListFM"]
-
     @property
     def current_state_x(self):
         '''Return the current guess. This is the same thing as retrieval_vec,
@@ -308,11 +305,11 @@ class RefractorUip:
         (e.g, O3).'''
         t1 = np.array(self.uip['speciesList']) == param_name
         t2 = np.array(self.uip['speciesListFM']) == param_name
-        return self.ret_info["basis_matrix"][t1,:][:,t2]
+        return self.basis_matrix[t1,:][:,t2]
 
     def atmosphere_basis_matrix_calc(self, param_name):
         '''Rather than return the basis matrix in ret_info, calculate
-        this like get_species_information does in py-retrieve.
+        this like get_species_information does in muses-py.
 
         Note that this is a bit circular, we use
         atmosphere_retrieval_level_subset which depends on the basis matrix
@@ -359,10 +356,6 @@ class RefractorUip:
         param_index = param_list.index(param_name.lower())
         return self.uip['atmosphere'][param_index,:]
 
-    # I'm not positive about the design here. But for a lot of purposes
-    # we really do want to separate omi from tropomi. So we have specific
-    # properties here rather than indexing by the instrument type
-    
     @property
     def uip_omi(self):
         '''Short cut to uip_OMI'''
@@ -391,17 +384,7 @@ class RefractorUip:
             return self.uip_tropomi['freqIndex']
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
-        
     
-    def freq_index(self, instrument_name):
-        '''Return frequency index for given instrument'''
-        if(instrument_name == "OMI"):
-            return self.uip_omi['freqIndex']
-        elif(instrument_name == "TROPOMI"):
-            return self.uip_tropomi['freqIndex']
-        else:
-            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
-        
     def measured_radiance(self, instrument_name):
         '''Note muses-py handles the radiance data in pretty much the reverse
         way that ReFRACtor does.
@@ -425,12 +408,11 @@ class RefractorUip:
         '''
         if(instrument_name == "OMI"):
             rad = mpy.get_omi_radiance(self.omi_params)
-            freqindex = self.uip_omi['freqIndex']
         elif(instrument_name == "TROPOMI"):
             rad = mpy.get_tropomi_radiance(self.tropomi_params)
-            freqindex = self.uip_tropomi['freqIndex']
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+        freqindex = self.freq_index(instrument_name)
         return {
             'wavelength'  : rad['wavelength'][freqindex],
             'measured_radiance_field': rad['normalized_rad'][freqindex],  
@@ -514,43 +496,33 @@ class RefractorUip:
             self.uip['microwindows_all'][ii_mw]['endd']
             ],]), "nm")
 
-    @property
-    def state_vector_params(self):
+    def state_vector_params(self, instrument_name):
         '''List of parameter types to include in the state vector.'''
-        if(self.uip_omi is not None):
-            return self.uip_omi['jacobians']
-        elif(self.uip_tropomi is not None):
-            return self.uip_tropomi['jacobians']
-        return []
-        
+        return self.uip[f"uip_{instrument_name}"]["jacobians"]
 
-    @property
-    def state_vector_names(self):
+    def state_vector_names(self, instrument_name):
         '''Full list of the name for each state vector list item'''
         sv_list = []
         for jac_name in self.uip['speciesListFM']:
-            if jac_name in self.state_vector_params:
+            if jac_name in self.state_vector_params(instrument_name):
                 sv_list.append(jac_name)
         return sv_list
 
-    @property
-    def state_vector_update_indexes(self):
+    def state_vector_update_indexes(self, instrument_name):
         '''Indexes for this instrument's state vector element updates from the full update vector'''
-
         sv_extract_index = []
         for full_idx, jac_name in enumerate(self.uip['speciesListFM']):
-            if jac_name in self.state_vector_params:
+            if jac_name in self.state_vector_params(instrument_name):
                 sv_extract_index.append(full_idx)
 
         return np.array(sv_extract_index)
 
-    @property
-    def earth_sun_distance(self):
+    def earth_sun_distance(self, instrument_name):
         '''Earth sun distance, in meters. Right now this is OMI specific'''
         # Same value for all the bands, so just grab the first one
-        if(self.omi_obs_table is not None):
+        if(instrument_name == "OMI"):
             return self.omi_obs_table['EarthSunDistance'][0]
-        elif(self.tropomi_obs_table is not None):
+        elif(instrument_name == "TROPOMI"):
             return self.tropomi_obs_table['EarthSunDistance'][0]
         else:
             RuntimeError("Didn't find a observation table")
@@ -575,28 +547,6 @@ class RefractorUip:
             else:
                 raise RuntimeError(f"Invalid instrument {self.instrument_name(ii_mw)}")
             return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
-
-    def muses_fm_spectral_domain(self, mw_index):
-        '''
-        NOTE - The logic here has changed in py-retrieve. We only ever
-        used this for the Raman calculation, and it isn't used there 
-        anymore. Leave this is place for now, but we should be able to
-        remove this once all the old code gets updated. Look to
-        raman_spectral_domain instead.
-
-        Wavelengths do to do the forward model on. This is read from
-        the ILS. Not sure how this compares to what we already get from
-        the base_config or OmiForwardModel, but for now we give separate
-        access to this.
-
-        Right now this is omi specific.'''
-
-        ils_uip_info = self.ils_params(mw_index)
-
-        if self.ils_method(mw_index) == "FASTCONV":
-            return rf.SpectralDomain(ils_uip_info["monochromgrid"], rf.Unit("nm"))
-        else:
-            return rf.SpectralDomain(ils_uip_info["X0_fm"], rf.Unit("nm"))
 
     def ils_params(self, mw_index, instrument_name):
         '''Returns ILS information for the given microwindow'''
@@ -623,7 +573,7 @@ class RefractorUip:
         control coupling, so for now we'll just live with this.
 
         We 1) want to just directly evaluate this using ReFRACtor code or 
-        2) track down what exactly py-retrieve is doing to create this and
+        2) track down what exactly muses-py is doing to create this and
         do it directly. 
         '''
         input_directory = f"{self.rundir}/Input/"
@@ -790,25 +740,29 @@ class RefractorUip:
         '''Surface height for the microwindow index ii_mw'''
         return rf.DoubleWithUnit(float(self.surface_height(ii_mw)), "m")
     
-    def across_track_indexes(self, ii_mw):
+    def across_track_indexes(self, ii_mw, instrument_name):
         '''Across track indexes for the microwindow index ii_mw.
 
         Right now this is omi specific'''
         # Can't really average these to have anything that makes sense.
         # So for now we just pick the first one that matches
-        if(self.omi_obs_table):
+        if(instrument_name == "OMI"):
             return np.asarray(self.omi_obs_table["XTRACK"])[self.channel_indexes(ii_mw)]
-        if(self.tropomi_obs_table):
+        if(instrument_name == "TROPOMI"):
             return np.asarray(self.tropomi_obs_table["XTRACK"])[self.channel_indexes(ii_mw)]
         raise RuntimeError("Don't know how to find observation table")
 
     def update_uip(self, retrieval_vec):
-        '''This updates the underlying UIP with the new retrieval_vec, e.g., this is
-        the py-retrieve equivalent up updating the StateVector in ReFRACtor.
+        '''This updates the underlying UIP with the new retrieval_vec,
+        e.g., this is the muses-py equivalent up updating the
+        StateVector in ReFRACtor.
 
-        Note that this is the retrieval vector, not the state vector.'''
-        self.retrieval_vec = np.copy(retrieval_vec)
-        self.uip, _ = mpy.update_uip(self.uip, self.ret_info, retrieval_vec)
+        Note that this is the retrieval vector, not the full state vector.
+        '''
+        # Fake the ret_info structure. update_uip only uses the basis
+        # matrix
+        ret_info = {'basis_matrix' : basis_matrix}
+        self.uip, _ = mpy.update_uip(self.uip, ret_info, retrieval_vec)
         if(hasattr(self.uip, 'as_dict')): 
             self.uip = self.uip.as_dict(self.uip)
 

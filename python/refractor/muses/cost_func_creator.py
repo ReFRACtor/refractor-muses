@@ -163,6 +163,7 @@ class CostFuncCreator:
         self.instrument_handle_set = copy.deepcopy(InstrumentHandleSet.default_handle_set())
 
     def create_cost_func(self, rf_uip : RefractorUip,
+                         ret_info = None,
                          use_full_state_vector=False):
         fm_list = rf.Vector_ForwardModel()
         obs_list = rf.Vector_Observation()
@@ -180,7 +181,7 @@ class CostFuncCreator:
             obs_python_list.append(obs)
         sv = state_vector_handle_set.create_state_vector(rf_uip,
                                 use_full_state_vector=use_full_state_vector)
-        ret_info = rf_uip.ret_info
+        # TODO Fix up this logic
         if(ret_info):
             mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, sv,
                ret_info["const_vec"], ret_info["sqrt_constraint"].transpose())
