@@ -135,6 +135,11 @@ class RefractorUip:
     def uip_all(self, instrument_name):
         '''Add in the stuff for the given instrument name. This is
         used in a number of places in muses-py calls.'''
+        # For some testing, we might get called at a low level where we
+        # already are uip_all. Just return our self in that case. We
+        # check for jacobians, which are only there after merging.
+        if('jacobians' in self.uip):
+            return self.uip
         return mpy.struct_combine(self.uip, self.uip[f'uip_{instrument_name}'])
            
     @property
@@ -426,8 +431,14 @@ class RefractorUip:
             
         return endmw_fm - startmw_fm + 1
 
-    def atm_params(self, instrument_name):
-        return mpy.atmosphere_level(self.uip_all(instrument_name))
+    def atm_params(self, instrument_name, set_pointing_angle_zero=True):
+        uall = self.uip_all(instrument_name)
+        # tropomi_fm and omi_fm set this to zero before calling raylayer_nadir.
+        # I'm not sure if always want to do this or not. Note that uall
+        # is a copy of uip, so no need to set this back.
+        if(set_pointing_angle_zero):
+            uall['obs_table']['pointing_angle'] = 0.0
+        return mpy.atmosphere_level(uall)
 
     def ray_info(self, instrument_name, set_pointing_angle_zero=True):
         uall = self.uip_all(instrument_name)

@@ -308,9 +308,9 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
                                vlidort_nstokes=self.py_retrieve_vlidort_nstokes,
                                vlidort_nstreams=self.py_retrieve_vlidort_nstreams):
                 if(self.func_name == "tropomi_fm"):
-                    return self.tropomi_fm(uip.uip_all)
+                    return self.tropomi_fm(uip.uip_all("TROPOMI"))
                 else:
-                    return self.omi_fm(uip.uip_all)
+                    return self.omi_fm(uip.uip_all("OMI"))
         finally:
             os.chdir(curdir)
             if(need_oss_delete):
@@ -445,7 +445,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         # We've calculated the jacobian relative to the full state vector,
         # including specifies that aren't used by OMI/TROPOMI. py-retrieve
         # expects just the subset, so we need to subset the jacobian
-        our_jac = [spec in self.rf_uip.uip_all['jacobians'] for spec in i_uip['speciesListFM'] ]
+        our_jac = [spec in self.rf_uip.uip_all("TROPOMI")['jacobians'] for spec in i_uip['speciesListFM'] ]
         if(len(o_jacobian) > 0):
             o_jacobian = o_jacobian[our_jac,:]
         return (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag)
@@ -514,7 +514,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         # We've calculated the jacobian relative to the full state vector,
         # including specifies that aren't used by OMI/TROPOMI. py-retrieve
         # expects just the subset, so we need to subset the jacobian
-        our_jac = [spec in self.rf_uip.uip_all['jacobians'] for spec in i_uip['speciesListFM'] ]
+        our_jac = [spec in self.rf_uip.uip_all("OMI")['jacobians'] for spec in i_uip['speciesListFM'] ]
         if(len(o_jacobian) > 0):
             o_jacobian = o_jacobian[our_jac,:]
         return (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag)

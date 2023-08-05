@@ -3,7 +3,7 @@ import refractor.framework as rf
 
 class MusesRaman(rf.RamanSiorisEffect):
 
-    def __init__(self, rf_uip,
+    def __init__(self, rf_uip, instrument_name,
                  Solar_and_odepth_spec_domain : rf.SpectralDomain,
                  scale_factor : float,
                  fm_idx : int,
@@ -22,12 +22,13 @@ class MusesRaman(rf.RamanSiorisEffect):
         self.rf_uip = rf_uip
         self._pressure = atmosphere.pressure
         self._ii_mw = ii_mw
+        self.instrument_name = instrument_name
 
     def apply_effect(self, spec: rf.Spectrum, fm_grid: rf.ForwardModelSpectralGrid):
 
         nlay = self._pressure.number_layer
 
-        temp_layers = self.rf_uip.ray_info['tbar'][::-1][:nlay]
+        temp_layers = self.rf_uip.ray_info(self.instrument_name)['tbar'][::-1][:nlay]
 
         filter_name = self.rf_uip.filter_name(self._ii_mw)
 

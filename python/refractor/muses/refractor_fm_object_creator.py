@@ -101,7 +101,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.rf_uip = rf_uip
 
         if(self.input_dir is None):
-            self.input_dir = os.path.realpath(os.path.join(rf_uip.uip_all(instrument_name)['L2_OSP_PATH'], "OMI"))
+            self.input_dir = os.path.realpath(os.path.join(rf_uip.uip_all(self.instrument_name)['L2_OSP_PATH'], "OMI"))
 
         self.num_channel = len(self.channel_list())
 
