@@ -81,7 +81,7 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
             if(not "cost_func" in rf_uip.refractor_cache):
                 rf_uip.refractor_cache["cost_func"] = \
                     self.cost_func_creator.create_cost_func(rf_uip,
-                                            use_full_state_vector=True)
+                                ret_info=None, use_full_state_vector=True)
                 
             cfunc = rf_uip.refractor_cache["cost_func"]
             cfunc.parameters = rf_uip.uip["currentGuessListFM"]
@@ -131,7 +131,8 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
         rf_uip = RefractorUip(uip, basis_matrix=ret_info['basis_matrix'])
         if(not "cost_func" in rf_uip.refractor_cache):
             rf_uip.refractor_cache["cost_func"] = \
-                self.cost_func_creator.create_cost_func(rf_uip)
+                self.cost_func_creator.create_cost_func(rf_uip,
+                                                        ret_info=ret_info)
                 
         cfunc = rf_uip.refractor_cache["cost_func"]
         # Temp, we should get this into the state vector

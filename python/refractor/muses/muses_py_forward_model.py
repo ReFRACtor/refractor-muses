@@ -131,7 +131,7 @@ class MusesPyForwardModel:
                 os.environ["MUSES_DEFAULT_RUN_DIR"] = dirname
                 os.chdir(dirname)
                 # This is (o_radianceOut, o_jacobianOut, o_bad_flag, o_measured_radiance_omi, o_measured_radiance_tropomi)
-                rad, jac, _, _, _ = mpy.fm_wrapper(self.rf_uip.uip, self.rf_uip.windows, self.rf_uip.oco_info)
+                rad, jac, _, _, _ = mpy.fm_wrapper(self.rf_uip.uip, None, oco_info={})
         finally:
             if(old_run_dir):
                 os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
@@ -155,7 +155,7 @@ class MusesPyForwardModel:
                 if('uip_TROPOMI' in uip):
                     for k in uip['uip_TROPOMI'].keys():
                         del uip[k]
-            rad, jac, _, _, _ = mpy.fm_wrapper(uip, self.rf_uip.windows, self.rf_uip.oco_info)
+            rad, jac, _, _, _ = mpy.fm_wrapper(uip, None, oco_info={})
         else:
             rad, jac = self._radiance_extracted_dir()
         jac = jac.transpose()
@@ -219,6 +219,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.sv_extra_index = {}
         self.rundir = "."
         self.rf_uip = None
+        self.basis_matrix = None
         self.py_retrieve_debug=py_retrieve_debug
         self.py_retrieve_vlidort_nstokes=py_retrieve_vlidort_nstokes
         self.py_retrieve_vlidort_nstreams=py_retrieve_vlidort_nstreams
@@ -262,7 +263,8 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         return False
 
     @classmethod
-    def uip_from_muses_retrieval_step(cls, rstep, iteration, pickle_file):
+    def uip_from_muses_retrieval_step(cls, rstep, iteration, pickle_file,
+                                      vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''Grab the UIP and directory that can be used to call
         tropomi_fm/omi_fm.
         This starts with MusesRetrievalStep, and gets the UIP passed to
@@ -274,7 +276,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
             with register_replacement_function_in_block("fm_wrapper",
                                  _CaptureUip(func_count=iteration)):
                 try:
-                    rstep.run_retrieval()
+                    rstep.run_retrieval(vlidort_cli=vlidort_cli)
                 except _FakeUipExecption as e:
                     res = RefractorUip(uip=e.uip,
                         basis_matrix=cretinfo.ret_info['basis_matrix'],
@@ -410,12 +412,12 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
 
     def update_retrieval_vec(self, retrieval_vec):
         '''Update the retrieval vector, both saved in this class and used
-        by py-retrieve'''
+        by muses-py'''
         self.rf_uip.update_uip(retrieval_vec)
         self.update_state(self.rf_uip.current_state_x_fm)
 
     def tropomi_fm(self, i_uip, **kwargs):
-        '''Substitutes for the py-retrieve tropomi_fm function
+        '''Substitutes for the muses-py tropomi_fm function
 
         This returns
         (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag)
@@ -441,7 +443,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
             # - because we are giving the jacobian of fm - rad
             o_jacobian -= mrad.spectral_range.data_ad.jacobian.transpose()
         # We've calculated the jacobian relative to the full state vector,
-        # including specifies that aren't used by OMI/TROPOMI. py-retrieve
+        # including specifies that aren't used by OMI/TROPOMI. muses-py
         # expects just the subset, so we need to subset the jacobian
         our_jac = [spec in self.rf_uip.uip_all("TROPOMI")['jacobians'] for spec in i_uip['speciesListFM'] ]
         if(len(o_jacobian) > 0):
@@ -449,7 +451,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         return (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag)
     
     def omi_fm(self, i_uip, **kwargs):
-        '''Substitutes for the py-retrieve omi_fm function
+        '''Substitutes for the muses-py omi_fm function
 
         This returns
         (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag)
@@ -483,33 +485,33 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         # This here duplicates what pack_omi_jacobian does
         mw = [slice(0, self.rf_uip.nfreq_mw(0, "OMI")),
               slice(self.rf_uip.nfreq_mw(0, "OMI"), None)]
-        if('OMINRADWAVUV1' in self.rf_uip.state_vector_params):
+        if('OMINRADWAVUV1' in self.rf_uip.state_vector_params("OMI")):
             indx = list(self.rf_uip.uip["speciesListFM"]).index('OMINRADWAVUV1')
             o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['normwav_jac'][mw[0]]
-        if('OMINRADWAVUV2' in self.rf_uip.state_vector_params):
+        if('OMINRADWAVUV2' in self.rf_uip.state_vector_params("OMI")):
             indx = list(self.rf_uip.uip["speciesListFM"]).index('OMINRADWAVUV2')
             o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['normwav_jac'][mw[1]]
-        if('OMIODWAVUV1' in self.rf_uip.state_vector_params):
+        if('OMIODWAVUV1' in self.rf_uip.state_vector_params("OMI")):
             indx = list(self.rf_uip.uip["speciesListFM"]).index('OMIODWAVUV1')
             o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['odwav_jac'][mw[0]]
-        if('OMIODWAVUV2' in self.rf_uip.state_vector_params):
+        if('OMIODWAVUV2' in self.rf_uip.state_vector_params("OMI")):
             indx = list(self.rf_uip.uip["speciesListFM"]).index('OMIODWAVUV2')
             o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['odwav_jac'][mw[1]]
-        if('OMIODWAVSLOPEUV1' in self.rf_uip.state_vector_params):
+        if('OMIODWAVSLOPEUV1' in self.rf_uip.state_vector_params("OMI")):
             indx = list(self.rf_uip.uip["speciesListFM"]).index('OMIODWAVSLOPEUV1')
             o_jacobian[indx, mw[0]] = \
                 o_measured_radiance_omi['odwav_slope_jac'][mw[0]]
-        if('OMIODWAVSLOPEUV2' in self.rf_uip.state_vector_params):
+        if('OMIODWAVSLOPEUV2' in self.rf_uip.state_vector_params("OMI")):
             indx = list(self.rf_uip.uip["speciesListFM"]).index('OMIODWAVSLOPEUV2')
             o_jacobian[indx, mw[1]] = \
                 o_measured_radiance_omi['odwav_slope_jac'][mw[1]]
 
         # We've calculated the jacobian relative to the full state vector,
-        # including specifies that aren't used by OMI/TROPOMI. py-retrieve
+        # including species that aren't used by OMI/TROPOMI. muses-py
         # expects just the subset, so we need to subset the jacobian
         our_jac = [spec in self.rf_uip.uip_all("OMI")['jacobians'] for spec in i_uip['speciesListFM'] ]
         if(len(o_jacobian) > 0):
@@ -524,7 +526,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         '''Called with muses-py updated the state vector.'''
         pass
 
-    # To do initial comparisons between py-retrieve and ReFRACtor it
+    # To do initial comparisons between muses-py and ReFRACtor it
     # can be useful to have detailed information about the run. We
     # supply functions here, which are really just for diagnostic use.
     # The default is to raise a NotImplementedError, but we can override
@@ -584,7 +586,7 @@ class RefractorTropOrOmiFmPyRetrieve(RefractorTropOrOmiFmBase):
     NOTE - this is deprecated
 
     Turn around and call tropomi_fm/omi_fm, without change. This
-    gives a way to do a direct comparison with py-retrieve vs
+    gives a way to do a direct comparison with muses-py vs
     ReFRACtor. Ultimately this should give the same results as
     RefractorTropOrOmiFmMusesPy, but this skips the mucking around
     with jacobians etc. that RefractorTropOrOmiFmBase does - so this
@@ -592,20 +594,20 @@ class RefractorTropOrOmiFmPyRetrieve(RefractorTropOrOmiFmBase):
     def omi_fm(self, i_uip, **kwargs):
         self.rf_uip = RefractorUip(i_uip)
         self.rf_uip.rundir = os.getcwd()
-        self.rf_uip.ret_info = self.ret_info
+        self.rf_uip.basis_matrix = self.basis_matrix
         with suppress_replacement("omi_fm"):
             return mpy.omi_fm(i_uip)
 
     def tropomi_fm(self, i_uip, **kwargs):
         self.rf_uip = RefractorUip(i_uip)
         self.rf_uip.rundir = os.getcwd()
-        self.rf_uip.ret_info = self.ret_info
+        self.rf_uip.basis_matrix = self.basis_matrix
         with suppress_replacement("tropomi_fm"):
             return mpy.tropomi_fm(i_uip)
     
 class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
     '''This just turns around and calls MusesPyForwardModel. This is useful
-    to test the interconnection with py-retrieve, since a retrieval should be
+    to test the interconnection with muses-py, since a retrieval should be
     identical to one without a replacement.'''
 
     def radiance_all(self, skip_jacobian=False):
@@ -683,7 +685,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
                           names=["Pres(mb)", "T(K)", 'Altitude(m)'])
         # This doesn't include the temperature shift in the output file, although the
         # shifted temperature is used in the calculation, see get_tropomi_o3xsec in
-        # py-retrieve
+        # muses-py
         if(self.func_name == "tropomi_fm"):
             toffset = self.rf_uip.tropomi_params["temp_shift_BAND3"]
         else:

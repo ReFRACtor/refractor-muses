@@ -92,7 +92,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         # only do this if we need it to calculate a jacbian
         file_data_temp = None
         if(os.path.exists(f"{self.rf_uip.rundir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001_TEMP.asc") and
-           "TROPOMITEMPSHIFTBAND3" in self.rf_uip.state_vector_params):
+           "TROPOMITEMPSHIFTBAND3" in self.rf_uip.state_vector_params(self.instrument_name)):
             file_data_temp = np.loadtxt(f"{self.rf_uip.rundir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001_TEMP.asc", skiprows=1)
             for mw_num in range(2, self.num_channel + 1):  # 1-based indexing
                 mw_file_data = np.loadtxt(f"{self.rf_uip.rundir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}_TEMP.asc", skiprows=1)

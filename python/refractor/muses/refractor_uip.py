@@ -298,6 +298,28 @@ class RefractorUip:
         uip.rundir = uip.capture_directory.rundir
         return uip
 
+    def instrument_sub_basis_matrix(self, instrument_name):
+        '''Return the portion of the basis matrix that includes jacobians
+        for the given instrument. This is what the various muses-py forward
+        models return - only the subset of jacobians actually relevant for
+        that instrument.
+
+        As a convention, return None rather than erroring if self.basis_matrix
+        is None.'''
+        if(self.basis_matrix is None):
+            return None
+        return self.basis_matrix[:,[t in list(self.uip_all(instrument_name)["jacobians"]) for t in self.uip["speciesListFM"]]]
+
+    def is_bt_retrieval(self):
+        '''For BT retrievals, the species aren't set. This means we
+        need to do special handling in some cases. Determine if we are
+        doing a BT retrieval and return True if we are.'''
+        # Note the logic is a bit obscure here, but the matches what
+        # fm_wrapper does. If the speciesListFM is ['',] then we just
+        # "know" that this is a BT retrieval
+        return (len(self.uip["speciesListFM"]) == 1 and
+                self.uip["speciesListFM"] == ['',])
+    
     def atmosphere_basis_matrix(self, param_name):
         '''Muses does the retrieval on a subset of the full forward model
         grid. The mapping between the two sets is handled by the
@@ -761,7 +783,7 @@ class RefractorUip:
         '''
         # Fake the ret_info structure. update_uip only uses the basis
         # matrix
-        ret_info = {'basis_matrix' : basis_matrix}
+        ret_info = {'basis_matrix' : self.basis_matrix}
         self.uip, _ = mpy.update_uip(self.uip, ret_info, retrieval_vec)
         if(hasattr(self.uip, 'as_dict')): 
             self.uip = self.uip.as_dict(self.uip)

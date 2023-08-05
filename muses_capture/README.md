@@ -82,7 +82,7 @@ In addtion to the muses capture, indivual repositories might have capture
 tests. We preface all the capture tests with "test_capture",
 so you can run the full set (in the instrument repository) with 
 
-    pytest -rxXs test/ -k test_capture --run-capture
+    pytest -rxXs test/ -k test_capture --run-capture -n 10
 
 You can see all tests (without running them) by
 

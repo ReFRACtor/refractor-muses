@@ -13,11 +13,14 @@ import numpy as np
 # instruments rather than ReFRACtor.
 
 class MusesObservationBase(rf.ObservationSvImpBase):
-    def __init__(self, rf_uip : RefractorUip, instrument_name):
+    def __init__(self, rf_uip : RefractorUip, instrument_name,
+                 obs_rad, meas_err):
         super().__init__([])
         self.rf_uip = rf_uip
         self.instrument_name = instrument_name
-
+        self.obs_rad = obs_rad
+        self.meas_err = meas_err
+        
     def _v_num_channels(self):
         return 1
 
@@ -29,11 +32,10 @@ class MusesObservationBase(rf.ObservationSvImpBase):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         sd = self.spectral_domain(sensor_index)
-        ret_info = self.rf_uip.ret_info
         subset = [t == self.instrument_name for t in self.rf_uip.uip["instrumentList"]]
-        if(ret_info):
-            r = ret_info["obs_rad"][subset]
-            uncer = ret_info["meas_err"][subset]
+        if(self.obs_rad is not None):
+            r = self.obs_rad[subset]
+            uncer = self.meas_err[subset]
         else:
             r = np.zeros(sd.data.shape)
             uncer = np.ones(r.shape)
@@ -47,23 +49,13 @@ class MusesObservationBase(rf.ObservationSvImpBase):
 
 class MusesForwardModelBase(rf.ForwardModel):
     '''Common behavior for the different MUSES forward models'''
-    def __init__(self, rf_uip : RefractorUip, instrument_name):
+    def __init__(self, rf_uip : RefractorUip, instrument_name,
+                 use_full_state_vector=False):
         super().__init__()
         self.instrument_name = instrument_name
         self.rf_uip = rf_uip
-        # The jacobians from muses forward model routines only contains
-        # the subset of
-        # the columns that are listed in uip_all["jacobians"]
-        # If we are called with a basis_matrix
-        self.sub_basis_matrix = None
-        if(rf_uip.ret_info):
-            self.sub_basis_matrix = rf_uip.ret_info["basis_matrix"][:,[t in list(self.rf_uip.uip_all(self.instrument_name)["jacobians"]) for t in rf_uip.uip["speciesListFM"]]]
-        # For BT retrieval, the species aren't set. Mark this, since
-        # we need to do special handling. This is a really obscure way to
-        # indicate BT, but it is what fm_wrapper does.
-        self.is_bt_retrieval = (len(self.rf_uip.uip["speciesListFM"]) == 1
-                                and self.rf_uip.uip["speciesListFM"] == ['',])
-
+        self.use_full_state_vector = use_full_state_vector
+        
     def setup_grid(self):
         # Nothing that we need to do for this
         pass
@@ -76,8 +68,9 @@ class MusesForwardModelBase(rf.ForwardModel):
 
 class MusesOssForwardModelBase(MusesForwardModelBase):
     '''Common behavior for the OSS based forward models'''
-    def __init__(self, rf_uip : RefractorUip, instrument_name):
-        super().__init__(rf_uip, instrument_name)
+    def __init__(self, rf_uip : RefractorUip, instrument_name,
+                 **kwargs):
+        super().__init__(rf_uip, instrument_name, **kwargs)
         
     def radiance(self, sensor_index, skip_jacobian = False):
         if(sensor_index !=0):
@@ -92,13 +85,20 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             # 2) tranposed from the ReFRACtor convention of the
             # column being the state vector variables. So
             # translate the oss jac to what we want from ReFRACtor
-            if(self.sub_basis_matrix is not None):
-                jac = np.matmul(self.sub_basis_matrix, jac).transpose()
-            else:
+
+            # The jacobians from muses forward model routines only contains
+            # the subset of
+            # the columns that are listed in uip_all["jacobians"]
+            # If we are called with a basis_matrix
+            if(self.use_full_state_vector):
                 jac = jac.transpose()
-            if(self.is_bt_retrieval):
+            else:
+                sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
+                jac = np.matmul(sub_basis_matrix, jac).transpose()
+            if(self.rf_uip.is_bt_retrieval()):
                 # Only one column has data, although oss returns a larger
-                # jacobian
+                # jacobian. Note that fm_wrapper just "knows" this, it
+                # would be nice if this wasn't sort of magic knowledge.
                 jac = jac[:,0:1]
             a = rf.ArrayAd_double_1(rad, jac)
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
@@ -106,14 +106,15 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
     
 class MusesCrisForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for CRiS instrument'''
-    def __init__(self, rf_uip : RefractorUip):
-        super().__init__(rf_uip, "CRIS")
+    def __init__(self, rf_uip : RefractorUip, use_full_state_vector=False):
+        super().__init__(rf_uip, "CRIS",
+                         use_full_state_vector=use_full_state_vector)
 
 class MusesCrisObservation(MusesObservationBase):
     '''Wrapper that just returns the passed in measured radiance
     and uncertainty for CRIS'''
-    def __init__(self, rf_uip : RefractorUip):
-        super().__init__(rf_uip, "CRIS")
+    def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err):
+        super().__init__(rf_uip, "CRIS", obs_rad, meas_err)
 
 class StateVectorPlaceHolder(rf.StateVectorObserver):
     '''Place holder for parts of the StateVector that ReFRACtor objects
@@ -147,13 +148,16 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, svhandle,
-                   use_full_state_vector=False):
+                   use_full_state_vector=False,
+                   obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "CRIS"):
             return (None, None)
-        # This has already been handled below
+        # This has already been handled below, by adding to the
+        # default handle list
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
-        return (MusesCrisForwardModel(rf_uip), MusesCrisObservation(rf_uip))
+        return (MusesCrisForwardModel(rf_uip,use_full_state_vector=use_full_state_vector),
+                MusesCrisObservation(rf_uip, obs_rad, meas_err))
         
 
 

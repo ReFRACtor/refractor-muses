@@ -96,7 +96,8 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def fm_and_obs(instrument_name : str, rf_uip : RefractorUip,
                    svhandle: StateVectorHandleSet,
-                   use_full_state_vector=False):
+                   use_full_state_vector=False,
+                   obs_rad=None, meas_err=None):
         '''Turn ForwardModel and Observation if we can process the given
         instrument_name, or (None, None) if we can't. Add any StateVectorHandle
         to the passed in set.
@@ -110,22 +111,26 @@ class InstrumentHandleSet(PriorityHandleSet):
     creates a FowardModel and Observation for that instrument.'''
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
                    svhandle : StateVectorHandleSet,
-                   use_full_state_vector=False):
+                   use_full_state_vector=False,
+                   obs_rad=None, meas_err=None):
         '''Create a ForwardModel and Observation for the given instrument.
         
         The StateVectorHandleSet svhandle is modified by having any
         StateVectorHandle added to it.'''
 
         return self.handle(instrument_name, rf_uip, svhandle,
-                           use_full_state_vector=use_full_state_vector)
+                           use_full_state_vector=use_full_state_vector,
+                           obs_rad=obs_rad, meas_err=meas_err)
     
     def handle_h(self, h : InstrumentHandle, instrument_name : str,
                  rf_uip : RefractorUip,
                  svhandle : StateVectorHandleSet,
-                 use_full_state_vector=False):
+                 use_full_state_vector=False,
+                 obs_rad=None, meas_err=None):
         '''Process a registered function'''
         fm, obs = h.fm_and_obs(instrument_name, rf_uip, svhandle,
-                               use_full_state_vector=use_full_state_vector)
+                               use_full_state_vector=use_full_state_vector,
+                               obs_rad=obs_rad,meas_err=meas_err)
         if(fm is None):
             return (False, None)
         return (True, (fm, obs))
@@ -172,17 +177,26 @@ class CostFuncCreator:
         # with bad samples
         obs_python_list = []
         state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
+        if(ret_info is not None):
+            obs_rad = ret_info["obs_rad"]
+            meas_err = ret_info["meas_err"]
+        else:
+            # TODO Change logic here to generate 0 and 1's
+            obs_rad = None
+            meas_err = None
         for instrument_name in rf_uip.uip["instruments"]:
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
                                   rf_uip, state_vector_handle_set,
-                                  use_full_state_vector=use_full_state_vector)
+                                  use_full_state_vector=use_full_state_vector,
+                                  obs_rad=obs_rad, meas_err=meas_err)
             fm_list.push_back(fm)
             obs_list.push_back(obs)
             obs_python_list.append(obs)
         sv = state_vector_handle_set.create_state_vector(rf_uip,
                                 use_full_state_vector=use_full_state_vector)
-        # TODO Fix up this logic
-        if(ret_info):
+        # TODO Fix up this logic. Perhaps pass in a flag indicating that
+        # we are faking certain parts for ease
+        if(ret_info is not None):
             mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, sv,
                ret_info["const_vec"], ret_info["sqrt_constraint"].transpose())
         else:
