@@ -135,12 +135,14 @@ class RefractorUip:
     def uip_all(self, instrument_name):
         '''Add in the stuff for the given instrument name. This is
         used in a number of places in muses-py calls.'''
-        # For some testing, we might get called at a low level where we
-        # already are uip_all. Just return our self in that case. We
-        # check for jacobians, which are only there after merging.
+        # Depending on where this comes from, it may or may not have the
+        # uip_all stuff included.
+        # 'jacobians' happens
+        # to be something not in the original uip, that gets added with
+        # uip_all
         if('jacobians' in self.uip):
             return self.uip
-        return mpy.struct_combine(self.uip, self.uip[f'uip_{instrument_name}'])
+        return mpy.struct_combine(self.uip, self.uip[f'uip_{instrument_name}']) 
            
     @property
     def refractor_cache(self):
@@ -242,6 +244,18 @@ class RefractorUip:
             vlidort_input = self.uip['uip_TROPOMI']["vlidort_input"]
         self.capture_directory.save_directory(os.path.dirname(self.strategy_table), vlidort_input)
         
+    @property
+    def current_state_x(self):
+        '''Return the current guess. This is the same thing as retrieval_vec,
+        update_uip sets this so we know this.'''
+        return self.uip["currentGuessList"]
+
+    @property
+    def current_state_x_fm(self):
+        '''Return the current guess for the full state model (called fm_vec
+        in some places) This is the same thing as retrieval_vec @ basis_matrix
+        update_uip sets this so we know this.'''
+        return self.uip["currentGuessListFM"]
 
     @property
     def current_state_x(self):
@@ -379,6 +393,15 @@ class RefractorUip:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         
     
+    def freq_index(self, instrument_name):
+        '''Return frequency index for given instrument'''
+        if(instrument_name == "OMI"):
+            return self.uip_omi['freqIndex']
+        elif(instrument_name == "TROPOMI"):
+            return self.uip_tropomi['freqIndex']
+        else:
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+        
     def measured_radiance(self, instrument_name):
         '''Note muses-py handles the radiance data in pretty much the reverse
         way that ReFRACtor does.
@@ -447,8 +470,8 @@ class RefractorUip:
         # is a copy of uip, so no need to set this back.
         if(set_pointing_angle_zero):
             uall['obs_table']['pointing_angle'] = 0.0
-        return mpy.raylayer_nadir(mpy.ObjectView(self.uip_all(instrument_name)),
-                                  mpy.ObjectView(self.atm_params(instrument_name)))
+        return mpy.raylayer_nadir(mpy.ObjectView(uall),
+                         mpy.ObjectView(mpy.atmosphere_level(uall)))
     
     @property
     def omi_cloud_fraction(self):
