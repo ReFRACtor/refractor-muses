@@ -21,7 +21,7 @@ else:
 tropomi_test_in_dir = f"{test_base_path}/tropomi/in/sounding_1"
 joint_tropomi_test_in_dir = f"{test_base_path}/cris_tropomi/in/sounding_1"
 omi_test_in_dir = f"{test_base_path}/omi/in/sounding_1"
-joint_omi_test_in_dir = f"{test_base_path}/air_omi/in/sounding_1"
+joint_omi_test_in_dir = f"{test_base_path}/airs_omi/in/sounding_1"
 
 # Short hand for marking as unconditional skipping. Good for tests we
 # don't normally run, but might want to comment out for a specific debugging
@@ -96,29 +96,47 @@ def load_muses_retrieval_step(dir_in, step_number=1, osp_dir=None,
         f"{dir_in}/run_retrieval_step_{step_number}.pkl",
         osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=change_to_dir)
         
-def load_tropomi_uip(step_number=1, osp_dir=None, gmao_dir=None):
+def load_uip(dir_in, step_number=1, osp_dir=None, gmao_dir=None):
     return  RefractorUip.load_uip(
-        f"{tropomi_test_in_dir}/uip_step_{step_number}.pkl",
+        f"{dir_in}/uip_step_{step_number}.pkl",
         change_to_dir=True,
         osp_dir=osp_dir,gmao_dir=gmao_dir)
 
 @pytest.fixture(scope="function")
-def tropomi_uip_step_1(isolated_dir):
+def tropomi_uip_step_1(isolated_dir, osp_dir, gmao_dir):
     '''Return a RefractorUip for strategy step 1, and also unpack all the 
     support files into a directory'''
-    return load_tropomi_uip(step_number=1)
+    return load_uip(tropomi_test_in_dir, step_number=1,
+                    osp_dir=osp_dir, gmao_dir=gmao_dir)
 
 @pytest.fixture(scope="function")
-def tropomi_uip_step_2(isolated_dir):
+def tropomi_uip_step_2(isolated_dir, osp_dir, gmao_dir):
     '''Return a RefractorUip for strategy step 2, and also unpack all the 
     support files into a directory'''
-    return load_tropomi_uip(step_number=2)
+    return load_uip(tropomi_test_in_dir, step_number=2,
+                    osp_dir=osp_dir, gmao_dir=gmao_dir)
+                    
 
 @pytest.fixture(scope="function")
-def tropomi_uip_step_3(isolated_dir):
+def tropomi_uip_step_3(isolated_dir, osp_dir, gmao_dir):
     '''Return a RefractorUip for strategy step 3, and also unpack all the 
     support files into a directory'''
-    return load_tropomi_uip(step_number=3)
+    return load_uip(tropomi_test_in_dir, step_number=3,
+                    osp_dir=osp_dir, gmao_dir=gmao_dir)
+
+@pytest.fixture(scope="function")
+def joint_tropomi_uip_step_10(isolated_dir, osp_dir, gmao_dir):
+    '''Return a RefractorUip for strategy step 1, and also unpack all the 
+    support files into a directory'''
+    return load_uip(joint_tropomi_test_in_dir, step_number=10,
+                    osp_dir=osp_dir, gmao_dir=gmao_dir)
+
+@pytest.fixture(scope="function")
+def joint_omi_uip_step_7(isolated_dir, osp_dir, gmao_dir):
+    '''Return a RefractorUip for strategy step 1, and also unpack all the 
+    support files into a directory'''
+    return load_uip(joint_omi_test_in_dir, step_number=7,
+                    osp_dir=osp_dir, gmao_dir=gmao_dir)
 
 @pytest.fixture(scope="function")
 def vlidort_cli():

@@ -3,6 +3,7 @@ from .refractor_uip import RefractorUip
 from .cost_func_creator import (InstrumentHandle, StateVectorHandle,
                                 InstrumentHandleSet, StateVectorHandleSet)
 from .osswrapper import osswrapper
+from .refractor_capture_directory import muses_py_call
 import refractor.framework as rf
 import os
 import numpy as np
@@ -99,7 +100,57 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             a = rf.ArrayAd_double_1(rad, jac)
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
-    
+
+class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
+    '''Common behavior for the omi/tropomi based forward models'''
+    def __init__(self, rf_uip : RefractorUip, instrument_name,
+                 vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
+                 vlidort_nstokes=2,
+                 vlidort_nstreams=4,
+                 **kwargs):
+        super().__init__(rf_uip, instrument_name, **kwargs)
+        self.vlidort_nstreams = vlidort_nstreams
+        self.vlidort_nstokes = vlidort_nstokes
+        self.vlidort_cli = vlidort_cli
+        
+    def radiance(self, sensor_index, skip_jacobian = False):
+        if(sensor_index !=0):
+            raise ValueError("sensor_index must be 0")
+        with muses_py_call(self.rf_uip.run_dir, vlidort_cli=self.vlidort_cli,
+                           vlidort_nstokes=self.vlidort_nstokes,
+                           vlidort_nstreams=self.vlidort_nstreams):
+            if(self.instrument_name == "TROPOMI"):
+                jac, rad, obs_rad, success_flag = mpy.tropomi_fm(self.rf_uip.uip_all(self.instrument_name))
+            elif(self.instrument_name == "OMI"):
+                jac, rad, obs_rad, success_flag = mpy.omi_fm(self.rf_uip.uip_all(self.instrument_name))
+            else:
+                raise RuntimeError(f"Unrecognized instrument name {self.instrument_name}")
+        sd = self.spectral_domain(sensor_index)
+        if(skip_jacobian):
+            sr = rf.SpectralRange(rad, rf.Unit("sr^-1"))
+        else:
+            # jacobian is 1) on the forward model grid and
+            # 2) tranposed from the ReFRACtor convention of the
+            # column being the state vector variables. So
+            # translate the oss jac to what we want from ReFRACtor
+            # Tropomi and omi have one extra row in jacobian
+            if(self.use_full_state_vector):
+                jac = jac[:-1,:].transpose()
+            else:
+                sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
+                jac = np.matmul(sub_basis_matrix, jac[:-1,:]).transpose()
+            a = rf.ArrayAd_double_1(rad, jac)
+            sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
+        return rf.Spectrum(sd, sr)
+
+class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
+    def __init__(self, rf_uip : RefractorUip, **kwargs):
+        super().__init__(rf_uip, "TROPOMI", **kwargs)
+
+class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
+    def __init__(self, rf_uip : RefractorUip, **kwargs):
+        super().__init__(rf_uip, "OMI", **kwargs)
+        
 class MusesCrisForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for CRiS instrument'''
     def __init__(self, rf_uip : RefractorUip, use_full_state_vector=False):
@@ -112,6 +163,18 @@ class MusesCrisObservation(MusesObservationBase):
     def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err):
         super().__init__(rf_uip, "CRIS", obs_rad, meas_err)
 
+class MusesAirsForwardModel(MusesOssForwardModelBase):
+    '''Wrapper around fm_oss_stack call for Airs instrument'''
+    def __init__(self, rf_uip : RefractorUip, use_full_state_vector=False):
+        super().__init__(rf_uip, "AIRS",
+                         use_full_state_vector=use_full_state_vector)
+
+class MusesAirsObservation(MusesObservationBase):
+    '''Wrapper that just returns the passed in measured radiance
+    and uncertainty for AIRS'''
+    def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err):
+        super().__init__(rf_uip, "AIRS", obs_rad, meas_err)
+        
 class StateVectorPlaceHolder(rf.StateVectorObserver):
     '''Place holder for parts of the StateVector that ReFRACtor objects
     don't need. Just gives the right name in the state vector, and
@@ -154,7 +217,55 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
         #                    priority_order=-1)
         return (MusesCrisForwardModel(rf_uip,use_full_state_vector=use_full_state_vector),
                 MusesCrisObservation(rf_uip, obs_rad, meas_err))
+
+class MusesAirsInstrumentHandle(InstrumentHandle):
+    def __init__(self, **creator_kwargs):
+        self.creator_kwargs = creator_kwargs
         
+    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+                   use_full_state_vector=False,
+                   obs_rad=None, meas_err=None, **kwargs):
+        if(instrument_name != "AIRS"):
+            return (None, None)
+        # This has already been handled below, by adding to the
+        # default handle list
+        #svhandle.add_handle(MusesStateVectorHandle(),
+        #                    priority_order=-1)
+        return (MusesAirsForwardModel(rf_uip,use_full_state_vector=use_full_state_vector),
+                MusesAirsObservation(rf_uip, obs_rad, meas_err))
+
+class MusesTropomiInstrumentHandle(InstrumentHandle):
+    def __init__(self, **creator_kwargs):
+        self.creator_kwargs = creator_kwargs
+        
+    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+                   use_full_state_vector=False,
+                   obs_rad=None, meas_err=None, **kwargs):
+        if(instrument_name != "TROPOMI"):
+            return (None, None)
+        # This has already been handled below, by adding to the
+        # default handle list
+        #svhandle.add_handle(MusesStateVectorHandle(),
+        #                    priority_order=-1)
+        return (MusesTropomiForwardModel(rf_uip,use_full_state_vector=use_full_state_vector),
+                None)
+
+class MusesOmiInstrumentHandle(InstrumentHandle):
+    def __init__(self, **creator_kwargs):
+        self.creator_kwargs = creator_kwargs
+        
+    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+                   use_full_state_vector=False,
+                   obs_rad=None, meas_err=None, **kwargs):
+        if(instrument_name != "OMI"):
+            return (None, None)
+        # This has already been handled below, by adding to the
+        # default handle list
+        #svhandle.add_handle(MusesStateVectorHandle(),
+        #                    priority_order=-1)
+        return (MusesOmiForwardModel(rf_uip,use_full_state_vector=use_full_state_vector),
+                None)
+    
 
 
 # The Muses code is the fallback, so add with the lowest priority
@@ -162,9 +273,17 @@ StateVectorHandleSet.add_default_handle(MusesStateVectorHandle(),
                                         priority_order=-1)
 InstrumentHandleSet.add_default_handle(MusesCrisInstrumentHandle(),
                                        priority_order=-1)
+InstrumentHandleSet.add_default_handle(MusesAirsInstrumentHandle(),
+                                       priority_order=-1)
+InstrumentHandleSet.add_default_handle(MusesTropomiInstrumentHandle(),
+                                       priority_order=-1)
+InstrumentHandleSet.add_default_handle(MusesOmiInstrumentHandle(),
+                                       priority_order=-1)
 
-__all__ = ["MusesObservationBase", "MusesForwardModelBase", 
-           "MusesOssForwardModelBase", "MusesCrisForwardModel",
-           "MusesCrisObservation", "StateVectorPlaceHolder",
-           "MusesCrisInstrumentHandle"]
+__all__ = [ "StateVectorPlaceHolder",
+            "MusesCrisForwardModel", "MusesCrisObservation", 
+           "MusesAirsForwardModel", "MusesAirsObservation",
+           "MusesTropomiForwardModel",
+           "MusesOmiForwardModel",
+           ]
 
