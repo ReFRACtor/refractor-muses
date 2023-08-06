@@ -47,7 +47,7 @@ class StateVectorHandleSet(PriorityHandleSet):
         use_full_state_vector to True to use the full state vector.
         '''
         sv = rf.StateVector()
-        for species_name in rf_uip.jacobian_all():
+        for species_name in rf_uip.jacobian_all:
             pstart, plen = rf_uip.state_vector_species_index(species_name,
                           use_full_state_vector=use_full_state_vector)
             self.add_sv(sv, species_name, pstart, plen)
@@ -166,7 +166,7 @@ class CostFuncCreator:
             # TODO Change logic here to generate 0 and 1's
             obs_rad = None
             meas_err = None
-        for instrument_name in rf_uip.instrument():
+        for instrument_name in rf_uip.instrument:
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
                                   rf_uip, state_vector_handle_set,
                                   use_full_state_vector=use_full_state_vector,

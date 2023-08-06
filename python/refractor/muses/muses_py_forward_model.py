@@ -218,7 +218,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
                  py_retrieve_debug=False, py_retrieve_vlidort_nstokes=2,
                  py_retrieve_vlidort_nstreams=4):
         self.sv_extra_index = {}
-        self.rundir = "."
+        self.run_dir = "."
         self.rf_uip = None
         self.basis_matrix = None
         self.py_retrieve_debug=py_retrieve_debug
@@ -296,7 +296,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
                                         change_to_dir=True, osp_dir=osp_dir,
                                         gmao_dir=gmao_dir)
             self.basis_matrix = rf_uip.basis_matrix
-            self.rundir = rf_uip.capture_directory.rundir
+            self.run_dir = rf_uip.run_dir
             with osswrapper(rf_uip.uip):
                 with muses_py_call(".", vlidort_cli=vlidort_cli,debug=self.py_retrieve_debug,
                                vlidort_nstokes=self.py_retrieve_vlidort_nstokes,
@@ -310,11 +310,11 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
 
     @property
     def vlidort_input(self):
-        return f"{self.rundir}/{self.rf_uip.vlidort_input}"
+        return f"{self.run_dir}/{self.rf_uip.vlidort_input}"
 
     @property
     def vlidort_output(self):
-        return f"{self.rundir}/{self.rf_uip.vlidort_output}"
+        return f"{self.run_dir}/{self.rf_uip.vlidort_output}"
 
     @property
     def clear_in(self):
@@ -377,7 +377,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
             f = self.tropomi_fm
         else:
             f = self.omi_fm
-        with(muses_py_call(self.rundir)):
+        with(muses_py_call(self.run_dir)):
             jac, rad0, meas_rad0, _ = f(self.rf_uip.uip)
             r = np.copy(retrieval_vec_0)
             r[index] += delta
@@ -416,7 +416,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         o_success_flag is 1 if the data is good, 0 otherwise.
         '''
         self.rf_uip = RefractorUip(i_uip, basis_matrix=self.basis_matrix)
-        self.rf_uip.rundir = os.getcwd()
+        self.rf_uip.run_dir = os.getcwd()
         if(hasattr(self, "obj_creator")):
             self.obj_creator.state_vector_for_testing.update_state(self.rf_uip.current_state_x_fm)
         mrad = self.observation.radiance(0)
@@ -451,7 +451,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         '''
 
         self.rf_uip = RefractorUip(i_uip, basis_matrix=self.basis_matrix)
-        self.rf_uip.rundir = os.getcwd()
+        self.rf_uip.run_dir = os.getcwd()
         if(hasattr(self, "obj_creator")):
             self.obj_creator.state_vector_for_testing.update_state(self.rf_uip.current_state_x_fm)
         o_measured_radiance_omi = self.rf_uip.measured_radiance("OMI")
@@ -584,14 +584,14 @@ class RefractorTropOrOmiFmPyRetrieve(RefractorTropOrOmiFmBase):
     lets us establish that RefractorTropOmiFmMusesPy is correct.'''
     def omi_fm(self, i_uip, **kwargs):
         self.rf_uip = RefractorUip(i_uip)
-        self.rf_uip.rundir = os.getcwd()
+        self.rf_uip.run_dir = os.getcwd()
         self.rf_uip.basis_matrix = self.basis_matrix
         with suppress_replacement("omi_fm"):
             return mpy.omi_fm(i_uip)
 
     def tropomi_fm(self, i_uip, **kwargs):
         self.rf_uip = RefractorUip(i_uip)
-        self.rf_uip.rundir = os.getcwd()
+        self.rf_uip.run_dir = os.getcwd()
         self.rf_uip.basis_matrix = self.basis_matrix
         with suppress_replacement("tropomi_fm"):
             return mpy.tropomi_fm(i_uip)

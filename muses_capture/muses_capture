@@ -266,6 +266,27 @@ def run_retrieval(instrument, refractor_config = None,
     subprocess.run(cmd, check=True)
 
 @cli.command()
+@click.option("-number-cpu", default=10, type=int,
+              help="Number of jobs to run at once")
+@click.option("--suppress-output/--show-output", default=True)
+def capture_test_data(number_cpu=10, suppress_output=True):
+    '''Run the pytest capture tests. '''
+    logger.info("In capture-test-data")
+    cmd = ["pytest", "../test/", "-k", "test_capture", "--run-capture",
+           "--disable-warnings"]
+    if(number_cpu > 1):
+        cmd.extend(["-n", str(number_cpu)])
+    if(not suppress_output):
+        cmd.extend(["-s",])
+    logger.info(f'Running: {" ".join(cmd)}')
+    # Temporary, make sure libgfortran.so.4 is in path. See
+    # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
+    # Note that currently omi uses muses-vlidort repository build, which
+    # doesn't have this problem any longer. But tropomi does still
+    os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
+    subprocess.run(cmd, check=True)
+    
+@cli.command()
 @click.argument("instrument", type=str)
 @click.option("--output-dir", default="./output",
               help="Location the output of amuse-me goes")

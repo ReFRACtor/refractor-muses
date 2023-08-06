@@ -32,7 +32,7 @@ class MusesObservationBase(rf.ObservationSvImpBase):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         sd = self.spectral_domain(sensor_index)
-        subset = [t == self.instrument_name for t in self.rf_uip.instrument_list()]
+        subset = [t == self.instrument_name for t in self.rf_uip.instrument_list]
         if(self.obs_rad is not None):
             r = self.obs_rad[subset]
             uncer = self.meas_err[subset]
@@ -91,7 +91,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             else:
                 sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
                 jac = np.matmul(sub_basis_matrix, jac).transpose()
-            if(self.rf_uip.is_bt_retrieval()):
+            if(self.rf_uip.is_bt_retrieval):
                 # Only one column has data, although oss returns a larger
                 # jacobian. Note that fm_wrapper just "knows" this, it
                 # would be nice if this wasn't sort of magic knowledge.

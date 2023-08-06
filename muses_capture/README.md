@@ -65,8 +65,20 @@ To run:
    unit tests for multiple soundings).
 
    Use an instrument "all" to run all the instruments.
+   
+7. Run
 
-7. Can optionally run the full retrieval by
+        ./muses_capture capture-test-data --number-cpu 10
+		
+   This runs all the capture tests in our pytests in refractor-muses,
+   which capture lower level test data (e.g., calls to residual_fm_jacobian).
+   This use the top level runs captured in the previous step and runs
+   pieces of the retrieval to capture things that we can test in isolation
+   without needing to run the full retrieval. You can also do this 
+   directly with py-test as described below, it is just a convenience
+   to run in muses_capture so you can do this the same way as capture-run
+
+8. Can optionally run the full retrieval by
 
         ./muses_capture run-retrieval <instrument>
 

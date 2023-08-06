@@ -77,9 +77,9 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         # The UV1 and UV2 are separate files, but we combine them into
         # one cross section table
         # Note these files are generated once per strategy step
-        file_data = np.loadtxt(f"{self.rf_uip.rundir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001.asc", skiprows=1)
+        file_data = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001.asc", skiprows=1)
         for mw_num in range(2, self.num_channel + 1):  # 1-based indexing
-            mw_file_data = np.loadtxt(f"{self.rf_uip.rundir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}.asc", skiprows=1)
+            mw_file_data = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}.asc", skiprows=1)
             file_data = np.concatenate([file_data, mw_file_data])
 
         # Data needs to be sorted by wavelength. This is a little
@@ -91,11 +91,11 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         # of O3 data at a different temperature value. Grab that data. But
         # only do this if we need it to calculate a jacbian
         file_data_temp = None
-        if(os.path.exists(f"{self.rf_uip.rundir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001_TEMP.asc") and
+        if(os.path.exists(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001_TEMP.asc") and
            "TROPOMITEMPSHIFTBAND3" in self.rf_uip.state_vector_params(self.instrument_name)):
-            file_data_temp = np.loadtxt(f"{self.rf_uip.rundir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001_TEMP.asc", skiprows=1)
+            file_data_temp = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001_TEMP.asc", skiprows=1)
             for mw_num in range(2, self.num_channel + 1):  # 1-based indexing
-                mw_file_data = np.loadtxt(f"{self.rf_uip.rundir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}_TEMP.asc", skiprows=1)
+                mw_file_data = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}_TEMP.asc", skiprows=1)
                 file_data_temp = np.concatenate([file_data_temp, mw_file_data])
             file_data_temp = file_data_temp[file_data_temp[:, 1].argsort()]
 

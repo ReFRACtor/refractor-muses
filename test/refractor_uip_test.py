@@ -71,3 +71,9 @@ def test_refractor_tropomi_uip(isolated_dir):
     print(m.across_track_indexes(ii_mw, "TROPOMI"))
     print(m.atm_params("TROPOMI"))
     print(m.ray_info("TROPOMI"))
+
+@require_muses_py
+def test_species_basis(tropomi_uip_step_3, clean_up_replacement_function):
+    npt.assert_allclose(tropomi_uip_step_3.species_basis_matrix("O3"),
+                        tropomi_uip_step_3.species_basis_matrix_calc("O3"))
+    

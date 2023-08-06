@@ -165,11 +165,11 @@ class RefractorUip:
     def run_dir(self):
         '''Return run_dir for capture_directory. Note this defaults to
         "." if RefractorCaptureDirectory hasn't changed this.'''
-        return self.capture_directory.run_dir
+        return self.capture_directory.rundir
 
     @run_dir.setter
     def run_dir(self, v):
-        self.capture_directory.run_dir = v
+        self.capture_directory.rundir = v
     
     @property
     def refractor_cache(self):
@@ -326,6 +326,7 @@ class RefractorUip:
             return None
         return self.basis_matrix[:,[t in list(self.uip_all(instrument_name)["jacobians"]) for t in self.uip["speciesListFM"]]]
 
+    @property
     def is_bt_retrieval(self):
         '''For BT retrievals, the species aren't set. This means we
         need to do special handling in some cases. Determine if we are
@@ -350,7 +351,7 @@ class RefractorUip:
         this like get_species_information does in muses-py.
 
         Note that this is a bit circular, we use
-        atmosphere_retrieval_level_subset which depends on self.basis_matrix
+        species_retrieval_level_subset which depends on self.basis_matrix
         (because we don't have this information available at this level of
         the processing tree).
 
@@ -417,11 +418,13 @@ class RefractorUip:
     def frequency_list(self, instrument_name):
         return self.uip_all(instrument_name)["frequencyList"]
 
+    @property
     def instrument_list(self):
         '''List of all the radiance data we are generating, identifying
         which instrument fills in that particular index'''
         return self.uip["instrumentList"]
 
+    @property
     def instrument(self):
         '''List of instruments that are part of the UIP'''
         return self.uip["instruments"]
@@ -546,6 +549,7 @@ class RefractorUip:
             self.uip['microwindows_all'][ii_mw]['endd']
             ],]), "nm")
 
+    @property
     def jacobian_all(self):
         '''List of jacobians we are including in the state vector'''
         return self.uip['jacobians_all']
@@ -555,7 +559,7 @@ class RefractorUip:
         '''Index and length for the location of the species_name in
         our state vector. We either do this for the retrieval state vector
         or the full state vector.'''
-        if(self.is_bt_retrieval()):
+        if(self.is_bt_retrieval):
             # Special handling for BT retrieval. BTW, this is really just
             # sort of a "magic" logic in fm_wrapper, there is nothing that
             # indicates the length is 1 here except the hard coded logic
@@ -651,7 +655,7 @@ class RefractorUip:
         2) track down what exactly muses-py is doing to create this and
         do it directly. 
         '''
-        input_directory = f"{self.rundir}/Input/"
+        input_directory = f"{self.run_dir}/Input/"
         if(not os.path.exists(input_directory)):
             raise RuntimeError(f"Input directory {input_directory} not found.")
         if(instrument_name == "OMI"):

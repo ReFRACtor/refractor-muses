@@ -32,7 +32,7 @@ def test_muses_optical_depth_file(tropomi_uip_step_3, clean_up_replacement_funct
     if(obj_creator.use_full_state_vector):
         sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3"))
     else:
-        sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3")[obj_creator.rf_uip.atmosphere_retrieval_level_subset("O3")])
+        sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3")[obj_creator.rf_uip.species_retrieval_level_subset("O3")])
     sv.update_state(sv_val)
     # Make sure update to sv gets reflected in UIP
     obj_creator.rf_uip.refractor_cache["atouip_O3"] =  \

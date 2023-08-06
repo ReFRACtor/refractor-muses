@@ -4,17 +4,24 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import RefractorUip, osswrapper
+from refractor.muses import RefractorUip, osswrapper, MusesRetrievalStep
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
 from scipy.io import readsav
 import glob
 import subprocess
+import numpy as np
+import numpy.testing as npt
 
 if("REFRACTOR_TEST_DATA" in os.environ):
     test_base_path = os.environ["REFRACTOR_TEST_DATA"]
 else:
     test_base_path = os.path.abspath(f"{os.path.dirname(__file__)}/../../../refractor_test_data")
+
+tropomi_test_in_dir = f"{test_base_path}/tropomi/in/sounding_1"
+joint_tropomi_test_in_dir = f"{test_base_path}/cris_tropomi/in/sounding_1"
+omi_test_in_dir = f"{test_base_path}/omi/in/sounding_1"
+joint_omi_test_in_dir = f"{test_base_path}/air_omi/in/sounding_1"
 
 # Short hand for marking as unconditional skipping. Good for tests we
 # don't normally run, but might want to comment out for a specific debugging
@@ -23,6 +30,9 @@ skip = pytest.mark.skip
 
 # Marker for long tests. Only run with --run-long
 long_test = pytest.mark.long_test
+
+# Marker for capture tests. Only run with --run-capture
+capture_test = pytest.mark.capture_test
 
 # Marker that skips a test if we don't have muses_py available
 require_muses_py = pytest.mark.skipif(not mpy.have_muses_py,
@@ -77,10 +87,18 @@ def clean_up_replacement_function():
         mpy.unregister_replacement_function_all()
         osswrapper.register_with_muses_py()
 
-
+def load_muses_retrieval_step(dir_in, step_number=1, osp_dir=None,
+                              gmao_dir=None, change_to_dir=True):
+    '''This reads parameters that can be use to call the py-retrieve function
+    run_retrieval. See muses_capture in refractor-muses for collecting this.
+    '''
+    return MusesRetrievalStep.load_retrieval_step(
+        f"{dir_in}/run_retrieval_step_{step_number}.pkl",
+        osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=change_to_dir)
+        
 def load_tropomi_uip(step_number=1, osp_dir=None, gmao_dir=None):
     return  RefractorUip.load_uip(
-        test_base_path + "/tropomi/in/sounding_1/uip_step_%d.pkl" % step_number,
+        f"{tropomi_test_in_dir}/uip_step_{step_number}.pkl",
         change_to_dir=True,
         osp_dir=osp_dir,gmao_dir=gmao_dir)
 
@@ -89,7 +107,6 @@ def tropomi_uip_step_1(isolated_dir):
     '''Return a RefractorUip for strategy step 1, and also unpack all the 
     support files into a directory'''
     return load_tropomi_uip(step_number=1)
-
 
 @pytest.fixture(scope="function")
 def tropomi_uip_step_2(isolated_dir):
