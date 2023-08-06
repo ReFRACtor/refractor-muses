@@ -119,9 +119,9 @@ class RefractorUip:
 
     '''
 
-    def __init__(self, uip = None, strategy_table = None, basis_matrix = None):
+    def __init__(self, uip = None, basis_matrix = None):
         '''Constructor. This takes the uip structure (the muses-py dictionary)
-        and/or the strategy_table file name.
+        and a basis_matrix if available
         '''
         # Depending on where this is called from, uip may be a dict or
         # an ObjectView. Just to make things simpler, we always store this
@@ -130,16 +130,24 @@ class RefractorUip:
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
-        # Thought this would be useful to make sure UIP isn't changed behind the
-        # scenes. But this turns out to break a bunch of stuff. We could probably
-        # eventually sort this out, but this seems like a lot or work for little
-        # gain. Instead, we can just check by inspection if the UIP is changed in
-        # any muses-py code
-        #self.uip = ConstantDict(self.uip)
+        # Thought this would be useful to make sure UIP isn't changed
+        # behind the scenes. But this turns out to break a bunch of
+        # stuff. We could probably eventually sort this out, but this
+        # seems like a lot or work for little gain. Instead, we can
+        # just check by inspection if the UIP is changed in any
+        # muses-py code self.uip = ConstantDict(self.uip)
         self.basis_matrix = basis_matrix
-        self.strategy_table = strategy_table
         self.capture_directory = RefractorCaptureDirectory()
-        self.rundir = "."
+
+    def __getstate__(self):
+        '''Pickling grabs attributes, which includes properties.
+        We don't actually want that, so just explicitly list what
+        we want saved.'''
+        return {'uip' : self.uip, 'basis_matrix' : self.basis_matrix,
+                'capture_directory' : self.capture_directory}
+    
+    def __setstate__(self, state):
+        self.__dict__.update(state)
 
     def uip_all(self, instrument_name):
         '''Add in the stuff for the given instrument name. This is
@@ -152,7 +160,17 @@ class RefractorUip:
         if('jacobians' in self.uip):
             return self.uip
         return mpy.struct_combine(self.uip, self.uip[f'uip_{instrument_name}']) 
-           
+
+    @property
+    def run_dir(self):
+        '''Return run_dir for capture_directory. Note this defaults to
+        "." if RefractorCaptureDirectory hasn't changed this.'''
+        return self.capture_directory.run_dir
+
+    @run_dir.setter
+    def run_dir(self, v):
+        self.capture_directory.run_dir = v
+    
     @property
     def refractor_cache(self):
         '''Return a simple dict we use for caching values. Note that
@@ -195,8 +213,7 @@ class RefractorUip:
         might take a while to generate.  But for doing things like
         generating test data this should be fine, just pickle the
         object or otherwise save it for use later. We can probably
-        work out a way to do this more directly.
-
+        work out a way to do this more directly if it becomes important.
         '''
         strategy_table = os.path.abspath(strategy_table)
         # We would like to just call a function in muses-py to generate
@@ -232,7 +249,7 @@ class RefractorUip:
                     else:
                         mpy.script_retrieval_ms(os.path.basename(strategy_table))
         except _FakeUipExecption as e:
-            res = cls(uip=e.uip,strategy_table=strategy_table,
+            res = cls(uip=e.uip,
                       basis_matrix = e.ret_info["basis_matrix"])
         finally:
             if(old_run_dir):
@@ -241,18 +258,18 @@ class RefractorUip:
                 del os.environ["MUSES_DEFAULT_RUN_DIR"]
             os.chdir(curdir)
         if(capture_directory):
-            res.tar_directory()
+            res.tar_directory(strategy_table)
         if(save_pickle_file is not None):
             pickle.dump(res, open(save_pickle_file, "wb"))
         return res
 
-    def tar_directory(self):
+    def tar_directory(self, strategy_table):
         vlidort_input = None
         if("uip_OMI" in self.uip):
             vlidort_input = self.uip['uip_OMI']["vlidort_input"]
         if("uip_TROPOMI" in self.uip):
             vlidort_input = self.uip['uip_TROPOMI']["vlidort_input"]
-        self.capture_directory.save_directory(os.path.dirname(self.strategy_table), vlidort_input)
+        self.capture_directory.save_directory(os.path.dirname(strategy_table), vlidort_input)
         
     @property
     def current_state_x(self):
@@ -295,7 +312,6 @@ class RefractorUip:
         uip.capture_directory.extract_directory(path=path,
                               change_to_dir=change_to_dir, osp_dir=osp_dir,
                               gmao_dir=gmao_dir)
-        uip.rundir = uip.capture_directory.rundir
         return uip
 
     def instrument_sub_basis_matrix(self, instrument_name):
@@ -304,7 +320,7 @@ class RefractorUip:
         models return - only the subset of jacobians actually relevant for
         that instrument.
 
-        As a convention, return None rather than erroring if self.basis_matrix
+        As a convention, return None rather than an error if self.basis_matrix
         is None.'''
         if(self.basis_matrix is None):
             return None
@@ -314,29 +330,29 @@ class RefractorUip:
         '''For BT retrievals, the species aren't set. This means we
         need to do special handling in some cases. Determine if we are
         doing a BT retrieval and return True if we are.'''
-        # Note the logic is a bit obscure here, but the matches what
+        # Note the logic is a bit obscure here, but this matches what
         # fm_wrapper does. If the speciesListFM is ['',] then we just
         # "know" that this is a BT retrieval
         return (len(self.uip["speciesListFM"]) == 1 and
                 self.uip["speciesListFM"] == ['',])
     
-    def atmosphere_basis_matrix(self, param_name):
+    def species_basis_matrix(self, species_name):
         '''Muses does the retrieval on a subset of the full forward model
         grid. The mapping between the two sets is handled by the
-        basis_matrix. We subset this for just this particular param_name
+        basis_matrix. We subset this for just this particular species_name
         (e.g, O3).'''
-        t1 = np.array(self.uip['speciesList']) == param_name
-        t2 = np.array(self.uip['speciesListFM']) == param_name
+        t1 = np.array(self.uip['speciesList']) == species_name
+        t2 = np.array(self.uip['speciesListFM']) == species_name
         return self.basis_matrix[t1,:][:,t2]
 
-    def atmosphere_basis_matrix_calc(self, param_name):
+    def species_basis_matrix_calc(self, species_name):
         '''Rather than return the basis matrix in ret_info, calculate
         this like get_species_information does in muses-py.
 
         Note that this is a bit circular, we use
-        atmosphere_retrieval_level_subset which depends on the basis matrix
-        already in ret_info (because we don't have this information
-        available at this level of the processing tree).
+        atmosphere_retrieval_level_subset which depends on self.basis_matrix
+        (because we don't have this information available at this level of
+        the processing tree).
 
         But go ahead and have this function, it is a nice documentation
         of how we would possibly move this calculation into refractor, and
@@ -346,10 +362,10 @@ class RefractorUip:
         # elsewhere.
         plev = self.atmosphere_column("pressure")
         # +1 here is because make_maps is expecting 1 based levels rather
-        # the 0 based we return from atmosphere_retrieval_level_subset.
-        return mpy.make_maps(plev, self.atmosphere_retrieval_level_subset(param_name)+1)['toState']
+        # the 0 based we return from species_retrieval_level_subset.
+        return mpy.make_maps(plev, self.species_retrieval_level_subset(species_name)+1)['toState']
     
-    def atmosphere_retrieval_level_subset(self, param_name):
+    def species_retrieval_level_subset(self, species_name):
         '''This is the levels of the forward model grid that we do
         the retrieval on.
 
@@ -362,11 +378,11 @@ class RefractorUip:
         Note that this is 0 based, although the py_retrieve function is
         in terms of 1 based. 
         '''
-        i_levels = np.any(self.atmosphere_basis_matrix(param_name) == 1,
+        i_levels = np.any(self.species_basis_matrix(species_name) == 1,
                           axis=0).nonzero()[0]
         return i_levels
     
-    def atmosphere_column(self, param_name):
+    def atmosphere_column(self, species_name):
         '''Return the atmospheric column. Note that MUSES use 
         a decreasing pressure order (to surface to TOA). This is
         the opposite of the normal ReFRACtor convention. This is
@@ -375,7 +391,7 @@ class RefractorUip:
         the forward model. But be aware of the difference if you
         are looking at the data directly.'''
         param_list = [ n.lower() for n in self.uip['atmosphere_params'] ]
-        param_index = param_list.index(param_name.lower())
+        param_index = param_list.index(species_name.lower())
         return self.uip['atmosphere'][param_index,:]
 
     @property

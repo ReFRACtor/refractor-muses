@@ -52,15 +52,19 @@ To run:
    to create files needed by
    capture-run (or run-retrieval). This goes into the output directory.
    
+   Use an instrument "all" to run all the instruments.
+   
 6. Run
 
         ./muses_capture capture-run <instrument>
 		
-	This generates various pickle/save file for the different steps of the
-	processing, that can then be used by the other repositories for testing.
-	This updates the files in omi_sounding_1 and tropomi_sounding_1 (we
-	currently have just one sounding, but we might potentially want to have
-    unit tests for multiple soundings).
+   This generates various pickle/save file for the different steps of the
+   processing, that can then be used by the other repositories for testing.
+   This updates the files in omi_sounding_1 and tropomi_sounding_1 (we
+   currently have just one sounding, but we might potentially want to have
+   unit tests for multiple soundings).
+
+   Use an instrument "all" to run all the instruments.
 
 7. Can optionally run the full retrieval by
 
@@ -73,10 +77,14 @@ To run:
 
 All files will be locate in the output/ sub directory of this directory.
 
-Currently (1/2023) the instruments we have are:
+Currently (7/2023) the instruments we have are:
 
 - omi
 - tropomi
+- cris_tropomi
+- air_omi
+
+You can use the name "all" to run for all instruments.
 
 In addtion to the muses capture, indivual repositories might have capture
 tests. We preface all the capture tests with "test_capture",

@@ -280,9 +280,8 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
                     rstep.run_retrieval(vlidort_cli=vlidort_cli)
                 except _FakeUipExecption as e:
                     res = RefractorUip(uip=e.uip,
-                        basis_matrix=cretinfo.ret_info['basis_matrix'],
-                        strategy_table=os.environ["MUSES_DEFAULT_RUN_DIR"] + "/Table.asc")
-        res.tar_directory()
+                        basis_matrix=cretinfo.ret_info['basis_matrix'])
+        res.tar_directory(os.environ["MUSES_DEFAULT_RUN_DIR"] + "/Table.asc")
         pickle.dump(res, open(pickle_file, "wb"))
 
     def run_pickle_file(self, pickle_file, path=".",

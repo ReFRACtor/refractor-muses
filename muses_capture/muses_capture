@@ -179,18 +179,23 @@ def cli():
 @click.option("--output-dir", default="./output",
               help="Location the output of amuse-me goes")
 def setup_targets(instrument, output_dir="./output"):
-    '''Run the pipeline through the setup_targets step'''
+    '''Run the pipeline through the setup_targets step. Use the
+    instrument name "all" to run all instruments'''
     # Note, you can look at examples at
     # https://github.jpl.nasa.gov/MUSES-Processing/amuse-me/blob/develop/docs/examples.md.
     # We run one day in each case, the day that we grab the test sounding
     # for. For right now, we use the same soundings as used in the
     # py-retrieve smoke tests. 
     logger.info("In setup-targets")
-    cmd, _, _ = base_command(instrument,output_dir=output_dir)
-    cmd.extend(["--start-step", "geolocate",
-                "--end-step", "setup_targets"])
-    logger.info(f'Running: {" ".join(cmd)}')
-    subprocess.run(cmd, check=True)
+    ilist = (instrument,)
+    if(instrument == "all"):
+        ilist = ("omi", "tropomi", "airs_omi", "cris_tropomi")
+    for inst in ilist:
+        cmd, _, _ = base_command(inst,output_dir=output_dir)
+        cmd.extend(["--start-step", "geolocate",
+                    "--end-step", "setup_targets"])
+        logger.info(f'Running: {" ".join(cmd)}')
+        subprocess.run(cmd, check=True)
 
 @cli.command()
 @click.argument("instrument", type=str)
@@ -201,31 +206,37 @@ def setup_targets(instrument, output_dir="./output"):
 @click.option("--suppress-output/--show-output", default=True)
 def capture_run(instrument,output_dir="./output",
                 test_data_dir="../../refractor_test_data",suppress_output=True):
-    '''Update the pickle/save files for processing the given instrument.'''
+    '''Update the pickle/save files for processing the given instrument.
+    Use the instrument "all" to run all the instruments'''
     logger.info("In capture-run")
-    _, sounding_list, step_list = base_command(instrument,output_dir=output_dir)
     # Temporary, make sure libgfortran.so.4 is in path. See
     # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
     # Note that currently omi uses muses-vlidort repository build, which
     # doesn't have this problem any longer. But tropomi does still
     os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
-    for i, sounding in enumerate(sounding_list):
-        capoutdir = f"{os.path.abspath(test_data_dir)}/{instrument}/in/sounding_{i+1}"
-        logger.info(f"Writing output to {capoutdir}")
-        sdir = sounding_dir(instrument, sounding,output_dir=output_dir)
-        MusesRunDir.save_run_directory(sdir, capoutdir)
-        with open(f"{capoutdir}/sounding.txt", "w") as fh:
-            print(sounding, file=fh)
-        fname =  f"{sdir}/Table.asc"
-        for step_number in step_list:
-            logger.info(f"Capturing UIP for step {step_number}")
-            _ = RefractorUip.create_from_table(fname, step=step_number,
+    
+    ilist = (instrument,)
+    if(instrument == "all"):
+        ilist = ("omi", "tropomi", "airs_omi", "cris_tropomi")
+    for inst in ilist:
+        _, sounding_list, step_list = base_command(inst,output_dir=output_dir)
+        for i, sounding in enumerate(sounding_list):
+            capoutdir = f"{os.path.abspath(test_data_dir)}/{inst}/in/sounding_{i+1}"
+            logger.info(f"Writing output to {capoutdir}")
+            sdir = sounding_dir(inst, sounding,output_dir=output_dir)
+            MusesRunDir.save_run_directory(sdir, capoutdir)
+            with open(f"{capoutdir}/sounding.txt", "w") as fh:
+                print(sounding, file=fh)
+            fname =  f"{sdir}/Table.asc"
+            for step_number in step_list:
+                logger.info(f"Capturing UIP for step {step_number}")
+                _ = RefractorUip.create_from_table(fname, step=step_number,
                      capture_directory=True,
                      save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl",
                      suppress_noisy_output=suppress_output)
-            logger.info(f"Capturing MusesRetrievalStep for step {step_number}")
-            _ = MusesRetrievalStep.create_from_table(fname, step=step_number,
+                logger.info(f"Capturing MusesRetrievalStep for step {step_number}")
+                _ = MusesRetrievalStep.create_from_table(fname, step=step_number,
                      capture_directory=True,
                      save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl",
                      suppress_noisy_output=suppress_output)
