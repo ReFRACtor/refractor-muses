@@ -1,6 +1,7 @@
 import refractor.muses.muses_py as mpy
 import refractor.framework as rf
 from .refractor_uip import RefractorUip
+from .osswrapper import osswrapper
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .refractor_capture_directory import muses_py_call
@@ -292,30 +293,21 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         curdir = os.getcwd()
         need_oss_delete = False
         try:
-            uip = RefractorUip.load_uip(pickle_file,path=path,
+            rf_uip = RefractorUip.load_uip(pickle_file,path=path,
                                         change_to_dir=True, osp_dir=osp_dir,
                                         gmao_dir=gmao_dir)
-            self.basis_matrix = uip.basis_matrix
-            self.rundir = uip.capture_directory.rundir
-            # This might not be the best place for this, but we need to initialize
-            # OSS code if it is going to be used
-            if('CRIS' in uip.uip["instruments"]):
-                os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
-                uall = mpy.struct_combine(uip.uip, uip.uip['uip_CRIS'])
-                uall,_,_ = mpy.fm_oss_init(mpy.ObjectView(uall), "CRIS")
-                need_oss_delete = True
-                uall = mpy.fm_oss_windows(mpy.ObjectView(uall))
-            with muses_py_call(".", vlidort_cli=vlidort_cli,debug=self.py_retrieve_debug,
+            self.basis_matrix = rf_uip.basis_matrix
+            self.rundir = rf_uip.capture_directory.rundir
+            with osswrapper(rf_uip.uip):
+                with muses_py_call(".", vlidort_cli=vlidort_cli,debug=self.py_retrieve_debug,
                                vlidort_nstokes=self.py_retrieve_vlidort_nstokes,
                                vlidort_nstreams=self.py_retrieve_vlidort_nstreams):
-                if(self.func_name == "tropomi_fm"):
-                    return self.tropomi_fm(uip.uip_all("TROPOMI"))
-                else:
-                    return self.omi_fm(uip.uip_all("OMI"))
+                    if(self.func_name == "tropomi_fm"):
+                        return self.tropomi_fm(rf_uip.uip_all("TROPOMI"))
+                    else:
+                        return self.omi_fm(rf_uip.uip_all("OMI"))
         finally:
             os.chdir(curdir)
-            if(need_oss_delete):
-                mpy.fm_oss_delete()
 
     @property
     def vlidort_input(self):

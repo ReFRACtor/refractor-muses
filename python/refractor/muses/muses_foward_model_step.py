@@ -40,7 +40,7 @@ def _all_output_disabled():
         logging.disable(previous_level)
 
 class MusesForwardmodelStep:
-    '''This class is used to capture the arguments to a py-retrieve
+    '''This class is used to capture the arguments to a muses-py
     run_forward_model, and to then call that function. This is little more than
     the argument list plus a bit of support code.
 
@@ -73,8 +73,8 @@ class MusesForwardmodelStep:
         to allow calling this later.'''
         # TODO Note there is some duplication with create_from_table we
         # have in RefractorUip. We could possible extract this out
-        # somehow into a base class. But right now we only have these
-        # two classes, so this probably isn't worth it. So we are currently
+        # somehow into a base class. But right now we only have a
+        # few lasses, so this probably isn't worth it. So we are currently
         # just duplicating the code.
         with muses_py_call(os.path.dirname(strategy_table),
                            vlidort_cli=vlidort_cli):

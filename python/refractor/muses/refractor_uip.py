@@ -398,6 +398,18 @@ class RefractorUip:
         '''Short cut for tropomiPars'''
         return self.uip.get('tropomiPars')
 
+    def frequency_list(self, instrument_name):
+        return self.uip_all(instrument_name)["frequencyList"]
+
+    def instrument_list(self):
+        '''List of all the radiance data we are generating, identifying
+        which instrument fills in that particular index'''
+        return self.uip["instrumentList"]
+
+    def instrument(self):
+        '''List of instruments that are part of the UIP'''
+        return self.uip["instruments"]
+    
     def freq_index(self, instrument_name):
         '''Return frequency index for given instrument'''
         if(instrument_name == "OMI"):
@@ -517,6 +529,31 @@ class RefractorUip:
             self.uip['microwindows_all'][ii_mw]['start'], 
             self.uip['microwindows_all'][ii_mw]['endd']
             ],]), "nm")
+
+    def jacobian_all(self):
+        '''List of jacobians we are including in the state vector'''
+        return self.uip['jacobians_all']
+    
+    def state_vector_species_index(self, species_name,
+                                   use_full_state_vector=False):
+        '''Index and length for the location of the species_name in
+        our state vector. We either do this for the retrieval state vector
+        or the full state vector.'''
+        if(self.is_bt_retrieval()):
+            # Special handling for BT retrieval. BTW, this is really just
+            # sort of a "magic" logic in fm_wrapper, there is nothing that
+            # indicates the length is 1 here except the hard coded logic
+            # in fm_wrapper.
+            pstart = 0
+            plen = 1
+        elif(not use_full_state_vector):
+            pstart = list(self.uip["speciesList"]).index(species_name)
+            plen = list(self.uip["speciesList"]).count(species_name)
+        else:
+            pstart = list(self.uip["speciesListFM"]).index(species_name)
+            plen = list(self.uip["speciesListFM"]).count(species_name)
+        return pstart, plen
+        
 
     def state_vector_params(self, instrument_name):
         '''List of parameter types to include in the state vector.'''

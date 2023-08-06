@@ -64,9 +64,9 @@ def muses_py_call(rundir,
             del os.environ["LD_LIBRARY_PATH"]
    
 class RefractorCaptureDirectory:
-    '''py-retrieve code requires a number of files in a directory,
-    these are essentially like hidden arguments to various py-retrieve
-    functions.  If you want to be able to run py-retrieve code 
+    '''muses-py code requires a number of files in a directory,
+    these are essentially like hidden arguments to various muses-py
+    functions.  If you want to be able to run muses-py code 
     (e.g., MusesTropomiForwardModel) then we need to save the directory
     when we capture runs, and extract it again to run the data again.
     This class handles this, wrapping everything up.'''

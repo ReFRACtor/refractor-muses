@@ -25,14 +25,14 @@ class MusesObservationBase(rf.ObservationSvImpBase):
         return 1
 
     def spectral_domain(self, sensor_index, include_bad_sample=False):
-        return rf.SpectralDomain(self.rf_uip.uip_all(self.instrument_name)["frequencyList"], rf.Unit("nm"))
+        return rf.SpectralDomain(self.rf_uip.frequency_list(self.instrument_name), rf.Unit("nm"))
 
     def radiance(self, sensor_index, skip_jacobian = False,
                  include_bad_sample=False):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         sd = self.spectral_domain(sensor_index)
-        subset = [t == self.instrument_name for t in self.rf_uip.uip["instrumentList"]]
+        subset = [t == self.instrument_name for t in self.rf_uip.instrument_list()]
         if(self.obs_rad is not None):
             r = self.obs_rad[subset]
             uncer = self.meas_err[subset]
@@ -64,7 +64,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         return 1
 
     def spectral_domain(self, sensor_index):
-        return rf.SpectralDomain(self.rf_uip.uip_all(self.instrument_name)["frequencyList"], rf.Unit("nm"))
+        return rf.SpectralDomain(self.rf_uip.frequency_list(self.instrument_name), rf.Unit("nm"))
 
 class MusesOssForwardModelBase(MusesForwardModelBase):
     '''Common behavior for the OSS based forward models'''
@@ -86,10 +86,6 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             # column being the state vector variables. So
             # translate the oss jac to what we want from ReFRACtor
 
-            # The jacobians from muses forward model routines only contains
-            # the subset of
-            # the columns that are listed in uip_all["jacobians"]
-            # If we are called with a basis_matrix
             if(self.use_full_state_vector):
                 jac = jac.transpose()
             else:

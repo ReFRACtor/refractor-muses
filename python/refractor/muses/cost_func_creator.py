@@ -46,28 +46,10 @@ class StateVectorHandleSet(PriorityHandleSet):
         it is useful to have the option of supporting this. Set
         use_full_state_vector to True to use the full state vector.
         '''
-        # For BT retrieval, the species aren't set. Mark this, since
-        # we need to do special handling. This is a really obscure way to
-        # indicate BT, but it is what fm_wrapper does.
-        is_bt_retrieval = (len(rf_uip.uip["speciesListFM"]) == 1
-                           and rf_uip.uip["speciesListFM"] == ['',])
         sv = rf.StateVector()
-        for species_name in rf_uip.uip["jacobians_all"]:
-            # Determine the range in the state vector for the species
-            
-            if(is_bt_retrieval):
-                # Special handling for BT retrieval. BTW, this is really just
-                # sort of a "magic" logic in fm_wrapper, there is nothing that
-                # indicates the length is 1 here except the hard coded logic
-                # in fm_wrapper.
-                pstart = 0
-                plen = 1
-            elif(not use_full_state_vector):
-                pstart = list(rf_uip.uip["speciesList"]).index(species_name)
-                plen = list(rf_uip.uip["speciesList"]).count(species_name)
-            else:
-                pstart = list(rf_uip.uip["speciesListFM"]).index(species_name)
-                plen = list(rf_uip.uip["speciesListFM"]).count(species_name)
+        for species_name in rf_uip.jacobian_all():
+            pstart, plen = rf_uip.state_vector_species_index(species_name,
+                          use_full_state_vector=use_full_state_vector)
             self.add_sv(sv, species_name, pstart, plen)
         return sv
     
@@ -98,7 +80,7 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
                    svhandle: StateVectorHandleSet,
                    use_full_state_vector=False,
                    obs_rad=None, meas_err=None):
-        '''Turn ForwardModel and Observation if we can process the given
+        '''Return ForwardModel and Observation if we can process the given
         instrument_name, or (None, None) if we can't. Add any StateVectorHandle
         to the passed in set.
 
@@ -184,7 +166,7 @@ class CostFuncCreator:
             # TODO Change logic here to generate 0 and 1's
             obs_rad = None
             meas_err = None
-        for instrument_name in rf_uip.uip["instruments"]:
+        for instrument_name in rf_uip.instrument():
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
                                   rf_uip, state_vector_handle_set,
                                   use_full_state_vector=use_full_state_vector,
