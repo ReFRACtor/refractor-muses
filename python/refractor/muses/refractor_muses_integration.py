@@ -6,23 +6,31 @@ import refractor.framework as rf
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .refractor_uip import RefractorUip
-from .cost_func_creator import CostFuncCreator
+from .fm_obs_creator import CostFuncCreator
 from .muses_residual_fm_jacobian import MusesResidualFmJacobian
 import numpy as np
 
-class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
-    '''This replaces residual_fm_jacobian. This is pretty much the ReFRACtor
-    cost function, plus some extra stuff calculated.
+class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
+    '''This handles the Refractor/Muses integration.
 
-    It is sort of an awkward interface, but script_retrieval_ms also calls
-    run_forward_model to calculate the systematic jacobian in some cases
-    I'm not really sure of the logic of this, but we need to interact with
-    that function here because basically this is very tied to
-    residual_fm_jacobian,  we just don't do the extra residual part. So
-    we use this same function to interact with that.
+    We do this by replacing two top level functions, residual_fm_jacobian
+    and run_forward_model. Both of these are changed to use our CostFunction,
+    and applies the various plumbing to give Muses-py what it expects from
+    these two functions.
+
+    We would like to replace run_retrieval instead of residual_fm_jacobian,
+    it is the more natural function. We'll do that at some point in the
+    future.
+
+    The CostFunction can turn around and use MusesForwardModel classes to
+    just call the existing muses-py code - the intention is to use ReFRACtor
+    plumbing but the existing functionality. We can then selectively replace
+    pieces with ReFRACtor code, e.g. use the muses-py AIRS forward model with
+    the ReFRACtor OMI forward model.
+    
 
     Note because I keep needing to look this up, the call tree for a
-    py-retrieve is:
+    muses-py is:
 
       cli - top level entry point
       script_retrieval_ms- Handles all the strategy steps
@@ -34,9 +42,6 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
       omi_fm (for OMI) Forward model
       rtf_omi - lower level of omi forward model
 
-    We implement residual_fm_jacobian here as a set of ForwardModel and Observation
-    objects in a NLLSProblem. We wrap up the existing py-retrieve code into a
-    ForwardModel and Observation so we can put this into the same framework.
     '''
     
     def __init__(self, **kwargs):
@@ -181,5 +186,5 @@ class RefractorResidualFmJacobian(mpy.ReplaceFunctionObject if mpy.have_muses_py
             return self.muses_residual_fm_jac.residual_fm_jacobian()
         
 
-__all__ = ["RefractorResidualFmJacobian",]
+__all__ = ["RefractorMusesIntegration",]
     

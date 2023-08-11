@@ -1,7 +1,7 @@
 from . import muses_py as mpy
 from .refractor_uip import RefractorUip
-from .cost_func_creator import (InstrumentHandle, StateVectorHandle,
-                                InstrumentHandleSet, StateVectorHandleSet)
+from .fm_obs_creator import (InstrumentHandle, StateVectorHandle,
+                             InstrumentHandleSet, StateVectorHandleSet)
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
 import refractor.framework as rf
@@ -34,12 +34,8 @@ class MusesObservationBase(rf.ObservationSvImpBase):
             raise ValueError("sensor_index must be 0")
         sd = self.spectral_domain(sensor_index)
         subset = [t == self.instrument_name for t in self.rf_uip.instrument_list]
-        if(self.obs_rad is not None):
-            r = self.obs_rad[subset]
-            uncer = self.meas_err[subset]
-        else:
-            r = np.zeros(sd.data.shape)
-            uncer = np.ones(r.shape)
+        r = self.obs_rad[subset]
+        uncer = self.meas_err[subset]
         sr = rf.SpectralRange(r, rf.Unit("sr^-1"), uncer)
         if(sr.data.shape != sd.data.shape):
             raise RuntimeError("sd and sr are different lengths")
