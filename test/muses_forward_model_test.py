@@ -2,10 +2,12 @@ from test_support import *
 from refractor.muses import (RefractorUip, StateVectorPlaceHolder,
                              MusesCrisForwardModel, MusesCrisObservation, 
                              MusesAirsForwardModel, MusesAirsObservation,
-                             MusesTropomiForwardModel,
-                             MusesOmiForwardModel,
+                             MusesTropomiForwardModel, MusesTropomiObservation,
+                             MusesOmiForwardModel, MusesOmiObservation,
+                             StateVectorHandleSet, MusesStateVectorObserverHandle
                              )
 import refractor.framework as rf
+import copy
 
 @require_muses_py
 def test_muses_cris_forward_model(joint_tropomi_uip_step_10):
@@ -40,7 +42,7 @@ def test_muses_cris_forward_model(joint_tropomi_uip_step_10):
 def test_muses_tropomi_forward_model(joint_tropomi_uip_step_10, vlidort_cli):
     rf_uip = joint_tropomi_uip_step_10
     fm = MusesTropomiForwardModel(rf_uip, vlidort_cli=vlidort_cli)
-    #obs = MusesTropomiObservation(rf_uip, obs_rad = None, meas_err=None)
+    obs = MusesTropomiObservation(fm)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -54,16 +56,24 @@ def test_muses_tropomi_forward_model(joint_tropomi_uip_step_10, vlidort_cli):
         print(jac)
         print(rad.shape)
         print(jac.shape)
-    #s = obs.radiance(0)
-    #rad = s.spectral_range.data
-    #uncer = s.spectral_range.uncertainty
-    #assert rad.shape[0] == 52
-    #assert uncer.shape[0] == 52
-    #if False:
-    #    print(rad)
-    #    print(uncer)
-    #    print(rad.shape)
-    #    print(uncer.shape)
+    s = obs.radiance(0)
+    rad = s.spectral_range.data
+    uncer = s.spectral_range.uncertainty
+    assert rad.shape[0] == 52
+    assert uncer.shape[0] == 52
+    if False:
+        print(rad)
+        print(uncer)
+        print(rad.shape)
+        print(uncer.shape)
+    # Check that cache properly gets invalidated with state vector changes
+    state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
+    state_vector_handle_set.add_handle(MusesStateVectorObserverHandle(fm),
+                                       priority_order=1000)
+    sv = state_vector_handle_set.create_state_vector(rf_uip)
+    assert fm.cache_valid_flag
+    sv.update_state([1,2,3])
+    assert not fm.cache_valid_flag
         
 @require_muses_py
 def test_muses_airs_forward_model(joint_omi_uip_step_7):
@@ -93,6 +103,43 @@ def test_muses_airs_forward_model(joint_omi_uip_step_7):
         print(uncer)
         print(rad.shape)
         print(uncer.shape)
+
+@require_muses_py
+def test_muses_omi_forward_model(joint_omi_uip_step_7, vlidort_cli):
+    rf_uip = joint_omi_uip_step_7
+    fm = MusesOmiForwardModel(rf_uip, vlidort_cli=vlidort_cli)
+    obs = MusesOmiObservation(fm)
+    s = fm.radiance(0)
+    rad = s.spectral_range.data
+    jac = s.spectral_range.data_ad.jacobian
+    # Basically just making sure we can run this, no easy way to check
+    # if the results are correct or not.
+    assert rad.shape[0] == 221
+    assert jac.shape[0] == 221
+    assert jac.shape[1] == 62
+    if False:
+        print(rad)
+        print(jac)
+        print(rad.shape)
+        print(jac.shape)
+    s = obs.radiance(0)
+    rad = s.spectral_range.data
+    uncer = s.spectral_range.uncertainty
+    assert rad.shape[0] == 221
+    assert uncer.shape[0] == 221
+    if False:
+        print(rad)
+        print(uncer)
+        print(rad.shape)
+        print(uncer.shape)
+    # Check that cache properly gets invalidated with state vector changes
+    state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
+    state_vector_handle_set.add_handle(MusesStateVectorObserverHandle(fm),
+                                       priority_order=1000)
+    sv = state_vector_handle_set.create_state_vector(rf_uip)
+    assert fm.cache_valid_flag
+    sv.update_state([1,2,3])
+    assert not fm.cache_valid_flag
         
 @require_muses_py
 def test_state_vector_placeholder():
