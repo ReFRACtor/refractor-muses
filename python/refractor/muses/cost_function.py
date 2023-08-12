@@ -91,17 +91,18 @@ class CostFunction(rf.NLLSMaxAPosteriori):
         # bad samples. Instead we access the observation list we stashed 
         # when we created the cost function.
         d = []
+        u = []
         for obs in self.obs_list:
             if(hasattr(obs, "radiance_all_with_bad_sample")):
-                d.append(obs.radiance_all_with_bad_sample())
+                s = obs.radiance_all_with_bad_sample()
             else:
-                d.append(obs.radiance_all(True).spectral_range.data)
+                # True skips the jacobian calculation, which we don't
+                # need here
+                s = obs.radiance_all(True)
+            d.append(s.spectral_range.data)
+            u.append(s.spectral_range.uncertainty)
         ret_info["obs_rad"] = np.concatenate(d)
-        # Covariance for bad pixels get set to sqr(-999), so meas_err is
-        # 999 rather than -999 here. Work around this by only updating the
-        # good pixels.
-        gpt = ret_info["meas_err"] >= 0
-        ret_info["meas_err"][gpt] = np.sqrt(self.max_a_posteriori.measurement_error_cov)
+        ret_info["meas_err"] = np.concatenate(u)
         residual = self.residual
         jac_residual = self.jacobian.transpose()
         radiance_fm = self.max_a_posteriori.model

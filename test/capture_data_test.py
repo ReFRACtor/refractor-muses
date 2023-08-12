@@ -49,6 +49,18 @@ def test_capture_omi_residual_fm_jac(isolated_dir, step_number, iteration,
         (rstep, iteration=iteration, capture_directory=True,
          save_pickle_file=f"{omi_test_in_dir}/residual_fm_jac_{step_number}_{iteration}.pkl", suppress_noisy_output=False, vlidort_cli=vlidort_cli)
 
+@pytest.mark.parametrize("step_number", [7,])
+@pytest.mark.parametrize("iteration", [1, 2, 3])
+@capture_test
+@require_muses_py
+def test_capture_joint_omi_residual_fm_jac(isolated_dir, step_number, iteration,
+                                 osp_dir, gmao_dir, vlidort_cli):
+    rstep = load_muses_retrieval_step(joint_omi_test_in_dir,
+                                 step_number=step_number,osp_dir=osp_dir,
+                                 gmao_dir=gmao_dir)
+    MusesResidualFmJacobian.create_from_retrieval_step\
+        (rstep, iteration=iteration, capture_directory=True,
+         save_pickle_file=f"{joint_omi_test_in_dir}/residual_fm_jac_{step_number}_{iteration}.pkl", suppress_noisy_output=False, vlidort_cli=vlidort_cli)
     
 @capture_test
 @pytest.mark.parametrize("call_num", [1,2,3,4,5,6])
