@@ -6,7 +6,7 @@ import refractor.framework as rf
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .refractor_uip import RefractorUip
-from .fm_obs_creator import CostFuncCreator
+from .fm_obs_creator import FmObsCreator
 from .muses_residual_fm_jacobian import MusesResidualFmJacobian
 import numpy as np
 
@@ -48,7 +48,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         '''This interface probably needs work. But for now we take the keywords associated
         with RefractorObjectCreator. What we will probably want is someway of registering
         how to handle each instrument type, but for a start do this'''
-        self.cost_func_creator = CostFuncCreator(**kwargs)
+        #self.cost_func_creator = CostFuncCreator(**kwargs)
         self.instrument_handle_set = self.cost_func_creator.instrument_handle_set
 
     def register_with_muses_py(self):

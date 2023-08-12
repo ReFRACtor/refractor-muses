@@ -84,8 +84,9 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
     creator = FmObsCreator()
-    cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
-                                                  vlidort_cli=vlidort_cli))
+    cfunc = CostFunction(*creator.fm_and_obs(rf_uip,
+                                             rrefractor.params["ret_info"],
+                                             vlidort_cli=vlidort_cli))
     (uip, o_residual, o_jacobian_ret, radiance_out,
      o_jacobianOut, o_stop_flag) = cfunc.residual_fm_jacobian(**rrefractor.params)
     
@@ -108,7 +109,7 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     basis_matrix = rrefractor.params["ret_info"]["basis_matrix"]
     npt.assert_allclose(np.matmul(basis_matrix, o_jacobianOut),
                         np.matmul(basis_matrix, o_jacobianOut2), atol=1e-12)
-    npt.assert_allclose(r.muses_residual_fm_jac.params["ret_info"]["obs_rad"],
-                        r2.params["ret_info"]["obs_rad"])
-    npt.assert_allclose(r.muses_residual_fm_jac.params["ret_info"]["meas_err"],
-                        r2.params["ret_info"]["meas_err"])
+    npt.assert_allclose(rrefractor.params["ret_info"]["obs_rad"],
+                        rmuses_py.params["ret_info"]["obs_rad"])
+    npt.assert_allclose(rrefractor.params["ret_info"]["meas_err"],
+                        rmuses_py.params["ret_info"]["meas_err"])
