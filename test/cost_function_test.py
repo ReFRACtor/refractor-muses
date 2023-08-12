@@ -124,15 +124,20 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     (uip2, o_residual2, o_jacobian_ret2, radiance_out2,
      o_jacobianOut2, o_stop_flag2) = rmuses_py.residual_fm_jacobian(vlidort_cli=vlidort_cli)
     assert o_stop_flag == o_stop_flag2
-    #npt.assert_allclose(radiance_out, radiance_out2)
+    # Note we put in fill values for bad samples, while muses-py actually
+    # runs the forward model on all the data. It isn't clear what we want
+    # here, but for now just compare good points
+    gpt = radiance_out > -999
+    npt.assert_allclose(radiance_out[gpt], radiance_out2[gpt])
     npt.assert_allclose(o_residual, o_residual2)
     npt.assert_allclose(o_jacobian_ret, o_jacobian_ret2)
     # This fails
     #npt.assert_allclose(o_jacobianOut, o_jacobianOut2)
     # However this succeeds
     basis_matrix = rrefractor.params["ret_info"]["basis_matrix"]
-    #npt.assert_allclose(np.matmul(basis_matrix, o_jacobianOut),
-    #                    np.matmul(basis_matrix, o_jacobianOut2), atol=1e-12)
+    npt.assert_allclose(np.matmul(basis_matrix, o_jacobianOut[:,gpt]),
+                        np.matmul(basis_matrix, o_jacobianOut2[:,gpt]),
+                        atol=1e-12)
     npt.assert_allclose(rrefractor.params["ret_info"]["obs_rad"],
                         rmuses_py.params["ret_info"]["obs_rad"])
     npt.assert_allclose(rrefractor.params["ret_info"]["meas_err"],
@@ -151,8 +156,7 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
                                        iteration=iteration,
                                        osp_dir=osp_dir,
                                        gmao_dir=gmao_dir,
-                                       path="refractor",
-                                       change_to_dir=False)
+                                       path="refractor")
     # Note OMI already has a number of bad pixels, so we don't need to
     # dummy any for testing
     rf_uip = RefractorUip(rrefractor.params["uip"],
@@ -171,21 +175,24 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
                                       iteration=iteration,
                                       osp_dir=osp_dir,
                                       gmao_dir=gmao_dir,
-                                      path="muses_py",
-                                      change_to_dir=False)
+                                      path="muses_py")
     # Results to compare against
     (uip2, o_residual2, o_jacobian_ret2, radiance_out2,
      o_jacobianOut2, o_stop_flag2) = rmuses_py.residual_fm_jacobian(vlidort_cli=vlidort_cli)
     assert o_stop_flag == o_stop_flag2
-    npt.assert_allclose(radiance_out, radiance_out2)
+    # Note we put in fill values for bad samples, while muses-py actually
+    # runs the forward model on all the data. It isn't clear what we want
+    # here, but for now just compare good points
+    gpt = radiance_out > -999
+    npt.assert_allclose(radiance_out[gpt], radiance_out2[gpt])
     npt.assert_allclose(o_residual, o_residual2)
     npt.assert_allclose(o_jacobian_ret, o_jacobian_ret2)
     # This fails
     #npt.assert_allclose(o_jacobianOut, o_jacobianOut2)
     # However this succeeds
     basis_matrix = rrefractor.params["ret_info"]["basis_matrix"]
-    npt.assert_allclose(np.matmul(basis_matrix, o_jacobianOut),
-                        np.matmul(basis_matrix, o_jacobianOut2), atol=1e-12)
+    npt.assert_allclose(np.matmul(basis_matrix, o_jacobianOut[:,gpt]),
+                        np.matmul(basis_matrix, o_jacobianOut2[:,gpt]), atol=1e-12)
     npt.assert_allclose(rrefractor.params["ret_info"]["obs_rad"],
                         rmuses_py.params["ret_info"]["obs_rad"])
     npt.assert_allclose(rrefractor.params["ret_info"]["meas_err"],

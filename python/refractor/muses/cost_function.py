@@ -105,7 +105,14 @@ class CostFunction(rf.NLLSMaxAPosteriori):
         ret_info["meas_err"] = np.concatenate(u)
         residual = self.residual
         jac_residual = self.jacobian.transpose()
-        radiance_fm = self.max_a_posteriori.model
+        # self.max_a_posteriori.model only contains the good samples.
+        # The existing muses-py actually just runs the forward model
+        # on all points, including bad data. It isn't clear what we want
+        # to do here. For now, create the proper size output but use a fill
+        # value of -999 for bad data.
+        radiance_fm = np.full(ret_info["meas_err"].shape, -999.0)
+        gpt = ret_info["meas_err"] >= 0
+        radiance_fm[gpt] = self.max_a_posteriori.model
         # TODO Rework this, we actually need the jacobian on the FM grid
         
         # We calculate the jacobian on the retrieval grid, but
@@ -114,8 +121,11 @@ class CostFunction(rf.NLLSMaxAPosteriori):
         # something similar so basis_matrix * jacobian_fm_placholder = jac_ret
         jac_retrieval_grid = \
             self.max_a_posteriori.model_measure_diff_jacobian.transpose()
-        jac_fm_placeholder, _, _, _ = np.linalg.lstsq(ret_info["basis_matrix"],
+        jac_fm_placeholdergpt, _, _, _ = np.linalg.lstsq(ret_info["basis_matrix"],
                                                       jac_retrieval_grid)
+        jac_fm_placeholder=np.zeros((jac_fm_placeholdergpt.shape[0],
+                                     ret_info["meas_err"].shape[0]))
+        jac_fm_placeholder[:,gpt] = jac_fm_placeholdergpt
         stop_flag = 0
         return (uip, residual, jac_residual, radiance_fm,
                 jac_fm_placeholder, stop_flag)
