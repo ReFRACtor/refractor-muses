@@ -46,18 +46,17 @@ class MusesResidualFmJacobian:
     def __init__(self, params = None):
         self.params = params
         self.capture_directory = RefractorCaptureDirectory()
-        self.run_path = None
 
     @property
-    def residual_fm_jacobian_path(self):
+    def run_dir(self):
         '''The path we run residual_fm_jacobian in.'''
-        return self.run_path+"/"+self.capture_directory.runbase
+        return self.capture_directory.rundir
     
     def residual_fm_jacobian(self,
                 vlidort_nstokes=2,
                 vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''Run the retrieval step with the saved parameters'''
-        with muses_py_call(self.residual_fm_jacobian_path,
+        with muses_py_call(self.run_dir,
                            vlidort_cli=vlidort_cli,
                            vlidort_nstokes=vlidort_nstokes):
             with osswrapper(self.params['uip']):
@@ -104,7 +103,6 @@ class MusesResidualFmJacobian:
         MusesResidualFmJacobian from a pickle file, extracts the
         saved directory, and optionally changes to that directory.'''
         res = pickle.load(open(save_pickle_file, "rb"))
-        res.run_path = os.path.abspath(path)
         res.capture_directory.extract_directory(path=path,
                               change_to_dir=change_to_dir, osp_dir=osp_dir,
                               gmao_dir=gmao_dir)

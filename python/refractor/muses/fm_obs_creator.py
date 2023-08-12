@@ -1,5 +1,6 @@
 from .refractor_uip import RefractorUip
 from .priority_handle_set import PriorityHandleSet
+from .uip_updater import StateVectorUpdateUip
 import refractor.framework as rf
 import abc
 import copy
@@ -45,12 +46,19 @@ class StateVectorHandleSet(PriorityHandleSet):
         Lower level muses-py functions work with the "Full State Vector", so
         it is useful to have the option of supporting this. Set
         use_full_state_vector to True to use the full state vector.
+
+        If we have use_full_state_vector False, we also attach an observer
+        that calls update_uip when the state vector is updated. We can't do
+        that if use_full_state_vector is True, because muses-py only takes
+        the retrieval vector, not the full state vector.
         '''
         sv = rf.StateVector()
         for species_name in rf_uip.jacobian_all:
             pstart, plen = rf_uip.state_vector_species_index(species_name,
                           use_full_state_vector=use_full_state_vector)
             self.add_sv(sv, species_name, pstart, plen, **kwargs)
+        if(not use_full_state_vector):
+            sv.add_observer_and_keep_reference(StateVectorUpdateUip(rf_uip))
         return sv
     
     def add_sv(self, sv: rf.StateVector, species_name : str, 
@@ -212,79 +220,7 @@ class FmObsCreator:
         sv_sqrt_constraint=np.diag(np.ones((sv.observer_claimed_size,)))
         return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint)
     
-class CostFuncCreator:
-    '''This object creates a CostFunc that can be used with py-retrieve.
-    This includes handling joint retrievals with multiple instruments.
-
-    The object created is a NLLSMaxAPosteriori that wraps a
-    MaxAPosterioriSqrtConstraint (a slight variation on the
-    MaxAPosterioriStandard that we typically use in ReFRACtor).
-
-    The default ForwardModel that does the actual calculations wrap
-    the existing py-retrieve forward model functions. But this object is
-    designed to be modified by updating the instrument_handle_set and
-    state_vector_handle_set.
-
-    The design of the PriorityHandleSet is a bit overkill for this
-    class, we could probably get away with a simple dictionary mapping
-    instrument name to functions that handle it. However the
-    PriorityHandleSet was already available from another library with
-    a much more complicated set of handlers where a dictionary isn't
-    sufficient (see https://github.jpl.nasa.gov/Cartography/pynitf and
-    https://cartography-jpl.github.io/pynitf/design.html#priority-handle-set).
-    The added flexibility can be nice here, and since the code was already
-    written we make use of it.
-
-    In practice you create a simple class that just creates the
-    ForwardModel and Observation, and register with the StateVectorHandleSet.
-    Take a look at the existing examples (e.g. the unit tests of
-    RefractorResidualFmJacobian) - the design seems complicated but is
-    actually pretty simple to use.
-    '''
-    def __init__(self):
-        self.instrument_handle_set = copy.deepcopy(InstrumentHandleSet.default_handle_set())
-
-    def create_cost_func(self, rf_uip : RefractorUip,
-                         ret_info = None,
-                         use_full_state_vector=False):
-        fm_list = rf.Vector_ForwardModel()
-        obs_list = rf.Vector_Observation()
-        # Stash observation, so we have a copy that includes extra
-        # python functions. This is just needed to get the measurements
-        # with bad samples
-        obs_python_list = []
-        state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
-        if(ret_info is not None):
-            obs_rad = ret_info["obs_rad"]
-            meas_err = ret_info["meas_err"]
-        else:
-            # TODO Change logic here to generate 0 and 1's
-            obs_rad = None
-            meas_err = None
-        for instrument_name in rf_uip.instrument:
-            fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
-                                  rf_uip, state_vector_handle_set,
-                                  use_full_state_vector=use_full_state_vector,
-                                  obs_rad=obs_rad, meas_err=meas_err)
-            fm_list.push_back(fm)
-            obs_list.push_back(obs)
-            obs_python_list.append(obs)
-        sv = state_vector_handle_set.create_state_vector(rf_uip,
-                                use_full_state_vector=use_full_state_vector)
-        # TODO Fix up this logic. Perhaps pass in a flag indicating that
-        # we are faking certain parts for ease
-        if(ret_info is not None):
-            mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, sv,
-               ret_info["const_vec"], ret_info["sqrt_constraint"].transpose())
-        else:
-            mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, sv,
-                               np.zeros(sv.observer_claimed_size),
-                               np.identity(sv.observer_claimed_size))
-        mprob = rf.NLLSMaxAPosteriori(mstand)
-        mprob.obs_list = obs_python_list
-        return mprob
-
-__all__ = ["CostFuncCreator",  "StateVectorHandle", "StateVectorHandleSet",
+__all__ = ["StateVectorHandle", "StateVectorHandleSet",
            "InstrumentHandle", "InstrumentHandleSet",
            "FmObsCreator"]
         

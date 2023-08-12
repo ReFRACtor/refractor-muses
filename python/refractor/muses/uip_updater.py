@@ -1,4 +1,5 @@
 import refractor.framework as rf
+from .refractor_uip import RefractorUip
 
 # The information in the ReFRACtor StateVector and the py-retrieve UIP are
 # redundant - basically we have two copies of everything because of the
@@ -38,4 +39,12 @@ class AbsorberVmrToUip(rf.CacheInvalidatedObserver):
         self.rf_uip.atmosphere_column(self.species_name)[:] = vgrid.value
         self.cache_valid_flag = True        
 
-__all__ = ["AbsorberVmrToUip", ]
+class StateVectorUpdateUip(rf.StateVectorObserver):
+    def __init__(self, rf_uip : RefractorUip):
+        super().__init__()
+        self.rf_uip = rf_uip
+
+    def notify_update(self, sv : rf.StateVector):
+        self.rf_uip.update_uip(sv.state)
+        
+__all__ = ["AbsorberVmrToUip", "StateVectorUpdateUip"]

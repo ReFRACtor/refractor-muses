@@ -4,7 +4,8 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import RefractorUip, osswrapper, MusesRetrievalStep
+from refractor.muses import (RefractorUip, osswrapper, MusesRetrievalStep,
+                             MusesResidualFmJacobian)
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
 from scipy.io import readsav
@@ -95,7 +96,19 @@ def load_muses_retrieval_step(dir_in, step_number=1, osp_dir=None,
     return MusesRetrievalStep.load_retrieval_step(
         f"{dir_in}/run_retrieval_step_{step_number}.pkl",
         osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=change_to_dir)
-        
+
+def muses_residual_fm_jac(dir_in, step_number=1, iteration=1,
+                          osp_dir=None, gmao_dir=None,
+                          path=".",
+                          change_to_dir=True):
+    '''This reads parameters that can be use to call the py-retrieve function
+    residual_fm_jac. See muses_capture in refractor-muses for collecting this.
+    '''
+    return MusesResidualFmJacobian.load_residual_fm_jacobian(
+        f"{dir_in}/residual_fm_jac_{step_number}_{iteration}.pkl",
+        osp_dir=osp_dir, gmao_dir=gmao_dir,path=path,
+        change_to_dir=change_to_dir)
+
 def load_uip(dir_in, step_number=1, osp_dir=None, gmao_dir=None):
     return  RefractorUip.load_uip(
         f"{dir_in}/uip_step_{step_number}.pkl",
