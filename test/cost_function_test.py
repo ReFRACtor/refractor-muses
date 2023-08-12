@@ -20,11 +20,51 @@ def test_fm_wrapper_tropomi(joint_tropomi_uip_step_10, vlidort_cli):
             (o_radiance2, jac_fm2, bad_flag2,
              o_measured_radiance_omi2, o_measured_radiance_tropomi2) = \
                  mpy.fm_wrapper(rf_uip.uip, None, {})
+    for k in o_radiance.keys():
+        if(isinstance(o_radiance[k], np.ndarray) and
+           np.can_cast(o_radiance[k], np.float64)):
+            npt.assert_allclose(o_radiance[k], o_radiance2[k])
+        elif(isinstance(o_radiance[k], np.ndarray)):
+            assert np.all(o_radiance[k] == o_radiance2[k])
+        else:
+            assert o_radiance[k] == o_radiance2[k]
+    npt.assert_allclose(jac_fm, jac_fm2)
+    assert bad_flag == bad_flag2
+    # Note that o_measured_radiance_omi, o_measured_radiance_tropomi don't
+    # compare the same, because we don't bother filling that in in our
+    # CostFunction.fm_wrapper. We could if it matters, but it would be a bit
+    # involved to generate and isn't used by run_forward_model which is really
+    # the target of our fm_wrapper.
 
 @require_muses_py
-def test_cost_function_omi(joint_omi_uip_step_7):
+def test_fm_wrapper_omi(joint_omi_uip_step_7, vlidort_cli):
     rf_uip = joint_omi_uip_step_7
     creator = FmObsCreator()
-    cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip))
+    cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
+                                                  use_full_state_vector=True,
+                                                  vlidort_cli=vlidort_cli))
+    (o_radiance, jac_fm, bad_flag,
+     o_measured_radiance_omi, o_measured_radiance_tropomi) = \
+         cfunc.fm_wrapper(rf_uip.uip, None, {})
+    with osswrapper(rf_uip.uip):
+        with muses_py_call(rf_uip.run_dir, vlidort_cli=vlidort_cli):
+            (o_radiance2, jac_fm2, bad_flag2,
+             o_measured_radiance_omi2, o_measured_radiance_tropomi2) = \
+                 mpy.fm_wrapper(rf_uip.uip, None, {})
+    for k in o_radiance.keys():
+        if(isinstance(o_radiance[k], np.ndarray) and
+           np.can_cast(o_radiance[k], np.float64)):
+            npt.assert_allclose(o_radiance[k], o_radiance2[k])
+        elif(isinstance(o_radiance[k], np.ndarray)):
+            assert np.all(o_radiance[k] == o_radiance2[k])
+        else:
+            assert o_radiance[k] == o_radiance2[k]
+    npt.assert_allclose(jac_fm, jac_fm2)
+    assert bad_flag == bad_flag2
+    # Note that o_measured_radiance_omi, o_measured_radiance_tropomi don't
+    # compare the same, because we don't bother filling that in in our
+    # CostFunction.fm_wrapper. We could if it matters, but it would be a bit
+    # involved to generate and isn't used by run_forward_model which is really
+    # the target of our fm_wrapper.
     
     
