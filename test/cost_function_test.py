@@ -1,0 +1,30 @@
+from test_support import *
+from refractor.muses import (FmObsCreator, CostFunction, muses_py_call,
+                             osswrapper)
+import refractor.muses.muses_py as mpy
+
+@require_muses_py
+def test_fm_wrapper_tropomi(joint_tropomi_uip_step_10, vlidort_cli):
+    '''Compare the results from our CostFunction with directly calling
+    mpy.fm_wrapper.'''
+    rf_uip = joint_tropomi_uip_step_10
+    creator = FmObsCreator()
+    cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
+                                                  use_full_state_vector=True,
+                                                  vlidort_cli=vlidort_cli))
+    (o_radiance, jac_fm, bad_flag,
+     o_measured_radiance_omi, o_measured_radiance_tropomi) = \
+         cfunc.fm_wrapper(rf_uip.uip, None, {})
+    with osswrapper(rf_uip.uip):
+        with muses_py_call(rf_uip.run_dir, vlidort_cli=vlidort_cli):
+            (o_radiance2, jac_fm2, bad_flag2,
+             o_measured_radiance_omi2, o_measured_radiance_tropomi2) = \
+                 mpy.fm_wrapper(rf_uip.uip, None, {})
+
+@require_muses_py
+def test_cost_function_omi(joint_omi_uip_step_7):
+    rf_uip = joint_omi_uip_step_7
+    creator = FmObsCreator()
+    cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip))
+    
+    

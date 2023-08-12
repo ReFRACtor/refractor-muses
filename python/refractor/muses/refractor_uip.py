@@ -314,17 +314,16 @@ class RefractorUip:
                               gmao_dir=gmao_dir)
         return uip
 
-    def instrument_sub_basis_matrix(self, instrument_name):
+    def instrument_sub_basis_matrix(self, instrument_name, use_full_state_vector=False):
         '''Return the portion of the basis matrix that includes jacobians
         for the given instrument. This is what the various muses-py forward
         models return - only the subset of jacobians actually relevant for
         that instrument.
-
-        As a convention, return None rather than an error if self.basis_matrix
-        is None.'''
-        if(self.basis_matrix is None):
-            return None
-        return self.basis_matrix[:,[t in list(self.uip_all(instrument_name)["jacobians"]) for t in self.uip["speciesListFM"]]]
+        '''
+        if(not use_full_state_vector):
+            return self.basis_matrix[:,[t in list(self.uip_all(instrument_name)["jacobians"]) for t in self.uip["speciesListFM"]]]
+        bmatrix = np.eye(len(self.uip["speciesListFM"]))
+        return bmatrix[:,[t in list(self.uip_all(instrument_name)["jacobians"]) for t in self.uip["speciesListFM"]]]
 
     @property
     def is_bt_retrieval(self):
