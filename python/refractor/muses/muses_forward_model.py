@@ -130,13 +130,17 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             # translate the oss jac to what we want from ReFRACtor
 
             sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name, use_full_state_vector=self.use_full_state_vector)
-            jac = np.matmul(sub_basis_matrix, jac).transpose()
-            if(self.rf_uip.is_bt_retrieval):
-                # Only one column has data, although oss returns a larger
-                # jacobian. Note that fm_wrapper just "knows" this, it
-                # would be nice if this wasn't sort of magic knowledge.
-                jac = jac[:,0:1]
-            a = rf.ArrayAd_double_1(rad[gmask], jac[gmask,:])
+            if(jac is not None):
+                if(self.rf_uip.is_bt_retrieval):
+                    # Only one column has data, although oss returns a larger
+                    # jacobian. Note that fm_wrapper just "knows" this, it
+                    # would be nice if this wasn't sort of magic knowledge.
+                    jac = jac.transpose()[:,0:1]
+                else:
+                    jac = np.matmul(sub_basis_matrix, jac).transpose()
+                a = rf.ArrayAd_double_1(rad[gmask], jac[gmask,:])
+            else:
+                a = rf.ArrayAd_double_1(rad[gmask])
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
 
@@ -198,9 +202,11 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         # fm_wrapper. But because we are calling the lower level function
         # ourselves we need to trim this.
         sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name, use_full_state_vector=self.use_full_state_vector)
-        jac = np.matmul(sub_basis_matrix, jac[:sub_basis_matrix.shape[1],:]).transpose()
-                
-        a = rf.ArrayAd_double_1(rad[gmask], jac[gmask,:])
+        if(jac is not None):
+            jac = np.matmul(sub_basis_matrix, jac[:sub_basis_matrix.shape[1],:]).transpose()
+            a = rf.ArrayAd_double_1(rad[gmask], jac[gmask,:])
+        else:
+            a = rf.ArrayAd_double_1(rad[gmask])
         sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         self.rad_spec = rf.Spectrum(sd, sr)
         self.cache_valid_flag = True

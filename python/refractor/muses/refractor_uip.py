@@ -335,8 +335,9 @@ class RefractorUip:
         # Note the logic is a bit obscure here, but this matches what
         # fm_wrapper does. If the speciesListFM is ['',] then we just
         # "know" that this is a BT retrieval
-        return (len(self.uip["speciesListFM"]) == 1 and
-                self.uip["speciesListFM"] == ['',])
+        return (len(self.uip["speciesListFM"])  == 0 or
+                (len(self.uip["speciesListFM"]) == 1 and
+                 self.uip["speciesListFM"] == ['',]))
     
     def species_basis_matrix(self, species_name):
         '''Muses does the retrieval on a subset of the full forward model
@@ -848,30 +849,50 @@ class RefractorUip:
 
     @classmethod
     def create_uip(cls, i_stateInfo, i_table, i_windows,     
-        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2):
+                   i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi,
+                   i_oco2, jacobian_speciesIn=None):
         '''We duplicate what mpy.run_retrieval does to make the uip.'''
         i_state = copy.deepcopy(i_stateInfo)
         i_windows = copy.deepcopy(i_windows)
-        jacobian_speciesNames = i_retrievalInfo.species[0:i_retrievalInfo.n_species]
-        jacobian_speciesList = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+        i_retrievalInfo = copy.deepcopy(i_retrievalInfo)
+        if(isinstance(i_state, dict)):
+            i_state = mpy.ObjectView(i_state)
+        if(isinstance(i_retrievalInfo, dict)):
+            i_state = mpy.ObjectView(i_retrievalInfo)
+        if(jacobian_speciesIn):
+            jacobian_speciesNames=jacobian_speciesIn
+        else:
+            jacobian_speciesNames = i_retrievalInfo.species[0:i_retrievalInfo.n_species]
         uip = mpy.make_uip_master(i_state, i_state.current, i_table,
                                   i_windows, jacobian_speciesNames,
                                   i_cloudIndex=0, 
                                   i_modifyCloudFreq=True)
-        uip['jacobiansLinear'] = [i_retrievalInfo.species[i] for i in range(len(i_retrievalInfo.mapType)) if i_retrievalInfo.mapType[i] == 'linear' and i_retrievalInfo.species[i] not in ('EMIS', 'TSUR', 'TATM') ]
-        uip['speciesList'] = i_retrievalInfo.speciesList[0:i_retrievalInfo.n_totalParameters]
-        uip['speciesListFM'] = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
-        uip['mapTypeListFM'] = i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM]
-        uip['initialGuessListFM'] = i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM]
+        # run_forward_model doesn't have mapType, not really sure why. It
+        # just puts an empty list here. Similarly no n_totalParameters.
+        if ('mapType' in i_retrievalInfo.__dict__
+            and i_retrievalInfo.n_totalParameters > 0):
+            uip['jacobiansLinear'] = [i_retrievalInfo.species[i] for i in range(len(i_retrievalInfo.mapType)) if i_retrievalInfo.mapType[i] == 'linear' and i_retrievalInfo.species[i] not in ('EMIS', 'TSUR', 'TATM') ]
+            uip['speciesList'] = i_retrievalInfo.speciesList[0:i_retrievalInfo.n_totalParameters]
+            uip['speciesListFM'] = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+            uip['mapTypeListFM'] = i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM]
+            uip['initialGuessListFM'] = i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM]
+        else:
+            uip['jacobiansLinear'] = ['']
+            uip['speciesList'] = i_retrievalInfo.speciesList
+            uip['speciesListFM'] = i_retrievalInfo.speciesListFM
+            uip['mapTypeListFM'] = i_retrievalInfo.mapTypeListFM
+            uip['initialGuessListFM'] = i_retrievalInfo.initialGuessListFM
         uip['microwindows_all'] = i_windows
-        mmm = i_retrievalInfo.n_totalParameters
-        nnn = i_retrievalInfo.n_totalParametersFM
-        basis_matrix = i_retrievalInfo.mapToState[0:mmm, 0:nnn]        
-        xig = i_retrievalInfo.initialGuessList[0:i_retrievalInfo.n_totalParameters]
+        # Basis matrix if available, this isn't in run_forward_model.
+        if ('mapToState' in i_retrievalInfo.__dict__ and
+            i_retrievalInfo.n_totalParameters > 0):
+            mmm = i_retrievalInfo.n_totalParameters
+            nnn = i_retrievalInfo.n_totalParametersFM
+            basis_matrix = i_retrievalInfo.mapToState[0:mmm, 0:nnn]
+        else:
+            basis_matrix = None
         rf_uip = cls(uip, basis_matrix)
         
-        #uip['instrumentList'] = instrumentList
-        # Bunch more stuff should go here
         # Group windows by instrument
         inst_to_window = defaultdict(list)
         for w in i_windows:
@@ -879,15 +900,15 @@ class RefractorUip:
         if 'AIRS' in inst_to_window:
             uip['uip_AIRS'] = mpy.make_uip_airs(i_state, i_state.current,
                                                 i_table, inst_to_window['AIRS'],
-                                                uip['jacobians_all'],
                                                 uip['speciesList'],
+                                                uip['jacobians_all'],
                                                 None, i_airs['radiance'],
                                                 i_modifyCloudFreq=True)
         if 'CRIS' in inst_to_window:
             uip['uip_CRIS'] = mpy.make_uip_cris(i_state, i_state.current,
                                                i_table, inst_to_window['CRIS'],
-                                               uip['jacobians_all'],
                                                uip['speciesList'],
+                                               uip['jacobians_all'],
                                                i_cris['radianceStruct'.upper()],
                                                i_modifyCloudFreq=True)
         if 'TES' in inst_to_window:
@@ -952,7 +973,13 @@ class RefractorUip:
                 if k not in w:
                     w[k] = 0
                     
-        rf_uip.update_uip(xig)
+        if(basis_matrix is not None and
+           i_retrievalInfo.n_totalParameters > 0):
+            xig = i_retrievalInfo.initialGuessList[0:i_retrievalInfo.n_totalParameters]
+            rf_uip.update_uip(xig)
+        else:
+            uip['currentGuessList'] = i_retrievalInfo.initialGuessList
+            uip['currentGuessListFM'] = i_retrievalInfo.initialGuessListFM
 
         return rf_uip
                                   

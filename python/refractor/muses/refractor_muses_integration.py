@@ -7,7 +7,7 @@ from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .refractor_uip import RefractorUip
 from .fm_obs_creator import FmObsCreator
-from .muses_residual_fm_jacobian import MusesResidualFmJacobian
+from .cost_function import CostFunction
 import numpy as np
 
 class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
@@ -48,9 +48,10 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         '''This interface probably needs work. But for now we take the keywords associated
         with RefractorObjectCreator. What we will probably want is someway of registering
         how to handle each instrument type, but for a start do this'''
-        #self.cost_func_creator = CostFuncCreator(**kwargs)
-        self.instrument_handle_set = self.cost_func_creator.instrument_handle_set
-
+        self.fm_obs_creator = FmObsCreator()
+        self.instrument_handle_set = self.fm_obs_creator.instrument_handle_set
+        self.kwargs = kwargs
+        
     def register_with_muses_py(self):
         '''Register this object and the helper objects with muses-py,
         to replace a call to omi_fm.
@@ -66,61 +67,29 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
             return self.residual_fm_jacobian(**parms)
         elif(func_name == "run_forward_model"):
             return self.run_forward_model(parms)
-        elif(func_name == "fm_wrapper"):
-            return self.fm_wrapper(**parms)
 
-    def run_forward_model(self, parms):
-        # We need to calculate the uip from all the parms. Rather than
-        # duplicating what muses-py does, just call it back and intercept
-        # the fm_wrapper it does after it has generated the uip
-        with suppress_replacement("run_forward_model"):
-            with register_replacement_function_in_block("fm_wrapper", self):
-                return mpy.run_forward_model(**parms)
-
-    def fm_wrapper(self, i_uip, i_windows, oco_info):
-        # Some of the forward model wrappers might call muses-py code
-        # that in turn calls fm_wrapper. We don't want to intercept
-        # these lower level function calls
-        with suppress_replacement("fm_wrapper"):
-            rf_uip = RefractorUip(i_uip)
-            if(not "cost_func" in rf_uip.refractor_cache):
-                rf_uip.refractor_cache["cost_func"] = \
-                    self.cost_func_creator.create_cost_func(rf_uip,
-                                ret_info=None, use_full_state_vector=True)
-                
-            cfunc = rf_uip.refractor_cache["cost_func"]
-            cfunc.parameters = rf_uip.uip["currentGuessListFM"]
-            radiance_fm = cfunc.max_a_posteriori.model
-            jac_fm = \
-                cfunc.max_a_posteriori.model_measure_diff_jacobian.transpose()
-            bad_flag = 0
-            freq_fm = np.concatenate([fm.spectral_domain_all().data
-                 for fm in cfunc.max_a_posteriori.forward_model])
-            # This duplicates what mpy.fm_wrapper does. It looks like
-            # a number of these are placeholders, but the struct returned
-            # by mpy.radiance_data looks like something that is just dumped
-            # to a file, so I guess the placeholders make sense in an output
-            # file where we don't have these values.
-
-            # Seems to by indexed by detector, of which we only have one
-            # dummy one
-            detectors=[-1]
-            radiance_fm = np.array([radiance_fm])
-            nesr_fm = np.zeros(radiance_fm.shape)
-            # Oddly frequency isn't indexed by detectors
-            # freq_fm = np.array([freq_fm])
-            # Not sure what filters is, but fm_wrapper just supplies this
-            # as a empty array
-            filters = []
-            instrument = ''
-            o_radiance = mpy.radiance_data(radiance_fm,  nesr_fm, detectors,
-                                           freq_fm, filters, instrument)
-            # We can fill these in if needed, but run_forward_model doesn't
-            # actually use these values so we don't bother.
-            o_measured_radiance_omi = None
-            o_measured_radiance_tropomi = None
-            return (o_radiance, jac_fm, bad_flag,
-                    o_measured_radiance_omi, o_measured_radiance_tropomi)
+    def run_forward_model(self, i_table, i_stateInfo, i_windows,
+                          i_retrievalInfo, jacobian_speciesIn,
+                          jacobian_speciesListIn,
+                          uip, airs, cris, tes, omi, tropomi, oco2,
+                          mytiming, writeOutputFlag=False, trueFlag=False,
+                          RJFlag=False, rayTracingFlag=False):
+        rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,
+                                         i_retrievalInfo, airs, tes, cris,
+                                         omi, tropomi, oco2,
+                                         jacobian_speciesIn=jacobian_speciesIn)
+        # As a convenience, we use the CostFunction to stitch stuff together.
+        # We don't have the Observation for this, but we don't actually use
+        # it in fm_wrapper. So we just fake it so we have the proper fields
+        # for CostFunction.
+        cfunc = CostFunction(*self.fm_obs_creator.fm_and_fake_obs(rf_uip,
+                             **self.kwargs, use_full_state_vector=True,
+                             include_bad_sample=True))
+        (o_radiance, jac_fm, _, _, _) = cfunc.fm_wrapper(rf_uip.uip, None, {})
+        o_jacobian = mpy.jacobian_data(jac_fm, o_radiance['detectors'],
+                                       o_radiance['frequency'],
+                                       rf_uip.uip['speciesListFM'])
+        return (rf_uip.uip, o_radiance, o_jacobian)
             
     def residual_fm_jacobian(self, uip, ret_info, retrieval_vec, iterNum,
                              oco_info = {}):
@@ -174,17 +143,6 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         stop_flag = 0
         return (uip, residual, jac_residual, radiance_fm,
                 jac_fm_placeholder, stop_flag)
-
-    def run_pickle_file(self, pfile, path=".", change_to_dir = False,
-                        osp_dir=None, gmao_dir=None):
-        '''This is a convenience function that loads a MusesResidualFmJacobian
-        pickle file and runs residual_fm_jacobian. Mostly useful for
-        testing.'''
-        self.muses_residual_fm_jac = MusesResidualFmJacobian.load_residual_fm_jacobian(pfile, path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir)
-        with register_replacement_function_in_block("residual_fm_jacobian",
-                                                    self):
-            return self.muses_residual_fm_jac.residual_fm_jacobian()
-        
 
 __all__ = ["RefractorMusesIntegration",]
     
