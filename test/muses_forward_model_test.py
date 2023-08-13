@@ -12,8 +12,10 @@ import copy
 @require_muses_py
 def test_muses_cris_forward_model(joint_tropomi_uip_step_10):
     rf_uip = joint_tropomi_uip_step_10
-    fm = MusesCrisForwardModel(rf_uip)
-    obs = MusesCrisObservation(rf_uip, obs_rad = None, meas_err=None)
+    obs_rad_fake = np.zeros((len(rf_uip.instrument_list),))
+    meas_err_fake = np.ones(obs_rad_fake.shape)
+    obs = MusesCrisObservation(rf_uip, obs_rad = obs_rad_fake, meas_err=meas_err_fake)
+    fm = MusesCrisForwardModel(rf_uip, obs)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -72,14 +74,17 @@ def test_muses_tropomi_forward_model(joint_tropomi_uip_step_10, vlidort_cli):
                                        priority_order=1000)
     sv = state_vector_handle_set.create_state_vector(rf_uip)
     assert fm.cache_valid_flag
-    sv.update_state([1,2,3])
+    sv.update_state(rf_uip.current_state_x)
     assert not fm.cache_valid_flag
         
 @require_muses_py
 def test_muses_airs_forward_model(joint_omi_uip_step_7):
     rf_uip = joint_omi_uip_step_7
-    fm = MusesAirsForwardModel(rf_uip)
-    obs = MusesAirsObservation(rf_uip, obs_rad = None, meas_err=None)
+    obs_rad_fake = np.zeros((len(rf_uip.instrument_list),))
+    meas_err_fake = np.ones(obs_rad_fake.shape)
+    obs = MusesAirsObservation(rf_uip, obs_rad = obs_rad_fake,
+                               meas_err=meas_err_fake)
+    fm = MusesAirsForwardModel(rf_uip,obs)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -107,8 +112,9 @@ def test_muses_airs_forward_model(joint_omi_uip_step_7):
 @require_muses_py
 def test_muses_omi_forward_model(joint_omi_uip_step_7, vlidort_cli):
     rf_uip = joint_omi_uip_step_7
-    fm = MusesOmiForwardModel(rf_uip, vlidort_cli=vlidort_cli)
-    obs = MusesOmiObservation(fm)
+    fm = MusesOmiForwardModel(rf_uip, vlidort_cli=vlidort_cli,
+                              include_bad_sample=True)
+    obs = MusesOmiObservation(fm, include_bad_sample=True)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -138,7 +144,7 @@ def test_muses_omi_forward_model(joint_omi_uip_step_7, vlidort_cli):
                                        priority_order=1000)
     sv = state_vector_handle_set.create_state_vector(rf_uip)
     assert fm.cache_valid_flag
-    sv.update_state([1,2,3])
+    sv.update_state(rf_uip.current_state_x)
     assert not fm.cache_valid_flag
         
 @require_muses_py

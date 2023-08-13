@@ -14,39 +14,51 @@ import numpy as np
 # instruments rather than ReFRACtor.
 
 class MusesObservationBase(rf.ObservationSvImpBase):
+    # Note the handling of include_bad_sample is important here. muses-py
+    # expects to get all the samples in the forward model run in the routine
+    # run_forward_model/fm_wrapper. I'm not sure what it does with the bad
+    # data, but we need to have the ability to include it.
+    # run_retrieval/residual_fm_jacobian on the other hand does the normal
+    # filtering of bad samples. We handle this by toggling the behavior of
+    # bad_sample_mask, either masking bad samples or having a empty mask that
+    # lets everything pass through.
     def __init__(self, rf_uip : RefractorUip, instrument_name,
-                 obs_rad, meas_err):
+                 obs_rad, meas_err, include_bad_sample=False, **kwargs):
         super().__init__([])
         self.rf_uip = rf_uip
         self.instrument_name = instrument_name
         self.obs_rad = obs_rad
         self.meas_err = meas_err
+        self.include_bad_sample = include_bad_sample
         
     def _v_num_channels(self):
         return 1
 
-    def spectral_domain(self, sensor_index, include_bad_sample=False):
+    def spectral_domain(self, sensor_index, inc_bad_sample=False):
         gmask = self.bad_sample_mask(sensor_index) != True
-        if(include_bad_sample):
+        if(inc_bad_sample):
             gmask[:] = True
         return rf.SpectralDomain(self.rf_uip.frequency_list(self.instrument_name)[gmask], rf.Unit("nm"))
 
     def bad_sample_mask(self, sensor_index):
         subset = [t == self.instrument_name for t in self.rf_uip.instrument_list]
         uncer = self.meas_err[subset]
-        return np.array(uncer < 0)
+        bmask = np.array(uncer < 0)
+        if(self.include_bad_sample):
+            bmask[:] = False
+        return bmask
         
     def radiance_all_with_bad_sample(self):
-        return self.radiance(0, skip_jacobian=True, include_bad_sample=True)
+        return self.radiance(0, skip_jacobian=True, inc_bad_sample=True)
     
     def radiance(self, sensor_index, skip_jacobian = False,
-                 include_bad_sample=False):
+                 inc_bad_sample=False):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         gmask = self.bad_sample_mask(sensor_index) != True
-        if(include_bad_sample):
+        if(inc_bad_sample):
             gmask[:] = True
-        sd = self.spectral_domain(sensor_index, include_bad_sample)
+        sd = self.spectral_domain(sensor_index, inc_bad_sample)
         subset = [t == self.instrument_name for t in self.rf_uip.instrument_list]
         r = self.obs_rad[subset][gmask]
         uncer = self.meas_err[subset][gmask]
@@ -60,17 +72,30 @@ class MusesObservationBase(rf.ObservationSvImpBase):
 
 class MusesForwardModelBase(rf.ForwardModel):
     '''Common behavior for the different MUSES forward models'''
+    # Note the handling of include_bad_sample is important here. muses-py
+    # expects to get all the samples in the forward model run in the routine
+    # run_forward_model/fm_wrapper. I'm not sure what it does with the bad
+    # data, but we need to have the ability to include it.
+    # run_retrieval/residual_fm_jacobian on the other hand does the normal
+    # filtering of bad samples. We handle this by toggling the behavior of
+    # bad_sample_mask, either masking bad samples or having a empty mask that
+    # lets everything pass through.
     def __init__(self, rf_uip : RefractorUip, instrument_name,
-                 obs, use_full_state_vector=False, **kwargs):
+                 obs, use_full_state_vector=False, include_bad_sample=False,
+                 **kwargs):
         super().__init__()
         self.instrument_name = instrument_name
         self.rf_uip = rf_uip
         self.use_full_state_vector = use_full_state_vector
         self.obs = obs
+        self.include_bad_sample = include_bad_sample
         self.kwargs = kwargs
 
     def bad_sample_mask(self, sensor_index):
-        return self.obs.bad_sample_mask(sensor_index)
+        bmask = self.obs.bad_sample_mask(sensor_index)
+        if(self.include_bad_sample):
+            bmask[:] = False
+        return bmask
     
     def setup_grid(self):
         # Nothing that we need to do for this
@@ -122,6 +147,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
                  vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
                  vlidort_nstokes=2,
                  vlidort_nstreams=4,
+                 include_bad_sample=False,
                  **kwargs):
         MusesForwardModelBase.__init__(self, rf_uip, instrument_name, obs=None,
                                        **kwargs)
@@ -130,6 +156,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         self.vlidort_nstreams = vlidort_nstreams
         self.vlidort_nstokes = vlidort_nstokes
         self.vlidort_cli = vlidort_cli
+        self.include_bad_sample = include_bad_sample
         # For performance reasons, we get both the radiance and obs
         # in one step - holding this in a cache.
         self.obs_rad = None
@@ -137,7 +164,10 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
 
     def bad_sample_mask(self, sensor_index):
         self._fill_in_cache()
-        return self.obs_rad["measured_nesr"] < 0
+        bmask = self.obs_rad["measured_nesr"] < 0
+        if(self.include_bad_sample):
+            bmask[:] = False
+        return bmask
 
     def _fill_in_cache(self):
         if(self.cache_valid_flag):
@@ -182,36 +212,41 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         return self.rad_spec
 
 class MusesTropomiOrOmiObservation(rf.ObservationSvImpBase):
-    def __init__(self, fm : MusesTropomiOrOmiForwardModelBase):
+    def __init__(self, fm : MusesTropomiOrOmiForwardModelBase,
+                 include_bad_sample=False, **kwargs):
         super().__init__([])
         self.fm = fm
+        self.include_bad_sample = include_bad_sample
 
     def _v_num_channels(self):
         return 1
 
-    def spectral_domain(self, sensor_index, include_bad_sample=False):
+    def spectral_domain(self, sensor_index, inc_bad_sample=False):
         gmask = self.bad_sample_mask(sensor_index) != True
-        if(include_bad_sample):
+        if(inc_bad_sample):
             gmask[:] = True
         return rf.SpectralDomain(self.fm.rf_uip.frequency_list(self.fm.instrument_name)[gmask], rf.Unit("nm"))
 
     def bad_sample_mask(self, sensor_index):
         self.fm._fill_in_cache()
         uncer = self.fm.obs_rad["measured_nesr"]
-        return np.array(uncer < 0)
+        bsamp = np.array(uncer < 0)
+        if(self.include_bad_sample):
+            bsamp[:] = False
+        return bsamp
 
     def radiance_all_with_bad_sample(self):
-        return self.radiance(0, skip_jacobian=True, include_bad_sample=True)
+        return self.radiance(0, skip_jacobian=True, inc_bad_sample=True)
     
     def radiance(self, sensor_index, skip_jacobian = False,
-                 include_bad_sample=False):
+                 inc_bad_sample=False):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         self.fm._fill_in_cache()
         gmask = self.bad_sample_mask(sensor_index) != True
-        if(include_bad_sample):
+        if(inc_bad_sample):
             gmask[:] = True
-        sd = self.spectral_domain(sensor_index, include_bad_sample)
+        sd = self.spectral_domain(sensor_index, inc_bad_sample)
         r = self.fm.obs_rad["measured_radiance_field"][gmask]
         uncer = self.fm.obs_rad["measured_nesr"][gmask]
         sr = rf.SpectralRange(r, rf.Unit("sr^-1"), uncer)
@@ -254,8 +289,8 @@ class MusesCrisForwardModel(MusesOssForwardModelBase):
 class MusesCrisObservation(MusesObservationBase):
     '''Wrapper that just returns the passed in measured radiance
     and uncertainty for CRIS'''
-    def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err):
-        super().__init__(rf_uip, "CRIS", obs_rad, meas_err)
+    def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err, **kwargs):
+        super().__init__(rf_uip, "CRIS", obs_rad, meas_err, **kwargs)
 
 class MusesAirsForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for Airs instrument'''
@@ -268,8 +303,8 @@ class MusesAirsForwardModel(MusesOssForwardModelBase):
 class MusesAirsObservation(MusesObservationBase):
     '''Wrapper that just returns the passed in measured radiance
     and uncertainty for AIRS'''
-    def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err):
-        super().__init__(rf_uip, "AIRS", obs_rad, meas_err)
+    def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err, **kwargs):
+        super().__init__(rf_uip, "AIRS", obs_rad, meas_err, **kwargs)
         
 class StateVectorPlaceHolder(rf.StateVectorObserver):
     '''Place holder for parts of the StateVector that ReFRACtor objects
@@ -311,7 +346,7 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
         # default handle list
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
-        obs = MusesCrisObservation(rf_uip, obs_rad, meas_err)
+        obs = MusesCrisObservation(rf_uip, obs_rad, meas_err, **kwargs)
         return (MusesCrisForwardModel(rf_uip,obs, use_full_state_vector=use_full_state_vector, **kwargs), obs)
 
 class MusesAirsInstrumentHandle(InstrumentHandle):
@@ -327,7 +362,7 @@ class MusesAirsInstrumentHandle(InstrumentHandle):
         # default handle list
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
-        obs = MusesAirsObservation(rf_uip, obs_rad, meas_err)
+        obs = MusesAirsObservation(rf_uip, obs_rad, meas_err, **kwargs)
         return (MusesAirsForwardModel(rf_uip,obs,use_full_state_vector=use_full_state_vector, **kwargs), obs)
 
 class MusesTropomiInstrumentHandle(InstrumentHandle):
@@ -345,7 +380,7 @@ class MusesTropomiInstrumentHandle(InstrumentHandle):
         # as a CacheInvalidatedObserver.
         svhandle.add_handle(MusesStateVectorObserverHandle(fm),
                             priority_order=1000)
-        return (fm, MusesTropomiObservation(fm))
+        return (fm, MusesTropomiObservation(fm, **kwargs))
 
 class MusesOmiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
@@ -362,7 +397,7 @@ class MusesOmiInstrumentHandle(InstrumentHandle):
         # as a CacheInvalidatedObserver.
         svhandle.add_handle(MusesStateVectorObserverHandle(fm),
                             priority_order=1000)
-        return (fm, MusesOmiObservation(fm))
+        return (fm, MusesOmiObservation(fm, **kwargs))
 
 # The Muses code is the fallback, so add with the lowest priority
 StateVectorHandleSet.add_default_handle(MusesStateVectorHandle(),

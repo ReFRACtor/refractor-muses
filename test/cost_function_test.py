@@ -11,7 +11,8 @@ def test_fm_wrapper_tropomi(joint_tropomi_uip_step_10, vlidort_cli):
     creator = FmObsCreator()
     cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
                                                   use_full_state_vector=True,
-                                                  vlidort_cli=vlidort_cli))
+                                                  vlidort_cli=vlidort_cli,
+                                                  include_bad_sample=True))
     (o_radiance, jac_fm, bad_flag,
      o_measured_radiance_omi, o_measured_radiance_tropomi) = \
          cfunc.fm_wrapper(rf_uip.uip, None, {})
@@ -42,7 +43,8 @@ def test_fm_wrapper_omi(joint_omi_uip_step_7, vlidort_cli):
     creator = FmObsCreator()
     cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
                                                   use_full_state_vector=True,
-                                                  vlidort_cli=vlidort_cli))
+                                                  vlidort_cli=vlidort_cli,
+                                                  include_bad_sample=True))
     (o_radiance, jac_fm, bad_flag,
      o_measured_radiance_omi, o_measured_radiance_tropomi) = \
          cfunc.fm_wrapper(rf_uip.uip, None, {})
