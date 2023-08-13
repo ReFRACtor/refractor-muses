@@ -138,6 +138,21 @@ def tropomi_uip_step_3(isolated_dir, osp_dir, gmao_dir):
                     osp_dir=osp_dir, gmao_dir=gmao_dir)
 
 @pytest.fixture(scope="function")
+def omi_uip_step_1(isolated_dir, osp_dir, gmao_dir):
+    '''Return a RefractorUip for strategy step 1, and also unpack all the 
+    support files into a directory'''
+    return load_uip(omi_test_in_dir, step_number=1,
+                    osp_dir=osp_dir, gmao_dir=gmao_dir)
+
+@pytest.fixture(scope="function")
+def omi_uip_step_2(isolated_dir, osp_dir, gmao_dir):
+    '''Return a RefractorUip for strategy step 2, and also unpack all the 
+    support files into a directory'''
+    return load_uip(omi_test_in_dir, step_number=2,
+                    osp_dir=osp_dir, gmao_dir=gmao_dir)
+                    
+
+@pytest.fixture(scope="function")
 def joint_tropomi_uip_step_10(isolated_dir, osp_dir, gmao_dir):
     '''Return a RefractorUip for strategy step 1, and also unpack all the 
     support files into a directory'''

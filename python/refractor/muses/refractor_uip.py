@@ -2,6 +2,7 @@ from . import muses_py as mpy
 from .replace_function_helper import register_replacement_function_in_block
 from .refractor_capture_directory import RefractorCaptureDirectory
 from .constant_dict import ConstantDict
+from .osswrapper import osswrapper
 import refractor.framework as rf
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
@@ -10,7 +11,8 @@ import logging
 import numpy as np
 import glob
 import pickle
-from collections import UserDict
+from collections import UserDict, defaultdict
+import copy
 
 if(mpy.have_muses_py):
     class _FakeUipExecption(Exception):
@@ -843,5 +845,118 @@ class RefractorUip:
         self.uip, _ = mpy.update_uip(self.uip, ret_info, retrieval_vec)
         if(hasattr(self.uip, 'as_dict')): 
             self.uip = self.uip.as_dict(self.uip)
+
+    @classmethod
+    def create_uip(cls, i_stateInfo, i_table, i_windows,     
+        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2):
+        '''We duplicate what mpy.run_retrieval does to make the uip.'''
+        i_state = copy.deepcopy(i_stateInfo)
+        i_windows = copy.deepcopy(i_windows)
+        jacobian_speciesNames = i_retrievalInfo.species[0:i_retrievalInfo.n_species]
+        jacobian_speciesList = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+        uip = mpy.make_uip_master(i_state, i_state.current, i_table,
+                                  i_windows, jacobian_speciesNames,
+                                  i_cloudIndex=0, 
+                                  i_modifyCloudFreq=True)
+        uip['jacobiansLinear'] = [i_retrievalInfo.species[i] for i in range(len(i_retrievalInfo.mapType)) if i_retrievalInfo.mapType[i] == 'linear' and i_retrievalInfo.species[i] not in ('EMIS', 'TSUR', 'TATM') ]
+        uip['speciesList'] = i_retrievalInfo.speciesList[0:i_retrievalInfo.n_totalParameters]
+        uip['speciesListFM'] = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+        uip['mapTypeListFM'] = i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM]
+        uip['initialGuessListFM'] = i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM]
+        uip['microwindows_all'] = i_windows
+        mmm = i_retrievalInfo.n_totalParameters
+        nnn = i_retrievalInfo.n_totalParametersFM
+        basis_matrix = i_retrievalInfo.mapToState[0:mmm, 0:nnn]        
+        xig = i_retrievalInfo.initialGuessList[0:i_retrievalInfo.n_totalParameters]
+        rf_uip = cls(uip, basis_matrix)
+        
+        #uip['instrumentList'] = instrumentList
+        # Bunch more stuff should go here
+        # Group windows by instrument
+        inst_to_window = defaultdict(list)
+        for w in i_windows:
+            inst_to_window[w['instrument']].append(w)
+        if 'AIRS' in inst_to_window:
+            uip['uip_AIRS'] = mpy.make_uip_airs(i_state, i_state.current,
+                                                i_table, inst_to_window['AIRS'],
+                                                uip['jacobians_all'],
+                                                uip['speciesList'],
+                                                None, i_airs['radiance'],
+                                                i_modifyCloudFreq=True)
+        if 'CRIS' in inst_to_window:
+            uip['uip_CRIS'] = mpy.make_uip_cris(i_state, i_state.current,
+                                               i_table, inst_to_window['CRIS'],
+                                               uip['jacobians_all'],
+                                               uip['speciesList'],
+                                               i_cris['radianceStruct'.upper()],
+                                               i_modifyCloudFreq=True)
+        if 'TES' in inst_to_window:
+            raise RuntimeError("TES is not implemented yet")
+        if "OMI" in inst_to_window:
+            uip["uip_OMI"] = mpy.make_uip_omi(i_state, i_state.current,
+                                              i_table,
+                                              inst_to_window["OMI"],
+                                              uip['jacobians_all'],
+                                              uip,
+                                              i_omi)
+        if "TROPOMI" in inst_to_window:
+            uip["uip_TROPOMI"] = mpy.make_uip_tropomi(i_state, i_state.current,
+                                              i_table,
+                                              inst_to_window["TROPOMI"],
+                                              uip['jacobians_all'],
+                                              uip,
+                                              i_tropomi)
+        if "OCO2" in inst_to_window:
+            uip["uip_OCO2"] = mpy.make_uip_oco2(i_state, i_state.current,
+                                                i_table,
+                                                inst_to_window["OCO2"],
+                                                uip['jacobians_all'],
+                                                uip,
+                                                i_oco2)
+
+        # Correct surface pointing angle. Not sure why this needs to be
+        # done, but this matches what run_retrieval does
+        for k in ("AIRS", "CRIS", "OMI", "TROPOMI", "OCO2"):
+            if f'uip_{k}' in uip:
+                uip[f'uip_{k}']["obs_table"]["pointing_angle_surface"] = \
+                    rf_uip.ray_info(k, set_pointing_angle_zero=False)["ray_angle_surface"]
+
+        # Make jacobians entry only have unique element.
+        #
+        # Note that starting with python 3.7 dict preserves insertion order
+        # (guaranteed, 3.6 actually did this also but it was just an
+        # implementation detail rather than guaranteed),
+        # so list(dict.fromkeys(v)) will have a list of unique elements in the
+        # order that the first of each item appears
+        for k in ("AIRS", "CRIS", "OMI", "TROPOMI", "OCO2"):
+            if f'uip_{k}' in uip:
+                uip[f'uip_{k}']["jacobians"] = np.array(list(dict.fromkeys(uip[f'uip_{k}']["jacobians"])))
+
+        # Copy some of the oss stuff to the top level
+        with osswrapper(uip) as owrap:
+            if(owrap.oss_dir_lut is not None):
+                uip['oss_dir_lut'] = owrap.oss_dir_lut
+                uip['oss_jacobianList'] = owrap.oss_jacobianList
+                uip['oss_frequencyList'] = owrap.oss_frequencyList
+                uip['oss_frequencyListFull'] = owrap.oss_frequencyListFull
+        
+        # Create instrument list
+        uip['instrumentList'] = []
+        for k in ("AIRS", "CRIS", "OMI", "TROPOMI", "OCO2"):
+            if f'uip_{k}' in uip:
+                uip['instrumentList'].extend([k,] * len(uip[f'uip_{k}']["frequencyList"]))
+                
+        # Add extra pieces to the microwindows.
+        for w in i_windows:
+            for k in ('enddmw_fm', 'enddmw', 'startmw_fm', 'startmw'):
+                if k not in w:
+                    w[k] = 0
+                    
+        rf_uip.update_uip(xig)
+
+        return rf_uip
+                                  
+                                  
+
 
 __all__ = ["RefractorUip"]            

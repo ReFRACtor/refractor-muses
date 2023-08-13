@@ -1,5 +1,7 @@
 from test_support import *
 from refractor.muses import RefractorUip
+import subprocess
+import pprint
 
 @require_muses_py
 def test_refractor_omi_uip(isolated_dir):
@@ -76,4 +78,105 @@ def test_refractor_tropomi_uip(isolated_dir):
 def test_species_basis(tropomi_uip_step_3, clean_up_replacement_function):
     npt.assert_allclose(tropomi_uip_step_3.species_basis_matrix("O3"),
                         tropomi_uip_step_3.species_basis_matrix_calc("O3"))
+    
+@require_muses_py
+def test_refractor_joint_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
+                                            joint_tropomi_uip_step_10):
+    rstep = load_muses_retrieval_step(joint_tropomi_test_in_dir, step_number=10,
+                                      osp_dir=osp_dir,gmao_dir=gmao_dir)
+    i_stateInfo = rstep.params["i_stateInfo"]
+    i_table = rstep.params["i_tableStruct"]
+    i_windows = rstep.params["i_windows"]
+    i_retrievalInfo = rstep.params["i_retrievalInfo"]
+    i_airs = rstep.params["i_airs"]
+    i_tes = rstep.params["i_tes"]
+    i_cris = rstep.params["i_cris"]
+    i_omi = rstep.params["i_omi"]
+    i_tropomi = rstep.params["i_tropomi"]
+    i_oco2 = rstep.params["i_oco2"]
+    rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
+        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    # To compare, just print out and then use diff
+    with open("our_uip.txt", "w") as fh:
+        pprint.pprint(rf_uip.uip,fh)
+    with open("original_uip.txt", "w") as fh:
+        pprint.pprint(joint_tropomi_uip_step_10.uip,fh)
+    subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
+                   check=True)
+
+@require_muses_py
+def test_refractor_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
+                                      tropomi_uip_step_3):
+    rstep = load_muses_retrieval_step(tropomi_test_in_dir, step_number=3,
+                                      osp_dir=osp_dir,gmao_dir=gmao_dir)
+    i_stateInfo = rstep.params["i_stateInfo"]
+    i_table = rstep.params["i_tableStruct"]
+    i_windows = rstep.params["i_windows"]
+    i_retrievalInfo = rstep.params["i_retrievalInfo"]
+    i_airs = rstep.params["i_airs"]
+    i_tes = rstep.params["i_tes"]
+    i_cris = rstep.params["i_cris"]
+    i_omi = rstep.params["i_omi"]
+    i_tropomi = rstep.params["i_tropomi"]
+    i_oco2 = rstep.params["i_oco2"]
+    rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
+        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    # To compare, just print out and then use diff
+    with open("our_uip.txt", "w") as fh:
+        pprint.pprint(rf_uip.uip,fh)
+    with open("original_uip.txt", "w") as fh:
+        pprint.pprint(tropomi_uip_step_3.uip,fh)
+    subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
+                   check=True)
+    
+@require_muses_py
+def test_refractor_joint_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
+                                            joint_omi_uip_step_7):
+    rstep = load_muses_retrieval_step(joint_omi_test_in_dir, step_number=7,
+                                      osp_dir=osp_dir,gmao_dir=gmao_dir)
+    i_stateInfo = rstep.params["i_stateInfo"]
+    i_table = rstep.params["i_tableStruct"]
+    i_windows = rstep.params["i_windows"]
+    i_retrievalInfo = rstep.params["i_retrievalInfo"]
+    i_airs = rstep.params["i_airs"]
+    i_tes = rstep.params["i_tes"]
+    i_cris = rstep.params["i_cris"]
+    i_omi = rstep.params["i_omi"]
+    i_tropomi = rstep.params["i_tropomi"]
+    i_oco2 = rstep.params["i_oco2"]
+    rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
+        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    # To compare, just print out and then use diff
+    with open("our_uip.txt", "w") as fh:
+        pprint.pprint(rf_uip.uip,fh)
+    with open("original_uip.txt", "w") as fh:
+        pprint.pprint(joint_omi_uip_step_7.uip,fh)
+    subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
+                   check=True)
+
+@require_muses_py
+def test_refractor_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
+                                      omi_uip_step_2):
+    rstep = load_muses_retrieval_step(omi_test_in_dir, step_number=2,
+                                      osp_dir=osp_dir,gmao_dir=gmao_dir)
+    i_stateInfo = rstep.params["i_stateInfo"]
+    i_table = rstep.params["i_tableStruct"]
+    i_windows = rstep.params["i_windows"]
+    i_retrievalInfo = rstep.params["i_retrievalInfo"]
+    i_airs = rstep.params["i_airs"]
+    i_tes = rstep.params["i_tes"]
+    i_cris = rstep.params["i_cris"]
+    i_omi = rstep.params["i_omi"]
+    i_tropomi = rstep.params["i_tropomi"]
+    i_oco2 = rstep.params["i_oco2"]
+    rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
+        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    # To compare, just print out and then use diff
+    with open("our_uip.txt", "w") as fh:
+        pprint.pprint(rf_uip.uip,fh)
+    with open("original_uip.txt", "w") as fh:
+        pprint.pprint(omi_uip_step_2.uip,fh)
+    subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
+                   check=True)
+    
     

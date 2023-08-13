@@ -61,6 +61,7 @@ class osswrapper:
         mpy.register_observer_function("fm_oss_delete", WatchOssDelete())
         
     def __enter__(self):
+        uip_all = None
         if(not osswrapper.have_oss):
             for inst in ('CRIS','AIRS', 'TES'):
                 if(f'uip_{inst}' in self.uip):
@@ -82,6 +83,16 @@ class osswrapper:
                     mpy.fm_oss_windows(mpy.ObjectView(uip_all))
                     self.need_cleanup = True
                     osswrapper.have_oss =  True
+        if(uip_all is not None):
+            self.oss_dir_lut = uip_all["oss_dir_lut"]
+            self.oss_jacobianList = uip_all["oss_jacobianList"]
+            self.oss_frequencyList = uip_all["oss_frequencyList"]
+            self.oss_frequencyListFull = uip_all["oss_frequencyListFull"]
+        else:
+            self.oss_dir_lut = None
+            self.oss_jacobianList = None
+            self.oss_frequencyList = None
+            self.oss_frequencyListFull = None
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
