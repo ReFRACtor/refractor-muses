@@ -880,8 +880,8 @@ class RefractorUip:
             uip['jacobiansLinear'] = ['']
             uip['speciesList'] = i_retrievalInfo.speciesList
             uip['speciesListFM'] = i_retrievalInfo.speciesListFM
-            uip['mapTypeListFM'] = i_retrievalInfo.mapTypeListFM
-            uip['initialGuessListFM'] = i_retrievalInfo.initialGuessListFM
+            uip['mapTypeListFM'] = i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM]
+            uip['initialGuessListFM'] = i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM]
         uip['microwindows_all'] = i_windows
         # Basis matrix if available, this isn't in run_forward_model.
         if ('mapToState' in i_retrievalInfo.__dict__ and
@@ -898,19 +898,49 @@ class RefractorUip:
         for w in i_windows:
             inst_to_window[w['instrument']].append(w)
         if 'AIRS' in inst_to_window:
-            uip['uip_AIRS'] = mpy.make_uip_airs(i_state, i_state.current,
+            # For who knows what bizarre reason. the arguments are
+            # different here if we are calling from run_forward_model. We
+            # trigger off having jacobian_speciesIn. I think this might
+            # have something to do with the BT retrieval handling, which seems
+            # to have been crammed in breaking stuff. We need to conform
+            # to the existing code
+            if(jacobian_speciesIn is None):
+                uip['uip_AIRS'] = mpy.make_uip_airs(i_state, i_state.current,
                                                 i_table, inst_to_window['AIRS'],
-                                                uip['speciesList'],
+                                                uip['jacobians_all'],
+                                                uip['speciesListFM'],
+                                                None, i_airs['radiance'],
+                                                i_modifyCloudFreq=True)
+            else:
+                uip['uip_AIRS'] = mpy.make_uip_airs(i_state, i_state.current,
+                                                i_table, inst_to_window['AIRS'],
+                                                '',
                                                 uip['jacobians_all'],
                                                 None, i_airs['radiance'],
                                                 i_modifyCloudFreq=True)
+                
         if 'CRIS' in inst_to_window:
-            uip['uip_CRIS'] = mpy.make_uip_cris(i_state, i_state.current,
+            # For who knows what bizarre reason. the arguments are
+            # different here if we are calling from run_forward_model. We
+            # trigger off having jacobian_speciesIn.I think this might
+            # have something to do with the BT retrieval handling, which seems
+            # to have been crammed in breaking stuff. We need to conform
+            # to the existing code
+            if(jacobian_speciesIn is None):
+                uip['uip_CRIS'] = mpy.make_uip_cris(i_state, i_state.current,
                                                i_table, inst_to_window['CRIS'],
-                                               uip['speciesList'],
+                                               uip['jacobians_all'],
+                                               uip['speciesListFM'],
+                                               i_cris['radianceStruct'.upper()],
+                                               i_modifyCloudFreq=True)
+            else:
+                uip['uip_CRIS'] = mpy.make_uip_cris(i_state, i_state.current,
+                                               i_table, inst_to_window['CRIS'],
+                                               '',
                                                uip['jacobians_all'],
                                                i_cris['radianceStruct'.upper()],
                                                i_modifyCloudFreq=True)
+                
         if 'TES' in inst_to_window:
             raise RuntimeError("TES is not implemented yet")
         if "OMI" in inst_to_window:

@@ -130,7 +130,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             # translate the oss jac to what we want from ReFRACtor
 
             sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name, use_full_state_vector=self.use_full_state_vector)
-            if(jac is not None):
+            if(jac is not None and jac.ndim > 0):
                 if(self.rf_uip.is_bt_retrieval):
                     # Only one column has data, although oss returns a larger
                     # jacobian. Note that fm_wrapper just "knows" this, it
