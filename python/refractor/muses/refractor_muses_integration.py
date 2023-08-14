@@ -138,7 +138,45 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
         delta_str = mpy.table_get_pref(i_tableStruct, 'LMDelta') # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
-
+        # Special handling for no iterations, we turn around and
+        # call run_forward_model
+        if maxIter == 0:
+            jacobian_speciesNames = i_retrievalInfo.species[0:i_retrievalInfo.n_species]
+            jacobian_speciesList = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+            (uip, radianceOut, jacobianOut) = self.run_forward_model(
+                i_tableStruct, i_stateInfo, i_windows, i_retrievalInfo, 
+                jacobian_speciesNames, jacobian_speciesList, 
+                i_radianceInfo, 
+                i_airs, i_cris, i_tes, i_omi, i_tropomi, i_oco2,
+                mytimingFlag, 
+                writeoutputFlag)
+            if jacobian_speciesList[0] != '':
+                xret = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
+            else:
+                jacobianOut = 0
+                xret = 0
+            o_retrievalResults = {
+                'bestIteration': 0,                                  
+                'xretIterations': xret,                               
+                'num_iterations': 0,                                  
+                'residualRMS': np.asarray([0]),                    
+                'stopCode': -1,                                 
+                'stopCriteria': np.zeros(shape=(1, 3), dtype=np.int),
+                'resdiag': np.zeros(shape=(1, 5), dtype=np.int),
+                'xret': xret,
+                'radiance': radianceOut,
+                'jacobian': jacobianOut,
+                'delta': 0,
+                'rho': 0,
+                'lambda': 0            
+            }
+            o_uip = rf_uip.uip
+            rayInfo = None
+            ret_info = None
+            windowsF = copy.deepcopy(i_windows)
+            success_flag = 1 
+            return (o_retrievalResults, o_uip, rayInfo, ret_info, windowsF, success_flag)
+            
         # Create a cost function, and use to implement residual_fm_jacobian
         # when we call levmar_nllsq_elanor
         cfunc = CostFunction(*self.fm_obs_creator.fm_and_obs(rf_uip, ret_info,
