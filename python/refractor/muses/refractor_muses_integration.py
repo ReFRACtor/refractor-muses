@@ -9,6 +9,7 @@ from .refractor_uip import RefractorUip
 from .fm_obs_creator import FmObsCreator
 from .cost_function import CostFunction
 import numpy as np
+import copy
 
 class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
     '''This handles the Refractor/Muses integration.
@@ -67,6 +68,11 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
                       i_retrievalInfo, i_radianceInfo, 
                       i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2, 
                       mytimingFlag=False, writeoutputFlag=False):
+        '''run_retrieval
+
+        Note despite the name i_radianceInfo get updated with any radiance
+        changes from tropomi/omi.'''
+        
         rf_uip = RefractorUip.create_uip(i_stateInfo, i_tableStruct, i_windows,
                                          i_retrievalInfo, i_airs, i_tes,
                                          i_cris, i_omi, i_tropomi, i_oco2)
@@ -141,10 +147,57 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
                     Chi2Tolerance=Chi2Tolerance
                     )
 
+        # Update radiance data, based on what we got from the forward
+        # model. This is really pretty sneaky, and a bad design - the "i_"
+        # in the name seems to indicate this is input only. But this
+        # matches what muses-py does.
+        if(maxIter > 0 and len(ret_info) > 0):
+            i_radianceInfo['radiance'][:] = ret_info['obs_rad'][:]
+            i_radianceInfo['NESR'][:] = ret_info['meas_err'][:]
+        
+        # Find iteration used, only keep the best iteration
+        rms = np.array([np.sqrt(np.sum(res_iter[i,:]*res_iter[i,:])/
+                       res_iter.shape[1]) for i in range(iterNum+1)])
+        bestIter = np.argmin(rms)
+        residualRMS = rms
+        
         # Take results and put into the expected output structures.
-        o_retrievalResults = None
+        
+        radianceOut2 = copy.deepcopy(i_radianceInfo)
+        radianceOut2['NESR'][:] = 0
+        radianceOut2['radiance'][:] = radiance_fm
+
+        detectors = [0]
+        speciesFM = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+        jacobianOut2 = mpy.jacobian_data(jacobian_fm, detectors,
+                                         i_radianceInfo['frequency'], speciesFM)
+        radianceOutIter = radiance_iter[:,np.newaxis,:]
+        
+        o_retrievalResults = {
+            'bestIteration'  : int(bestIter), 
+            'num_iterations' : iterNum, 
+            'stopCode'       : stopCode, 
+            'xret'           : xret, 
+            'xretFM': rf_uip.current_state_x_fm,
+            'radiance'       : radianceOut2, 
+            'jacobian'       : jacobianOut2, 
+            'radianceIterations': radianceOutIter, 
+            'xretIterations' : x_iter, 
+            'stopCriteria'   : np.copy(stopcrit), 
+            'resdiag'        : np.copy(resdiag), 
+            'residualRMS'    : residualRMS,
+            'delta': diag_lambda_rho_delta[:, 2],
+            'rho': diag_lambda_rho_delta[:, 1],
+            'lambda': diag_lambda_rho_delta[:, 0],        
+        }
         rayInfo = None
-        windowsF = None
+        for k in ("AIRS", "OMI", "TES", "CRIS", "TROPOMI", "OCO2"):
+            if(f"uip_{k}" in rf_uip.uip):
+                rayInfo = rf_uip.ray_info(k, set_pointing_angle_zero=False)
+        windowsF = rf_uip.uip["microwindows_all"]
+        # Note not all of these return elements are actually used
+        # in script_retrieval_ms. rayInfo, ret_info are just ignored.
+        # The other elements seem to be used to write out data
         return (o_retrievalResults, rf_uip.uip, rayInfo, ret_info, windowsF, success_flag)
 
     def run_forward_model(self, i_table, i_stateInfo, i_windows,

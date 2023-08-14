@@ -211,13 +211,13 @@ class FmObsCreator:
         fake_ret_info["obs_rad"] = np.zeros((len(rf_uip.instrument_list),))
         fake_ret_info["meas_err"] = np.ones(fake_ret_info["obs_rad"].shape)
         fake_ret_info["const_vec"] = np.zeros((1,))
-        fake_ret_info["sqrt_constraint"] = np.diag(np.ones((1,)))
+        fake_ret_info["sqrt_constraint"] = np.eye(1)
         (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint) = \
             self.fm_and_obs(rf_uip, fake_ret_info,
                             use_full_state_vector=use_full_state_vector,
                             **kwargs)
         sv_apriori = np.zeros((sv.observer_claimed_size,))
-        sv_sqrt_constraint=np.diag(np.ones((sv.observer_claimed_size,)))
+        sv_sqrt_constraint=np.eye(sv.observer_claimed_size)
         return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint)
     
 __all__ = ["StateVectorHandle", "StateVectorHandleSet",
