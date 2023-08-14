@@ -79,6 +79,23 @@ def test_capture_joint_tropomi_run_forward_model(isolated_dir, osp_dir, gmao_dir
                                             vlidort_cli=vlidort_cli,
                                             suppress_noisy_output=False)
 
+@capture_test
+@pytest.mark.parametrize("call_num", [1,2,3,4,5,6])
+@require_muses_py
+def test_capture_joint_omi_run_forward_model(isolated_dir, osp_dir, gmao_dir,
+                                         call_num, vlidort_cli):
+    '''muses-py calls run_forward_model to calculate the systematic jacobian.
+    It only does this for some steps, and for the airs-omi (but not
+    tropomi run. Capture this so we have test data to work with.'''
+     # This is the last call to run_forward_model in the retrieval
+    rdir = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
+    fname = f"{rdir.run_dir}/Table.asc"
+    MusesForwardmodelStep.create_from_table(fname, step=call_num,
+                                            capture_directory=True,
+                                            save_pickle_file=f"{joint_omi_test_in_dir}/run_forward_model_call_{call_num}.pkl",
+                                            vlidort_cli=vlidort_cli,
+                                            suppress_noisy_output=False)
+    
 @pytest.mark.parametrize("step_number", [1, 2, 3])
 @pytest.mark.parametrize("iteration", [1, 2, 3])
 @capture_test
