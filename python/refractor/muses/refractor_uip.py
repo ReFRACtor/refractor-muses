@@ -858,7 +858,7 @@ class RefractorUip:
         if(isinstance(i_state, dict)):
             i_state = mpy.ObjectView(i_state)
         if(isinstance(i_retrievalInfo, dict)):
-            i_state = mpy.ObjectView(i_retrievalInfo)
+            i_retrievalInfo = mpy.ObjectView(i_retrievalInfo)
         if(jacobian_speciesIn):
             jacobian_speciesNames=jacobian_speciesIn
         else:

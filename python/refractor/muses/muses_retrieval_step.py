@@ -57,7 +57,7 @@ class MusesRetrievalStep:
                 vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''Run the retrieval step with the saved parameters'''
         with muses_py_call(self.run_retrieval_path, vlidort_cli=vlidort_cli):
-            mpy.run_retrieval(**self.params)
+            return mpy.run_retrieval(**self.params)
             
     @classmethod
     def create_from_table(cls, strategy_table, step=1, capture_directory=False,

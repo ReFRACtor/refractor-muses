@@ -3,10 +3,14 @@ from . import muses_py as mpy
 from typing import List
 import numpy as np
 
-class CostFunction(rf.NLLSMaxAPosteriori):
+class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     '''This is the cost function we use to interface between ReFRACtor
     and muses-py. This is just a standard rf.NLLSMaxAPosteriori with
-    some extra convenience functions.'''
+    some extra convenience functions.
+
+    We allow this to replace the functions fm_wrapper and/or
+    refractor_residual_fm_jac, as well as just having the functions to
+    directly call.'''
     def __init__(self, fm_list: List[rf.ForwardModel],
                  obs_list: List[rf.Observation],
                  sv: rf.StateVector,
@@ -26,6 +30,15 @@ class CostFunction(rf.NLLSMaxAPosteriori):
                                                  sv_apriori, sv_sqrt_constraint)
         super().__init__(mstand)
 
+    def should_replace_function(self, func_name, parms):
+        return True
+
+    def replace_function(self, func_name, parms):
+        if(func_name == "fm_wrapper"):
+            return self.fm_wrapper(**parms)
+        elif(func_name == "residual_fm_jacobian"):
+            return self.residual_fm_jacobian(**parms)
+    
     def fm_wrapper(self, i_uip, i_windows, oco_info):
         '''This uses the CostFunction to calculate the same things that
         muses-py does with it fm_wrapper function. We provide the same
@@ -74,13 +87,19 @@ class CostFunction(rf.NLLSMaxAPosteriori):
 
     def residual_fm_jacobian(self, uip, ret_info, retrieval_vec, iterNum,
                              oco_info = {}):
+        '''This uses the CostFunction to calculate the same things that
+        muses-py does with it residual_fm_jacobian function. We provide the 
+        same interface here to 1) provide something that can be used as a
+        replacement for mpy.fm_wrapper but possibly using ReFRACtor objects
+        and 2) make a more direct comparison between ReFRACtor and muses-py
+        (e.g., for testing)'''
         # In addition to the returned items, the uip gets updated (and
         # returned). I think it is just the retrieval_vec that updates
         # the uip.
         #
-        # In additon, ret_info has obs_rad and meas_err
+        # In addition, ret_info has obs_rad and meas_err
         # updated for OMI and TROPOMI. This seems kind of bad to me,
-        # but the values get used in run_retrieval of py-retrieval, so
+        # but the values get used in run_retrieval of muses-py, so
         # we need to update this.
         uip.iteration = iterNum
         if(self.expected_parameter_size != len(retrieval_vec)):
@@ -89,7 +108,7 @@ class CostFunction(rf.NLLSMaxAPosteriori):
         # obs_rad and meas_err includes bad samples, so we can't use
         # cfunc.max_a_posteriori.measurement here which filters out
         # bad samples. Instead we access the observation list we stashed 
-        # when we created the cost function.
+        # when we created the cost function directly
         d = []
         u = []
         for obs in self.obs_list:
@@ -105,20 +124,26 @@ class CostFunction(rf.NLLSMaxAPosteriori):
         ret_info["meas_err"] = np.concatenate(u)
         residual = self.residual
         jac_residual = self.jacobian.transpose()
+        
+        # TODO Determine what exactly we want to do with bad samples
+        
         # self.max_a_posteriori.model only contains the good samples.
         # The existing muses-py actually just runs the forward model
         # on all points, including bad data. It isn't clear what we want
         # to do here. For now, create the proper size output but use a fill
         # value of -999 for bad data.
+
         radiance_fm = np.full(ret_info["meas_err"].shape, -999.0)
         gpt = ret_info["meas_err"] >= 0
         radiance_fm[gpt] = self.max_a_posteriori.model
+
         # TODO Rework this, we actually need the jacobian on the FM grid
         
         # We calculate the jacobian on the retrieval grid, but
         # this function is expecting this on the forward model grid.
         # We don't actually have this available here, but calculate
         # something similar so basis_matrix * jacobian_fm_placholder = jac_ret
+
         jac_retrieval_grid = \
             self.max_a_posteriori.model_measure_diff_jacobian.transpose()
         jac_fm_placeholdergpt, _, _, _ = np.linalg.lstsq(ret_info["basis_matrix"],

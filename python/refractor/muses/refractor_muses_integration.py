@@ -13,21 +13,16 @@ import numpy as np
 class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
     '''This handles the Refractor/Muses integration.
 
-    We do this by replacing two top level functions, residual_fm_jacobian
+    We do this by replacing two top level functions, run_retrieval
     and run_forward_model. Both of these are changed to use our CostFunction,
     and applies the various plumbing to give Muses-py what it expects from
     these two functions.
-
-    We would like to replace run_retrieval instead of residual_fm_jacobian,
-    it is the more natural function. We'll do that at some point in the
-    future.
 
     The CostFunction can turn around and use MusesForwardModel classes to
     just call the existing muses-py code - the intention is to use ReFRACtor
     plumbing but the existing functionality. We can then selectively replace
     pieces with ReFRACtor code, e.g. use the muses-py AIRS forward model with
     the ReFRACtor OMI forward model.
-    
 
     Note because I keep needing to look this up, the call tree for a
     muses-py is:
@@ -36,7 +31,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
       script_retrieval_ms- Handles all the strategy steps
       run_retrieval - Solves a single step of the strategy
       levmar_nllsq_elanor - Solver
-    ->  residual_fm_jacobian - cost function
+      residual_fm_jacobian - cost function
       fm_wrapper - Forward model. Note this handles combining instruments
                    (e.g., AIRS+OMI)
       omi_fm (for OMI) Forward model
@@ -56,17 +51,101 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         '''Register this object and the helper objects with muses-py,
         to replace a call to omi_fm.
         '''
-        mpy.register_replacement_function("residual_fm_jacobian", self)
+        mpy.register_replacement_function("run_retrieval", self)
         mpy.register_replacement_function("run_forward_model", self)
         
     def should_replace_function(self, func_name, parms):
         return True
 
     def replace_function(self, func_name, parms):
-        if(func_name == "residual_fm_jacobian"):
-            return self.residual_fm_jacobian(**parms)
+        if(func_name == "run_retrieval"):
+            return self.run_retrieval(**parms)
         elif(func_name == "run_forward_model"):
             return self.run_forward_model(parms)
+
+    def run_retrieval(self, i_stateInfo, i_tableStruct, i_windows,     
+                      i_retrievalInfo, i_radianceInfo, 
+                      i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2, 
+                      mytimingFlag=False, writeoutputFlag=False):
+        rf_uip = RefractorUip.create_uip(i_stateInfo, i_tableStruct, i_windows,
+                                         i_retrievalInfo, i_airs, i_tes,
+                                         i_cris, i_omi, i_tropomi, i_oco2)
+        
+        # Observation data
+        tweaked_array_radiance = i_radianceInfo["radiance"]
+        tweaked_array_nesr = i_radianceInfo["NESR"]
+        if len(tweaked_array_radiance.shape) == 1:
+            tweaked_array_radiance = np.reshape(tweaked_array_radiance, (1, tweaked_array_radiance.shape[0]))
+        if len(tweaked_array_nesr.shape) == 1:
+            tweaked_array_nesr = np.reshape(tweaked_array_nesr, (1, tweaked_array_nesr.shape[0]))
+
+        obs_rad = mpy.glom(tweaked_array_radiance, 0, 1)
+        meas_err = mpy.glom(tweaked_array_nesr, 0, 1)
+
+        # apriori and sqrt_constraint
+        constraint = i_retrievalInfo.Constraint[0:i_retrievalInfo.n_totalParameters, 0:i_retrievalInfo.n_totalParameters]
+        xa = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
+        if constraint.size > 1:
+            sqrt_constraint = (mpy.sqrt_matrix(constraint)).transpose()
+        else:
+            sqrt_constraint = np.sqrt(constraint)
+
+        # ret_info structue
+        ret_info = { 
+            'obs_rad': obs_rad,             
+            'meas_err': meas_err,            
+            'CostFunction': 'MAX_APOSTERIORI',   
+            'basis_matrix': rf_uip.basis_matrix,   
+            'sqrt_constraint': sqrt_constraint,  
+            'const_vec': xa,
+            'minimumList':i_retrievalInfo.minimumList[0:i_retrievalInfo.n_totalParameters],
+            'maximumList':i_retrievalInfo.maximumList[0:i_retrievalInfo.n_totalParameters],
+            'maximumChangeList':i_retrievalInfo.maximumChangeList[0:i_retrievalInfo.n_totalParameters]
+        }
+
+        # Various thresholds from the input table
+        maxIter = int(mpy.table_get_entry(i_tableStruct, i_tableStruct["step"], "maxNumIterations"))
+        ConvTolerance_CostThresh = np.float32(mpy.table_get_pref(i_tableStruct, "ConvTolerance_CostThresh"))
+        ConvTolerance_pThresh = np.float32(mpy.table_get_pref(i_tableStruct, "ConvTolerance_pThresh"))     
+        ConvTolerance_JacThresh = np.float32(mpy.table_get_pref(i_tableStruct, "ConvTolerance_JacThresh"))
+        Chi2Tolerance = 2.0 / meas_err.size # theoretical value for tolerance
+        retrievalType = mpy.table_get_entry(i_tableStruct, i_tableStruct["step"], "retrievalType").lower()
+        if retrievalType == "bt_ig_refine":
+            ConvTolerance_CostThresh = 0.00001
+            ConvTolerance_pThresh = 0.00001
+            ConvTolerance_JacThresh = 0.00001
+            Chi2Tolerance = 0.00001
+        ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
+        delta_str = mpy.table_get_pref(i_tableStruct, 'LMDelta') # 100 // original LM step size
+        delta_value = int(delta_str.split()[0])  # We only need the first token sinc
+
+        # Create a cost function, and use to implement residual_fm_jacobian
+        # when we call levmar_nllsq_elanor
+        cfunc = CostFunction(*self.fm_obs_creator.fm_and_obs(rf_uip, ret_info,
+                                                             **self.kwargs))
+        
+        # TODO Make this look like a ReFRACtor solver
+        with register_replacement_function_in_block("residual_fm_jacobian",
+                                                    cfunc):
+            (xret, diag_lambda_rho_delta, stopcrit, resdiag, 
+             x_iter, res_iter, radiance_fm, radiance_iter, jacobian_fm, 
+             iterNum, stopCode, success_flag) =  mpy.levmar_nllsq_elanor(  
+                    rf_uip.current_state_x, 
+                    i_tableStruct["step"], 
+                    rf_uip.uip, 
+                    ret_info, 
+                    maxIter, 
+                    verbose=False, 
+                    delta_value=delta_value, 
+                    ConvTolerance=ConvTolerance,   
+                    Chi2Tolerance=Chi2Tolerance
+                    )
+
+        # Take results and put into the expected output structures.
+        o_retrievalResults = None
+        rayInfo = None
+        windowsF = None
+        return (o_retrievalResults, rf_uip.uip, rayInfo, ret_info, windowsF, success_flag)
 
     def run_forward_model(self, i_table, i_stateInfo, i_windows,
                           i_retrievalInfo, jacobian_speciesIn,
@@ -90,59 +169,6 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
                                        o_radiance['frequency'],
                                        rf_uip.uip['speciesListFM'])
         return (rf_uip.uip, o_radiance, o_jacobian)
-            
-    def residual_fm_jacobian(self, uip, ret_info, retrieval_vec, iterNum,
-                             oco_info = {}):
-        # In addition to the returned items, the uip gets updated (and
-        # returned). I think it is just the retrieval_vec that updates
-        # the uip.
-        #
-        # In additon, ret_info has obs_rad and meas_err
-        # updated for OMI and TROPOMI. This seems kind of bad to me,
-        # but the values get used in run_retrieval of py-retrieval, so
-        # we need to update this.
-        uip.iteration = iterNum
-        rf_uip = RefractorUip(uip, basis_matrix=ret_info['basis_matrix'])
-        if(not "cost_func" in rf_uip.refractor_cache):
-            rf_uip.refractor_cache["cost_func"] = \
-                self.cost_func_creator.create_cost_func(rf_uip,
-                                                        ret_info=ret_info)
-                
-        cfunc = rf_uip.refractor_cache["cost_func"]
-        # Temp, we should get this into the state vector
-        rf_uip.update_uip(retrieval_vec)
-
-        cfunc.parameters = retrieval_vec
-        # obs_rad and meas_err includes bad samples, so we can't use
-        # cfunc.max_a_posteriori.measurement here which filters out
-        # bad samples. Instead we access the observation list we stashed 
-        # when we created the cost function.
-        d = []
-        for obs in cfunc.obs_list:
-            if(hasattr(obs, "radiance_all_with_bad_sample")):
-                d.append(obs.radiance_all_with_bad_sample())
-            else:
-                d.append(obs.radiance_all(True).spectral_range.data)
-        ret_info["obs_rad"] = np.concatenate(d)
-        # Covariance for bad pixels get set to sqr(-999), so meas_err is
-        # 999 rather than -999 here. Work around this by only updating the
-        # good pixels.
-        gpt = ret_info["meas_err"] >= 0
-        ret_info["meas_err"][gpt] = np.sqrt(cfunc.max_a_posteriori.measurement_error_cov)
-        residual = cfunc.residual
-        jac_residual = cfunc.jacobian.transpose()
-        radiance_fm = cfunc.max_a_posteriori.model
-        # We calculate the jacobian on the retrieval grid, but
-        # this function is expecting this on the forward model grid.
-        # We don't actually have this available here, but calculate
-        # something similar so basis_matrix * jacobian_fm_placholder = jac_ret
-        jac_retrieval_grid = \
-            cfunc.max_a_posteriori.model_measure_diff_jacobian.transpose()
-        jac_fm_placeholder, _, _, _ = np.linalg.lstsq(ret_info["basis_matrix"],
-                                                      jac_retrieval_grid)
-        stop_flag = 0
-        return (uip, residual, jac_residual, radiance_fm,
-                jac_fm_placeholder, stop_flag)
 
 __all__ = ["RefractorMusesIntegration",]
     
