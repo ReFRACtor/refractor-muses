@@ -73,7 +73,7 @@ def test_capture_joint_tropomi_run_forward_model(isolated_dir, osp_dir, gmao_dir
      # This is the last call to run_forward_model in the retrieval
     rdir = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
     fname = f"{rdir.run_dir}/Table.asc"
-    MusesForwardmodelStep.create_from_table(fname, step=call_num,
+    MusesForwardModelStep.create_from_table(fname, step=call_num,
                                             capture_directory=True,
                                             save_pickle_file=f"{joint_tropomi_test_in_dir}/run_forward_model_call_{call_num}.pkl",
                                             vlidort_cli=vlidort_cli,
@@ -90,7 +90,7 @@ def test_capture_joint_omi_run_forward_model(isolated_dir, osp_dir, gmao_dir,
      # This is the last call to run_forward_model in the retrieval
     rdir = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
     fname = f"{rdir.run_dir}/Table.asc"
-    MusesForwardmodelStep.create_from_table(fname, step=call_num,
+    MusesForwardModelStep.create_from_table(fname, step=call_num,
                                             capture_directory=True,
                                             save_pickle_file=f"{joint_omi_test_in_dir}/run_forward_model_call_{call_num}.pkl",
                                             vlidort_cli=vlidort_cli,

@@ -1,6 +1,6 @@
 from test_support import *
 from refractor.muses import (FmObsCreator, CostFunction,
-                             MusesForwardmodelStep,
+                             MusesForwardModelStep,
                              RefractorMusesIntegration)
 import refractor.muses.muses_py as mpy
 import subprocess
@@ -24,7 +24,7 @@ def test_run_forward_model_joint_tropomi(call_num,
                                          vlidort_cli):
     pfile = f"{joint_tropomi_test_in_dir}/run_forward_model_call_{call_num}.pkl"
     curdir = os.path.abspath(os.path.curdir)
-    rrefractor = MusesForwardmodelStep.load_forward_model_step(pfile,
+    rrefractor = MusesForwardModelStep.load_forward_model_step(pfile,
                 osp_dir=osp_dir, gmao_dir=gmao_dir, path="refractor",
                 change_to_dir=True)
     rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
@@ -32,7 +32,7 @@ def test_run_forward_model_joint_tropomi(call_num,
         
     # Results to compare against
     os.chdir(curdir)
-    rmuses_py =MusesForwardmodelStep.load_forward_model_step(pfile,
+    rmuses_py =MusesForwardModelStep.load_forward_model_step(pfile,
                        osp_dir=osp_dir, gmao_dir=gmao_dir, path="muses_py",
                        change_to_dir=True)
     (uip2, o_radianceOut2, o_jacobianOut2) = rmuses_py.run_forward_model(vlidort_cli=vlidort_cli)
@@ -47,7 +47,7 @@ def test_run_forward_model_joint_omi(call_num,
                                          vlidort_cli):
     pfile = f"{joint_omi_test_in_dir}/run_forward_model_call_{call_num}.pkl"
     curdir = os.path.abspath(os.path.curdir)
-    rrefractor = MusesForwardmodelStep.load_forward_model_step(pfile,
+    rrefractor = MusesForwardModelStep.load_forward_model_step(pfile,
                 osp_dir=osp_dir, gmao_dir=gmao_dir, path="refractor",
                 change_to_dir=True)
     rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
@@ -55,7 +55,7 @@ def test_run_forward_model_joint_omi(call_num,
         
     # Results to compare against
     os.chdir(curdir)
-    rmuses_py =MusesForwardmodelStep.load_forward_model_step(pfile,
+    rmuses_py =MusesForwardModelStep.load_forward_model_step(pfile,
                        osp_dir=osp_dir, gmao_dir=gmao_dir, path="muses_py",
                        change_to_dir=True)
     (uip2, o_radianceOut2, o_jacobianOut2) = rmuses_py.run_forward_model(vlidort_cli=vlidort_cli)

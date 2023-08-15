@@ -9,6 +9,7 @@ from .refractor_uip import RefractorUip
 from .fm_obs_creator import FmObsCreator
 from .cost_function import CostFunction
 from .muses_retrieval_step import MusesRetrievalStep
+from .muses_forward_model_step import MusesForwardModelStep
 import numpy as np
 import copy
 import pickle
@@ -43,12 +44,18 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
 
     '''
     
-    def __init__(self, **kwargs):
-        '''This interface probably needs work. But for now we take the keywords associated
-        with RefractorObjectCreator. What we will probably want is someway of registering
-        how to handle each instrument type, but for a start do this'''
+    def __init__(self, save_debug_data=False, **kwargs):
+        '''This take the keywords that we pass to FmObsCreator to create
+        the forward model and state vector.
+
+        If save_debug_data is True, then we save MusesRetrievalStep and
+        MusesForwardModelStep data each time run_retrieval or run_forward_model
+        is called. This can then be used to debug any issues with a
+        particular step of the processing.
+        '''
         self.fm_obs_creator = FmObsCreator()
         self.instrument_handle_set = self.fm_obs_creator.instrument_handle_set
+        self.save_debug_data = save_debug_data
         self.kwargs = kwargs
         
     def register_with_muses_py(self):
@@ -118,9 +125,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
 
         Note despite the name i_radianceInfo get updated with any radiance
         changes from tropomi/omi.'''
-        # If we need to debug an issue, we can save the arguments we were
-        # called with so we can rerun thi
-        if False:
+        if self.save_debug_data:
             # The magic incantation below grabs the parameters passed
             # to this func
             params=sys._getframe(0).f_locals
@@ -128,7 +133,8 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
             del params['self']
             sve = MusesRetrievalStep(params=params)
             sve.capture_directory.save_directory(".", vlidort_input=None)
-            pickle.dump(sve, open("run_retrieval.pkl", "wb"))
+            pickle.dump(sve,
+                  open(f"run_retrieval_step_{i_tableStruct['step']}.pkl", "wb"))
 
         rf_uip = RefractorUip.create_uip(i_stateInfo, i_tableStruct, i_windows,
                                          i_retrievalInfo, i_airs, i_tes,
@@ -269,6 +275,16 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
                           uip, airs, cris, tes, omi, tropomi, oco2,
                           mytiming, writeOutputFlag=False, trueFlag=False,
                           RJFlag=False, rayTracingFlag=False):
+        if self.save_debug_data:
+            # The magic incantation below grabs the parameters passed
+            # to this func
+            params=sys._getframe(0).f_locals
+            # Don't include self in this
+            del params['self']
+            sve = MusesForwardModelStep(params=params)
+            sve.capture_directory.save_directory(".", vlidort_input=None)
+            pickle.dump(sve,
+                  open(f"run_forward_model_step_{i_table['step']}.pkl", "wb"))
         rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,
                                          i_retrievalInfo, airs, tes, cris,
                                          omi, tropomi, oco2,

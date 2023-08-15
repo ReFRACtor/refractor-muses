@@ -39,7 +39,7 @@ def _all_output_disabled():
     finally:
         logging.disable(previous_level)
 
-class MusesForwardmodelStep:
+class MusesForwardModelStep:
     '''This class is used to capture the arguments to a muses-py
     run_forward_model, and to then call that function. This is little more than
     the argument list plus a bit of support code.
@@ -112,4 +112,4 @@ class MusesForwardmodelStep:
                               gmao_dir=gmao_dir)
         return res
     
-__all__ = ["MusesForwardmodelStep",]
+__all__ = ["MusesForwardModelStep",]
