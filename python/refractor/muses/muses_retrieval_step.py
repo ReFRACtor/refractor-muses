@@ -54,9 +54,11 @@ class MusesRetrievalStep:
         return self.run_path+"/"+self.capture_directory.runbase
     
     def run_retrieval(self,
-                vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
+                      vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
+                      vlidort_nstokes=2):
         '''Run the retrieval step with the saved parameters'''
-        with muses_py_call(self.run_retrieval_path, vlidort_cli=vlidort_cli):
+        with muses_py_call(self.run_retrieval_path, vlidort_cli=vlidort_cli,
+                           vlidort_nstokes=vlidort_nstokes):
             return mpy.run_retrieval(**self.params)
             
     @classmethod

@@ -74,15 +74,17 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         muses-py dictionary, but rather a RefractorUip created from
         that).
 
-        For the retrieval, we use the "Retrieval State Vector".
-        However, for testing it can be useful to use the "Full State Vector".
+        For most purposes, you want use_full_state_vector=True
+        This uses the "Full State Vector".
         See "Tropospheric Emission Spectrometer: Retrieval Method and Error
         Analysis" (IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING,
         VOL. 44, NO. 5, MAY 2006) section III.A.1 for a discussion of this.
-        Lower level muses-py functions work with the "Full State Vector", so
-        it is useful to have the option of supporting this. Set
-        use_full_state_vector to True to use the full state vector.
-
+        the CostFunction handles mapping the retrieval vector to
+        the full state vector. However for stand alone uses of the the
+        forward model, it can sometimes be useful to use the retrieval
+        vector in the StateVector, so you can specify
+        use_full_state_vector=False if desired.
+        
         The input directory can be given, this is used to read the 
         solar model data (omisol_v003_avg_nshi_backup.h5). If not supplied,
         we use the default directory path.
