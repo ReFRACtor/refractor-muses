@@ -1,6 +1,7 @@
 from . import muses_py as mpy
 from .replace_function_helper import suppress_replacement
 import os
+import copy
 
 class WatchOssInit(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
     '''Helper object to update osswrapper.have_oss when py-retrieve calls
@@ -53,6 +54,7 @@ class osswrapper:
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
+        self.uip = copy.deepcopy(self.uip)
         self.need_cleanup = False
 
     @classmethod
@@ -66,6 +68,11 @@ class osswrapper:
             for inst in ('CRIS','AIRS', 'TES'):
                 if(f'uip_{inst}' in self.uip):
                     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
+                    # Delete frequencyList if found. I don't think we
+                    # run into that in actual muses-py runs, but we do
+                    # with some of our test data based on where we are
+                    # in the processing.
+                    self.uip.pop("frequencyList", None)
                     uip_all = mpy.struct_combine(self.uip, self.uip[f"uip_{inst}"])
                     # Special handling for the first time through, working
                     # around what is a bug or "feature" of the OSS code

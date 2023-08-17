@@ -436,7 +436,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         # We've calculated the jacobian relative to the full state vector,
         # including specifies that aren't used by OMI/TROPOMI. muses-py
         # expects just the subset, so we need to subset the jacobian
-        our_jac = [spec in self.rf_uip.uip_all("TROPOMI")['jacobians'] for spec in i_uip['speciesListFM'] ]
+        our_jac = [spec in self.rf_uip.state_vector_params("TROPOMI") for spec in i_uip['speciesListFM'] ]
         if(len(o_jacobian) > 0):
             o_jacobian = o_jacobian[our_jac,:]
         return (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag)
@@ -504,7 +504,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         # We've calculated the jacobian relative to the full state vector,
         # including species that aren't used by OMI/TROPOMI. muses-py
         # expects just the subset, so we need to subset the jacobian
-        our_jac = [spec in self.rf_uip.uip_all("OMI")['jacobians'] for spec in i_uip['speciesListFM'] ]
+        our_jac = [spec in self.rf_uip.state_vector_params("OMI") for spec in i_uip['speciesListFM'] ]
         if(len(o_jacobian) > 0):
             o_jacobian = o_jacobian[our_jac,:]
         return (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag)

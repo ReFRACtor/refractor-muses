@@ -9,7 +9,7 @@ from refractor.muses import *
 # pytest with -n 10 or whatever). This generates them faster, and
 # everything is done in its own directory so this is clean.
 
-@pytest.mark.parametrize("step_number", [1, 2, 3])
+@pytest.mark.parametrize("step_number", [1, 2])
 @pytest.mark.parametrize("iteration", [1, 2, 3])
 @capture_test
 @require_muses_py
@@ -23,7 +23,7 @@ def test_capture_tropomi_residual_fm_jac(isolated_dir, step_number, iteration,
         (rstep, iteration=iteration, capture_directory=True,
          save_pickle_file=f"{tropomi_test_in_dir}/residual_fm_jac_{step_number}_{iteration}.pkl", suppress_noisy_output=False, vlidort_cli=vlidort_cli)
 
-@pytest.mark.parametrize("step_number", [10,])
+@pytest.mark.parametrize("step_number", [12,])
 @pytest.mark.parametrize("iteration", [1,2,3])
 @capture_test
 @require_muses_py
@@ -49,7 +49,7 @@ def test_capture_omi_residual_fm_jac(isolated_dir, step_number, iteration,
         (rstep, iteration=iteration, capture_directory=True,
          save_pickle_file=f"{omi_test_in_dir}/residual_fm_jac_{step_number}_{iteration}.pkl", suppress_noisy_output=False, vlidort_cli=vlidort_cli)
 
-@pytest.mark.parametrize("step_number", [7,])
+@pytest.mark.parametrize("step_number", [8,])
 @pytest.mark.parametrize("iteration", [1, 2, 3])
 @capture_test
 @require_muses_py
@@ -96,7 +96,7 @@ def test_capture_joint_omi_run_forward_model(isolated_dir, osp_dir, gmao_dir,
                                             vlidort_cli=vlidort_cli,
                                             suppress_noisy_output=False)
     
-@pytest.mark.parametrize("step_number", [1, 2, 3])
+@pytest.mark.parametrize("step_number", [1, 2])
 @pytest.mark.parametrize("iteration", [1, 2, 3])
 @capture_test
 @require_muses_py
@@ -109,7 +109,7 @@ def test_capture_tropomi_refractor_fm(isolated_dir, step_number, iteration,
         f"{tropomi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl",
         vlidort_cli=vlidort_cli)
 
-@pytest.mark.parametrize("step_number", [10,])
+@pytest.mark.parametrize("step_number", [12,])
 @pytest.mark.parametrize("iteration", [1,2,3])
 @capture_test
 @require_muses_py

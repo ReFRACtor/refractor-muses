@@ -4,10 +4,10 @@ from refractor.muses import (FmObsCreator, CostFunction, muses_py_call,
 import refractor.muses.muses_py as mpy
 
 @require_muses_py
-def test_fm_wrapper_tropomi(joint_tropomi_uip_step_10, vlidort_cli):
+def test_fm_wrapper_tropomi(joint_tropomi_uip_step_12, vlidort_cli):
     '''Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.'''
-    rf_uip = joint_tropomi_uip_step_10
+    rf_uip = joint_tropomi_uip_step_12
     creator = FmObsCreator()
     cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
                                                   use_full_state_vector=True,
@@ -38,8 +38,8 @@ def test_fm_wrapper_tropomi(joint_tropomi_uip_step_10, vlidort_cli):
     # the target of our fm_wrapper.
 
 @require_muses_py
-def test_fm_wrapper_omi(joint_omi_uip_step_7, vlidort_cli):
-    rf_uip = joint_omi_uip_step_7
+def test_fm_wrapper_omi(joint_omi_uip_step_8, vlidort_cli):
+    rf_uip = joint_omi_uip_step_8
     creator = FmObsCreator()
     cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
                                                   use_full_state_vector=True,
@@ -73,7 +73,7 @@ def test_fm_wrapper_omi(joint_omi_uip_step_7, vlidort_cli):
 def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     '''Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.'''
-    step_number = 10
+    step_number = 12
     iteration = 2
 
     curdir = os.path.curdir
@@ -143,7 +143,7 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
 def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     '''Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.'''
-    step_number = 7
+    step_number = 8
     iteration = 2
     
     curdir = os.path.curdir

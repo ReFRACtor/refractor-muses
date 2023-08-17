@@ -29,7 +29,7 @@ def test_refractor_omi_uip(isolated_dir):
 @require_muses_py
 def test_refractor_joint_uip(isolated_dir):
     # UIP  that has both AIRS and OMI
-    m = RefractorUip.load_uip(f"{test_base_path}/airs_omi/in/sounding_1/uip_step_7.pkl",
+    m = RefractorUip.load_uip(f"{test_base_path}/airs_omi/in/sounding_1/uip_step_8.pkl",
                               change_to_dir=False)
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
@@ -75,14 +75,14 @@ def test_refractor_tropomi_uip(isolated_dir):
     print(m.ray_info("TROPOMI"))
 
 @require_muses_py
-def test_species_basis(tropomi_uip_step_3, clean_up_replacement_function):
-    npt.assert_allclose(tropomi_uip_step_3.species_basis_matrix("O3"),
-                        tropomi_uip_step_3.species_basis_matrix_calc("O3"))
+def test_species_basis(tropomi_uip_step_2, clean_up_replacement_function):
+    npt.assert_allclose(tropomi_uip_step_2.species_basis_matrix("O3"),
+                        tropomi_uip_step_2.species_basis_matrix_calc("O3"))
     
 @require_muses_py
 def test_refractor_joint_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
-                                            joint_tropomi_uip_step_10):
-    rstep = load_muses_retrieval_step(joint_tropomi_test_in_dir, step_number=10,
+                                            joint_tropomi_uip_step_12):
+    rstep = load_muses_retrieval_step(joint_tropomi_test_in_dir, step_number=12,
                                       osp_dir=osp_dir,gmao_dir=gmao_dir)
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
@@ -100,14 +100,14 @@ def test_refractor_joint_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
     with open("our_uip.txt", "w") as fh:
         pprint.pprint(rf_uip.uip,fh)
     with open("original_uip.txt", "w") as fh:
-        pprint.pprint(joint_tropomi_uip_step_10.uip,fh)
+        pprint.pprint(joint_tropomi_uip_step_12.uip,fh)
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
                    check=True)
 
 @require_muses_py
 def test_refractor_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
-                                      tropomi_uip_step_3):
-    rstep = load_muses_retrieval_step(tropomi_test_in_dir, step_number=3,
+                                      tropomi_uip_step_2):
+    rstep = load_muses_retrieval_step(tropomi_test_in_dir, step_number=2,
                                       osp_dir=osp_dir,gmao_dir=gmao_dir)
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
@@ -125,14 +125,14 @@ def test_refractor_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
     with open("our_uip.txt", "w") as fh:
         pprint.pprint(rf_uip.uip,fh)
     with open("original_uip.txt", "w") as fh:
-        pprint.pprint(tropomi_uip_step_3.uip,fh)
+        pprint.pprint(tropomi_uip_step_2.uip,fh)
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
                    check=True)
     
 @require_muses_py
 def test_refractor_joint_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
-                                            joint_omi_uip_step_7):
-    rstep = load_muses_retrieval_step(joint_omi_test_in_dir, step_number=7,
+                                            joint_omi_uip_step_8):
+    rstep = load_muses_retrieval_step(joint_omi_test_in_dir, step_number=8,
                                       osp_dir=osp_dir,gmao_dir=gmao_dir)
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
@@ -150,7 +150,7 @@ def test_refractor_joint_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
     with open("our_uip.txt", "w") as fh:
         pprint.pprint(rf_uip.uip,fh)
     with open("original_uip.txt", "w") as fh:
-        pprint.pprint(joint_omi_uip_step_7.uip,fh)
+        pprint.pprint(joint_omi_uip_step_8.uip,fh)
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
                    check=True)
 

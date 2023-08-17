@@ -5,13 +5,13 @@ from test_support import *
 import refractor.framework as rf
 
 @require_muses_py
-def test_muses_optical_depth_file(tropomi_uip_step_3, clean_up_replacement_function):
+def test_muses_optical_depth_file(tropomi_uip_step_2, clean_up_replacement_function):
     try:
         from refractor.tropomi import TropomiFmObjectCreator
     except ImportError:
         raise pytest.skip("test requires tropomi to be available")
     
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_3, use_full_state_vector=False)
+    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_2, use_full_state_vector=False)
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it

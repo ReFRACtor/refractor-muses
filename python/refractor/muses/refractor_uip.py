@@ -323,9 +323,9 @@ class RefractorUip:
         that instrument.
         '''
         if(not use_full_state_vector):
-            return self.basis_matrix[:,[t in list(self.uip_all(instrument_name)["jacobians"]) for t in self.uip["speciesListFM"]]]
+            return self.basis_matrix[:,[t in list(self.state_vector_params(instrument_name)) for t in self.uip["speciesListFM"]]]
         bmatrix = np.eye(len(self.uip["speciesListFM"]))
-        return bmatrix[:,[t in list(self.uip_all(instrument_name)["jacobians"]) for t in self.uip["speciesListFM"]]]
+        return bmatrix[:,[t in list(self.state_vector_params(instrument_name)) for t in self.uip["speciesListFM"]]]
 
     @property
     def is_bt_retrieval(self):
@@ -418,7 +418,7 @@ class RefractorUip:
         return self.uip.get('tropomiPars')
 
     def frequency_list(self, instrument_name):
-        return self.uip_all(instrument_name)["frequencyList"]
+        return self.uip[f"uip_{instrument_name}"]["frequencyList"]
 
     @property
     def instrument_list(self):
