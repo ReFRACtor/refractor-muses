@@ -144,7 +144,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         gpt = ret_info["meas_err"] >= 0
         radiance_fm[gpt] = self.max_a_posteriori.model
         jac_fm_gpt = self.max_a_posteriori.model_measure_diff_jacobian_fm.transpose()
-        jac_fm = np.full((jac_fm_gpt.shape[0], ret_info["meas_err"].shape[0]),0.0)
+        jac_fm = np.full((jac_fm_gpt.shape[0], ret_info["meas_err"].shape[0]),-999.0)
         jac_fm[:, gpt] = jac_fm_gpt
         # Need to add handling for bad samples
         stop_flag = 0

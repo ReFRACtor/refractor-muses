@@ -1,6 +1,7 @@
 from test_support import *
 from refractor.muses import (FmObsCreator, CostFunction,
                              MusesForwardModelStep,
+                             MusesRunDir,
                              RefractorMusesIntegration)
 import refractor.muses.muses_py as mpy
 import subprocess
@@ -201,3 +202,61 @@ def test_run_retrieval_tropomi(step_num,
                    #check=True)
                    )
             
+
+@long_test
+@require_muses_py
+def test_original_airs_omi(osp_dir, gmao_dir, vlidort_cli):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. We don't
+    actually do anything with the data, other than make it available.
+
+    Data goes in the local directory, rather than an isolated one.'''
+    subprocess.run("rm -r original_airs_omi", shell=True)
+    r = MusesRunDir(joint_omi_test_in_dir,
+                    osp_dir, gmao_dir, path_prefix="original_airs_omi")
+    r.run_retrieval(vlidort_cli=vlidort_cli)
+
+@long_test
+@require_muses_py
+def test_refractor_integration_airs_omi(osp_dir, gmao_dir, vlidort_cli):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. We don't
+    actually do anything with the data, other than make it available.
+
+    Data goes in the local directory, rather than an isolated one.'''
+    subprocess.run("rm -r refractor_integration_airs_omi", shell=True)
+    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
+    rmi.register_with_muses_py()
+    r = MusesRunDir(joint_omi_test_in_dir,
+                    osp_dir, gmao_dir, path_prefix="refractor_integration_airs_omi")
+    r.run_retrieval(vlidort_cli=vlidort_cli)
+    
+@long_test
+@require_muses_py
+def test_original_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. We don't
+    actually do anything with the data, other than make it available.
+
+    Data goes in the local directory, rather than an isolated one.'''
+    subprocess.run("rm -r original_cris_tropomi", shell=True)
+    r = MusesRunDir(joint_omi_test_in_dir,
+                    osp_dir, gmao_dir, path_prefix="original_cris_tropomi")
+    r.run_retrieval(vlidort_cli=vlidort_cli)
+    
+@long_test
+@require_muses_py
+def test_refractor_integration_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. We don't
+    actually do anything with the data, other than make it available.
+
+    Data goes in the local directory, rather than an isolated one.'''
+    subprocess.run("rm -r refractor_integration_cris_tropomi", shell=True)
+    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
+    rmi.register_with_muses_py()
+    r = MusesRunDir(joint_omi_test_in_dir,
+                    osp_dir, gmao_dir, path_prefix="refractor_integration_cris_tropomi")
+    r.run_retrieval(vlidort_cli=vlidort_cli)
+    
+    
