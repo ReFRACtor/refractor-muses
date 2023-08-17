@@ -84,7 +84,7 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
                                        gmao_dir=gmao_dir,
                                        path="refractor")
     # Create some bad data, so we can test handling of bad samples
-    # The meas_err isn't super easy to work out (although we could).
+    # The meas_err indices isn't super easy to work out (although we could).
     # We just figured this out by setting a breakpoint and grabbing what
     # muses-py ends up with
     rrefractor.params["ret_info"]["meas_err"][2:213:10] = -999
@@ -93,7 +93,7 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
                              "rb"))
     rdata['Earth_Radiance']['EarthRadianceNESR'][1::15] = -999
     pickle.dump(rdata, open(rrefractor.run_dir + "/Input/Radiance_TROPOMI_.pkl",
-                             "wb"))
+                            "wb"))
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
@@ -133,13 +133,7 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     npt.assert_allclose(radiance_out[gpt], radiance_out2[gpt])
     npt.assert_allclose(o_residual, o_residual2)
     npt.assert_allclose(o_jacobian_ret, o_jacobian_ret2)
-    # This fails
-    #npt.assert_allclose(o_jacobianOut, o_jacobianOut2)
-    # However this succeeds
-    basis_matrix = rrefractor.params["ret_info"]["basis_matrix"]
-    npt.assert_allclose(np.matmul(basis_matrix, o_jacobianOut[:,gpt]),
-                        np.matmul(basis_matrix, o_jacobianOut2[:,gpt]),
-                        atol=1e-12)
+    npt.assert_allclose(o_jacobianOut[:,gpt], o_jacobianOut2[:,gpt])
     npt.assert_allclose(rrefractor.params["ret_info"]["obs_rad"],
                         rmuses_py.params["ret_info"]["obs_rad"])
     npt.assert_allclose(rrefractor.params["ret_info"]["meas_err"],
@@ -189,12 +183,7 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     npt.assert_allclose(radiance_out[gpt], radiance_out2[gpt])
     npt.assert_allclose(o_residual, o_residual2)
     npt.assert_allclose(o_jacobian_ret, o_jacobian_ret2)
-    # This fails
-    #npt.assert_allclose(o_jacobianOut, o_jacobianOut2)
-    # However this succeeds
-    basis_matrix = rrefractor.params["ret_info"]["basis_matrix"]
-    npt.assert_allclose(np.matmul(basis_matrix, o_jacobianOut[:,gpt]),
-                        np.matmul(basis_matrix, o_jacobianOut2[:,gpt]), atol=1e-12)
+    npt.assert_allclose(o_jacobianOut[:,gpt], o_jacobianOut2[:,gpt])
     npt.assert_allclose(rrefractor.params["ret_info"]["obs_rad"],
                         rmuses_py.params["ret_info"]["obs_rad"])
     npt.assert_allclose(rrefractor.params["ret_info"]["meas_err"],

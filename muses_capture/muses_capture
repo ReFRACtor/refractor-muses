@@ -266,7 +266,7 @@ def run_retrieval(instrument, refractor_config = None,
     subprocess.run(cmd, check=True)
 
 @cli.command()
-@click.option("-number-cpu", default=10, type=int,
+@click.option("--number-cpu", default=10, type=int,
               help="Number of jobs to run at once")
 @click.option("--suppress-output/--show-output", default=True)
 def capture_test_data(number_cpu=10, suppress_output=True):

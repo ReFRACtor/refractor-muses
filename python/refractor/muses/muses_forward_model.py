@@ -81,7 +81,7 @@ class MusesForwardModelBase(rf.ForwardModel):
     # bad_sample_mask, either masking bad samples or having a empty mask that
     # lets everything pass through.
     def __init__(self, rf_uip : RefractorUip, instrument_name,
-                 obs, use_full_state_vector=False, include_bad_sample=False,
+                 obs, use_full_state_vector=True, include_bad_sample=False,
                  **kwargs):
         super().__init__()
         self.instrument_name = instrument_name
@@ -288,7 +288,7 @@ class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
         
 class MusesCrisForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for CRiS instrument'''
-    def __init__(self, rf_uip : RefractorUip, obs, use_full_state_vector=False, **kwargs):
+    def __init__(self, rf_uip : RefractorUip, obs, use_full_state_vector=True, **kwargs):
         super().__init__(rf_uip, "CRIS", obs,
                          use_full_state_vector=use_full_state_vector, **kwargs)
 
@@ -300,7 +300,7 @@ class MusesCrisObservation(MusesObservationBase):
 
 class MusesAirsForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for Airs instrument'''
-    def __init__(self, rf_uip : RefractorUip, obs, use_full_state_vector=False, **kwargs):
+    def __init__(self, rf_uip : RefractorUip, obs, use_full_state_vector=True, **kwargs):
         super().__init__(rf_uip, "AIRS",
                          obs,
                          use_full_state_vector=use_full_state_vector,
@@ -344,7 +344,7 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, svhandle,
-                   use_full_state_vector=False,
+                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "CRIS"):
             return (None, None)
@@ -360,7 +360,7 @@ class MusesAirsInstrumentHandle(InstrumentHandle):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, svhandle,
-                   use_full_state_vector=False,
+                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "AIRS"):
             return (None, None)
@@ -376,7 +376,7 @@ class MusesTropomiInstrumentHandle(InstrumentHandle):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, svhandle,
-                   use_full_state_vector=False,
+                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "TROPOMI"):
             return (None, None)
@@ -393,7 +393,7 @@ class MusesOmiInstrumentHandle(InstrumentHandle):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, svhandle,
-                   use_full_state_vector=False,
+                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "OMI"):
             return (None, None)

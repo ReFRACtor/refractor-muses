@@ -15,7 +15,8 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                  obs_list: List[rf.Observation],
                  sv: rf.StateVector,
                  sv_apriori: np.array,
-                 sv_sqrt_constraint: np.array):
+                 sv_sqrt_constraint: np.array,
+                 basis_matrix):
         self.obs_list = obs_list
         # Conversion to the std::vector needed by C++ is pretty hinky,
         # and often results in core dumps. Explicitly create this, that
@@ -26,8 +27,13 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             fm_vec.push_back(fm)
         for obs in obs_list:
             obs_vec.push_back(obs)
+        if(basis_matrix is not None):
+            mapping = rf.StateMappingBasisMatrix(basis_matrix.transpose())
+        else:
+            mapping = rf.StateMappingLinear()
         mstand = rf.MaxAPosterioriSqrtConstraint(fm_vec, obs_vec, sv,
-                                                 sv_apriori, sv_sqrt_constraint)
+                                  sv_apriori, sv_sqrt_constraint,
+                                  mapping)
         super().__init__(mstand)
 
     def should_replace_function(self, func_name, parms):
@@ -131,28 +137,18 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         # The existing muses-py actually just runs the forward model
         # on all points, including bad data. It isn't clear what we want
         # to do here. For now, create the proper size output but use a fill
-        # value of -999 for bad data.
+        # value of -999 for bad data. Do the same for the jacobian, but
+        # at least for now with the fill value of 0
 
         radiance_fm = np.full(ret_info["meas_err"].shape, -999.0)
         gpt = ret_info["meas_err"] >= 0
         radiance_fm[gpt] = self.max_a_posteriori.model
-
-        # TODO Rework this, we actually need the jacobian on the FM grid
-        
-        # We calculate the jacobian on the retrieval grid, but
-        # this function is expecting this on the forward model grid.
-        # We don't actually have this available here, but calculate
-        # something similar so basis_matrix * jacobian_fm_placholder = jac_ret
-
-        jac_retrieval_grid = \
-            self.max_a_posteriori.model_measure_diff_jacobian.transpose()
-        jac_fm_placeholdergpt, _, _, _ = np.linalg.lstsq(ret_info["basis_matrix"],
-                                                      jac_retrieval_grid)
-        jac_fm_placeholder=np.zeros((jac_fm_placeholdergpt.shape[0],
-                                     ret_info["meas_err"].shape[0]))
-        jac_fm_placeholder[:,gpt] = jac_fm_placeholdergpt
+        jac_fm_gpt = self.max_a_posteriori.model_measure_diff_jacobian_fm.transpose()
+        jac_fm = np.full((jac_fm_gpt.shape[0], ret_info["meas_err"].shape[0]),0.0)
+        jac_fm[:, gpt] = jac_fm_gpt
+        # Need to add handling for bad samples
         stop_flag = 0
         return (uip, residual, jac_residual, radiance_fm,
-                jac_fm_placeholder, stop_flag)
+                jac_fm, stop_flag)
         
         

@@ -35,7 +35,7 @@ class StateVectorHandleSet(PriorityHandleSet):
     '''This takes  the instrument name and RefractorUip, and
     creates a FowardModel and Observation for that instrument.'''
     def create_state_vector(self, rf_uip : RefractorUip,
-                            use_full_state_vector=False, **kwargs):
+                            use_full_state_vector=True, **kwargs):
         '''Create the full StateVector for all the species in rf_uip.
 
         For the retrieval, we use the "Retrieval State Vector".
@@ -86,7 +86,7 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def fm_and_obs(instrument_name : str, rf_uip : RefractorUip,
                    svhandle: StateVectorHandleSet,
-                   use_full_state_vector=False,
+                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         '''Return ForwardModel and Observation if we can process the given
         instrument_name, or (None, None) if we can't. Add any StateVectorHandle
@@ -101,7 +101,7 @@ class InstrumentHandleSet(PriorityHandleSet):
     creates a FowardModel and Observation for that instrument.'''
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
                    svhandle : StateVectorHandleSet,
-                   use_full_state_vector=False,
+                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None,
                    **kwargs):
         '''Create a ForwardModel and Observation for the given instrument.
@@ -117,7 +117,7 @@ class InstrumentHandleSet(PriorityHandleSet):
     def handle_h(self, h : InstrumentHandle, instrument_name : str,
                  rf_uip : RefractorUip,
                  svhandle : StateVectorHandleSet,
-                 use_full_state_vector=False,
+                 use_full_state_vector=True,
                  obs_rad=None, meas_err=None,
                  **kwargs):
         '''Process a registered function'''
@@ -158,7 +158,8 @@ class FmObsCreator:
 
     def fm_and_obs(self, rf_uip : RefractorUip,
                    ret_info : dict,
-                   use_full_state_vector=False,
+                   use_full_state_vector=True,
+                   identity_basis_matrix=False,
                    **kwargs):
         '''This returns a list of ForwardModel and Observation that goes
         with the supplied rf_uip. We also return a StateVector that has
@@ -167,7 +168,7 @@ class FmObsCreator:
         muses-py calls the sqrt_constraint (note that despite the name,
         sqrt_constraint *isn't* actually the sqrt of the constraint matrix - 
         see the description of MaxAPosterioriSqrtConstraint in
-        refractor.framework for explanation of this).
+        refractor.framework for explanation of this), and the basis matrix.
         '''
         fm_list = []
         obs_list = []
@@ -186,10 +187,16 @@ class FmObsCreator:
         sv = state_vector_handle_set.create_state_vector(rf_uip,
                                use_full_state_vector=use_full_state_vector,
                                **kwargs)
-        return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint)
+        if(identity_basis_matrix):
+            bmatrix = None
+        else:
+            bmatrix = rf_uip.basis_matrix
+        return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint,
+                bmatrix)
     
     def fm_and_fake_obs(self, rf_uip: RefractorUip,
-                        use_full_state_vector=False,
+                        use_full_state_vector=True,
+                        identity_basis_matrix=True,
                         **kwargs):
         '''It is useful to use our CostFunction to calculate the
         fm_wrapper/run_forward_model function because it has all the logic
@@ -212,13 +219,14 @@ class FmObsCreator:
         fake_ret_info["meas_err"] = np.ones(fake_ret_info["obs_rad"].shape)
         fake_ret_info["const_vec"] = np.zeros((1,))
         fake_ret_info["sqrt_constraint"] = np.eye(1)
-        (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint) = \
+        (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint, bmatrix) = \
             self.fm_and_obs(rf_uip, fake_ret_info,
                             use_full_state_vector=use_full_state_vector,
+                            identity_basis_matrix=identity_basis_matrix,
                             **kwargs)
         sv_apriori = np.zeros((sv.observer_claimed_size,))
         sv_sqrt_constraint=np.eye(sv.observer_claimed_size)
-        return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint)
+        return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint, bmatrix)
     
 __all__ = ["StateVectorHandle", "StateVectorHandleSet",
            "InstrumentHandle", "InstrumentHandleSet",

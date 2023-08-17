@@ -872,16 +872,18 @@ class RefractorUip:
         if ('mapType' in i_retrievalInfo.__dict__
             and i_retrievalInfo.n_totalParameters > 0):
             uip['jacobiansLinear'] = [i_retrievalInfo.species[i] for i in range(len(i_retrievalInfo.mapType)) if i_retrievalInfo.mapType[i] == 'linear' and i_retrievalInfo.species[i] not in ('EMIS', 'TSUR', 'TATM') ]
-            uip['speciesList'] = i_retrievalInfo.speciesList[0:i_retrievalInfo.n_totalParameters]
-            uip['speciesListFM'] = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
-            uip['mapTypeListFM'] = i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM]
-            uip['initialGuessListFM'] = i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM]
+            uip['speciesList'] = copy.deepcopy(i_retrievalInfo.speciesList[0:i_retrievalInfo.n_totalParameters])
+            uip['speciesListFM'] = copy.deepcopy(i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM])
+            uip['mapTypeListFM'] = copy.deepcopy(i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM])
+            uip['initialGuessListFM'] = copy.deepcopy(i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM])
+            uip['constraintVectorListFM'] = copy.deepcopy(i_retrievalInfo.constraintVectorListFM[0:i_retrievalInfo.n_totalParametersFM]) # only needed for PCA map type.
         else:
             uip['jacobiansLinear'] = ['']
-            uip['speciesList'] = i_retrievalInfo.speciesList
-            uip['speciesListFM'] = i_retrievalInfo.speciesListFM
-            uip['mapTypeListFM'] = i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM]
-            uip['initialGuessListFM'] = i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM]
+            uip['speciesList'] = copy.deepcopy(i_retrievalInfo.speciesList)
+            uip['speciesListFM'] = copy.deepcopy(i_retrievalInfo.speciesListFM)
+            uip['mapTypeListFM'] = copy.deepcopy(i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM])
+            uip['initialGuessListFM'] = copy.deepcopy(i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM])
+            uip['constraintVectorListFM'] = copy.deepcopy(i_retrievalInfo.constraintVectorListFM[0:i_retrievalInfo.n_totalParametersFM]) # only needed for PCA map type.
         uip['microwindows_all'] = i_windows
         # Basis matrix if available, this isn't in run_forward_model.
         if ('mapToState' in i_retrievalInfo.__dict__ and

@@ -23,7 +23,7 @@ def test_muses_cris_forward_model(joint_tropomi_uip_step_10):
     # if the results are correct or not.
     assert rad.shape[0] == 216
     assert jac.shape[0] == 216
-    assert jac.shape[1] == 92
+    assert jac.shape[1] == 286
     if False:
         print(rad)
         print(jac)
@@ -52,7 +52,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_uip_step_10, vlidort_cli):
     # if the results are correct or not.
     assert rad.shape[0] == 52
     assert jac.shape[0] == 52
-    assert jac.shape[1] == 92
+    assert jac.shape[1] == 286
     if False:
         print(rad)
         print(jac)
@@ -92,7 +92,7 @@ def test_muses_airs_forward_model(joint_omi_uip_step_7):
     # if the results are correct or not.
     assert rad.shape[0] == 150
     assert jac.shape[0] == 150
-    assert jac.shape[1] == 62
+    assert jac.shape[1] == 168
     if False:
         print(rad)
         print(jac)
@@ -122,7 +122,7 @@ def test_muses_omi_forward_model(joint_omi_uip_step_7, vlidort_cli):
     # if the results are correct or not.
     assert rad.shape[0] == 221
     assert jac.shape[0] == 221
-    assert jac.shape[1] == 62
+    assert jac.shape[1] == 168
     if False:
         print(rad)
         print(jac)
