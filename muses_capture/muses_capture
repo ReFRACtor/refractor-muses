@@ -76,11 +76,11 @@ def sounding_dir(instrument, sounding, output_dir="./output"):
     if(instrument == "omi"):
         res += "/omi/2016-04-14/setup-targets/Global_Survey/"
     elif(instrument == "tropomi"):
-        res += "/tropomi/2019-08-07/setup-targets/Global_Survey_Grid_4.0/"
+        res += "/tropomi/2019-08-07/setup-targets/Global_Survey/"
     elif(instrument == "cris_tropomi"):
-        res += "/cris_tropomi/2019-08-07/setup-targets/Global_Survey_Grid_4.0/"
+        res += "/cris_tropomi/2019-08-07/setup-targets/Global_Survey/"
     elif(instrument == "airs_omi"):
-        res += "/airs_omi/2016-04-01/setup-targets/Western_Boundary/"
+        res += "/airs_omi/2016-04-01/setup-targets/Global_Survey/"
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi' or 'tropomi'")
     res += sounding
@@ -135,31 +135,31 @@ def base_command(instrument,output_dir="./output"):
         step_list = [1,2]
     elif(instrument == "airs_omi"):
         cmd.extend(["--sensor-set", "AIRS_OMI",
-                    "--profile", "Western_Boundary",
+                    "--profile", "Global_Survey",
                     "--date", "2016-04-01",
                     ])
         # I just grabbed a sounding here, not sure how good this is
-        sounding1 = "20160401_231_049_87"
+        sounding1 = "20160401_231_049_29"
         #step_list = [1,2,3,4,5,6,7,8]
         # Temp, grab the joint step. We'll get the rest also,
         # but that will take a chunk of time to run
-        step_list = [7,]
+        step_list = [8,]
     elif(instrument == "tropomi"):
         cmd.extend(["--sensor-set", "TROPOMI",
                     "--tropomi-band", "3",
-                    "--profile", "Global_Survey_Grid_4.0",
+                    "--profile", "Global_Survey",
                     "--date", "2019-08-07",
                     ])
-        sounding1="20190807_9401_351_176"
-        step_list = [1,2,3]
+        sounding1="20190807_9401_359_226"
+        step_list = [1,2]
     elif(instrument == "cris_tropomi"):
         cmd.extend(["--sensor-set", "CrIS_TROPOMI",
-                    "--profile", "Global_Survey_Grid_4.0",
+                    "--profile", "Global_Survey",
                     "--date", "2019-08-07",
                     ])
-        sounding1="20190807_065_03_00_4"
+        sounding1="20190807_065_04_08_5"
         # Grab just the one joint step, so we can test against that
-        step_list = [10,]
+        step_list = [12,]
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi', 'airs_omi', 'tropomi', or 'cris_tropomi'")
     return cmd, [sounding1,], step_list
