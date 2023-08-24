@@ -6,6 +6,7 @@ from refractor.muses import (FmObsCreator, CostFunction,
 import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
+import glob
 
 def struct_compare(s1, s2):
     for k in s1.keys():
@@ -205,7 +206,8 @@ def test_run_retrieval_tropomi(step_num,
 
 @long_test
 @require_muses_py
-def test_original_airs_omi(osp_dir, gmao_dir, vlidort_cli):
+def test_original_airs_omi(osp_dir, gmao_dir, vlidort_cli,
+                           clean_up_replacement_function):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -218,7 +220,8 @@ def test_original_airs_omi(osp_dir, gmao_dir, vlidort_cli):
 
 @long_test
 @require_muses_py
-def test_refractor_integration_airs_omi(osp_dir, gmao_dir, vlidort_cli):
+def test_refractor_integration_airs_omi(osp_dir, gmao_dir, vlidort_cli,
+                                        clean_up_replacement_function):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -233,7 +236,8 @@ def test_refractor_integration_airs_omi(osp_dir, gmao_dir, vlidort_cli):
     
 @long_test
 @require_muses_py
-def test_original_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
+def test_original_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
+                               clean_up_replacement_function):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -243,10 +247,33 @@ def test_original_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     r = MusesRunDir(joint_omi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="original_cris_tropomi")
     r.run_retrieval(vlidort_cli=vlidort_cli)
+
+@long_test
+@require_muses_py
+def test_compare_airs_omi(osp_dir, gmao_dir, vlidort_cli):
+    '''Quick test to compare airs_omi runs. This assumes they are
+    already done. This is just h5diff, but this figures out the path
+    for each of the tests so we don't have to.'''
+    for f in glob.glob("original_airs_omi/*/Products/Products_L2*.nc"):
+        f2 = f.replace("original_airs_omi", "refractor_integration_airs_omi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd)
+        subprocess.run(cmd, shell=True)
+    for f in glob.glob("original_airs_omi/*/Products/Products_Radiance*.nc"):
+        f2 = f.replace("original_airs_omi", "refractor_integration_airs_omi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd)
+        subprocess.run(cmd, shell=True)
+    for f in glob.glob("original_airs_omi/*/Products/Products_Jacobian*.nc"):
+        f2 = f.replace("original_airs_omi", "refractor_integration_airs_omi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd)
+        subprocess.run(cmd, shell=True)
     
 @long_test
 @require_muses_py
-def test_refractor_integration_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
+def test_refractor_integration_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
+                                            clean_up_replacement_function):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -260,3 +287,24 @@ def test_refractor_integration_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     r.run_retrieval(vlidort_cli=vlidort_cli)
     
     
+@long_test
+@require_muses_py
+def test_compare_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
+    '''Quick test to compare cris_tropomi runs. This assumes they are
+    already done. This is just h5diff, but this figures out the path
+    for each of the tests so we don't have to.'''
+    for f in glob.glob("original_cris_tropomi/*/Products/Products_L2*.nc"):
+        f2 = f.replace("original_cris_tropomi", "refractor_integration_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd)
+        subprocess.run(cmd, shell=True)
+    for f in glob.glob("original_cris_tropomi/*/Products/Products_Radiance*.nc"):
+        f2 = f.replace("original_cris_tropomi", "refractor_integration_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd)
+        subprocess.run(cmd, shell=True)
+    for f in glob.glob("original_cris_tropomi/*/Products/Products_Jacobian*.nc"):
+        f2 = f.replace("original_cris_tropomi", "refractor_integration_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd)
+        subprocess.run(cmd, shell=True)
