@@ -68,7 +68,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                  use_pca=True, use_lrad=False, lrad_second_order=False,
                  use_raman=True,
                  use_full_state_vector=True,
-                 remove_bad_sample=False,
+                 include_bad_sample=True,
                  ):
         '''Constructor. This takes a RefractorUip (so *not* the
         muses-py dictionary, but rather a RefractorUip created from
@@ -98,7 +98,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
         self.use_full_state_vector = use_full_state_vector
-        self.remove_bad_sample = remove_bad_sample
+        self.include_bad_sample = include_bad_sample
 
         self.rf_uip = rf_uip
 
@@ -161,7 +161,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         t = np.vstack([np.array([self.rf_uip.micro_windows(i).value])
                        for i in self.channel_list()])
         swin= rf.SpectralWindowRange(rf.ArrayWithUnit(t, "nm"))
-        if(self.remove_bad_sample):
+        if(not self.include_bad_sample):
             for i in range(swin.number_spectrometer):
                 swin.bad_sample_mask(self.observation.bad_sample_mask(i), i)
         return swin

@@ -192,7 +192,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         gmask = self.bad_sample_mask(0) != True
         sd = self.spectral_domain(0)
         # jacobian is 1) on the forward model grid and
-        # 2) tranposed from the ReFRACtor convention of the
+        # 2) transposed from the ReFRACtor convention of the
         # column being the state vector variables. So
         # translate the oss jac to what we want from ReFRACtor
         # The logic in pack_omi_jacobian and pack_tropomi_jacobian
@@ -202,7 +202,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         # fm_wrapper. But because we are calling the lower level function
         # ourselves we need to trim this.
         sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name, use_full_state_vector=self.use_full_state_vector)
-        if(jac is not None):
+        if(jac is not None and jac.shape[0] > 0 and sub_basis_matrix.shape[1] > 0):
             jac = np.matmul(sub_basis_matrix, jac[:sub_basis_matrix.shape[1],:]).transpose()
             a = rf.ArrayAd_double_1(rad[gmask], jac[gmask,:])
         else:
