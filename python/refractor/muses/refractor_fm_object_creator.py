@@ -294,7 +294,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def temperature(self):
         tlev_fm = self.rf_uip.atmosphere_column("TATM")
-
         tlevel = rf.TemperatureLevel(tlev_fm, self.pressure_fm)
         return tlevel
 
