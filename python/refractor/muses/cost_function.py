@@ -18,6 +18,8 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                  sv_sqrt_constraint: np.array,
                  basis_matrix):
         self.obs_list = obs_list
+        self.fm_list = fm_list
+        self.sv = sv
         # Conversion to the std::vector needed by C++ is pretty hinky,
         # and often results in core dumps. Explicitly create this, that
         # tend to work better.
@@ -148,6 +150,14 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         jac_fm[:, gpt] = jac_fm_gpt
         # Need to add handling for bad samples
         stop_flag = 0
+        # Muses-py prefers that we just fail if we get nans here. Otherwise we
+        # get a pretty obscure error buried in levmar_nllsq_elanor (basically we
+        # end up with a rank zero matrix at some point. results in a TypeError).
+        # Just cleaner to say we fail because our radiance or jacobian has nans
+        if(not np.all(np.isfinite(residual))):
+            raise RuntimeError("Radiance is not finite")
+        if(not np.all(np.isfinite(jac_fm))):
+            raise RuntimeError("Jacobian is not finite")
         return (uip, residual, jac_residual, radiance_fm,
                 jac_fm, stop_flag)
         
