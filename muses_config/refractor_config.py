@@ -7,10 +7,10 @@ from refractor.omi import OmiInstrumentHandle
 # Configuration to use our own TROPOMI and OMI forward models.
 
 r = RefractorMusesIntegration()
-r.instrument_handle_set.add_handle(TropomiInstrumentHandle(use_pca=False,
+r.instrument_handle_set.add_handle(TropomiInstrumentHandle(use_pca=True,
                                        use_lrad=False, lrad_second_order=False),
                                        priority_order=100)
-r.instrument_handle_set.add_handle(OmiInstrumentHandle(use_pca=False,
+r.instrument_handle_set.add_handle(OmiInstrumentHandle(use_pca=True,
                                        use_lrad=False, lrad_second_order=False),
                                        priority_order=100)
 
