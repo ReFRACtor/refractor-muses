@@ -1,0 +1,48 @@
+# Step 1: Geolocate
+# Reads the L1B files for each sensor and extracts lattitude, longitude, time, track numbers,
+# and few other attributes for each observation. In the pipeline this step is followed by the pair and the thin steps
+#
+# IDL program usage: geolocation_{sensor_set} -args
+#  Input of Day To Process         : L1B product files location for the day, month and year to process
+#  Input of Previous Day           : L1B product files location for the day before the day to process
+#  Input of Next Day               : L1B product files location for the day after the day to process
+#  Output Path                     : outputs a single .sav file per sensor set
+#  Year                            : year to be processed
+#  Month                           : month to be processed
+#  Day                             : day to be processed
+#
+###
+AIRS:
+  program: geolocation_airs.sav
+  py_program: bin/py-geolocate
+
+SONDE:
+  py_program: bin/py-geolocate
+
+OMI:
+  program: geolocation_omi.sav
+  py_program: bin/py-geolocate
+
+CRIS: &CRIS
+  program: geolocation_cris.sav
+  py_program: bin/py-geolocate
+
+# alias for CrIS without the midwave channel, NM == No-Midwave
+CRIS-NM: *CRIS
+
+CRIS-JPSS-1:
+  program: geolocation_cris.sav
+  py_program: bin/py-geolocate
+
+CRIS-CSPP: &CRIS-CSPP
+  program: geolocation_cris_cspp.sav
+  py_program: bin/py-geolocate
+
+CRIS-JPSS-1-CSPP: *CRIS-CSPP
+CRIS-JPSS-2-CSPP: *CRIS-CSPP
+
+MOPITT:
+  py_program: bin/py-geolocate
+
+TROPOMI:
+  py_program: bin/py-geolocate

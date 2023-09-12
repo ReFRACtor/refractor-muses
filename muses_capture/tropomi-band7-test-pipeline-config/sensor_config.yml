@@ -1,0 +1,281 @@
+AIRS:
+  - dataset: AIRIBRAD_005
+    source: https://airsl1.gesdisc.eosdis.nasa.gov/data/Aqua_AIRS_Level1/AIRIBRAD.005
+    path: /project/muses/input/airs/{dataset}/{location}
+    old_path: /project/muses/input/L1B/airs/gdaac/v5/{location}/airibrad/
+    open_dap_url: https://airsl1.gesdisc.eosdis.nasa.gov/opendap/Aqua_AIRS_Level1/AIRIBRAD.005
+
+OMI:
+  - dataset: OML1BRUG_003
+    source: https://aura.gesdisc.eosdis.nasa.gov/data/Aura_OMI_Level1/OML1BRUG.003
+    path: /project/muses/input/omi/{dataset}/{location}
+    old_path: /project/muses/input/L1B/omi/{location}/Aura_OMI_Level1/OML1BRUG.003/
+  - dataset: OMCLDO2_003
+    source: https://aura.gesdisc.eosdis.nasa.gov/data/Aura_OMI_Level2/OMCLDO2.003
+    path: /project/muses/input/omi/{dataset}/{location}
+    old_path: /project/muses/input/L1B/omi/{location}/Aura_OMI_Level2/OMCLDO2.003/
+    open_dap_url: https://aura.gesdisc.eosdis.nasa.gov/opendap/Aura_OMI_Level2/OMCLDO2.003/
+  - dataset: OMCLDO2G_003
+    source: https://acdisc.gsfc.nasa.gov/data/Aura_OMI_Level2G/OMCLDO2G.003/
+    path: /project/muses/input/omi/{dataset}/{location}
+    old_path: /project/muses/input/L1B/omi/{location}/Aura_OMI_Level2G/OMCLDO2G.003/
+
+
+CRIS: &CRIS
+  - dataset: SNPPCrISL1B_2
+    source: https://sounder.gesdisc.eosdis.nasa.gov/data/SNPP_Sounder_Level1/SNPPCrISL1B.2
+    path: /project/muses/input/cris/nasa_fsr/{dataset}/{location}
+    old_path: /project/muses/input/L1B/cris/nasa_fsr_v02/{location}/
+    open_dap_url: https://sounder.gesdisc.eosdis.nasa.gov/opendap/SNPP_Sounder_Level1/SNPPCrISL1B.2
+  - dataset: SNPPCrISL1BNSR_2
+    source: https://sounder.gesdisc.eosdis.nasa.gov/data/SNPP_Sounder_Level1/SNPPCrISL1BNSR.2
+    path: /project/muses/input/cris/nasa_nsr/{dataset}/{location}
+    old_path: /project/muses/input/cris/nasa_nsr_v02/{location}
+
+# alias for CrIS No-Midwave
+CRIS-NM: *CRIS
+
+CRIS-JPSS-1:
+  - dataset: SNDRJ1CrISL1B_2
+    source: https://sounder.gesdisc.eosdis.nasa.gov/data/JPSS1_Sounder_Level1/SNDRJ1CrISL1B.2
+    path: /project/muses/input/cris_jpss_1/jpss_1_fsr/{dataset}/{location}
+    old_path: /project/muses/input/L1B/cris_jpss_1/jpss_1_fsr_v02/{location}/
+    open_dap_url: https://sounder.gesdisc.eosdis.nasa.gov/opendap/JPSS1_Sounder_Level1/SNDRJ1CrISL1B.2.
+
+
+CRIS-NOAA:
+  - dataset: npp/crisfsr
+    source: ftp://ftp.ssec.wisc.edu/pub/eosdb/npp/crisfsr/  
+    path: /project/muses/input/cris_noaa/noaa_fsr/{dataset}/{location}/{chunk}
+    old_path: /project/muses/input/L1B/cris_noaa/noaa_fsr/{location}/{chunk}
+
+
+CRIS-CSPP:
+  - dataset: npp/crisfsr
+    source: ftp://ftp.ssec.wisc.edu/pub/eosdb/npp/crisfsr/  
+    path: /project/muses/input/cris_cspp/snpp_fsr/{dataset}/{location}/{chunk}
+    old_path: /project/muses/input/L1B/cris_cspp/snpp_fsr/{location}/{chunk}
+
+CRIS-JPSS-1-CSPP:
+  - dataset: j01/crisfsr
+    source: ftp://ftp.ssec.wisc.edu/pub/eosdb/j01/crisfsr/  
+    path: /project/muses/input/cris_jpss_1_cspp/j01_fsr/{dataset}/{location}/{chunk}
+
+CRIS-JPSS-2-CSPP:
+  - dataset: j02/crisfsr
+    source: ftp://ftp.ssec.wisc.edu/pub/eosdb/j02/crisfsr/  
+    path: /project/muses/input/cris_jpss_2_cspp/j02_fsr/{dataset}/{location}/{chunk}
+
+
+
+MOPITT:
+  - dataset: MOP02T.008
+    source: https://asdc.larc.nasa.gov/data/MOPITT/MOP02T.008
+    path: /project/muses/input/mopitt/{dataset}/{location}
+
+
+TROPOMI:
+  - dataset: S5P_L1B_RA_BD1 # start-date: 2018-07-22
+    type: radiance
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD1.1/
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD2 # start-date: 2018-07-22
+    type: radiance
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD2.1/
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD3 # start-date: 2018-07-22
+    type: radiance
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD3.1/
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+  
+  - dataset: S5P_L1B_RA_BD4 # start-date: 2018-07-22
+    type: radiance
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD4.1/
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD5 # start-date: 2018-07-22
+    type: radiance
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD5.1/
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD6 # start-date: 2018-07-22
+    type: radiance
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD6.1/
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD7 # start-date: 2018-07-22
+    type: radiance
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD7.1/
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location} 
+
+  - dataset: S5P_L1B_RA_BD8 # start-date: 2018-07-22
+    type: radiance
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD8.1/
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location} 
+    
+  - dataset: S5P_L1B_RA_BD1_HiR_1 # start-date: 2019-08-06
+    type: radiance
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD1_HiR.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L1B_RA_BD2_HiR_1 # start-date: 2019-08-06
+    type: radiance
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD2_HiR.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L1B_RA_BD3_HiR_1 # start-date: 2019-08-06
+    type: radiance
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD3_HiR.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+
+  - dataset: S5P_L1B_RA_BD4_HiR_1 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD4_HiR.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD5_HiR_1 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD5_HiR.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD6_HiR_1 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD6_HiR.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L1B_RA_BD7_HiR_1 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD7_HiR.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD8_HiR_1 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD8_HiR.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD1_HiR_2 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2021-07-01'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD1_HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L1B_RA_BD2_HiR_2 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2021-07-01'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD2_HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L1B_RA_BD3_HiR_2 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2021-07-01'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD3_HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L1B_RA_BD4_HiR_2 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2021-07-01'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD4_HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD5_HiR_2 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2021-07-01'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD5_HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD6_HiR_2 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2021-07-01'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD6_HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L1B_RA_BD7_HiR_2 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2021-07-01'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD7_HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_RA_BD8_HiR_2 # start-date: 2021-07-01
+    type: radiance
+    start_date: '2021-07-01'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_RA_BD8_HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L1B_IR_UVN_1  # start-date: 2018-04-30
+    type: irradiance
+    start_date: '2018-04-30'
+    source:  https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_IR_UVN.1
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L1B_IR_UVN_2  # start-date: 2021-07-01
+    type: irradiance
+    start_date: '2021-07-01'
+    source:  https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level1B/S5P_L1B_IR_UVN.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}
+
+  - dataset: S5P_L2__CLOUD__1 # start-date: 2018-07-22
+    type: cloud
+    start_date: '2018-07-22'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level2/S5P_L2__CLOUD_.1/   
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L2_CLOUD_HiR_1 # start-date: 2019-08-06
+    type: cloud
+    start_date: '2019-08-06'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level2/S5P_L2__CLOUD__HiR.1   
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+  - dataset: S5P_L2_CLOUD_HiR_2 # start-date: 2020-07-13
+    type: cloud
+    start_date: '2020-07-13'
+    source: https://tropomi.gesdisc.eosdis.nasa.gov/data/S5P_TROPOMI_Level2/S5P_L2__CLOUD__HiR.2
+    path: /home/smyth/sandbox/tropomi-band7-test-input/{dataset}/{location}  
+
+    
+GEOS_FP_IT:
+  - dataset: DFPITI3NXASM_5_12_4
+    source: https://goldsfs1.gesdisc.eosdis.nasa.gov/data/GEOS5/DFPITI3NXASM.5.12.4
+    path: /project/muses/input/geos_fp_it/{dataset}/{location}
+  - dataset: DFPITI3NPASM_5_12_4
+    source: https://goldsfs1.gesdisc.eosdis.nasa.gov/data/GEOS5/DFPITI3NPASM.5.12.4
+    path: /project/muses/input/geos_fp_it/{dataset}/{location}
+
+
+OMPS:
+  - dataset: OMPS_NPP_NMEV_L1B_2
+    source: https://snpp-omps.gesdisc.eosdis.nasa.gov/data/SNPP_OMPS_Level1B/OMPS_NPP_NMEV_L1B.2/
+    path: /project/muses/input/omps/{dataset}/{location}
+  - dataset: OMPS_NPP_NPEV_L1B_2
+    source: https://snpp-omps.gesdisc.eosdis.nasa.gov/data/SNPP_OMPS_Level1B/OMPS_NPP_NPEV_L1B.2/
+    path: /project/muses/input/omps/{dataset}/{location}
+  - dataset: OMPS_NPP_LP_L1G_EV_2
+    source: https://snpp-omps.gesdisc.eosdis.nasa.gov/data/SNPP_OMPS_Level1B/OMPS_NPP_LP_L1G_EV.2/
+    path: /project/muses/input/omps/{dataset}/{location}
+
+
+# WOUDC Sondes are `SONDE`    
+SONDE:
+  - dataset: OzoneSonde_1.0_1
+    source: http://woudc.org/archive/Archive-NewFormat/OzoneSonde_1.0_1/
+    path: /project/muses/input/sonde/raw/woudc/{dataset}
+    stations: "shp146,shp212,shp440,stn007,stn009,stn010,stn012,stn014,stn018,stn020,stn021,stn024,stn026,stn029,stn038,stn040,stn043,stn053,stn055,stn064,stn065,stn067,stn069,stn072,stn076,stn077,stn088,stn089,stn095,stn099,stn101,stn104,stn105,stn107,stn108,stn109,stn111,stn131,stn132,stn137,stn138,stn149,stn156,stn157,stn163,stn174,stn175,stn181,stn187,stn190,stn191,stn194,stn197,stn198,stn199,stn203,stn205,stn206,stn210,stn213,stn214,stn217,stn219,stn221,stn224,stn225,stn227,stn228,stn229,stn231,stn233,stn234,stn235,stn236,stn237,stn238,stn239,stn242,stn254,stn255,stn256,stn257,stn260,stn262,stn265,stn280,stn297,stn303,stn308,stn315,stn316,stn318,stn322,stn323,stn328,stn329,stn330,stn332,stn333,stn334,stn335,stn336,stn338,stn339,stn344,stn348,stn360,stn361,stn394,stn400,stn401,stn404,stn406,stn418,stn420,stn432,stn434,stn435,stn436,stn437,stn438,stn439,stn441,stn443,stn444,stn445,stn448,stn450,stn456,stn457,stn458,stn459,stn460,stn466,stn472,stn477,stn480,stn482,stn483,stn484,stn485,stn487,stn488,stn489,stn490,stn491,stn494,stn514,stn523,stn524,stn525,stn526"
+    station_subdirs: "ecc,pion,indian-sonde,brewer-mast,carbon-iodine,undefined sondes,regener,brewer-gdr"

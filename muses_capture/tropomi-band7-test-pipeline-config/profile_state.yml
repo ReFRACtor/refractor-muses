@@ -1,0 +1,783 @@
+Alabama:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 35.008028
+    latitude_min: 30.223334
+    longitude_max: -84.88908
+    longitude_min: -88.473227
+  plot_area:
+    latitude_max: 35.008028
+    latitude_min: 30.223334
+    longitude_max: -84.88908
+    longitude_min: -88.473227
+
+Alaska:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 71.365162
+    latitude_min: 51.214183
+    longitude_max: 179.77847
+    longitude_min: -179.148909
+  plot_area:
+    latitude_max: 71.365162
+    latitude_min: 51.214183
+    longitude_max: 179.77847
+    longitude_min: -179.148909
+
+American_Samoa:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: -11.046934
+    latitude_min: -14.548699
+    longitude_max: -168.1433
+    longitude_min: -171.089874
+  plot_area:
+    latitude_max: -11.046934
+    latitude_min: -14.548699
+    longitude_max: -168.1433
+    longitude_min: -171.089874
+
+Arizona:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 37.00426
+    latitude_min: 31.332177
+    longitude_max: -109.045223
+    longitude_min: -114.81651
+  plot_area:
+    latitude_max: 37.00426
+    latitude_min: 31.332177
+    longitude_max: -109.045223
+    longitude_min: -114.81651
+
+Arkansas:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 36.4996
+    latitude_min: 33.004106
+    longitude_max: -89.644395
+    longitude_min: -94.617919
+  plot_area:
+    latitude_max: 36.4996
+    latitude_min: 33.004106
+    longitude_max: -89.644395
+    longitude_min: -94.617919
+
+California:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.009518
+    latitude_min: 32.534156
+    longitude_max: -114.131211
+    longitude_min: -124.409591
+  plot_area:
+    latitude_max: 42.009518
+    latitude_min: 32.534156
+    longitude_max: -114.131211
+    longitude_min: -124.409591
+
+Colorado:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 41.003444
+    latitude_min: 36.992426
+    longitude_max: -102.041524
+    longitude_min: -109.060253
+  plot_area:
+    latitude_max: 41.003444
+    latitude_min: 36.992426
+    longitude_max: -102.041524
+    longitude_min: -109.060253
+
+Commonwealth_of_the_Northern_Mariana_Islands:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 20.553802
+    latitude_min: 14.110472
+    longitude_max: 146.064818
+    longitude_min: 144.886331
+  plot_area:
+    latitude_max: 20.553802
+    latitude_min: 14.110472
+    longitude_max: 146.064818
+    longitude_min: 144.886331
+
+Connecticut:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.050587
+    latitude_min: 40.980144
+    longitude_max: -71.786994
+    longitude_min: -73.727775
+  plot_area:
+    latitude_max: 42.050587
+    latitude_min: 40.980144
+    longitude_max: -71.786994
+    longitude_min: -73.727775
+
+Delaware:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 39.839007
+    latitude_min: 38.451013
+    longitude_max: -75.048939
+    longitude_min: -75.788658
+  plot_area:
+    latitude_max: 39.839007
+    latitude_min: 38.451013
+    longitude_max: -75.048939
+    longitude_min: -75.788658
+
+District_of_Columbia:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 38.99511
+    latitude_min: 38.791645
+    longitude_max: -76.909395
+    longitude_min: -77.119759
+  plot_area:
+    latitude_max: 38.99511
+    latitude_min: 38.791645
+    longitude_max: -76.909395
+    longitude_min: -77.119759
+
+Florida:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 31.000888
+    latitude_min: 24.523096
+    longitude_max: -80.031362
+    longitude_min: -87.634938
+  plot_area:
+    latitude_max: 31.000888
+    latitude_min: 24.523096
+    longitude_max: -80.031362
+    longitude_min: -87.634938
+
+Georgia:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 35.000659
+    latitude_min: 30.357851
+    longitude_max: -80.839729
+    longitude_min: -85.605165
+  plot_area:
+    latitude_max: 35.000659
+    latitude_min: 30.357851
+    longitude_max: -80.839729
+    longitude_min: -85.605165
+
+Guam:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 13.654383
+    latitude_min: 13.234189
+    longitude_max: 144.956712
+    longitude_min: 144.618068
+  plot_area:
+    latitude_max: 13.654383
+    latitude_min: 13.234189
+    longitude_max: 144.956712
+    longitude_min: 144.618068
+
+Hawaii:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 28.402123
+    latitude_min: 18.910361
+    longitude_max: -154.806773
+    longitude_min: -178.334698
+  plot_area:
+    latitude_max: 28.402123
+    latitude_min: 18.910361
+    longitude_max: -154.806773
+    longitude_min: -178.334698
+
+Idaho:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 49.001146
+    latitude_min: 41.988057
+    longitude_max: -111.043564
+    longitude_min: -117.243027
+  plot_area:
+    latitude_max: 49.001146
+    latitude_min: 41.988057
+    longitude_max: -111.043564
+    longitude_min: -117.243027
+
+Illinois:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.508481
+    latitude_min: 36.970298
+    longitude_max: -87.494756
+    longitude_min: -91.513079
+  plot_area:
+    latitude_max: 42.508481
+    latitude_min: 36.970298
+    longitude_max: -87.494756
+    longitude_min: -91.513079
+
+Indiana:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 41.760592
+    latitude_min: 37.771742
+    longitude_max: -84.784579
+    longitude_min: -88.09776
+  plot_area:
+    latitude_max: 41.760592
+    latitude_min: 37.771742
+    longitude_max: -84.784579
+    longitude_min: -88.09776
+
+Iowa:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 43.501196
+    latitude_min: 40.375501
+    longitude_max: -90.140061
+    longitude_min: -96.639704
+  plot_area:
+    latitude_max: 43.501196
+    latitude_min: 40.375501
+    longitude_max: -90.140061
+    longitude_min: -96.639704
+
+Kansas:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 40.003162
+    latitude_min: 36.993016
+    longitude_max: -94.588413
+    longitude_min: -102.051744
+  plot_area:
+    latitude_max: 40.003162
+    latitude_min: 36.993016
+    longitude_max: -94.588413
+    longitude_min: -102.051744
+
+Kentucky:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 39.147458
+    latitude_min: 36.497129
+    longitude_max: -81.964971
+    longitude_min: -89.571509
+  plot_area:
+    latitude_max: 39.147458
+    latitude_min: 36.497129
+    longitude_max: -81.964971
+    longitude_min: -89.571509
+
+Louisiana:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 33.019457
+    latitude_min: 28.928609
+    longitude_max: -88.817017
+    longitude_min: -94.043147
+  plot_area:
+    latitude_max: 33.019457
+    latitude_min: 28.928609
+    longitude_max: -88.817017
+    longitude_min: -94.043147
+
+Maine:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 47.459686
+    latitude_min: 42.977764
+    longitude_max: -66.949895
+    longitude_min: -71.083924
+  plot_area:
+    latitude_max: 47.459686
+    latitude_min: 42.977764
+    longitude_max: -66.949895
+    longitude_min: -71.083924
+
+Maryland:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 39.723043
+    latitude_min: 37.911717
+    longitude_max: -75.048939
+    longitude_min: -79.487651
+  plot_area:
+    latitude_max: 39.723043
+    latitude_min: 37.911717
+    longitude_max: -75.048939
+    longitude_min: -79.487651
+
+Massachusetts:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.886589
+    latitude_min: 41.237964
+    longitude_max: -69.928393
+    longitude_min: -73.508142
+  plot_area:
+    latitude_max: 42.886589
+    latitude_min: 41.237964
+    longitude_max: -69.928393
+    longitude_min: -73.508142
+
+Michigan:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 48.2388
+    latitude_min: 41.696118
+    longitude_max: -82.413474
+    longitude_min: -90.418136
+  plot_area:
+    latitude_max: 48.2388
+    latitude_min: 41.696118
+    longitude_max: -82.413474
+    longitude_min: -90.418136
+
+Minnesota:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 49.384358
+    latitude_min: 43.499356
+    longitude_max: -89.491739
+    longitude_min: -97.239209
+  plot_area:
+    latitude_max: 49.384358
+    latitude_min: 43.499356
+    longitude_max: -89.491739
+    longitude_min: -97.239209
+
+Mississippi:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 34.996052
+    latitude_min: 30.173943
+    longitude_max: -88.097888
+    longitude_min: -91.655009
+  plot_area:
+    latitude_max: 34.996052
+    latitude_min: 30.173943
+    longitude_max: -88.097888
+    longitude_min: -91.655009
+
+Missouri:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 40.61364
+    latitude_min: 35.995683
+    longitude_max: -89.098843
+    longitude_min: -95.774704
+  plot_area:
+    latitude_max: 40.61364
+    latitude_min: 35.995683
+    longitude_max: -89.098843
+    longitude_min: -95.774704
+
+Montana:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 49.00139
+    latitude_min: 44.358221
+    longitude_max: -104.039138
+    longitude_min: -116.050003
+  plot_area:
+    latitude_max: 49.00139
+    latitude_min: 44.358221
+    longitude_max: -104.039138
+    longitude_min: -116.050003
+
+Nebraska:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 43.001708
+    latitude_min: 39.999998
+    longitude_max: -95.30829
+    longitude_min: -104.053514
+  plot_area:
+    latitude_max: 43.001708
+    latitude_min: 39.999998
+    longitude_max: -95.30829
+    longitude_min: -104.053514
+
+Nevada:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.002207
+    latitude_min: 35.001857
+    longitude_max: -114.039648
+    longitude_min: -120.005746
+  plot_area:
+    latitude_max: 42.002207
+    latitude_min: 35.001857
+    longitude_max: -114.039648
+    longitude_min: -120.005746
+
+New_Hampshire:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 45.305476
+    latitude_min: 42.69699
+    longitude_max: -70.610621
+    longitude_min: -72.557247
+  plot_area:
+    latitude_max: 45.305476
+    latitude_min: 42.69699
+    longitude_max: -70.610621
+    longitude_min: -72.557247
+
+New_Jersey:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 41.357423
+    latitude_min: 38.928519
+    longitude_max: -73.893979
+    longitude_min: -75.559614
+  plot_area:
+    latitude_max: 41.357423
+    latitude_min: 38.928519
+    longitude_max: -73.893979
+    longitude_min: -75.559614
+
+New_Mexico:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 37.000232
+    latitude_min: 31.332301
+    longitude_max: -103.001964
+    longitude_min: -109.050173
+  plot_area:
+    latitude_max: 37.000232
+    latitude_min: 31.332301
+    longitude_max: -103.001964
+    longitude_min: -109.050173
+
+New_York:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 45.01585
+    latitude_min: 40.496103
+    longitude_max: -71.856214
+    longitude_min: -79.762152
+  plot_area:
+    latitude_max: 45.01585
+    latitude_min: 40.496103
+    longitude_max: -71.856214
+    longitude_min: -79.762152
+
+North_Carolina:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 36.588117
+    latitude_min: 33.842316
+    longitude_max: -75.460621
+    longitude_min: -84.321869
+  plot_area:
+    latitude_max: 36.588117
+    latitude_min: 33.842316
+    longitude_max: -75.460621
+    longitude_min: -84.321869
+
+North_Dakota:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 49.000574
+    latitude_min: 45.935054
+    longitude_max: -96.554507
+    longitude_min: -104.0489
+  plot_area:
+    latitude_max: 49.000574
+    latitude_min: 45.935054
+    longitude_max: -96.554507
+    longitude_min: -104.0489
+
+Ohio:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 41.977523
+    latitude_min: 38.403202
+    longitude_max: -80.518693
+    longitude_min: -84.820159
+  plot_area:
+    latitude_max: 41.977523
+    latitude_min: 38.403202
+    longitude_max: -80.518693
+    longitude_min: -84.820159
+
+Oklahoma:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 37.002206
+    latitude_min: 33.615833
+    longitude_max: -94.430662
+    longitude_min: -103.002565
+  plot_area:
+    latitude_max: 37.002206
+    latitude_min: 33.615833
+    longitude_max: -94.430662
+    longitude_min: -103.002565
+
+Oregon:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 46.292035
+    latitude_min: 41.991794
+    longitude_max: -116.463504
+    longitude_min: -124.566244
+  plot_area:
+    latitude_max: 46.292035
+    latitude_min: 41.991794
+    longitude_max: -116.463504
+    longitude_min: -124.566244
+
+Pennsylvania:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.26986
+    latitude_min: 39.7198
+    longitude_max: -74.689516
+    longitude_min: -80.519891
+  plot_area:
+    latitude_max: 42.26986
+    latitude_min: 39.7198
+    longitude_max: -74.689516
+    longitude_min: -80.519891
+
+Puerto_Rico:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 18.515683
+    latitude_min: 17.88328
+    longitude_max: -65.220703
+    longitude_min: -67.945404
+  plot_area:
+    latitude_max: 18.515683
+    latitude_min: 17.88328
+    longitude_max: -65.220703
+    longitude_min: -67.945404
+
+Rhode_Island:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.018798
+    latitude_min: 41.146339
+    longitude_max: -71.12057
+    longitude_min: -71.862772
+  plot_area:
+    latitude_max: 42.018798
+    latitude_min: 41.146339
+    longitude_max: -71.12057
+    longitude_min: -71.862772
+
+South_Carolina:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 35.215402
+    latitude_min: 32.0346
+    longitude_max: -78.54203
+    longitude_min: -83.35391
+  plot_area:
+    latitude_max: 35.215402
+    latitude_min: 32.0346
+    longitude_max: -78.54203
+    longitude_min: -83.35391
+
+South_Dakota:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 45.94545
+    latitude_min: 42.479635
+    longitude_max: -96.436589
+    longitude_min: -104.057698
+  plot_area:
+    latitude_max: 45.94545
+    latitude_min: 42.479635
+    longitude_max: -96.436589
+    longitude_min: -104.057698
+
+Tennessee:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 36.678118
+    latitude_min: 34.982972
+    longitude_max: -81.6469
+    longitude_min: -90.310298
+  plot_area:
+    latitude_max: 36.678118
+    latitude_min: 34.982972
+    longitude_max: -81.6469
+    longitude_min: -90.310298
+
+Texas:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 36.500704
+    latitude_min: 25.837377
+    longitude_max: -93.508292
+    longitude_min: -106.645646
+  plot_area:
+    latitude_max: 36.500704
+    latitude_min: 25.837377
+    longitude_max: -93.508292
+    longitude_min: -106.645646
+
+United_States_Virgin_Islands:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 18.412655
+    latitude_min: 17.673976
+    longitude_max: -64.564907
+    longitude_min: -65.085452
+  plot_area:
+    latitude_max: 18.412655
+    latitude_min: 17.673976
+    longitude_max: -64.564907
+    longitude_min: -65.085452
+
+Utah:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.001567
+    latitude_min: 36.997968
+    longitude_max: -109.041058
+    longitude_min: -114.052962
+  plot_area:
+    latitude_max: 42.001567
+    latitude_min: 36.997968
+    longitude_max: -109.041058
+    longitude_min: -114.052962
+
+Vermont:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 45.016659
+    latitude_min: 42.726853
+    longitude_max: -71.464555
+    longitude_min: -73.43774
+  plot_area:
+    latitude_max: 45.016659
+    latitude_min: 42.726853
+    longitude_max: -71.464555
+    longitude_min: -73.43774
+
+Virginia:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 39.466012
+    latitude_min: 36.540738
+    longitude_max: -75.242266
+    longitude_min: -83.675395
+  plot_area:
+    latitude_max: 39.466012
+    latitude_min: 36.540738
+    longitude_max: -75.242266
+    longitude_min: -83.675395
+
+Washington:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 49.002494
+    latitude_min: 45.543541
+    longitude_max: -116.915989
+    longitude_min: -124.763068
+  plot_area:
+    latitude_max: 49.002494
+    latitude_min: 45.543541
+    longitude_max: -116.915989
+    longitude_min: -124.763068
+
+West_Virginia:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 40.638801
+    latitude_min: 37.201483
+    longitude_max: -77.719519
+    longitude_min: -82.644739
+  plot_area:
+    latitude_max: 40.638801
+    latitude_min: 37.201483
+    longitude_max: -77.719519
+    longitude_min: -82.644739
+
+Wisconsin:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 47.080621
+    latitude_min: 42.491983
+    longitude_max: -86.805415
+    longitude_min: -92.888114
+  plot_area:
+    latitude_max: 47.080621
+    latitude_min: 42.491983
+    longitude_max: -86.805415
+    longitude_min: -92.888114
+
+Wyoming:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 45.005904
+    latitude_min: 40.994746
+    longitude_max: -104.05216
+    longitude_min: -111.056888
+  plot_area:
+    latitude_max: 45.005904
+    latitude_min: 40.994746
+    longitude_max: -104.05216
+    longitude_min: -111.056888

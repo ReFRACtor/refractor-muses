@@ -1,0 +1,714 @@
+Bangkok:
+  py_program: "bin/py-thin lat-long"
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 14.75
+    latitude_min: 12.75
+    longitude_max: 101.48
+    longitude_min: 99.48
+  plot_area:
+    latitude_max: 15.75
+    latitude_min: 11.75
+    longitude_max: 102.48
+    longitude_min: 98.48
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Bangkok_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 14.75
+    latitude_min: 12.75
+    longitude_max: 101.48
+    longitude_min: 99.48
+  plot_area:
+    latitude_max: 15.75
+    latitude_min: 11.75
+    longitude_max: 102.48
+    longitude_min: 98.48
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Beijing:
+  py_program: "bin/py-thin lat-long"
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 40.91
+    latitude_min: 38.91
+    longitude_max: 117.40
+    longitude_min: 115.40
+  plot_area:
+    latitude_max: 41.91
+    latitude_min: 37.91
+    longitude_max: 118.40
+    longitude_min: 114.40
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Beijing_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 40.91
+    latitude_min: 38.91
+    longitude_max: 117.40
+    longitude_min: 115.40
+  plot_area:
+    latitude_max: 41.91
+    latitude_min: 37.91
+    longitude_max: 118.40
+    longitude_min: 114.40
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Buenos_Aires:
+  py_program: 
+    "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: -33.6
+    latitude_min: -35.6
+    longitude_max: -57.38
+    longitude_min: -59.38
+  plot_area:
+    latitude_max: -32.6
+    latitude_min: -36.6
+    longitude_max: -56.38
+    longitude_min: -60.38
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Buenos_Aires_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: -33.6
+    latitude_min: -35.6
+    longitude_max: -57.38
+    longitude_min: -59.38
+  plot_area:
+    latitude_max: -32.6
+    latitude_min: -36.6
+    longitude_max: -56.38
+    longitude_min: -60.38
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Delhi:
+  py_program: "bin/py-thin lat-long"
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 30.02
+    latitude_min: 28.02
+    longitude_max: 78.38
+    longitude_min: 76.38
+  plot_area:
+    latitude_max: 31.02
+    latitude_min: 27.02
+    longitude_max: 79.38
+    longitude_min: 75.38
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Delhi_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 30.02
+    latitude_min: 28.02
+    longitude_max: 78.38
+    longitude_min: 76.38
+  plot_area:
+    latitude_max: 31.02
+    latitude_min: 27.02
+    longitude_max: 79.38
+    longitude_min: 75.38
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Dhaka:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 24.7
+    latitude_min: 22.7
+    longitude_max: 91.38
+    longitude_min: 89.38
+  plot_area:
+    latitude_max: 25.7
+    latitude_min: 21.7
+    longitude_max: 92.38
+    longitude_min: 88.38
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Dhaka_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 24.7
+    latitude_min: 22.7
+    longitude_max: 91.38
+    longitude_min: 89.38
+  plot_area:
+    latitude_max: 25.7
+    latitude_min: 21.7
+    longitude_max: 92.38
+    longitude_min: 88.38
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Fort_Mckay:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 58.17
+    latitude_min: 56.17
+    longitude_max: -110.67
+    longitude_min: -112.67
+  plot_area:
+    latitude_max: 59.17
+    latitude_min: 55.17
+    longitude_max: -109.67
+    longitude_min: -113.67
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Fort_Mckay_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 58.17
+    latitude_min: 56.17
+    longitude_max: -110.67
+    longitude_min: -112.67
+  plot_area:
+    latitude_max: 59.17
+    latitude_min: 55.17
+    longitude_max: -109.67
+    longitude_min: -113.67
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Houston:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 30.76
+    latitude_min: 28.76
+    longitude_max: -94.36
+    longitude_min: -96.36
+  plot_area:
+    latitude_max: 31.76
+    latitude_min: 27.76
+    longitude_max: -93.36
+    longitude_min: -97.36
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Houston_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 30.76
+    latitude_min: 28.76
+    longitude_max: -94.36
+    longitude_min: -96.36
+  plot_area:
+    latitude_max: 31.76
+    latitude_min: 27.76
+    longitude_max: -93.36
+    longitude_min: -97.36
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Istanbul:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.01
+    latitude_min: 40.01
+    longitude_max: 29.97
+    longitude_min: 27.97
+  plot_area:
+    latitude_max: 43.01
+    latitude_min: 39.01
+    longitude_max: 30.97
+    longitude_min: 26.97
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Istanbul_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.01
+    latitude_min: 40.01
+    longitude_max: 29.97
+    longitude_min: 27.97
+  plot_area:
+    latitude_max: 43.01
+    latitude_min: 39.01
+    longitude_max: 30.97
+    longitude_min: 26.97
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Karachi:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 25.85
+    latitude_min: 23.85
+    longitude_max: 68.02
+    longitude_min: 66.02
+  plot_area:
+    latitude_max: 26.85
+    latitude_min: 22.85
+    longitude_max: 69.02
+    longitude_min: 65.02
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Karachi_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 25.85
+    latitude_min: 23.85
+    longitude_max: 68.02
+    longitude_min: 66.02
+  plot_area:
+    latitude_max: 26.85
+    latitude_min: 22.85
+    longitude_max: 69.02
+    longitude_min: 65.02
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Kolkata:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 23.57
+    latitude_min: 21.57
+    longitude_max: 89.37
+    longitude_min: 87.37
+  plot_area:
+    latitude_max: 24.57
+    latitude_min: 20.57
+    longitude_max: 90.37
+    longitude_min: 86.37
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Kolkata_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 23.57
+    latitude_min: 21.57
+    longitude_max: 89.37
+    longitude_min: 87.37
+  plot_area:
+    latitude_max: 24.57
+    latitude_min: 20.57
+    longitude_max: 90.37
+    longitude_min: 86.37
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Lagos:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 7.60
+    latitude_min: 5.60 
+    longitude_max: 4.30
+    longitude_min: 2.30
+  plot_area:
+    latitude_max: 8.60
+    latitude_min: 4.60 
+    longitude_max: 5.30
+    longitude_min: 1.30
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Lagos_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 7.60
+    latitude_min: 5.60 
+    longitude_max: 4.30
+    longitude_min: 2.30
+  plot_area:
+    latitude_max: 8.60
+    latitude_min: 4.60 
+    longitude_max: 5.30
+    longitude_min: 1.30
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Los_Angeles:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 35.05
+    latitude_min: 33.05
+    longitude_max: -117.24
+    longitude_min: -119.24
+  plot_area:
+    latitude_max: 36.05
+    latitude_min: 32.05
+    longitude_max: -116.24
+    longitude_min: -120.24
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Los_Angeles_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 35.05
+    latitude_min: 33.05
+    longitude_max: -117.24
+    longitude_min: -119.24
+  plot_area:
+    latitude_max: 36.05
+    latitude_min: 32.05
+    longitude_max: -116.24
+    longitude_min: -120.24
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Mumbai:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 19.97
+    latitude_min: 17.97
+    longitude_max: 73.83
+    longitude_min: 71.83
+  plot_area:
+    latitude_max: 20.97
+    latitude_min: 16.97
+    longitude_max: 74.83
+    longitude_min: 70.83
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Mumbai_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 19.97
+    latitude_min: 17.97
+    longitude_max: 73.83
+    longitude_min: 71.83
+  plot_area:
+    latitude_max: 20.97
+    latitude_min: 16.97
+    longitude_max: 74.83
+    longitude_min: 70.83
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Mexico_City:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 20.13
+    latitude_min: 18.13
+    longitude_max: -98.40
+    longitude_min: -100.40
+  plot_area:
+    latitude_max: 21.13
+    latitude_min: 17.13
+    longitude_max: -97.40
+    longitude_min: -101.40
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Mexico_City_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 20.13
+    latitude_min: 18.13
+    longitude_max: -98.40
+    longitude_min: -100.40
+  plot_area:
+    latitude_max: 21.13
+    latitude_min: 17.13
+    longitude_max: -97.40
+    longitude_min: -101.40
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+New_York_City:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 41.71
+    latitude_min: 39.71
+    longitude_max: -73.01
+    longitude_min: -75.01
+  plot_area:
+    latitude_max: 42.71
+    latitude_min: 38.71
+    longitude_max: -72.01
+    longitude_min: -76.01
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+New_York_City_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 41.71
+    latitude_min: 39.71
+    longitude_max: -73.01
+    longitude_min: -75.01
+  plot_area:
+    latitude_max: 42.71
+    latitude_min: 38.71
+    longitude_max: -72.01
+    longitude_min: -76.01
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Paris:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 49.87
+    latitude_min: 47.87
+    longitude_max: 3.35
+    longitude_min: 1.35
+  plot_area:
+    latitude_max: 50.87
+    latitude_min: 46.87
+    longitude_max: 4.35
+    longitude_min: 0.35
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Paris_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 49.87
+    latitude_min: 47.87
+    longitude_max: 3.35
+    longitude_min: 1.35
+  plot_area:
+    latitude_max: 50.87
+    latitude_min: 46.87
+    longitude_max: 4.35
+    longitude_min: 0.35
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Sao_Paulo:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: -22.5
+    latitude_min: -24.5
+    longitude_max: -45.62
+    longitude_min: -47.62
+  plot_area:
+    latitude_max: -21.5
+    latitude_min: -25.5
+    longitude_max: -44.62
+    longitude_min: -48.62
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Sao_Paulo_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: -22.5
+    latitude_min: -24.5
+    longitude_max: -45.62
+    longitude_min: -47.62
+  plot_area:
+    latitude_max: -21.5
+    latitude_min: -25.5
+    longitude_max: -44.62
+    longitude_min: -48.62
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Shanghai:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 32.2
+    latitude_min: 30.2
+    longitude_max: 122.5
+    longitude_min: 120.5
+  plot_area:
+    latitude_max: 33.2
+    latitude_min: 29.2
+    longitude_max: 123.5
+    longitude_min: 119.5
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Shanghai_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 32.2
+    latitude_min: 30.2
+    longitude_max: 122.5
+    longitude_min: 120.5
+  plot_area:
+    latitude_max: 33.2
+    latitude_min: 29.2
+    longitude_max: 123.5
+    longitude_min: 119.5
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Shenzhen:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 23.55
+    latitude_min: 21.55
+    longitude_max: 115.1
+    longitude_min: 113.1
+  plot_area:
+    latitude_max: 24.55
+    latitude_min: 20.55
+    longitude_max: 116.1
+    longitude_min: 112.1
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Shenzhen_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 23.55
+    latitude_min: 21.55
+    longitude_max: 115.1
+    longitude_min: 113.1
+  plot_area:
+    latitude_max: 24.55
+    latitude_min: 20.55
+    longitude_max: 116.1
+    longitude_min: 112.1
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+SW_China:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 38.0
+    latitude_min: 36.0
+    longitude_max: 115.2
+    longitude_min: 113.2
+  plot_area:
+    latitude_max: 39.0
+    latitude_min: 35.0
+    longitude_max: 116.2
+    longitude_min: 112.2
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+SW_China_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 38.0
+    latitude_min: 36.0
+    longitude_max: 115.2
+    longitude_min: 113.2
+  plot_area:
+    latitude_max: 39.0
+    latitude_min: 35.0
+    longitude_max: 116.2
+    longitude_min: 112.2
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+Tokyo:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 36.68
+    latitude_min: 34.68
+    longitude_max: 140.77
+    longitude_min: 138.77
+  plot_area:
+    latitude_max: 37.68
+    latitude_min: 33.68
+    longitude_max: 141.77
+    longitude_min: 137.77
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+Tokyo_Day:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 36.68
+    latitude_min: 34.68
+    longitude_max: 140.77
+    longitude_min: 138.77
+  plot_area:
+    latitude_max: 37.68
+    latitude_min: 33.68
+    longitude_max: 141.77
+    longitude_min: 137.77
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0

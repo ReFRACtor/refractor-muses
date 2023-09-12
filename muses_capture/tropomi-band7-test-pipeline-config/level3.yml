@@ -1,0 +1,6 @@
+# Step 7.5: Level 3
+# Takes the final .nc files and creates level 3 NetCDF files.
+#
+###
+products:
+    py_program: bin/py-level3 daily

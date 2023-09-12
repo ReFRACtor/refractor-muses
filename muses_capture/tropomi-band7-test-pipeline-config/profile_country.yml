@@ -1,0 +1,3198 @@
+Afghanistan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 29.3772
+    latitude_max: 38.4910682
+    longitude_min: 60.5176034
+    longitude_max: 74.889862
+  plot_area:
+    latitude_min: 28.3772
+    latitude_max: 39.4910682
+    longitude_min: 59.5176034
+    longitude_max: 75.889862
+Aland_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 59.4541578
+    latitude_max: 60.87665
+    longitude_min: 19.0832098
+    longitude_max: 21.3456556
+  plot_area:
+    latitude_min: 58.4541578
+    latitude_max: 61.87665
+    longitude_min: 18.0832098
+    longitude_max: 22.3456556
+Albania:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 39.6448625
+    latitude_max: 42.6610848
+    longitude_min: 19.1246095
+    longitude_max: 21.0574335
+  plot_area:
+    latitude_min: 38.6448625
+    latitude_max: 43.6610848
+    longitude_min: 18.1246095
+    longitude_max: 22.0574335
+Algeria:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 18.968147
+    latitude_max: 37.2962055
+    longitude_min: -8.668908
+    longitude_max: 11.997337
+  plot_area:
+    latitude_min: 17.968147
+    latitude_max: 38.2962055
+    longitude_min: -9.668908
+    longitude_max: 12.997337
+American_Samoa:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -14.7608358
+    latitude_max: -10.8449746
+    longitude_min: -171.2951296
+    longitude_max: -167.9322899
+  plot_area:
+    latitude_min: -15.7608358
+    latitude_max: -9.8449746
+    longitude_min: -172.2951296
+    longitude_max: -166.9322899
+Andorra:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 42.4288238
+    latitude_max: 42.6559357
+    longitude_min: 1.4135781
+    longitude_max: 1.7863837
+  plot_area:
+    latitude_min: 41.4288238
+    latitude_max: 43.6559357
+    longitude_min: 0.41357810000000006
+    longitude_max: 2.7863837
+Angola:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -18.038945
+    latitude_max: -4.3880634
+    longitude_min: 11.4609793
+    longitude_max: 24.0878856
+  plot_area:
+    latitude_min: -19.038945
+    latitude_max: -3.3880634
+    longitude_min: 10.4609793
+    longitude_max: 25.0878856
+Anguilla:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 18.0615454
+    latitude_max: 18.7951194
+    longitude_min: -63.6391992
+    longitude_max: -62.7125449
+  plot_area:
+    latitude_min: 17.0615454
+    latitude_max: 19.7951194
+    longitude_min: -64.63919920000001
+    longitude_max: -61.7125449
+Antarctica:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -85.0511287
+    latitude_max: -60.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_area:
+    latitude_min: -86.0511287
+    latitude_max: -59.0
+    longitude_min: -180
+    longitude_max: 180
+Antigua_and_Barbuda:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 16.7573901
+    latitude_max: 17.929
+    longitude_min: -62.5536517
+    longitude_max: -61.447857
+  plot_area:
+    latitude_min: 15.757390099999999
+    latitude_max: 18.929
+    longitude_min: -63.5536517
+    longitude_max: -60.447857
+Argentina:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -55.1850761
+    latitude_max: -21.781168
+    longitude_min: -73.5600329
+    longitude_max: -53.6374515
+  plot_area:
+    latitude_min: -56.1850761
+    latitude_max: -20.781168
+    longitude_min: -74.5600329
+    longitude_max: -52.6374515
+Armenia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 38.8404775
+    latitude_max: 41.300712
+    longitude_min: 43.4471395
+    longitude_max: 46.6333087
+  plot_area:
+    latitude_min: 37.8404775
+    latitude_max: 42.300712
+    longitude_min: 42.4471395
+    longitude_max: 47.6333087
+Aruba:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 12.1702998
+    latitude_max: 12.8102998
+    longitude_min: -70.2809842
+    longitude_max: -69.6409842
+  plot_area:
+    latitude_min: 11.1702998
+    latitude_max: 13.8102998
+    longitude_min: -71.2809842
+    longitude_max: -68.6409842
+Australia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -55.3228175
+    latitude_max: -9.0882278
+    longitude_min: 72.2460938
+    longitude_max: 168.2249543
+  plot_area:
+    latitude_min: -56.3228175
+    latitude_max: -8.0882278
+    longitude_min: 71.2460938
+    longitude_max: 169.2249543
+Austria:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 46.3722761
+    latitude_max: 49.0205305
+    longitude_min: 9.5307487
+    longitude_max: 17.160776
+  plot_area:
+    latitude_min: 45.3722761
+    latitude_max: 50.0205305
+    longitude_min: 8.5307487
+    longitude_max: 18.160776
+Azerbaijan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 38.3929551
+    latitude_max: 41.9502947
+    longitude_min: 44.7633701
+    longitude_max: 51.0090302
+  plot_area:
+    latitude_min: 37.3929551
+    latitude_max: 42.9502947
+    longitude_min: 43.7633701
+    longitude_max: 52.0090302
+Bahamas:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 20.7059846
+    latitude_max: 27.4734551
+    longitude_min: -80.7001941
+    longitude_max: -72.4477521
+  plot_area:
+    latitude_min: 19.7059846
+    latitude_max: 28.4734551
+    longitude_min: -81.7001941
+    longitude_max: -71.4477521
+Bahrain:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 25.535
+    latitude_max: 26.6872444
+    longitude_min: 50.2697989
+    longitude_max: 50.9233693
+  plot_area:
+    latitude_min: 24.535
+    latitude_max: 27.6872444
+    longitude_min: 49.2697989
+    longitude_max: 51.9233693
+Bangladesh:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 20.3756582
+    latitude_max: 26.6382534
+    longitude_min: 88.0075306
+    longitude_max: 92.6804979
+  plot_area:
+    latitude_min: 19.3756582
+    latitude_max: 27.6382534
+    longitude_min: 87.0075306
+    longitude_max: 93.6804979
+Barbados:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 12.845
+    latitude_max: 13.535
+    longitude_min: -59.8562115
+    longitude_max: -59.2147175
+  plot_area:
+    latitude_min: 11.845
+    latitude_max: 14.535
+    longitude_min: -60.8562115
+    longitude_max: -58.2147175
+Belarus:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 51.2575982
+    latitude_max: 56.17218
+    longitude_min: 23.1783344
+    longitude_max: 32.7627809
+  plot_area:
+    latitude_min: 50.2575982
+    latitude_max: 57.17218
+    longitude_min: 22.1783344
+    longitude_max: 33.7627809
+Belgium:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 49.4969821
+    latitude_max: 51.5516667
+    longitude_min: 2.3889137
+    longitude_max: 6.408097
+  plot_area:
+    latitude_min: 48.4969821
+    latitude_max: 52.5516667
+    longitude_min: 1.3889136999999998
+    longitude_max: 7.408097
+Belize:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 15.8857286
+    latitude_max: 18.496001
+    longitude_min: -89.2262083
+    longitude_max: -87.3098494
+  plot_area:
+    latitude_min: 14.8857286
+    latitude_max: 19.496001
+    longitude_min: -90.2262083
+    longitude_max: -86.3098494
+Benin:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 6.0398696
+    latitude_max: 12.4092447
+    longitude_min: 0.776667
+    longitude_max: 3.843343
+  plot_area:
+    latitude_min: 5.0398696
+    latitude_max: 13.4092447
+    longitude_min: -0.223333
+    longitude_max: 4.843343
+Bermuda:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 32.0469651
+    latitude_max: 32.5913693
+    longitude_min: -65.1232222
+    longitude_max: -64.4109842
+  plot_area:
+    latitude_min: 31.0469651
+    latitude_max: 33.5913693
+    longitude_min: -66.1232222
+    longitude_max: -63.4109842
+Bhutan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 26.702016
+    latitude_max: 28.246987
+    longitude_min: 88.7464724
+    longitude_max: 92.1252321
+  plot_area:
+    latitude_min: 25.702016
+    latitude_max: 29.246987
+    longitude_min: 87.7464724
+    longitude_max: 93.1252321
+Bolivia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -22.8982742
+    latitude_max: -9.6689438
+    longitude_min: -69.6450073
+    longitude_max: -57.453
+  plot_area:
+    latitude_min: -23.8982742
+    latitude_max: -8.6689438
+    longitude_min: -70.6450073
+    longitude_max: -56.453
+Bosnia_and_Herzegovina:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 42.5553114
+    latitude_max: 45.2764135
+    longitude_min: 15.7287433
+    longitude_max: 19.6237311
+  plot_area:
+    latitude_min: 41.5553114
+    latitude_max: 46.2764135
+    longitude_min: 14.7287433
+    longitude_max: 20.6237311
+Botswana:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -26.9059669
+    latitude_max: -17.778137
+    longitude_min: 19.9986474
+    longitude_max: 29.375304
+  plot_area:
+    latitude_min: -27.9059669
+    latitude_max: -16.778137
+    longitude_min: 18.9986474
+    longitude_max: 30.375304
+Bouvet_Island:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -54.654
+    latitude_max: -54.187
+    longitude_min: 2.9345531
+    longitude_max: 3.7791099
+  plot_area:
+    latitude_min: -55.654
+    latitude_max: -53.187
+    longitude_min: 1.9345531
+    longitude_max: 4.7791099
+Brazil:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -33.8689056
+    latitude_max: 5.2842873
+    longitude_min: -73.9830625
+    longitude_max: -28.6341164
+  plot_area:
+    latitude_min: -34.8689056
+    latitude_max: 6.2842873
+    longitude_min: -74.9830625
+    longitude_max: -27.6341164
+British_Indian_Ocean_Territory:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -7.6454079
+    latitude_max: -5.037066
+    longitude_min: 71.036504
+    longitude_max: 72.7020157
+  plot_area:
+    latitude_min: -8.6454079
+    latitude_max: -4.037066
+    longitude_min: 70.036504
+    longitude_max: 73.7020157
+Brunei:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 4.002508
+    latitude_max: 5.1011857
+    longitude_min: 114.0758734
+    longitude_max: 115.3635623
+  plot_area:
+    latitude_min: 3.0025079999999997
+    latitude_max: 6.1011857
+    longitude_min: 113.0758734
+    longitude_max: 116.3635623
+Bulgaria:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 41.2353929
+    latitude_max: 44.2167064
+    longitude_min: 22.3571459
+    longitude_max: 28.8875409
+  plot_area:
+    latitude_min: 40.2353929
+    latitude_max: 45.2167064
+    longitude_min: 21.3571459
+    longitude_max: 29.8875409
+Burkina_Faso:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 9.4104718
+    latitude_max: 15.084
+    longitude_min: -5.5132416
+    longitude_max: 2.4089717
+  plot_area:
+    latitude_min: 8.4104718
+    latitude_max: 16.084
+    longitude_min: -6.5132416
+    longitude_max: 3.4089717
+Burma:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 9.4399432
+    latitude_max: 28.547835
+    longitude_min: 92.1719423
+    longitude_max: 101.1700796
+  plot_area:
+    latitude_min: 8.4399432
+    latitude_max: 29.547835
+    longitude_min: 91.1719423
+    longitude_max: 102.1700796
+Burundi:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -4.4693155
+    latitude_max: -2.3096796
+    longitude_min: 29.0007401
+    longitude_max: 30.8498462
+  plot_area:
+    latitude_min: -5.4693155
+    latitude_max: -1.3096796
+    longitude_min: 28.0007401
+    longitude_max: 31.8498462
+Cambodia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 9.4752639
+    latitude_max: 14.6904224
+    longitude_min: 102.3338282
+    longitude_max: 107.6276788
+  plot_area:
+    latitude_min: 8.4752639
+    latitude_max: 15.6904224
+    longitude_min: 101.3338282
+    longitude_max: 108.6276788
+Cameroon:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 1.6546659
+    latitude_max: 13.083333
+    longitude_min: 8.3822176
+    longitude_max: 16.1921476
+  plot_area:
+    latitude_min: 0.6546658999999999
+    latitude_max: 14.083333
+    longitude_min: 7.382217600000001
+    longitude_max: 17.1921476
+Canada:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 41.6765556
+    latitude_max: 83.3362128
+    longitude_min: -141.00275
+    longitude_max: -52.3231981
+  plot_area:
+    latitude_min: 40.6765556
+    latitude_max: 84.3362128
+    longitude_min: -142.00275
+    longitude_max: -51.3231981
+Cape_Verde:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 14.8031546
+    latitude_max: 17.2053108
+    longitude_min: -25.3609478
+    longitude_max: -22.6673416
+  plot_area:
+    latitude_min: 13.8031546
+    latitude_max: 18.2053108
+    longitude_min: -26.3609478
+    longitude_max: -21.6673416
+Cayman_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 19.0620619
+    latitude_max: 19.9573759
+    longitude_min: -81.6313748
+    longitude_max: -79.5110954
+  plot_area:
+    latitude_min: 18.0620619
+    latitude_max: 20.9573759
+    longitude_min: -82.6313748
+    longitude_max: -78.5110954
+Central_African_Republic:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 2.2156553
+    latitude_max: 11.001389
+    longitude_min: 14.4155426
+    longitude_max: 27.4540764
+  plot_area:
+    latitude_min: 1.2156552999999999
+    latitude_max: 12.001389
+    longitude_min: 13.4155426
+    longitude_max: 28.4540764
+Chad:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 7.44107
+    latitude_max: 23.4975
+    longitude_min: 13.47348
+    longitude_max: 24.0
+  plot_area:
+    latitude_min: 6.44107
+    latitude_max: 24.4975
+    longitude_min: 12.47348
+    longitude_max: 25.0
+Chile:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -56.725
+    latitude_max: -17.4983998
+    longitude_min: -109.6795789
+    longitude_max: -66.0753474
+  plot_area:
+    latitude_min: -57.725
+    latitude_max: -16.4983998
+    longitude_min: -110.6795789
+    longitude_max: -65.0753474
+China:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 8.8383436
+    latitude_max: 53.5608154
+    longitude_min: 73.4997347
+    longitude_max: 134.7754563
+  plot_area:
+    latitude_min: 7.8383436
+    latitude_max: 54.5608154
+    longitude_min: 72.4997347
+    longitude_max: 135.7754563
+Christmas_Island:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -10.5698515
+    latitude_max: -10.4123553
+    longitude_min: 105.5336422
+    longitude_max: 105.7130159
+  plot_area:
+    latitude_min: -11.5698515
+    latitude_max: -9.4123553
+    longitude_min: 104.5336422
+    longitude_max: 106.7130159
+Cocos_(Keeling)_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -12.4055983
+    latitude_max: -11.6213132
+    longitude_min: 96.612524
+    longitude_max: 97.1357343
+  plot_area:
+    latitude_min: -13.4055983
+    latitude_max: -10.6213132
+    longitude_min: 95.612524
+    longitude_max: 98.1357343
+Colombia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -4.2316872
+    latitude_max: 16.0571269
+    longitude_min: -82.1243666
+    longitude_max: -66.8511907
+  plot_area:
+    latitude_min: -5.2316872
+    latitude_max: 17.0571269
+    longitude_min: -83.1243666
+    longitude_max: -65.8511907
+Comoros:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -12.621
+    latitude_max: -11.165
+    longitude_min: 43.025305
+    longitude_max: 44.7451922
+  plot_area:
+    latitude_min: -13.621
+    latitude_max: -10.165
+    longitude_min: 42.025305
+    longitude_max: 45.7451922
+Congo:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -5.149089
+    latitude_max: 3.713056
+    longitude_min: 11.0048205
+    longitude_max: 18.643611
+  plot_area:
+    latitude_min: -6.149089
+    latitude_max: 4.713056
+    longitude_min: 10.0048205
+    longitude_max: 19.643611
+Congo_the_Democratic_Republic_of_the:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -13.459035
+    latitude_max: 5.3920026
+    longitude_min: 12.039074
+    longitude_max: 31.3056758
+  plot_area:
+    latitude_min: -14.459035
+    latitude_max: 6.3920026
+    longitude_min: 11.039074
+    longitude_max: 32.3056758
+Cook_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -22.15807
+    latitude_max: -8.7168792
+    longitude_min: -166.0856468
+    longitude_max: -157.1089329
+  plot_area:
+    latitude_min: -23.15807
+    latitude_max: -7.716879199999999
+    longitude_min: -167.0856468
+    longitude_max: -156.1089329
+Costa_Rica:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 5.3329698
+    latitude_max: 11.2195684
+    longitude_min: -87.2722647
+    longitude_max: -82.5060208
+  plot_area:
+    latitude_min: 4.3329698
+    latitude_max: 12.2195684
+    longitude_min: -88.2722647
+    longitude_max: -81.5060208
+Croatia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 42.1765993
+    latitude_max: 46.555029
+    longitude_min: 13.2104814
+    longitude_max: 19.4470842
+  plot_area:
+    latitude_min: 41.1765993
+    latitude_max: 47.555029
+    longitude_min: 12.2104814
+    longitude_max: 20.4470842
+Cuba:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 19.6275294
+    latitude_max: 23.4816972
+    longitude_min: -85.1679702
+    longitude_max: -73.9190004
+  plot_area:
+    latitude_min: 18.6275294
+    latitude_max: 24.4816972
+    longitude_min: -86.1679702
+    longitude_max: -72.9190004
+Cyprus:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 34.4383706
+    latitude_max: 35.913252
+    longitude_min: 32.0227581
+    longitude_max: 34.8553182
+  plot_area:
+    latitude_min: 33.4383706
+    latitude_max: 36.913252
+    longitude_min: 31.022758099999997
+    longitude_max: 35.8553182
+Czech_Republic:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 48.5518083
+    latitude_max: 51.0557036
+    longitude_min: 12.0905901
+    longitude_max: 18.859216
+  plot_area:
+    latitude_min: 47.5518083
+    latitude_max: 52.0557036
+    longitude_min: 11.0905901
+    longitude_max: 19.859216
+Denmark:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 54.4516667
+    latitude_max: 57.9524297
+    longitude_min: 7.7153255
+    longitude_max: 15.5530641
+  plot_area:
+    latitude_min: 53.4516667
+    latitude_max: 58.9524297
+    longitude_min: 6.7153255
+    longitude_max: 16.5530641
+Djibouti:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 10.9149547
+    latitude_max: 12.7923081
+    longitude_min: 41.7713139
+    longitude_max: 43.6579046
+  plot_area:
+    latitude_min: 9.9149547
+    latitude_max: 13.7923081
+    longitude_min: 40.7713139
+    longitude_max: 44.6579046
+Dominica:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 15.0074207
+    latitude_max: 15.7872222
+    longitude_min: -61.6869184
+    longitude_max: -61.0329895
+  plot_area:
+    latitude_min: 14.0074207
+    latitude_max: 16.787222200000002
+    longitude_min: -62.6869184
+    longitude_max: -60.0329895
+Dominican_Republic:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 17.2701708
+    latitude_max: 21.303433
+    longitude_min: -72.0574706
+    longitude_max: -68.1101463
+  plot_area:
+    latitude_min: 16.2701708
+    latitude_max: 22.303433
+    longitude_min: -73.0574706
+    longitude_max: -67.1101463
+Ecuador:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -5.0159314
+    latitude_max: 1.8835964
+    longitude_min: -92.2072392
+    longitude_max: -75.192504
+  plot_area:
+    latitude_min: -6.0159314
+    latitude_max: 2.8835964
+    longitude_min: -93.2072392
+    longitude_max: -74.192504
+Egypt:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 22.0
+    latitude_max: 31.8330854
+    longitude_min: 24.6499112
+    longitude_max: 37.1153517
+  plot_area:
+    latitude_min: 21.0
+    latitude_max: 32.8330854
+    longitude_min: 23.6499112
+    longitude_max: 38.1153517
+El_Salvador:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 12.976046
+    latitude_max: 14.4510488
+    longitude_min: -90.1790975
+    longitude_max: -87.6351394
+  plot_area:
+    latitude_min: 11.976046
+    latitude_max: 15.4510488
+    longitude_min: -91.1790975
+    longitude_max: -86.6351394
+Equatorial_Guinea:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -1.6732196
+    latitude_max: 3.989
+    longitude_min: 5.4172943
+    longitude_max: 11.3598628
+  plot_area:
+    latitude_min: -2.6732196
+    latitude_max: 4.989
+    longitude_min: 4.4172943
+    longitude_max: 12.3598628
+Eritrea:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 12.3548219
+    latitude_max: 18.0709917
+    longitude_min: 36.4333653
+    longitude_max: 43.3001714
+  plot_area:
+    latitude_min: 11.3548219
+    latitude_max: 19.0709917
+    longitude_min: 35.4333653
+    longitude_max: 44.3001714
+Estonia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 57.5092997
+    latitude_max: 59.9383754
+    longitude_min: 21.3826069
+    longitude_max: 28.2100175
+  plot_area:
+    latitude_min: 56.5092997
+    latitude_max: 60.9383754
+    longitude_min: 20.3826069
+    longitude_max: 29.2100175
+Ethiopia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 3.397448
+    latitude_max: 14.8940537
+    longitude_min: 32.9975838
+    longitude_max: 47.9823797
+  plot_area:
+    latitude_min: 2.397448
+    latitude_max: 15.8940537
+    longitude_min: 31.9975838
+    longitude_max: 48.9823797
+Falkland_Islands_(Malvinas):
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -53.1186766
+    latitude_max: -50.7973007
+    longitude_min: -61.7726772
+    longitude_max: -57.3662367
+  plot_area:
+    latitude_min: -54.1186766
+    latitude_max: -49.7973007
+    longitude_min: -62.7726772
+    longitude_max: -56.3662367
+Faroe_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 61.3915553
+    latitude_max: 62.3942991
+    longitude_min: -7.6882939
+    longitude_max: -6.2565525
+  plot_area:
+    latitude_min: 60.3915553
+    latitude_max: 63.3942991
+    longitude_min: -8.6882939
+    longitude_max: -5.2565525
+Fiji:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -21.9434274
+    latitude_max: -12.2613866
+    longitude_min: 172.0
+    longitude_max: -178.5
+  plot_area:
+    latitude_min: -22.9434274
+    latitude_max: -11.2613866
+    longitude_min: 171.0
+    longitude_max: -177.5
+Finland:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 59.4541578
+    latitude_max: 70.0922939
+    longitude_min: 19.0832098
+    longitude_max: 31.5867071
+  plot_area:
+    latitude_min: 58.4541578
+    latitude_max: 71.0922939
+    longitude_min: 18.0832098
+    longitude_max: 32.5867071
+France:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 41.2632185
+    latitude_max: 51.268318
+    longitude_min: -5.4534286
+    longitude_max: 9.8678344
+  plot_area:
+    latitude_min: 40.2632185
+    latitude_max: 52.268318
+    longitude_min: -6.4534286
+    longitude_max: 10.8678344
+French_Guiana:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 2.112222
+    latitude_max: 5.7507111
+    longitude_min: -54.60278
+    longitude_max: -51.6346139
+  plot_area:
+    latitude_min: 1.112222
+    latitude_max: 6.7507111
+    longitude_min: -55.60278
+    longitude_max: -50.6346139
+French_Polynesia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -28.0990232
+    latitude_max: -7.6592173
+    longitude_min: -154.9360599
+    longitude_max: -134.244799
+  plot_area:
+    latitude_min: -29.0990232
+    latitude_max: -6.6592173
+    longitude_min: -155.9360599
+    longitude_max: -133.244799
+French_Southern_Territories:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -50.2187169
+    latitude_max: -11.3139928
+    longitude_min: 39.4138676
+    longitude_max: 77.8494974
+  plot_area:
+    latitude_min: -51.2187169
+    latitude_max: -10.3139928
+    longitude_min: 38.4138676
+    longitude_max: 78.8494974
+Gabon:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -4.1012261
+    latitude_max: 2.3182171
+    longitude_min: 8.5002246
+    longitude_max: 14.539444
+  plot_area:
+    latitude_min: -5.1012261
+    latitude_max: 3.3182171
+    longitude_min: 7.500224599999999
+    longitude_max: 15.539444
+Gambia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 13.061
+    latitude_max: 13.8253137
+    longitude_min: -17.0288254
+    longitude_max: -13.797778
+  plot_area:
+    latitude_min: 12.061
+    latitude_max: 14.8253137
+    longitude_min: -18.0288254
+    longitude_max: -12.797778
+Georgia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 41.0552922
+    latitude_max: 43.5864294
+    longitude_min: 39.8844803
+    longitude_max: 46.7365373
+  plot_area:
+    latitude_min: 40.0552922
+    latitude_max: 44.5864294
+    longitude_min: 38.8844803
+    longitude_max: 47.7365373
+Germany:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 47.2701114
+    latitude_max: 55.099161
+    longitude_min: 5.8663153
+    longitude_max: 15.0419319
+  plot_area:
+    latitude_min: 46.2701114
+    latitude_max: 56.099161
+    longitude_min: 4.8663153
+    longitude_max: 16.0419319
+Ghana:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 4.5392525
+    latitude_max: 11.1748562
+    longitude_min: -3.260786
+    longitude_max: 1.2732942
+  plot_area:
+    latitude_min: 3.5392525
+    latitude_max: 12.1748562
+    longitude_min: -4.2607859999999995
+    longitude_max: 2.2732942
+Gibraltar:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 36.100807
+    latitude_max: 36.180807
+    longitude_min: -5.3941295
+    longitude_max: -5.3141295
+  plot_area:
+    latitude_min: 35.100807
+    latitude_max: 37.180807
+    longitude_min: -6.3941295
+    longitude_max: -4.3141295
+Greece:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 34.7006096
+    latitude_max: 41.7488862
+    longitude_min: 19.2477876
+    longitude_max: 29.7296986
+  plot_area:
+    latitude_min: 33.7006096
+    latitude_max: 42.7488862
+    longitude_min: 18.2477876
+    longitude_max: 30.7296986
+Greenland:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 59.515387
+    latitude_max: 83.875172
+    longitude_min: -74.1250416
+    longitude_max: -10.0288759
+  plot_area:
+    latitude_min: 58.515387
+    latitude_max: 84.875172
+    longitude_min: -75.1250416
+    longitude_max: -9.0288759
+Grenada:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 11.786
+    latitude_max: 12.5966532
+    longitude_min: -62.0065868
+    longitude_max: -61.1732143
+  plot_area:
+    latitude_min: 10.786
+    latitude_max: 13.5966532
+    longitude_min: -63.0065868
+    longitude_max: -60.1732143
+Guadeloupe:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 15.8320085
+    latitude_max: 16.5144664
+    longitude_min: -61.809764
+    longitude_max: -61.0003663
+  plot_area:
+    latitude_min: 14.8320085
+    latitude_max: 17.5144664
+    longitude_min: -62.809764
+    longitude_max: -60.0003663
+Guam:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 13.182335
+    latitude_max: 13.706179
+    longitude_min: 144.563426
+    longitude_max: 145.009167
+  plot_area:
+    latitude_min: 12.182335
+    latitude_max: 14.706179
+    longitude_min: 143.563426
+    longitude_max: 146.009167
+Guatemala:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 13.6345804
+    latitude_max: 17.8165947
+    longitude_min: -92.3105242
+    longitude_max: -88.1755849
+  plot_area:
+    latitude_min: 12.6345804
+    latitude_max: 18.8165947
+    longitude_min: -93.3105242
+    longitude_max: -87.1755849
+Guernsey:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 49.4155331
+    latitude_max: 49.5090776
+    longitude_min: -2.6751703
+    longitude_max: -2.501814
+  plot_area:
+    latitude_min: 48.4155331
+    latitude_max: 50.5090776
+    longitude_min: -3.6751703
+    longitude_max: -1.501814
+Guinea:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 7.1906045
+    latitude_max: 12.67563
+    longitude_min: -15.5680508
+    longitude_max: -7.6381993
+  plot_area:
+    latitude_min: 6.1906045
+    latitude_max: 13.67563
+    longitude_min: -16.5680508
+    longitude_max: -6.6381993
+Guinea-Bissau:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 10.6514215
+    latitude_max: 12.6862384
+    longitude_min: -16.894523
+    longitude_max: -13.6348777
+  plot_area:
+    latitude_min: 9.6514215
+    latitude_max: 13.6862384
+    longitude_min: -17.894523
+    longitude_max: -12.6348777
+Guyana:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 1.1710017
+    latitude_max: 8.6038842
+    longitude_min: -61.414905
+    longitude_max: -56.4689543
+  plot_area:
+    latitude_min: 0.17100169999999992
+    latitude_max: 9.6038842
+    longitude_min: -62.414905
+    longitude_max: -55.4689543
+Haiti:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 17.9099291
+    latitude_max: 20.2181368
+    longitude_min: -75.2384618
+    longitude_max: -71.6217461
+  plot_area:
+    latitude_min: 16.9099291
+    latitude_max: 21.2181368
+    longitude_min: -76.2384618
+    longitude_max: -70.6217461
+Heard_Island_and_McDonald_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -53.394741
+    latitude_max: -52.7030677
+    longitude_min: 72.2460938
+    longitude_max: 74.1988754
+  plot_area:
+    latitude_min: -54.394741
+    latitude_max: -51.7030677
+    longitude_min: 71.2460938
+    longitude_max: 75.1988754
+Holy_See_(Vatican_City_State):
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 41.9002044
+    latitude_max: 41.9073912
+    longitude_min: 12.4457442
+    longitude_max: 12.4583653
+  plot_area:
+    latitude_min: 40.9002044
+    latitude_max: 42.9073912
+    longitude_min: 11.4457442
+    longitude_max: 13.4583653
+Honduras:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 12.9808485
+    latitude_max: 17.619526
+    longitude_min: -89.3568207
+    longitude_max: -82.1729621
+  plot_area:
+    latitude_min: 11.9808485
+    latitude_max: 18.619526
+    longitude_min: -90.3568207
+    longitude_max: -81.1729621
+Hong_Kong:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 22.1193278
+    latitude_max: 22.4393278
+    longitude_min: 114.0028131
+    longitude_max: 114.3228131
+  plot_area:
+    latitude_min: 21.1193278
+    latitude_max: 23.4393278
+    longitude_min: 113.0028131
+    longitude_max: 115.3228131
+Hungary:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 45.737128
+    latitude_max: 48.585257
+    longitude_min: 16.1138867
+    longitude_max: 22.8977094
+  plot_area:
+    latitude_min: 44.737128
+    latitude_max: 49.585257
+    longitude_min: 15.113886699999998
+    longitude_max: 23.8977094
+Iceland:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 63.0859177
+    latitude_max: 67.353
+    longitude_min: -25.0135069
+    longitude_max: -12.8046162
+  plot_area:
+    latitude_min: 62.0859177
+    latitude_max: 68.353
+    longitude_min: -26.0135069
+    longitude_max: -11.8046162
+India:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 6.5546079
+    latitude_max: 35.6745457
+    longitude_min: 68.1113787
+    longitude_max: 97.395561
+  plot_area:
+    latitude_min: 5.5546079
+    latitude_max: 36.6745457
+    longitude_min: 67.1113787
+    longitude_max: 98.395561
+Indonesia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -11.2085669
+    latitude_max: 6.2744496
+    longitude_min: 94.7717124
+    longitude_max: 141.0194444
+  plot_area:
+    latitude_min: -12.2085669
+    latitude_max: 7.2744496
+    longitude_min: 93.7717124
+    longitude_max: 142.0194444
+Iran_Islamic_Republic_of:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 24.8465103
+    latitude_max: 39.7816502
+    longitude_min: 44.0318908
+    longitude_max: 63.3332704
+  plot_area:
+    latitude_min: 23.8465103
+    latitude_max: 40.7816502
+    longitude_min: 43.0318908
+    longitude_max: 64.3332704
+Iraq:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 29.0585661
+    latitude_max: 37.380932
+    longitude_min: 38.7936719
+    longitude_max: 48.8412702
+  plot_area:
+    latitude_min: 28.0585661
+    latitude_max: 38.380932
+    longitude_min: 37.7936719
+    longitude_max: 49.8412702
+Ireland:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 51.222
+    latitude_max: 55.636
+    longitude_min: -11.0133788
+    longitude_max: -5.6582363
+  plot_area:
+    latitude_min: 50.222
+    latitude_max: 56.636
+    longitude_min: -12.0133788
+    longitude_max: -4.6582363
+Isle_of_Man:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 54.0539576
+    latitude_max: 54.4178705
+    longitude_min: -4.7946845
+    longitude_max: -4.3076853
+  plot_area:
+    latitude_min: 53.0539576
+    latitude_max: 55.4178705
+    longitude_min: -5.7946845
+    longitude_max: -3.3076853
+Israel:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 29.4533796
+    latitude_max: 33.3356317
+    longitude_min: 34.2674994
+    longitude_max: 35.8950234
+  plot_area:
+    latitude_min: 28.4533796
+    latitude_max: 34.3356317
+    longitude_min: 33.2674994
+    longitude_max: 36.8950234
+Italy:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 35.2889616
+    latitude_max: 47.0921462
+    longitude_min: 6.6272658
+    longitude_max: 18.7844746
+  plot_area:
+    latitude_min: 34.2889616
+    latitude_max: 48.0921462
+    longitude_min: 5.6272658
+    longitude_max: 19.7844746
+Ivory_Coast:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 4.1621205
+    latitude_max: 10.740197
+    longitude_min: -8.601725
+    longitude_max: -2.493031
+  plot_area:
+    latitude_min: 3.1621205000000003
+    latitude_max: 11.740197
+    longitude_min: -9.601725
+    longitude_max: -1.4930310000000002
+Jamaica:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 16.5899443
+    latitude_max: 18.7256394
+    longitude_min: -78.5782366
+    longitude_max: -75.7541143
+  plot_area:
+    latitude_min: 15.589944299999999
+    latitude_max: 19.7256394
+    longitude_min: -79.5782366
+    longitude_max: -74.7541143
+Japan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 20.2145811
+    latitude_max: 45.7112046
+    longitude_min: 122.7141754
+    longitude_max: 154.205541
+  plot_area:
+    latitude_min: 19.2145811
+    latitude_max: 46.7112046
+    longitude_min: 121.7141754
+    longitude_max: 155.205541
+Jersey:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 49.1625179
+    latitude_max: 49.2621288
+    longitude_min: -2.254512
+    longitude_max: -2.0104193
+  plot_area:
+    latitude_min: 48.1625179
+    latitude_max: 50.2621288
+    longitude_min: -3.254512
+    longitude_max: -1.0104193000000001
+Jordan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 29.183401
+    latitude_max: 33.3750617
+    longitude_min: 34.8844372
+    longitude_max: 39.3012981
+  plot_area:
+    latitude_min: 28.183401
+    latitude_max: 34.3750617
+    longitude_min: 33.8844372
+    longitude_max: 40.3012981
+Kazakhstan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 40.5686476
+    latitude_max: 55.4421701
+    longitude_min: 46.4932179
+    longitude_max: 87.3156316
+  plot_area:
+    latitude_min: 39.5686476
+    latitude_max: 56.4421701
+    longitude_min: 45.4932179
+    longitude_max: 88.3156316
+Kenya:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -4.8995204
+    latitude_max: 4.62
+    longitude_min: 33.9098987
+    longitude_max: 41.899578
+  plot_area:
+    latitude_min: -5.8995204
+    latitude_max: 5.62
+    longitude_min: 32.9098987
+    longitude_max: 42.899578
+Kiribati:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -7.0516717
+    latitude_max: 7.9483283
+    longitude_min: -179.1645388
+    longitude_max: -164.1645388
+  plot_area:
+    latitude_min: -8.0516717
+    latitude_max: 8.9483283
+    longitude_min: -180.1645388
+    longitude_max: -163.1645388
+Korea_Democratic_People's_Republic_of:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 37.5867855
+    latitude_max: 43.0089642
+    longitude_min: 124.0913902
+    longitude_max: 130.924647
+  plot_area:
+    latitude_min: 36.5867855
+    latitude_max: 44.0089642
+    longitude_min: 123.0913902
+    longitude_max: 131.924647
+Kuwait:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 28.5243622
+    latitude_max: 30.1038082
+    longitude_min: 46.5526837
+    longitude_max: 49.0046809
+  plot_area:
+    latitude_min: 27.5243622
+    latitude_max: 31.1038082
+    longitude_min: 45.5526837
+    longitude_max: 50.0046809
+Kyrgyzstan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 39.1728437
+    latitude_max: 43.2667971
+    longitude_min: 69.2649523
+    longitude_max: 80.2295793
+  plot_area:
+    latitude_min: 38.1728437
+    latitude_max: 44.2667971
+    longitude_min: 68.2649523
+    longitude_max: 81.2295793
+Lao_People's_Democratic_Republic:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 13.9096752
+    latitude_max: 22.5086717
+    longitude_min: 100.0843247
+    longitude_max: 107.6349989
+  plot_area:
+    latitude_min: 12.9096752
+    latitude_max: 23.5086717
+    longitude_min: 99.0843247
+    longitude_max: 108.6349989
+Latvia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 55.6746505
+    latitude_max: 58.0855688
+    longitude_min: 20.6715407
+    longitude_max: 28.2414904
+  plot_area:
+    latitude_min: 54.6746505
+    latitude_max: 59.0855688
+    longitude_min: 19.6715407
+    longitude_max: 29.2414904
+Lebanon:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 33.0479858
+    latitude_max: 34.6923543
+    longitude_min: 34.8825667
+    longitude_max: 36.625
+  plot_area:
+    latitude_min: 32.0479858
+    latitude_max: 35.6923543
+    longitude_min: 33.8825667
+    longitude_max: 37.625
+Lesotho:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -30.6772773
+    latitude_max: -28.570615
+    longitude_min: 27.0114632
+    longitude_max: 29.4557099
+  plot_area:
+    latitude_min: -31.6772773
+    latitude_max: -27.570615
+    longitude_min: 26.0114632
+    longitude_max: 30.4557099
+Liberia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 4.1555907
+    latitude_max: 8.5519861
+    longitude_min: -11.6080764
+    longitude_max: -7.367323
+  plot_area:
+    latitude_min: 3.1555907000000003
+    latitude_max: 9.5519861
+    longitude_min: -12.6080764
+    longitude_max: -6.367323
+Libya:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 19.5008138
+    latitude_max: 33.3545898
+    longitude_min: 9.391081
+    longitude_max: 25.3770629
+  plot_area:
+    latitude_min: 18.5008138
+    latitude_max: 34.3545898
+    longitude_min: 8.391081
+    longitude_max: 26.3770629
+Liechtenstein:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 47.0484291
+    latitude_max: 47.270581
+    longitude_min: 9.4716736
+    longitude_max: 9.6357143
+  plot_area:
+    latitude_min: 46.0484291
+    latitude_max: 48.270581
+    longitude_min: 8.4716736
+    longitude_max: 10.6357143
+Lithuania:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 53.8967893
+    latitude_max: 56.4504213
+    longitude_min: 20.653783
+    longitude_max: 26.8355198
+  plot_area:
+    latitude_min: 52.8967893
+    latitude_max: 57.4504213
+    longitude_min: 19.653783
+    longitude_max: 27.8355198
+Luxembourg:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 49.4969821
+    latitude_max: 50.430377
+    longitude_min: 4.9684415
+    longitude_max: 6.0344254
+  plot_area:
+    latitude_min: 48.4969821
+    latitude_max: 51.430377
+    longitude_min: 3.9684415
+    longitude_max: 7.0344254
+Macao:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 22.0766667
+    latitude_max: 22.2170361
+    longitude_min: 113.5281666
+    longitude_max: 113.6301389
+  plot_area:
+    latitude_min: 21.0766667
+    latitude_max: 23.2170361
+    longitude_min: 112.5281666
+    longitude_max: 114.6301389
+Macedonia_the_former_Yugoslav_Republic_of:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 40.8536596
+    latitude_max: 42.3735359
+    longitude_min: 20.4529023
+    longitude_max: 23.034051
+  plot_area:
+    latitude_min: 39.8536596
+    latitude_max: 43.3735359
+    longitude_min: 19.4529023
+    longitude_max: 24.034051
+Madagascar:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -25.6071002
+    latitude_max: -11.9519693
+    longitude_min: 43.2202072
+    longitude_max: 50.4862553
+  plot_area:
+    latitude_min: -26.6071002
+    latitude_max: -10.9519693
+    longitude_min: 42.2202072
+    longitude_max: 51.4862553
+Malawi:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -17.1296031
+    latitude_max: -9.3683261
+    longitude_min: 32.6703616
+    longitude_max: 35.9185731
+  plot_area:
+    latitude_min: -18.1296031
+    latitude_max: -8.3683261
+    longitude_min: 31.6703616
+    longitude_max: 36.9185731
+Malaysia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -5.1076241
+    latitude_max: 9.8923759
+    longitude_min: 105.3471939
+    longitude_max: 120.3471939
+  plot_area:
+    latitude_min: -6.1076241
+    latitude_max: 10.8923759
+    longitude_min: 104.3471939
+    longitude_max: 121.3471939
+Maldives:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -0.9074935
+    latitude_max: 7.3106246
+    longitude_min: 72.3554187
+    longitude_max: 73.9700962
+  plot_area:
+    latitude_min: -1.9074935
+    latitude_max: 8.3106246
+    longitude_min: 71.3554187
+    longitude_max: 74.9700962
+Mali:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 10.147811
+    latitude_max: 25.001084
+    longitude_min: -12.2402835
+    longitude_max: 4.2673828
+  plot_area:
+    latitude_min: 9.147811
+    latitude_max: 26.001084
+    longitude_min: -13.2402835
+    longitude_max: 5.2673828
+Malta:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 35.6029696
+    latitude_max: 36.2852706
+    longitude_min: 13.9324226
+    longitude_max: 14.8267966
+  plot_area:
+    latitude_min: 34.6029696
+    latitude_max: 37.2852706
+    longitude_min: 12.9324226
+    longitude_max: 15.8267966
+Marshall_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -0.5481258
+    latitude_max: 14.4518742
+    longitude_min: 163.4985095
+    longitude_max: 178.4985095
+  plot_area:
+    latitude_min: -1.5481258
+    latitude_max: 15.4518742
+    longitude_min: 162.4985095
+    longitude_max: 179.4985095
+Martinique:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 14.3948596
+    latitude_max: 14.8787029
+    longitude_min: -61.2290815
+    longitude_max: -60.8095833
+  plot_area:
+    latitude_min: 13.3948596
+    latitude_max: 15.8787029
+    longitude_min: -62.2290815
+    longitude_max: -59.8095833
+Mauritania:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 14.7209909
+    latitude_max: 27.314942
+    longitude_min: -17.068081
+    longitude_max: -4.8333344
+  plot_area:
+    latitude_min: 13.7209909
+    latitude_max: 28.314942
+    longitude_min: -18.068081
+    longitude_max: -3.8333344
+Mauritius:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -20.725
+    latitude_max: -10.138
+    longitude_min: 56.3825151
+    longitude_max: 63.7151319
+  plot_area:
+    latitude_min: -21.725
+    latitude_max: -9.138
+    longitude_min: 55.3825151
+    longitude_max: 64.7151319
+Mayotte:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -13.0210119
+    latitude_max: -12.6365902
+    longitude_min: 45.0183298
+    longitude_max: 45.2999917
+  plot_area:
+    latitude_min: -14.0210119
+    latitude_max: -11.6365902
+    longitude_min: 44.0183298
+    longitude_max: 46.2999917
+Mexico:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 14.3886243
+    latitude_max: 32.7186553
+    longitude_min: -118.59919
+    longitude_max: -86.493266
+  plot_area:
+    latitude_min: 13.3886243
+    latitude_max: 33.7186553
+    longitude_min: -119.59919
+    longitude_max: -85.493266
+Micronesia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 0.827
+    latitude_max: 10.291
+    longitude_min: 137.2234512
+    longitude_max: 163.2364054
+  plot_area:
+    latitude_min: -0.17300000000000004
+    latitude_max: 11.291
+    longitude_min: 136.2234512
+    longitude_max: 164.2364054
+Moldova:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 45.4674139
+    latitude_max: 48.4918695
+    longitude_min: 26.6162189
+    longitude_max: 30.1636756
+  plot_area:
+    latitude_min: 44.4674139
+    latitude_max: 49.4918695
+    longitude_min: 25.6162189
+    longitude_max: 31.1636756
+Monaco:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 43.7247599
+    latitude_max: 43.7519311
+    longitude_min: 7.4090279
+    longitude_max: 7.4398704
+  plot_area:
+    latitude_min: 42.7247599
+    latitude_max: 44.7519311
+    longitude_min: 6.4090279
+    longitude_max: 8.4398704
+Mongolia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 41.5800276
+    latitude_max: 52.1496
+    longitude_min: 87.73762
+    longitude_max: 119.931949
+  plot_area:
+    latitude_min: 40.5800276
+    latitude_max: 53.1496
+    longitude_min: 86.73762
+    longitude_max: 120.931949
+Montenegro:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 41.7495999
+    latitude_max: 43.5585061
+    longitude_min: 18.4195781
+    longitude_max: 20.3561641
+  plot_area:
+    latitude_min: 40.7495999
+    latitude_max: 44.5585061
+    longitude_min: 17.4195781
+    longitude_max: 21.3561641
+Montserrat:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 16.475
+    latitude_max: 17.0152978
+    longitude_min: -62.450667
+    longitude_max: -61.9353818
+  plot_area:
+    latitude_min: 15.475000000000001
+    latitude_max: 18.0152978
+    longitude_min: -63.450667
+    longitude_max: -60.9353818
+Morocco:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 21.3365321
+    latitude_max: 36.0505269
+    longitude_min: -17.2551456
+    longitude_max: -0.998429
+  plot_area:
+    latitude_min: 20.3365321
+    latitude_max: 37.0505269
+    longitude_min: -18.2551456
+    longitude_max: 0.001570999999999989
+Mozambique:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -26.9209427
+    latitude_max: -10.3252149
+    longitude_min: 30.2138197
+    longitude_max: 41.0545908
+  plot_area:
+    latitude_min: -27.9209427
+    latitude_max: -9.3252149
+    longitude_min: 29.2138197
+    longitude_max: 42.0545908
+Namibia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -28.96945
+    latitude_max: -16.9634855
+    longitude_min: 11.5280384
+    longitude_max: 25.2617671
+  plot_area:
+    latitude_min: -29.96945
+    latitude_max: -15.9634855
+    longitude_min: 10.5280384
+    longitude_max: 26.2617671
+Nauru:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -0.5541334
+    latitude_max: -0.5025906
+    longitude_min: 166.9091794
+    longitude_max: 166.9589235
+  plot_area:
+    latitude_min: -1.5541334
+    latitude_max: 0.4974094
+    longitude_min: 165.9091794
+    longitude_max: 167.9589235
+Nepal:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 26.3477581
+    latitude_max: 30.446945
+    longitude_min: 80.0586226
+    longitude_max: 88.2015257
+  plot_area:
+    latitude_min: 25.3477581
+    latitude_max: 31.446945
+    longitude_min: 79.0586226
+    longitude_max: 89.2015257
+Netherlands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 50.7295671
+    latitude_max: 53.7253321
+    longitude_min: 1.9193492
+    longitude_max: 7.2274985
+  plot_area:
+    latitude_min: 49.7295671
+    latitude_max: 54.7253321
+    longitude_min: 0.9193492000000001
+    longitude_max: 8.2274985
+Netherlands_Antilles:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 12.1544542
+    latitude_max: 12.1547472
+    longitude_min: -68.940593
+    longitude_max: -68.9403518
+  plot_area:
+    latitude_min: 11.1544542
+    latitude_max: 13.1547472
+    longitude_min: -69.940593
+    longitude_max: -67.9403518
+New_Caledonia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -23.2217509
+    latitude_max: -17.6868616
+    longitude_min: 162.6034343
+    longitude_max: 167.8109827
+  plot_area:
+    latitude_min: -24.2217509
+    latitude_max: -16.6868616
+    longitude_min: 161.6034343
+    longitude_max: 168.8109827
+New_Zealand:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -52.8213687
+    latitude_max: -29.0303303
+    longitude_min: -179.059153
+    longitude_max: 179.3643594
+  plot_area:
+    latitude_min: -53.8213687
+    latitude_max: -28.0303303
+    longitude_min: -180.059153
+    longitude_max: 180.3643594
+Nicaragua:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 10.7076565
+    latitude_max: 15.0331183
+    longitude_min: -87.901532
+    longitude_max: -82.6227023
+  plot_area:
+    latitude_min: 9.7076565
+    latitude_max: 16.033118299999998
+    longitude_min: -88.901532
+    longitude_max: -81.6227023
+Niger:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 11.693756
+    latitude_max: 23.517178
+    longitude_min: 0.1689653
+    longitude_max: 15.996667
+  plot_area:
+    latitude_min: 10.693756
+    latitude_max: 24.517178
+    longitude_min: -0.8310347
+    longitude_max: 16.996667000000002
+Nigeria:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 4.0690959
+    latitude_max: 13.885645
+    longitude_min: 2.676932
+    longitude_max: 14.678014
+  plot_area:
+    latitude_min: 3.0690958999999998
+    latitude_max: 14.885645
+    longitude_min: 1.6769319999999999
+    longitude_max: 15.678014
+Niue:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -19.3548665
+    latitude_max: -18.7534559
+    longitude_min: -170.1595029
+    longitude_max: -169.5647229
+  plot_area:
+    latitude_min: -20.3548665
+    latitude_max: -17.7534559
+    longitude_min: -171.1595029
+    longitude_max: -168.5647229
+Norfolk_Island:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -29.333
+    latitude_max: -28.796
+    longitude_min: 167.6873878
+    longitude_max: 168.2249543
+  plot_area:
+    latitude_min: -30.333
+    latitude_max: -27.796
+    longitude_min: 166.6873878
+    longitude_max: 169.2249543
+Northern_Mariana_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 14.036565
+    latitude_max: 20.616556
+    longitude_min: 144.813338
+    longitude_max: 146.154418
+  plot_area:
+    latitude_min: 13.036565
+    latitude_max: 21.616556
+    longitude_min: 143.813338
+    longitude_max: 147.154418
+Norway:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 57.7590052
+    latitude_max: 71.3848787
+    longitude_min: 4.0875274
+    longitude_max: 31.7614911
+  plot_area:
+    latitude_min: 56.7590052
+    latitude_max: 72.3848787
+    longitude_min: 3.0875274
+    longitude_max: 32.7614911
+Oman:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 16.4649608
+    latitude_max: 26.7026737
+    longitude_min: 52
+    longitude_max: 60.054577
+  plot_area:
+    latitude_min: 15.4649608
+    latitude_max: 27.7026737
+    longitude_min: 51
+    longitude_max: 61.054577
+Pakistan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 23.5393916
+    latitude_max: 37.084107
+    longitude_min: 60.872855
+    longitude_max: 77.1203914
+  plot_area:
+    latitude_min: 22.5393916
+    latitude_max: 38.084107
+    longitude_min: 59.872855
+    longitude_max: 78.1203914
+Palau:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 2.748
+    latitude_max: 8.222
+    longitude_min: 131.0685462
+    longitude_max: 134.7714735
+  plot_area:
+    latitude_min: 1.7480000000000002
+    latitude_max: 9.222
+    longitude_min: 130.0685462
+    longitude_max: 135.7714735
+Palestinian:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 31.2201289
+    latitude_max: 32.5521479
+    longitude_min: 34.0689732
+    longitude_max: 35.5739235
+  plot_area:
+    latitude_min: 30.2201289
+    latitude_max: 33.5521479
+    longitude_min: 33.0689732
+    longitude_max: 36.5739235
+Panama:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 7.0338679
+    latitude_max: 9.8701757
+    longitude_min: -83.0517245
+    longitude_max: -77.1393779
+  plot_area:
+    latitude_min: 6.0338679
+    latitude_max: 10.8701757
+    longitude_min: -84.0517245
+    longitude_max: -76.1393779
+Papua_New_Guinea:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -13.1816069
+    latitude_max: 1.8183931
+    longitude_min: 136.7489081
+    longitude_max: 151.7489081
+  plot_area:
+    latitude_min: -14.1816069
+    latitude_max: 2.8183930999999998
+    longitude_min: 135.7489081
+    longitude_max: 152.7489081
+Paraguay:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -27.6063935
+    latitude_max: -19.2876472
+    longitude_min: -62.6442036
+    longitude_max: -54.258
+  plot_area:
+    latitude_min: -28.6063935
+    latitude_max: -18.2876472
+    longitude_min: -63.6442036
+    longitude_max: -53.258
+Peru:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -20.1984472
+    latitude_max: -0.0392818
+    longitude_min: -84.6356535
+    longitude_max: -68.6519906
+  plot_area:
+    latitude_min: -21.1984472
+    latitude_max: 0.9607182
+    longitude_min: -85.6356535
+    longitude_max: -67.6519906
+Philippines:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 4.2158064
+    latitude_max: 21.3217806
+    longitude_min: 114.0952145
+    longitude_max: 126.8072562
+  plot_area:
+    latitude_min: 3.2158064
+    latitude_max: 22.3217806
+    longitude_min: 113.0952145
+    longitude_max: 127.8072562
+Pitcairn:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -25.1306736
+    latitude_max: -23.8655769
+    longitude_min: -130.8049862
+    longitude_max: -124.717534
+  plot_area:
+    latitude_min: -26.1306736
+    latitude_max: -22.8655769
+    longitude_min: -131.8049862
+    longitude_max: -123.717534
+Poland:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 49.0020468
+    latitude_max: 55.0336963
+    longitude_min: 14.1229707
+    longitude_max: 24.145783
+  plot_area:
+    latitude_min: 48.0020468
+    latitude_max: 56.0336963
+    longitude_min: 13.1229707
+    longitude_max: 25.145783
+Portugal:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 29.8288021
+    latitude_max: 42.1543112
+    longitude_min: -31.5575303
+    longitude_max: -6.1891593
+  plot_area:
+    latitude_min: 28.8288021
+    latitude_max: 43.1543112
+    longitude_min: -32.557530299999996
+    longitude_max: -5.1891593
+Puerto_Rico:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 17.9268695
+    latitude_max: 18.5159789
+    longitude_min: -67.271492
+    longitude_max: -65.5897525
+  plot_area:
+    latitude_min: 16.9268695
+    latitude_max: 19.5159789
+    longitude_min: -68.271492
+    longitude_max: -64.5897525
+Qatar:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 24.4707534
+    latitude_max: 26.3830212
+    longitude_min: 50.5675
+    longitude_max: 52.638011
+  plot_area:
+    latitude_min: 23.4707534
+    latitude_max: 27.3830212
+    longitude_min: 49.5675
+    longitude_max: 53.638011
+Romania:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 43.618682
+    latitude_max: 48.2653964
+    longitude_min: 20.2619773
+    longitude_max: 30.0454257
+  plot_area:
+    latitude_min: 42.618682
+    latitude_max: 49.2653964
+    longitude_min: 19.2619773
+    longitude_max: 31.0454257
+Russia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 41.1850968
+    latitude_max: 82.0586232
+    longitude_min: 19.6389
+    longitude_max: 180
+  plot_area:
+    latitude_min: 40.1850968
+    latitude_max: 83.0586232
+    longitude_min: 18.6389
+    longitude_max: 180
+Rwanda:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -2.8389804
+    latitude_max: -1.0474083
+    longitude_min: 28.8617546
+    longitude_max: 30.8990738
+  plot_area:
+    latitude_min: -3.8389804
+    latitude_max: -0.04740830000000007
+    longitude_min: 27.8617546
+    longitude_max: 31.8990738
+"R\xE9union":
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -21.3897308
+    latitude_max: -20.8717136
+    longitude_min: 55.2164268
+    longitude_max: 55.8366924
+  plot_area:
+    latitude_min: -22.3897308
+    latitude_max: -19.8717136
+    longitude_min: 54.2164268
+    longitude_max: 56.8366924
+Saint_Barthelemy:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 17.670931
+    latitude_max: 18.1375569
+    longitude_min: -63.06639
+    longitude_max: -62.5844019
+  plot_area:
+    latitude_min: 16.670931
+    latitude_max: 19.1375569
+    longitude_min: -64.06639
+    longitude_max: -61.5844019
+Saint_Helena:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -16.23
+    latitude_max: -15.704
+    longitude_min: -5.9973424
+    longitude_max: -5.4234153
+  plot_area:
+    latitude_min: -17.23
+    latitude_max: -14.704
+    longitude_min: -6.9973424
+    longitude_max: -4.4234153
+Saint_Kitts_and_Nevis:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 16.895
+    latitude_max: 17.6158146
+    longitude_min: -63.051129
+    longitude_max: -62.3303519
+  plot_area:
+    latitude_min: 15.895
+    latitude_max: 18.6158146
+    longitude_min: -64.051129
+    longitude_max: -61.3303519
+Saint_Lucia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 13.508
+    latitude_max: 14.2725
+    longitude_min: -61.2853867
+    longitude_max: -60.6669363
+  plot_area:
+    latitude_min: 12.508
+    latitude_max: 15.2725
+    longitude_min: -62.2853867
+    longitude_max: -59.6669363
+Saint_Martin:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 17.8963535
+    latitude_max: 18.1902778
+    longitude_min: -63.3605643
+    longitude_max: -62.7644063
+  plot_area:
+    latitude_min: 16.8963535
+    latitude_max: 19.1902778
+    longitude_min: -64.3605643
+    longitude_max: -61.7644063
+Saint_Pierre_and_Miquelon:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 46.5507173
+    latitude_max: 47.365
+    longitude_min: -56.6972961
+    longitude_max: -55.9033333
+  plot_area:
+    latitude_min: 45.5507173
+    latitude_max: 48.365
+    longitude_min: -57.6972961
+    longitude_max: -54.9033333
+Samoa:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -14.2770916
+    latitude_max: -13.2381892
+    longitude_min: -173.0091864
+    longitude_max: -171.1929229
+  plot_area:
+    latitude_min: -15.2770916
+    latitude_max: -12.2381892
+    longitude_min: -174.0091864
+    longitude_max: -170.1929229
+San_Marino:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 43.8937002
+    latitude_max: 43.992093
+    longitude_min: 12.4033246
+    longitude_max: 12.5160665
+  plot_area:
+    latitude_min: 42.8937002
+    latitude_max: 44.992093
+    longitude_min: 11.4033246
+    longitude_max: 13.5160665
+Sao_Tome_and_Principe:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -0.2135137
+    latitude_max: 1.9257601
+    longitude_min: 6.260642
+    longitude_max: 7.6704783
+  plot_area:
+    latitude_min: -1.2135137
+    latitude_max: 2.9257600999999998
+    longitude_min: 5.260642
+    longitude_max: 8.6704783
+Saudi_Arabia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 16.29
+    latitude_max: 32.1543377
+    longitude_min: 34.4571718
+    longitude_max: 55.6666851
+  plot_area:
+    latitude_min: 15.29
+    latitude_max: 33.1543377
+    longitude_min: 33.4571718
+    longitude_max: 56.6666851
+Senegal:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 12.2372838
+    latitude_max: 16.6919712
+    longitude_min: -17.7862419
+    longitude_max: -11.3458996
+  plot_area:
+    latitude_min: 11.2372838
+    latitude_max: 17.6919712
+    longitude_min: -18.7862419
+    longitude_max: -10.3458996
+Serbia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 42.2322435
+    latitude_max: 46.1900524
+    longitude_min: 18.8142875
+    longitude_max: 23.006309
+  plot_area:
+    latitude_min: 41.2322435
+    latitude_max: 47.1900524
+    longitude_min: 17.8142875
+    longitude_max: 24.006309
+Seychelles:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -10.4649258
+    latitude_max: -3.512
+    longitude_min: 45.9988759
+    longitude_max: 56.4979396
+  plot_area:
+    latitude_min: -11.4649258
+    latitude_max: -2.512
+    longitude_min: 44.9988759
+    longitude_max: 57.4979396
+Sierra_Leone:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 6.755
+    latitude_max: 9.999973
+    longitude_min: -13.5003389
+    longitude_max: -10.271683
+  plot_area:
+    latitude_min: 5.755
+    latitude_max: 10.999973
+    longitude_min: -14.5003389
+    longitude_max: -9.271683
+Singapore:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 1.1304753
+    latitude_max: 1.4504753
+    longitude_min: 103.6920359
+    longitude_max: 104.0120359
+  plot_area:
+    latitude_min: 0.13047530000000007
+    latitude_max: 2.4504753
+    longitude_min: 102.6920359
+    longitude_max: 105.0120359
+Slovakia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 47.7314286
+    latitude_max: 49.6138162
+    longitude_min: 16.8331891
+    longitude_max: 22.56571
+  plot_area:
+    latitude_min: 46.7314286
+    latitude_max: 50.6138162
+    longitude_min: 15.833189099999998
+    longitude_max: 23.56571
+Slovenia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 45.4214242
+    latitude_max: 46.8766816
+    longitude_min: 13.3754696
+    longitude_max: 16.5967702
+  plot_area:
+    latitude_min: 44.4214242
+    latitude_max: 47.8766816
+    longitude_min: 12.3754696
+    longitude_max: 17.5967702
+Solomon_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -13.2424298
+    latitude_max: -4.81085
+    longitude_min: 155.3190556
+    longitude_max: 170.3964667
+  plot_area:
+    latitude_min: -14.2424298
+    latitude_max: -3.8108500000000003
+    longitude_min: 154.3190556
+    longitude_max: 171.3964667
+Somalia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -1.8031969
+    latitude_max: 12.1889121
+    longitude_min: 40.98918
+    longitude_max: 51.6177696
+  plot_area:
+    latitude_min: -2.8031969
+    latitude_max: 13.1889121
+    longitude_min: 39.98918
+    longitude_max: 52.6177696
+South_Africa:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -47.1788335
+    latitude_max: -22.1250301
+    longitude_min: 16.3335213
+    longitude_max: 38.2898954
+  plot_area:
+    latitude_min: -48.1788335
+    latitude_max: -21.1250301
+    longitude_min: 15.333521300000001
+    longitude_max: 39.2898954
+South_Georgia_and_the_South_Sandwich_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -59.684
+    latitude_max: -53.3500755
+    longitude_min: -42.354739
+    longitude_max: -25.8468303
+  plot_area:
+    latitude_min: -60.684
+    latitude_max: -52.3500755
+    longitude_min: -43.354739
+    longitude_max: -24.8468303
+South_Korea:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 32.9104556
+    latitude_max: 38.623477
+    longitude_min: 124.354847
+    longitude_max: 132.1467806
+  plot_area:
+    latitude_min: 31.9104556
+    latitude_max: 39.623477
+    longitude_min: 123.354847
+    longitude_max: 133.1467806
+Spain:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 27.4335426
+    latitude_max: 43.9933088
+    longitude_min: -18.3936845
+    longitude_max: 4.5918885
+  plot_area:
+    latitude_min: 26.4335426
+    latitude_max: 44.9933088
+    longitude_min: -19.3936845
+    longitude_max: 5.5918885
+Sri_Lanka:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 5.719
+    latitude_max: 10.035
+    longitude_min: 79.3959205
+    longitude_max: 82.0810141
+  plot_area:
+    latitude_min: 4.719
+    latitude_max: 11.035
+    longitude_min: 78.3959205
+    longitude_max: 83.0810141
+St._Vincent_and_the_Grenadines:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 12.5166548
+    latitude_max: 13.583
+    longitude_min: -61.6657471
+    longitude_max: -60.9094146
+  plot_area:
+    latitude_min: 11.5166548
+    latitude_max: 14.583
+    longitude_min: -62.6657471
+    longitude_max: -59.9094146
+Sudan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 8.685278
+    latitude_max: 22.224918
+    longitude_min: 21.8145046
+    longitude_max: 39.0576252
+  plot_area:
+    latitude_min: 7.685278
+    latitude_max: 23.224918
+    longitude_min: 20.8145046
+    longitude_max: 40.0576252
+Suriname:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 1.8312802
+    latitude_max: 6.225
+    longitude_min: -58.070833
+    longitude_max: -53.8433358
+  plot_area:
+    latitude_min: 0.8312801999999999
+    latitude_max: 7.225
+    longitude_min: -59.070833
+    longitude_max: -52.8433358
+Svalbard_and_Jan_Mayen:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 70.6260825
+    latitude_max: 81.028076
+    longitude_min: -9.6848146
+    longitude_max: 34.6891253
+  plot_area:
+    latitude_min: 69.6260825
+    latitude_max: 82.028076
+    longitude_min: -10.6848146
+    longitude_max: 35.6891253
+Swaziland:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -27.3175201
+    latitude_max: -25.71876
+    longitude_min: 30.7908
+    longitude_max: 32.1349923
+  plot_area:
+    latitude_min: -28.3175201
+    latitude_max: -24.71876
+    longitude_min: 29.7908
+    longitude_max: 33.1349923
+Sweden:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 55.1331192
+    latitude_max: 69.0599699
+    longitude_min: 10.5930952
+    longitude_max: 24.1776819
+  plot_area:
+    latitude_min: 54.1331192
+    latitude_max: 70.0599699
+    longitude_min: 9.5930952
+    longitude_max: 25.1776819
+Switzerland:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 45.817995
+    latitude_max: 47.8084648
+    longitude_min: 5.9559113
+    longitude_max: 10.4922941
+  plot_area:
+    latitude_min: 44.817995
+    latitude_max: 48.8084648
+    longitude_min: 4.9559113
+    longitude_max: 11.4922941
+Syrian_Arab_Republic:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 32.311354
+    latitude_max: 37.3184589
+    longitude_min: 35.4714427
+    longitude_max: 42.3745687
+  plot_area:
+    latitude_min: 31.311354
+    latitude_max: 38.3184589
+    longitude_min: 34.4714427
+    longitude_max: 43.3745687
+Taiwan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 10.374269
+    latitude_max: 26.4372222
+    longitude_min: 114.3599058
+    longitude_max: 122.297
+  plot_area:
+    latitude_min: 9.374269
+    latitude_max: 27.4372222
+    longitude_min: 113.3599058
+    longitude_max: 123.297
+Tajikistan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 36.6711153
+    latitude_max: 41.0450935
+    longitude_min: 67.3332775
+    longitude_max: 75.1539563
+  plot_area:
+    latitude_min: 35.6711153
+    latitude_max: 42.0450935
+    longitude_min: 66.3332775
+    longitude_max: 76.1539563
+Tanzania:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -11.761254
+    latitude_max: -0.9854812
+    longitude_min: 29.3269773
+    longitude_max: 40.6584071
+  plot_area:
+    latitude_min: -12.761254
+    latitude_max: 0.014518800000000054
+    longitude_min: 28.3269773
+    longitude_max: 41.6584071
+Thailand:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 5.612851
+    latitude_max: 20.4648337
+    longitude_min: 97.3438072
+    longitude_max: 105.636812
+  plot_area:
+    latitude_min: 4.612851
+    latitude_max: 21.4648337
+    longitude_min: 96.3438072
+    longitude_max: 106.636812
+Timor-Leste:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -9.5642775
+    latitude_max: -8.0895459
+    longitude_min: 124.0415703
+    longitude_max: 127.5335392
+  plot_area:
+    latitude_min: -10.5642775
+    latitude_max: -7.089545899999999
+    longitude_min: 123.0415703
+    longitude_max: 128.5335392
+Togo:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 5.926547
+    latitude_max: 11.1395102
+    longitude_min: -0.1439746
+    longitude_max: 1.8087605
+  plot_area:
+    latitude_min: 4.926547
+    latitude_max: 12.1395102
+    longitude_min: -1.1439746
+    longitude_max: 2.8087605
+Tokelau:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -9.6442499
+    latitude_max: -8.3328631
+    longitude_min: -172.7213673
+    longitude_max: -170.9797586
+  plot_area:
+    latitude_min: -10.6442499
+    latitude_max: -7.332863100000001
+    longitude_min: -173.7213673
+    longitude_max: -169.9797586
+Tonga:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -24.1034499
+    latitude_max: -15.3655722
+    longitude_min: -179.3866055
+    longitude_max: -173.5295458
+  plot_area:
+    latitude_min: -25.1034499
+    latitude_max: -14.3655722
+    longitude_min: -180.3866055
+    longitude_max: -172.5295458
+Trinidad_&_Tobago:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 9.8732106
+    latitude_max: 11.5628372
+    longitude_min: -62.083056
+    longitude_max: -60.2895848
+  plot_area:
+    latitude_min: 8.8732106
+    latitude_max: 12.5628372
+    longitude_min: -63.083056
+    longitude_max: -59.2895848
+Tunisia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 30.230236
+    latitude_max: 37.7612052
+    longitude_min: 7.5219807
+    longitude_max: 11.8801133
+  plot_area:
+    latitude_min: 29.230236
+    latitude_max: 38.7612052
+    longitude_min: 6.5219807
+    longitude_max: 12.8801133
+Turkey:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 35.8076804
+    latitude_max: 42.297
+    longitude_min: 25.6212891
+    longitude_max: 44.8176638
+  plot_area:
+    latitude_min: 34.8076804
+    latitude_max: 43.297
+    longitude_min: 24.6212891
+    longitude_max: 45.8176638
+Turkmenistan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 35.129093
+    latitude_max: 42.7975571
+    longitude_min: 52.335076
+    longitude_max: 66.6895177
+  plot_area:
+    latitude_min: 34.129093
+    latitude_max: 43.7975571
+    longitude_min: 51.335076
+    longitude_max: 67.6895177
+Turks_and_Caicos_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 20.9553418
+    latitude_max: 22.1630989
+    longitude_min: -72.6799046
+    longitude_max: -70.8643591
+  plot_area:
+    latitude_min: 19.9553418
+    latitude_max: 23.1630989
+    longitude_min: -73.6799046
+    longitude_max: -69.8643591
+Tuvalu:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -9.9939389
+    latitude_max: -5.4369611
+    longitude_min: 175.1590468
+    longitude_max: 178.7344938
+  plot_area:
+    latitude_min: -10.9939389
+    latitude_max: -4.4369611
+    longitude_min: 174.1590468
+    longitude_max: 179.7344938
+Uganda:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -1.4823179
+    latitude_max: 4.2340766
+    longitude_min: 29.573433
+    longitude_max: 35.000308
+  plot_area:
+    latitude_min: -2.4823179
+    latitude_max: 5.2340766
+    longitude_min: 28.573433
+    longitude_max: 36.000308
+Ukraine:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 44.184598
+    latitude_max: 52.3791473
+    longitude_min: 22.137059
+    longitude_max: 40.2275801
+  plot_area:
+    latitude_min: 43.184598
+    latitude_max: 53.3791473
+    longitude_min: 21.137059
+    longitude_max: 41.2275801
+United_Arab_Emirates:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 22.6444
+    latitude_max: 26.2822
+    longitude_min: 51.498
+    longitude_max: 56.3834
+  plot_area:
+    latitude_min: 21.6444
+    latitude_max: 27.2822
+    longitude_min: 50.498
+    longitude_max: 57.3834
+United_Kingdom:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 49.674
+    latitude_max: 61.061
+    longitude_min: -14.015517
+    longitude_max: 2.0919117
+  plot_area:
+    latitude_min: 48.674
+    latitude_max: 62.061
+    longitude_min: -15.015517
+    longitude_max: 3.0919117
+United_States:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 24.9493
+    latitude_max: 49.5904
+    longitude_min: -125.0011
+    longitude_max: -66.9326
+  plot_area:
+    latitude_min: 23.9493
+    latitude_max: 50.5904
+    longitude_min: -126.0011
+    longitude_max: -65.9326
+United_States_Minor_Outlying_Islands:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 6.1779744
+    latitude_max: 6.6514388
+    longitude_min: -162.6816297
+    longitude_max: -162.1339885
+  plot_area:
+    latitude_min: 5.1779744
+    latitude_max: 7.6514388
+    longitude_min: -163.6816297
+    longitude_max: -161.1339885
+Uruguay:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -35.7824481
+    latitude_max: -30.0853962
+    longitude_min: -58.4948438
+    longitude_max: -53.0755833
+  plot_area:
+    latitude_min: -36.7824481
+    latitude_max: -29.0853962
+    longitude_min: -59.4948438
+    longitude_max: -52.0755833
+Uzbekistan:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 37.1821164
+    latitude_max: 45.590118
+    longitude_min: 55.9977865
+    longitude_max: 73.1397362
+  plot_area:
+    latitude_min: 36.1821164
+    latitude_max: 46.590118
+    longitude_min: 54.9977865
+    longitude_max: 74.1397362
+Vanuatu:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -20.4627425
+    latitude_max: -12.8713777
+    longitude_min: 166.3355255
+    longitude_max: 170.449982
+  plot_area:
+    latitude_min: -21.4627425
+    latitude_max: -11.8713777
+    longitude_min: 165.3355255
+    longitude_max: 171.449982
+Venezuela:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 0.647529
+    latitude_max: 15.9158431
+    longitude_min: -73.3529632
+    longitude_max: -59.5427079
+  plot_area:
+    latitude_min: -0.352471
+    latitude_max: 16.9158431
+    longitude_min: -74.3529632
+    longitude_max: -58.5427079
+Vietnam:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 8.1790665
+    latitude_max: 23.393395
+    longitude_min: 102.14441
+    longitude_max: 114.3337595
+  plot_area:
+    latitude_min: 7.179066499999999
+    latitude_max: 24.393395
+    longitude_min: 101.14441
+    longitude_max: 115.3337595
+Virgin_Islands_British:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 17.623468
+    latitude_max: 18.464984
+    longitude_min: -65.159094
+    longitude_max: -64.512674
+  plot_area:
+    latitude_min: 16.623468
+    latitude_max: 19.464984
+    longitude_min: -66.159094
+    longitude_max: -63.512674000000004
+Virgin_Islands_U.S.:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 17.623468
+    latitude_max: 18.464984
+    longitude_min: -65.159094
+    longitude_max: -64.512674
+  plot_area:
+    latitude_min: 16.623468
+    latitude_max: 19.464984
+    longitude_min: -66.159094
+    longitude_max: -63.512674000000004
+Wallis_and_Futuna:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -14.5630748
+    latitude_max: -12.9827961
+    longitude_min: -178.3873749
+    longitude_max: -175.9190391
+  plot_area:
+    latitude_min: -15.5630748
+    latitude_max: -11.9827961
+    longitude_min: -179.3873749
+    longitude_max: -174.9190391
+Western_Sahara:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 20.556883
+    latitude_max: 27.6666834
+    longitude_min: -17.3494721
+    longitude_max: -8.666389
+  plot_area:
+    latitude_min: 19.556883
+    latitude_max: 28.6666834
+    longitude_min: -18.3494721
+    longitude_max: -7.666389000000001
+Yemen:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: 11.9084802
+    latitude_max: 19.0
+    longitude_min: 41.60825
+    longitude_max: 54.7389375
+  plot_area:
+    latitude_min: 10.9084802
+    latitude_max: 20.0
+    longitude_min: 40.60825
+    longitude_max: 55.7389375
+Zambia:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -18.0765945
+    latitude_max: -8.2712822
+    longitude_min: 21.9993509
+    longitude_max: 33.701111
+  plot_area:
+    latitude_min: -19.0765945
+    latitude_max: -7.2712822
+    longitude_min: 20.9993509
+    longitude_max: 34.701111
+Zimbabwe:
+  py_program: bin/py-thin lat-long
+  program: lat_long_thinning.sav
+  observation_geolocation:
+    latitude_min: -22.4241096
+    latitude_max: -15.6097033
+    longitude_min: 25.2373
+    longitude_max: 33.0683413
+  plot_area:
+    latitude_min: -23.4241096
+    latitude_max: -14.6097033
+    longitude_min: 24.2373
+    longitude_max: 34.0683413

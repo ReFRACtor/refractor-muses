@@ -1,0 +1,792 @@
+# AEROMMA 
+# see: https://csl.noaa.gov/projects/aeromma/
+
+# - LA Basin (3° x 2°): 33.2°-35.2°N, 116°-119°W
+# - Salton Sea (2° x 2°): 32.0°-34.0°N, 114.4°-116.4°W
+# - California Central Valley (6° x 6°): 34.8°-40.8°N, 118.2°-124.2°W
+# - New York (4° x 4°): 39.5°-43.5°N, 71.5°-75.5°W
+# - Chicago (4° x 4°): 39.5°-43.5°N, 85.5°-89.5°W
+# - Toronto (5° x 6°): 39.6°-44.6°N, 78.0°-84.0°W    
+
+# - US Northeast (6° x 19°): 39°-45°N, 71.0°-90.0°W
+# - US Southwest (9° x 11°): 32°-41°N, 114.0°-125.0°W
+       
+# add 1 degree in each direction for the plot area
+
+# - LA Basin (3° x 2°): 33.2°-35.2°N, 116°-119°W
+AEROMMA_Los_Angeles_Basin:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 33.2
+    latitude_max: 35.2
+    longitude_min: -119.0
+    longitude_max: -116.
+  plot_area:
+    latitude_min: 32.2
+    latitude_max: 36.2
+    longitude_min: -120.0
+    longitude_max: -115.0
+
+# - Salton Sea (2° x 2°): 32.0°-34.0°N, 114.4°-116.4°W
+AEROMMA_Salton_Sea:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 32.0
+    latitude_max: 34.0
+    longitude_min: -116.4
+    longitude_max: -114.4
+  plot_area:
+    latitude_min: 31.0
+    latitude_max: 35.0
+    longitude_min: -117.4
+    longitude_max: -113.4
+
+# - California Central Valley (6° x 6°): 34.8°-40.8°N, 118.2°-124.2°W
+AEROMMA_California_Central_Valley:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 34.8
+    latitude_max: 40.8
+    longitude_min: -124.2
+    longitude_max: -118.2
+  plot_area:
+    latitude_min: 33.8
+    latitude_max: 41.8
+    longitude_min: -125.2
+    longitude_max: -117.2
+
+# - New York (4° x 4°): 39.5°-43.5°N, 71.5°-75.5°W
+AEROMMA_New_York:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 39.5
+    latitude_max: 43.5
+    longitude_min: -75.5
+    longitude_max: -71.5
+  plot_area:
+    latitude_min: 38.5
+    latitude_max: 44.5
+    longitude_min: -76.5
+    longitude_max: -70.5
+
+# - Chicago (4° x 4°): 39.5°-43.5°N, 85.5°-89.5°W
+AEROMMA_Chicago:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 39.5
+    latitude_max: 43.5
+    longitude_min: -89.5
+    longitude_max: -85.5
+  plot_area:
+    latitude_min: 38.5
+    latitude_max: 44.5
+    longitude_min: -90.5
+    longitude_max: -84.5
+
+# - Toronto (5° x 6°): 39.6°-44.6°N, 78.0°-84.0°W    
+AEROMMA_Toronto:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 39.6
+    latitude_max: 44.6
+    longitude_min: -84.0
+    longitude_max: -78.0
+  plot_area:
+    latitude_min: 38.6
+    latitude_max: 45.6
+    longitude_min: -85.0
+    longitude_max: -77.0
+
+# - US Northeast (6° x 19°): 39°-45°N, 71.0°-90.0°W
+AEROMMA_Northeast:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 39.0
+    latitude_max: 45.0
+    longitude_min: -90.0
+    longitude_max: -71.0
+  plot_area:
+    latitude_min: 38.0
+    latitude_max: 46.0
+    longitude_min: -91.0
+    longitude_max: -70.0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+# - US Northeast (6° x 19°): 39°-45°N, 71.0°-90.0°W
+AEROMMA_Northeast_Day:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 39.0
+    latitude_max: 45.0
+    longitude_min: -90.0
+    longitude_max: -71.0
+  plot_area:
+    latitude_min: 38.0
+    latitude_max: 46.0
+    longitude_min: -91.0
+    longitude_max: -70.0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+# - US Northeast (6° x 19°): 39°-45°N, 71.0°-90.0°W
+AEROMMA_Northeast_Night:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 39.0
+    latitude_max: 45.0
+    longitude_min: -90.0
+    longitude_max: -71.0
+  plot_area:
+    latitude_min: 38.0
+    latitude_max: 46.0
+    longitude_min: -91.0
+    longitude_max: -70.0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 90.0
+    solar_zenith_max: 180.0
+
+# - US Southwest (9° x 11°): 32°-41°N, 114.0°-125.0°W
+AEROMMA_Southwest:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 32.0
+    latitude_max: 41.0
+    longitude_min: -125.0
+    longitude_max: -114.0
+  plot_area:
+    latitude_min: 31.0
+    latitude_max: 42.0
+    longitude_min: -126.0
+    longitude_max: -113.0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 180.0
+
+# - US Southwest (9° x 11°): 32°-41°N, 114.0°-125.0°W
+AEROMMA_Southwest_Day:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 32.0
+    latitude_max: 41.0
+    longitude_min: -125.0
+    longitude_max: -114.0
+  plot_area:
+    latitude_min: 31.0
+    latitude_max: 42.0
+    longitude_min: -126.0
+    longitude_max: -113.0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+# - US Southwest (9° x 11°): 32°-41°N, 114.0°-125.0°W
+AEROMMA_Southwest_Night:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 32.0
+    latitude_max: 41.0
+    longitude_min: -125.0
+    longitude_max: -114.0
+  plot_area:
+    latitude_min: 31.0
+    latitude_max: 42.0
+    longitude_min: -126.0
+    longitude_max: -113.0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 90.0
+    solar_zenith_max: 180.0
+
+# end: AEROMMA
+
+
+Amazon:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 5.0
+    latitude_min: -15.0
+    longitude_max: -40.0
+    longitude_min: -80.0
+  plot_area:
+    latitude_max: 5.0
+    latitude_min: -15.0
+    longitude_max: -40.0
+    longitude_min: -80.0
+
+Australian_Fires:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    latitude_max: 0
+    latitude_min: -60.0
+    longitude_max: 177.5
+    longitude_min: 100.0
+  plot_area:
+    latitude_max: 0
+    latitude_min: -60.0
+    longitude_max: 177.5
+    longitude_min: 100.0
+  thinning_scale:
+    latitude: 0.0
+    longitude: 0.0
+
+Australian_Fires_Grid_0.3:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    latitude_max: 0
+    latitude_min: -60.0
+    longitude_max: 177.5
+    longitude_min: 100.0
+  plot_area:
+    latitude_max: 0
+    latitude_min: -60.0
+    longitude_max: 177.5
+    longitude_min: 100.0
+  thinning_scale:
+    latitude: 0.3
+    longitude: 0.3
+
+Australian_Fires_Grid_0.8:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    latitude_max: 0
+    latitude_min: -60.0
+    longitude_max: 177.5
+    longitude_min: 100.0
+  plot_area:
+    latitude_max: 0
+    latitude_min: -60.0
+    longitude_max: 177.5
+    longitude_min: 100.0
+  thinning_scale:
+    latitude: 0.8
+    longitude: 0.8
+
+CALIFORNIA:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 42.0
+    latitude_min: 32.0
+    longitude_max: -114.0
+    longitude_min: -124.0
+  plot_area:
+    latitude_max: 42.0
+    latitude_min: 32.0
+    longitude_max: -114.0
+    longitude_min: -124.0
+
+North_America_CSPP: &North_America_CSPP
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 60.0
+    latitude_min: 20.0
+    longitude_max: -40.0
+    longitude_min: -150.0
+  plot_area:
+    latitude_max: 60.0
+    latitude_min: 20.0
+    longitude_max: -40.0
+    longitude_min: -150.0
+
+# Alias for FIREX-AQ - North America
+FIREX: *North_America_CSPP
+
+# Alias for AEROMMA - North America
+AEROMMA: *North_America_CSPP
+
+Global_Survey:
+  py_program: "bin/py-thin gs"
+  program: "gs_thinning.sav"
+  observation_geolocation:
+    latitude_max: 90.0
+    latitude_min: -90.0
+    longitude_max: 180.0
+    longitude_min: -180.0
+  plot_area:
+    latitude_max: 90.0
+    latitude_min: -90.0
+    longitude_max: 180.0
+    longitude_min: -180.0
+  thinning_scale:
+    latitude: 1.0
+
+Global_Survey_10x:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -180.0
+    latitude_min: -67.0
+    longitude_max: 180.0
+    latitude_max: 85.0
+  thinning_scale:
+    longitude: 0.7
+    latitude: 0.7
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+  stride:
+    land: 1
+    ocean: 4
+
+Global_Survey_Grid_0.7: &Global_Survey_Grid_0_7
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -180.0
+    latitude_min: -67.0
+    longitude_max: 180.0
+    latitude_max: 85.0
+  thinning_scale:
+    longitude: 0.7
+    latitude: 0.7
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+  stride:
+    land: 1
+    ocean: 4
+
+# Alias for processing with py-retrieve (Python)
+Global_Survey_Grid_0.7_Python: *Global_Survey_Grid_0_7
+
+# Alias for Reanalysis Stream
+Global_Survey_Grid_0.7_RS: *Global_Survey_Grid_0_7
+
+# Alias for running non-starndard VLIDORT (NSTOKES=1 and NSTREAMS=4)
+Global_Survey_Grid_0.7_vlidort_nstokes_1: *Global_Survey_Grid_0_7
+
+# Alias for running standard VLIDORT (NSTOKES=2 and NSTREAMS=4)
+Global_Survey_Grid_0.7_vlidort: *Global_Survey_Grid_0_7
+
+# Alias for running Refractor-LIDORT-PCA
+Global_Survey_Grid_0.7_Refractor_PCA: *Global_Survey_Grid_0_7
+
+Global_Survey_Grid_0.7_Night: &Global_Survey_Grid_0_7_Night
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -180.0
+    latitude_min: -67.0
+    longitude_max: 180.0
+    latitude_max: 85.0
+  thinning_scale:
+    longitude: 0.7
+    latitude: 0.7
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 90.0
+    solar_zenith_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+  stride:
+    land: 1
+    ocean: 4
+
+# Alias for processing with py-retrieve (Python)
+Global_Survey_Grid_0.7_Night_Python: *Global_Survey_Grid_0_7_Night
+
+# Alias for Reanalysis Stream
+Global_Survey_Grid_0_7_RS_Night: *Global_Survey_Grid_0_7_Night
+
+
+Global_Survey_Grid_0.8: &Global_Survey_Grid_0_8
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -180.0
+    latitude_min: -67.0
+    longitude_max: 180.0
+    latitude_max: 85.0
+  thinning_scale:
+    longitude: 0.8
+    latitude: 0.8
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+  stride:
+    land: 1
+    ocean: 4
+  hotspots: 
+    - name: NH3-mask 
+      mask: "{osp}/Hotspots/NH3/EC_NH3_mask_smpl_0.4_thr_1.25.nc"
+
+# Alias for processing with py-retrieve (Python)
+Global_Survey_Grid_0.8_Python: *Global_Survey_Grid_0_8
+
+# Alias for processing with idl-retrieve (IDL)
+Global_Survey_Grid_0.8_IDL: *Global_Survey_Grid_0_8
+
+# Alias for processing CrIS without the midwave channel
+Global_Survey_Grid_0.8_No_Midwave: *Global_Survey_Grid_0_8
+
+# Alias for processing CrIS using UWIS (University of Wisconsin) emissivity
+Global_Survey_Grid_0.8_Emis_UWIS: *Global_Survey_Grid_0_8
+
+# Alias for processing CrIS using CAMELv2 (Combined ASTER and MODIS Emissivity for Land) emissivity
+Global_Survey_Grid_0.8_Emis_CAMELv2: *Global_Survey_Grid_0_8
+
+# Alias for Reanalysis Stream
+Global_Survey_Grid_0.8_RS: *Global_Survey_Grid_0_8
+
+
+Global_Survey_Grid_2.0: &Global_Survey_Grid_2_0
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -180.0
+    latitude_min: -67.0
+    longitude_max: 180.0
+    latitude_max: 85.0
+  thinning_scale:
+    longitude: 2.0
+    latitude: 2.0
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+  stride:
+    land: 1
+    ocean: 4
+
+Global_Survey_Grid_2.0_Python: *Global_Survey_Grid_2_0
+
+Global_Survey_Grid_3.0: &Global_Survey_Grid_3_0
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -180.0
+    latitude_min: -67.0
+    longitude_max: 180.0
+    latitude_max: 85.0
+  thinning_scale:
+    longitude: 3.0
+    latitude: 3.0
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+  stride:
+    land: 1
+    ocean: 4
+
+Global_Survey_Grid_3.0_Python: *Global_Survey_Grid_3_0    
+
+Global_Survey_Grid_4.0: &Global_Survey_Grid_4_0
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -180.0
+    latitude_min: -67.0
+    longitude_max: 180.0
+    latitude_max: 85.0
+  thinning_scale:
+    longitude: 4.0
+    latitude: 4.0
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+  stride:
+    land: 1
+    ocean: 4
+
+Global_Survey_Grid_4.0_Python: *Global_Survey_Grid_4_0
+
+Global_Survey_Grid_4.0_vlidort_nstokes_1: *Global_Survey_Grid_4_0
+
+Global_Survey_Grid_4.0_Refractor_PCA: *Global_Survey_Grid_4_0
+
+IPCC:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    latitude_max: 60.0
+    latitude_min: -60.0
+    longitude_max: 180.0
+    longitude_min: -180.0
+  thinning_scale:
+    longitude: 0.0
+    latitude: 0.0
+  thinning_sensor_params:
+    cross_track: [8,14,22]
+    along_track: [0,9,19,29,39]
+    field_of_view: 0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.9
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+
+IPCC_Pass_2:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    latitude_max: 60.0
+    latitude_min: -60.0
+    longitude_max: 180.0
+    longitude_min: -180.0
+  thinning_scale:
+    longitude: 0.0
+    latitude: 0.0
+  thinning_sensor_params:
+    cross_track: [8,14,22]
+    along_track: [4,14,24,34,44]
+    field_of_view: 0
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.9
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+
+KORUS:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 45.0
+    latitude_min: 20.0
+    longitude_max: 150.0
+    longitude_min: 110.0
+  plot_area:
+    latitude_max: 45.0
+    latitude_min: 20.0
+    longitude_max: 150.0
+    longitude_min: 110.0
+
+Northern_Hemisphere:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    latitude_max: 85.0
+    latitude_min: 0.0
+    longitude_max: 180.0
+    longitude_min: -180.0
+  plot_area:
+    latitude_max: 90.0
+    latitude_min: 0.0
+    longitude_max: 180.0
+    longitude_min: -180.0
+  thinning_scale:
+    latitude: 0.5
+
+ORACLES:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 10.0
+    latitude_min: -30.0
+    longitude_max: 25.0
+    longitude_min: -20.0
+  plot_area:
+    latitude_max: 10.0
+    latitude_min: -30.0
+    longitude_max: 25.0
+    longitude_min: -20.0
+
+POSIDON:
+  py_program: "bin/py-thin lat-long" 
+  program: "lat_long_thinning.sav"
+  observation_geolocation:
+    latitude_max: 35.0
+    latitude_min: -10.0
+    longitude_max: 180.0
+    longitude_min: 120.0
+  plot_area:
+    latitude_max: 35.0
+    latitude_min: -10.0
+    longitude_max: 180.0
+    longitude_min: 120.0
+
+Southern_Hemisphere:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    latitude_max: 0.0
+    latitude_min: -85.0
+    longitude_max: 180.0
+    longitude_min: -180.0
+  plot_area:
+    latitude_max: 0.0
+    latitude_min: -90.0
+    longitude_max: 180.0
+    longitude_min: -180.0
+  thinning_scale:
+    latitude: 0.5
+
+# TNO Small Day (8° x 7°): 2-9°N, 49.0°-55.0°E
+TNO_Small_Day:
+  py_program: "bin/py-thin lat-long" 
+  observation_geolocation:
+    latitude_min: 49
+    latitude_max: 55
+    longitude_min: 2
+    longitude_max: 9
+  plot_area:
+    latitude_min: 48.0
+    latitude_max: 56.0
+    longitude_min: 1
+    longitude_max: 10
+  solar_zenith_angle_limits:
+    solar_zenith_min: 0.0
+    solar_zenith_max: 89.0
+
+West_Coast_Fires:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -150
+    latitude_min: 20
+    longitude_max: -40
+    latitude_max: 60
+  plot_area:
+    longitude_min: -150
+    latitude_min: 20
+    longitude_max: -40
+    latitude_max: 60
+  thinning_scale:
+    longitude: 0.0
+    latitude: 0.0
+  plot_size:
+    width: 1024
+    height: 480    
+  
+West_Coast_Fires_Grid_0.25:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -150
+    latitude_min: 20
+    longitude_max: -40
+    latitude_max: 60
+  plot_area:
+    longitude_min: -150
+    latitude_min: 20
+    longitude_max: -40
+    latitude_max: 60
+  thinning_scale:
+    longitude: 0.25
+    latitude: 0.25
+  plot_size:
+    width: 1024
+    height: 480    
+
+West_Coast_Fires_Grid_0.7:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -150
+    latitude_min: 20
+    longitude_max: -40
+    latitude_max: 60
+  plot_area:
+    longitude_min: -150
+    latitude_min: 20
+    longitude_max: -40
+    latitude_max: 60
+  thinning_scale:
+    longitude: 0.7
+    latitude: 0.7
+  plot_size:
+    width: 1024
+    height: 480    
+    
+Western_Boundary:
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -148.74
+    latitude_min: 11.35
+    longitude_max: -140.74
+    latitude_max: 65.52
+  plot_area:
+    longitude_min: -168.74
+    latitude_min: 6.35
+    longitude_max: -130.74
+    latitude_max: 70.52
+  thinning_scale:
+    longitude: 0.0
+    latitude: 0.0
+
+# This a profile that take everything
+# Basically grid thinning with spacing: 0 is a copy of all the input data without any thinnnig
+World: &World
+  py_program: "bin/py-thin grid" 
+  program: "grid_thinning.sav"
+  observation_geolocation:
+    longitude_min: -180.0
+    latitude_min: -90.0
+    longitude_max: 180.0
+    latitude_max: 90.0
+  thinning_scale:
+    longitude: 0
+    latitude: 0
+  plot_area:
+    latitude_min: -90.0
+    latitude_max: 90.0
+    longitude_min: -180.0
+    longitude_max: 180.0
+  plot_size:
+    width: 800
+    height: 500
+  stride:
+    land: 1
+    ocean: 1
+
+# Same as World but for running VLIDORT with NSTOKES=2 and NSTREAMS=4 (default VLIDORT)
+World_vlidort: *World
+
+# Same as World but for running VLIDORT with NSTOKES=1 and NSTREAMS=4
+World_vlidort_nstokes_1: *World
+
+# Same as World but for using Refractor + PCA as RT model
+World_Refractor_PCA: *World

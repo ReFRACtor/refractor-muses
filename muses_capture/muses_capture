@@ -77,6 +77,8 @@ def sounding_dir(instrument, sounding, output_dir="./output"):
         res += "/omi/2016-04-14/setup-targets/Global_Survey/"
     elif(instrument == "tropomi"):
         res += "/tropomi/2019-08-07/setup-targets/Global_Survey/"
+    elif(instrument == "tropomi_band7"):
+        res += "/tropomi/2022-06-28/setup-targets/Global_Survey/"
     elif(instrument == "cris_tropomi"):
         res += "/cris_tropomi/2019-08-07/setup-targets/Global_Survey/"
     elif(instrument == "airs_omi"):
@@ -152,6 +154,15 @@ def base_command(instrument,output_dir="./output"):
                     ])
         sounding1="20190807_9401_359_226"
         step_list = [1,2]
+    elif(instrument == "tropomi_band7"):
+        cmd.extend(["--sensor-set", "TROPOMI",
+                    "--tropomi-band", "7",
+                    "--profile", "Global_Survey",
+                    "--date", "2022-06-28",
+                    "--pipeline-config", f"{os.path.abspath('.')}/tropomi-band7-test-pipeline-config"
+                    ])
+        sounding1="20220628_24394_1008_108"
+        step_list = [1,2]
     elif(instrument == "cris_tropomi"):
         cmd.extend(["--sensor-set", "CrIS_TROPOMI",
                     "--profile", "Global_Survey",
@@ -189,7 +200,7 @@ def setup_targets(instrument, output_dir="./output"):
     logger.info("In setup-targets")
     ilist = (instrument,)
     if(instrument == "all"):
-        ilist = ("omi", "tropomi", "airs_omi", "cris_tropomi")
+        ilist = ("omi", "tropomi", "tropomi_band7", "airs_omi", "cris_tropomi")
     for inst in ilist:
         cmd, _, _ = base_command(inst,output_dir=output_dir)
         cmd.extend(["--start-step", "geolocate",
@@ -218,7 +229,7 @@ def capture_run(instrument,output_dir="./output",
     
     ilist = (instrument,)
     if(instrument == "all"):
-        ilist = ("omi", "tropomi", "airs_omi", "cris_tropomi")
+        ilist = ("omi", "tropomi", "tropomi_band7", "airs_omi", "cris_tropomi")
     for inst in ilist:
         _, sounding_list, step_list = base_command(inst,output_dir=output_dir)
         for i, sounding in enumerate(sounding_list):

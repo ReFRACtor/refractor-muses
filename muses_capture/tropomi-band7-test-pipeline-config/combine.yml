@@ -1,0 +1,25 @@
+# Step 7: Combine
+# From the retrieval step, there will be a bunch of target scene subdirectories each containing .nc product files
+# which are organized and named by species (CO, H2O, etc). This step will combine those into a single .nc file per species
+#
+# IDL program usage: geolocation_{sensor_set} -args
+#  Input Path     : location of data produced from Setup Targets step
+#  Output Path    : where the output will be written
+#
+###
+products:
+    standard:
+        program: make_savefile_mpi.sav
+        py_program: bin/py-combine std --mpi
+    lite:
+        program: make_savefile_lite_mpi.sav
+        py_program: bin/py-combine lite --mpi
+    radiance:
+        program: make_rad_savefile_mpi.sav
+        py_program: bin/py-combine rad --mpi
+    jacobian:
+        program: make_jac_savefile_mpi.sav
+        py_program: bin/py-combine jac --mpi
+    irk:
+        program: make_irk_savefile_mpi.sav
+        py_program: bin/py-combine irk --mpi

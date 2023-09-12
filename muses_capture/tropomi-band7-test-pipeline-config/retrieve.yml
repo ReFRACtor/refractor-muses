@@ -1,0 +1,67 @@
+# Step 6: Retrieve (multiple targets)
+# To run retrieval on multiple targets, MPI is needed.
+#
+# Main usage: mpiexec
+#  -f Hosts               : tb nodes to use
+#  -ppn Tasks per host    :
+#  -prepend-rank
+#  -outfile-pattern       : output directory structure according to the parent output path, sensor set, date, profile, and time of day
+#  idl program name       : the retrieve script to run (e.g. retrieve_mpi  -see below)
+#
+#  Idl program: retrieve_mpi -args
+#   Output_Path :  The resulting output is .nc product files in each of the target scene subdirectories.
+#
+#
+###
+AIRS: &AIRS
+  program: retrieve_mpi.sav
+  py_program: bin/py-retrieve --mpi
+
+AIRS_SONDE: *AIRS
+
+AIRS_OMI: &AIRS_OMI
+  program: retrieve_mpi.sav
+  py_program: bin/py-retrieve --mpi
+
+AIRS_OMI_SONDE: *AIRS_OMI
+
+OMI: &OMI
+  program: retrieve_mpi.sav
+  py_program: bin/py-retrieve --mpi
+
+OMI_SONDE: *OMI
+
+CRIS: &CRIS
+  program: retrieve_mpi.sav
+  py_program: bin/py-retrieve --mpi
+
+# alias for CrIS without the midwave channel, NM == No-Midwave
+CRIS-NM: *CRIS
+
+CRIS_SONDE: *CRIS
+CRIS-NM_SONDE: *CRIS
+CRIS-JPSS-1_SONDE: *CRIS
+
+CRIS-CSPP: &CRIS-CSPP
+  program: retrieve_mpi.sav
+  py_program: bin/py-retrieve --mpi
+
+CRIS-JPSS-1-CSPP: *CRIS-CSPP
+CRIS-JPSS-2-CSPP: *CRIS-CSPP
+
+CRIS-JPSS-1:
+  program: retrieve_mpi.sav
+  py_program: bin/py-retrieve --mpi
+
+TROPOMI: &TROPOMI
+  py_program: bin/py-retrieve --mpi
+
+TROPOMI_SONDE: *TROPOMI
+
+CRIS_TROPOMI: &CRIS_TROPOMI
+  py_program: bin/py-retrieve --mpi
+
+CRIS-NM_TROPOMI: *CRIS_TROPOMI
+
+CRIS_TROPOMI_SONDE: *CRIS_TROPOMI
+CRIS-NM_TROPOMI_SONDE: *CRIS_TROPOMI

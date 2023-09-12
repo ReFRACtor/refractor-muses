@@ -1,0 +1,3 @@
+# WOUDC Sondes are `SONDE`    
+SONDE:
+  py_program: bin/py-sonde parse

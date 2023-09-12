@@ -1,0 +1,9 @@
+# Step 6: Retrieve (single target)
+# Runs retrieval processing for one target scene directory
+#
+# IDL program usage: retrieve -args
+#  Output_Path  :  under a specified setup-targets data directory
+#
+###
+program: retrieve.sav
+py_program: bin/py-retrieve

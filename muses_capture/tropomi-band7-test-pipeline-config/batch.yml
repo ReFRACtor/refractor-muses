@@ -1,0 +1,6 @@
+###
+# Step 5: Batch
+# Takes the data produced by the generate_targets step and creates smaller batches  
+# that can be processed by the py-setup-targets and py-retrieve steps
+###
+py_program: bin/py-batch

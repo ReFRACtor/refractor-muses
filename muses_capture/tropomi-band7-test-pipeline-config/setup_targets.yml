@@ -1,0 +1,217 @@
+###
+# Step 5: Setup Targets
+###
+
+#  gmao                           : path to the directory that contain GMAO inputs (optional)
+#  gmao_type                      : set to "geos-fp-it" or "merra" (optional)
+#  strategy_table                 : name of the strategy table from OSP/Strategy_Tables/<group> without the OSP- prefix, e.g. Table-AIRS-v9 
+#  strategy_group                 : name of the strategy group. This is a subdirectory in OSP/Strategy_Tables, e.g. OSP/Strategy_Tables/prod
+#  target_min                     : start target index (0 based)
+#  target_max                     : end target index (0 based)
+#  max_steps                      : how many steps to use from the strategy table
+
+# (optional)
+#  initial_guess_setup_directory  : usually a directory from OSP/L2_Setup (optional). If not set this will be read from the strategy table.
+#  vlidort_nstokes                : VLIDORT NSTOKES parameter. If not set this will be read from the strategy table.
+#  vlidort_nstreams               : VLIDORT NSTREAMS parameter. If not set this will be read from the strategy table.
+
+# Example:
+
+# AIRS_OMI:
+#   program: setup_targets.sav
+#   py_program: bin/py-setup-targets
+
+#   gmao: /project/muses/input/geos_fp_it
+#   gmao_type: geos-fp-it
+
+#   strategy_table: Table-OMI-AIRS-v8
+#   strategy_group: ops
+
+#   target_min: 0
+#   target_max: 250000
+#   max_steps: 50
+#
+#   # optional
+#   initial_guess_setup_directory: "{osp}/L2_Setup/L2_Setup_ms-OMI-AIRS"
+#   vlidort_nstokes: 2
+#   vlidort_nstreams: 4
+
+###
+
+AIRS: &AIRS
+  program: setup_targets.sav
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-AIRS-v10
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+
+
+# same as AIRS
+AIRS_SONDE: *AIRS
+
+
+AIRS_OMI: &AIRS_OMI
+  program: setup_targets.sav
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-OMI-AIRS-v10
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+  
+  
+# same as AIRS_OMI
+AIRS_OMI_SONDE: *AIRS_OMI
+
+
+OMI: &OMI
+  program: setup_targets.sav
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-OMI-v2
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+
+# same as OMI
+OMI_SONDE: *OMI
+
+
+CRIS: &CRIS
+  program: setup_targets.sav
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-CrIS-v14
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+
+# same as CRIS
+CRIS_SONDE: *CRIS
+
+# This is CrIS with diabled midwave channel, NM == No Midwave
+CRIS-NM: &CRIS-NM
+  program: setup_targets.sav
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-CrIS-NM-v4
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+
+# same as CRIS-NM
+CRIS-NM_SONDE: *CRIS-NM
+
+  
+CRIS-JPSS-1: &CRIS-JPSS-1
+  program: setup_targets.sav
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-CrIS-v14
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+  
+# same as CRIS-JPSS-1
+CRIS-JPSS-1_SONDE: *CRIS-JPSS-1
+
+
+CRIS-CSPP: &CRIS-CSPP
+  program: setup_targets.sav
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-CrIS-v14
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+  
+CRIS-JPSS-1-CSPP: *CRIS-CSPP
+CRIS-JPSS-2-CSPP: *CRIS-CSPP
+  
+TROPOMI: &TROPOMI
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-TROPOMI-BAND7
+  strategy_group: tropomi_nir
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+
+# same as TROPOMI
+TROPOMI_SONDE: *TROPOMI
+  
+  
+CRIS_TROPOMI: &CRIS_TROPOMI
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-CrIS-TROPOMI-v7
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+
+# same as CRIS_TROPOMI
+CRIS_TROPOMI_SONDE: *CRIS_TROPOMI  
+
+
+# This is CrIS with diabled midwave channel, i.e NM == No Midwave
+CRIS-NM_TROPOMI: &CRIS_NM_TROPOMI
+  py_program: bin/py-setup-targets
+
+  gmao: /project/muses/input/geos_fp_it
+  gmao_type: geos-fp-it
+
+  strategy_table: Table-CrIS-NM-TROPOMI-v5
+  strategy_group: ops
+
+  target_min: 0
+  target_max: 250000
+  max_steps: 50
+
+# same as CRIS-NM_TROPOMI
+CRIS-NM_TROPOMI_SONDE: *CRIS_NM_TROPOMI  

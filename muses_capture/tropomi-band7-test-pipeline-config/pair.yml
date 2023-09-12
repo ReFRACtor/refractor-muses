@@ -1,0 +1,18 @@
+# Step 2: Pair
+# Read OMI and AIRS data.  Find best and closest matches
+# for each dataset; each satellite observation is used at most
+# one time.  The maximum allowed are 1 degree longitude, 1/2
+# degree latitude, 50 km, and delta_min minutes.  It writes all
+# pairs out into the output directory as a savefile
+#
+# IDL program usage: observation_pairing -args
+#  AIRS Geolocation File Directory : AIRS geolocation .sav file location
+#  OMI Geolocation File Directory  : OMI geolocation .sav file location
+#  Output Path                     : outputs a single .sav file of combined airs and omi
+#  Year                            : year to be processed
+#  Month                           : month to be processed
+#  Day                             : day to be processed
+#
+###
+program: observation_pairing.sav
+py_program: bin/py-pair

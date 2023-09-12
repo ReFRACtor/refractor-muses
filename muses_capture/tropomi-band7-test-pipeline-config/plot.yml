@@ -1,0 +1,21 @@
+# Parallel plotting (using MPI)
+
+###
+# Step 8: Plot
+# Takes the final .nc files and creates plots which are saved in .PNG files.
+# It also produces an .html webpage which display the PNG files.
+#
+# IDL program usage: make_targets -args
+#  Combined Data Path        	   : Path where combined file is located
+#  Output_Path                     : Includes folder of png files as well as a .html page to display them.
+#  Sensor Set                      : Sensor set being processed
+#  Profile                         : Profile being processed
+#  Year                            : Year to be processed
+#  Month                           : Month to be processed
+#  Day                             : Day to be processed
+#
+###
+program: main_daily_plot_mpi.sav
+py_program_dot: py-plot plot
+py_program_map: py-plot plot-level3
+py_program_html: py-plot combine

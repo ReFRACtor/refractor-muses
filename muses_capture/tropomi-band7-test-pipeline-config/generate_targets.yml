@@ -1,0 +1,16 @@
+###
+# Step 4: Generate Targets
+# Takes the data produced from thin or pair steps and puts it into a format
+# that can be used by the setup-targets and retrieve steps
+#
+# IDL program usage: make_targets -args
+#  Input Path                	   : path where thinned data is located
+#  Output Path                     : outputs a single targets.sav file
+#  Profile                         : profile being processed
+#  Year                            : year to be processed
+#  Month                           : month to be processed
+#  Day                             : day to be processed
+#
+###
+program: make_targets.sav
+py_program: bin/py-generate-targets
