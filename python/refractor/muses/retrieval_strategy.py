@@ -2,6 +2,9 @@ from .refractor_capture_directory import muses_py_call
 import logging
 import refractor.muses.muses_py as mpy
 import os
+import copy
+import numpy as np
+import pickle
 
 logger = logging.getLogger("py-retrieve")
 
@@ -34,6 +37,7 @@ class RetrievalStrategy:
         self.filename = os.path.abspath(filename)
         self.run_dir = os.path.dirname(self.filename)
         self.vlidort_cli = vlidort_cli
+        self._table_step = -1
         # May want to rework this, but for now uses muses-py functions
         curdir = os.getcwd()
         try:
@@ -49,7 +53,272 @@ class RetrievalStrategy:
         # for now we'll do that.
         with muses_py_call(self.run_dir,
                            vlidort_cli=self.vlidort_cli):
-            self.retrieval_ms_body()
+            self.retrieval_ms_body2()
 
     def retrieval_ms_body(self):
         mpy.script_retrieval_ms(self.filename)
+
+    def retrieval_ms_body2(self):
+        # Might be good to wrap these in classes
+        (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
+         self.stateInfo) = mpy.script_retrieval_setup_ms(self.strategy_table, False)
+        # Copy original
+        omi0 = copy.deepcopy(self.o_omi)
+        tropomi0 = copy.deepcopy(self.o_tropomi)
+        self.create_windows(all_step=True)
+        self.create_radiance()
+        self.stateInfo = mpy.states_initial_update(self.stateInfo, self.strategy_table,
+                                                   self.radiance, self.instruments)
+        # Not really sure what this is
+        BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
+
+        self.errorInitial = None
+        self.errorCurrent = None
+        self.retrievalInfo = None
+        # Go through all the steps once, to make sure we can get all the information
+        # we need. This way we fail up front, rather than after multiple retrieval
+        # steps
+        for stp in range(self.number_table_step):
+            self.table_step = stp
+            self.get_initial_guess()
+        self.stateInfo["initialInitial"] = copy.deepcopy(self.stateInfo["current"])
+        # Now go back through and actually do retrievals
+        for stp in range(self.number_table_step):
+            self.table_step = stp
+            self.stateInfo["initial"] = copy.deepcopy(self.stateInfo["current"])
+            logger.info(f'\n---')
+            logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
+            logger.info(f'\n---')
+            self.get_initial_guess()
+            self.create_windows(all_step=False)
+            self.create_radiance_step()
+            
+
+    def create_radiance_step(self):
+        # Note, I think we might replace this just with our SpectralWindow stuff,
+        # along with an Observation class
+        self.radianceStep = self.radiance
+        self.radianceStep = mpy.radiance_set_windows(self.radianceStep, self.windows)
+
+        if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
+            raise RuntimeError('ERROR! radiance NOT FINITE!')
+
+        if np.all(np.isfinite(self.radianceStep['NESR'])) == False:
+            raise RuntimeError('ERROR! radiance error NOT FINITE!')
+        if 'OCO2' in self.instruments:
+            ind = np.where(np.array(mpy.radiance_get_instrument_array(self.radianceStep)) == 'OCO2')[0]
+            sample_indexes_step = mpy.oco2_sample_indexes(self.o_oco2['radianceStruct']['frequency'], self.radianceStep['frequency'][ind], selfpo_oco2['sample_indexes'])
+
+            # make oco2_step, containing step information
+            self.oco2_step = copy.deepcopy(self.o_oco2)
+            self.oco2_step['sample_indexes'] = sample_indexes_step
+
+            # OCO-2 step radiance
+            radiancex = copy.deepcopy(self.radianceStep)
+            radiancex = mpy.radiance_set_instrument(self.radiancex, 'OCO2')
+
+            self.oco2_step['radianceStruct'] = radiancex
+        else:
+            self.oco2_step = None
+        # update with omi pars to omi measured radiance
+        my_instruments = np.asarray(mpy.radiance_get_instrument_array(self.radianceStep))
+        ind = np.where(my_instruments == 'OMI')[0]
+        if len(ind) > 0:
+            # Get windows that are 'OMI' specific.
+            ind2 = []
+            for ii in range(0, len(self.windows)):
+                if self.windows[ii]['instrument'] == 'OMI':
+                    ind2.append(ii)
+            ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
+
+            # The type of stateInfo is sometimes dict and sometimes ObjectView.
+            stateInfo = mpy.ObjectView.as_object(self.stateInfo)
+
+            result = mpy.get_omi_radiance(stateInfo.current['omi'], self.o_omi)
+
+            myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
+
+            # reduce to omi step windows 
+            myobsrad = self.radiance_set_windows(myobsrad, np.asarray(self.windows)[ind2])
+
+            # put into omi part of step windows 
+            self.radianceStep['radiance'][ind] = copy.deepcopy(myobsrad['radiance'])
+            if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
+                raise RuntimeError('ERROR! radiance NOT FINITE!')
+
+        indT = np.where(my_instruments == 'TROPOMI')[0]
+        if len(indT) > 0:
+            # Get windows that are 'TROPOMI' specific.
+            ind2 = []
+            for ii in range(0, len(self.windows)):
+                if self.windows[ii]['instrument'] == 'TROPOMI':
+                    ind2.append(ii)
+            ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
+
+            # The type of stateInfo is sometimes dict and sometimes ObjectView.
+            stateInfo = mpy.ObjectView.as_object(self.stateInfo)
+
+            result = mpy.get_tropomi_radiance(stateInfo.current['tropomi'],
+                                              self.o_tropomi)
+
+            myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
+
+            # reduce to omi step windows 
+            myobsrad = mpy.radiance_set_windows(myobsrad, np.asarray(self.windows)[ind2])
+
+            # put into omi part of step windows 
+            self.radianceStep['radiance'][indT] = copy.deepcopy(myobsrad['radiance'])
+            if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
+                raise RuntimeError('ERROR! radiance NOT FINITE!')
+        # end: if len(indT) > 0:
+
+        self.radianceNoiseStep = self.radianceStep.copy() 
+
+        self.radianceNoiseStep['radiance'] = np.ndarray(shape=(self.radianceStep['radiance'].shape), dtype=np.float)
+        self.radianceNoiseStep['radiance'][:] = 0.0
+            
+    def create_radiance(self):
+        '''Read the radiance data. We can  perhaps move this into a Observation class
+        by instrument.
+
+        Note that this also creates the magic files Radiance_OMI_.pkl and
+        Radiance_TROPOMI_.pkl. It would be nice if can rework that.
+        '''
+        logger.info(f"Instruments: {len(self.instruments)} {self.instruments}")
+        myobsrad = None
+        for instrument_name in self.instruments:
+            logger.info(f"Reading radiance: {instrument_name}")
+            if instrument_name == 'OMI':
+                result = mpy.get_omi_radiance(self.stateInfo['current']['omi'], self.o_omi)
+                radiance = result['normalized_rad']
+                nesr = result['nesr']
+                my_filter = result['filter']
+                frequency = result['wavelength']
+                fname = f'{self.run_dir}/Input/Radiance_OMI_.pkl'
+                os.makedirs(os.path.dirname(fname), exist_ok=True)
+                pickle.dump(self.o_omi, open(fname, "wb"))
+            if instrument_name == 'TROPOMI':
+                result = mpy.get_tropomi_radiance(self.stateInfo['current']['tropomi'], self.o_tropomi)
+
+                radiance = result['normalized_rad']
+                nesr = result['nesr']
+                my_filter = result['filter']
+                frequency = result['wavelength']
+                fname = f'{self.run_dir}/Input/Radiance_TROPOMI_.pkl'
+                os.makedirs(os.path.dirname(fname), exist_ok=True)
+                pickle.dump(self.o_tropomi, open(fname, "wb"))
+
+            if instrument_name == 'AIRS':
+                radiance = self.o_airs['radiance']['radiance']
+                frequency = self.o_airs['radiance']['frequency']
+                nesr = self.o_airs['radiance']['NESR']
+                my_filter = mpy.radiance_get_filter_array(self.o_airs['radiance'])
+            if instrument_name == 'CRIS':
+                # The o_cris dictionary uses all uppercase keys.
+                radiance = self.o_cris['radiance'.upper()]
+                frequency = self.o_cris['frequency'.upper()]
+                nesr = self.o_cris['nesr'.upper()]
+                my_filter = mpy.radiance_get_filter_array(self.o_cris['radianceStruct'.upper()])
+            if instrument_name == 'OCO2':
+                radiance = self.o_oco2['radianceStruct']['radiance']
+                frequency = self.o_oco2['radianceStruct']['frequency']
+                nesr = self.o_oco2['radianceStruct']['NESR']
+                my_filter = mpy.radiance_get_filter_array(self.o_oco2['radianceStruct'])
+
+            if instrument_name == 'TES':
+                radiance = self.o_tes['radianceStruct']['radiance']
+                frequency = self.o_tes['radianceStruct']['frequency']
+                nesr = self.o_tes['radianceStruct']['NESR']
+                my_filter = mpy.radiance_get_filter_array(self.o_tes['radianceStruct'])
+
+            # Add the first radiance if this is the first time in the loop.
+            if(myobsrad is None):
+                myobsrad = mpy.radiance_data(radiance, nesr, [-1], frequency, my_filter, instrument_name, None)
+            else:
+                filtersIn = np.asarray(['' for ii in range(0, len(frequency))])
+                myobsrad = mpy.radiance_add_filter(myobsrad, radiance, nesr, [-1], frequency, my_filter, instrument_name)
+        self.radiance = myobsrad
+        
+    def create_windows(self, all_step=False):
+        # We should rework this a bit, it is just a string of magic code. Perhaps
+        # we should have each instrument have a function for this?
+        if(all_step):
+            self.windows = mpy.new_mw_from_table_all_steps(self.strategy_table)
+        else:
+            self.windows = mpy.new_mw_from_table(self.strategy_table, self.table_step)
+            
+        self.instruments = mpy.get_unique_windows(self.windows)
+
+        # This magic adjustment should go somewhere else
+        if 'CRIS' in self.instruments:
+            for tempind, win in enumerate(self.windows):
+                if win['instrument'] == 'CRIS': # EM - Necessary for joint retrievals
+                    con1 = self.o_cris['FREQUENCY'] >= win['start']
+                    con2 = self.o_cris['FREQUENCY'] <= win['endd']
+
+                    tempind = np.where(np.logical_and(con1 == True, con2 == True))[0]
+        
+                    MAXOPD = np.unique(self.o_cris['MAXOPD'][tempind])
+                    SPACING = np.unique(self.o_cris['SPACING'][tempind])
+
+                    if len(MAXOPD) > 1 or len(SPACING) > 1:
+                        raise Running('ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!')
+
+                    win['maxopd'] = np.float32(MAXOPD[0])
+                    win['spacing'] = np.float32(SPACING[0])
+                    win['monoextend'] = np.float32(SPACING[0]) * 4.0
+
+        self.windows = mpy.mw_combine_overlapping(self.windows, self.threshold)
+
+    def get_initial_guess(self):
+        '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
+        # AT_LINE 308 Script_Retrieval_ms.pro
+        (self.retrievalInfo, self.errorInitial, self.errorCurrent) = \
+            mpy.get_species_information(self.strategy_table, self.stateInfo,
+                                        self.errorInitial, self.errorCurrent)
+        self.retrievalInfo = mpy.ObjectView.as_object(self.retrievalInfo)
+
+        # Update state with initial guess so that the initial guess is
+        # mapped properly, if doing a retrieval, for each retrieval step.
+        # AT_LINE 319 Script_Retrieval_ms.pro
+        nn = self.retrievalInfo.n_totalParameters
+
+        # AT_LINE 320 Script_Retrieval_ms.pro
+        if nn > 0:
+            xig = self.retrievalInfo.initialGuessList[0:nn]
+
+            # Note that we do not pass in stateOneNext (None) and do not get back stateOneNext on the left handside as donotcare_stateOneNext.
+            (self.stateInfo, self.retrievalInfo, _) = \
+                mpy.update_state(self.stateInfo, self.retrievalInfo, xig,
+                                 self.cloud_prefs, self.table_step, [], None)
+            self.stateInfo = mpy.ObjectView.as_dict(self.stateInfo)
+
+    @property
+    def threshold(self):
+        res = mpy.table_get_pref(self.strategy_table,
+                                 "apodizationWindowCombineThreshold")
+        return int(res.split()[0])
+
+    @property
+    def cloud_prefs(self):
+        filename = self.strategy_table['preferences']['CloudParameterFilename']
+        (_, fileID) = mpy.read_all_tes_cache(filename)
+        cloudPrefs = fileID['preferences']
+        return cloudPrefs
+        
+    @property
+    def table_step(self):
+        return self._table_step
+
+    @table_step.setter
+    def table_step(self, v):
+        self._table_step = v
+        mpy.table_set_step(self.strategy_table, self._table_step)
+
+    @property
+    def number_table_step(self):
+        return self.strategy_table["numRows"]
+
+    @property
+    def step_name(self):
+        return mpy.table_get_entry(self.strategy_table, self.table_step, "stepName")
