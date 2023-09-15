@@ -5,9 +5,13 @@ import os
 import copy
 import numpy as np
 import pickle
+from pathlib import Path
+from pprint import pformat, pprint
 
 logger = logging.getLogger("py-retrieve")
 
+# We could make this an rf.Observable, but no real reason to push this to a C++
+# level. So we just have a simple observation set here
 class RetrievalStrategy:
     '''This is an attempt to make the muses-py script_retrieval_ms more like our
     JointRetrieval stuff (pretty dated, but
@@ -34,6 +38,7 @@ class RetrievalStrategy:
     # do that by just adding Observers
     def __init__(self, filename, vlidort_cli=None):
         logger.info(f"Strategy table filename {filename}")
+        self.observers = set()
         self.filename = os.path.abspath(filename)
         self.run_dir = os.path.dirname(self.filename)
         self.vlidort_cli = vlidort_cli
@@ -46,6 +51,20 @@ class RetrievalStrategy:
             self.strategy_table = self.strategy_table.__dict__
         finally:
             os.chdir(curdir)
+
+    def add_observer(self, obs):
+        # Often we want weakref, so we don't prevent objects from
+        # being deleted just because they are observing this. But in
+        # this particular case, we actually do want to maintain the
+        # lifetime. These observers will do things like write out
+        # output, but have no real life outside of being attached to
+        # this class.  It is easy enough to change this to weakref if
+        # that proves useful
+        self.observers.add(obs)
+
+    def notify_update(self, location):
+        for obs in self.observers:
+            obs.notify_update(self, location)
 
     def retrieval_ms(self):
         '''This is script_retrieval_ms in muses-py'''
@@ -69,12 +88,17 @@ class RetrievalStrategy:
         self.create_radiance()
         self.stateInfo = mpy.states_initial_update(self.stateInfo, self.strategy_table,
                                                    self.radiance, self.instruments)
+        self.notify_update("initial set up done")
         # Not really sure what this is
-        BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
+        self.BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
 
         self.errorInitial = None
         self.errorCurrent = None
         self.retrievalInfo = None
+        self.propagatedTATMQA = 1
+        self.propagatedH2OQA = 1
+        self.propagatedO3QA = 1
+        
         # Go through all the steps once, to make sure we can get all the information
         # we need. This way we fail up front, rather than after multiple retrieval
         # steps
@@ -82,8 +106,14 @@ class RetrievalStrategy:
             self.table_step = stp
             self.get_initial_guess()
         self.stateInfo["initialInitial"] = copy.deepcopy(self.stateInfo["current"])
-        # Now go back through and actually do retrievals
-        for stp in range(self.number_table_step):
+        # Now go back through and actually do retrievals.
+        # Note that a BT step might change the number of steps we have, it
+        # modifies the strategy table. So we can't use a normal for
+        # loop here, we need to recalculate self.number_table_step each time.
+        # So we use a while loop
+        stp = -1
+        while stp < self.number_table_step - 1:
+            stp += 1
             self.table_step = stp
             self.stateInfo["initial"] = copy.deepcopy(self.stateInfo["current"])
             logger.info(f'\n---')
@@ -92,8 +122,131 @@ class RetrievalStrategy:
             self.get_initial_guess()
             self.create_windows(all_step=False)
             self.create_radiance_step()
+            self.notify_update("radianceStep")
+            self.tes_adjustment()
+            logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
+            self.do_retrieval_step()
+            # TODO Systematic jacobian, error analysis, a number of output steps
+            self.update_state_info()
+            logger.info(f"Done with step {self.table_step}")
+
+    def update_state_info(self):
+        # Note the code here is really convoluted in the original, and tied in with
+        # a bunch of output. I think this is right, but if we run into any problems
+        # this is a good place to look. I think this can probably get moved into
+        # A RetrievalStep class like do_retrieval_step
+        stateOneNext = copy.deepcopy(self.stateInfo["current"])
+        if self.retrieval_type == "bt":
+            (self.strategy_table, self.stateInfo) = mpy.modify_from_bt(
+                mpy.ObjectView(self.strategy_table), self.table_step,
+                self.radianceStep,
+                self.radianceResults, self.windows, self.stateInfo, self.BTstruct,
+                writeOutputFlag=False)
+            self.strategy_table = self.strategy_table.__dict__
+            logger.info(f"Step: {self.table_step},  Total Steps (after modify_from_bt): {self.number_table_step}")
+            stateOneNext = mpy.ObjectView(copy.deepcopy(self.stateInfo['current']))
+        elif self.retrieval_type in ("forwardmodel", "omi_radiance_calibration"):
+            raise RuntimeError("Doesn't seem to be currently supported")
+        elif self.retrieval_type == "irk":
+            if self.retrieval_type == 'omicloud_ig_refine':
+                self.stateInfo["constraint"]['omi']['cloud_fraction'] = self.stateInfo["current"]['omi']['cloud_fraction']
+            if self.retrieval_type == 'tropomicloud_ig_refine':
+                self.stateInfo["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo["current"]['tropomi']['cloud_fraction']
+        else:
+            donotupdate = mpy.table_get_entry(self.strategy_table, self.table_step,
+                                              "donotupdate").lower()
+            
+            if donotupdate != '-':
+                donotupdate = [x.upper() for x in donotupdate.split(',')]
+            else:
+                donotupdate = []
+
+            # stateOneNext is not updated when it says "do not update"
+            # state.current is updated for all results
+            (self.stateInfo, self.retrievalInfo, stateOneNext) = \
+                mpy.update_state(self.stateInfo, self.retrievalInfo,
+                                 self.results.resultsList, self.cloud_prefs,
+                                 self.table_step, donotupdate, stateOneNext)
+            self.stateInfo = self.stateInfo.__dict__
+            if 'OCO2' in self.instruments:
+                # set table.pressurefm to stateConstraint.pressure because OCO-2 is on sigma levels
+                self.strategy_table['pressureFM'] = stateOneNext.pressure
             
 
+    def do_retrieval_step(self):
+        # Note, this should probably get put into a RetrievalStep class. This would
+        # both make it easier to test a single step, and also provide a clear way
+        # to put in new retrieval types.
+        if self.retrieval_type in ('bt', "forwardmodel", 'omi_radiance_calibration'):
+            jacobian_speciesNames = ['H2O']
+            jacobian_specieslist = ['H2O']
+            jacobianOut = None
+            mytiming = None
+            # AT_LINE 567 Script_Retrieval_ms.pro
+            logger.info("Running run_forward_model ...")
+            # TODO Add back in writeOutput stuff to run_forward_model
+            (uip, self.radianceResults, jacobianOut) = mpy.run_forward_model(
+                self.strategy_table, self.stateInfo, self.windows, self.retrievalInfo,
+                jacobian_speciesNames,
+                jacobian_specieslist,
+                self.radianceStep,
+                self.o_airs, self.o_cris, self.o_tes, self.o_omi, self.o_tropomi,
+                self.oco2_step, None)
+            self.notify_update("run_forward_model_step")
+        elif self.retrieval_type == 'irk':
+            jacobian_speciesNames = self.retrievalInfo.species[0:self.retrievalInfo.n_species]
+            jacobian_specieslist = self.retrievalInfo.speciesListFM[0:self.retrievalInfo.n_totalParametersFM]
+            jacobianOut = None
+            mytiming = None
+            uip=tes = cris = omi = tropomi = None 
+            logger.info("Running run_irk ...")
+            (resultsIRK, jacobianOut) = mpy.run_irk(
+                self.strategy_table, self.stateInfo, self.windows, self.retrievalInfo,
+                jacobian_speciesNames, 
+                jacobian_specieslist, 
+                self.radianceStep,
+                uip, 
+                self.o_airs, tes, cris, omi, tropomi,
+                mytiming, 
+                writeOutput=None)
+            self.notify_update("run_irk_step")
+        else:
+            self.notify_update("retrieval_input")
+            self.retrievalInfo.stepNumber = self.table_step
+            self.retrievalInfo.stepName = self.step_name
+            logger.info("Running run_retrieval ...")
+            # SSK 2023.  I find I get failures from glitches like reading L1B files, if there
+            # are many processes running.  I re-run several times to give every obs a chance to complete
+            # chance to run, because I am running the same set with different strategies and want to compare.
+            # write out a token if it gets here, indicating this obs already got a chance.  I then copy all
+            # completed runs to either 00good/ or 00bad/ depending on the success flag,
+            # and re-run anything remaining in the main directory.
+            Path(f"{self.run_dir}/-run_token.asc").touch()
+
+            # TODO Put back in writeOutput, we don't have this in our version
+            # of run_retrieval
+            (retrievalResults, uip, rayInfo, ret_info, windowsF, success_flag) = \
+                mpy.run_retrieval(
+                    mpy.ObjectView.as_object(self.stateInfo),
+                    self.strategy_table,
+                    self.windows,
+                    self.retrievalInfo,
+                    self.radianceStep,
+                    self.o_airs, self.o_tes, self.o_cris, self.o_omi, self.o_tropomi,
+                    self.oco2_step)
+
+            if success_flag == 0:
+                raise RuntimeError("----- script_retrieval_ms: Error -----")
+            self.results = mpy.set_retrieval_results(self.strategy_table, self.windows, retrievalResults, self.retrievalInfo, self.radianceStep, self.stateInfo, uip)
+            logger.info('\n---')
+            logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}")
+            logger.info(f"Best iteration {self.results.bestIteration} out of {retrievalResults['num_iterations']}")
+            logger.info('---\n')
+            self.results = mpy.set_retrieval_results_derived(self.results,
+                      self.radianceStep,
+                      self.propagatedTATMQA, self.propagatedO3QA, self.propagatedH2OQA)
+            self.notify_update("run_retrieval_step")
+        
     def create_radiance_step(self):
         # Note, I think we might replace this just with our SpectralWindow stuff,
         # along with an Observation class
@@ -132,9 +285,8 @@ class RetrievalStrategy:
             ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
 
             # The type of stateInfo is sometimes dict and sometimes ObjectView.
-            stateInfo = mpy.ObjectView.as_object(self.stateInfo)
 
-            result = mpy.get_omi_radiance(stateInfo.current['omi'], self.o_omi)
+            result = mpy.get_omi_radiance(self.stateInfo["current"]['omi'], self.o_omi)
 
             myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
 
@@ -156,9 +308,8 @@ class RetrievalStrategy:
             ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
 
             # The type of stateInfo is sometimes dict and sometimes ObjectView.
-            stateInfo = mpy.ObjectView.as_object(self.stateInfo)
 
-            result = mpy.get_tropomi_radiance(stateInfo.current['tropomi'],
+            result = mpy.get_tropomi_radiance(self.stateInfo["current"]['tropomi'],
                                               self.o_tropomi)
 
             myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
@@ -176,7 +327,20 @@ class RetrievalStrategy:
 
         self.radianceNoiseStep['radiance'] = np.ndarray(shape=(self.radianceStep['radiance'].shape), dtype=np.float)
         self.radianceNoiseStep['radiance'][:] = 0.0
-            
+
+    def tes_adjustment(self):
+        '''This is kind of an odd piece, that probably should go into something else.
+        But put it here so we keep track of this.'''
+        # set PTGANG to specified amount for OLR calculations
+        if self.retrieval_type == 'olr':
+            ptgangorig = self.stateInfo['current']['tes']['boresightNadirRadians']
+            if self.retrieval_type == 'olr0':
+                self.stateInfo['current']['tes']['boresightNadirRadians'] = 0
+
+            targetAngle = 0.72973
+            if self.retrieval_type == 'olr1':
+                self.stateInfo['current']['tes']['boresightNadirRadians'] = 0.64425479 # angle at toa
+        
     def create_radiance(self):
         '''Read the radiance data. We can  perhaps move this into a Observation class
         by instrument.
@@ -268,7 +432,12 @@ class RetrievalStrategy:
                     win['spacing'] = np.float32(SPACING[0])
                     win['monoextend'] = np.float32(SPACING[0]) * 4.0
 
-        self.windows = mpy.mw_combine_overlapping(self.windows, self.threshold)
+        if(all_step):
+            # muses-py does this only for the first all_step=True. I'm
+            # not sure if that matters, or is even correct. But well
+            # have that for now
+            self.windows = mpy.mw_combine_overlapping(self.windows,
+                                                      self.threshold)
 
     def get_initial_guess(self):
         '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
@@ -282,6 +451,7 @@ class RetrievalStrategy:
         # mapped properly, if doing a retrieval, for each retrieval step.
         # AT_LINE 319 Script_Retrieval_ms.pro
         nn = self.retrievalInfo.n_totalParameters
+        logger.info(f"Step: {self.table_step}, Total Parameters: {nn}")
 
         # AT_LINE 320 Script_Retrieval_ms.pro
         if nn > 0:
@@ -322,3 +492,7 @@ class RetrievalStrategy:
     @property
     def step_name(self):
         return mpy.table_get_entry(self.strategy_table, self.table_step, "stepName")
+
+    @property
+    def retrieval_type(self):
+        return self.retrievalInfo.type.lower()

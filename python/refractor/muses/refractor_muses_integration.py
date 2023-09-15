@@ -14,6 +14,8 @@ import numpy as np
 import copy
 import pickle
 import sys
+import logging
+logger = logging.getLogger('py-retrieve')
 
 class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
     '''This handles the Refractor/Muses integration.
