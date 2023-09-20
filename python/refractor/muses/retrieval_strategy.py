@@ -1,4 +1,6 @@
-from .refractor_capture_directory import muses_py_call
+from .refractor_capture_directory import (RefractorCaptureDirectory,
+                                          muses_py_call)
+from .retrieval_jacobian_output import RetrievalJacobianOutput
 import logging
 import refractor.muses.muses_py as mpy
 import os
@@ -7,6 +9,8 @@ import numpy as np
 import pickle
 from pathlib import Path
 from pprint import pformat, pprint
+import time
+from contextlib import contextmanager
 
 logger = logging.getLogger("py-retrieve")
 
@@ -38,19 +42,18 @@ class RetrievalStrategy:
     # do that by just adding Observers
     def __init__(self, filename, vlidort_cli=None):
         logger.info(f"Strategy table filename {filename}")
-        self.observers = set()
+        self.capture_directory = RefractorCaptureDirectory()
+        self._observers = set()
         self.filename = os.path.abspath(filename)
         self.run_dir = os.path.dirname(self.filename)
         self.vlidort_cli = vlidort_cli
         self._table_step = -1
-        # May want to rework this, but for now uses muses-py functions
-        curdir = os.getcwd()
-        try:
-            os.chdir(self.run_dir)
+        with self.chdir_run_dir():
             _, self.strategy_table = mpy.table_read(self.filename)
             self.strategy_table = self.strategy_table.__dict__
-        finally:
-            os.chdir(curdir)
+        # Right now, we hardcode the output observers. Probably want to
+        # rework this
+        self.add_observer(RetrievalJacobianOutput())
 
     def add_observer(self, obs):
         # Often we want weakref, so we don't prevent objects from
@@ -60,10 +63,24 @@ class RetrievalStrategy:
         # output, but have no real life outside of being attached to
         # this class.  It is easy enough to change this to weakref if
         # that proves useful
-        self.observers.add(obs)
+        self._observers.add(obs)
+        if(hasattr(obs, "notify_add")):
+            obs.notify_add(self)
 
+    def remove_observer(self, obs):
+        self._observers.discard(obs)
+        if(hasattr(obs, "notify_remove")):
+            obs.notify_remove(self)
+
+    def clear_observers(self):
+        # We change self._observers, in our loop so grab a copy of the list
+        # before we start
+        lobs = list(self._observers)
+        for obs in lobs:
+            self.remove_observer(obs)
+        
     def notify_update(self, location):
-        for obs in self.observers:
+        for obs in self._observers:
             obs.notify_update(self, location)
 
     def retrieval_ms(self):
@@ -78,6 +95,8 @@ class RetrievalStrategy:
         mpy.script_retrieval_ms(self.filename)
 
     def retrieval_ms_body2(self):
+        start_date = time.strftime("%c")
+        start_time = time.time()
         # Might be good to wrap these in classes
         (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
          self.stateInfo) = mpy.script_retrieval_setup_ms(self.strategy_table, False)
@@ -126,10 +145,88 @@ class RetrievalStrategy:
             self.tes_adjustment()
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
             self.do_retrieval_step()
-            # TODO Systematic jacobian, error analysis, a number of output steps
             self.update_state_info()
+            # TODO Systematic jacobian, error analysis, a number of output steps
+            self.update_retrieval_summary()
+            self.notify_update("retrieval step")
+            
             logger.info(f"Done with step {self.table_step}")
 
+        stop_date = time.strftime("%c")
+        stop_time = time.time()
+        elapsed_time = stop_time - start_time
+        elapsed_time_seconds = stop_time - start_time
+        elapsed_time_minutes = elapsed_time_seconds / 60.0
+        logger.info('\n---')    
+        logger.info(f"start_date {start_date}")
+        logger.info(f"stop_date {stop_date}")
+        logger.info(f"elapsed_time {elapsed_time}")
+        logger.info(f"elapsed_time_seconds {elapsed_time_seconds}")
+        logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
+        logger.info(f"Done")
+        
+        exitcode = 37
+        logger.info('\n---')    
+        logger.info(f"signaling successful completion w/ exit code {exitcode}")
+        logger.info('\n---')    
+        logger.info('\n---')    
+        return exitcode
+        
+
+    def update_retrieval_summary(self):
+        '''Calculate various summary statistics for retrieval'''
+        # Only the branch of code with results set should get retrieval_summary
+        # done
+        if(self.results is None):
+            return
+        # Note that despite the name "write_retrieval_summary" this calculates
+        # summary parameters. It doesn't actually write any output unless we
+        # have writeOutput. This is just a glob of code, it really should get
+        # refractored into some set of classes, e.g. self.results can calculate
+        # various pieces
+        # TODO check on dirAnalysis, may want to do the same thing we did with
+        # output_directory
+        self.results = mpy.write_retrieval_summary(
+            self.strategy_table["dirAnalysis"],
+            self.retrievalInfo,
+            mpy.ObjectView(self.stateInfo),
+            self.radianceStep,
+            self.results,
+            self.windows,
+            self.press_list,
+            self.quality_name, 
+            self.table_step, 
+            self.errorCurrent, 
+            writeOutputFlag=False, 
+            errorInitial=self.errorInitial
+        )
+
+    @property
+    def press_list(self):
+        return [float(mpy.table_get_pref(self.strategy_table, "plotMaximumPressure")), 
+                float(mpy.table_get_pref(self.strategy_table, "plotMinimumPressure"))]
+
+    @property
+    def quality_name(self):
+        res = mpy.table_get_spectral_filename(self.strategy_table, self.table_step)
+        res = os.path.basename(res)
+        res = res.replace("Microwindows_", "QualityFlag_Spec_")
+        res = res.replace("Windows_", "QualityFlag_Spec_")
+        res = mpy.table_get_pref(self.strategy_table, "QualityFlagDirectory") + res
+            
+        # if this does not exist use generic nadir / limb quality flag
+        if not os.path.isfile(res):
+            logger.warning(f'Could not find quality flag file: {res}')
+            viewingMode = mpy.table_get_pref(self.strategy_table, "viewingMode")
+            viewMode = viewingMode.lower().capitalize()
+
+            res = f"{os.path.dirname(res)}/QualityFlag_Spec_{viewMode}.asc"
+            logger.warning(f"Using generic quality flag file: {res}")
+            # One last check.
+            if not os.path.isfile(res):
+                raise RuntimeError(f"Quality flag filename not found: {res}")
+        return res
+    
     def update_state_info(self):
         # Note the code here is really convoluted in the original, and tied in with
         # a bunch of output. I think this is right, but if we run into any problems
@@ -171,12 +268,12 @@ class RetrievalStrategy:
             if 'OCO2' in self.instruments:
                 # set table.pressurefm to stateConstraint.pressure because OCO-2 is on sigma levels
                 self.strategy_table['pressureFM'] = stateOneNext.pressure
-            
 
     def do_retrieval_step(self):
         # Note, this should probably get put into a RetrievalStep class. This would
         # both make it easier to test a single step, and also provide a clear way
         # to put in new retrieval types.
+        self.results = None
         if self.retrieval_type in ('bt', "forwardmodel", 'omi_radiance_calibration'):
             jacobian_speciesNames = ['H2O']
             jacobian_specieslist = ['H2O']
@@ -496,3 +593,67 @@ class RetrievalStrategy:
     @property
     def retrieval_type(self):
         return self.retrievalInfo.type.lower()
+
+    @contextmanager
+    def chdir_run_dir(self):
+        '''We do this in a number of places, so pull out into a function. We
+        temporarily change into self.run_dir, and after the function finishes
+        changes back to the current directory. This should be used in a
+        "with" block:
+        
+        with self.chdir_run_dir():
+           blah blah
+        '''
+        curdir = os.getcwd()
+        try:
+            os.chdir(self.run_dir)
+            yield
+        finally:
+            os.chdir(curdir)
+
+    @property
+    def output_directory(self):
+        '''Get the output directory from the strategy_table. Note that unlike
+        muses-py this doesn't require that we are actually in the run directory,
+        we handle this.'''
+        with self.chdir_run_dir():
+            return os.path.abspath(self.strategy_table['outputDirectory'])
+
+    def save_pickle(self, save_pickle_file):
+        '''Dump a pickled version of this object, along with the working
+        directory. Pairs with load_retrieval_strategy.'''
+        self.capture_directory.save_directory(self.run_dir, vlidort_input=None)
+        pickle.dump(self, open(save_pickle_file, "wb"))
+
+    @classmethod
+    def load_retrieval_strategy(cls, save_pickle_file, path=".",
+                                change_to_dir = False,
+                                osp_dir=None, gmao_dir=None,
+                                vlidort_cli=None):
+        '''This pairs with save_pickle.'''
+        res = pickle.load(open(save_pickle_file, "rb"))
+        res.run_dir = f"{os.path.abspath(path)}/{res.capture_directory.runbase}"
+        res.capture_directory.extract_directory(path=path,
+                              change_to_dir=change_to_dir, osp_dir=osp_dir,
+                              gmao_dir=gmao_dir)
+        if(vlidort_cli is not None):
+            res.vlidort_cli = vlidort_cli
+        return res
+
+
+class RetrievalStrategyCaptureObserver:
+    '''Helper class, pickles RetrievalStrategy at each time notify_update is
+    called. Intended for unit tests and other kinds of debugging.'''
+    def __init__(self, basefname, location_to_capture):
+        self.basefname = basefname
+        self.location_to_capture = location_to_capture
+
+    def notify_update(self, retrieval_strategy, location):
+        if(location != self.location_to_capture):
+            return
+        fname = f"{self.basefname}_{retrieval_strategy.table_step}.pkl"
+        retrieval_strategy.save_pickle(fname)
+        
+__all__ = ["RetrievalStrategy", "RetrievalStrategyCaptureObserver"]    
+
+    

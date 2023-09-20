@@ -138,3 +138,19 @@ def test_capture_omi_refractor_fm(isolated_dir, step_number, iteration,
               f"{omi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl",
               vlidort_cli=vlidort_cli)
 
+@capture_test
+@require_muses_py
+def test_capture_tropomi_cris_retrieval_strategy(isolated_dir, osp_dir, gmao_dir,
+                                                 vlidort_cli,
+                                                 clean_up_replacement_function):
+    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
+    rmi.register_with_muses_py()
+    r = MusesRunDir(joint_tropomi_test_in_dir,
+                    osp_dir, gmao_dir)
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+    rs.clear_observers()
+    obs = RetrievalStrategyCaptureObserver(f"{joint_tropomi_test_in_dir}/retrieval_strategy_retrieval_step", "retrieval step")
+    rs.add_observer(obs)
+    rs.retrieval_ms()
+    
+    
