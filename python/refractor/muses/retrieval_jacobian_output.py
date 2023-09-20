@@ -12,7 +12,7 @@ class RetrievalJacobianOutput:
         
     def notify_update(self, retrieval_strategy, location):
         self.retrieval_strategy = retrieval_strategy
-        if(location != "run_retrieval_step" or retrieval_strategy.results is None):
+        if(location != "retrieval step" or retrieval_strategy.results is None):
             return
         if len(glob(f"{self.out_fname}*")) == 0:
             # First argument isn't actually used in write_products_one_jacobian.

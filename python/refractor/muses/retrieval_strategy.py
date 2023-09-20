@@ -131,6 +131,7 @@ class RetrievalStrategy:
         # loop here, we need to recalculate self.number_table_step each time.
         # So we use a while loop
         stp = -1
+        #while stp < 2:
         while stp < self.number_table_step - 1:
             stp += 1
             self.table_step = stp
@@ -147,6 +148,14 @@ class RetrievalStrategy:
             self.do_retrieval_step()
             self.update_state_info()
             # TODO Systematic jacobian, error analysis, a number of output steps
+
+            # Need to shove this somewhere
+            if self.retrieval_type == 'omicloud_ig_refine':
+                self.stateInfo["constraint"]['omi']['cloud_fraction'] = self.stateInfo["current"]['omi']['cloud_fraction']
+            if self.retrieval_type == 'tropomicloud_ig_refine':
+                self.stateInfo["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo["current"]['tropomi']['cloud_fraction']
+            self.update_radiance_step()
+            self.error_analysis()
             self.update_retrieval_summary()
             self.notify_update("retrieval step")
             
@@ -173,6 +182,24 @@ class RetrievalStrategy:
         return exitcode
         
 
+    def error_analysis(self):
+        if(self.table_step == 7):
+            breakpoint()
+        if(self.results is None):
+            return
+        (self.results, self.errorCurrent) = mpy.error_analysis_wrapper(
+            self.table_step,
+            self.strategy_table["dirAnalysis"],
+            self.radianceStep,
+            self.radianceNoiseStep,
+            self.retrievalInfo,
+            self.stateInfo,
+            self.errorInitial,
+            self.errorCurrent,
+            self.windows,
+            self.results
+            )
+        
     def update_retrieval_summary(self):
         '''Calculate various summary statistics for retrieval'''
         # Only the branch of code with results set should get retrieval_summary
@@ -186,6 +213,7 @@ class RetrievalStrategy:
         # various pieces
         # TODO check on dirAnalysis, may want to do the same thing we did with
         # output_directory
+        pprint(self.results.cloudODAve)
         self.results = mpy.write_retrieval_summary(
             self.strategy_table["dirAnalysis"],
             self.retrievalInfo,
@@ -200,6 +228,7 @@ class RetrievalStrategy:
             writeOutputFlag=False, 
             errorInitial=self.errorInitial
         )
+        pprint(self.results.cloudODAve)
 
     @property
     def press_list(self):
@@ -343,6 +372,62 @@ class RetrievalStrategy:
                       self.radianceStep,
                       self.propagatedTATMQA, self.propagatedO3QA, self.propagatedH2OQA)
             self.notify_update("run_retrieval_step")
+
+    def update_radiance_step(self):
+        if(self.results is None):
+            return
+        # update with omi pars to omi measured radiance
+        my_instruments = np.asarray(mpy.radiance_get_instrument_array(self.radianceStep))
+        ind = np.where(my_instruments == 'OMI')[0]
+        if len(ind) > 0:
+            # Get windows that are 'OMI' specific.
+            ind2 = []
+            for ii in range(0, len(self.windows)):
+                if self.windows[ii]['instrument'] == 'OMI':
+                    ind2.append(ii)
+            ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
+
+            # The type of stateInfo is sometimes dict and sometimes ObjectView.
+
+            result = mpy.get_omi_radiance(self.stateInfo["current"]['omi'], self.o_omi)
+
+            myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
+
+            # reduce to omi step windows 
+            myobsrad = self.radiance_set_windows(myobsrad, np.asarray(self.windows)[ind2])
+
+            # put into omi part of step windows 
+            self.radianceStep['radiance'][ind] = copy.deepcopy(myobsrad['radiance'])
+            if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
+                raise RuntimeError('ERROR! radiance NOT FINITE!')
+
+        indT = np.where(my_instruments == 'TROPOMI')[0]
+        if len(indT) > 0:
+            # Get windows that are 'TROPOMI' specific.
+            ind2 = []
+            for ii in range(0, len(self.windows)):
+                if self.windows[ii]['instrument'] == 'TROPOMI':
+                    ind2.append(ii)
+            ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
+
+            # The type of stateInfo is sometimes dict and sometimes ObjectView.
+
+            result = mpy.get_tropomi_radiance(self.stateInfo["current"]['tropomi'],
+                                              self.o_tropomi)
+
+            myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
+
+            # reduce to omi step windows 
+            myobsrad = mpy.radiance_set_windows(myobsrad, np.asarray(self.windows)[ind2])
+
+            # put into omi part of step windows 
+            self.radianceStep['radiance'][indT] = copy.deepcopy(myobsrad['radiance'])
+            if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
+                raise RuntimeError('ERROR! radiance NOT FINITE!')
+        # end: if len(indT) > 0:
+
+        mpy.set_retrieval_results_derived(self.results, self.radianceStep, self.propagatedTATMQA, self.propagatedO3QA, self.propagatedH2OQA)
+        
         
     def create_radiance_step(self):
         # Note, I think we might replace this just with our SpectralWindow stuff,
