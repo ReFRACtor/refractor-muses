@@ -13,6 +13,7 @@ import glob
 import subprocess
 import numpy as np
 import numpy.testing as npt
+import os
 
 if("REFRACTOR_TEST_DATA" in os.environ):
     test_base_path = os.environ["REFRACTOR_TEST_DATA"]
@@ -38,6 +39,10 @@ capture_test = pytest.mark.capture_test
 # Marker that skips a test if we don't have muses_py available
 require_muses_py = pytest.mark.skipif(not mpy.have_muses_py,
       reason="need muses-py available to run")
+
+# Fake creation date used in muses-py file creation, to make comparing easier since
+# we don't get differences that are just the time of creation
+os.environ["MUSES_FAKE_CREATION_DATE"] = "FAKE_DATE"
 
 @pytest.fixture(scope="function")
 def osp_dir():

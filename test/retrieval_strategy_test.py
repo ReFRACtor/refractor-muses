@@ -76,6 +76,11 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
         cmd = f"h5diff --relative 1e-8 {f1} {f2}"
         print(cmd, flush=True)
         subprocess.run(cmd, shell=True)
+        f1 = f1.replace("Jacobian", "Radiance")
+        f2 = f2.replace("Jacobian", "Radiance")
+        cmd = f"h5diff --relative 1e-8 {f1} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True)
 
     
 @long_test
