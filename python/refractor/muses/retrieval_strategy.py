@@ -157,13 +157,7 @@ class RetrievalStrategy:
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
             self.do_retrieval_step()
             self.update_state_info()
-            # TODO Systematic jacobian, error analysis, a number of output steps
-
-            # Need to shove this somewhere
-            if self.retrieval_type == 'omicloud_ig_refine':
-                self.stateInfo["constraint"]['omi']['cloud_fraction'] = self.stateInfo["current"]['omi']['cloud_fraction']
-            if self.retrieval_type == 'tropomicloud_ig_refine':
-                self.stateInfo["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo["current"]['tropomi']['cloud_fraction']
+            self.systematic_jacobian()
             self.update_radiance_step()
             self.error_analysis()
             self.update_retrieval_summary()
@@ -193,6 +187,49 @@ class RetrievalStrategy:
         return exitcode
         
 
+    def systematic_jacobian(self):
+        if(self.retrievalInfo.n_speciesSys <= 0):
+            return
+        # make a temporary retrieval structure for sys info
+        retrieval_info_temp = mpy.ObjectView({
+            'parameterStartFM': self.retrievalInfo.parameterStartSys,
+            'parameterEndFM' : self.retrievalInfo.parameterEndSys,
+            'species': self.retrievalInfo.speciesSys,
+            'n_species': self.retrievalInfo.n_speciesSys,
+            'speciesList': self.retrievalInfo.speciesListSys,
+            'speciesListFM': self.retrievalInfo.speciesListSys,
+            'mapTypeListFM': mpy.constraint_get_maptype(self.errorCurrent, self.retrievalInfo.speciesListSys),
+            'initialGuessListFM': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
+            'constraintVectorListFM': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
+            'initialGuessList': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
+            'n_totalParametersFM': self.retrievalInfo.n_totalParametersSys
+        })
+        # This is a list of unique species.
+        jacobian_speciesNames = self.retrievalInfo.speciesSys[0:self.retrievalInfo.n_speciesSys]
+        # This is a list of species (not unique).
+        jacobian_specieslist = self.retrievalInfo.speciesListSys[0:self.retrievalInfo.n_totalParametersSys]  
+        
+        logger.info("Running run_forward_model for systematic jacobians ...")
+        # TODO - Should have logic here to skip running forward model if we
+        # don't have any species in the jacobian of it - so for example some
+        # of the Cris/Tropomi systematic jacobian don't actually use any tropomi
+        # stuff. But right now, both forward models are run even though only one
+        # contributes to the jacobian.
+        _, _, jacobianSys = mpy.run_forward_model(
+            self.strategy_table, self.stateInfo, self.windows, retrieval_info_temp,
+            jacobian_speciesNames, jacobian_specieslist,
+            self.radianceStep,
+            self.o_airs, self.o_cris, self.o_tes, self.o_omi, self.o_tropomi,
+            self.oco2_step,
+            mytiming=None, 
+            writeOutputFlag=False, 
+            RJFlag=True)
+
+        if jacobianSys["jacobian_data"].shape[1] != self.retrievalInfo.n_totalParametersSys:
+            raise RuntimeError("sys species does not match the # of species in sys Jacobians\nThis can happen if one of the species is not used in selected windows\n")
+
+        self.results.jacobianSys = jacobianSys["jacobian_data"]
+        
     def error_analysis(self):
         if(self.results is None):
             return
@@ -312,6 +349,12 @@ class RetrievalStrategy:
                 # set table.pressurefm to stateConstraint.pressure because OCO-2 is on sigma levels
                 self.strategy_table['pressureFM'] = self.stateOneNext.pressure
 
+        # Need to shove this somewhere
+        if self.retrieval_type == 'omicloud_ig_refine':
+            self.stateInfo["constraint"]['omi']['cloud_fraction'] = self.stateInfo["current"]['omi']['cloud_fraction']
+        if self.retrieval_type == 'tropomicloud_ig_refine':
+            self.stateInfo["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo["current"]['tropomi']['cloud_fraction']
+                
     def do_retrieval_step(self):
         # Note, this should probably get put into a RetrievalStep class. This would
         # both make it easier to test a single step, and also provide a clear way

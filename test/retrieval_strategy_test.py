@@ -57,31 +57,6 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_cris_tropomi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
     rs.retrieval_ms()
-    # Temp. File name in order of steps
-    for fname in ("Products_Jacobian-CLOUDEXT,PCLOUD-bt_ig_refine.nc",
-                  "Products_Jacobian-TATM,H2O,HDO,N2O,CH4,O3,TSUR,CLOUDEXT-bar_land.nc",
-                  "Products_Jacobian-FM-pantest.nc",
-                  "Products_Jacobian-PAN.nc",
-                  "Products_Jacobian-H2O,O3.nc",
-                  "Products_Jacobian-CH3OH.nc",
-                  "Products_Jacobian-TSUR-nh3_prep.nc",
-                  "Products_Jacobian-NH3.nc",
-                  "Products_Jacobian-CO.nc",
-                  "Products_Jacobian-TROPOMICLOUDFRACTION-tropomicloud_ig_refine.nc",
-                  "Products_Jacobian-O3-Band3-fullfilter.nc",
-                  "Products_Jacobian-H2O,O3,_TROPOMI-joint.nc"
-                  ):
-        f1 = f"{rs.run_dir}/Products/{fname}"
-        f2 = f"/home/smyth/Local/refractor-muses/original_retrieval_cris_tropomi/20190807_065_04_08_5/Products/{fname}"
-        cmd = f"h5diff --relative 1e-8 {f1} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
-        f1 = f1.replace("Jacobian", "Radiance")
-        f2 = f2.replace("Jacobian", "Radiance")
-        cmd = f"h5diff --relative 1e-8 {f1} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
-
     
 @long_test
 @require_muses_py
@@ -89,23 +64,26 @@ def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     '''Quick test to compare cris_tropomi runs. This assumes they are
     already done. This is just h5diff, but this figures out the path
     for each of the tests so we don't have to.'''
+    # Either error if we have any differences if this is True, or if this is False
+    # just report differences
+    diff_is_error = True
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_L2*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Lite_Products_*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Radiance*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Jacobian*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
