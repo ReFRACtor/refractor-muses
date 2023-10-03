@@ -1,7 +1,7 @@
 from .refractor_capture_directory import (RefractorCaptureDirectory,
                                           muses_py_call)
 from .retrieval_output import (RetrievalJacobianOutput,
-                               RetrievalRadianceOutput)
+                               RetrievalRadianceOutput, RetrievalL2Output)
 import logging
 import refractor.muses.muses_py as mpy
 import os
@@ -18,29 +18,38 @@ logger = logging.getLogger("py-retrieve")
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
 class RetrievalStrategy:
-    '''This is an attempt to make the muses-py script_retrieval_ms more like our
-    JointRetrieval stuff (pretty dated, but
+    '''This is an attempt to make the muses-py script_retrieval_ms
+    more like our JointRetrieval stuff (pretty dated, but
     https://github.jpl.nasa.gov/refractor/joint_retrieval)
 
-    This is a replacement for script_retrieval_ms, that tries to do a few things:
+    This is a replacement for script_retrieval_ms, that tries to do a
+    few things:
 
-    1. Simplifies the core code, the script_retrieval_ms is really pretty long and
-        is a sequence of "do one thing, then another, then aother). We do this by:
-    2. Moving output out of this class, and having separate classes handle this. We
-       use the standard ReFRACtor approach of having observers. This tend to give a
-       much cleaner interface with clear seperation.
-    3. Adopt a extensively, configurable way to handle the initial guess (similiar
-       to the OCO-2 InitialGuess structure)
-    4. Handle species information as a separate class, which allows us to easily
-       extend the list of jacobian parameters (e.g, add EOFs). The existing code
-       uses long lists of hardcoded values, this attempts to be a more adaptable.
+    1. Simplifies the core code, the script_retrieval_ms is really
+        pretty long and is a sequence of "do one thing, then another,
+        then aother). We do this by:
 
-    This has a number of advantages, for example having InitialGuess separated out
-    allows us to do unit testing in ways that don't require updating the OSP
-    directories with new covariance stuff, for example.
+    2. Moving output out of this class, and having separate classes
+       handle this. We use the standard ReFRACtor approach of having
+       observers. This tend to give a much cleaner interface with
+       clear seperation.
+
+    3. Adopt a extensively, configurable way to handle the initial
+       guess (similiar to the OCO-2 InitialGuess structure)
+
+    4. Handle species information as a separate class, which allows us
+       to easily extend the list of jacobian parameters (e.g, add
+       EOFs). The existing code uses long lists of hardcoded values,
+       this attempts to be a more adaptable.
+
+    This has a number of advantages, for example having InitialGuess
+    separated out allows us to do unit testing in ways that don't
+    require updating the OSP directories with new covariance stuff,
+    for example.
+
     '''
-    # TODO  Add handling of writeOutput, writePlots, debug. I think we can probably
-    # do that by just adding Observers
+    # TODO Add handling of writeOutput, writePlots, debug. I think we
+    # can probably do that by just adding Observers
     def __init__(self, filename, vlidort_cli=None):
         logger.info(f"Strategy table filename {filename}")
         self.capture_directory = RefractorCaptureDirectory()
@@ -56,6 +65,7 @@ class RetrievalStrategy:
         # rework this
         self.add_observer(RetrievalJacobianOutput())
         self.add_observer(RetrievalRadianceOutput())
+        self.add_observer(RetrievalL2Output())
 
     def add_observer(self, obs):
         # Often we want weakref, so we don't prevent objects from
@@ -135,6 +145,7 @@ class RetrievalStrategy:
             stp += 1
             self.table_step = stp
             self.stateInfo["initial"] = copy.deepcopy(self.stateInfo["current"])
+            #logger.info(f"MMS - {pformat(self.stateInfo['current'])}")
             logger.info(f'\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
             logger.info(f'\n---')
@@ -211,7 +222,6 @@ class RetrievalStrategy:
         # various pieces
         # TODO check on dirAnalysis, may want to do the same thing we did with
         # output_directory
-        pprint(self.results.cloudODAve)
         self.results = mpy.write_retrieval_summary(
             self.strategy_table["dirAnalysis"],
             self.retrievalInfo,
@@ -226,7 +236,13 @@ class RetrievalStrategy:
             writeOutputFlag=False, 
             errorInitial=self.errorInitial
         )
-        pprint(self.results.cloudODAve)
+        if 'TATM' in self.retrievalInfo.species:
+            self.propagatedTATMQA = self.results.masterQuality
+        if 'O3' in self.retrievalInfo.species:
+            self.propagatedO3QA = self.results.masterQuality
+        if 'H2O' in self.retrievalInfo.species:
+            self.propagatedH2OQA = self.results.masterQuality
+        
 
     @property
     def press_list(self):

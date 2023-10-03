@@ -92,15 +92,20 @@ def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_L2*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd)
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True)
+    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Lite_Products_*.nc"):
+        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
         subprocess.run(cmd, shell=True)
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Radiance*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd)
+        print(cmd, flush=True)
         subprocess.run(cmd, shell=True)
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Jacobian*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd)
+        print(cmd, flush=True)
         subprocess.run(cmd, shell=True)
