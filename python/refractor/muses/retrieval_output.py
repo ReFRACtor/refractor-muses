@@ -24,6 +24,30 @@ class RetrievalOutput:
         return self.retrieval_strategy.strategy_table
 
     @property
+    def step_dir(self):
+        return self.strategy_table["stepDirectory"]
+
+    @property
+    def input_dir(self):
+        return self.strategy_table["dirInput"]
+
+    @property
+    def analysis_dir(self):
+        return self.strategy_table["dirAnalysis"]
+
+    @property
+    def elanor_dir(self):
+        return self.strategy_table["dirELANOR"]
+    
+    @property
+    def windows(self):
+        return self.retrieval_strategy.windows
+
+    @property
+    def errorCurrent(self):
+        return self.retrieval_strategy.errorCurrent
+    
+    @property
     def special_tag(self):
         if self.retrieval_strategy.retrieval_type != 'default':
             return f"-{self.retrieval_strategy.retrieval_type}"

@@ -55,7 +55,9 @@ class MusesRunDir:
         mpy.write_all_tes(d, f"{self.run_dir}/Measurement_ID.asc")
 
     def run_retrieval(self,
-            vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
+                      vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
+                      debug=False,
+                      plots=False):
         '''Do a run of py_retrieve. Note this is a full run.
 
         Note OMI, but not TROPOMI now uses a separate vlidort_cli, which
@@ -64,8 +66,13 @@ class MusesRunDir:
                            vlidort_cli=vlidort_cli):
             from py_retrieve.cli import cli
             try:
-                cli.main(["--targets", self.run_dir,
-                          "--vlidort-cli", vlidort_cli])
+                arg = ["--targets", self.run_dir,
+                       "--vlidort-cli", vlidort_cli]
+                if(debug):
+                    arg.append("--debug")
+                if(plots):
+                    arg.append("--plots")
+                cli.main(arg)
             except SystemExit as e:
                 # cli.main always ends with throwing an exception. Sort of an odd
                 # interface, but this is just the way it works. We just check

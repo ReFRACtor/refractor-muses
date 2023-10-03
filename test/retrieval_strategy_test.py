@@ -39,7 +39,7 @@ def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
                     osp_dir, gmao_dir, path_prefix="original_retrieval_cris_tropomi")
     rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
     rmi.register_with_muses_py()
-    r.run_retrieval(vlidort_cli=vlidort_cli)
+    r.run_retrieval(vlidort_cli=vlidort_cli, debug=True, plots=True)
 
 @long_test
 @require_muses_py
@@ -55,7 +55,7 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     rmi.register_with_muses_py()
     r = MusesRunDir(joint_tropomi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_cris_tropomi")
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", writeOutput=True, writePlots=True)
     rs.retrieval_ms()
     
 @long_test

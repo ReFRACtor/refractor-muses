@@ -2,6 +2,8 @@ from .refractor_capture_directory import (RefractorCaptureDirectory,
                                           muses_py_call)
 from .retrieval_output import (RetrievalJacobianOutput,
                                RetrievalRadianceOutput, RetrievalL2Output)
+from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult,
+                                     RetrievalPlotRadiance, RetrievalPlotResult)
 import logging
 import refractor.muses.muses_py as mpy
 import os
@@ -50,7 +52,7 @@ class RetrievalStrategy:
     '''
     # TODO Add handling of writeOutput, writePlots, debug. I think we
     # can probably do that by just adding Observers
-    def __init__(self, filename, vlidort_cli=None):
+    def __init__(self, filename, vlidort_cli=None, writeOutput=False, writePlots=False):
         logger.info(f"Strategy table filename {filename}")
         self.capture_directory = RefractorCaptureDirectory()
         self._observers = set()
@@ -66,6 +68,13 @@ class RetrievalStrategy:
         self.add_observer(RetrievalJacobianOutput())
         self.add_observer(RetrievalRadianceOutput())
         self.add_observer(RetrievalL2Output())
+        # Similarly logic here is hardcoded
+        if(writeOutput):
+            self.add_observer(RetrievalInputOutput())
+            self.add_observer(RetrievalPickleResult())
+            if(writePlots):
+                self.add_observer(RetrievalPlotResult())
+                self.add_observer(RetrievalPlotRadiance())
 
     def add_observer(self, obs):
         # Often we want weakref, so we don't prevent objects from
@@ -160,6 +169,7 @@ class RetrievalStrategy:
             self.systematic_jacobian()
             self.update_radiance_step()
             self.error_analysis()
+            self.notify_update("after error_analysis")
             self.update_retrieval_summary()
             self.notify_update("retrieval step")
             self.stateInfo["current"] = copy.deepcopy(self.stateOneNext.__dict__)
@@ -394,7 +404,7 @@ class RetrievalStrategy:
                 writeOutput=None)
             self.notify_update("run_irk_step")
         else:
-            self.notify_update("retrieval_input")
+            self.notify_update("retrieval input")
             self.retrievalInfo.stepNumber = self.table_step
             self.retrievalInfo.stepName = self.step_name
             logger.info("Running run_retrieval ...")
