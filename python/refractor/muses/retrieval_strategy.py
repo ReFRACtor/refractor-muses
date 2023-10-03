@@ -451,7 +451,7 @@ class RetrievalStrategy:
             self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
 
             # reduce to omi step windows 
-            self.myobsrad = self.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
+            self.myobsrad = mpy.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
 
             # put into omi part of step windows 
             self.radianceStep['radiance'][ind] = copy.deepcopy(self.myobsrad['radiance'])
@@ -529,7 +529,7 @@ class RetrievalStrategy:
             self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
 
             # reduce to omi step windows 
-            self.myobsrad = self.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
+            self.myobsrad = mpy.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
 
             # put into omi part of step windows 
             self.radianceStep['radiance'][ind] = copy.deepcopy(self.myobsrad['radiance'])
@@ -591,7 +591,7 @@ class RetrievalStrategy:
         for instrument_name in self.instruments:
             logger.info(f"Reading radiance: {instrument_name}")
             if instrument_name == 'OMI':
-                result = mpy.get_omi_radiance(self.stateInfo['current']['omi'], copy.deeppcopy(self.o_omi))
+                result = mpy.get_omi_radiance(self.stateInfo['current']['omi'], copy.deepcopy(self.o_omi))
                 radiance = result['normalized_rad']
                 nesr = result['nesr']
                 my_filter = result['filter']
