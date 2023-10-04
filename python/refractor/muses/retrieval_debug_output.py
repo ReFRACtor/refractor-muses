@@ -17,11 +17,12 @@ class RetrievalInputOutput(RetrievalOutput):
         # May need to extend this logic here
         detectorsUse = [1]
         mpy.write_retrieval_inputs(self.strategy_table, self.stateInfo,
-                                   self.windows, self.retrievalInfo,
+                                   self.windows,
+                                   self.retrievalInfo.retrieval_info_obj,
                                    self.table_step,
                                    self.errorCurrent.__dict__,
                                    detectorsUse)
-        mpy.cdf_write_dict(self.retrievalInfo.__dict__,
+        mpy.cdf_write_dict(self.retrievalInfo.retrieval_info_obj.__dict__,
                            f"{self.input_dir}/retrieval.nc")
 
 class RetrievalPickleResult(RetrievalOutput):
@@ -39,7 +40,8 @@ class RetrievalPlotResult(RetrievalOutput):
         if(location != "after error_analysis" or self.results is None):
             return
         os.makedirs(self.step_dir, exist_ok=True)
-        mpy.plot_results(f"{self.step_dir}/", self.results, self.retrievalInfo,
+        mpy.plot_results(f"{self.step_dir}/", self.results,
+                         self.retrievalInfo.retrieval_info_obj,
                          self.stateInfo)
 
 class RetrievalPlotRadiance(RetrievalOutput):

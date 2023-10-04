@@ -16,10 +16,6 @@ class RetrievalOutput:
         raise NotImplementedError
 
     @property
-    def retrievalInfo(self):
-        return self.retrieval_strategy.retrievalInfo
-
-    @property
     def strategy_table(self):
         return self.retrieval_strategy.strategy_table
 
@@ -180,7 +176,7 @@ class RetrievalL2Output(RetrievalOutput):
         of CH4, HDO and H2O lite files, so we need to data from these before we get
         to the lite files.'''
         if(self._species_list is None):
-            self._species_list = self.retrievalInfo.species[0:self.retrievalInfo.n_species]
+            self._species_list = self.retrievalInfo.species_names
             for spc in ('N2O', 'H2O', 'TATM'):
                 if(spc in self._species_list):
                     self._species_list.remove(spc)
@@ -202,7 +198,7 @@ class RetrievalL2Output(RetrievalOutput):
         self._species_count = None
         self._species_list = None
         for spcname in self.species_list:
-            if(self.retrievalInfo.speciesListFM.count(spcname) <= 1 or
+            if(self.retrievalInfo.species_list_fm.count(spcname) <= 1 or
                spcname in ('CLOUDEXT', 'EMIS') or 
                spcname.startswith('OMI') or
                spcname.startswith('NIR')):
@@ -214,11 +210,11 @@ class RetrievalL2Output(RetrievalOutput):
                 # Code assumes we are in rundir
                 with self.retrieval_strategy.chdir_run_dir():
                     _, dataInfo = mpy.write_products_one(spcname, out_fname,
-                                                         self.retrievalInfo,
-                                                         self.results,
-                                                         self.stateInfo,
-                                                         self.instruments,
-                                                         self.table_step)
+                                                self.retrievalInfo.retrieval_info_obj,
+                                                self.results,
+                                                self.stateInfo,
+                                                self.instruments,
+                                                self.table_step)
                     if(spcname == "TATM"):
                         self.dataTATM = dataInfo
                     elif(spcname == "H2O"):

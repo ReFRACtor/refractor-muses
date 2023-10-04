@@ -6,6 +6,7 @@ import refractor.framework as rf
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .refractor_uip import RefractorUip
+from .refractor_retrieval_info import RefractorRetrievalInfo
 from .fm_obs_creator import FmObsCreator
 from .cost_function import CostFunction
 from .muses_retrieval_step import MusesRetrievalStep
@@ -82,8 +83,12 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
                       mytimingFlag, writeoutputFlag, rf_uip):
         '''run_retrieval when maxIter is 0, pulled out just to simplify
         the code'''
-        jacobian_speciesNames = i_retrievalInfo.species[0:i_retrievalInfo.n_species]
-        jacobian_speciesList = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+        if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
+            jacobian_speciesNames = i_retrievalInfo.species_names
+            jacobian_speciesList = i_retrievalInfo.species_list_fm
+        else:
+            jacobian_speciesNames = i_retrievalInfo.species[0:i_retrievalInfo.n_species]
+            jacobian_speciesList = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
         (uip, radianceOut, jacobianOut) = self.run_forward_model(
             i_tableStruct, i_stateInfo, i_windows, i_retrievalInfo, 
             jacobian_speciesNames, jacobian_speciesList, 
@@ -92,7 +97,10 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
             mytimingFlag, 
             writeoutputFlag)
         if jacobian_speciesList[0] != '':
-            xret = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
+            if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
+                xret = i_retrievalInfo.apriori
+            else:
+                xret = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
         else:
             jacobianOut = 0
             xret = 0
@@ -161,8 +169,12 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         meas_err = mpy.glom(tweaked_array_nesr, 0, 1)
 
         # apriori and sqrt_constraint
-        constraint = i_retrievalInfo.Constraint[0:i_retrievalInfo.n_totalParameters, 0:i_retrievalInfo.n_totalParameters]
-        xa = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
+        if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
+            constraint = i_retrievalInfo.apriori_cov
+            xa = i_retrievalInfo.apriori
+        else:
+            constraint = i_retrievalInfo.Constraint[0:i_retrievalInfo.n_totalParameters, 0:i_retrievalInfo.n_totalParameters]
+            xa = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
         if constraint.size > 1:
             sqrt_constraint = (mpy.sqrt_matrix(constraint)).transpose()
         else:
@@ -239,7 +251,10 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         radianceOut2['radiance'][:] = radiance_fm
 
         detectors = [0]
-        speciesFM = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+        if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
+            speciesFM = i_retrievalInfo.species_list_fm
+        else:
+            speciesFM = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
         jacobianOut2 = mpy.jacobian_data(jacobian_fm, detectors,
                                          i_radianceInfo['frequency'], speciesFM)
         radianceOutIter = radiance_iter[:,np.newaxis,:]

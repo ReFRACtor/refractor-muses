@@ -14,6 +14,7 @@ from pathlib import Path
 from pprint import pformat, pprint
 import time
 from contextlib import contextmanager
+from .refractor_retrieval_info import RefractorRetrievalInfo
 
 logger = logging.getLogger("py-retrieve")
 
@@ -201,23 +202,24 @@ class RetrievalStrategy:
         if(self.retrievalInfo.n_speciesSys <= 0):
             return
         # make a temporary retrieval structure for sys info
+        retrieval_info = self.retrievalInfo.retrieval_info_obj
         retrieval_info_temp = mpy.ObjectView({
-            'parameterStartFM': self.retrievalInfo.parameterStartSys,
-            'parameterEndFM' : self.retrievalInfo.parameterEndSys,
-            'species': self.retrievalInfo.speciesSys,
-            'n_species': self.retrievalInfo.n_speciesSys,
-            'speciesList': self.retrievalInfo.speciesListSys,
-            'speciesListFM': self.retrievalInfo.speciesListSys,
-            'mapTypeListFM': mpy.constraint_get_maptype(self.errorCurrent, self.retrievalInfo.speciesListSys),
-            'initialGuessListFM': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
-            'constraintVectorListFM': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
-            'initialGuessList': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
-            'n_totalParametersFM': self.retrievalInfo.n_totalParametersSys
+            'parameterStartFM': retrieval_info.parameterStartSys,
+            'parameterEndFM' : retrieval_info.parameterEndSys,
+            'species': retrieval_info.speciesSys,
+            'n_species': retrieval_info.n_speciesSys,
+            'speciesList': retrieval_info.speciesListSys,
+            'speciesListFM': retrieval_info.speciesListSys,
+            'mapTypeListFM': mpy.constraint_get_maptype(self.errorCurrent, retrieval_info.speciesListSys),
+            'initialGuessListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+            'constraintVectorListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+            'initialGuessList': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+            'n_totalParametersFM': retrieval_info.n_totalParametersSys
         })
         # This is a list of unique species.
-        jacobian_speciesNames = self.retrievalInfo.speciesSys[0:self.retrievalInfo.n_speciesSys]
+        jacobian_speciesNames = retrieval_info.speciesSys[0:retrieval_info.n_speciesSys]
         # This is a list of species (not unique).
-        jacobian_specieslist = self.retrievalInfo.speciesListSys[0:self.retrievalInfo.n_totalParametersSys]  
+        jacobian_specieslist = retrieval_info.speciesListSys[0:retrieval_info.n_totalParametersSys]  
         
         logger.info("Running run_forward_model for systematic jacobians ...")
         # TODO - Should have logic here to skip running forward model if we
@@ -235,7 +237,7 @@ class RetrievalStrategy:
             writeOutputFlag=False, 
             RJFlag=True)
 
-        if jacobianSys["jacobian_data"].shape[1] != self.retrievalInfo.n_totalParametersSys:
+        if jacobianSys["jacobian_data"].shape[1] != retrieval_info.n_totalParametersSys:
             raise RuntimeError("sys species does not match the # of species in sys Jacobians\nThis can happen if one of the species is not used in selected windows\n")
 
         self.results.jacobianSys = jacobianSys["jacobian_data"]
@@ -248,7 +250,7 @@ class RetrievalStrategy:
             self.strategy_table["dirAnalysis"],
             self.radianceStep,
             self.radianceNoiseStep,
-            self.retrievalInfo,
+            self.retrievalInfo.retrieval_info_obj,
             self.stateInfo,
             self.errorInitial,
             self.errorCurrent,
@@ -271,7 +273,7 @@ class RetrievalStrategy:
         # output_directory
         self.results = mpy.write_retrieval_summary(
             self.strategy_table["dirAnalysis"],
-            self.retrievalInfo,
+            self.retrievalInfo.retrieval_info_obj,
             mpy.ObjectView(self.stateInfo),
             self.radianceStep,
             self.results,
@@ -283,11 +285,11 @@ class RetrievalStrategy:
             writeOutputFlag=False, 
             errorInitial=self.errorInitial
         )
-        if 'TATM' in self.retrievalInfo.species:
+        if 'TATM' in self.retrievalInfo.species_names:
             self.propagatedTATMQA = self.results.masterQuality
-        if 'O3' in self.retrievalInfo.species:
+        if 'O3' in self.retrievalInfo.species_names:
             self.propagatedO3QA = self.results.masterQuality
-        if 'H2O' in self.retrievalInfo.species:
+        if 'H2O' in self.retrievalInfo.species_names:
             self.propagatedH2OQA = self.results.masterQuality
         
 
@@ -350,8 +352,8 @@ class RetrievalStrategy:
 
             # stateOneNext is not updated when it says "do not update"
             # state.current is updated for all results
-            (self.stateInfo, self.retrievalInfo, self.stateOneNext) = \
-                mpy.update_state(self.stateInfo, self.retrievalInfo,
+            (self.stateInfo, _, self.stateOneNext) = \
+                mpy.update_state(self.stateInfo, self.retrievalInfo.retrieval_info_obj,
                                  self.results.resultsList, self.cloud_prefs,
                                  self.table_step, donotupdate, self.stateOneNext)
             self.stateInfo = self.stateInfo.__dict__
@@ -693,7 +695,9 @@ class RetrievalStrategy:
         (self.retrievalInfo, self.errorInitial, self.errorCurrent) = \
             mpy.get_species_information(self.strategy_table, self.stateInfo,
                                         self.errorInitial, self.errorCurrent)
-        self.retrievalInfo = mpy.ObjectView.as_object(self.retrievalInfo)
+        
+        #self.retrievalInfo = mpy.ObjectView.as_object(self.retrievalInfo)
+        self.retrievalInfo = RefractorRetrievalInfo(self.retrievalInfo.__dict__)
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
@@ -706,9 +710,9 @@ class RetrievalStrategy:
             xig = self.retrievalInfo.initialGuessList[0:nn]
 
             # Note that we do not pass in stateOneNext (None) and do not get back stateOneNext on the left handside as donotcare_stateOneNext.
-            (self.stateInfo, self.retrievalInfo, _) = \
-                mpy.update_state(self.stateInfo, self.retrievalInfo, xig,
-                                 self.cloud_prefs, self.table_step, [], None)
+            (self.stateInfo, _, _) = \
+                mpy.update_state(self.stateInfo, self.retrievalInfo.retrieval_info_obj,
+                                 xig, self.cloud_prefs, self.table_step, [], None)
             self.stateInfo = mpy.ObjectView.as_dict(self.stateInfo)
 
     @property

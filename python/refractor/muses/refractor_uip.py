@@ -854,43 +854,47 @@ class RefractorUip:
         '''We duplicate what mpy.run_retrieval does to make the uip.'''
         i_state = copy.deepcopy(i_stateInfo)
         i_windows = copy.deepcopy(i_windows)
-        i_retrievalInfo = copy.deepcopy(i_retrievalInfo)
+        # Temp, we are sorting out the interface of i_retrievalInfo
+        if(hasattr(i_retrievalInfo, "retrieval_info_obj")):
+            retrieval_info = copy.deepcopy(i_retrievalInfo.retrieval_info_obj)
+        else:
+            retrieval_info = copy.deepcopy(i_retrievalInfo)
         if(isinstance(i_state, dict)):
             i_state = mpy.ObjectView(i_state)
-        if(isinstance(i_retrievalInfo, dict)):
-            i_retrievalInfo = mpy.ObjectView(i_retrievalInfo)
+        if(isinstance(retrieval_info, dict)):
+            retrieval_info = mpy.ObjectView(retrieval_info)
         if(jacobian_speciesIn):
             jacobian_speciesNames=jacobian_speciesIn
         else:
-            jacobian_speciesNames = i_retrievalInfo.species[0:i_retrievalInfo.n_species]
+            jacobian_speciesNames = retrieval_info.species[0:retrieval_info.n_species]
         uip = mpy.make_uip_master(i_state, i_state.current, i_table,
                                   i_windows, jacobian_speciesNames,
                                   i_cloudIndex=0, 
                                   i_modifyCloudFreq=True)
         # run_forward_model doesn't have mapType, not really sure why. It
         # just puts an empty list here. Similarly no n_totalParameters.
-        if ('mapType' in i_retrievalInfo.__dict__
-            and i_retrievalInfo.n_totalParameters > 0):
-            uip['jacobiansLinear'] = [i_retrievalInfo.species[i] for i in range(len(i_retrievalInfo.mapType)) if i_retrievalInfo.mapType[i] == 'linear' and i_retrievalInfo.species[i] not in ('EMIS', 'TSUR', 'TATM') ]
-            uip['speciesList'] = copy.deepcopy(i_retrievalInfo.speciesList[0:i_retrievalInfo.n_totalParameters])
-            uip['speciesListFM'] = copy.deepcopy(i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM])
-            uip['mapTypeListFM'] = copy.deepcopy(i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM])
-            uip['initialGuessListFM'] = copy.deepcopy(i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM])
-            uip['constraintVectorListFM'] = copy.deepcopy(i_retrievalInfo.constraintVectorListFM[0:i_retrievalInfo.n_totalParametersFM]) # only needed for PCA map type.
+        if ('mapType' in retrieval_info.__dict__
+            and retrieval_info.n_totalParameters > 0):
+            uip['jacobiansLinear'] = [retrieval_info.species[i] for i in range(len(retrieval_info.mapType)) if retrieval_info.mapType[i] == 'linear' and retrieval_info.species[i] not in ('EMIS', 'TSUR', 'TATM') ]
+            uip['speciesList'] = copy.deepcopy(retrieval_info.speciesList[0:retrieval_info.n_totalParameters])
+            uip['speciesListFM'] = copy.deepcopy(retrieval_info.speciesListFM[0:retrieval_info.n_totalParametersFM])
+            uip['mapTypeListFM'] = copy.deepcopy(retrieval_info.mapTypeListFM[0:retrieval_info.n_totalParametersFM])
+            uip['initialGuessListFM'] = copy.deepcopy(retrieval_info.initialGuessListFM[0:retrieval_info.n_totalParametersFM])
+            uip['constraintVectorListFM'] = copy.deepcopy(retrieval_info.constraintVectorListFM[0:retrieval_info.n_totalParametersFM]) # only needed for PCA map type.
         else:
             uip['jacobiansLinear'] = ['']
-            uip['speciesList'] = copy.deepcopy(i_retrievalInfo.speciesList)
-            uip['speciesListFM'] = copy.deepcopy(i_retrievalInfo.speciesListFM)
-            uip['mapTypeListFM'] = copy.deepcopy(i_retrievalInfo.mapTypeListFM[0:i_retrievalInfo.n_totalParametersFM])
-            uip['initialGuessListFM'] = copy.deepcopy(i_retrievalInfo.initialGuessListFM[0:i_retrievalInfo.n_totalParametersFM])
-            uip['constraintVectorListFM'] = copy.deepcopy(i_retrievalInfo.constraintVectorListFM[0:i_retrievalInfo.n_totalParametersFM]) # only needed for PCA map type.
+            uip['speciesList'] = copy.deepcopy(retrieval_info.speciesList)
+            uip['speciesListFM'] = copy.deepcopy(retrieval_info.speciesListFM)
+            uip['mapTypeListFM'] = copy.deepcopy(retrieval_info.mapTypeListFM[0:retrieval_info.n_totalParametersFM])
+            uip['initialGuessListFM'] = copy.deepcopy(retrieval_info.initialGuessListFM[0:retrieval_info.n_totalParametersFM])
+            uip['constraintVectorListFM'] = copy.deepcopy(retrieval_info.constraintVectorListFM[0:retrieval_info.n_totalParametersFM]) # only needed for PCA map type.
         uip['microwindows_all'] = i_windows
         # Basis matrix if available, this isn't in run_forward_model.
-        if ('mapToState' in i_retrievalInfo.__dict__ and
-            i_retrievalInfo.n_totalParameters > 0):
-            mmm = i_retrievalInfo.n_totalParameters
-            nnn = i_retrievalInfo.n_totalParametersFM
-            basis_matrix = i_retrievalInfo.mapToState[0:mmm, 0:nnn]
+        if ('mapToState' in retrieval_info.__dict__ and
+            retrieval_info.n_totalParameters > 0):
+            mmm = retrieval_info.n_totalParameters
+            nnn = retrieval_info.n_totalParametersFM
+            basis_matrix = retrieval_info.mapToState[0:mmm, 0:nnn]
         else:
             basis_matrix = None
         rf_uip = cls(uip, basis_matrix)
@@ -1006,12 +1010,12 @@ class RefractorUip:
                     w[k] = 0
                     
         if(basis_matrix is not None and
-           i_retrievalInfo.n_totalParameters > 0):
-            xig = i_retrievalInfo.initialGuessList[0:i_retrievalInfo.n_totalParameters]
+           retrieval_info.n_totalParameters > 0):
+            xig = retrieval_info.initialGuessList[0:retrieval_info.n_totalParameters]
             rf_uip.update_uip(xig)
         else:
-            uip['currentGuessList'] = i_retrievalInfo.initialGuessList
-            uip['currentGuessListFM'] = i_retrievalInfo.initialGuessListFM
+            uip['currentGuessList'] = retrieval_info.initialGuessList
+            uip['currentGuessListFM'] = retrieval_info.initialGuessListFM
 
         return rf_uip
                                   
