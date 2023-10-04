@@ -16,7 +16,8 @@ class RetrievalInputOutput(RetrievalOutput):
         os.makedirs(f"{self.step_dir}/ELANORInput", exist_ok=True)
         # May need to extend this logic here
         detectorsUse = [1]
-        mpy.write_retrieval_inputs(self.strategy_table, self.stateInfo,
+        mpy.write_retrieval_inputs(self.strategy_table,
+                                   self.stateInfo.state_info_obj,
                                    self.windows,
                                    self.retrievalInfo.retrieval_info_obj,
                                    self.table_step,
@@ -42,7 +43,7 @@ class RetrievalPlotResult(RetrievalOutput):
         os.makedirs(self.step_dir, exist_ok=True)
         mpy.plot_results(f"{self.step_dir}/", self.results,
                          self.retrievalInfo.retrieval_info_obj,
-                         self.stateInfo)
+                         self.stateInfo.state_info_obj)
 
 class RetrievalPlotRadiance(RetrievalOutput):
     def notify_update(self, retrieval_strategy, location):

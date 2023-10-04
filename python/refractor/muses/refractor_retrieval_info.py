@@ -1,21 +1,5 @@
 import refractor.muses.muses_py as mpy
 
-
-'''
-        retrieval_info_temp = mpy.ObjectView({
-            'parameterStartFM': self.retrievalInfo.parameterStartSys,
-            'parameterEndFM' : self.retrievalInfo.parameterEndSys,
-            'species': self.retrievalInfo.speciesSys,
-            'n_species': self.retrievalInfo.n_speciesSys,
-            'speciesList': self.retrievalInfo.speciesListSys,
-            'speciesListFM': self.retrievalInfo.speciesListSys,
-            'mapTypeListFM': mpy.constraint_get_maptype(self.errorCurrent, self.retrievalInfo.speciesListSys),
-            'initialGuessListFM': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
-            'constraintVectorListFM': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
-            'initialGuessList': np.zeros(shape=(self.retrievalInfo.n_totalParametersSys,), dtype=np.float32),
-            'n_totalParametersFM': self.retrievalInfo.n_totalParametersSys
-        })
-'''
 class RefractorRetrievalInfo:
     '''Not sure if we'll keep this or not, but pull out RetrievalInfo stuff so
     we can figure out the interface and if we should replace this.

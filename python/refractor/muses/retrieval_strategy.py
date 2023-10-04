@@ -15,7 +15,7 @@ from pprint import pformat, pprint
 import time
 from contextlib import contextmanager
 from .refractor_retrieval_info import RefractorRetrievalInfo
-
+from .refractor_state_info import RefractorStateInfo
 logger = logging.getLogger("py-retrieve")
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -123,8 +123,10 @@ class RetrievalStrategy:
         (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
          self.stateInfo) = mpy.script_retrieval_setup_ms(self.strategy_table, False)
         self.create_windows(all_step=True)
+        self.stateInfo = RefractorStateInfo(self.stateInfo)
         self.create_radiance()
-        self.stateInfo = mpy.states_initial_update(self.stateInfo, self.strategy_table,
+        self.stateInfo.state_info_dict = mpy.states_initial_update(self.stateInfo.state_info_dict,
+                                                   self.strategy_table,
                                                    self.radiance, self.instruments)
         self.notify_update("initial set up done")
         # Not really sure what this is
@@ -143,7 +145,7 @@ class RetrievalStrategy:
         for stp in range(self.number_table_step):
             self.table_step = stp
             self.get_initial_guess()
-        self.stateInfo["initialInitial"] = copy.deepcopy(self.stateInfo["current"])
+        self.stateInfo.copy_current_initialInitial()
         # Now go back through and actually do retrievals.
         # Note that a BT step might change the number of steps we have, it
         # modifies the strategy table. So we can't use a normal for
@@ -154,7 +156,7 @@ class RetrievalStrategy:
         while stp < self.number_table_step - 1:
             stp += 1
             self.table_step = stp
-            self.stateInfo["initial"] = copy.deepcopy(self.stateInfo["current"])
+            self.stateInfo.copy_current_initial()
             #logger.info(f"MMS - {pformat(self.stateInfo['current'])}")
             logger.info(f'\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
@@ -173,8 +175,7 @@ class RetrievalStrategy:
             self.notify_update("after error_analysis")
             self.update_retrieval_summary()
             self.notify_update("retrieval step")
-            self.stateInfo["current"] = copy.deepcopy(self.stateOneNext.__dict__)
-            
+            self.stateInfo.copy_state_one_next(self.stateOneNext)
             logger.info(f"Done with step {self.table_step}")
 
         stop_date = time.strftime("%c")
@@ -251,7 +252,7 @@ class RetrievalStrategy:
             self.radianceStep,
             self.radianceNoiseStep,
             self.retrievalInfo.retrieval_info_obj,
-            self.stateInfo,
+            self.stateInfo.state_info_obj,
             self.errorInitial,
             self.errorCurrent,
             self.windows,
@@ -274,7 +275,7 @@ class RetrievalStrategy:
         self.results = mpy.write_retrieval_summary(
             self.strategy_table["dirAnalysis"],
             self.retrievalInfo.retrieval_info_obj,
-            mpy.ObjectView(self.stateInfo),
+            self.stateInfo.state_info_obj,
             self.radianceStep,
             self.results,
             self.windows,
@@ -324,23 +325,24 @@ class RetrievalStrategy:
         # a bunch of output. I think this is right, but if we run into any problems
         # this is a good place to look. I think this can probably get moved into
         # A RetrievalStep class like do_retrieval_step
-        self.stateOneNext = copy.deepcopy(self.stateInfo["current"])
+        self.stateOneNext = copy.deepcopy(self.stateInfo.state_info_dict["current"])
         if self.retrieval_type == "bt":
-            (self.strategy_table, self.stateInfo) = mpy.modify_from_bt(
+            (self.strategy_table, self.stateInfo.state_info_dict) = mpy.modify_from_bt(
                 mpy.ObjectView(self.strategy_table), self.table_step,
                 self.radianceStep,
-                self.radianceResults, self.windows, self.stateInfo, self.BTstruct,
+                self.radianceResults, self.windows, self.stateInfo.state_info_dict,
+                self.BTstruct,
                 writeOutputFlag=False)
             self.strategy_table = self.strategy_table.__dict__
             logger.info(f"Step: {self.table_step},  Total Steps (after modify_from_bt): {self.number_table_step}")
-            self.stateOneNext = mpy.ObjectView(copy.deepcopy(self.stateInfo['current']))
+            self.stateOneNext = mpy.ObjectView(copy.deepcopy(self.stateInfo.state_info_dict["current"]))
         elif self.retrieval_type in ("forwardmodel", "omi_radiance_calibration"):
             raise RuntimeError("Doesn't seem to be currently supported")
         elif self.retrieval_type == "irk":
             if self.retrieval_type == 'omicloud_ig_refine':
-                self.stateInfo["constraint"]['omi']['cloud_fraction'] = self.stateInfo["current"]['omi']['cloud_fraction']
+                self.stateInfo.state_info_dict["constraint"]['omi']['cloud_fraction'] = self.stateInfo.state_info_dict["current"]['omi']['cloud_fraction']
             if self.retrieval_type == 'tropomicloud_ig_refine':
-                self.stateInfo["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo["current"]['tropomi']['cloud_fraction']
+                self.stateInfo.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo.state_info_dict["current"]['tropomi']['cloud_fraction']
         else:
             donotupdate = mpy.table_get_entry(self.strategy_table, self.table_step,
                                               "donotupdate").lower()
@@ -352,20 +354,21 @@ class RetrievalStrategy:
 
             # stateOneNext is not updated when it says "do not update"
             # state.current is updated for all results
-            (self.stateInfo, _, self.stateOneNext) = \
-                mpy.update_state(self.stateInfo, self.retrievalInfo.retrieval_info_obj,
+            (self.stateInfo.state_info_dict, _, self.stateOneNext) = \
+                mpy.update_state(self.stateInfo.state_info_dict,
+                                 self.retrievalInfo.retrieval_info_obj,
                                  self.results.resultsList, self.cloud_prefs,
                                  self.table_step, donotupdate, self.stateOneNext)
-            self.stateInfo = self.stateInfo.__dict__
+            self.stateInfo.state_info_dict = self.stateInfo.state_info_dict.__dict__
             if 'OCO2' in self.instruments:
                 # set table.pressurefm to stateConstraint.pressure because OCO-2 is on sigma levels
                 self.strategy_table['pressureFM'] = self.stateOneNext.pressure
 
         # Need to shove this somewhere
         if self.retrieval_type == 'omicloud_ig_refine':
-            self.stateInfo["constraint"]['omi']['cloud_fraction'] = self.stateInfo["current"]['omi']['cloud_fraction']
+            self.stateInfo.state_info_dict["constraint"]['omi']['cloud_fraction'] = self.stateInfo.state_info_dict["current"]['omi']['cloud_fraction']
         if self.retrieval_type == 'tropomicloud_ig_refine':
-            self.stateInfo["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo["current"]['tropomi']['cloud_fraction']
+            self.stateInfo.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo.state_info_dict["current"]['tropomi']['cloud_fraction']
                 
     def do_retrieval_step(self):
         # Note, this should probably get put into a RetrievalStep class. This would
@@ -432,7 +435,7 @@ class RetrievalStrategy:
 
             if success_flag == 0:
                 raise RuntimeError("----- script_retrieval_ms: Error -----")
-            self.results = mpy.set_retrieval_results(self.strategy_table, self.windows, retrievalResults, self.retrievalInfo, self.radianceStep, self.stateInfo, uip)
+            self.results = mpy.set_retrieval_results(self.strategy_table, self.windows, retrievalResults, self.retrievalInfo, self.radianceStep, self.stateInfo.state_info_obj, uip)
             logger.info('\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}")
             logger.info(f"Best iteration {self.results.bestIteration} out of {retrievalResults['num_iterations']}")
@@ -458,7 +461,7 @@ class RetrievalStrategy:
 
             # The type of stateInfo is sometimes dict and sometimes ObjectView.
 
-            result = mpy.get_omi_radiance(self.stateInfo["current"]['omi'], copy.deepcopy(self.o_omi))
+            result = mpy.get_omi_radiance(self.stateInfo.state_info_dict["current"]['omi'], copy.deepcopy(self.o_omi))
 
             self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
 
@@ -481,7 +484,7 @@ class RetrievalStrategy:
 
             # The type of stateInfo is sometimes dict and sometimes ObjectView.
 
-            result = mpy.get_tropomi_radiance(self.stateInfo["current"]['tropomi'],
+            result = mpy.get_tropomi_radiance(self.stateInfo.state_info_dict["current"]['tropomi'],
                                               copy.deepcopy(self.o_tropomi))
 
             self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
@@ -536,7 +539,7 @@ class RetrievalStrategy:
 
             # The type of stateInfo is sometimes dict and sometimes ObjectView.
 
-            result = mpy.get_omi_radiance(self.stateInfo["current"]['omi'], copy.deepcopy(self.o_omi))
+            result = mpy.get_omi_radiance(self.stateInfo.state_info_dict["current"]['omi'], copy.deepcopy(self.o_omi))
 
             self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
 
@@ -559,7 +562,7 @@ class RetrievalStrategy:
 
             # The type of stateInfo is sometimes dict and sometimes ObjectView.
 
-            result = mpy.get_tropomi_radiance(self.stateInfo["current"]['tropomi'],
+            result = mpy.get_tropomi_radiance(self.stateInfo.state_info_dict["current"]['tropomi'],
                                               copy.deepcopy(self.o_tropomi))
 
             self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
@@ -583,13 +586,13 @@ class RetrievalStrategy:
         But put it here so we keep track of this.'''
         # set PTGANG to specified amount for OLR calculations
         if self.retrieval_type == 'olr':
-            ptgangorig = self.stateInfo['current']['tes']['boresightNadirRadians']
+            ptgangorig = self.stateInfo.state_info_dict['current']['tes']['boresightNadirRadians']
             if self.retrieval_type == 'olr0':
-                self.stateInfo['current']['tes']['boresightNadirRadians'] = 0
+                self.stateInfo.state_info_dict['current']['tes']['boresightNadirRadians'] = 0
 
             targetAngle = 0.72973
             if self.retrieval_type == 'olr1':
-                self.stateInfo['current']['tes']['boresightNadirRadians'] = 0.64425479 # angle at toa
+                self.stateInfo.state_info_dict['current']['tes']['boresightNadirRadians'] = 0.64425479 # angle at toa
         
     def create_radiance(self):
         '''Read the radiance data. We can  perhaps move this into a Observation class
@@ -603,7 +606,7 @@ class RetrievalStrategy:
         for instrument_name in self.instruments:
             logger.info(f"Reading radiance: {instrument_name}")
             if instrument_name == 'OMI':
-                result = mpy.get_omi_radiance(self.stateInfo['current']['omi'], copy.deepcopy(self.o_omi))
+                result = mpy.get_omi_radiance(self.stateInfo.state_info_dict['current']['omi'], copy.deepcopy(self.o_omi))
                 radiance = result['normalized_rad']
                 nesr = result['nesr']
                 my_filter = result['filter']
@@ -612,7 +615,7 @@ class RetrievalStrategy:
                 os.makedirs(os.path.dirname(fname), exist_ok=True)
                 pickle.dump(self.o_omi, open(fname, "wb"))
             if instrument_name == 'TROPOMI':
-                result = mpy.get_tropomi_radiance(self.stateInfo['current']['tropomi'], copy.deepcopy(self.o_tropomi))
+                result = mpy.get_tropomi_radiance(self.stateInfo.state_info_dict['current']['tropomi'], copy.deepcopy(self.o_tropomi))
 
                 radiance = result['normalized_rad']
                 nesr = result['nesr']
@@ -691,9 +694,9 @@ class RetrievalStrategy:
 
     def get_initial_guess(self):
         '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
-        # AT_LINE 308 Script_Retrieval_ms.pro
         (self.retrievalInfo, self.errorInitial, self.errorCurrent) = \
-            mpy.get_species_information(self.strategy_table, self.stateInfo,
+            mpy.get_species_information(self.strategy_table,
+                                        self.stateInfo.state_info_obj,
                                         self.errorInitial, self.errorCurrent)
         
         #self.retrievalInfo = mpy.ObjectView.as_object(self.retrievalInfo)
@@ -710,10 +713,11 @@ class RetrievalStrategy:
             xig = self.retrievalInfo.initialGuessList[0:nn]
 
             # Note that we do not pass in stateOneNext (None) and do not get back stateOneNext on the left handside as donotcare_stateOneNext.
-            (self.stateInfo, _, _) = \
-                mpy.update_state(self.stateInfo, self.retrievalInfo.retrieval_info_obj,
+            (self.stateInfo.state_info_dict, _, _) = \
+                mpy.update_state(self.stateInfo.state_info_dict,
+                                 self.retrievalInfo.retrieval_info_obj,
                                  xig, self.cloud_prefs, self.table_step, [], None)
-            self.stateInfo = mpy.ObjectView.as_dict(self.stateInfo)
+            self.stateInfo.state_info_dict = self.stateInfo.state_info_dict.__dict__
 
     @property
     def threshold(self):

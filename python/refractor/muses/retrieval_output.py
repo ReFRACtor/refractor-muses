@@ -82,7 +82,7 @@ class RetrievalOutput:
 
     @property
     def stateInfo(self):
-        return mpy.ObjectView(self.retrieval_strategy.stateInfo)
+        return self.retrieval_strategy.stateInfo
 
     @property
     def radianceStep(self):
@@ -115,7 +115,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
                 mpy.write_products_one_jacobian(None, self.out_fname,
                                                 self.retrievalInfo,
                                                 self.results,
-                                                self.stateInfo,
+                                                self.stateInfo.state_info_obj,
                                                 self.instruments, self.table_step)
         else:
             logger.info(f"Found a jacobian product file: {self.out_fname}")
@@ -139,7 +139,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
                 mpy.write_products_one_radiance(None, self.out_fname,
                                                 self.retrievalInfo,
                                                 self.results,
-                                                self.stateInfo,
+                                                self.stateInfo.state_info_obj,
                                                 self.radianceStep,
                                                 self.instruments, self.table_step,
                                                 self.myobsrad)
@@ -212,7 +212,7 @@ class RetrievalL2Output(RetrievalOutput):
                     _, dataInfo = mpy.write_products_one(spcname, out_fname,
                                                 self.retrievalInfo.retrieval_info_obj,
                                                 self.results,
-                                                self.stateInfo,
+                                                self.stateInfo.state_info_obj,
                                                 self.instruments,
                                                 self.table_step)
                     if(spcname == "TATM"):
@@ -234,8 +234,8 @@ class RetrievalL2Output(RetrievalOutput):
                 # Fake the data
                 logger.warn("code has not been tested for species_name CH4 and dataN2O is None")
                 data2 = copy.deepcopy(dataInfo)
-                indn = self.stateInfo.species.index('N2O')
-                value = self.stateInfo.initial['values'][indn, :]
+                indn = self.stateInfo.state_info_obj.species.index('N2O')
+                value = self.stateInfo.state_info_obj.initial['values'][indn, :]
                 data2['SPECIES'][data2['SPECIES'] > 0] = copy.deepcopy(value)
                 data2['INITIAL'][data2['SPECIES'] > 0] = copy.deepcopy(value)
                 data2['CONSTRAINTVECTOR'][data2['SPECIES'] > 0] = copy.deepcopy(value)

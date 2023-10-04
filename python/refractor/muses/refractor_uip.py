@@ -852,17 +852,22 @@ class RefractorUip:
                    i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi,
                    i_oco2, jacobian_speciesIn=None):
         '''We duplicate what mpy.run_retrieval does to make the uip.'''
-        i_state = copy.deepcopy(i_stateInfo)
         i_windows = copy.deepcopy(i_windows)
         # Temp, we are sorting out the interface of i_retrievalInfo
         if(hasattr(i_retrievalInfo, "retrieval_info_obj")):
             retrieval_info = copy.deepcopy(i_retrievalInfo.retrieval_info_obj)
         else:
             retrieval_info = copy.deepcopy(i_retrievalInfo)
-        if(isinstance(i_state, dict)):
-            i_state = mpy.ObjectView(i_state)
-        if(isinstance(retrieval_info, dict)):
-            retrieval_info = mpy.ObjectView(retrieval_info)
+            if(isinstance(retrieval_info, dict)):
+                retrieval_info = mpy.ObjectView(retrieval_info)
+        # Temp, and also with i_stateInfo
+        if(hasattr(i_stateInfo, "state_info_obj")):
+            i_state = copy.deepcopy(i_stateInfo.state_info_obj)
+        else:
+            i_state = copy.deepcopy(i_stateInfo)
+            if(isinstance(i_state, dict)):
+                i_state = mpy.ObjectView(i_state)
+
         if(jacobian_speciesIn):
             jacobian_speciesNames=jacobian_speciesIn
         else:
