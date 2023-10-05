@@ -241,7 +241,7 @@ class RetrievalStrategy:
         # of the Cris/Tropomi systematic jacobian don't actually use any tropomi
         # stuff. But right now, both forward models are run even though only one
         # contributes to the jacobian.
-        _, _, jacobianSys = self.run_forward_model(
+        _, jacobianSys = self.run_forward_model(
             self.strategy_table, self.stateInfo, self.windows, retrieval_info_temp,
             jacobian_speciesNames, jacobian_specieslist,
             self.radianceStep,
@@ -395,8 +395,9 @@ class RetrievalStrategy:
             mytiming = None
             # AT_LINE 567 Script_Retrieval_ms.pro
             logger.info("Running run_forward_model ...")
-            # TODO Add back in writeOutput stuff to run_forward_model
-            (uip, self.radianceResults, jacobianOut) = self.run_forward_model(
+            # TODO Add back in writeOutput stuff to run_forward_model.
+            # Also, should be able to use forward model w/o jacobian
+            self.radianceResults, _ = self.run_forward_model(
                 self.strategy_table, self.stateInfo, self.windows, self.retrievalInfo,
                 jacobian_speciesNames,
                 jacobian_specieslist,
@@ -436,7 +437,7 @@ class RetrievalStrategy:
 
             # TODO Put back in writeOutput, we don't have this in our version
             # of run_retrieval
-            (retrievalResults, uip, rayInfo, ret_info, windowsF, success_flag) = \
+            retrievalResults = \
                 self.run_retrieval(
                     mpy.ObjectView.as_object(self.stateInfo),
                     self.strategy_table,
@@ -446,9 +447,8 @@ class RetrievalStrategy:
                     self.o_airs, self.o_tes, self.o_cris, self.o_omi, self.o_tropomi,
                     self.oco2_step)
 
-            if success_flag == 0:
-                raise RuntimeError("----- script_retrieval_ms: Error -----")
-            self.results = mpy.set_retrieval_results(self.strategy_table, self.windows, retrievalResults, self.retrievalInfo, self.radianceStep, self.stateInfo.state_info_obj, uip)
+            self.results = mpy.set_retrieval_results(self.strategy_table, self.windows, retrievalResults, self.retrievalInfo, self.radianceStep, self.stateInfo.state_info_obj,
+                             {"currentGuessListFM" : retrievalResults["xretFM"]})
             logger.info('\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}")
             logger.info(f"Best iteration {self.results.bestIteration} out of {retrievalResults['num_iterations']}")
@@ -823,7 +823,7 @@ class RetrievalStrategy:
         the code'''
         jacobian_speciesNames = i_retrievalInfo.species_names
         jacobian_speciesList = i_retrievalInfo.species_list_fm
-        (uip, radianceOut, jacobianOut) = self.run_forward_model(
+        radianceOut, jacobianOut = self.run_forward_model(
             i_tableStruct, i_stateInfo, i_windows, i_retrievalInfo, 
             jacobian_speciesNames, jacobian_speciesList, 
             i_radianceInfo, 
@@ -847,18 +847,14 @@ class RetrievalStrategy:
             'stopCriteria': np.zeros(shape=(1, 3), dtype=np.int),
             'resdiag': np.zeros(shape=(1, 5), dtype=np.int),
             'xret': xret,
+            'xretFM': i_retrievalInfo.initialGuessListFM,
             'radiance': radianceOut,
             'jacobian': jacobianOut,
             'delta': 0,
             'rho': 0,
             'lambda': 0            
         }
-        o_uip = rf_uip.uip
-        rayInfo = None
-        ret_info = None
-        windowsF = copy.deepcopy(i_windows)
-        success_flag = 1 
-        return (o_retrievalResults, o_uip, rayInfo, ret_info, windowsF, success_flag)
+        return o_retrievalResults
 
     def run_retrieval(self, i_stateInfo, i_tableStruct, i_windows,     
                       i_retrievalInfo, i_radianceInfo, 
@@ -951,6 +947,8 @@ class RetrievalStrategy:
                     ConvTolerance=ConvTolerance,   
                     Chi2Tolerance=Chi2Tolerance
                     )
+        if success_flag == 0:
+            raise RuntimeError("----- script_retrieval_ms: Error -----")
 
         # Update radiance data, based on what we got from the forward
         # model. This is really pretty sneaky, and a bad design - the "i_"
@@ -998,15 +996,7 @@ class RetrievalStrategy:
             'rho': diag_lambda_rho_delta[:, 1],
             'lambda': diag_lambda_rho_delta[:, 0],        
         }
-        rayInfo = None
-        for k in ("AIRS", "OMI", "TES", "CRIS", "TROPOMI", "OCO2"):
-            if(f"uip_{k}" in rf_uip.uip):
-                rayInfo = rf_uip.ray_info(k, set_pointing_angle_zero=False)
-        windowsF = rf_uip.uip["microwindows_all"]
-        # Note not all of these return elements are actually used
-        # in script_retrieval_ms. rayInfo, ret_info are just ignored.
-        # The other elements seem to be used to write out data
-        return (o_retrievalResults, rf_uip.uip, rayInfo, ret_info, windowsF, success_flag)
+        return o_retrievalResults
 
     def run_forward_model(self, i_table, i_stateInfo, i_windows,
                           i_retrievalInfo, jacobian_speciesIn,
@@ -1029,8 +1019,7 @@ class RetrievalStrategy:
         o_jacobian = mpy.jacobian_data(jac_fm, o_radiance['detectors'],
                                        o_radiance['frequency'],
                                        rf_uip.uip['speciesListFM'])
-        return (rf_uip.uip, o_radiance, o_jacobian)
-    
+        return (o_radiance, o_jacobian)
 
 
 class RetrievalStrategyCaptureObserver:

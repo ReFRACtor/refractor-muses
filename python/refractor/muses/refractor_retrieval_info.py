@@ -30,6 +30,11 @@ class RefractorRetrievalInfo:
         return self.retrieval_dict["initialGuessList"]
 
     @property
+    def initialGuessListFM(self):
+        '''This is the initial guess for the FM state vector'''
+        return self.retrieval_dict["initialGuessListFM"]
+    
+    @property
     def type(self):
         return self.retrieval_dict["type"]
 
