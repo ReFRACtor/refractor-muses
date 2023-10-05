@@ -598,6 +598,23 @@ class RefractorUip:
 
         return np.array(sv_extract_index)
 
+    def species_lin_log_mapping(self, specie_name: str) -> str:
+        output_map = None
+
+        # JLL: figured we might as well go through this process of checking the UIP each call rather than doing any caching,
+        # that way if the UIP changes we get the updated map type.
+        for fm_spec, fm_map in zip(self.uip['speciesListFM'], self.uip['mapTypeListFM']):
+            if fm_spec == specie_name and output_map is None:
+                output_map = fm_map
+            elif fm_spec == specie_name and output_map != fm_map:
+                raise RuntimeError(f'There were at least two different FM map types in the UIP for specie {specie_name}: {output_map} and {fm_map}')
+
+        if output_map is None:
+            raise ValueError(f'Specie {specie_name} was not present in the FM species list, so could not find its map type')
+        else:
+            return output_map
+            
+
     def earth_sun_distance(self, instrument_name):
         '''Earth sun distance, in meters. Right now this is OMI specific'''
         # Same value for all the bands, so just grab the first one
