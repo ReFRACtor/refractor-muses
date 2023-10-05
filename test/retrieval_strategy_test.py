@@ -51,11 +51,13 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
 
     Data goes in the local directory, rather than an isolated one.'''
     subprocess.run("rm -r retrieval_strategy_cris_tropomi", shell=True)
-    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
-    rmi.register_with_muses_py()
+    # Think we can remove this
+    #rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
+    #rmi.register_with_muses_py()
     r = MusesRunDir(joint_tropomi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_cris_tropomi")
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", writeOutput=True, writePlots=True)
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", writeOutput=True, writePlots=True,
+                           vlidort_cli=vlidort_cli)
     rs.retrieval_ms()
     
 @long_test
@@ -119,11 +121,11 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
 
     Data goes in the local directory, rather than an isolated one.'''
     subprocess.run("rm -r retrieval_strategy_airs_omi", shell=True)
-    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
-    rmi.register_with_muses_py()
+    #rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
+    #rmi.register_with_muses_py()
     r = MusesRunDir(joint_omi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_airs_omi")
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     rs.retrieval_ms()
     
 @long_test
