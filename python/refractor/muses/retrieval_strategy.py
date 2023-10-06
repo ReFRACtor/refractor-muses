@@ -289,7 +289,7 @@ class RetrievalStrategy:
             self.strategy_table["dirAnalysis"],
             self.retrievalInfo.retrieval_info_obj,
             self.stateInfo.state_info_obj,
-            self.radianceStep,
+            None,
             self.results,
             self.windows,
             self.press_list,
@@ -930,7 +930,6 @@ class RetrievalStrategy:
         # when we call levmar_nllsq_elanor
         cfunc = CostFunction(*self.fm_obs_creator.fm_and_obs(rf_uip, ret_info,
                                                              **self.kwargs))
-        
         # TODO Make this look like a ReFRACtor solver
         with register_replacement_function_in_block("residual_fm_jacobian",
                                                     cfunc):
@@ -950,13 +949,38 @@ class RetrievalStrategy:
         if success_flag == 0:
             raise RuntimeError("----- script_retrieval_ms: Error -----")
 
+        
         # Update radiance data, based on what we got from the forward
         # model. This is really pretty sneaky, and a bad design - the "i_"
         # in the name seems to indicate this is input only. But this
         # matches what muses-py does.
-        if(maxIter > 0 and len(ret_info) > 0):
-            i_radianceInfo['radiance'][:] = ret_info['obs_rad'][:]
-            i_radianceInfo['NESR'][:] = ret_info['meas_err'][:]
+
+        # Perhaps move this in CostFunction
+        f = []
+        d = []
+        u = []
+        for obs in cfunc.obs_list:
+            if(hasattr(obs, "radiance_all_with_bad_sample")):
+                s = obs.radiance_all_with_bad_sample()
+            else:
+                # True skips the jacobian calculation, which we don't
+                # need here
+                s = obs.radiance_all(True)
+            f.append(s.spectral_domain.data)
+            d.append(s.spectral_range.data)
+            u.append(s.spectral_range.uncertainty)
+        # We'll try moving this to a calculation,  rather than
+        # something passed in. We'll need to track down the pieces
+        # we are copying from i_radianceInfo, but we'll make it explicit here
+        # what we need
+        self.radianceStep = {"radiance" : np.concatenate(d),
+                             "NESR" : np.concatenate(u),
+                             "frequency" : np.concatenate(f),
+                             "filterNames" : i_radianceInfo["filterNames"],
+                             "filterSizes" : i_radianceInfo["filterSizes"],
+                             "instrumentNames" : i_radianceInfo["instrumentNames"],
+                             "instrumentSizes" : i_radianceInfo["instrumentSizes"],
+                             }
         
         # Find iteration used, only keep the best iteration
         rms = np.array([np.sqrt(np.sum(res_iter[i,:]*res_iter[i,:])/
