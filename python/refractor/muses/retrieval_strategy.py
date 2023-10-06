@@ -5,6 +5,7 @@ from .retrieval_output import (RetrievalJacobianOutput,
 from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult,
                                      RetrievalPlotRadiance, RetrievalPlotResult)
 from .refractor_uip import RefractorUip
+from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .fm_obs_creator import FmObsCreator
 from .cost_function import CostFunction
 from .replace_function_helper import (suppress_replacement,
@@ -68,6 +69,7 @@ class RetrievalStrategy:
         self.vlidort_cli = vlidort_cli
         self._table_step = -1
 
+        self.retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
         # Will probably rework this
         self.fm_obs_creator = FmObsCreator()
         self.instrument_handle_set = self.fm_obs_creator.instrument_handle_set
@@ -170,7 +172,9 @@ class RetrievalStrategy:
             stp += 1
             self.table_step = stp
             self.stateInfo.copy_current_initial()
-            #logger.info(f"MMS - {pformat(self.stateInfo['current'])}")
+            self.stateOneNext = copy.deepcopy(self.stateInfo.state_info_dict["current"])
+            # TODO May be able to remove this
+            self.results = None
             logger.info(f'\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
             logger.info(f'\n---')
@@ -178,10 +182,10 @@ class RetrievalStrategy:
             self.create_windows(all_step=False)
             self.create_radiance_step()
             self.notify_update("radianceStep")
-            self.tes_adjustment()
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
-            self.do_retrieval_step()
-            self.update_state_info()
+            self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
+            #self.do_retrieval_step()
+            #self.update_state_info()
             self.systematic_jacobian()
             self.update_radiance_step()
             self.error_analysis()
@@ -352,10 +356,7 @@ class RetrievalStrategy:
         elif self.retrieval_type in ("forwardmodel", "omi_radiance_calibration"):
             raise RuntimeError("Doesn't seem to be currently supported")
         elif self.retrieval_type == "irk":
-            if self.retrieval_type == 'omicloud_ig_refine':
-                self.stateInfo.state_info_dict["constraint"]['omi']['cloud_fraction'] = self.stateInfo.state_info_dict["current"]['omi']['cloud_fraction']
-            if self.retrieval_type == 'tropomicloud_ig_refine':
-                self.stateInfo.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo.state_info_dict["current"]['tropomi']['cloud_fraction']
+            pass
         else:
             donotupdate = mpy.table_get_entry(self.strategy_table, self.table_step,
                                               "donotupdate").lower()
@@ -594,19 +595,6 @@ class RetrievalStrategy:
         self.radianceNoiseStep['radiance'] = np.ndarray(shape=(self.radianceStep['radiance'].shape), dtype=np.float)
         self.radianceNoiseStep['radiance'][:] = 0.0
 
-    def tes_adjustment(self):
-        '''This is kind of an odd piece, that probably should go into something else.
-        But put it here so we keep track of this.'''
-        # set PTGANG to specified amount for OLR calculations
-        if self.retrieval_type == 'olr':
-            ptgangorig = self.stateInfo.state_info_dict['current']['tes']['boresightNadirRadians']
-            if self.retrieval_type == 'olr0':
-                self.stateInfo.state_info_dict['current']['tes']['boresightNadirRadians'] = 0
-
-            targetAngle = 0.72973
-            if self.retrieval_type == 'olr1':
-                self.stateInfo.state_info_dict['current']['tes']['boresightNadirRadians'] = 0.64425479 # angle at toa
-        
     def create_radiance(self):
         '''Read the radiance data. We can  perhaps move this into a Observation class
         by instrument.
