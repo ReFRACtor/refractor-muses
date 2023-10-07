@@ -37,8 +37,8 @@ def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     subprocess.run("rm -r original_retrieval_cris_tropomi", shell=True)
     r = MusesRunDir(joint_tropomi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="original_retrieval_cris_tropomi")
-    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
-    rmi.register_with_muses_py()
+    #rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
+    #rmi.register_with_muses_py()
     r.run_retrieval(vlidort_cli=vlidort_cli, debug=True, plots=True)
 
 @long_test
@@ -59,6 +59,29 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", writeOutput=True, writePlots=True,
                            vlidort_cli=vlidort_cli)
     rs.retrieval_ms()
+
+    # Temp, do compare right after
+    diff_is_error = True
+    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_L2*.nc"):
+        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Lite_Products_*.nc"):
+        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Radiance*.nc"):
+        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Jacobian*.nc"):
+        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     
 @long_test
 @require_muses_py
@@ -68,7 +91,7 @@ def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     for each of the tests so we don't have to.'''
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
-    diff_is_error = False
+    diff_is_error = True
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_L2*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
@@ -127,6 +150,29 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_airs_omi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     rs.retrieval_ms()
+
+    # Temp, compare right after
+    diff_is_error = True
+    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_L2*.nc"):
+        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob("original_retrieval_airs_omi/*/Products/Lite_Products_*.nc"):
+        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_Radiance*.nc"):
+        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_Jacobian*.nc"):
+        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     
 @long_test
 @require_muses_py

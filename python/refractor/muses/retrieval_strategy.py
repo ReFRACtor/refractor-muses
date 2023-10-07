@@ -167,7 +167,6 @@ class RetrievalStrategy:
         # loop here, we need to recalculate self.number_table_step each time.
         # So we use a while loop
         stp = -1
-        #while stp < 2:
         while stp < self.number_table_step - 1:
             stp += 1
             self.table_step = stp
@@ -175,23 +174,15 @@ class RetrievalStrategy:
             self.stateOneNext = copy.deepcopy(self.stateInfo.state_info_dict["current"])
             # TODO May be able to remove this
             self.results = None
+            self.radianceStep = None
             logger.info(f'\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
             logger.info(f'\n---')
             self.get_initial_guess()
             self.create_windows(all_step=False)
             self.create_radiance_step()
-            self.notify_update("radianceStep")
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
             self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
-            #self.do_retrieval_step()
-            #self.update_state_info()
-            self.systematic_jacobian()
-            self.update_radiance_step()
-            self.error_analysis()
-            self.notify_update("after error_analysis")
-            self.update_retrieval_summary()
-            self.notify_update("retrieval step")
             self.stateInfo.copy_state_one_next(self.stateOneNext)
             logger.info(f"Done with step {self.table_step}")
 
@@ -248,7 +239,7 @@ class RetrievalStrategy:
         _, jacobianSys = self.run_forward_model(
             self.strategy_table, self.stateInfo, self.windows, retrieval_info_temp,
             jacobian_speciesNames, jacobian_specieslist,
-            self.radianceStep,
+            self.radianceStepIn,
             self.o_airs, self.o_cris, self.o_tes, self.o_omi, self.o_tropomi,
             self.oco2_step,
             mytiming=None, 
@@ -263,11 +254,14 @@ class RetrievalStrategy:
     def error_analysis(self):
         if(self.results is None):
             return
+        # Doesn't seem to be used for anything, but we need to pass in. I think
+        # this might have been something that was used in the past?
+        radianceNoise = {"radiance" : np.zeros_like(self.radianceStep["radiance"]) }
         (self.results, self.errorCurrent) = mpy.error_analysis_wrapper(
             self.table_step,
             self.strategy_table["dirAnalysis"],
             self.radianceStep,
-            self.radianceNoiseStep,
+            radianceNoise,
             self.retrievalInfo.retrieval_info_obj,
             self.stateInfo.state_info_obj,
             self.errorInitial,
@@ -337,211 +331,34 @@ class RetrievalStrategy:
                 raise RuntimeError(f"Quality flag filename not found: {res}")
         return res
     
-    def update_state_info(self):
-        # Note the code here is really convoluted in the original, and tied in with
-        # a bunch of output. I think this is right, but if we run into any problems
-        # this is a good place to look. I think this can probably get moved into
-        # A RetrievalStep class like do_retrieval_step
-        self.stateOneNext = copy.deepcopy(self.stateInfo.state_info_dict["current"])
-        if self.retrieval_type == "bt":
-            (self.strategy_table, self.stateInfo.state_info_dict) = mpy.modify_from_bt(
-                mpy.ObjectView(self.strategy_table), self.table_step,
-                self.radianceStep,
-                self.radianceResults, self.windows, self.stateInfo.state_info_dict,
-                self.BTstruct,
-                writeOutputFlag=False)
-            self.strategy_table = self.strategy_table.__dict__
-            logger.info(f"Step: {self.table_step},  Total Steps (after modify_from_bt): {self.number_table_step}")
-            self.stateOneNext = mpy.ObjectView(copy.deepcopy(self.stateInfo.state_info_dict["current"]))
-        elif self.retrieval_type in ("forwardmodel", "omi_radiance_calibration"):
-            raise RuntimeError("Doesn't seem to be currently supported")
-        elif self.retrieval_type == "irk":
-            pass
-        else:
-            donotupdate = mpy.table_get_entry(self.strategy_table, self.table_step,
-                                              "donotupdate").lower()
-            
-            if donotupdate != '-':
-                donotupdate = [x.upper() for x in donotupdate.split(',')]
-            else:
-                donotupdate = []
-
-            # stateOneNext is not updated when it says "do not update"
-            # state.current is updated for all results
-            (self.stateInfo.state_info_dict, _, self.stateOneNext) = \
-                mpy.update_state(self.stateInfo.state_info_dict,
-                                 self.retrievalInfo.retrieval_info_obj,
-                                 self.results.resultsList, self.cloud_prefs,
-                                 self.table_step, donotupdate, self.stateOneNext)
-            self.stateInfo.state_info_dict = self.stateInfo.state_info_dict.__dict__
-            if 'OCO2' in self.instruments:
-                # set table.pressurefm to stateConstraint.pressure because OCO-2 is on sigma levels
-                self.strategy_table['pressureFM'] = self.stateOneNext.pressure
-
-        # Need to shove this somewhere
-        if self.retrieval_type == 'omicloud_ig_refine':
-            self.stateInfo.state_info_dict["constraint"]['omi']['cloud_fraction'] = self.stateInfo.state_info_dict["current"]['omi']['cloud_fraction']
-        if self.retrieval_type == 'tropomicloud_ig_refine':
-            self.stateInfo.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = self.stateInfo.state_info_dict["current"]['tropomi']['cloud_fraction']
-                
-    def do_retrieval_step(self):
-        # Note, this should probably get put into a RetrievalStep class. This would
-        # both make it easier to test a single step, and also provide a clear way
-        # to put in new retrieval types.
-        self.results = None
-        if self.retrieval_type in ('bt', "forwardmodel", 'omi_radiance_calibration'):
-            jacobian_speciesNames = ['H2O']
-            jacobian_specieslist = ['H2O']
-            jacobianOut = None
-            mytiming = None
-            # AT_LINE 567 Script_Retrieval_ms.pro
-            logger.info("Running run_forward_model ...")
-            # TODO Add back in writeOutput stuff to run_forward_model.
-            # Also, should be able to use forward model w/o jacobian
-            self.radianceResults, _ = self.run_forward_model(
-                self.strategy_table, self.stateInfo, self.windows, self.retrievalInfo,
-                jacobian_speciesNames,
-                jacobian_specieslist,
-                self.radianceStep,
-                self.o_airs, self.o_cris, self.o_tes, self.o_omi, self.o_tropomi,
-                self.oco2_step, None)
-            self.notify_update("run_forward_model_step")
-        elif self.retrieval_type == 'irk':
-            jacobian_speciesNames = self.retrievalInfo.species[0:self.retrievalInfo.n_species]
-            jacobian_specieslist = self.retrievalInfo.speciesListFM[0:self.retrievalInfo.n_totalParametersFM]
-            jacobianOut = None
-            mytiming = None
-            uip=tes = cris = omi = tropomi = None 
-            logger.info("Running run_irk ...")
-            (resultsIRK, jacobianOut) = mpy.run_irk(
-                self.strategy_table, self.stateInfo, self.windows, self.retrievalInfo,
-                jacobian_speciesNames, 
-                jacobian_specieslist, 
-                self.radianceStep,
-                uip, 
-                self.o_airs, tes, cris, omi, tropomi,
-                mytiming, 
-                writeOutput=None)
-            self.notify_update("run_irk_step")
-        else:
-            self.notify_update("retrieval input")
-            self.retrievalInfo.stepNumber = self.table_step
-            self.retrievalInfo.stepName = self.step_name
-            logger.info("Running run_retrieval ...")
-            # SSK 2023.  I find I get failures from glitches like reading L1B files, if there
-            # are many processes running.  I re-run several times to give every obs a chance to complete
-            # chance to run, because I am running the same set with different strategies and want to compare.
-            # write out a token if it gets here, indicating this obs already got a chance.  I then copy all
-            # completed runs to either 00good/ or 00bad/ depending on the success flag,
-            # and re-run anything remaining in the main directory.
-            Path(f"{self.run_dir}/-run_token.asc").touch()
-
-            # TODO Put back in writeOutput, we don't have this in our version
-            # of run_retrieval
-            retrievalResults = \
-                self.run_retrieval(
-                    mpy.ObjectView.as_object(self.stateInfo),
-                    self.strategy_table,
-                    self.windows,
-                    self.retrievalInfo,
-                    self.radianceStep,
-                    self.o_airs, self.o_tes, self.o_cris, self.o_omi, self.o_tropomi,
-                    self.oco2_step)
-
-            self.results = mpy.set_retrieval_results(self.strategy_table, self.windows, retrievalResults, self.retrievalInfo, self.radianceStep, self.stateInfo.state_info_obj,
-                             {"currentGuessListFM" : retrievalResults["xretFM"]})
-            logger.info('\n---')
-            logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}")
-            logger.info(f"Best iteration {self.results.bestIteration} out of {retrievalResults['num_iterations']}")
-            logger.info('---\n')
-            self.results = mpy.set_retrieval_results_derived(self.results,
-                      self.radianceStep,
-                      self.propagatedTATMQA, self.propagatedO3QA, self.propagatedH2OQA)
-            self.notify_update("run_retrieval_step")
-
-    def update_radiance_step(self):
-        if(self.results is None):
-            return
-        # update with omi pars to omi measured radiance
-        my_instruments = np.asarray(mpy.radiance_get_instrument_array(self.radianceStep))
-        ind = np.where(my_instruments == 'OMI')[0]
-        if len(ind) > 0:
-            # Get windows that are 'OMI' specific.
-            ind2 = []
-            for ii in range(0, len(self.windows)):
-                if self.windows[ii]['instrument'] == 'OMI':
-                    ind2.append(ii)
-            ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
-
-            # The type of stateInfo is sometimes dict and sometimes ObjectView.
-
-            result = mpy.get_omi_radiance(self.stateInfo.state_info_dict["current"]['omi'], copy.deepcopy(self.o_omi))
-
-            self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
-
-            # reduce to omi step windows 
-            self.myobsrad = mpy.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
-
-            # put into omi part of step windows 
-            self.radianceStep['radiance'][ind] = copy.deepcopy(self.myobsrad['radiance'])
-            if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
-                raise RuntimeError('ERROR! radiance NOT FINITE!')
-
-        indT = np.where(my_instruments == 'TROPOMI')[0]
-        if len(indT) > 0:
-            # Get windows that are 'TROPOMI' specific.
-            ind2 = []
-            for ii in range(0, len(self.windows)):
-                if self.windows[ii]['instrument'] == 'TROPOMI':
-                    ind2.append(ii)
-            ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
-
-            # The type of stateInfo is sometimes dict and sometimes ObjectView.
-
-            result = mpy.get_tropomi_radiance(self.stateInfo.state_info_dict["current"]['tropomi'],
-                                              copy.deepcopy(self.o_tropomi))
-
-            self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
-
-            # reduce to omi step windows 
-            self.myobsrad = mpy.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
-
-            # put into omi part of step windows 
-            self.radianceStep['radiance'][indT] = copy.deepcopy(self.myobsrad['radiance'])
-            if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
-                raise RuntimeError('ERROR! radiance NOT FINITE!')
-        # end: if len(indT) > 0:
-
-        mpy.set_retrieval_results_derived(self.results, self.radianceStep, self.propagatedTATMQA, self.propagatedO3QA, self.propagatedH2OQA)
-        
     def create_radiance_step(self):
         # Note, I think we might replace this just with our SpectralWindow stuff,
         # along with an Observation class
-        self.radianceStep = self.radiance
-        self.radianceStep = mpy.radiance_set_windows(self.radianceStep, self.windows)
+        self.radianceStepIn = self.radiance
+        self.radianceStepIn = mpy.radiance_set_windows(self.radianceStepIn, self.windows)
 
-        if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
+        if np.all(np.isfinite(self.radianceStepIn['radiance'])) == False:
             raise RuntimeError('ERROR! radiance NOT FINITE!')
 
-        if np.all(np.isfinite(self.radianceStep['NESR'])) == False:
+        if np.all(np.isfinite(self.radianceStepIn['NESR'])) == False:
             raise RuntimeError('ERROR! radiance error NOT FINITE!')
         if 'OCO2' in self.instruments:
-            ind = np.where(np.array(mpy.radiance_get_instrument_array(self.radianceStep)) == 'OCO2')[0]
-            sample_indexes_step = mpy.oco2_sample_indexes(self.o_oco2['radianceStruct']['frequency'], self.radianceStep['frequency'][ind], selfpo_oco2['sample_indexes'])
+            ind = np.where(np.array(mpy.radiance_get_instrument_array(self.radianceStepIn)) == 'OCO2')[0]
+            sample_indexes_step = mpy.oco2_sample_indexes(self.o_oco2['radianceStruct']['frequency'], self.radianceStepIn['frequency'][ind], selfpo_oco2['sample_indexes'])
 
             # make oco2_step, containing step information
             self.oco2_step = copy.deepcopy(self.o_oco2)
             self.oco2_step['sample_indexes'] = sample_indexes_step
 
             # OCO-2 step radiance
-            radiancex = copy.deepcopy(self.radianceStep)
+            radiancex = copy.deepcopy(self.radianceStepIn)
             radiancex = mpy.radiance_set_instrument(self.radiancex, 'OCO2')
 
             self.oco2_step['radianceStruct'] = radiancex
         else:
             self.oco2_step = None
         # update with omi pars to omi measured radiance
-        my_instruments = np.asarray(mpy.radiance_get_instrument_array(self.radianceStep))
+        my_instruments = np.asarray(mpy.radiance_get_instrument_array(self.radianceStepIn))
         ind = np.where(my_instruments == 'OMI')[0]
         if len(ind) > 0:
             # Get windows that are 'OMI' specific.
@@ -561,8 +378,8 @@ class RetrievalStrategy:
             self.myobsrad = mpy.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
 
             # put into omi part of step windows 
-            self.radianceStep['radiance'][ind] = copy.deepcopy(self.myobsrad['radiance'])
-            if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
+            self.radianceStepIn['radiance'][ind] = copy.deepcopy(self.myobsrad['radiance'])
+            if np.all(np.isfinite(self.radianceStepIn['radiance'])) == False:
                 raise RuntimeError('ERROR! radiance NOT FINITE!')
 
         indT = np.where(my_instruments == 'TROPOMI')[0]
@@ -585,15 +402,10 @@ class RetrievalStrategy:
             self.myobsrad = mpy.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
 
             # put into omi part of step windows 
-            self.radianceStep['radiance'][indT] = copy.deepcopy(self.myobsrad['radiance'])
-            if np.all(np.isfinite(self.radianceStep['radiance'])) == False:
+            self.radianceStepIn['radiance'][indT] = copy.deepcopy(self.myobsrad['radiance'])
+            if np.all(np.isfinite(self.radianceStepIn['radiance'])) == False:
                 raise RuntimeError('ERROR! radiance NOT FINITE!')
         # end: if len(indT) > 0:
-
-        self.radianceNoiseStep = self.radianceStep.copy() 
-
-        self.radianceNoiseStep['radiance'] = np.ndarray(shape=(self.radianceStep['radiance'].shape), dtype=np.float)
-        self.radianceNoiseStep['radiance'][:] = 0.0
 
     def create_radiance(self):
         '''Read the radiance data. We can  perhaps move this into a Observation class
@@ -857,11 +669,12 @@ class RetrievalStrategy:
                                          i_cris, i_omi, i_tropomi, i_oco2)
         maxIter = int(mpy.table_get_entry(i_tableStruct, i_tableStruct["step"], "maxNumIterations"))
         if maxIter == 0:
+            self.radianceStep = copy.deepcopy(self.radianceStepIn)
             return self.run_retrieval_zero_iterations(
                 i_stateInfo, i_tableStruct, i_windows,i_retrievalInfo,
                 i_radianceInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi,
                 i_oco2, mytimingFlag, writeoutputFlag, rf_uip)
-        
+    
         
         # Observation data
         tweaked_array_radiance = i_radianceInfo["radiance"]

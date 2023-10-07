@@ -4,6 +4,8 @@ import refractor.muses.muses_py as mpy
 from pathlib import Path
 import copy
 from .priority_handle_set import PriorityHandleSet
+from pprint import pprint, pformat
+
 logger = logging.getLogger("py-retrieve")
 
 class RetrievalStrategyStepSet(PriorityHandleSet):
@@ -55,13 +57,13 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
                 rs.strategy_table, rs.stateInfo, rs.windows, rs.retrievalInfo,
                 jacobian_speciesNames,
                 jacobian_specieslist,
-                rs.radianceStep,
+                rs.radianceStepIn,
                 rs.o_airs, rs.o_cris, rs.o_tes, rs.o_omi, rs.o_tropomi,
                 rs.oco2_step, None)
         rs.stateOneNext = copy.deepcopy(rs.stateInfo.state_info_dict["current"])
         (rs.strategy_table, rs.stateInfo.state_info_dict) = mpy.modify_from_bt(
             mpy.ObjectView(rs.strategy_table), rs.table_step,
-            rs.radianceStep,
+            rs.radianceStepIn,
             rs.radianceResults, rs.windows, rs.stateInfo.state_info_dict,
             rs.BTstruct,
             writeOutputFlag=False)
@@ -88,7 +90,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             rs.strategy_table, rs.stateInfo, rs.windows, rs.retrievalInfo,
             jacobian_speciesNames, 
             jacobian_specieslist, 
-            rs.radianceStep,
+            rs.radianceStepIn,
             uip, 
             rs.o_airs, tes, cris, omi, tropomi,
             mytiming, 
@@ -124,7 +126,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                 rs.strategy_table,
                 rs.windows,
                 rs.retrievalInfo,
-                rs.radianceStep,
+                rs.radianceStepIn,
                 rs.o_airs, rs.o_tes, rs.o_cris, rs.o_omi, rs.o_tropomi,
                 rs.oco2_step)
 
@@ -158,8 +160,40 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels
             rs.strategy_table['pressureFM'] = rs.stateOneNext.pressure
+        self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
+
+        # We should pull some of this over, but for now call existing code
+        rs.systematic_jacobian()
+        # Is this needed?
+        #rs.update_radiance_step()
+        # This is an odd interface, but it is currently what is required by
+        # write_products_one_radiance. We should perhaps change that function, but
+        # currently this is how if get the updates for omi or tropomi
+        for inst in ("OMI", "TROPOMI"):
+            if(inst in rs.radianceStep["instrumentNames"]):
+                i = rs.radianceStep["instrumentNames"].index(inst)
+                istart = sum(rs.radianceStep["instrumentSizes"][:i])
+                iend = istart + rs.radianceStep["instrumentSizes"][i]
+                r = range(istart, iend)
+                rs.myobsrad = {"instrumentNames" : [inst],
+                               "frequency" : rs.radianceStep["frequency"][r],
+                               "radiance" : rs.radianceStep["radiance"][r],
+                               "NESR" : rs.radianceStep["NESR"][r]}
+        mpy.set_retrieval_results_derived(rs.results, rs.radianceStep,
+                                          rs.propagatedTATMQA, rs.propagatedO3QA,
+                                          rs.propagatedH2OQA)        
+        rs.error_analysis()
+        rs.update_retrieval_summary()
+        rs.notify_update("retrieval step")
+        
         return (True, None)
+
+    def extra_after_run_retrieval_step(self, rs):
+        '''We have a couple of steps that just do some extra adjustments before
+        we go into the systematic_jacobian/error_analysis stuff. This is just a hook
+        for putting this in place.'''
+        pass
 
 class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
     '''This is a retreival, followed by using the results to update the
@@ -168,10 +202,12 @@ class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "omicloud_ig_refine":
             return (False,  None)
-        super().retrieval_step(retrieval_type, rs)
+        return super().retrieval_step(retrieval_type, rs)
+
+    def extra_after_run_retrieval_step(self, rs):
         rs.stateInfo.state_info_dict["constraint"]['omi']['cloud_fraction'] = \
             rs.stateInfo.state_info_dict["current"]['omi']['cloud_fraction']
-        return (True, None)
+        
 
 class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve):
     '''This is a retreival, followed by using the results to update the
@@ -180,10 +216,11 @@ class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "tropomicloud_ig_refine":
             return (False,  None)
-        super().retrieval_step(retrieval_type, rs)
+        return super().retrieval_step(retrieval_type, rs)
+
+    def extra_after_run_retrieval_step(self, rs):
         rs.stateInfo.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = \
             rs.stateInfo.state_info_dict["current"]['tropomi']['cloud_fraction']
-        return (True, None)
     
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepNotImplemented())
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())
