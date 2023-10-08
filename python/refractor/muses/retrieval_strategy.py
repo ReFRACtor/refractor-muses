@@ -653,6 +653,7 @@ class RetrievalStrategy:
         jacobian_speciesNames = self.retrievalInfo.species_names
         jacobian_speciesList = self.retrievalInfo.species_list_fm
         (radianceOut, jac_fm, _, _, _) = self.cost_function.fm_wrapper({"currentGuessListFM" : self.cost_function.parameters}, None, {})
+        breakpoint()
         jacobianOut = mpy.jacobian_data(jac_fm, radianceOut['detectors'],
                                         radianceOut['frequency'],
                                         self.retrievalInfo.species_list_fm)
@@ -687,9 +688,6 @@ class RetrievalStrategy:
         changes from tropomi/omi.'''
         self.create_cost_function()
         maxIter = int(mpy.table_get_entry(self.strategy_table, self.strategy_table["step"], "maxNumIterations"))
-        if maxIter == 0:
-            self.radianceStep = copy.deepcopy(self.radianceStepIn)
-            return self.run_retrieval_zero_iterations()
         
         # Various thresholds from the input table
         ConvTolerance_CostThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_CostThresh"))
@@ -707,11 +705,34 @@ class RetrievalStrategy:
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
             
         # TODO Make this look like a ReFRACtor solver
-        with register_replacement_function_in_block("residual_fm_jacobian",
-                                                    self.cost_function):
-            (xret, diag_lambda_rho_delta, stopcrit, resdiag, 
-             x_iter, res_iter, radiance_fm, radiance_iter, jacobian_fm, 
-             iterNum, stopCode, success_flag) =  mpy.levmar_nllsq_elanor(  
+        if maxIter == 0:
+            radiance_fm = np.full(self.ret_info["meas_err"].shape, -999.0)
+            gpt = self.ret_info["meas_err"] >= 0
+            radiance_fm[gpt] = self.cost_function.max_a_posteriori.model
+            jac_fm_gpt = self.cost_function.max_a_posteriori.model_measure_diff_jacobian_fm.transpose()
+            jacobian_fm = np.full((jac_fm_gpt.shape[0], self.ret_info["meas_err"].shape[0]),-999.0)
+            jacobian_fm[:, gpt] = jac_fm_gpt
+            success_flag = 1
+            bestIter = 0
+            residualRMS = np.asarray([0])
+            diag_lambda_rho_delta = np.zeros((1,3))
+            stopcrit = np.zeros(shape=(1, 3), dtype=np.int)
+            resdiag = np.zeros(shape=(1, 5), dtype=np.int)
+            if self.retrievalInfo.species_list_fm[0] != '':
+                xret = self.retrievalInfo.apriori
+            else:
+                jacobianOut = 0
+                xret = 0
+            x_iter = xret
+            radiance_iter = np.zeros((1,1))
+            iterNum = 0
+            stopCode = -1
+        else:
+            with register_replacement_function_in_block("residual_fm_jacobian",
+                                                        self.cost_function):
+                (xret, diag_lambda_rho_delta, stopcrit, resdiag, 
+                 x_iter, res_iter, radiance_fm, radiance_iter, jacobian_fm, 
+                 iterNum, stopCode, success_flag) =  mpy.levmar_nllsq_elanor(  
                     self.rf_uip.current_state_x, 
                     self.table_step, 
                     self.rf_uip.uip, 
@@ -722,23 +743,28 @@ class RetrievalStrategy:
                     ConvTolerance=ConvTolerance,   
                     Chi2Tolerance=Chi2Tolerance
                     )
+                # Find iteration used, only keep the best iteration
+                rms = np.array([np.sqrt(np.sum(res_iter[i,:]*res_iter[i,:])/
+                                        res_iter.shape[1]) for i in range(iterNum+1)])
+                bestIter = np.argmin(rms)
+                residualRMS = rms
         if success_flag == 0:
             raise RuntimeError("----- script_retrieval_ms: Error -----")
 
         
         self.radianceStep = self.cost_function.radianceStep(self.radianceStepIn)
         
-        # Find iteration used, only keep the best iteration
-        rms = np.array([np.sqrt(np.sum(res_iter[i,:]*res_iter[i,:])/
-                       res_iter.shape[1]) for i in range(iterNum+1)])
-        bestIter = np.argmin(rms)
-        residualRMS = rms
         
         # Take results and put into the expected output structures.
         
         radianceOut2 = copy.deepcopy(self.radianceStepIn)
         radianceOut2['NESR'][:] = 0
         radianceOut2['radiance'][:] = radiance_fm
+        # Oddly, set_retrieval_results expects a different shape for num_iterations
+        # = 0. Probably should change the code there, but for now just work around
+        # this
+        if(iterNum == 0):
+            radianceOut2['radiance'] = radiance_fm[np.newaxis, :]
 
         detectors = [0]
         speciesFM = self.retrievalInfo.species_list_fm
