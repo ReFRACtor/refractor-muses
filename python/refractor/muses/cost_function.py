@@ -160,5 +160,28 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             raise RuntimeError("Jacobian is not finite")
         return (uip, residual, jac_residual, radiance_fm,
                 jac_fm, stop_flag)
-        
+
+    def radianceStep(self, i_radianceInfo):
+        '''Create the structure called "radianceStep" from our observation data'''
+        f = []
+        d = []
+        u = []
+        for obs in self.obs_list:
+            if(hasattr(obs, "radiance_all_with_bad_sample")):
+                s = obs.radiance_all_with_bad_sample()
+            else:
+                # True skips the jacobian calculation, which we don't
+                # need here
+                s = obs.radiance_all(True)
+            f.append(s.spectral_domain.data)
+            d.append(s.spectral_range.data)
+            u.append(s.spectral_range.uncertainty)
+        return {"radiance" : np.concatenate(d),
+         "NESR" : np.concatenate(u),
+         "frequency" : np.concatenate(f),
+         "filterNames" : i_radianceInfo["filterNames"],
+         "filterSizes" : i_radianceInfo["filterSizes"],
+         "instrumentNames" : i_radianceInfo["instrumentNames"],
+         "instrumentSizes" : i_radianceInfo["instrumentSizes"],
+         }        
         

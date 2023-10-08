@@ -206,7 +206,39 @@ class RetrievalStrategy:
         logger.info('\n---')    
         return exitcode
         
-
+    def create_cost_function(self):
+        '''Create CostFunction. As a convenience, we do this even when we aren't
+        do a full retrieval - just because is has all the pieces needed for
+        the Observation and ForwardModel. We could break this up a bit if needed,
+        for example we don't actually need the full CostFunction for doing the
+        BT forward model. But for now, just do everything'''
+        # We'd like to get away from the UIP - it is just a reshuffling of a
+        # bunch of data we already have. But for now put this in place. We can
+        # perhaps push this down to just the MusesForwardModel classes.
+        self.rf_uip = RefractorUip.create_uip(self.stateInfo, self.strategy_table,
+                                         self.windows, self.retrievalInfo,
+                                         self.o_airs, self.o_tes,
+                                         self.o_cris, self.o_omi, self.o_tropomi,
+                                         self.o_oco2)
+        # Used by levmar_nllsq_elanor also, so save this. Would be good if we
+        # could get this push down a but farther
+        self.ret_info = { 
+            'obs_rad': self.radianceStepIn["radiance"],
+            'meas_err': self.radianceStepIn["NESR"],            
+            'CostFunction': 'MAX_APOSTERIORI',   
+            'basis_matrix': self.rf_uip.basis_matrix,   
+            'sqrt_constraint': (mpy.sqrt_matrix(self.retrievalInfo.apriori_cov)).transpose(),
+            'const_vec': self.retrievalInfo.apriori,
+            'minimumList':self.retrievalInfo.minimumList[0:self.retrievalInfo.n_totalParameters],
+            'maximumList':self.retrievalInfo.maximumList[0:self.retrievalInfo.n_totalParameters],
+            'maximumChangeList':self.retrievalInfo.maximumChangeList[0:self.retrievalInfo.n_totalParameters]
+        }
+        # Create a cost function, and use to implement residual_fm_jacobian
+        # when we call levmar_nllsq_elanor
+        self.cost_function = CostFunction(*self.fm_obs_creator.fm_and_obs(self.rf_uip,
+                                self.ret_info, **self.kwargs))
+        
+        
     def systematic_jacobian(self):
         if(self.retrievalInfo.n_speciesSys <= 0):
             return
@@ -751,37 +783,7 @@ class RetrievalStrategy:
             raise RuntimeError("----- script_retrieval_ms: Error -----")
 
         
-        # Update radiance data, based on what we got from the forward
-        # model. This is really pretty sneaky, and a bad design - the "i_"
-        # in the name seems to indicate this is input only. But this
-        # matches what muses-py does.
-
-        # Perhaps move this in CostFunction
-        f = []
-        d = []
-        u = []
-        for obs in cfunc.obs_list:
-            if(hasattr(obs, "radiance_all_with_bad_sample")):
-                s = obs.radiance_all_with_bad_sample()
-            else:
-                # True skips the jacobian calculation, which we don't
-                # need here
-                s = obs.radiance_all(True)
-            f.append(s.spectral_domain.data)
-            d.append(s.spectral_range.data)
-            u.append(s.spectral_range.uncertainty)
-        # We'll try moving this to a calculation,  rather than
-        # something passed in. We'll need to track down the pieces
-        # we are copying from i_radianceInfo, but we'll make it explicit here
-        # what we need
-        self.radianceStep = {"radiance" : np.concatenate(d),
-                             "NESR" : np.concatenate(u),
-                             "frequency" : np.concatenate(f),
-                             "filterNames" : i_radianceInfo["filterNames"],
-                             "filterSizes" : i_radianceInfo["filterSizes"],
-                             "instrumentNames" : i_radianceInfo["instrumentNames"],
-                             "instrumentSizes" : i_radianceInfo["instrumentSizes"],
-                             }
+        self.radianceStep = cfunc.radianceStep(self.radianceStepIn)
         
         # Find iteration used, only keep the best iteration
         rms = np.array([np.sqrt(np.sum(res_iter[i,:]*res_iter[i,:])/

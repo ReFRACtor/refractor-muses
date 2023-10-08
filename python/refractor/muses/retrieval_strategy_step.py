@@ -165,8 +165,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         # We should pull some of this over, but for now call existing code
         rs.systematic_jacobian()
-        # Is this needed?
-        #rs.update_radiance_step()
+
+        # TODO Move this to the one spot it is used, no reason to have here
         # This is an odd interface, but it is currently what is required by
         # write_products_one_radiance. We should perhaps change that function, but
         # currently this is how if get the updates for omi or tropomi
