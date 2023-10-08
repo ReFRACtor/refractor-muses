@@ -647,26 +647,19 @@ class RetrievalStrategy:
     # Temp, we'll copy this over for now but should have lots of
     # changes to this
 
-    def run_retrieval_zero_iterations(self, i_stateInfo, i_tableStruct,
-                      i_windows, i_retrievalInfo, i_radianceInfo, 
-                      i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2, 
-                      mytimingFlag, writeoutputFlag, rf_uip):
+    def run_retrieval_zero_iterations(self):
         '''run_retrieval when maxIter is 0, pulled out just to simplify
         the code'''
-        jacobian_speciesNames = i_retrievalInfo.species_names
-        jacobian_speciesList = i_retrievalInfo.species_list_fm
+        jacobian_speciesNames = self.retrievalInfo.species_names
+        jacobian_speciesList = self.retrievalInfo.species_list_fm
         radianceOut, jacobianOut = self.run_forward_model(
-            i_tableStruct, i_stateInfo, i_windows, i_retrievalInfo, 
+            self.strategy_table, self.stateInfo, self.windows, self.retrievalInfo, 
             jacobian_speciesNames, jacobian_speciesList, 
-            i_radianceInfo, 
-            i_airs, i_cris, i_tes, i_omi, i_tropomi, i_oco2,
-            mytimingFlag, 
-            writeoutputFlag)
+            self.retrievalInfo, 
+            self.o_airs, self.o_cris, self.o_tes, self.o_omi, self.o_tropomi,
+            self.o_oco2, False, False)
         if jacobian_speciesList[0] != '':
-            if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
-                xret = i_retrievalInfo.apriori
-            else:
-                xret = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
+            xret = self.retrievalInfo.apriori
         else:
             jacobianOut = 0
             xret = 0
@@ -679,7 +672,7 @@ class RetrievalStrategy:
             'stopCriteria': np.zeros(shape=(1, 3), dtype=np.int),
             'resdiag': np.zeros(shape=(1, 5), dtype=np.int),
             'xret': xret,
-            'xretFM': i_retrievalInfo.initialGuessListFM,
+            'xretFM': self.retrievalInfo.initialGuessListFM,
             'radiance': radianceOut,
             'jacobian': jacobianOut,
             'delta': 0,
@@ -688,75 +681,47 @@ class RetrievalStrategy:
         }
         return o_retrievalResults
 
-    def run_retrieval(self, i_stateInfo, i_tableStruct, i_windows,     
-                      i_retrievalInfo, i_radianceInfo, 
-                      i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2, 
-                      mytimingFlag=False, writeoutputFlag=False):
+    def run_retrieval(self):
         '''run_retrieval
 
         Note despite the name i_radianceInfo get updated with any radiance
         changes from tropomi/omi.'''
-        rf_uip = RefractorUip.create_uip(i_stateInfo, i_tableStruct, i_windows,
-                                         i_retrievalInfo, i_airs, i_tes,
-                                         i_cris, i_omi, i_tropomi, i_oco2)
-        maxIter = int(mpy.table_get_entry(i_tableStruct, i_tableStruct["step"], "maxNumIterations"))
+        rf_uip = RefractorUip.create_uip(self.stateInfo, self.strategy_table,
+                                         self.windows,
+                                         self.retrievalInfo, self.o_airs, self.o_tes,
+                                         self.o_cris, self.o_omi, self.o_tropomi,
+                                         self.o_oco2)
+        maxIter = int(mpy.table_get_entry(self.strategy_table, self.strategy_table["step"], "maxNumIterations"))
         if maxIter == 0:
             self.radianceStep = copy.deepcopy(self.radianceStepIn)
-            return self.run_retrieval_zero_iterations(
-                i_stateInfo, i_tableStruct, i_windows,i_retrievalInfo,
-                i_radianceInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi,
-                i_oco2, mytimingFlag, writeoutputFlag, rf_uip)
-    
+            return self.run_retrieval_zero_iterations()
         
-        # Observation data
-        tweaked_array_radiance = i_radianceInfo["radiance"]
-        tweaked_array_nesr = i_radianceInfo["NESR"]
-        if len(tweaked_array_radiance.shape) == 1:
-            tweaked_array_radiance = np.reshape(tweaked_array_radiance, (1, tweaked_array_radiance.shape[0]))
-        if len(tweaked_array_nesr.shape) == 1:
-            tweaked_array_nesr = np.reshape(tweaked_array_nesr, (1, tweaked_array_nesr.shape[0]))
-
-        obs_rad = mpy.glom(tweaked_array_radiance, 0, 1)
-        meas_err = mpy.glom(tweaked_array_nesr, 0, 1)
-
-        # apriori and sqrt_constraint
-        if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
-            constraint = i_retrievalInfo.apriori_cov
-            xa = i_retrievalInfo.apriori
-        else:
-            constraint = i_retrievalInfo.Constraint[0:i_retrievalInfo.n_totalParameters, 0:i_retrievalInfo.n_totalParameters]
-            xa = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
-        if constraint.size > 1:
-            sqrt_constraint = (mpy.sqrt_matrix(constraint)).transpose()
-        else:
-            sqrt_constraint = np.sqrt(constraint)
-
         # ret_info structue
         ret_info = { 
-            'obs_rad': obs_rad,             
-            'meas_err': meas_err,            
+            'obs_rad': self.radianceStepIn["radiance"],
+            'meas_err': self.radianceStepIn["NESR"],            
             'CostFunction': 'MAX_APOSTERIORI',   
             'basis_matrix': rf_uip.basis_matrix,   
-            'sqrt_constraint': sqrt_constraint,  
-            'const_vec': xa,
-            'minimumList':i_retrievalInfo.minimumList[0:i_retrievalInfo.n_totalParameters],
-            'maximumList':i_retrievalInfo.maximumList[0:i_retrievalInfo.n_totalParameters],
-            'maximumChangeList':i_retrievalInfo.maximumChangeList[0:i_retrievalInfo.n_totalParameters]
+            'sqrt_constraint': (mpy.sqrt_matrix(self.retrievalInfo.apriori_cov)).transpose(),
+            'const_vec': self.retrievalInfo.apriori,
+            'minimumList':self.retrievalInfo.minimumList[0:self.retrievalInfo.n_totalParameters],
+            'maximumList':self.retrievalInfo.maximumList[0:self.retrievalInfo.n_totalParameters],
+            'maximumChangeList':self.retrievalInfo.maximumChangeList[0:self.retrievalInfo.n_totalParameters]
         }
 
         # Various thresholds from the input table
-        ConvTolerance_CostThresh = np.float32(mpy.table_get_pref(i_tableStruct, "ConvTolerance_CostThresh"))
-        ConvTolerance_pThresh = np.float32(mpy.table_get_pref(i_tableStruct, "ConvTolerance_pThresh"))     
-        ConvTolerance_JacThresh = np.float32(mpy.table_get_pref(i_tableStruct, "ConvTolerance_JacThresh"))
-        Chi2Tolerance = 2.0 / meas_err.size # theoretical value for tolerance
-        retrievalType = mpy.table_get_entry(i_tableStruct, i_tableStruct["step"], "retrievalType").lower()
+        ConvTolerance_CostThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_CostThresh"))
+        ConvTolerance_pThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_pThresh"))     
+        ConvTolerance_JacThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_JacThresh"))
+        Chi2Tolerance = 2.0 / len(self.radianceStepIn["NESR"]) # theoretical value for tolerance
+        retrievalType = mpy.table_get_entry(self.strategy_table, self.strategy_table["step"], "retrievalType").lower()
         if retrievalType == "bt_ig_refine":
             ConvTolerance_CostThresh = 0.00001
             ConvTolerance_pThresh = 0.00001
             ConvTolerance_JacThresh = 0.00001
             Chi2Tolerance = 0.00001
         ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
-        delta_str = mpy.table_get_pref(i_tableStruct, 'LMDelta') # 100 // original LM step size
+        delta_str = mpy.table_get_pref(self.strategy_table, 'LMDelta') # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
             
         # Create a cost function, and use to implement residual_fm_jacobian
@@ -770,7 +735,7 @@ class RetrievalStrategy:
              x_iter, res_iter, radiance_fm, radiance_iter, jacobian_fm, 
              iterNum, stopCode, success_flag) =  mpy.levmar_nllsq_elanor(  
                     rf_uip.current_state_x, 
-                    i_tableStruct["step"], 
+                    self.table_step, 
                     rf_uip.uip, 
                     ret_info, 
                     maxIter, 
@@ -793,17 +758,14 @@ class RetrievalStrategy:
         
         # Take results and put into the expected output structures.
         
-        radianceOut2 = copy.deepcopy(i_radianceInfo)
+        radianceOut2 = copy.deepcopy(self.radianceStepIn)
         radianceOut2['NESR'][:] = 0
         radianceOut2['radiance'][:] = radiance_fm
 
         detectors = [0]
-        if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
-            speciesFM = i_retrievalInfo.species_list_fm
-        else:
-            speciesFM = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]
+        speciesFM = self.retrievalInfo.species_list_fm
         jacobianOut2 = mpy.jacobian_data(jacobian_fm, detectors,
-                                         i_radianceInfo['frequency'], speciesFM)
+                                         self.radianceStepIn['frequency'], speciesFM)
         radianceOutIter = radiance_iter[:,np.newaxis,:]
         
         o_retrievalResults = {

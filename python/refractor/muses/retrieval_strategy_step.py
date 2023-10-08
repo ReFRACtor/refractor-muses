@@ -120,15 +120,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         # TODO Put back in writeOutput, we don't have this in our version
         # of run_retrieval
-        retrievalResults = \
-            rs.run_retrieval(
-                mpy.ObjectView.as_object(rs.stateInfo),
-                rs.strategy_table,
-                rs.windows,
-                rs.retrievalInfo,
-                rs.radianceStepIn,
-                rs.o_airs, rs.o_tes, rs.o_cris, rs.o_omi, rs.o_tropomi,
-                rs.oco2_step)
+        retrievalResults = rs.run_retrieval()
 
         rs.results = mpy.set_retrieval_results(rs.strategy_table, rs.windows, retrievalResults, rs.retrievalInfo, rs.radianceStep, rs.stateInfo.state_info_obj,
                              {"currentGuessListFM" : retrievalResults["xretFM"]})
