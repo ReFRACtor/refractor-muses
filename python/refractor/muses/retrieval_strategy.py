@@ -237,7 +237,7 @@ class RetrievalStrategy:
         # when we call levmar_nllsq_elanor
         self.cost_function = CostFunction(*self.fm_obs_creator.fm_and_obs(self.rf_uip,
                                 self.ret_info, **self.kwargs))
-        
+        self.cost_function.parameters = self.rf_uip.current_state_x
         
     def systematic_jacobian(self):
         if(self.retrievalInfo.n_speciesSys <= 0):
@@ -652,12 +652,11 @@ class RetrievalStrategy:
         the code'''
         jacobian_speciesNames = self.retrievalInfo.species_names
         jacobian_speciesList = self.retrievalInfo.species_list_fm
-        radianceOut, jacobianOut = self.run_forward_model(
-            self.strategy_table, self.stateInfo, self.windows, self.retrievalInfo, 
-            jacobian_speciesNames, jacobian_speciesList, 
-            self.retrievalInfo, 
-            self.o_airs, self.o_cris, self.o_tes, self.o_omi, self.o_tropomi,
-            self.o_oco2, False, False)
+        (radianceOut, jac_fm, _, _, _) = self.cost_function.fm_wrapper({"currentGuessListFM" : self.cost_function.parameters}, None, {})
+        jacobianOut = mpy.jacobian_data(jac_fm, radianceOut['detectors'],
+                                        radianceOut['frequency'],
+                                        self.retrievalInfo.species_list_fm)
+        self.radianceStep = self.cost_function.radianceStep(self.radianceStepIn)
         if jacobian_speciesList[0] != '':
             xret = self.retrievalInfo.apriori
         else:
@@ -686,29 +685,12 @@ class RetrievalStrategy:
 
         Note despite the name i_radianceInfo get updated with any radiance
         changes from tropomi/omi.'''
-        rf_uip = RefractorUip.create_uip(self.stateInfo, self.strategy_table,
-                                         self.windows,
-                                         self.retrievalInfo, self.o_airs, self.o_tes,
-                                         self.o_cris, self.o_omi, self.o_tropomi,
-                                         self.o_oco2)
+        self.create_cost_function()
         maxIter = int(mpy.table_get_entry(self.strategy_table, self.strategy_table["step"], "maxNumIterations"))
         if maxIter == 0:
             self.radianceStep = copy.deepcopy(self.radianceStepIn)
             return self.run_retrieval_zero_iterations()
         
-        # ret_info structue
-        ret_info = { 
-            'obs_rad': self.radianceStepIn["radiance"],
-            'meas_err': self.radianceStepIn["NESR"],            
-            'CostFunction': 'MAX_APOSTERIORI',   
-            'basis_matrix': rf_uip.basis_matrix,   
-            'sqrt_constraint': (mpy.sqrt_matrix(self.retrievalInfo.apriori_cov)).transpose(),
-            'const_vec': self.retrievalInfo.apriori,
-            'minimumList':self.retrievalInfo.minimumList[0:self.retrievalInfo.n_totalParameters],
-            'maximumList':self.retrievalInfo.maximumList[0:self.retrievalInfo.n_totalParameters],
-            'maximumChangeList':self.retrievalInfo.maximumChangeList[0:self.retrievalInfo.n_totalParameters]
-        }
-
         # Various thresholds from the input table
         ConvTolerance_CostThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_CostThresh"))
         ConvTolerance_pThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_pThresh"))     
@@ -724,20 +706,16 @@ class RetrievalStrategy:
         delta_str = mpy.table_get_pref(self.strategy_table, 'LMDelta') # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
             
-        # Create a cost function, and use to implement residual_fm_jacobian
-        # when we call levmar_nllsq_elanor
-        cfunc = CostFunction(*self.fm_obs_creator.fm_and_obs(rf_uip, ret_info,
-                                                             **self.kwargs))
         # TODO Make this look like a ReFRACtor solver
         with register_replacement_function_in_block("residual_fm_jacobian",
-                                                    cfunc):
+                                                    self.cost_function):
             (xret, diag_lambda_rho_delta, stopcrit, resdiag, 
              x_iter, res_iter, radiance_fm, radiance_iter, jacobian_fm, 
              iterNum, stopCode, success_flag) =  mpy.levmar_nllsq_elanor(  
-                    rf_uip.current_state_x, 
+                    self.rf_uip.current_state_x, 
                     self.table_step, 
-                    rf_uip.uip, 
-                    ret_info, 
+                    self.rf_uip.uip, 
+                    self.ret_info, 
                     maxIter, 
                     verbose=False, 
                     delta_value=delta_value, 
@@ -748,7 +726,7 @@ class RetrievalStrategy:
             raise RuntimeError("----- script_retrieval_ms: Error -----")
 
         
-        self.radianceStep = cfunc.radianceStep(self.radianceStepIn)
+        self.radianceStep = self.cost_function.radianceStep(self.radianceStepIn)
         
         # Find iteration used, only keep the best iteration
         rms = np.array([np.sqrt(np.sum(res_iter[i,:]*res_iter[i,:])/
@@ -773,7 +751,7 @@ class RetrievalStrategy:
             'num_iterations' : iterNum, 
             'stopCode'       : stopCode, 
             'xret'           : xret, 
-            'xretFM': rf_uip.current_state_x_fm,
+            'xretFM': self.rf_uip.current_state_x_fm,
             'radiance'       : radianceOut2, 
             'jacobian'       : jacobianOut2, 
             'radianceIterations': radianceOutIter, 
