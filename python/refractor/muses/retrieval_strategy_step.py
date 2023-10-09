@@ -31,20 +31,45 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         otherwise'''
         raise NotImplementedError
 
-    def create_cost_function(self, rs : 'RetrievalStrategy'):
+    def create_cost_function(self, rs : 'RetrievalStrategy',
+                             do_systematic=False):
         '''Create a CostFunction, for use either in retrieval or just for running
         the forward model (the CostFunction is a little overkill for just a
         forward model run, but it has all the pieces needed so no reason not to
-        just generate everything.'''
+        just generate everything.
+
+        If do_systematic is True, then we use the systematic species list. Not
+        exactly sure how this is different then just subsetting the full retrieval,
+        but at least for now duplicate what muses-py does.'''
 
         # TODO We would like to get away from using the UIP and ret_info at this
         # level of processing. But for now generate and return these, we'll
         # try to get this cleaned up later
+        if(do_systematic):
+            retrieval_info = rs.retrievalInfo.retrieval_info_obj
+            rinfo = mpy.ObjectView({
+                'parameterStartFM': retrieval_info.parameterStartSys,
+                'parameterEndFM' : retrieval_info.parameterEndSys,
+                'species': retrieval_info.speciesSys,
+                'n_species': retrieval_info.n_speciesSys,
+                'speciesList': retrieval_info.speciesListSys,
+                'speciesListFM': retrieval_info.speciesListSys,
+                'mapTypeListFM': mpy.constraint_get_maptype(rs.errorCurrent, retrieval_info.speciesListSys),
+                'initialGuessListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+                'constraintVectorListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+                'initialGuessList': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+                'n_totalParametersFM': retrieval_info.n_totalParametersSys
+            })
+        else:
+            rinfo = rs.retrievalInfo
         rf_uip = RefractorUip.create_uip(rs.stateInfo, rs.strategy_table,
-                                         rs.windows, rs.retrievalInfo,
+                                         rs.windows, rinfo,
                                          rs.o_airs, rs.o_tes,
                                          rs.o_cris, rs.o_omi, rs.o_tropomi,
                                          rs.o_oco2)
+        # It is actually ok that we use rs.retrievalInfo rather than rinfo. These
+        # are just other parameters that have nothing to do with setting up rf_uip,
+        # and aren't copied over to rinfon
         ret_info = { 
             'obs_rad': rs.radianceStepIn["radiance"],
             'meas_err': rs.radianceStepIn["NESR"],            
@@ -56,10 +81,16 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
             'maximumList':rs.retrievalInfo.maximumList[0:rs.retrievalInfo.n_totalParameters],
             'maximumChangeList':rs.retrievalInfo.maximumChangeList[0:rs.retrievalInfo.n_totalParameters]
         }
-        cost_function = CostFunction(*rs.fm_obs_creator.fm_and_obs(rf_uip,
+        if(do_systematic == True):
+            cfunc = CostFunction(*rs.fm_obs_creator.fm_and_fake_obs(rf_uip,
+                             **rs.kwargs, use_full_state_vector=True,
+                             include_bad_sample=True))
+            cfunc.parameters = rf_uip.current_state_x_fm
+        else:
+            cfunc = CostFunction(*rs.fm_obs_creator.fm_and_obs(rf_uip,
                                 ret_info, **rs.kwargs))
-        cost_function.parameters = rf_uip.current_state_x
-        return (rf_uip, ret_info, cost_function)
+            cfunc.parameters = rf_uip.current_state_x
+        return (rf_uip, ret_info, cfunc)
         
 
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
@@ -188,8 +219,16 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
 
-        # We should pull some of this over, but for now call existing code
-        rs.systematic_jacobian()
+        # Systematic jacobains. Not sure how this is different then just a
+        # subset of the full jacobian, but for now duplicate what muses-py does.
+        # TODO jacobianSys is only used in error_analysis_wrapper and error_analysis.
+        # I think we can leave bad sample out, although I'm not positive. Would be
+        # nice not to have special handling to add bad samples if we turn around and
+        # weed them out.
+        if(rs.retrievalInfo.n_speciesSys > 0):
+            _,_,cfunc_sys = self.create_cost_function(rs, do_systematic=True)
+            logger.info("Running run_forward_model for systematic jacobians ...")
+            rs.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
         # TODO Move this to the one spot it is used, no reason to have here
         # This is an odd interface, but it is currently what is required by
