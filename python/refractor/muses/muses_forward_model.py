@@ -13,6 +13,13 @@ import numpy as np
 # CostFuncCreator to use the using muses-py code for different
 # instruments rather than ReFRACtor.
 
+def _new_from_init(cls, *args):
+    '''For use with pickle, covers common case where we just store the
+    arguments needed to create an object.'''
+    inst = cls.__new__(cls)
+    inst.__init__(*args)
+    return inst
+
 class MusesObservationBase(rf.ObservationSvImpBase):
     # Note the handling of include_bad_sample is important here. muses-py
     # expects to get all the samples in the forward model run in the routine
@@ -224,6 +231,10 @@ class MusesTropomiOrOmiObservation(rf.ObservationSvImpBase):
         self.fm = fm
         self.include_bad_sample = include_bad_sample
 
+    def __reduce__(self):
+        return (_new_from_init,
+                (self.__class__, self.fm, self.include_bad_sample))
+    
     def _v_num_channels(self):
         return 1
 
@@ -281,22 +292,36 @@ class MusesStateVectorObserverHandle(StateVectorHandle):
 class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
     def __init__(self, rf_uip : RefractorUip, **kwargs):
         super().__init__(rf_uip, "TROPOMI", **kwargs)
+        
+    def __reduce__(self):
+        return (_new_from_init,
+                (self.__class__, self.rf_uip, self.kwargs))
 
 class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
     def __init__(self, rf_uip : RefractorUip, **kwargs):
         super().__init__(rf_uip, "OMI", **kwargs)
+    def __reduce__(self):
+        return (_new_from_init,
+                (self.__class__, self.rf_uip, self.kwargs))
         
 class MusesCrisForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for CRiS instrument'''
     def __init__(self, rf_uip : RefractorUip, obs, use_full_state_vector=True, **kwargs):
         super().__init__(rf_uip, "CRIS", obs,
                          use_full_state_vector=use_full_state_vector, **kwargs)
+    def __reduce__(self):
+        return (_new_from_init,
+                (self.__class__, self.rf_uip, self.obs, self.kwargs))
 
 class MusesCrisObservation(MusesObservationBase):
     '''Wrapper that just returns the passed in measured radiance
     and uncertainty for CRIS'''
     def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err, **kwargs):
         super().__init__(rf_uip, "CRIS", obs_rad, meas_err, **kwargs)
+        
+    def __reduce__(self):
+        return (_new_from_init,
+                (self.__class__, self.rf_uip, self.obs_rad, self.meas_err))
 
 class MusesAirsForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for Airs instrument'''
@@ -305,12 +330,20 @@ class MusesAirsForwardModel(MusesOssForwardModelBase):
                          obs,
                          use_full_state_vector=use_full_state_vector,
                          **kwargs)
+        
+    def __reduce__(self):
+        return (_new_from_init,
+                (self.__class__, self.rf_uip, self.obs, self.kwargs))
 
 class MusesAirsObservation(MusesObservationBase):
     '''Wrapper that just returns the passed in measured radiance
     and uncertainty for AIRS'''
     def __init__(self, rf_uip : RefractorUip, obs_rad, meas_err, **kwargs):
         super().__init__(rf_uip, "AIRS", obs_rad, meas_err, **kwargs)
+        
+    def __reduce__(self):
+        return (_new_from_init,
+                (self.__class__, self.rf_uip, self.obs_rad, self.meas_err))
         
 class StateVectorPlaceHolder(rf.StateVectorObserver):
     '''Place holder for parts of the StateVector that ReFRACtor objects
