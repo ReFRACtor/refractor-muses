@@ -5,6 +5,10 @@ from pathlib import Path
 import copy
 from .priority_handle_set import PriorityHandleSet
 from pprint import pprint, pformat
+from .refractor_uip import RefractorUip
+from .cost_function import CostFunction
+from .muses_levmar_solver import MusesLevmarSolver
+import numpy as np
 
 logger = logging.getLogger("py-retrieve")
 
@@ -26,6 +30,37 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         '''Returns (True, None) if we handle the retrieval step, (False, None)
         otherwise'''
         raise NotImplementedError
+
+    def create_cost_function(self, rs : 'RetrievalStrategy'):
+        '''Create a CostFunction, for use either in retrieval or just for running
+        the forward model (the CostFunction is a little overkill for just a
+        forward model run, but it has all the pieces needed so no reason not to
+        just generate everything.'''
+
+        # TODO We would like to get away from using the UIP and ret_info at this
+        # level of processing. But for now generate and return these, we'll
+        # try to get this cleaned up later
+        rf_uip = RefractorUip.create_uip(rs.stateInfo, rs.strategy_table,
+                                         rs.windows, rs.retrievalInfo,
+                                         rs.o_airs, rs.o_tes,
+                                         rs.o_cris, rs.o_omi, rs.o_tropomi,
+                                         rs.o_oco2)
+        ret_info = { 
+            'obs_rad': rs.radianceStepIn["radiance"],
+            'meas_err': rs.radianceStepIn["NESR"],            
+            'CostFunction': 'MAX_APOSTERIORI',   
+            'basis_matrix': rf_uip.basis_matrix,   
+            'sqrt_constraint': (mpy.sqrt_matrix(rs.retrievalInfo.apriori_cov)).transpose(),
+            'const_vec': rs.retrievalInfo.apriori,
+            'minimumList':rs.retrievalInfo.minimumList[0:rs.retrievalInfo.n_totalParameters],
+            'maximumList':rs.retrievalInfo.maximumList[0:rs.retrievalInfo.n_totalParameters],
+            'maximumChangeList':rs.retrievalInfo.maximumChangeList[0:rs.retrievalInfo.n_totalParameters]
+        }
+        cost_function = CostFunction(*rs.fm_obs_creator.fm_and_obs(rf_uip,
+                                ret_info, **rs.kwargs))
+        cost_function.parameters = rf_uip.current_state_x
+        return (rf_uip, ret_info, cost_function)
+        
 
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     '''There seems to be a few retrieval types that aren't implemented in
@@ -118,9 +153,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         
         Path(f"{rs.run_dir}/-run_token.asc").touch()
 
-        # TODO Put back in writeOutput, we don't have this in our version
-        # of run_retrieval
-        retrievalResults = rs.run_retrieval()
+        retrievalResults = self.run_retrieval(rs)
 
         rs.results = mpy.set_retrieval_results(rs.strategy_table, rs.windows, retrievalResults, rs.retrievalInfo, rs.radianceStep, rs.stateInfo.state_info_obj,
                              {"currentGuessListFM" : retrievalResults["xretFM"]})
@@ -180,6 +213,40 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs.notify_update("retrieval step")
         
         return (True, None)
+
+    def run_retrieval(self, rs):
+        '''run_retrieval'''
+        rf_uip, ret_info, cfunc = self.create_cost_function(rs)
+        maxIter = int(mpy.table_get_entry(rs.strategy_table, rs.strategy_table["step"], "maxNumIterations"))
+        
+        # Various thresholds from the input table
+        ConvTolerance_CostThresh = np.float32(mpy.table_get_pref(rs.strategy_table, "ConvTolerance_CostThresh"))
+        ConvTolerance_pThresh = np.float32(mpy.table_get_pref(rs.strategy_table, "ConvTolerance_pThresh"))     
+        ConvTolerance_JacThresh = np.float32(mpy.table_get_pref(rs.strategy_table, "ConvTolerance_JacThresh"))
+        Chi2Tolerance = 2.0 / len(rs.radianceStepIn["NESR"]) # theoretical value for tolerance
+        if rs.retrieval_type == "bt_ig_refine":
+            ConvTolerance_CostThresh = 0.00001
+            ConvTolerance_pThresh = 0.00001
+            ConvTolerance_JacThresh = 0.00001
+            Chi2Tolerance = 0.00001
+        ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
+        delta_str = mpy.table_get_pref(rs.strategy_table, 'LMDelta') # 100 // original LM step size
+        delta_value = int(delta_str.split()[0])  # We only need the first token sinc
+
+        self.slv = MusesLevmarSolver(cfunc,
+                                     rs.table_step,
+                                     rf_uip,
+                                     ret_info,
+                                     maxIter,
+                                     delta_value,
+                                     ConvTolerance,   
+                                     Chi2Tolerance)
+        if(maxIter > 0):
+            self.slv.solve()
+        # TODO Hopefully this can go away
+        rs.radianceStep = cfunc.radianceStep(rs.radianceStepIn)
+        return self.slv.retrieval_results()
+    
 
     def extra_after_run_retrieval_step(self, rs):
         '''We have a couple of steps that just do some extra adjustments before

@@ -4,10 +4,8 @@ from .retrieval_output import (RetrievalJacobianOutput,
                                RetrievalRadianceOutput, RetrievalL2Output)
 from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult,
                                      RetrievalPlotRadiance, RetrievalPlotResult)
-from .refractor_uip import RefractorUip
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .fm_obs_creator import FmObsCreator
-from .cost_function import CostFunction
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 import logging
@@ -205,39 +203,6 @@ class RetrievalStrategy:
         logger.info('\n---')    
         logger.info('\n---')    
         return exitcode
-        
-    def create_cost_function(self):
-        '''Create CostFunction. As a convenience, we do this even when we aren't
-        do a full retrieval - just because is has all the pieces needed for
-        the Observation and ForwardModel. We could break this up a bit if needed,
-        for example we don't actually need the full CostFunction for doing the
-        BT forward model. But for now, just do everything'''
-        # We'd like to get away from the UIP - it is just a reshuffling of a
-        # bunch of data we already have. But for now put this in place. We can
-        # perhaps push this down to just the MusesForwardModel classes.
-        self.rf_uip = RefractorUip.create_uip(self.stateInfo, self.strategy_table,
-                                         self.windows, self.retrievalInfo,
-                                         self.o_airs, self.o_tes,
-                                         self.o_cris, self.o_omi, self.o_tropomi,
-                                         self.o_oco2)
-        # Used by levmar_nllsq_elanor also, so save this. Would be good if we
-        # could get this push down a but farther
-        self.ret_info = { 
-            'obs_rad': self.radianceStepIn["radiance"],
-            'meas_err': self.radianceStepIn["NESR"],            
-            'CostFunction': 'MAX_APOSTERIORI',   
-            'basis_matrix': self.rf_uip.basis_matrix,   
-            'sqrt_constraint': (mpy.sqrt_matrix(self.retrievalInfo.apriori_cov)).transpose(),
-            'const_vec': self.retrievalInfo.apriori,
-            'minimumList':self.retrievalInfo.minimumList[0:self.retrievalInfo.n_totalParameters],
-            'maximumList':self.retrievalInfo.maximumList[0:self.retrievalInfo.n_totalParameters],
-            'maximumChangeList':self.retrievalInfo.maximumChangeList[0:self.retrievalInfo.n_totalParameters]
-        }
-        # Create a cost function, and use to implement residual_fm_jacobian
-        # when we call levmar_nllsq_elanor
-        self.cost_function = CostFunction(*self.fm_obs_creator.fm_and_obs(self.rf_uip,
-                                self.ret_info, **self.kwargs))
-        self.cost_function.parameters = self.rf_uip.current_state_x
         
     def systematic_jacobian(self):
         if(self.retrievalInfo.n_speciesSys <= 0):
@@ -646,157 +611,14 @@ class RetrievalStrategy:
 
     # Temp, we'll copy this over for now but should have lots of
     # changes to this
-
-    def run_retrieval_zero_iterations(self):
-        '''run_retrieval when maxIter is 0, pulled out just to simplify
-        the code'''
-        jacobian_speciesNames = self.retrievalInfo.species_names
-        jacobian_speciesList = self.retrievalInfo.species_list_fm
-        (radianceOut, jac_fm, _, _, _) = self.cost_function.fm_wrapper({"currentGuessListFM" : self.cost_function.parameters}, None, {})
-        breakpoint()
-        jacobianOut = mpy.jacobian_data(jac_fm, radianceOut['detectors'],
-                                        radianceOut['frequency'],
-                                        self.retrievalInfo.species_list_fm)
-        self.radianceStep = self.cost_function.radianceStep(self.radianceStepIn)
-        if jacobian_speciesList[0] != '':
-            xret = self.retrievalInfo.apriori
-        else:
-            jacobianOut = 0
-            xret = 0
-        o_retrievalResults = {
-            'bestIteration': 0,                                  
-            'xretIterations': xret,                               
-            'num_iterations': 0,                                  
-            'residualRMS': np.asarray([0]),                    
-            'stopCode': -1,                                 
-            'stopCriteria': np.zeros(shape=(1, 3), dtype=np.int),
-            'resdiag': np.zeros(shape=(1, 5), dtype=np.int),
-            'xret': xret,
-            'xretFM': self.retrievalInfo.initialGuessListFM,
-            'radiance': radianceOut,
-            'jacobian': jacobianOut,
-            'delta': 0,
-            'rho': 0,
-            'lambda': 0            
-        }
-        return o_retrievalResults
-
-    def run_retrieval(self):
-        '''run_retrieval
-
-        Note despite the name i_radianceInfo get updated with any radiance
-        changes from tropomi/omi.'''
-        self.create_cost_function()
-        maxIter = int(mpy.table_get_entry(self.strategy_table, self.strategy_table["step"], "maxNumIterations"))
-        
-        # Various thresholds from the input table
-        ConvTolerance_CostThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_CostThresh"))
-        ConvTolerance_pThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_pThresh"))     
-        ConvTolerance_JacThresh = np.float32(mpy.table_get_pref(self.strategy_table, "ConvTolerance_JacThresh"))
-        Chi2Tolerance = 2.0 / len(self.radianceStepIn["NESR"]) # theoretical value for tolerance
-        retrievalType = mpy.table_get_entry(self.strategy_table, self.strategy_table["step"], "retrievalType").lower()
-        if retrievalType == "bt_ig_refine":
-            ConvTolerance_CostThresh = 0.00001
-            ConvTolerance_pThresh = 0.00001
-            ConvTolerance_JacThresh = 0.00001
-            Chi2Tolerance = 0.00001
-        ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
-        delta_str = mpy.table_get_pref(self.strategy_table, 'LMDelta') # 100 // original LM step size
-        delta_value = int(delta_str.split()[0])  # We only need the first token sinc
-            
-        # TODO Make this look like a ReFRACtor solver
-        if maxIter == 0:
-            radiance_fm = np.full(self.ret_info["meas_err"].shape, -999.0)
-            gpt = self.ret_info["meas_err"] >= 0
-            radiance_fm[gpt] = self.cost_function.max_a_posteriori.model
-            jac_fm_gpt = self.cost_function.max_a_posteriori.model_measure_diff_jacobian_fm.transpose()
-            jacobian_fm = np.full((jac_fm_gpt.shape[0], self.ret_info["meas_err"].shape[0]),-999.0)
-            jacobian_fm[:, gpt] = jac_fm_gpt
-            success_flag = 1
-            bestIter = 0
-            residualRMS = np.asarray([0])
-            diag_lambda_rho_delta = np.zeros((1,3))
-            stopcrit = np.zeros(shape=(1, 3), dtype=np.int)
-            resdiag = np.zeros(shape=(1, 5), dtype=np.int)
-            if self.retrievalInfo.species_list_fm[0] != '':
-                xret = self.retrievalInfo.apriori
-            else:
-                jacobianOut = 0
-                xret = 0
-            x_iter = xret
-            radiance_iter = np.zeros((1,1))
-            iterNum = 0
-            stopCode = -1
-        else:
-            with register_replacement_function_in_block("residual_fm_jacobian",
-                                                        self.cost_function):
-                (xret, diag_lambda_rho_delta, stopcrit, resdiag, 
-                 x_iter, res_iter, radiance_fm, radiance_iter, jacobian_fm, 
-                 iterNum, stopCode, success_flag) =  mpy.levmar_nllsq_elanor(  
-                    self.rf_uip.current_state_x, 
-                    self.table_step, 
-                    self.rf_uip.uip, 
-                    self.ret_info, 
-                    maxIter, 
-                    verbose=False, 
-                    delta_value=delta_value, 
-                    ConvTolerance=ConvTolerance,   
-                    Chi2Tolerance=Chi2Tolerance
-                    )
-                # Find iteration used, only keep the best iteration
-                rms = np.array([np.sqrt(np.sum(res_iter[i,:]*res_iter[i,:])/
-                                        res_iter.shape[1]) for i in range(iterNum+1)])
-                bestIter = np.argmin(rms)
-                residualRMS = rms
-        if success_flag == 0:
-            raise RuntimeError("----- script_retrieval_ms: Error -----")
-
-        
-        self.radianceStep = self.cost_function.radianceStep(self.radianceStepIn)
-        
-        
-        # Take results and put into the expected output structures.
-        
-        radianceOut2 = copy.deepcopy(self.radianceStepIn)
-        radianceOut2['NESR'][:] = 0
-        radianceOut2['radiance'][:] = radiance_fm
-        # Oddly, set_retrieval_results expects a different shape for num_iterations
-        # = 0. Probably should change the code there, but for now just work around
-        # this
-        if(iterNum == 0):
-            radianceOut2['radiance'] = radiance_fm[np.newaxis, :]
-
-        detectors = [0]
-        speciesFM = self.retrievalInfo.species_list_fm
-        jacobianOut2 = mpy.jacobian_data(jacobian_fm, detectors,
-                                         self.radianceStepIn['frequency'], speciesFM)
-        radianceOutIter = radiance_iter[:,np.newaxis,:]
-        
-        o_retrievalResults = {
-            'bestIteration'  : int(bestIter), 
-            'num_iterations' : iterNum, 
-            'stopCode'       : stopCode, 
-            'xret'           : xret, 
-            'xretFM': self.rf_uip.current_state_x_fm,
-            'radiance'       : radianceOut2, 
-            'jacobian'       : jacobianOut2, 
-            'radianceIterations': radianceOutIter, 
-            'xretIterations' : x_iter, 
-            'stopCriteria'   : np.copy(stopcrit), 
-            'resdiag'        : np.copy(resdiag), 
-            'residualRMS'    : residualRMS,
-            'delta': diag_lambda_rho_delta[:, 2],
-            'rho': diag_lambda_rho_delta[:, 1],
-            'lambda': diag_lambda_rho_delta[:, 0],        
-        }
-        return o_retrievalResults
-
     def run_forward_model(self, i_table, i_stateInfo, i_windows,
                           i_retrievalInfo, jacobian_speciesIn,
                           jacobian_speciesListIn,
                           uip, airs, cris, tes, omi, tropomi, oco2,
                           mytiming, writeOutputFlag=False, trueFlag=False,
                           RJFlag=False, rayTracingFlag=False):
+        from .refractor_uip import RefractorUip
+        from .cost_function import CostFunction
         rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,
                                          i_retrievalInfo, airs, tes, cris,
                                          omi, tropomi, oco2,

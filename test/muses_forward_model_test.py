@@ -8,6 +8,7 @@ from refractor.muses import (RefractorUip, StateVectorPlaceHolder,
                              )
 import refractor.framework as rf
 import copy
+import pickle
 
 @require_muses_py
 def test_muses_cris_forward_model(joint_tropomi_uip_step_12):
@@ -16,6 +17,8 @@ def test_muses_cris_forward_model(joint_tropomi_uip_step_12):
     meas_err_fake = np.ones(obs_rad_fake.shape)
     obs = MusesCrisObservation(rf_uip, obs_rad = obs_rad_fake, meas_err=meas_err_fake)
     fm = MusesCrisForwardModel(rf_uip, obs)
+    print(pickle.loads(pickle.dumps(obs)))
+    print(pickle.loads(pickle.dumps(fm)))
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

@@ -7,6 +7,13 @@ import copy
 
 logger = logging.getLogger("py-retrieve")
 
+def _new_from_init(cls, *args):
+    '''For use with pickle, covers common case where we just store the
+    arguments needed to create an object.'''
+    inst = cls.__new__(cls)
+    inst.__init__(*args)
+    return inst
+
 class RetrievalOutput:
     '''Observer of RetrievalStrategy, common behavior for Products files.'''
     def notify_add(self, retrieval_strategy):
@@ -102,6 +109,9 @@ class RetrievalOutput:
     
 class RetrievalJacobianOutput(RetrievalOutput):
     '''Observer of RetrievalStrategy, outputs the Products_Jacobian files.'''
+    def __reduce__(self):
+        return (_new_from_init, (self.__class__,))
+    
     def notify_update(self, retrieval_strategy, location):
         self.retrieval_strategy = retrieval_strategy
         if(location != "retrieval step" or self.results is None):
@@ -126,6 +136,9 @@ class RetrievalJacobianOutput(RetrievalOutput):
 
 class RetrievalRadianceOutput(RetrievalOutput):
     '''Observer of RetrievalStrategy, outputs the Products_Radiance files.'''
+    def __reduce__(self):
+        return (_new_from_init, (self.__class__,))
+    
     def notify_update(self, retrieval_strategy, location):
         self.retrieval_strategy = retrieval_strategy
         if(location != "retrieval step" or self.results is None):
@@ -152,6 +165,10 @@ class RetrievalRadianceOutput(RetrievalOutput):
 
 class RetrievalL2Output(RetrievalOutput):
     '''Observer of RetrievalStrategy, outputs the Products_L2 files.'''
+    
+    def __reduce__(self):
+        return (_new_from_init, (self.__class__,))
+    
     @property
     def species_count(self):
         '''Dictionary that gives the index we should use for product file names.

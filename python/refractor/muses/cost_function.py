@@ -3,6 +3,13 @@ from . import muses_py as mpy
 from typing import List
 import numpy as np
 
+def _new_from_init(cls, *args):
+    '''For use with pickle, covers common case where we just store the
+    arguments needed to create an object.'''
+    inst = cls.__new__(cls)
+    inst.__init__(*args)
+    return inst
+
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     '''This is the cost function we use to interface between ReFRACtor
     and muses-py. This is just a standard rf.NLLSMaxAPosteriori with
@@ -20,23 +27,37 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         self.obs_list = obs_list
         self.fm_list = fm_list
         self.sv = sv
-        # Conversion to the std::vector needed by C++ is pretty hinky,
-        # and often results in core dumps. Explicitly create this, that
-        # tend to work better.
+        self.sv_apriori = sv_apriori
+        self.sv_sqrt_constraint = sv_sqrt_constraint
+        self.basis_matrix = basis_matrix
         fm_vec = rf.Vector_ForwardModel()
         obs_vec = rf.Vector_Observation()
-        for fm in fm_list:
+        for fm in self.fm_list:
             fm_vec.push_back(fm)
-        for obs in obs_list:
+        for obs in self.obs_list:
             obs_vec.push_back(obs)
-        if(basis_matrix is not None):
-            mapping = rf.StateMappingBasisMatrix(basis_matrix.transpose())
+        if(self.basis_matrix is not None):
+            mapping = rf.StateMappingBasisMatrix(self.basis_matrix.transpose())
         else:
             mapping = rf.StateMappingLinear()
-        mstand = rf.MaxAPosterioriSqrtConstraint(fm_vec, obs_vec, sv,
-                                  sv_apriori, sv_sqrt_constraint,
+        mstand = rf.MaxAPosterioriSqrtConstraint(fm_vec, obs_vec, self.sv,
+                                  self.sv_apriori, self.sv_sqrt_constraint,
                                   mapping)
         super().__init__(mstand)
+
+    def parameters_fm(self):
+        '''Parameters on the full forward model grid.'''
+        return self.max_a_posteriori.mapping.mapped_state(rf.ArrayAd_double_1(self.parameters)).value
+
+    def __reduce__(self):
+        # Note that this often fails, because self.sv points to
+        # C++ versions of pieces of self.fm_list, which might not
+        # be able to be pickled. We could probably revisit this if
+        # needed, but for now it is better to just try to work around this.
+        return (_new_from_init, (self.obs_list, self.fm_list,
+                                 self.sv, self.sv_apriori,
+                                 self.sv_sqrt_constraint,
+                                 self.basis_matrix))
 
     def should_replace_function(self, func_name, parms):
         return True

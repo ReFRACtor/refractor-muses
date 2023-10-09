@@ -1,6 +1,9 @@
 import collections
 import collections.abc
 
+def _empty_set():
+    return set()
+
 class PriorityHandleSet(collections.abc.Set):
     '''This class was originally designed for a separate library
     (pynitf). Take a look at
@@ -42,7 +45,10 @@ class PriorityHandleSet(collections.abc.Set):
     with the highest priority wins.
     '''
     def __init__(self):
-        self.handle_set = collections.defaultdict(lambda : set())
+        # This can't be pickled, so use the slight indirection of having
+        # a module level function, which can be pickled.
+        # self.handle_set = collections.defaultdict(lambda : set())
+        self.handle_set = collections.defaultdict(_empty_set)
 
     def __contains__(self, itm):
         return itm[0] in self.handle_set[itm[1]]
