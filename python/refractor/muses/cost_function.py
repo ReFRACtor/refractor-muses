@@ -112,7 +112,21 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         o_measured_radiance_tropomi = None
         return (o_radiance, jac_fm, bad_flag,
                 o_measured_radiance_omi, o_measured_radiance_tropomi)
-        
+
+    def good_point(self):
+        '''Return a boolean array for the full observation size, all
+        forward models, including bad samples. True means a good point,
+        False means bad.'''
+        gpt = []
+        for obs in self.obs_list:
+            if(hasattr(obs, "radiance_all_with_bad_sample")):
+                s = obs.radiance_all_with_bad_sample()
+            else:
+                # True skips the jacobian calculation, which we don't
+                # need here
+                s = obs.radiance_all(True)
+            gpt.append(s.spectral_range.uncertainty >= 0)
+        return np.concatenate(gpt)
 
     def residual_fm_jacobian(self, uip, ret_info, retrieval_vec, iterNum,
                              oco_info = {}):

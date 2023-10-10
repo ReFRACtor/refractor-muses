@@ -11,16 +11,15 @@ class MusesLevmarSolver:
     put that in place if useful. But for now, just provide a "solve" function.
     '''
     # TODO Clean this up. Among other things, remove uip and just
-    # do a pass through. uip and ret_info is only passed to update_uip
+    # do a pass through. uip is only passed to update_uip
     # and residual_fm_jacobian, both of which we can override to just take
     # a None or something like that.
     def __init__(self, cfunc: CostFunction, table_step : int,
-                 rf_uip, ret_info, max_iter, delta_value, conv_tolerance,
+                 rf_uip, max_iter, delta_value, conv_tolerance,
                  chi2_tolerance):
         self.cfunc = cfunc
         self.table_step = table_step,
         self.rf_uip = rf_uip
-        self.ret_info = ret_info
         self.max_iter = max_iter
         self.delta_value = delta_value
         self.conv_tolerance = conv_tolerance
@@ -45,11 +44,12 @@ class MusesLevmarSolver:
 
         Note that this works even in solve() hasn't been called - this returns
         what is expected if max_iter is 0.'''
-        radiance_fm = np.full(self.ret_info["meas_err"].shape, -999.0)
-        gpt = self.ret_info["meas_err"] >= 0
+        gpt = self.cfunc.good_point()
+        
+        radiance_fm = np.full(gpt.shape, -999.0)
         radiance_fm[gpt] = self.cfunc.max_a_posteriori.model
         jac_fm_gpt = self.cfunc.max_a_posteriori.model_measure_diff_jacobian_fm.transpose()
-        jacobian_fm = np.full((jac_fm_gpt.shape[0], self.ret_info["meas_err"].shape[0]),-999.0)
+        jacobian_fm = np.full((jac_fm_gpt.shape[0], gpt.shape[0]),-999.0)
         jacobian_fm[:, gpt] = jac_fm_gpt
         
         radianceOut2 = {'radiance' : radiance_fm }
@@ -90,7 +90,7 @@ class MusesLevmarSolver:
                      self.rf_uip.current_state_x, 
                      self.table_step, 
                      self.rf_uip.uip, 
-                     self.ret_info, 
+                     {'basis_matrix' : self.rf_uip.basis_matrix},
                      self.max_iter, 
                      verbose=False, 
                      delta_value=self.delta_value, 

@@ -67,30 +67,22 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
                                          rs.o_airs, rs.o_tes,
                                          rs.o_cris, rs.o_omi, rs.o_tropomi,
                                          rs.o_oco2)
-        # It is actually ok that we use rs.retrievalInfo rather than rinfo. These
-        # are just other parameters that have nothing to do with setting up rf_uip,
-        # and aren't copied over to rinfon
-        ret_info = { 
-            'obs_rad': rs.radianceStepIn["radiance"],
-            'meas_err': rs.radianceStepIn["NESR"],            
-            'CostFunction': 'MAX_APOSTERIORI',   
-            'basis_matrix': rf_uip.basis_matrix,   
-            'sqrt_constraint': (mpy.sqrt_matrix(rs.retrievalInfo.apriori_cov)).transpose(),
-            'const_vec': rs.retrievalInfo.apriori,
-            'minimumList':rs.retrievalInfo.minimumList[0:rs.retrievalInfo.n_totalParameters],
-            'maximumList':rs.retrievalInfo.maximumList[0:rs.retrievalInfo.n_totalParameters],
-            'maximumChangeList':rs.retrievalInfo.maximumChangeList[0:rs.retrievalInfo.n_totalParameters]
-        }
         if(do_systematic == True):
             cfunc = CostFunction(*rs.fm_obs_creator.fm_and_fake_obs(rf_uip,
                              **rs.kwargs, use_full_state_vector=True,
                              include_bad_sample=True))
             cfunc.parameters = rf_uip.current_state_x_fm
         else:
+            ret_info = { 
+                'obs_rad': rs.radianceStepIn["radiance"],
+                'meas_err': rs.radianceStepIn["NESR"],            
+                'sqrt_constraint': (mpy.sqrt_matrix(rs.retrievalInfo.apriori_cov)).transpose(),
+                'const_vec': rs.retrievalInfo.apriori,
+            }
             cfunc = CostFunction(*rs.fm_obs_creator.fm_and_obs(rf_uip,
                                 ret_info, **rs.kwargs))
             cfunc.parameters = rf_uip.current_state_x
-        return (rf_uip, ret_info, cfunc)
+        return (rf_uip, cfunc)
         
 
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
@@ -231,7 +223,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # nice not to have special handling to add bad samples if we turn around and
         # weed them out.
         if(rs.retrievalInfo.n_speciesSys > 0):
-            _,_,cfunc_sys = self.create_cost_function(rs, do_systematic=True)
+            _,cfunc_sys = self.create_cost_function(rs, do_systematic=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
@@ -302,7 +294,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
-        rf_uip, ret_info, cfunc = self.create_cost_function(rs)
+        rf_uip, cfunc = self.create_cost_function(rs)
         maxIter = int(mpy.table_get_entry(rs.strategy_table, rs.strategy_table["step"], "maxNumIterations"))
         
         # Various thresholds from the input table
@@ -322,7 +314,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.slv = MusesLevmarSolver(cfunc,
                                      rs.table_step,
                                      rf_uip,
-                                     ret_info,
                                      maxIter,
                                      delta_value,
                                      ConvTolerance,   
