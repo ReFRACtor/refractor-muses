@@ -219,7 +219,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
 
-        # Systematic jacobains. Not sure how this is different then just a
+        # Systematic jacobians. Not sure how this is different then just a
         # subset of the full jacobian, but for now duplicate what muses-py does.
         # TODO jacobianSys is only used in error_analysis_wrapper and error_analysis.
         # I think we can leave bad sample out, although I'm not positive. Would be
@@ -246,12 +246,54 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                "NESR" : rs.radianceStep["NESR"][r]}
         mpy.set_retrieval_results_derived(rs.results, rs.radianceStep,
                                           rs.propagatedTATMQA, rs.propagatedO3QA,
-                                          rs.propagatedH2OQA)        
-        rs.error_analysis()
-        rs.update_retrieval_summary()
+                                          rs.propagatedH2OQA)
+        self.error_analysis(rs)
+        self.update_retrieval_summary(rs)
         rs.notify_update("retrieval step")
         
         return (True, None)
+
+
+    def error_analysis(self, rs):
+        # Doesn't seem to be used for anything, but we need to pass in. I think
+        # this might have been something that was used in the past?
+        radianceNoise = {"radiance" : np.zeros_like(rs.radianceStep["radiance"]) }
+        (rs.results, rs.errorCurrent) = mpy.error_analysis_wrapper(
+            rs.table_step,
+            rs.strategy_table["dirAnalysis"],
+            rs.radianceStep,
+            radianceNoise,
+            rs.retrievalInfo.retrieval_info_obj,
+            rs.stateInfo.state_info_obj,
+            rs.errorInitial,
+            rs.errorCurrent,
+            rs.windows,
+            rs.results
+            )
+
+    def update_retrieval_summary(self, rs):
+        '''Calculate various summary statistics for retrieval'''
+        rs.results = mpy.write_retrieval_summary(
+            rs.strategy_table["dirAnalysis"],
+            rs.retrievalInfo.retrieval_info_obj,
+            rs.stateInfo.state_info_obj,
+            None,
+            rs.results,
+            rs.windows,
+            rs.press_list,
+            rs.quality_name, 
+            rs.table_step, 
+            rs.errorCurrent, 
+            writeOutputFlag=False, 
+            errorInitial=rs.errorInitial
+        )
+        if 'TATM' in rs.retrievalInfo.species_names:
+            rs.propagatedTATMQA = rs.results.masterQuality
+        if 'O3' in rs.retrievalInfo.species_names:
+            rs.propagatedO3QA = rs.results.masterQuality
+        if 'H2O' in rs.retrievalInfo.species_names:
+            rs.propagatedH2OQA = rs.results.masterQuality
+        
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
