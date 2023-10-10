@@ -68,7 +68,6 @@ class RetrievalStrategy:
         self._table_step = -1
 
         self.retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
-        # Will probably rework this
         self.fm_obs_creator = FmObsCreator()
         self.instrument_handle_set = self.fm_obs_creator.instrument_handle_set
         self.kwargs = kwargs
@@ -124,12 +123,9 @@ class RetrievalStrategy:
         # for now we'll do that.
         with muses_py_call(self.run_dir,
                            vlidort_cli=self.vlidort_cli):
-            self.retrieval_ms_body2()
+            self.retrieval_ms_body()
 
     def retrieval_ms_body(self):
-        mpy.script_retrieval_ms(self.filename)
-
-    def retrieval_ms_body2(self):
         start_date = time.strftime("%c")
         start_time = time.time()
         # Might be good to wrap these in classes
@@ -142,8 +138,6 @@ class RetrievalStrategy:
                                                    self.strategy_table,
                                                    self.radiance, self.instruments)
         self.notify_update("initial set up done")
-        # Not really sure what this is
-        self.BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
 
         self.errorInitial = None
         self.errorCurrent = None
@@ -507,34 +501,6 @@ class RetrievalStrategy:
         if(vlidort_cli is not None):
             res.vlidort_cli = vlidort_cli
         return res
-
-    # Temp, we'll copy this over for now but should have lots of
-    # changes to this
-    def run_forward_model(self, i_table, i_stateInfo, i_windows,
-                          i_retrievalInfo, jacobian_speciesIn,
-                          jacobian_speciesListIn,
-                          uip, airs, cris, tes, omi, tropomi, oco2,
-                          mytiming, writeOutputFlag=False, trueFlag=False,
-                          RJFlag=False, rayTracingFlag=False):
-        from .refractor_uip import RefractorUip
-        from .cost_function import CostFunction
-        rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,
-                                         i_retrievalInfo, airs, tes, cris,
-                                         omi, tropomi, oco2,
-                                         jacobian_speciesIn=jacobian_speciesIn)
-        # As a convenience, we use the CostFunction to stitch stuff together.
-        # We don't have the Observation for this, but we don't actually use
-        # it in fm_wrapper. So we just fake it so we have the proper fields
-        # for CostFunction.
-        cfunc = CostFunction(*self.fm_obs_creator.fm_and_fake_obs(rf_uip,
-                             **self.kwargs, use_full_state_vector=True,
-                             include_bad_sample=True))
-        (o_radiance, jac_fm, _, _, _) = cfunc.fm_wrapper(rf_uip.uip, None, {})
-        o_jacobian = mpy.jacobian_data(jac_fm, o_radiance['detectors'],
-                                       o_radiance['frequency'],
-                                       rf_uip.uip['speciesListFM'])
-        return (o_radiance, o_jacobian)
-
 
 class RetrievalStrategyCaptureObserver:
     '''Helper class, pickles RetrievalStrategy at each time notify_update is

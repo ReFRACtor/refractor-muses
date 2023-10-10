@@ -32,7 +32,9 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def create_cost_function(self, rs : 'RetrievalStrategy',
-                             do_systematic=False):
+                             do_systematic=False,
+                             use_full_state_vector=False,
+                             jacobian_speciesIn=None):
         '''Create a CostFunction, for use either in retrieval or just for running
         the forward model (the CostFunction is a little overkill for just a
         forward model run, but it has all the pieces needed so no reason not to
@@ -66,8 +68,9 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
                                          rs.windows, rinfo,
                                          rs.o_airs, rs.o_tes,
                                          rs.o_cris, rs.o_omi, rs.o_tropomi,
-                                         rs.o_oco2)
-        if(do_systematic == True):
+                                         rs.o_oco2,
+                                         jacobian_speciesIn=jacobian_speciesIn)
+        if(do_systematic == True or use_full_state_vector == True):
             cfunc = CostFunction(*rs.fm_obs_creator.fm_and_fake_obs(rf_uip,
                              **rs.kwargs, use_full_state_vector=True,
                              include_bad_sample=True))
@@ -100,6 +103,9 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
 
 class RetrievalStrategyStepBT(RetrievalStrategyStep):
     '''Branch Type strategy step.'''
+    def __init__(self):
+        self.BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
+        
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "bt":
@@ -109,21 +115,20 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         jacobianOut = None
         mytiming = None
         logger.info("Running run_forward_model ...")
-        # TODO Add back in writeOutput stuff to run_forward_model.
-        # Also, should be able to use forward model w/o jacobian
-        rs.radianceResults, _ = rs.run_forward_model(
-                rs.strategy_table, rs.stateInfo, rs.windows, rs.retrievalInfo,
-                jacobian_speciesNames,
-                jacobian_specieslist,
-                rs.radianceStepIn,
-                rs.o_airs, rs.o_cris, rs.o_tes, rs.o_omi, rs.o_tropomi,
-                rs.oco2_step, None)
+        _,cfunc = self.create_cost_function(rs, use_full_state_vector=True,
+                                            jacobian_speciesIn=jacobian_speciesNames)
+        radiance_fm = cfunc.max_a_posteriori.model
+        freq_fm = np.concatenate([fm.spectral_domain_all().data
+                                  for fm in cfunc.max_a_posteriori.forward_model])
+        # Put into structure expected by modify_from_bt
+        radiance_res = {"radiance" : radiance_fm,
+                        "frequency" : freq_fm }
         rs.stateOneNext = copy.deepcopy(rs.stateInfo.state_info_dict["current"])
         (rs.strategy_table, rs.stateInfo.state_info_dict) = mpy.modify_from_bt(
             mpy.ObjectView(rs.strategy_table), rs.table_step,
             rs.radianceStepIn,
-            rs.radianceResults, rs.windows, rs.stateInfo.state_info_dict,
-            rs.BTstruct,
+            radiance_res, rs.windows, rs.stateInfo.state_info_dict,
+            self.BTstruct,
             writeOutputFlag=False)
         rs.strategy_table = rs.strategy_table.__dict__
         logger.info(f"Step: {rs.table_step},  Total Steps (after modify_from_bt): {rs.number_table_step}")
