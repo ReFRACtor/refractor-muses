@@ -114,9 +114,9 @@ class RetrievalStrategy:
         for obs in lobs:
             self.remove_observer(obs)
         
-    def notify_update(self, location):
+    def notify_update(self, location, **kwargs):
         for obs in self._observers:
-            obs.notify_update(self, location)
+            obs.notify_update(self, location, **kwargs)
 
     def retrieval_ms(self):
         '''This is script_retrieval_ms in muses-py'''
@@ -148,9 +148,6 @@ class RetrievalStrategy:
         self.errorInitial = None
         self.errorCurrent = None
         self.retrievalInfo = None
-        self.propagatedTATMQA = 1
-        self.propagatedH2OQA = 1
-        self.propagatedO3QA = 1
         
         # Go through all the steps once, to make sure we can get all the information
         # we need. This way we fail up front, rather than after multiple retrieval

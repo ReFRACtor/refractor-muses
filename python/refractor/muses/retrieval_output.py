@@ -19,8 +19,9 @@ class RetrievalOutput:
     def notify_add(self, retrieval_strategy):
         self.retrieval_strategy = retrieval_strategy
 
-    def notify_update(self, retrieval_strategy, location):
-        raise NotImplementedError
+    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
+                      **kwargs):
+        self.retrieval_strategy_step = retrieval_strategy_step
 
     @property
     def strategy_table(self):
@@ -85,7 +86,7 @@ class RetrievalOutput:
     
     @property
     def results(self):
-        return self.retrieval_strategy.results
+        return self.retrieval_strategy_step.results
 
     @property
     def stateInfo(self):
@@ -112,9 +113,11 @@ class RetrievalJacobianOutput(RetrievalOutput):
     def __reduce__(self):
         return (_new_from_init, (self.__class__,))
     
-    def notify_update(self, retrieval_strategy, location):
+    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
+                      **kwargs):
         self.retrieval_strategy = retrieval_strategy
-        if(location != "retrieval step" or self.results is None):
+        self.retrieval_strategy_step = retrieval_strategy_step
+        if(location != "retrieval step"):
             return
         if len(glob(f"{self.out_fname}*")) == 0:
             # First argument isn't actually used in write_products_one_jacobian.
@@ -139,9 +142,11 @@ class RetrievalRadianceOutput(RetrievalOutput):
     def __reduce__(self):
         return (_new_from_init, (self.__class__,))
     
-    def notify_update(self, retrieval_strategy, location):
+    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
+                      **kwargs):
         self.retrieval_strategy = retrieval_strategy
-        if(location != "retrieval step" or self.results is None):
+        self.retrieval_strategy_step = retrieval_strategy_step
+        if(location != "retrieval step"):
             return
         if len(glob(f"{self.out_fname}*")) == 0:
             # First argument isn't actually used in write_products_one_jacobian.
@@ -200,8 +205,10 @@ class RetrievalL2Output(RetrievalOutput):
                     self._species_list.insert(0, spc)
         return self._species_list
             
-    def notify_update(self, retrieval_strategy, location):
+    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
+                      **kwargs):
         self.retrieval_strategy = retrieval_strategy
+        self.retrieval_strategy_step = retrieval_strategy_step
         # Save these, used in later lite files. Note these actually get
         # saved between steps, so we initialize these for the first step but
         # then leave them alone
@@ -209,7 +216,7 @@ class RetrievalL2Output(RetrievalOutput):
             self.dataTATM = None
             self.dataH2O = None
             self.dataN2O = None
-        if(location != "retrieval step" or self.results is None):
+        if(location != "retrieval step"):
             return
         # Regenerate this for the current step
         self._species_count = None

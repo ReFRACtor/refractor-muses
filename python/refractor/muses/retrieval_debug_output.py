@@ -9,9 +9,11 @@ import pickle
 
 class RetrievalInputOutput(RetrievalOutput):
     '''Write out the retrieval inputs'''
-    def notify_update(self, retrieval_strategy, location):
+    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
+                      **kwargs):
         self.retrieval_strategy = retrieval_strategy
-        if(location != "retrieval input"):
+        self.retrieval_strategy_step = retrieval_strategy_step
+        if(location != "retrieval step"):
             return
         os.makedirs(f"{self.step_dir}/ELANORInput", exist_ok=True)
         # May need to extend this logic here
@@ -27,18 +29,22 @@ class RetrievalInputOutput(RetrievalOutput):
                            f"{self.input_dir}/retrieval.nc")
 
 class RetrievalPickleResult(RetrievalOutput):
-    def notify_update(self, retrieval_strategy, location):
+    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
+                      **kwargs):
         self.retrieval_strategy = retrieval_strategy
-        if(location != "after error_analysis" or self.results is None):
+        self.retrieval_strategy_step = retrieval_strategy_step
+        if(location != "retrieval step"):
             return
         os.makedirs(self.elanor_dir, exist_ok=True)
         with open(f"{self.elanor_dir}/results.pkl", "wb") as fh:
             pickle.dump(self.results.__dict__, fh)
 
 class RetrievalPlotResult(RetrievalOutput):
-    def notify_update(self, retrieval_strategy, location):
+    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
+                      **kwargs):
         self.retrieval_strategy = retrieval_strategy
-        if(location != "after error_analysis" or self.results is None):
+        self.retrieval_strategy_step = retrieval_strategy_step
+        if(location != "retrieval step"):
             return
         os.makedirs(self.step_dir, exist_ok=True)
         mpy.plot_results(f"{self.step_dir}/", self.results,
@@ -46,9 +52,11 @@ class RetrievalPlotResult(RetrievalOutput):
                          self.stateInfo.state_info_obj)
 
 class RetrievalPlotRadiance(RetrievalOutput):
-    def notify_update(self, retrieval_strategy, location):
+    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
+                      **kwargs):
         self.retrieval_strategy = retrieval_strategy
-        if(location != "after error_analysis" or self.results is None):
+        self.retrieval_strategy_step = retrieval_strategy_step
+        if(location != "retrieval step"):
             return
         os.makedirs(self.analysis_dir, exist_ok=True)
         mpy.plot_radiance(self.analysis_dir, self.results,

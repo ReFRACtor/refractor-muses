@@ -165,6 +165,11 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
 
 class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     '''Strategy step that does a retrieval (e.g., the default strategy step).'''
+    def __init__(self):
+        self.propagatedTATMQA = 1
+        self.propagatedH2OQA = 1
+        self.propagatedO3QA = 1
+        
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
         rs.notify_update("retrieval input")
@@ -186,15 +191,15 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         retrievalResults = self.run_retrieval(rs)
 
-        rs.results = mpy.set_retrieval_results(rs.strategy_table, rs.windows, retrievalResults, rs.retrievalInfo, rs.radianceStep, rs.stateInfo.state_info_obj,
+        self.results = mpy.set_retrieval_results(rs.strategy_table, rs.windows, retrievalResults, rs.retrievalInfo, rs.radianceStep, rs.stateInfo.state_info_obj,
                              {"currentGuessListFM" : retrievalResults["xretFM"]})
         logger.info('\n---')
         logger.info(f"Step: {rs.table_step}, Step Name: {rs.step_name}")
-        logger.info(f"Best iteration {rs.results.bestIteration} out of {retrievalResults['num_iterations']}")
+        logger.info(f"Best iteration {self.results.bestIteration} out of {retrievalResults['num_iterations']}")
         logger.info('---\n')
-        rs.results = mpy.set_retrieval_results_derived(rs.results,
-                      rs.radianceStep, rs.propagatedTATMQA,
-                      rs.propagatedO3QA, rs.propagatedH2OQA)
+        self.results = mpy.set_retrieval_results_derived(self.results,
+                      rs.radianceStep, self.propagatedTATMQA,
+                      self.propagatedO3QA, self.propagatedH2OQA)
         
         rs.stateOneNext = copy.deepcopy(rs.stateInfo.state_info_dict["current"])
         donotupdate = mpy.table_get_entry(rs.strategy_table, rs.table_step,
@@ -209,7 +214,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         (rs.stateInfo.state_info_dict, _, rs.stateOneNext) = \
             mpy.update_state(rs.stateInfo.state_info_dict,
                              rs.retrievalInfo.retrieval_info_obj,
-                             rs.results.resultsList, rs.cloud_prefs,
+                             self.results.resultsList, rs.cloud_prefs,
                              rs.table_step, donotupdate, rs.stateOneNext)
         rs.stateInfo.state_info_dict = rs.stateInfo.state_info_dict.__dict__
         if 'OCO2' in rs.instruments:
@@ -228,7 +233,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         if(rs.retrievalInfo.n_speciesSys > 0):
             _,_,cfunc_sys = self.create_cost_function(rs, do_systematic=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
-            rs.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
+            self.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
         # TODO Move this to the one spot it is used, no reason to have here
         # This is an odd interface, but it is currently what is required by
@@ -244,12 +249,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                "frequency" : rs.radianceStep["frequency"][r],
                                "radiance" : rs.radianceStep["radiance"][r],
                                "NESR" : rs.radianceStep["NESR"][r]}
-        mpy.set_retrieval_results_derived(rs.results, rs.radianceStep,
-                                          rs.propagatedTATMQA, rs.propagatedO3QA,
-                                          rs.propagatedH2OQA)
+        mpy.set_retrieval_results_derived(self.results, rs.radianceStep,
+                                          self.propagatedTATMQA, self.propagatedO3QA,
+                                          self.propagatedH2OQA)
         self.error_analysis(rs)
         self.update_retrieval_summary(rs)
-        rs.notify_update("retrieval step")
+        rs.notify_update("retrieval step", retrieval_strategy_step=self)
         
         return (True, None)
 
@@ -258,7 +263,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # Doesn't seem to be used for anything, but we need to pass in. I think
         # this might have been something that was used in the past?
         radianceNoise = {"radiance" : np.zeros_like(rs.radianceStep["radiance"]) }
-        (rs.results, rs.errorCurrent) = mpy.error_analysis_wrapper(
+        (self.results, rs.errorCurrent) = mpy.error_analysis_wrapper(
             rs.table_step,
             rs.strategy_table["dirAnalysis"],
             rs.radianceStep,
@@ -268,17 +273,17 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             rs.errorInitial,
             rs.errorCurrent,
             rs.windows,
-            rs.results
+            self.results
             )
 
     def update_retrieval_summary(self, rs):
         '''Calculate various summary statistics for retrieval'''
-        rs.results = mpy.write_retrieval_summary(
+        self.results = mpy.write_retrieval_summary(
             rs.strategy_table["dirAnalysis"],
             rs.retrievalInfo.retrieval_info_obj,
             rs.stateInfo.state_info_obj,
             None,
-            rs.results,
+            self.results,
             rs.windows,
             rs.press_list,
             rs.quality_name, 
@@ -288,11 +293,11 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             errorInitial=rs.errorInitial
         )
         if 'TATM' in rs.retrievalInfo.species_names:
-            rs.propagatedTATMQA = rs.results.masterQuality
+            self.propagatedTATMQA = self.results.masterQuality
         if 'O3' in rs.retrievalInfo.species_names:
-            rs.propagatedO3QA = rs.results.masterQuality
+            self.propagatedO3QA = self.results.masterQuality
         if 'H2O' in rs.retrievalInfo.species_names:
-            rs.propagatedH2OQA = rs.results.masterQuality
+            self.propagatedH2OQA = self.results.masterQuality
         
 
     def run_retrieval(self, rs):
