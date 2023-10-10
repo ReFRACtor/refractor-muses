@@ -262,13 +262,13 @@ class RetrievalStrategy:
 
             result = mpy.get_omi_radiance(self.stateInfo.state_info_dict["current"]['omi'], copy.deepcopy(self.o_omi))
 
-            self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
+            obsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
 
             # reduce to omi step windows 
-            self.myobsrad = mpy.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
+            obsrad = mpy.radiance_set_windows(obsrad, np.asarray(self.windows)[ind2])
 
             # put into omi part of step windows 
-            self.radianceStepIn['radiance'][ind] = copy.deepcopy(self.myobsrad['radiance'])
+            self.radianceStepIn['radiance'][ind] = copy.deepcopy(obsrad['radiance'])
             if np.all(np.isfinite(self.radianceStepIn['radiance'])) == False:
                 raise RuntimeError('ERROR! radiance NOT FINITE!')
 
@@ -286,13 +286,13 @@ class RetrievalStrategy:
             result = mpy.get_tropomi_radiance(self.stateInfo.state_info_dict["current"]['tropomi'],
                                               copy.deepcopy(self.o_tropomi))
 
-            self.myobsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
+            obsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
 
             # reduce to omi step windows 
-            self.myobsrad = mpy.radiance_set_windows(self.myobsrad, np.asarray(self.windows)[ind2])
+            obsrad = mpy.radiance_set_windows(obsrad, np.asarray(self.windows)[ind2])
 
             # put into omi part of step windows 
-            self.radianceStepIn['radiance'][indT] = copy.deepcopy(self.myobsrad['radiance'])
+            self.radianceStepIn['radiance'][indT] = copy.deepcopy(obsrad['radiance'])
             if np.all(np.isfinite(self.radianceStepIn['radiance'])) == False:
                 raise RuntimeError('ERROR! radiance NOT FINITE!')
         # end: if len(indT) > 0:
@@ -305,7 +305,7 @@ class RetrievalStrategy:
         Radiance_TROPOMI_.pkl. It would be nice if can rework that.
         '''
         logger.info(f"Instruments: {len(self.instruments)} {self.instruments}")
-        self.myobsrad = None
+        obsrad = None
         for instrument_name in self.instruments:
             logger.info(f"Reading radiance: {instrument_name}")
             if instrument_name == 'OMI':
@@ -352,12 +352,12 @@ class RetrievalStrategy:
                 my_filter = mpy.radiance_get_filter_array(self.o_tes['radianceStruct'])
 
             # Add the first radiance if this is the first time in the loop.
-            if(self.myobsrad is None):
-                self.myobsrad = mpy.radiance_data(radiance, nesr, [-1], frequency, my_filter, instrument_name, None)
+            if(obsrad is None):
+                obsrad = mpy.radiance_data(radiance, nesr, [-1], frequency, my_filter, instrument_name, None)
             else:
                 filtersIn = np.asarray(['' for ii in range(0, len(frequency))])
-                self.myobsrad = mpy.radiance_add_filter(self.myobsrad, radiance, nesr, [-1], frequency, my_filter, instrument_name)
-        self.radiance = self.myobsrad
+                obsrad = mpy.radiance_add_filter(obsrad, radiance, nesr, [-1], frequency, my_filter, instrument_name)
+        self.radiance = obsrad
         
     def create_windows(self, all_step=False):
         # We should rework this a bit, it is just a string of magic code. Perhaps

@@ -93,6 +93,10 @@ class RetrievalOutput:
         return self.retrieval_strategy.stateInfo
 
     @property
+    def radiance_full(self):
+        return self.retrieval_strategy.radiance
+    
+    @property
     def radianceStep(self):
         return mpy.ObjectView(self.retrieval_strategy.radianceStep)
 
@@ -103,10 +107,6 @@ class RetrievalOutput:
     @property
     def instruments(self):
         return self.retrieval_strategy.instruments
-
-    @property
-    def myobsrad(self):
-        return self.retrieval_strategy.myobsrad
     
 class RetrievalJacobianOutput(RetrievalOutput):
     '''Observer of RetrievalStrategy, outputs the Products_Jacobian files.'''
@@ -139,6 +139,9 @@ class RetrievalJacobianOutput(RetrievalOutput):
 
 class RetrievalRadianceOutput(RetrievalOutput):
     '''Observer of RetrievalStrategy, outputs the Products_Radiance files.'''
+    def __init__(self):
+        self.myobsrad = None
+        
     def __reduce__(self):
         return (_new_from_init, (self.__class__,))
     
@@ -152,6 +155,26 @@ class RetrievalRadianceOutput(RetrievalOutput):
             # First argument isn't actually used in write_products_one_jacobian.
             # It is special_name, which doesn't actually apply to the jacobian file.
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
+            # This is an odd interface, but it is how radiance gets the input data.
+            # We should perhaps just rewrite write_products_one_radiance, but for
+            # now just conform with what it wants.
+
+            # Note, I think this logic is actually wrong. If a previous step had
+            # OMI or TROPOMI, it looks like this get left in rather than using
+            # CRIS or AIRS radiance. But leave this for now, so we duplicate what
+            # was done previously
+            if(self.myobsrad is None):
+                self.myobsrad = self.radiance_full
+            for inst in ("OMI", "TROPOMI"):
+                if(inst in self.radianceStep.instrumentNames):
+                    i = self.radianceStep.instrumentNames.index(inst)
+                    istart = sum(self.radianceStep.instrumentSizes[:i])
+                    iend = istart + self.radianceStep.instrumentSizes[i]
+                    r = range(istart, iend)
+                    self.myobsrad = {"instrumentNames" : [inst],
+                                "frequency" : self.radianceStep.frequency[r],
+                                "radiance" : self.radianceStep.radiance[r],
+                                "NESR" : self.radianceStep.NESR[r]}
             # Code assumes we are in rundir
             with self.retrieval_strategy.chdir_run_dir():
                 mpy.write_products_one_radiance(None, self.out_fname,

@@ -232,20 +232,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
-        # TODO Move this to the one spot it is used, no reason to have here
-        # This is an odd interface, but it is currently what is required by
-        # write_products_one_radiance. We should perhaps change that function, but
-        # currently this is how if get the updates for omi or tropomi
-        for inst in ("OMI", "TROPOMI"):
-            if(inst in rs.radianceStep["instrumentNames"]):
-                i = rs.radianceStep["instrumentNames"].index(inst)
-                istart = sum(rs.radianceStep["instrumentSizes"][:i])
-                iend = istart + rs.radianceStep["instrumentSizes"][i]
-                r = range(istart, iend)
-                rs.myobsrad = {"instrumentNames" : [inst],
-                               "frequency" : rs.radianceStep["frequency"][r],
-                               "radiance" : rs.radianceStep["radiance"][r],
-                               "NESR" : rs.radianceStep["NESR"][r]}
         mpy.set_retrieval_results_derived(self.results, rs.radianceStep,
                                           self.propagatedTATMQA, self.propagatedO3QA,
                                           self.propagatedH2OQA)
