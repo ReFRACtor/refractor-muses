@@ -68,7 +68,7 @@ class RetrievalStrategy:
         self._table_step = -1
 
         self.retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
-        self.fm_obs_creator = FmObsCreator()
+        self.fm_obs_creator = FmObsCreator(rs=self)
         self.instrument_handle_set = self.fm_obs_creator.instrument_handle_set
         self.kwargs = kwargs
         self.kwargs["vlidort_cli"] = vlidort_cli
@@ -132,11 +132,14 @@ class RetrievalStrategy:
         (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
          self.stateInfo) = mpy.script_retrieval_setup_ms(self.strategy_table, False)
         self.create_windows(all_step=True)
+        # Instruments is normally the instruments for a particular retrieval step.
+        # But because of the "all_step" at this point it is all in the instruments
+        # in all steps. Grab a copy of this so we have the full list.
+        self.instruments_all = copy.deepcopy(self.instruments)
         self.stateInfo = RefractorStateInfo(self.stateInfo)
-        self.create_radiance()
-        self.stateInfo.state_info_dict = mpy.states_initial_update(self.stateInfo.state_info_dict,
-                                                   self.strategy_table,
-                                                   self.radiance, self.instruments)
+        self.stateInfo.state_info_dict = mpy.states_initial_update(
+            self.stateInfo.state_info_dict, self.strategy_table,
+            self.fm_obs_creator.radiance(), self.instruments)
         self.notify_update("initial set up done")
 
         self.errorInitial = None
@@ -161,15 +164,11 @@ class RetrievalStrategy:
             self.table_step = stp
             self.stateInfo.copy_current_initial()
             self.stateOneNext = copy.deepcopy(self.stateInfo.state_info_dict["current"])
-            # TODO May be able to remove this
-            self.results = None
-            self.radianceStep = None
             logger.info(f'\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
             logger.info(f'\n---')
             self.get_initial_guess()
             self.create_windows(all_step=False)
-            self.create_radiance_step()
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
             self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
             self.stateInfo.copy_state_one_next(self.stateOneNext)
@@ -221,144 +220,6 @@ class RetrievalStrategy:
                 raise RuntimeError(f"Quality flag filename not found: {res}")
         return res
     
-    def create_radiance_step(self):
-        # Note, I think we might replace this just with our SpectralWindow stuff,
-        # along with an Observation class
-        self.radianceStepIn = self.radiance
-        self.radianceStepIn = mpy.radiance_set_windows(self.radianceStepIn, self.windows)
-
-        if np.all(np.isfinite(self.radianceStepIn['radiance'])) == False:
-            raise RuntimeError('ERROR! radiance NOT FINITE!')
-
-        if np.all(np.isfinite(self.radianceStepIn['NESR'])) == False:
-            raise RuntimeError('ERROR! radiance error NOT FINITE!')
-        if 'OCO2' in self.instruments:
-            ind = np.where(np.array(mpy.radiance_get_instrument_array(self.radianceStepIn)) == 'OCO2')[0]
-            sample_indexes_step = mpy.oco2_sample_indexes(self.o_oco2['radianceStruct']['frequency'], self.radianceStepIn['frequency'][ind], selfpo_oco2['sample_indexes'])
-
-            # make oco2_step, containing step information
-            self.oco2_step = copy.deepcopy(self.o_oco2)
-            self.oco2_step['sample_indexes'] = sample_indexes_step
-
-            # OCO-2 step radiance
-            radiancex = copy.deepcopy(self.radianceStepIn)
-            radiancex = mpy.radiance_set_instrument(self.radiancex, 'OCO2')
-
-            self.oco2_step['radianceStruct'] = radiancex
-        else:
-            self.oco2_step = None
-        # update with omi pars to omi measured radiance
-        my_instruments = np.asarray(mpy.radiance_get_instrument_array(self.radianceStepIn))
-        ind = np.where(my_instruments == 'OMI')[0]
-        if len(ind) > 0:
-            # Get windows that are 'OMI' specific.
-            ind2 = []
-            for ii in range(0, len(self.windows)):
-                if self.windows[ii]['instrument'] == 'OMI':
-                    ind2.append(ii)
-            ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
-
-            # The type of stateInfo is sometimes dict and sometimes ObjectView.
-
-            result = mpy.get_omi_radiance(self.stateInfo.state_info_dict["current"]['omi'], copy.deepcopy(self.o_omi))
-
-            obsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "OMI")
-
-            # reduce to omi step windows 
-            obsrad = mpy.radiance_set_windows(obsrad, np.asarray(self.windows)[ind2])
-
-            # put into omi part of step windows 
-            self.radianceStepIn['radiance'][ind] = copy.deepcopy(obsrad['radiance'])
-            if np.all(np.isfinite(self.radianceStepIn['radiance'])) == False:
-                raise RuntimeError('ERROR! radiance NOT FINITE!')
-
-        indT = np.where(my_instruments == 'TROPOMI')[0]
-        if len(indT) > 0:
-            # Get windows that are 'TROPOMI' specific.
-            ind2 = []
-            for ii in range(0, len(self.windows)):
-                if self.windows[ii]['instrument'] == 'TROPOMI':
-                    ind2.append(ii)
-            ind2 = np.asarray(ind2)  # Convert to array so we can use it as an index.
-
-            # The type of stateInfo is sometimes dict and sometimes ObjectView.
-
-            result = mpy.get_tropomi_radiance(self.stateInfo.state_info_dict["current"]['tropomi'],
-                                              copy.deepcopy(self.o_tropomi))
-
-            obsrad = mpy.radiance_data(result['normalized_rad'], result['nesr'], [-1], result['wavelength'], result['filter'], "TROPOMI")
-
-            # reduce to omi step windows 
-            obsrad = mpy.radiance_set_windows(obsrad, np.asarray(self.windows)[ind2])
-
-            # put into omi part of step windows 
-            self.radianceStepIn['radiance'][indT] = copy.deepcopy(obsrad['radiance'])
-            if np.all(np.isfinite(self.radianceStepIn['radiance'])) == False:
-                raise RuntimeError('ERROR! radiance NOT FINITE!')
-        # end: if len(indT) > 0:
-
-    def create_radiance(self):
-        '''Read the radiance data. We can  perhaps move this into a Observation class
-        by instrument.
-
-        Note that this also creates the magic files Radiance_OMI_.pkl and
-        Radiance_TROPOMI_.pkl. It would be nice if can rework that.
-        '''
-        logger.info(f"Instruments: {len(self.instruments)} {self.instruments}")
-        obsrad = None
-        for instrument_name in self.instruments:
-            logger.info(f"Reading radiance: {instrument_name}")
-            if instrument_name == 'OMI':
-                result = mpy.get_omi_radiance(self.stateInfo.state_info_dict['current']['omi'], copy.deepcopy(self.o_omi))
-                radiance = result['normalized_rad']
-                nesr = result['nesr']
-                my_filter = result['filter']
-                frequency = result['wavelength']
-                fname = f'{self.run_dir}/Input/Radiance_OMI_.pkl'
-                os.makedirs(os.path.dirname(fname), exist_ok=True)
-                pickle.dump(self.o_omi, open(fname, "wb"))
-            if instrument_name == 'TROPOMI':
-                result = mpy.get_tropomi_radiance(self.stateInfo.state_info_dict['current']['tropomi'], copy.deepcopy(self.o_tropomi))
-
-                radiance = result['normalized_rad']
-                nesr = result['nesr']
-                my_filter = result['filter']
-                frequency = result['wavelength']
-                fname = f'{self.run_dir}/Input/Radiance_TROPOMI_.pkl'
-                os.makedirs(os.path.dirname(fname), exist_ok=True)
-                pickle.dump(self.o_tropomi, open(fname, "wb"))
-
-            if instrument_name == 'AIRS':
-                radiance = self.o_airs['radiance']['radiance']
-                frequency = self.o_airs['radiance']['frequency']
-                nesr = self.o_airs['radiance']['NESR']
-                my_filter = mpy.radiance_get_filter_array(self.o_airs['radiance'])
-            if instrument_name == 'CRIS':
-                # The o_cris dictionary uses all uppercase keys.
-                radiance = self.o_cris['radiance'.upper()]
-                frequency = self.o_cris['frequency'.upper()]
-                nesr = self.o_cris['nesr'.upper()]
-                my_filter = mpy.radiance_get_filter_array(self.o_cris['radianceStruct'.upper()])
-            if instrument_name == 'OCO2':
-                radiance = self.o_oco2['radianceStruct']['radiance']
-                frequency = self.o_oco2['radianceStruct']['frequency']
-                nesr = self.o_oco2['radianceStruct']['NESR']
-                my_filter = mpy.radiance_get_filter_array(self.o_oco2['radianceStruct'])
-
-            if instrument_name == 'TES':
-                radiance = self.o_tes['radianceStruct']['radiance']
-                frequency = self.o_tes['radianceStruct']['frequency']
-                nesr = self.o_tes['radianceStruct']['NESR']
-                my_filter = mpy.radiance_get_filter_array(self.o_tes['radianceStruct'])
-
-            # Add the first radiance if this is the first time in the loop.
-            if(obsrad is None):
-                obsrad = mpy.radiance_data(radiance, nesr, [-1], frequency, my_filter, instrument_name, None)
-            else:
-                filtersIn = np.asarray(['' for ii in range(0, len(frequency))])
-                obsrad = mpy.radiance_add_filter(obsrad, radiance, nesr, [-1], frequency, my_filter, instrument_name)
-        self.radiance = obsrad
-        
     def create_windows(self, all_step=False):
         # We should rework this a bit, it is just a string of magic code. Perhaps
         # we should have each instrument have a function for this?

@@ -14,11 +14,10 @@ class MusesLevmarSolver:
     # do a pass through. uip is only passed to update_uip
     # and residual_fm_jacobian, both of which we can override to just take
     # a None or something like that.
-    def __init__(self, cfunc: CostFunction, table_step : int,
-                 rf_uip, max_iter, delta_value, conv_tolerance,
-                 chi2_tolerance):
+    def __init__(self, cfunc: CostFunction, 
+                 rf_uip, max_iter: int, delta_value: float, conv_tolerance: float,
+                 chi2_tolerance: float):
         self.cfunc = cfunc
-        self.table_step = table_step,
         self.rf_uip = rf_uip
         self.max_iter = max_iter
         self.delta_value = delta_value
@@ -88,7 +87,7 @@ class MusesLevmarSolver:
              jacobian_fm, self.iterNum, self.stopCode, self.success_flag) =  \
                  mpy.levmar_nllsq_elanor(  
                      self.rf_uip.current_state_x, 
-                     self.table_step, 
+                     None, 
                      self.rf_uip.uip, 
                      {'basis_matrix' : self.rf_uip.basis_matrix},
                      self.max_iter, 
