@@ -104,34 +104,6 @@ class RetrievalOutput:
     def instruments(self):
         return self.retrieval_strategy.instruments
     
-class RetrievalJacobianOutput(RetrievalOutput):
-    '''Observer of RetrievalStrategy, outputs the Products_Jacobian files.'''
-    def __reduce__(self):
-        return (_new_from_init, (self.__class__,))
-    
-    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
-                      **kwargs):
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if(location != "retrieval step"):
-            return
-        if len(glob(f"{self.out_fname}*")) == 0:
-            # First argument isn't actually used in write_products_one_jacobian.
-            # It is special_name, which doesn't actually apply to the jacobian file.
-            os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
-            # Code assumes we are in rundir
-            with self.retrieval_strategy.chdir_run_dir():
-                mpy.write_products_one_jacobian(None, self.out_fname,
-                                                self.retrievalInfo,
-                                                self.results,
-                                                self.stateInfo.state_info_obj,
-                                                self.instruments, self.table_step)
-        else:
-            logger.info(f"Found a jacobian product file: {self.out_fname}")
-
-    @property
-    def out_fname(self):
-        return f"{self.retrieval_strategy.output_directory}/Products/Products_Jacobian-{self.species_tag}{self.special_tag}"
 
 class RetrievalL2Output(RetrievalOutput):
     '''Observer of RetrievalStrategy, outputs the Products_L2 files.'''
@@ -261,4 +233,4 @@ class RetrievalL2Output(RetrievalOutput):
                 
                     
 
-__all__ = ["RetrievalJacobianOutput", "RetrievalL2Output", "RetrievalOutput"] 
+__all__ = ["RetrievalL2Output", "RetrievalOutput",] 
