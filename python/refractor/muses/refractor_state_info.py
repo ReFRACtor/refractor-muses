@@ -1,6 +1,36 @@
 import refractor.muses.muses_py as mpy
 import copy
+import refractor.framework as rf
 
+
+class Level1bAirs:
+    '''This is like a Level1b class from framework, although right now we won't
+    bother making this actually one those. Instead this pulls stuff out of
+    RefractorStateInfo and makes in looks like we got it from a Level1bAirs file.
+    We'll then eventually separate this out from RefractorStateInfo and put this
+    over with the Observation.'''
+    def __init__(self, rs):
+        self.rs = rs
+
+    def altitude(self, ind):
+        return rf.DoubleWithUnit(float(self.rs.state_info_obj.current["airs"]["satHeight"]), "km")
+
+    def latitude(self, ind):
+        return rf.DoubleWithUnit(float(self.rs.state_info_obj.current["latitude"]), "deg")
+
+    def longitude(self, ind):
+        return rf.DoubleWithUnit(float(self.rs.state_info_obj.current["longitude"]), "deg")
+
+    def scan_angle(self, ind):
+        return rf.DoubleWithUnit(float(self.rs.state_info_obj.current["scanAng"]), "deg")
+
+    def surface_altitude(self, ind):
+        # Not clear if this is the best place for this, but for now shove here.
+        # Framework didn't have this anywhere I don't think.
+        return rf.DoubleWithUnit(float(self.rs.state_info_obj.current["tsa"]["surfaceAltitudeKm"]), "km")
+    
+# Not really clear how to handle this. But we'll start throwing something together.
+# We'll want to separate these later on
 class RefractorStateInfo:
     '''Like RefractorRetrievalInfo, this just wraps up the existing StateInfo
     class so we can figure out how it is used in code and get clear boundaries
@@ -39,5 +69,10 @@ class RefractorStateInfo:
 
     def copy_state_one_next(self, state_one_next):
         self.state_info_dict["current"] = copy.deepcopy(state_one_next.__dict__)
+
+    def l1b_file(self, instrument):
+        if(instrument == "AIRS"):
+            return Level1bAirs(self)
+        
         
         

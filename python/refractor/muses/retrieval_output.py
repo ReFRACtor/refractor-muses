@@ -133,60 +133,6 @@ class RetrievalJacobianOutput(RetrievalOutput):
     def out_fname(self):
         return f"{self.retrieval_strategy.output_directory}/Products/Products_Jacobian-{self.species_tag}{self.special_tag}"
 
-class RetrievalRadianceOutput(RetrievalOutput):
-    '''Observer of RetrievalStrategy, outputs the Products_Radiance files.'''
-    def __init__(self):
-        self.myobsrad = None
-        
-    def __reduce__(self):
-        return (_new_from_init, (self.__class__,))
-    
-    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
-                      **kwargs):
-        self.retrieval_strategy = retrieval_strategy
-        self.retrieval_strategy_step = retrieval_strategy_step
-        if(location != "retrieval step"):
-            return
-        if len(glob(f"{self.out_fname}*")) == 0:
-            # First argument isn't actually used in write_products_one_jacobian.
-            # It is special_name, which doesn't actually apply to the jacobian file.
-            os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
-            # This is an odd interface, but it is how radiance gets the input data.
-            # We should perhaps just rewrite write_products_one_radiance, but for
-            # now just conform with what it wants.
-
-            # Note, I think this logic is actually wrong. If a previous step had
-            # OMI or TROPOMI, it looks like this get left in rather than using
-            # CRIS or AIRS radiance. But leave this for now, so we duplicate what
-            # was done previously
-            if(self.myobsrad is None):
-                self.myobsrad = self.radiance_full
-            for inst in ("OMI", "TROPOMI"):
-                if(inst in self.radianceStep.instrumentNames):
-                    i = self.radianceStep.instrumentNames.index(inst)
-                    istart = sum(self.radianceStep.instrumentSizes[:i])
-                    iend = istart + self.radianceStep.instrumentSizes[i]
-                    r = range(istart, iend)
-                    self.myobsrad = {"instrumentNames" : [inst],
-                                "frequency" : self.radianceStep.frequency[r],
-                                "radiance" : self.radianceStep.radiance[r],
-                                "NESR" : self.radianceStep.NESR[r]}
-            # Code assumes we are in rundir
-            with self.retrieval_strategy.chdir_run_dir():
-                mpy.write_products_one_radiance(None, self.out_fname,
-                                                self.retrievalInfo,
-                                                self.results,
-                                                self.stateInfo.state_info_obj,
-                                                self.radianceStep,
-                                                self.instruments, self.table_step,
-                                                self.myobsrad)
-        else:
-            logger.info(f"Found a radiance product file: {self.out_fname}")
-
-    @property
-    def out_fname(self):
-        return f"{self.retrieval_strategy.output_directory}/Products/Products_Radiance-{self.species_tag}{self.special_tag}"
-
 class RetrievalL2Output(RetrievalOutput):
     '''Observer of RetrievalStrategy, outputs the Products_L2 files.'''
     
@@ -315,4 +261,4 @@ class RetrievalL2Output(RetrievalOutput):
                 
                     
 
-__all__ = ["RetrievalJacobianOutput", "RetrievalL2Output", "RetrievalRadianceOutput"] 
+__all__ = ["RetrievalJacobianOutput", "RetrievalL2Output", "RetrievalOutput"] 
