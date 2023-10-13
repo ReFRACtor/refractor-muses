@@ -180,7 +180,7 @@ class FmObsCreator:
             return
         with self.rs.chdir_run_dir():
             (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
-             _) = mpy.script_retrieval_setup_ms(self.rs.strategy_table, False)
+             _) = mpy.script_retrieval_setup_ms(self.rs.strategy_table.strategy_table_dict, False)
             self._create_radiance()
 
     def _create_radiance(self):

@@ -5,6 +5,7 @@ from .retrieval_output import (RetrievalJacobianOutput,
 from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult,
                                      RetrievalPlotRadiance, RetrievalPlotResult)
 from .retrieval_strategy_step import RetrievalStrategyStepSet
+from .strategy_table import StrategyTable
 from .fm_obs_creator import FmObsCreator
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
@@ -72,10 +73,9 @@ class RetrievalStrategy:
         self.instrument_handle_set = self.fm_obs_creator.instrument_handle_set
         self.kwargs = kwargs
         self.kwargs["vlidort_cli"] = vlidort_cli
+
+        self.strategy_table = StrategyTable(self.filename)
         
-        with self.chdir_run_dir():
-            _, self.strategy_table = mpy.table_read(self.filename)
-            self.strategy_table = self.strategy_table.__dict__
         # Right now, we hardcode the output observers. Probably want to
         # rework this
         self.add_observer(RetrievalJacobianOutput())
@@ -130,7 +130,7 @@ class RetrievalStrategy:
         start_time = time.time()
         # Might be good to wrap these in classes
         (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
-         self.stateInfo) = mpy.script_retrieval_setup_ms(self.strategy_table, False)
+         self.stateInfo) = mpy.script_retrieval_setup_ms(self.strategy_table.strategy_table_dict, False)
         self.create_windows(all_step=True)
         # Instruments is normally the instruments for a particular retrieval step.
         # But because of the "all_step" at this point it is all in the instruments
@@ -138,7 +138,7 @@ class RetrievalStrategy:
         self.instruments_all = copy.deepcopy(self.instruments)
         self.stateInfo = RefractorStateInfo(self.stateInfo)
         self.stateInfo.state_info_dict = mpy.states_initial_update(
-            self.stateInfo.state_info_dict, self.strategy_table,
+            self.stateInfo.state_info_dict, self.strategy_table.strategy_table_dict,
             self.fm_obs_creator.radiance(), self.instruments)
         self.notify_update("initial set up done")
 
@@ -196,21 +196,20 @@ class RetrievalStrategy:
         
     @property
     def press_list(self):
-        return [float(mpy.table_get_pref(self.strategy_table, "plotMaximumPressure")), 
-                float(mpy.table_get_pref(self.strategy_table, "plotMinimumPressure"))]
+        return [float(self.strategy_table.preferences["plotMaximumPressure"]),
+                float(self.strategy_table.preferences["plotMinimumPressure"])]
 
     @property
     def quality_name(self):
-        res = mpy.table_get_spectral_filename(self.strategy_table, self.table_step)
-        res = os.path.basename(res)
+        res = os.path.basename(self.strategy_table.spectral_filename)
         res = res.replace("Microwindows_", "QualityFlag_Spec_")
         res = res.replace("Windows_", "QualityFlag_Spec_")
-        res = mpy.table_get_pref(self.strategy_table, "QualityFlagDirectory") + res
+        res = self.strategy_table.preferences["QualityFlagDirectory"] + res
             
         # if this does not exist use generic nadir / limb quality flag
         if not os.path.isfile(res):
             logger.warning(f'Could not find quality flag file: {res}')
-            viewingMode = mpy.table_get_pref(self.strategy_table, "viewingMode")
+            viewingMode = self.strategy_table.preferences["viewingMode"]
             viewMode = viewingMode.lower().capitalize()
 
             res = f"{os.path.dirname(res)}/QualityFlag_Spec_{viewMode}.asc"
@@ -224,9 +223,9 @@ class RetrievalStrategy:
         # We should rework this a bit, it is just a string of magic code. Perhaps
         # we should have each instrument have a function for this?
         if(all_step):
-            self.windows = mpy.new_mw_from_table_all_steps(self.strategy_table)
+            self.windows = mpy.new_mw_from_table_all_steps(self.strategy_table.strategy_table_dict)
         else:
-            self.windows = mpy.new_mw_from_table(self.strategy_table, self.table_step)
+            self.windows = mpy.new_mw_from_table(self.strategy_table.strategy_table_dict, self.table_step)
             
         self.instruments = mpy.get_unique_windows(self.windows)
 
@@ -259,7 +258,7 @@ class RetrievalStrategy:
     def get_initial_guess(self):
         '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
         (self.retrievalInfo, self.errorInitial, self.errorCurrent) = \
-            mpy.get_species_information(self.strategy_table,
+            mpy.get_species_information(self.strategy_table.strategy_table_dict,
                                         self.stateInfo.state_info_obj,
                                         self.errorInitial, self.errorCurrent)
         
@@ -285,33 +284,30 @@ class RetrievalStrategy:
 
     @property
     def threshold(self):
-        res = mpy.table_get_pref(self.strategy_table,
-                                 "apodizationWindowCombineThreshold")
+        res = self.strategy_table.preferences["apodizationWindowCombineThreshold"]
         return int(res.split()[0])
 
     @property
     def cloud_prefs(self):
-        filename = self.strategy_table['preferences']['CloudParameterFilename']
-        (_, fileID) = mpy.read_all_tes_cache(filename)
+        (_, fileID) = mpy.read_all_tes_cache(self.strategy_table.cloud_parameters_filename)
         cloudPrefs = fileID['preferences']
         return cloudPrefs
         
     @property
     def table_step(self):
-        return self._table_step
+        return self.strategy_table.table_step
 
     @table_step.setter
     def table_step(self, v):
-        self._table_step = v
-        mpy.table_set_step(self.strategy_table, self._table_step)
+        self.strategy_table.table_step = v
 
     @property
     def number_table_step(self):
-        return self.strategy_table["numRows"]
+        return self.strategy_table.number_table_step
 
     @property
     def step_name(self):
-        return mpy.table_get_entry(self.strategy_table, self.table_step, "stepName")
+        return self.strategy_table.step_name
 
     @property
     def retrieval_type(self):
@@ -336,11 +332,7 @@ class RetrievalStrategy:
 
     @property
     def output_directory(self):
-        '''Get the output directory from the strategy_table. Note that unlike
-        muses-py this doesn't require that we are actually in the run directory,
-        we handle this.'''
-        with self.chdir_run_dir():
-            return os.path.abspath(self.strategy_table['outputDirectory'])
+        return self.strategy_table.output_directory
 
     def save_pickle(self, save_pickle_file):
         '''Dump a pickled version of this object, along with the working

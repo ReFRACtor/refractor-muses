@@ -28,20 +28,20 @@ class RetrievalOutput:
         return self.retrieval_strategy.strategy_table
 
     @property
-    def step_dir(self):
-        return self.strategy_table["stepDirectory"]
+    def step_directory(self):
+        return self.strategy_table.step_directory
 
     @property
-    def input_dir(self):
-        return self.strategy_table["dirInput"]
+    def input_directory(self):
+        return self.strategy_table.input_directory
 
     @property
-    def analysis_dir(self):
-        return self.strategy_table["dirAnalysis"]
+    def analysis_directory(self):
+        return self.strategy_table.analysis_directory
 
     @property
-    def elanor_dir(self):
-        return self.strategy_table["dirELANOR"]
+    def elanor_directory(self):
+        return self.strategy_table.elanor_directory
     
     @property
     def windows(self):
@@ -80,10 +80,6 @@ class RetrievalOutput:
     def number_table_step(self):
         return self.retrieval_strategy.number_table_step
 
-    @property
-    def strategy_table(self):
-        return self.retrieval_strategy.strategy_table
-    
     @property
     def results(self):
         return self.retrieval_strategy_step.results
@@ -208,7 +204,7 @@ class RetrievalL2Output(RetrievalOutput):
             self._species_count = defaultdict(lambda: 0)
             tstep = self.table_step
             for i in range(self.table_step+1, self.number_table_step):
-                for spc in mpy.table_get_entry(self.strategy_table, i, 'retrievalElements').split(","):
+                for spc in self.strategy_table.table_entry('retrievalElements', i).split(","):
                     self._species_count[spc] += 1
         return self._species_count
 

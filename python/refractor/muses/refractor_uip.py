@@ -848,7 +848,7 @@ class RefractorUip:
             self.uip = self.uip.as_dict(self.uip)
 
     @classmethod
-    def create_uip(cls, i_stateInfo, i_table, i_windows,     
+    def create_uip(cls, i_stateInfo, i_strategy_table, i_windows,     
                    i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi,
                    i_oco2, jacobian_speciesIn=None):
         '''We duplicate what mpy.run_retrieval does to make the uip.'''
@@ -867,6 +867,11 @@ class RefractorUip:
             i_state = copy.deepcopy(i_stateInfo)
             if(isinstance(i_state, dict)):
                 i_state = mpy.ObjectView(i_state)
+        # Temp, and also with i_table
+        if(hasattr(i_strategy_table, "strategy_table_dict")):
+            i_table = copy.deepcopy(i_strategy_table.strategy_table_dict)
+        else:
+            i_table = copy.deepcopy(i_strategy_table)
 
         if(jacobian_speciesIn):
             jacobian_speciesNames=jacobian_speciesIn
