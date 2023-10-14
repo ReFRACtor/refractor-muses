@@ -1,6 +1,6 @@
 from .refractor_capture_directory import (RefractorCaptureDirectory,
                                           muses_py_call)
-from .retrieval_output import RetrievalL2Output
+from .retrieval_l2_output import RetrievalL2Output
 from .retrieval_radiance_output import RetrievalRadianceOutput
 from .retrieval_jacobian_output import RetrievalJacobianOutput
 from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult,
