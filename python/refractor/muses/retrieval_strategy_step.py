@@ -207,6 +207,14 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                           self.propagatedH2OQA)
         self.error_analysis(rs)
         self.update_retrieval_summary(rs)
+        # The solver can't be pickled, because a few pieces of the cost function
+        # can't be pickled. We could sort that out if it becomes an issue, but for
+        # now just delete the slv before we call notify_update. Note that it isn't
+        # actually required that things calling notify_update can be pickled, it is
+        # just convenient for testing. If clearing this becomes a problem, we can
+        # come back here to figure out what to do - probably just have a explicit
+        # pickle function for this class.
+        self.slv = None
         rs.notify_update("retrieval step", retrieval_strategy_step=self)
         
         return (True, None)

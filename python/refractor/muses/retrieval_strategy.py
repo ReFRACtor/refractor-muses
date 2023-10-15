@@ -90,6 +90,14 @@ class RetrievalStrategy:
                 self.add_observer(RetrievalPlotResult())
                 self.add_observer(RetrievalPlotRadiance())
 
+    @property
+    def run_dir(self):
+        return self.capture_directory.rundir
+
+    @run_dir.setter
+    def run_dir(self, v):
+        self.capture_directory.rundir = v
+        
     def add_observer(self, obs):
         # Often we want weakref, so we don't prevent objects from
         # being deleted just because they are observing this. But in
@@ -933,11 +941,11 @@ class RetrievalStrategy:
         return (o_airs, o_cris, o_omi, o_tropomi, o_tes, o_oco2, o_stateInfo) # More instrument data later.
         
 
-    def save_pickle(self, save_pickle_file):
+    def save_pickle(self, save_pickle_file, **kwargs):
         '''Dump a pickled version of this object, along with the working
         directory. Pairs with load_retrieval_strategy.'''
         self.capture_directory.save_directory(self.run_dir, vlidort_input=None)
-        pickle.dump(self, open(save_pickle_file, "wb"))
+        pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
     @classmethod
     def load_retrieval_strategy(cls, save_pickle_file, path=".",
@@ -945,14 +953,15 @@ class RetrievalStrategy:
                                 osp_dir=None, gmao_dir=None,
                                 vlidort_cli=None):
         '''This pairs with save_pickle.'''
-        res = pickle.load(open(save_pickle_file, "rb"))
+        res, kwargs = pickle.load(open(save_pickle_file, "rb"))
         res.run_dir = f"{os.path.abspath(path)}/{res.capture_directory.runbase}"
+        res.strategy_table.filename = f"{res.run_dir}/{os.path.basename(res.strategy_table.filename)}"
         res.capture_directory.extract_directory(path=path,
                               change_to_dir=change_to_dir, osp_dir=osp_dir,
                               gmao_dir=gmao_dir)
         if(vlidort_cli is not None):
             res.vlidort_cli = vlidort_cli
-        return res
+        return res, kwargs
 
 class RetrievalStrategyCaptureObserver:
     '''Helper class, pickles RetrievalStrategy at each time notify_update is
@@ -961,11 +970,11 @@ class RetrievalStrategyCaptureObserver:
         self.basefname = basefname
         self.location_to_capture = location_to_capture
 
-    def notify_update(self, retrieval_strategy, location):
+    def notify_update(self, retrieval_strategy, location, **kwargs):
         if(location != self.location_to_capture):
             return
         fname = f"{self.basefname}_{retrieval_strategy.table_step}.pkl"
-        retrieval_strategy.save_pickle(fname)
+        retrieval_strategy.save_pickle(fname, **kwargs)
         
 __all__ = ["RetrievalStrategy", "RetrievalStrategyCaptureObserver"]    
 

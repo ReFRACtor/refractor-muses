@@ -9,6 +9,13 @@ import numpy as np
 
 logger = logging.getLogger("py-retrieve")
 
+def _new_from_init(cls, *args):
+    '''For use with pickle, covers common case where we just store the
+    arguments needed to create an object.'''
+    inst = cls.__new__(cls)
+    inst.__init__(*args)
+    return inst
+
 class RetrievalL2Output(RetrievalOutput):
     '''Observer of RetrievalStrategy, outputs the Products_L2 files.'''
     

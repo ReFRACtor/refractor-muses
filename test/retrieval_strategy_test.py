@@ -3,7 +3,7 @@ from refractor.muses import (FmObsCreator, CostFunction,
                              MusesForwardModelStep,
                              MusesRunDir,
                              RefractorMusesIntegration,
-                             RetrievalStrategy)
+                             RetrievalStrategy, RetrievalStrategyCaptureObserver)
 import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
@@ -58,6 +58,9 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_cris_tropomi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", writeOutput=True, writePlots=True,
                            vlidort_cli=vlidort_cli)
+    # Grab each step so we can separately test output
+    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
+    rs.add_observer(rscap)
     rs.retrieval_ms()
 
     # Temp, do compare right after
