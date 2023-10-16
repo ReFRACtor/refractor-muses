@@ -145,7 +145,7 @@ class RetrievalStrategy:
         # But because of the "all_step" at this point it is all in the instruments
         # in all steps. Grab a copy of this so we have the full list.
         self.instruments_all = copy.deepcopy(self.instruments)
-        self.state_info = RefractorStateInfo(self.state_info)
+        self.state_info = RefractorStateInfo(self.state_info, self.run_dir)
         self.state_info.state_info_dict = mpy.states_initial_update(
             self.state_info.state_info_dict, self.strategy_table.strategy_table_dict,
             self.fm_obs_creator.radiance(), self.instruments)

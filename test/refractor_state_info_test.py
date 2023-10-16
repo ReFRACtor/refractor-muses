@@ -21,4 +21,17 @@ def test_refractor_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    print(sinfo)
+    # Check a single value, just to make sure we can read this
+    assert sinfo.species_state("emissivity").value[0] == pytest.approx(0.98081997)
+    assert sinfo.species_state("emissivity").wavelength[0] == pytest.approx(600)
+    assert sinfo.sounding_metadata().latitude.value == pytest.approx(62.8646) 
+    assert sinfo.sounding_metadata().longitude.value == pytest.approx(81.0379) 
+    assert sinfo.sounding_metadata().surface_altitude.convert("m").value == pytest.approx(169.827)
+    assert sinfo.sounding_metadata().tai_time == pytest.approx(839312683.58409)
+    assert sinfo.sounding_metadata().sounding_id == "20190807_065_04_08_5"
+    assert sinfo.sounding_metadata().is_land
+    assert sinfo.species_state("cloudEffExt").value[0,0] == pytest.approx(1e-29)
+    assert sinfo.species_state("cloudEffExt").wavelength[0] == pytest.approx(600)
+    assert sinfo.species_state("PCLOUD").value[0] == pytest.approx(500.0)
+    assert sinfo.species_state("PSUR").value[0] == pytest.approx(0.0)
+    
