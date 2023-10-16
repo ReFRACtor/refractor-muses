@@ -28,12 +28,8 @@ class RetrievalJacobianOutput(RetrievalOutput):
         if(location != "retrieval step"):
             return
         if len(glob(f"{self.out_fname}*")) == 0:
-            # First argument isn't actually used in write_products_one_jacobian.
-            # It is special_name, which doesn't actually apply to the jacobian file.
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
-            # Code assumes we are in rundir
-            with self.retrieval_strategy.chdir_run_dir():
-                self.write_jacobian()
+            self.write_jacobian()
         else:
             logger.info(f"Found a jacobian product file: {self.out_fname}")
 
@@ -42,105 +38,85 @@ class RetrievalJacobianOutput(RetrievalOutput):
         return f"{self.retrieval_strategy.output_directory}/Products/Products_Jacobian-{self.species_tag}{self.special_tag}.nc"
 
     def write_jacobian(self):
-        # AT_LINE 8 write_products_one_jacobian.pro
-        ndet = 1 
-        nitems = len(self.results.error)
-        ff = len(self.results.frequency)
 
         # this section is to make all pressure grids have a standard size, 
         # like 65 levels
-        # put fill in for line species
-        speciesAll = self.retrievalInfo.speciesListFM[0:self.retrievalInfo.n_totalParametersFM]
+
+        speciesAll = self.retrievalInfo.species_list_fm
         # Python idiom for getting a unique list
         species = list(dict.fromkeys(speciesAll))
 
-        pressureAll = self.retrievalInfo.pressureListFM[0:self.retrievalInfo.n_totalParametersFM]
+        pressureAll = self.retrievalInfo.pressure_list_fm
         jacobianAll = self.results.jacobian[0, :, :]
         nf = jacobianAll.shape[1]
 
-        for ii in range(0, len(species)):
-            ind = [s == species[ii] for s in speciesAll]
+        mypressure = []
+        myspecies = []
+        myjacobian = []
+        for spc in species:
+            ind = [s == spc for s in speciesAll]
             nn = np.count_nonzero(ind)
-            species_type = mpy.specie_type(species[ii])
+            species_type = mpy.specie_type(spc)
 
+            nlevel = 65
             if species_type == 'ATMOSPHERIC':
-                my_list = np.asarray(['none' for xx in range(0, 65)])
-                my_list[65-nn:65] = species[ii]
-                pressure = np.zeros(shape=(65), dtype=np.float32)
-                jacobian = np.zeros(shape=(65, nf), dtype=np.float64)
-                pressure[65-nn:65] = pressureAll[ind]
-                jacobian[65-nn:65, :] = jacobianAll[ind, :]
+                my_list = ["none",] * nlevel
+                my_list[nlevel-nn:] = [spc,] * nn
+                pressure = np.zeros(shape=(nlevel), dtype=np.float32)
+                jacobian = np.zeros(shape=(nlevel, nf), dtype=np.float64)
+                pressure[nlevel-nn:] = pressureAll[ind]
+                jacobian[nlevel-nn:, :] = jacobianAll[ind, :]
             else:
-                my_list = [species[ii] for xx in range(0, nn)]# STRARR(nn) + species[ii]
+                my_list = [spc,] * nn
                 pressure = pressureAll[ind]
                 jacobian = jacobianAll[ind, :]
-            # end part of if specie_type(species[ii]) == 'ATMOSPHERIC':
-
-            if ii == 0:
-                mypressure = pressure
-                myspecies = my_list
-                myjacobian = jacobian
-            else:
-                mypressure = np.append(mypressure, pressure)
-                myspecies = np.append(myspecies, my_list)
-                myjacobian = np.append(myjacobian, jacobian, axis=0)
+            mypressure.append(pressure)
+            myspecies.append(my_list)
+            myjacobian.append(jacobian)
         # end for ii in range(0, len(species)):
-
+        mypressure = np.concatenate(mypressure)
+        myspecies = np.concatenate(myspecies)
+        myjacobian = np.concatenate(myjacobian, axis=0)
         my_data = {
             'jacobian': np.transpose(myjacobian), # We transpose to match IDL shape.
-            'frequency': np.zeros(shape=(ff), dtype=np.float32),  #
-            'species': ','.join(myspecies), #  has to be a list.  can't have string matrix
+            'frequency': None,
+            'species': ','.join(myspecies), 
             'pressure': mypressure,
-            'soundingID': '',
-            'latitude': np.float32(0.0),
-            'longitude': np.float32(0.0),
-            'surfaceAltitudeMeters': np.float32(0.0),
-            'radianceResidualMean': np.float32(0.0),
-            'radianceResidualRMS': np.float32(0.0),
-            'land': np.int16(0),
-            'quality': np.int16(0),
-            'cloudOpticalDepth': np.float32(0.0),
-            'cloudTopPressure': np.float32(0.0),
-            'surfaceTemperature': np.float32(0.0),
+            'soundingID': None,
+            'latitude': None,
+            'longitude': None,
+            'surfaceAltitudeMeters': None,
+            'radianceResidualMean': None,
+            'radianceResidualRMS': None,
+            'land': None,
+            'quality': None,
+            'cloudOpticalDepth': None,
+            'cloudTopPressure': None,
+            'surfaceTemperature': None,
         }
 
         my_data = mpy.ObjectView(my_data)
 
 
-        my_data.frequency[:] = self.results.frequency[:]
+        my_data.frequency = self.results.frequency.astype(np.float32)
 
-        filename = './Measurement_ID.asc'
-        (read_status, fileID) = mpy.read_all_tes(filename)
-        infoFile = mpy.tes_file_get_struct(fileID)  # infoFile OBJECT_TYPE dict
-
-        my_data.soundingID = infoFile['preferences']['key']
-        my_data.latitude = np.float32(self.state_info.state_info_obj.current['latitude'])
-        my_data.longitude = np.float32(self.state_info.state_info_obj.current['longitude'])
-        my_data.surfaceAltitudeMeters = np.float32(self.state_info.state_info_obj.current['tsa']['surfaceAltitudeKm']*1000)
-
-        if self.state_info.state_info_obj.current['surfaceType'].upper() == 'OCEAN':
-            my_data.land = np.int16(0)
-        else:
-            my_data.land = np.int16(1)
-
+        smeta = self.state_info.sounding_metadata()
+        my_data.soundingID = smeta.sounding_id
+        my_data.latitude = np.float32(smeta.latitude.convert("deg").value)
+        my_data.longitude = np.float32(smeta.longitude.convert("deg").value)
+        my_data.surfaceAltitudeMeters = np.float32(smeta.surface_altitude.convert("m").value)
+        my_data.land = np.int16(1 if smeta.is_land else 0)
+        
         my_data.quality = np.int16(self.results.masterQuality)
         my_data.radianceResidualMean = np.float32(self.results.radianceResidualMean[0])
         my_data.radianceResidualRMS = np.float32(self.results.radianceResidualRMS[0])
-        my_data.cloudTopPressure = np.float32(self.state_info.state_info_obj.current['PCLOUD'][0])
-
+        my_data.cloudTopPressure = np.float32(self.state_info.species_state("PCLOUD").value[0])
         my_data.cloudOpticalDepth = np.float32(self.results.cloudODAve)
-        my_data.surfaceTemperature = np.float32(self.state_info.state_info_obj.current['TSUR'])
+        my_data.surfaceTemperature = np.float32(self.state_info.species_state('TSUR').value[0])
 
-        # Create a dictionary of units.  In our case, the units are dummy: "()"
-        mydata_as_dict = my_data.__dict__
-        my_keys = list(mydata_as_dict.keys())
-        structUnits = []
-        for xx in range(0, len(my_keys)):
-            structUnits.append({'UNITS':"()"})
-
-        # print(function_name, "Writing: ", i_filenameOut + '.nc')
-        mpy.cdf_write(my_data.__dict__, self.out_fname,
-                      [{"UNITS" : "()"},] * len(my_keys))
+        # Write out, use units as dummy: "()"
+        my_data = my_data.__dict__
+        mpy.cdf_write(my_data, self.out_fname, [{"UNITS" : "()"},] * len(my_data))
 
 
 __all__ = ["RetrievalJacobianOutput", ] 
