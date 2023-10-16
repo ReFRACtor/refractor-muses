@@ -85,8 +85,8 @@ class RetrievalOutput:
         return self.retrieval_strategy_step.results
 
     @property
-    def stateInfo(self):
-        return self.retrieval_strategy.stateInfo
+    def state_info(self):
+        return self.retrieval_strategy.state_info
 
     @property
     def radiance_full(self):

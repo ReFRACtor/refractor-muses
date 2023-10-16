@@ -2,8 +2,51 @@ import refractor.muses.muses_py as mpy
 import copy
 import refractor.framework as rf
 
+class SpeciesOrParameters:
+    '''Muses-py tends to call everything in its state "species",
+    although in a few places things things are called
+    "parameters". These should really be thought of as "things that go
+    into a StateVector".
 
+    We try to treat all these things as identical at some level, but
+    there is some behavior that is species dependent. We'll sort that
+    out, and try to figure out the right design here.
+
+    These get referenced by a "name", usually called a "species_name"
+    in the muses-py code. The RefractorStateInfo can be used to look these
+    up.
+    '''
+    def __init__(self, name):
+        self._name = name
+        self._value = np.array([0.0,])
+        self._apriori_cov = np.array([[0.0,],])
+
+    @property
+    def name(self):
+        return self._name
+    
+    @property
+    def value(self):
+        return self._value
+
+class SpeciesOrParametersWithFrequency(SpeciesOrParameters):
+    '''Some of the species also have frequencies associated with them.
+    We return these as Refractor SpectralRange objects.'''
+    def __init__(self, name):
+        super().__init__(name)
+        self._sr = rf.SpectralRange([0.0], "nm")
+        
+    @property
+    def spectral_range(self):
+        return self._sr
+
+    @property
+    def frequency(self):
+        '''Short cut to return the spectral range in units of blah'''
+        return self._sr.data
+    
 class Level1bAirs:
+
     '''This is like a Level1b class from framework, although right now we won't
     bother making this actually one those. Instead this pulls stuff out of
     RefractorStateInfo and makes in looks like we got it from a Level1bAirs file.

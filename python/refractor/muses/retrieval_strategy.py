@@ -139,15 +139,15 @@ class RetrievalStrategy:
         start_time = time.time()
         # Might be good to wrap these in classes
         (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
-         self.stateInfo) = mpy.script_retrieval_setup_ms(self.strategy_table.strategy_table_dict, False)
+         self.state_info) = mpy.script_retrieval_setup_ms(self.strategy_table.strategy_table_dict, False)
         self.create_windows(all_step=True)
         # Instruments is normally the instruments for a particular retrieval step.
         # But because of the "all_step" at this point it is all in the instruments
         # in all steps. Grab a copy of this so we have the full list.
         self.instruments_all = copy.deepcopy(self.instruments)
-        self.stateInfo = RefractorStateInfo(self.stateInfo)
-        self.stateInfo.state_info_dict = mpy.states_initial_update(
-            self.stateInfo.state_info_dict, self.strategy_table.strategy_table_dict,
+        self.state_info = RefractorStateInfo(self.state_info)
+        self.state_info.state_info_dict = mpy.states_initial_update(
+            self.state_info.state_info_dict, self.strategy_table.strategy_table_dict,
             self.fm_obs_creator.radiance(), self.instruments)
         self.notify_update("initial set up done")
 
@@ -161,7 +161,7 @@ class RetrievalStrategy:
         for stp in range(self.number_table_step):
             self.table_step = stp
             self.get_initial_guess()
-        self.stateInfo.copy_current_initialInitial()
+        self.state_info.copy_current_initialInitial()
         # Now go back through and actually do retrievals.
         # Note that a BT step might change the number of steps we have, it
         # modifies the strategy table. So we can't use a normal for
@@ -171,8 +171,8 @@ class RetrievalStrategy:
         while stp < self.number_table_step - 1:
             stp += 1
             self.table_step = stp
-            self.stateInfo.copy_current_initial()
-            self.stateOneNext = copy.deepcopy(self.stateInfo.state_info_dict["current"])
+            self.state_info.copy_current_initial()
+            self.stateOneNext = copy.deepcopy(self.state_info.state_info_dict["current"])
             logger.info(f'\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
             logger.info(f'\n---')
@@ -180,7 +180,7 @@ class RetrievalStrategy:
             self.create_windows(all_step=False)
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
             self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
-            self.stateInfo.copy_state_one_next(self.stateOneNext)
+            self.state_info.copy_state_one_next(self.stateOneNext)
             logger.info(f"Done with step {self.table_step}")
 
         stop_date = time.strftime("%c")
@@ -268,7 +268,7 @@ class RetrievalStrategy:
         '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
         (self.retrievalInfo, self.errorInitial, self.errorCurrent) = \
             mpy.get_species_information(self.strategy_table.strategy_table_dict,
-                                        self.stateInfo.state_info_obj,
+                                        self.state_info.state_info_obj,
                                         self.errorInitial, self.errorCurrent)
         
         #self.retrievalInfo = mpy.ObjectView.as_object(self.retrievalInfo)
@@ -285,11 +285,11 @@ class RetrievalStrategy:
             xig = self.retrievalInfo.initialGuessList[0:nn]
 
             # Note that we do not pass in stateOneNext (None) and do not get back stateOneNext on the left handside as donotcare_stateOneNext.
-            (self.stateInfo.state_info_dict, _, _) = \
-                mpy.update_state(self.stateInfo.state_info_dict,
+            (self.state_info.state_info_dict, _, _) = \
+                mpy.update_state(self.state_info.state_info_dict,
                                  self.retrievalInfo.retrieval_info_obj,
                                  xig, self.cloud_prefs, self.table_step, [], None)
-            self.stateInfo.state_info_dict = self.stateInfo.state_info_dict.__dict__
+            self.state_info.state_info_dict = self.state_info.state_info_dict.__dict__
 
     @property
     def threshold(self):
@@ -353,7 +353,7 @@ class RetrievalStrategy:
         o_tropomi = None
         o_tes = None
         o_oco2 = None
-        o_stateInfo = None
+        o_state_info = None
         instrument_file_name = 'Measurement_ID.asc'
 
         (_, o_file_content) = read_all_tes(instrument_file_name)
@@ -918,27 +918,27 @@ class RetrievalStrategy:
         # set up state
 
 
-        o_stateInfo = stateInitial
+        o_state_info = stateInitial
 
         # types are from a priori not initial.  ch3ohtype is needed for constraint selection
-        o_stateInfo['ch3ohtype'] = stateConstraint['ch3ohtype']
+        o_state_info['ch3ohtype'] = stateConstraint['ch3ohtype']
 
         # get type from 
 
         #  set surface type for products
         oceanString = ['Land', 'Ocean']
-        o_stateInfo['surfaceType'] = oceanString[oceanFlag]
+        o_state_info['surfaceType'] = oceanString[oceanFlag]
 
 
-        # Make a deepcopy of stateInitial['current'] and stateConstraint['current'] to o_stateInfo so each will have its own memory.
+        # Make a deepcopy of stateInitial['current'] and stateConstraint['current'] to o_state_info so each will have its own memory.
 
-        o_stateInfo['initialInitial'] = deepcopy(stateInitial['current'])
-        o_stateInfo['initial'] = deepcopy(stateInitial['current'])
-        o_stateInfo['current'] = deepcopy(stateInitial['current'])
-        o_stateInfo['constraint'] = deepcopy(stateConstraint['current'])
+        o_state_info['initialInitial'] = deepcopy(stateInitial['current'])
+        o_state_info['initial'] = deepcopy(stateInitial['current'])
+        o_state_info['current'] = deepcopy(stateInitial['current'])
+        o_state_info['constraint'] = deepcopy(stateConstraint['current'])
 
 
-        return (o_airs, o_cris, o_omi, o_tropomi, o_tes, o_oco2, o_stateInfo) # More instrument data later.
+        return (o_airs, o_cris, o_omi, o_tropomi, o_tes, o_oco2, o_state_info) # More instrument data later.
         
 
     def save_pickle(self, save_pickle_file, **kwargs):

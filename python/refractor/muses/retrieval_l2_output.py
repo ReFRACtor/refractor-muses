@@ -99,8 +99,8 @@ class RetrievalL2Output(RetrievalOutput):
                 # Fake the data
                 logger.warn("code has not been tested for species_name CH4 and dataN2O is None")
                 data2 = copy.deepcopy(dataInfo)
-                indn = self.stateInfo.state_info_obj.species.index('N2O')
-                value = self.stateInfo.state_info_obj.initial['values'][indn, :]
+                indn = self.state_info.state_info_obj.species.index('N2O')
+                value = self.state_info.state_info_obj.initial['values'][indn, :]
                 data2['SPECIES'][data2['SPECIES'] > 0] = copy.deepcopy(value)
                 data2['INITIAL'][data2['SPECIES'] > 0] = copy.deepcopy(value)
                 data2['CONSTRAINTVECTOR'][data2['SPECIES'] > 0] = copy.deepcopy(value)
@@ -144,10 +144,10 @@ class RetrievalL2Output(RetrievalOutput):
         num_pressures = 67  # 'np' is the numpy alias so we change to num_pressures.
         nfreqEmis = 121
 
-        if len(self.stateInfo.state_info_obj.current['pressure']) == 20:
+        if len(self.state_info.state_info_obj.current['pressure']) == 20:
             num_pressures = 20  # OCO-2 has 20 levels (sigma)
 
-        if np.max(self.stateInfo.state_info_obj.true['values']) > 0:
+        if np.max(self.state_info.state_info_obj.true['values']) > 0:
             have_true = True
         else:
             have_true = False
@@ -255,7 +255,7 @@ class RetrievalL2Output(RetrievalOutput):
             'lmresults_delta'.upper(): self.results.LMResults_delta[self.results.bestIteration]
         }
 
-        nx = self.stateInfo.state_info_obj.emisPars['num_frequencies']
+        nx = self.state_info.state_info_obj.emisPars['num_frequencies']
         if nx == 0:
             del species_data['EMISSIVITY_CONSTRAINT']
             del species_data['EMISSIVITY_ERROR']
@@ -304,8 +304,8 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 121 write_products_one.pro
         species_data.TROPOPAUSEPRESSURE = self.results.tropopausePressure
-        if self.stateInfo.state_info_obj.gmaoTropopausePressure > 0:
-            species_data.TROPOPAUSEPRESSURE = self.stateInfo.state_info_obj.gmaoTropopausePressure
+        if self.state_info.state_info_obj.gmaoTropopausePressure > 0:
+            species_data.TROPOPAUSEPRESSURE = self.state_info.state_info_obj.gmaoTropopausePressure
 
         # AT_LINE 126 write_products_one.pro
         species_data.DESERT_EMISS_QA = self.results.Desert_Emiss_QA
@@ -318,15 +318,15 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 149 write_products_one.pro
         # get column / altitude / air density / trop column stuff
-        stateOne = mpy.ObjectView(self.stateInfo.state_info_obj.current) # Convert to ObjectView so we can use the dot '.' notation to access the fields.
+        stateOne = mpy.ObjectView(self.state_info.state_info_obj.current) # Convert to ObjectView so we can use the dot '.' notation to access the fields.
         waterType = None
         pge_flag = True
 
         utilList = mpy.UtilList()
-        indt = np.where(np.array(self.stateInfo.state_info_obj.species) == 'TATM')[0][0]
-        indh = np.where(np.array(self.stateInfo.state_info_obj.species) == 'H2O')[0][0]
+        indt = np.where(np.array(self.state_info.state_info_obj.species) == 'TATM')[0][0]
+        indh = np.where(np.array(self.state_info.state_info_obj.species) == 'H2O')[0][0]
         (altitudeResult, x) = mpy.compute_altitude_pge(
-            self.stateInfo.state_info_obj.current['pressure'], 
+            self.state_info.state_info_obj.current['pressure'], 
             stateOne.values[indt, :], 
             stateOne.values[indh, :], 
             stateOne.tsa['surfaceAltitudeKm'] * 1000, 
@@ -390,138 +390,138 @@ class RetrievalL2Output(RetrievalOutput):
 
         if 'OMI' in self.instruments:
             # Make all names uppercased to make life easier.
-            species_data.OMI_SZA_UV2 = self.stateInfo.state_info_obj.current['omi']['sza_uv2']
-            species_data.OMI_RAZ_UV2 = self.stateInfo.state_info_obj.current['omi']['raz_uv2']
-            species_data.OMI_VZA_UV2 = self.stateInfo.state_info_obj.current['omi']['vza_uv2']
-            species_data.OMI_SCA_UV2 = self.stateInfo.state_info_obj.current['omi']['sca_uv2']
+            species_data.OMI_SZA_UV2 = self.state_info.state_info_obj.current['omi']['sza_uv2']
+            species_data.OMI_RAZ_UV2 = self.state_info.state_info_obj.current['omi']['raz_uv2']
+            species_data.OMI_VZA_UV2 = self.state_info.state_info_obj.current['omi']['vza_uv2']
+            species_data.OMI_SCA_UV2 = self.state_info.state_info_obj.current['omi']['sca_uv2']
 
-            species_data.OMI_SZA_UV1 = self.stateInfo.state_info_obj.current['omi']['sza_uv1']
-            species_data.OMI_RAZ_UV1 = self.stateInfo.state_info_obj.current['omi']['raz_uv1']
-            species_data.OMI_VZA_UV1 = self.stateInfo.state_info_obj.current['omi']['vza_uv1']
-            species_data.OMI_SCA_UV1 = self.stateInfo.state_info_obj.current['omi']['sca_uv1']
+            species_data.OMI_SZA_UV1 = self.state_info.state_info_obj.current['omi']['sza_uv1']
+            species_data.OMI_RAZ_UV1 = self.state_info.state_info_obj.current['omi']['raz_uv1']
+            species_data.OMI_VZA_UV1 = self.state_info.state_info_obj.current['omi']['vza_uv1']
+            species_data.OMI_SCA_UV1 = self.state_info.state_info_obj.current['omi']['sca_uv1']
 
             # could get these from state.current.omipars
             # note I added this to the new_state_structures and Make_UIP_OMI.pro
-            species_data.OMI_CLOUDFRACTION = self.stateInfo.state_info_obj.current['omi']['cloud_fraction']
-            species_data.OMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['omi']['cloud_fraction']
-            species_data.OMI_CLOUDTOPPRESSURE = self.stateInfo.state_info_obj.constraint['omi']['cloud_pressure']
+            species_data.OMI_CLOUDFRACTION = self.state_info.state_info_obj.current['omi']['cloud_fraction']
+            species_data.OMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['omi']['cloud_fraction']
+            species_data.OMI_CLOUDTOPPRESSURE = self.state_info.state_info_obj.constraint['omi']['cloud_pressure']
 
-            species_data.OMI_SURFACEALBEDOUV1 = self.stateInfo.state_info_obj.current['omi']['surface_albedo_uv1']
-            species_data.OMI_SURFACEALBEDOUV1CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['omi']['surface_albedo_uv1']
+            species_data.OMI_SURFACEALBEDOUV1 = self.state_info.state_info_obj.current['omi']['surface_albedo_uv1']
+            species_data.OMI_SURFACEALBEDOUV1CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['omi']['surface_albedo_uv1']
 
-            species_data.OMI_SURFACEALBEDOUV2 = self.stateInfo.state_info_obj.current['omi']['surface_albedo_uv2']
-            species_data.OMI_SURFACEALBEDOUV2CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['omi']['surface_albedo_uv2']
+            species_data.OMI_SURFACEALBEDOUV2 = self.state_info.state_info_obj.current['omi']['surface_albedo_uv2']
+            species_data.OMI_SURFACEALBEDOUV2CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['omi']['surface_albedo_uv2']
 
-            species_data.OMI_SURFACEALBEDOSLOPEUV2 = self.stateInfo.state_info_obj.current['omi']['surface_albedo_slope_uv2']
-            species_data.OMI_SURFACEALBEDOSLOPEUV2CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['omi']['surface_albedo_slope_uv2']
+            species_data.OMI_SURFACEALBEDOSLOPEUV2 = self.state_info.state_info_obj.current['omi']['surface_albedo_slope_uv2']
+            species_data.OMI_SURFACEALBEDOSLOPEUV2CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['omi']['surface_albedo_slope_uv2']
 
-            species_data.OMI_NRADWAVUV1 = self.stateInfo.state_info_obj.current['omi']['nradwav_uv1']
-            species_data.OMI_NRADWAVUV2 = self.stateInfo.state_info_obj.current['omi']['nradwav_uv2']
+            species_data.OMI_NRADWAVUV1 = self.state_info.state_info_obj.current['omi']['nradwav_uv1']
+            species_data.OMI_NRADWAVUV2 = self.state_info.state_info_obj.current['omi']['nradwav_uv2']
 
-            species_data.OMI_ODWAVUV1 = self.stateInfo.state_info_obj.current['omi']['odwav_uv1']
-            species_data.OMI_ODWAVUV2 = self.stateInfo.state_info_obj.current['omi']['odwav_uv2']
+            species_data.OMI_ODWAVUV1 = self.state_info.state_info_obj.current['omi']['odwav_uv1']
+            species_data.OMI_ODWAVUV2 = self.state_info.state_info_obj.current['omi']['odwav_uv2']
 
-            species_data.OMI_RINGSFUV1 = self.stateInfo.state_info_obj.current['omi']['ring_sf_uv1']
-            species_data.OMI_RINGSFUV2 = self.stateInfo.state_info_obj.current['omi']['ring_sf_uv2']
+            species_data.OMI_RINGSFUV1 = self.state_info.state_info_obj.current['omi']['ring_sf_uv1']
+            species_data.OMI_RINGSFUV2 = self.state_info.state_info_obj.current['omi']['ring_sf_uv2']
 
         if 'TROPOMI' in self.instruments:
             # As with OMI, make all names uppercased to make life easier.
             # EM NOTE - This will have to be expanded if additional tropomi bands are used
-            species_data.TROPOMI_SZA_BAND1 = self.stateInfo.state_info_obj.current['tropomi']['sza_BAND1']
-            species_data.TROPOMI_RAZ_BAND1 = self.stateInfo.state_info_obj.current['tropomi']['raz_BAND1']
-            species_data.TROPOMI_VZA_BAND1 = self.stateInfo.state_info_obj.current['tropomi']['vza_BAND1']
-            species_data.TROPOMI_SCA_BAND1 = self.stateInfo.state_info_obj.current['tropomi']['sca_BAND1']
+            species_data.TROPOMI_SZA_BAND1 = self.state_info.state_info_obj.current['tropomi']['sza_BAND1']
+            species_data.TROPOMI_RAZ_BAND1 = self.state_info.state_info_obj.current['tropomi']['raz_BAND1']
+            species_data.TROPOMI_VZA_BAND1 = self.state_info.state_info_obj.current['tropomi']['vza_BAND1']
+            species_data.TROPOMI_SCA_BAND1 = self.state_info.state_info_obj.current['tropomi']['sca_BAND1']
 
-            species_data.TROPOMI_SZA_BAND2 = self.stateInfo.state_info_obj.current['tropomi']['sza_BAND2']
-            species_data.TROPOMI_RAZ_BAND2 = self.stateInfo.state_info_obj.current['tropomi']['raz_BAND2']
-            species_data.TROPOMI_VZA_BAND2 = self.stateInfo.state_info_obj.current['tropomi']['vza_BAND2']
-            species_data.TROPOMI_SCA_BAND2 = self.stateInfo.state_info_obj.current['tropomi']['sca_BAND2']
+            species_data.TROPOMI_SZA_BAND2 = self.state_info.state_info_obj.current['tropomi']['sza_BAND2']
+            species_data.TROPOMI_RAZ_BAND2 = self.state_info.state_info_obj.current['tropomi']['raz_BAND2']
+            species_data.TROPOMI_VZA_BAND2 = self.state_info.state_info_obj.current['tropomi']['vza_BAND2']
+            species_data.TROPOMI_SCA_BAND2 = self.state_info.state_info_obj.current['tropomi']['sca_BAND2']
 
-            species_data.TROPOMI_SZA_BAND3 = self.stateInfo.state_info_obj.current['tropomi']['sza_BAND3']
-            species_data.TROPOMI_RAZ_BAND3 = self.stateInfo.state_info_obj.current['tropomi']['raz_BAND3']
-            species_data.TROPOMI_VZA_BAND3 = self.stateInfo.state_info_obj.current['tropomi']['vza_BAND3']
-            species_data.TROPOMI_SCA_BAND3 = self.stateInfo.state_info_obj.current['tropomi']['sca_BAND3']
+            species_data.TROPOMI_SZA_BAND3 = self.state_info.state_info_obj.current['tropomi']['sza_BAND3']
+            species_data.TROPOMI_RAZ_BAND3 = self.state_info.state_info_obj.current['tropomi']['raz_BAND3']
+            species_data.TROPOMI_VZA_BAND3 = self.state_info.state_info_obj.current['tropomi']['vza_BAND3']
+            species_data.TROPOMI_SCA_BAND3 = self.state_info.state_info_obj.current['tropomi']['sca_BAND3']
 
-            species_data.TROPOMI_SZA_BAND7 = self.stateInfo.state_info_obj.current['tropomi']['sza_BAND7']
-            species_data.TROPOMI_RAZ_BAND7 = self.stateInfo.state_info_obj.current['tropomi']['raz_BAND7']
-            species_data.TROPOMI_VZA_BAND7 = self.stateInfo.state_info_obj.current['tropomi']['vza_BAND7']
-            species_data.TROPOMI_SCA_BAND7 = self.stateInfo.state_info_obj.current['tropomi']['sca_BAND7']
+            species_data.TROPOMI_SZA_BAND7 = self.state_info.state_info_obj.current['tropomi']['sza_BAND7']
+            species_data.TROPOMI_RAZ_BAND7 = self.state_info.state_info_obj.current['tropomi']['raz_BAND7']
+            species_data.TROPOMI_VZA_BAND7 = self.state_info.state_info_obj.current['tropomi']['vza_BAND7']
+            species_data.TROPOMI_SCA_BAND7 = self.state_info.state_info_obj.current['tropomi']['sca_BAND7']
 
             # could get these from state.current.tropomipars
-            species_data.TROPOMI_CLOUDFRACTION = self.stateInfo.state_info_obj.current['tropomi']['cloud_fraction']
-            species_data.TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['cloud_fraction']
-            species_data.TROPOMI_CLOUDTOPPRESSURE = self.stateInfo.state_info_obj.constraint['tropomi']['cloud_pressure']
+            species_data.TROPOMI_CLOUDFRACTION = self.state_info.state_info_obj.current['tropomi']['cloud_fraction']
+            species_data.TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['cloud_fraction']
+            species_data.TROPOMI_CLOUDTOPPRESSURE = self.state_info.state_info_obj.constraint['tropomi']['cloud_pressure']
 
-            species_data.TROPOMI_SURFACEALBEDOBAND1 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_BAND1']
-            species_data.TROPOMI_SURFACEALBEDOBAND1CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_BAND1']
+            species_data.TROPOMI_SURFACEALBEDOBAND1 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_BAND1']
+            species_data.TROPOMI_SURFACEALBEDOBAND1CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_BAND1']
 
-            species_data.TROPOMI_SURFACEALBEDOBAND2 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_BAND2']
-            species_data.TROPOMI_SURFACEALBEDOBAND2CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_BAND2']
+            species_data.TROPOMI_SURFACEALBEDOBAND2 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_BAND2']
+            species_data.TROPOMI_SURFACEALBEDOBAND2CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_BAND2']
 
-            species_data.TROPOMI_SURFACEALBEDOBAND3 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_BAND3']
-            species_data.TROPOMI_SURFACEALBEDOBAND3CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_BAND3']
+            species_data.TROPOMI_SURFACEALBEDOBAND3 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_BAND3']
+            species_data.TROPOMI_SURFACEALBEDOBAND3CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_BAND3']
 
-            species_data.TROPOMI_SURFACEALBEDOBAND7 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_BAND7']
-            species_data.TROPOMI_SURFACEALBEDOBAND7CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_BAND7']
+            species_data.TROPOMI_SURFACEALBEDOBAND7 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_BAND7']
+            species_data.TROPOMI_SURFACEALBEDOBAND7CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_BAND7']
 
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND2 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_slope_BAND2']
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND2CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND2']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND2 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_BAND2']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND2CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND2']
 
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND3 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_slope_BAND3']
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND3CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND3']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND3 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_BAND3']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND3CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND3']
 
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND7 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_slope_BAND7']
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND7CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND7']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND7 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_BAND7']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND7CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND7']
 
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND2']
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND2']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND2']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND2']
 
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND3']
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND3']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND3']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND3']
 
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND7 = self.stateInfo.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND7']
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND7CONSTRAINTVECTOR = self.stateInfo.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND7']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND7 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND7']
+            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND7CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND7']
 
-            species_data.TROPOMI_SOLARSHIFTBAND1 = self.stateInfo.state_info_obj.current['tropomi']['solarshift_BAND1']
-            species_data.TROPOMI_SOLARSHIFTBAND2 = self.stateInfo.state_info_obj.current['tropomi']['solarshift_BAND2']
-            species_data.TROPOMI_SOLARSHIFTBAND3 = self.stateInfo.state_info_obj.current['tropomi']['solarshift_BAND3']
-            species_data.TROPOMI_SOLARSHIFTBAND7 = self.stateInfo.state_info_obj.current['tropomi']['solarshift_BAND7']
+            species_data.TROPOMI_SOLARSHIFTBAND1 = self.state_info.state_info_obj.current['tropomi']['solarshift_BAND1']
+            species_data.TROPOMI_SOLARSHIFTBAND2 = self.state_info.state_info_obj.current['tropomi']['solarshift_BAND2']
+            species_data.TROPOMI_SOLARSHIFTBAND3 = self.state_info.state_info_obj.current['tropomi']['solarshift_BAND3']
+            species_data.TROPOMI_SOLARSHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['solarshift_BAND7']
 
-            species_data.TROPOMI_RADIANCESHIFTBAND1 = self.stateInfo.state_info_obj.current['tropomi']['radianceshift_BAND1']
-            species_data.TROPOMI_RADIANCESHIFTBAND2 = self.stateInfo.state_info_obj.current['tropomi']['radianceshift_BAND2']
-            species_data.TROPOMI_RADIANCESHIFTBAND3 = self.stateInfo.state_info_obj.current['tropomi']['radianceshift_BAND3']
-            species_data.TROPOMI_RADIANCESHIFTBAND7 = self.stateInfo.state_info_obj.current['tropomi']['radianceshift_BAND7']
+            species_data.TROPOMI_RADIANCESHIFTBAND1 = self.state_info.state_info_obj.current['tropomi']['radianceshift_BAND1']
+            species_data.TROPOMI_RADIANCESHIFTBAND2 = self.state_info.state_info_obj.current['tropomi']['radianceshift_BAND2']
+            species_data.TROPOMI_RADIANCESHIFTBAND3 = self.state_info.state_info_obj.current['tropomi']['radianceshift_BAND3']
+            species_data.TROPOMI_RADIANCESHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['radianceshift_BAND7']
 
-            species_data.TROPOMI_RADSQUEEZEBAND1 = self.stateInfo.state_info_obj.current['tropomi']['radsqueeze_BAND1']
-            species_data.TROPOMI_RADSQUEEZEBAND2 = self.stateInfo.state_info_obj.current['tropomi']['radsqueeze_BAND2']
-            species_data.TROPOMI_RADSQUEEZEBAND3 = self.stateInfo.state_info_obj.current['tropomi']['radsqueeze_BAND3']
-            species_data.TROPOMI_RADSQUEEZEBAND7 = self.stateInfo.state_info_obj.current['tropomi']['radsqueeze_BAND7']
+            species_data.TROPOMI_RADSQUEEZEBAND1 = self.state_info.state_info_obj.current['tropomi']['radsqueeze_BAND1']
+            species_data.TROPOMI_RADSQUEEZEBAND2 = self.state_info.state_info_obj.current['tropomi']['radsqueeze_BAND2']
+            species_data.TROPOMI_RADSQUEEZEBAND3 = self.state_info.state_info_obj.current['tropomi']['radsqueeze_BAND3']
+            species_data.TROPOMI_RADSQUEEZEBAND7 = self.state_info.state_info_obj.current['tropomi']['radsqueeze_BAND7']
 
-            species_data.TROPOMI_RINGSFBAND1 = self.stateInfo.state_info_obj.current['tropomi']['ring_sf_BAND1']
-            species_data.TROPOMI_RINGSFBAND2 = self.stateInfo.state_info_obj.current['tropomi']['ring_sf_BAND2']
-            species_data.TROPOMI_RINGSFBAND3 = self.stateInfo.state_info_obj.current['tropomi']['ring_sf_BAND3']
-            species_data.TROPOMI_RINGSFBAND7 = self.stateInfo.state_info_obj.current['tropomi']['ring_sf_BAND7']
+            species_data.TROPOMI_RINGSFBAND1 = self.state_info.state_info_obj.current['tropomi']['ring_sf_BAND1']
+            species_data.TROPOMI_RINGSFBAND2 = self.state_info.state_info_obj.current['tropomi']['ring_sf_BAND2']
+            species_data.TROPOMI_RINGSFBAND3 = self.state_info.state_info_obj.current['tropomi']['ring_sf_BAND3']
+            species_data.TROPOMI_RINGSFBAND7 = self.state_info.state_info_obj.current['tropomi']['ring_sf_BAND7']
 
-            species_data.TROPOMI_TEMPSHIFTBAND3 = self.stateInfo.state_info_obj.current['tropomi']['temp_shift_BAND3']
-            species_data.TROPOMI_TEMPSHIFTBAND7 = self.stateInfo.state_info_obj.current['tropomi']['temp_shift_BAND7']
+            species_data.TROPOMI_TEMPSHIFTBAND3 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND3']
+            species_data.TROPOMI_TEMPSHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND7']
 
         if 'OCO2' in self.instruments:
             # info from pre-processor or instrument information used in quality flags
-            species_data.OCO2_CO2_RATIO_IDP = self.stateInfo.state_info_obj.current['oco2']['co2_ratio_idp']
-            species_data.OCO2_H2O_RATIO_IDP = self.stateInfo.state_info_obj.current['oco2']['h2o_ratio_idp']
-            species_data.OCO2_DP_ABP = self.stateInfo.state_info_obj.current['oco2']['dp_abp']
-            species_data.OCO2_ALTITUDE_STDDEV = self.stateInfo.state_info_obj.current['oco2']['altitude_stddev']
-            species_data.OCO2_MAX_DECLOCKING_FACTOR_WCO2 = self.stateInfo.state_info_obj.current['oco2']['max_declocking_factor_wco2']
-            species_data.OCO2_MAX_DECLOCKING_FACTOR_SCO2 = self.stateInfo.state_info_obj.current['oco2']['max_declocking_factor_sco2']
+            species_data.OCO2_CO2_RATIO_IDP = self.state_info.state_info_obj.current['oco2']['co2_ratio_idp']
+            species_data.OCO2_H2O_RATIO_IDP = self.state_info.state_info_obj.current['oco2']['h2o_ratio_idp']
+            species_data.OCO2_DP_ABP = self.state_info.state_info_obj.current['oco2']['dp_abp']
+            species_data.OCO2_ALTITUDE_STDDEV = self.state_info.state_info_obj.current['oco2']['altitude_stddev']
+            species_data.OCO2_MAX_DECLOCKING_FACTOR_WCO2 = self.state_info.state_info_obj.current['oco2']['max_declocking_factor_wco2']
+            species_data.OCO2_MAX_DECLOCKING_FACTOR_SCO2 = self.state_info.state_info_obj.current['oco2']['max_declocking_factor_sco2']
 
             # get albedo polynomial
             from .nir.make_albedo_maps import make_albedo_maps
-            map_to_pars, map_to_state = make_albedo_maps(3, self.stateInfo.state_info_obj.current['nir']['albplwave']) 
-            albedo_poly = map_to_pars @ self.stateInfo.state_info_obj.current['nir']['albpl']
-            albedo_full = self.stateInfo.state_info_obj.current['nir']['albpl']
+            map_to_pars, map_to_state = make_albedo_maps(3, self.state_info.state_info_obj.current['nir']['albplwave']) 
+            albedo_poly = map_to_pars @ self.state_info.state_info_obj.current['nir']['albpl']
+            albedo_full = self.state_info.state_info_obj.current['nir']['albpl']
 
             # convert to Lambertian
-            if self.stateInfo.state_info_obj.current['nir']['albtype'] == 2:
+            if self.state_info.state_info_obj.current['nir']['albtype'] == 2:
                 albedo_poly = albedo_poly * 0.07
                 albedo_full = albedo_full * 0.07
             species_data.NIR_ALBEDO_POLY2 = albedo_poly
@@ -530,16 +530,16 @@ class RetrievalL2Output(RetrievalOutput):
             # info from retrieval used in quality flags
             if 'NIR1' in self.results.filter_list: # O2A is generically labeled NIR1
                 ind = np.where(np.array(self.results.filter_list) == 'NIR1')[0][0]
-                species_data.NIR_FLUOR_REL = self.stateInfo.state_info_obj.current['nir']['fluor'][0] / self.results.radianceContinuum[ind]
+                species_data.NIR_FLUOR_REL = self.state_info.state_info_obj.current['nir']['fluor'][0] / self.results.radianceContinuum[ind]
             else:
-                species_data.NIR_FLUOR_REL = self.stateInfo.state_info_obj.current['nir']['fluor'][0]/self.results.radianceContinuum[1]*0 - 999 # keep same type
-            species_data.DELTA_P = self.stateInfo.state_info_obj.current['pressure'][0] - self.stateInfo.state_info_obj.constraint['pressure'][0]
-            indco2 = np.where(np.array(self.stateInfo.state_info_obj.species) == 'CO2')
-            indtatm = np.where(np.array(self.stateInfo.state_info_obj.species) == 'TATM')
-            species_data.CO2_GRAD_DEL = (self.stateInfo.state_info_obj.current['values'][indco2,0] - self.stateInfo.state_info_obj.constraint['values'][indco2,0] - self.stateInfo.state_info_obj.current['values'][indco2,7] + self.stateInfo.state_info_obj.constraint['values'][indco2,7])*1e6
-            ind = np.argmin(np.abs(self.stateInfo.state_info_obj.current['pressure'] - 750))
-            species_data.DELTA_T = np.mean(self.stateInfo.state_info_obj.current['values'][indtatm,ind]) - np.mean(self.stateInfo.state_info_obj.constraint['values'][indtatm,ind])
-            species_data.NIR_WINDSPEED = self.stateInfo.state_info_obj.current['nir']['wind']
+                species_data.NIR_FLUOR_REL = self.state_info.state_info_obj.current['nir']['fluor'][0]/self.results.radianceContinuum[1]*0 - 999 # keep same type
+            species_data.DELTA_P = self.state_info.state_info_obj.current['pressure'][0] - self.state_info.state_info_obj.constraint['pressure'][0]
+            indco2 = np.where(np.array(self.state_info.state_info_obj.species) == 'CO2')
+            indtatm = np.where(np.array(self.state_info.state_info_obj.species) == 'TATM')
+            species_data.CO2_GRAD_DEL = (self.state_info.state_info_obj.current['values'][indco2,0] - self.state_info.state_info_obj.constraint['values'][indco2,0] - self.state_info.state_info_obj.current['values'][indco2,7] + self.state_info.state_info_obj.constraint['values'][indco2,7])*1e6
+            ind = np.argmin(np.abs(self.state_info.state_info_obj.current['pressure'] - 750))
+            species_data.DELTA_T = np.mean(self.state_info.state_info_obj.current['values'][indtatm,ind]) - np.mean(self.state_info.state_info_obj.constraint['values'][indtatm,ind])
+            species_data.NIR_WINDSPEED = self.state_info.state_info_obj.current['nir']['wind']
 
             # aod info, make od's have consistent ordering with 0 = total, 1 = ice_cloud..., 2 = wc_008, ...
             mylist = [b'total', b'ice_cloud_MODIS6_deltaM_1000',b'wc_008',b'DU',b'SO',b'strat',b'oc', b'SS',b'BC']
@@ -547,21 +547,21 @@ class RetrievalL2Output(RetrievalOutput):
             aerod = np.zeros((naer),dtype=np.float32) - 999
             aerp = np.zeros((naer),dtype=np.float32) - 999
             for ii in range(0,naer):
-                ind = np.where(np.array(self.stateInfo.state_info_obj.current['nir']['aertype']) == mylist[ii])[0]
+                ind = np.where(np.array(self.state_info.state_info_obj.current['nir']['aertype']) == mylist[ii])[0]
                 if len(ind) > 0:
-                    aerod[ii] = self.stateInfo.state_info_obj.current['nir']['aerod'][ind[0]]
-                    aerp[ii] = self.stateInfo.state_info_obj.current['nir']['aerp'][ind[0]]
+                    aerod[ii] = self.state_info.state_info_obj.current['nir']['aerod'][ind[0]]
+                    aerp[ii] = self.state_info.state_info_obj.current['nir']['aerp'][ind[0]]
 
             # get total OD
-            aerod[0]=np.sum(self.stateInfo.state_info_obj.current['nir']['aerod'])
+            aerod[0]=np.sum(self.state_info.state_info_obj.current['nir']['aerod'])
             # get aerosol mean pressure by weighting with OD
-            aerp[0]=np.sum(self.stateInfo.state_info_obj.current['nir']['aerod'] * self.stateInfo.state_info_obj.current['nir']['aerp'])/np.sum(self.stateInfo.state_info_obj.current['nir']['aerod'])
+            aerp[0]=np.sum(self.state_info.state_info_obj.current['nir']['aerod'] * self.state_info.state_info_obj.current['nir']['aerp'])/np.sum(self.state_info.state_info_obj.current['nir']['aerod'])
             species_data.NIR_AEROD = aerod
             species_data.NIR_AERP = aerp
 
             # cloud3d
-            species_data.NIR_CLOUD3D_SLOPE = self.stateInfo.state_info_obj.current['nir']['cloud3dslope']
-            species_data.NIR_CLOUD3D_OFFSET = self.stateInfo.state_info_obj.current['nir']['cloud3doffset']
+            species_data.NIR_CLOUD3D_SLOPE = self.state_info.state_info_obj.current['nir']['cloud3dslope']
+            species_data.NIR_CLOUD3D_OFFSET = self.state_info.state_info_obj.current['nir']['cloud3doffset']
 
             if have_true:
                 # true values for nir quantities
@@ -576,12 +576,12 @@ class RetrievalL2Output(RetrievalOutput):
                 # species_data.NIR_CLOUD3D_SLOPE_TRUE
 
                 # get albedo polynomial
-                albedo_poly = map_to_pars @ self.stateInfo.state_info_obj.true['nir']['albpl']
-                albedo_full = self.stateInfo.state_info_obj.true['nir']['albpl']
-                albedo_poly_full = map_to_state @ map_to_pars @ self.stateInfo.state_info_obj.true['nir']['albpl']
+                albedo_poly = map_to_pars @ self.state_info.state_info_obj.true['nir']['albpl']
+                albedo_full = self.state_info.state_info_obj.true['nir']['albpl']
+                albedo_poly_full = map_to_state @ map_to_pars @ self.state_info.state_info_obj.true['nir']['albpl']
 
                 # convert to Lambertian
-                if self.stateInfo.state_info_obj.true['nir']['albtype'] == 2:
+                if self.state_info.state_info_obj.true['nir']['albtype'] == 2:
                     albedo_poly = albedo_poly * 0.07
                     albedo_full = albedo_full * 0.07
                     albedo_poly_full = albedo_poly_full * 0.07
@@ -594,17 +594,17 @@ class RetrievalL2Output(RetrievalOutput):
                 # info from retrieval used in quality flags
                 if 'NIR1' in self.results.filter_list: # O2A is generically labeled NIR1
                     ind = np.where(np.array(self.results.filter_list) == 'NIR1')[0][0]
-                    species_data.NIR_FLUOR_REL_TRUE = self.stateInfo.state_info_obj.true['nir']['fluor'][0] / self.results.radianceContinuum[ind]
+                    species_data.NIR_FLUOR_REL_TRUE = self.state_info.state_info_obj.true['nir']['fluor'][0] / self.results.radianceContinuum[ind]
                 else:
-                    species_data.NIR_FLUOR_REL_TRUE = self.stateInfo.state_info_obj.true['nir']['fluor'][0]/self.results.radianceContinuum[1]*0 - 999 # keep same type
+                    species_data.NIR_FLUOR_REL_TRUE = self.state_info.state_info_obj.true['nir']['fluor'][0]/self.results.radianceContinuum[1]*0 - 999 # keep same type
 
-                species_data.DELTA_P_TRUE = self.stateInfo.state_info_obj.true['pressure'][0] - self.stateInfo.state_info_obj.constraint['pressure'][0]
-                indco2 = np.where(np.array(self.stateInfo.state_info_obj.species) == 'CO2')
-                indtatm = np.where(np.array(self.stateInfo.state_info_obj.species) == 'TATM')
-                species_data.CO2_GRAD_DEL_TRUE = (self.stateInfo.state_info_obj.true['values'][indco2,0] - self.stateInfo.state_info_obj.constraint['values'][indco2,0] - self.stateInfo.state_info_obj.true['values'][indco2,7] + self.stateInfo.state_info_obj.constraint['values'][indco2,7])*1e6
-                ind = np.argmin(np.abs(self.stateInfo.state_info_obj.true['pressure'] - 750))
-                species_data.DELTA_T_TRUE = np.mean(self.stateInfo.state_info_obj.true['values'][indtatm,ind]) - np.mean(self.stateInfo.state_info_obj.constraint['values'][indtatm,ind])
-                species_data.NIR_WINDSPEED_TRUE = self.stateInfo.state_info_obj.true['nir']['wind']
+                species_data.DELTA_P_TRUE = self.state_info.state_info_obj.true['pressure'][0] - self.state_info.state_info_obj.constraint['pressure'][0]
+                indco2 = np.where(np.array(self.state_info.state_info_obj.species) == 'CO2')
+                indtatm = np.where(np.array(self.state_info.state_info_obj.species) == 'TATM')
+                species_data.CO2_GRAD_DEL_TRUE = (self.state_info.state_info_obj.true['values'][indco2,0] - self.state_info.state_info_obj.constraint['values'][indco2,0] - self.state_info.state_info_obj.true['values'][indco2,7] + self.state_info.state_info_obj.constraint['values'][indco2,7])*1e6
+                ind = np.argmin(np.abs(self.state_info.state_info_obj.true['pressure'] - 750))
+                species_data.DELTA_T_TRUE = np.mean(self.state_info.state_info_obj.true['values'][indtatm,ind]) - np.mean(self.state_info.state_info_obj.constraint['values'][indtatm,ind])
+                species_data.NIR_WINDSPEED_TRUE = self.state_info.state_info_obj.true['nir']['wind']
 
                 # aod info, make od's have consistent ordering with 0 = total, 1 = ice_cloud..., 2 = wc_008, ...
                 mylist = [b'total', b'ice_cloud_MODIS6_deltaM_1000',b'wc_008',b'DU',b'SO',b'strat',b'oc', b'SS',b'BC']
@@ -612,26 +612,26 @@ class RetrievalL2Output(RetrievalOutput):
                 aerod = np.zeros((naer),dtype=np.float32) - 999
                 aerp = np.zeros((naer),dtype=np.float32) - 999
                 for ii in range(0,naer):
-                    ind = np.where(np.array(self.stateInfo.state_info_obj.true['nir']['aertype']) == mylist[ii])[0]
+                    ind = np.where(np.array(self.state_info.state_info_obj.true['nir']['aertype']) == mylist[ii])[0]
                     if len(ind) > 0:
-                        aerod[ii] = self.stateInfo.state_info_obj.true['nir']['aerod'][ind[0]]
-                        aerp[ii] = self.stateInfo.state_info_obj.true['nir']['aerp'][ind[0]]
+                        aerod[ii] = self.state_info.state_info_obj.true['nir']['aerod'][ind[0]]
+                        aerp[ii] = self.state_info.state_info_obj.true['nir']['aerp'][ind[0]]
 
                 # get total OD
-                aerod[0]=np.sum(self.stateInfo.state_info_obj.true['nir']['aerod'])
+                aerod[0]=np.sum(self.state_info.state_info_obj.true['nir']['aerod'])
                 # get aerosol mean pressure by weighting with OD
-                aerp[0]=np.sum(self.stateInfo.state_info_obj.true['nir']['aerod'] * self.stateInfo.state_info_obj.true['nir']['aerp'])/np.sum(self.stateInfo.state_info_obj.true['nir']['aerod'])
+                aerp[0]=np.sum(self.state_info.state_info_obj.true['nir']['aerod'] * self.state_info.state_info_obj.true['nir']['aerp'])/np.sum(self.state_info.state_info_obj.true['nir']['aerod'])
                 species_data.NIR_AEROD_TRUE = aerod
                 species_data.NIR_AERP_TRUE = aerp
 
                 # cloud3d
-                species_data.NIR_CLOUD3D_SLOPE_TRUE = self.stateInfo.state_info_obj.true['nir']['cloud3dslope']
-                species_data.NIR_CLOUD3D_OFFSET_TRUE = self.stateInfo.state_info_obj.true['nir']['cloud3doffset']
+                species_data.NIR_CLOUD3D_SLOPE_TRUE = self.state_info.state_info_obj.true['nir']['cloud3dslope']
+                species_data.NIR_CLOUD3D_OFFSET_TRUE = self.state_info.state_info_obj.true['nir']['cloud3doffset']
 
 
         # AT_LINE 268 write_products_one.pro
         # get results... first how many pressures?
-        myP = len(self.stateInfo.state_info_obj.current['values'][0, :])
+        myP = len(self.state_info.state_info_obj.current['values'][0, :])
         indConv = np.asarray([ii for ii in range(myP)])
         indConv = indConv + (num_pressures - myP)
         indf1 = num_pressures - myP
@@ -670,7 +670,7 @@ class RetrievalL2Output(RetrievalOutput):
         INITIAL_Flag = True
         species_data.CONSTRAINTVECTOR[indConv] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag, INITIAL_Flag)[:]
 
-        species_data.PRESSURE[indConv] = self.stateInfo.state_info_obj.current['pressure'][:]
+        species_data.PRESSURE[indConv] = self.state_info.state_info_obj.current['pressure'][:]
 
         # altitude /air density
         # PYTHON_NOTE: Something is weird here.  We need to be smart about converting from from molec/cm3 to molec/m3
@@ -682,7 +682,7 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.ALTITUDE[indConv] = altitudeResult.altitude[:]
 
         # AT_LINE 281 write_products_one.pro
-        species_data.CLOUDTOPPRESSURE = self.stateInfo.state_info_obj.current['PCLOUD'][0]
+        species_data.CLOUDTOPPRESSURE = self.state_info.state_info_obj.current['PCLOUD'][0]
         indx = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'PCLOUD')
         if len(indx) > 0:
             indx = indx[0]
@@ -703,7 +703,7 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.SURFACETEMPVSATMTEMP_QA = self.results.tsur_minus_tatm0
 
         # AT_LINE 300 write_products_one.pro
-        species_data.SURFACETEMPERATURE = self.stateInfo.state_info_obj.current['TSUR']
+        species_data.SURFACETEMPERATURE = self.state_info.state_info_obj.current['TSUR']
         unique_speciesListFM = utilList.GetUniqueValues(self.retrievalInfo.retrieval_info_obj.speciesListFM)
 
         indx = utilList.WhereEqualIndices(unique_speciesListFM, 'TSUR')
@@ -775,29 +775,29 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.TOTALERROR[indConv] = np.sqrt(mpy.get_diagonal(self.results.Sx[ind1FM:ind2FM+1, ind1FM:ind2FM+1]))
 
         # AT_LINE 355 write_products_one.pro
-        if self.stateInfo.state_info_obj.cloudPars['num_frequencies'] > 0:
+        if self.state_info.state_info_obj.cloudPars['num_frequencies'] > 0:
             species_data.CLOUDFREQUENCY = [600, 650, 700, 750, 800, 850, 900, 950, 975, 100, 1025, 1050, 1075, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 1900, 2000, 2040, 2060, 2080, 2100, 2200, 2250]
 
             # AT_LINE 365 src_ms-2018-12-10/write_products_one.pro
             factor = mpy.compute_cloud_factor(
-                self.stateInfo.state_info_obj.current['pressure'], 
-                self.stateInfo.state_info_obj.current['values'][self.stateInfo.state_info_obj.species.index('TATM'), :], 
-                self.stateInfo.state_info_obj.current['values'][self.stateInfo.state_info_obj.species.index('H2O'), :], 
-                self.stateInfo.state_info_obj.current['PCLOUD'][0], 
-                self.stateInfo.state_info_obj.current['scalePressure'], 
-                self.stateInfo.state_info_obj.current['tsa']['surfaceAltitudeKm'] * 1000, 
-                self.stateInfo.state_info_obj.current['latitude'])
+                self.state_info.state_info_obj.current['pressure'], 
+                self.state_info.state_info_obj.current['values'][self.state_info.state_info_obj.species.index('TATM'), :], 
+                self.state_info.state_info_obj.current['values'][self.state_info.state_info_obj.species.index('H2O'), :], 
+                self.state_info.state_info_obj.current['PCLOUD'][0], 
+                self.state_info.state_info_obj.current['scalePressure'], 
+                self.state_info.state_info_obj.current['tsa']['surfaceAltitudeKm'] * 1000, 
+                self.state_info.state_info_obj.current['latitude'])
 
-            self.stateInfo.state_info_obj.current['convertToOD'] = factor
+            self.state_info.state_info_obj.current['convertToOD'] = factor
 
             # AT_LINE 363 write_products_one.pro
             # AT_LINE 374 src_ms-2018-12-10/write_products_one.pro
-            species_data.CLOUDEFFECTIVEOPTICALDEPTH = self.stateInfo.state_info_obj.current['cloudEffExt'][0, 0:self.stateInfo.state_info_obj.cloudPars['num_frequencies']] * self.stateInfo.state_info_obj.current['convertToOD']
+            species_data.CLOUDEFFECTIVEOPTICALDEPTH = self.state_info.state_info_obj.current['cloudEffExt'][0, 0:self.state_info.state_info_obj.cloudPars['num_frequencies']] * self.state_info.state_info_obj.current['convertToOD']
 
             indf = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'CLOUDEXT')
             if len(indf) > 0:
-                species_data.CLOUDEFFECTIVEOPTICALDEPTHERROR = self.results.errorFM[indf] * self.stateInfo.state_info_obj.current['convertToOD']
-        # end if self.stateInfo.state_info_obj.cloudPars['num_frequencies'] > 0:
+                species_data.CLOUDEFFECTIVEOPTICALDEPTHERROR = self.results.errorFM[indf] * self.state_info.state_info_obj.current['convertToOD']
+        # end if self.state_info.state_info_obj.cloudPars['num_frequencies'] > 0:
 
         # add special fields for HDO
         # AT_LINE 383 src_ms-2018-12-10/write_products_one.pro
@@ -901,14 +901,14 @@ class RetrievalL2Output(RetrievalOutput):
             geo_data.TES_RUN = np.int16(infoFile['preferences']['TES_run'])
             geo_data.TES_SEQUENCE = np.int16(infoFile['preferences']['TES_sequence'])
             geo_data.TES_SCAN = np.int16(infoFile['preferences']['TES_scan'])
-            geo_data.POINTINGANGLE_TES = self.stateInfo.state_info_obj.current['tes']['boresightNadirRadians']*180/np.pi
+            geo_data.POINTINGANGLE_TES = self.state_info.state_info_obj.current['tes']['boresightNadirRadians']*180/np.pi
 
         # AT_LINE 497 src_ms-2019-05-29/write_products_one.pro
         if 'OMI' in self.instruments:
             geo_data.OMI_ATRACK_INDEX = np.int16(infoFile['preferences']['OMI_ATrack_Index'])
             geo_data.OMI_XTRACK_INDEX_UV1 = np.int16(infoFile['preferences']['OMI_XTrack_UV1_Index'])
             geo_data.OMI_XTRACK_INDEX_UV2 = np.int16(infoFile['preferences']['OMI_XTrack_UV2_Index'])
-            geo_data.POINTINGANGLE_OMI = np.abs(self.stateInfo.state_info_obj.current['omi']['vza_uv2'])
+            geo_data.POINTINGANGLE_OMI = np.abs(self.state_info.state_info_obj.current['omi']['vza_uv2'])
 
 
         if 'TROPOMI' in self.instruments:
@@ -916,63 +916,63 @@ class RetrievalL2Output(RetrievalOutput):
             # EM NOTE - Because variable numbers of bands may be used in retrievals, will have to try each one
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND1 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND1'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND1 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND1'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND1 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND1'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND1 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND1 = -999.0
 
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND2 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND2'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND2 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND2'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND2 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND2'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND2 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND2 = -999.0
 
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND3 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND3'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND3 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND3'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND3 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND3'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND3 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND3 = -999.0
 
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND7 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND7'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND7 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND7'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND7 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND7'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND7 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND7 = -999.0
 
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND4 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND4'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND4 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND4'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND4 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND4'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND4 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND4 = -999.0
 
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND5 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND5'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND5 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND5'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND5 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND5'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND5 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND5 = -999.0
 
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND6 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND6'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND6 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND6'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND6 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND6'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND6 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND6 = -999.0
 
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND7 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND7'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND7 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND7'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND7 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND7'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND7 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND7 = -999.0
 
             try:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND8 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND8'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND8 = np.abs(self.stateInfo.state_info_obj.current['tropomi']['vza_BAND8'])
+                geo_data.POINTINGANGLE_TROPOMI_BAND8 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND8'])
             except:
                 geo_data.TROPOMI_XTRACK_INDEX_BAND8 = np.int16(-999)
                 geo_data.POINTINGANGLE_TROPOMI_BAND8 = -999.0
@@ -989,12 +989,12 @@ class RetrievalL2Output(RetrievalOutput):
             # track instrument and resolution for cris
             mydict = {'suomi_nasa_nsr':0, 'suomi_nasa_fsr':1, 'suomi_nasa_nomw':2,
                 'jpss1_nasa_fsr':3, 'suomi_cspp_fsr':4, 'jpss1_cspp_fsr':5, 'jpss2_cspp_fsr':6}
-            geo_data.CRIS_L1B_TYPE = np.int16(mydict[self.stateInfo.state_info_obj.current['cris']['l1bType']])
+            geo_data.CRIS_L1B_TYPE = np.int16(mydict[self.state_info.state_info_obj.current['cris']['l1bType']])
 
         # AT_LINE 554 write_products_one.pro (from idl-retrieve 1.12, not 1.3)
 
         # should do fresh water too
-        if self.stateInfo.state_info_obj.current['surfaceType'].upper() == 'OCEAN':
+        if self.state_info.state_info_obj.current['surfaceType'].upper() == 'OCEAN':
             geo_data.SURFACETYPEFOOTPRINT = np.int32(2)
             geo_data.LANDFLAG = np.int32(0)
         else:
@@ -1007,14 +1007,14 @@ class RetrievalL2Output(RetrievalOutput):
             geo_data.SURFACETYPEFOOTPRINT = np.int32(2)
 
             # Not sure how to translate this: IF min(ABS(state.current.heightKm)) GT 0.1 THEN geo_data.surfaceTypeFootprint = 1
-            if np.amin(np.abs(self.stateInfo.state_info_obj.current['heightKm'])) > 0.1:
+            if np.amin(np.abs(self.state_info.state_info_obj.current['heightKm'])) > 0.1:
                 geo_data.SURFACETYPEFOOTPRINT = 1
         # end if self.retrievalInfo.retrieval_info_obj.surfaceType == 'OCEAN':
 
-        geo_data.LATITUDE = self.stateInfo.state_info_obj.current['latitude']
-        geo_data.LONGITUDE = self.stateInfo.state_info_obj.current['longitude']
+        geo_data.LATITUDE = self.state_info.state_info_obj.current['latitude']
+        geo_data.LONGITUDE = self.state_info.state_info_obj.current['longitude']
 
-        ancillary_data.ORBITASCENDINGFLAG = self.stateInfo.state_info_obj.current['tes']['orbitAscending']
+        ancillary_data.ORBITASCENDINGFLAG = self.state_info.state_info_obj.current['tes']['orbitAscending']
 
         # AT_LINE 499 write_products_one.pro
         # discriminate day or night
@@ -1046,26 +1046,26 @@ class RetrievalL2Output(RetrievalOutput):
             array_2d_indices = np.ix_(ind, ind)  # (64, 64)
             ancillary_data.SURFACEEMISSERRORS = np.sqrt(mpy.get_diagonal(self.results.Sx[array_2d_indices]))
 
-        nx = self.stateInfo.state_info_obj.emisPars['num_frequencies']
+        nx = self.state_info.state_info_obj.emisPars['num_frequencies']
         if nx > 0:
-            ancillary_data.SURFACEEMISSINITIAL = self.stateInfo.state_info_obj.initialInitial['emissivity'][0:nx]
-            ancillary_data.SURFACEEMISSIVITY = self.stateInfo.state_info_obj.current['emissivity'][0:nx]
-            ancillary_data.EMISSIVITY_WAVENUMBER = self.stateInfo.state_info_obj.emisPars['frequency'][0:nx]
+            ancillary_data.SURFACEEMISSINITIAL = self.state_info.state_info_obj.initialInitial['emissivity'][0:nx]
+            ancillary_data.SURFACEEMISSIVITY = self.state_info.state_info_obj.current['emissivity'][0:nx]
+            ancillary_data.EMISSIVITY_WAVENUMBER = self.state_info.state_info_obj.emisPars['frequency'][0:nx]
 
             # add emissivity to products files
-            species_data.EMISSIVITY_CONSTRAINT = self.stateInfo.state_info_obj.constraint['emissivity'][0:nx]
+            species_data.EMISSIVITY_CONSTRAINT = self.state_info.state_info_obj.constraint['emissivity'][0:nx]
             species_data.EMISSIVITY_ERROR = ancillary_data.SURFACEEMISSERRORS
             species_data.EMISSIVITY_INITIAL = ancillary_data.SURFACEEMISSINITIAL
             species_data.EMISSIVITY = ancillary_data.SURFACEEMISSIVITY
             species_data.EMISSIVITY_WAVENUMBER = ancillary_data.EMISSIVITY_WAVENUMBER
-            if 'native_emissivity' in self.stateInfo.state_info_obj.initialInitial:
-                species_data.NATIVE_HSR_EMISSIVITY_INITIAL = self.stateInfo.state_info_obj.initialInitial['native_emissivity']
-                species_data.NATIVE_HSR_EMIS_WAVENUMBER = self.stateInfo.state_info_obj.initialInitial['native_emis_wavenumber']
-            if 'camel_distance' in self.stateInfo.state_info_obj.emisPars:
-                species_data.EMISSIVITY_OFFSET_DISTANCE = np.array([self.stateInfo.state_info_obj.emisPars['camel_distance']])
-            if 'emissivity_prior_source' in self.stateInfo.state_info_obj.emisPars:
+            if 'native_emissivity' in self.state_info.state_info_obj.initialInitial:
+                species_data.NATIVE_HSR_EMISSIVITY_INITIAL = self.state_info.state_info_obj.initialInitial['native_emissivity']
+                species_data.NATIVE_HSR_EMIS_WAVENUMBER = self.state_info.state_info_obj.initialInitial['native_emis_wavenumber']
+            if 'camel_distance' in self.state_info.state_info_obj.emisPars:
+                species_data.EMISSIVITY_OFFSET_DISTANCE = np.array([self.state_info.state_info_obj.emisPars['camel_distance']])
+            if 'emissivity_prior_source' in self.state_info.state_info_obj.emisPars:
                 runtime_attributes.setdefault('EMISSIVITY_INITIAL', dict())
-                runtime_attributes['EMISSIVITY_INITIAL']['database'] = self.stateInfo.state_info_obj.emisPars['emissivity_prior_source']
+                runtime_attributes['EMISSIVITY_INITIAL']['database'] = self.state_info.state_info_obj.emisPars['emissivity_prior_source']
 
 
         # AT_LINE 631 write_products_one.pro
@@ -1098,8 +1098,8 @@ class RetrievalL2Output(RetrievalOutput):
             else:
                 # N2O not retrieved... use values from initial guess
                 logger.warning("code has not been tested for N2O not retrieved.")
-                indn2o = utilList.WhereEqualIndices(self.stateInfo.state_info_obj.species, 'N2O')
-                value = self.stateInfo.state_info_obj.initial['values'][indn2o, :]
+                indn2o = utilList.WhereEqualIndices(self.state_info.state_info_obj.species, 'N2O')
+                value = self.state_info.state_info_obj.initial['values'][indn2o, :]
                 species_data.N2O_SPECIES[indConv] = copy.deepcopy(value)
                 species_data.N2O_CONSTRAINTVECTOR[indConv] = copy.deepcopy(value)
 

@@ -14,6 +14,9 @@ import subprocess
 import numpy as np
 import numpy.testing as npt
 import os
+from contextlib import redirect_stdout, redirect_stderr, contextmanager
+import logging
+import io
 
 if("REFRACTOR_TEST_DATA" in os.environ):
     test_base_path = os.environ["REFRACTOR_TEST_DATA"]
@@ -167,3 +170,16 @@ def joint_omi_uip_step_8(isolated_dir, osp_dir, gmao_dir):
 @pytest.fixture(scope="function")
 def vlidort_cli():
     return os.environ.get("MUSES_VLIDORT_CLI", "~/muses/muses-vlidort/build/release/vlidort_cli")
+
+@contextmanager
+def all_output_disabled():
+    '''Suppress stdout, stderr, and logging, useful for some of the noisy output we
+    get running muses-py code.'''
+    previous_level = logging.root.manager.disable
+    try:
+        logging.disable(logging.CRITICAL)
+        with redirect_stdout(io.StringIO()) as sout:
+            with redirect_stderr(io.StringIO()) as serr:
+                yield
+    finally:
+        logging.disable(previous_level)

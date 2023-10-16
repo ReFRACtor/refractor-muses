@@ -90,16 +90,16 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         # Put into structure expected by modify_from_bt
         radiance_res = {"radiance" : radiance_fm,
                         "frequency" : freq_fm }
-        rs.stateOneNext = copy.deepcopy(rs.stateInfo.state_info_dict["current"])
-        (rs.strategy_table.strategy_table_dict, rs.stateInfo.state_info_dict) = mpy.modify_from_bt(
+        rs.stateOneNext = copy.deepcopy(rs.state_info.state_info_dict["current"])
+        (rs.strategy_table.strategy_table_dict, rs.state_info.state_info_dict) = mpy.modify_from_bt(
             mpy.ObjectView(rs.strategy_table.strategy_table_dict), rs.table_step,
             radianceStepIn,
-            radiance_res, rs.windows, rs.stateInfo.state_info_dict,
+            radiance_res, rs.windows, rs.state_info.state_info_dict,
             self.BTstruct,
             writeOutputFlag=False)
         rs.strategy_table.strategy_table_dict = rs.strategy_table.strategy_table_dict.__dict__
         logger.info(f"Step: {rs.table_step},  Total Steps (after modify_from_bt): {rs.number_table_step}")
-        rs.stateOneNext = mpy.ObjectView(copy.deepcopy(rs.stateInfo.state_info_dict["current"]))
+        rs.stateOneNext = mpy.ObjectView(copy.deepcopy(rs.state_info.state_info_dict["current"]))
         return (True, None)
 
 class RetrievalStrategyStepIRK(RetrievalStrategyStep):
@@ -118,7 +118,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         logger.info("Running run_irk ...")
         (resultsIRK, jacobianOut) = mpy.run_irk(
             rs.strategy_table.strategy_table_dict,
-            rs.stateInfo, rs.windows, rs.retrievalInfo,
+            rs.state_info, rs.windows, rs.retrievalInfo,
             jacobian_speciesNames, 
             jacobian_specieslist, 
             rs.radianceStepIn,
@@ -158,7 +158,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         self.results = mpy.set_retrieval_results(
             rs.strategy_table.strategy_table_dict, rs.windows, retrievalResults,
-            rs.retrievalInfo, rs.radianceStep, rs.stateInfo.state_info_obj,
+            rs.retrievalInfo, rs.radianceStep, rs.state_info.state_info_obj,
             {"currentGuessListFM" : retrievalResults["xretFM"]})
         logger.info('\n---')
         logger.info(f"Step: {rs.table_step}, Step Name: {rs.step_name}")
@@ -168,7 +168,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                       rs.radianceStep, self.propagatedTATMQA,
                       self.propagatedO3QA, self.propagatedH2OQA)
         
-        rs.stateOneNext = copy.deepcopy(rs.stateInfo.state_info_dict["current"])
+        rs.stateOneNext = copy.deepcopy(rs.state_info.state_info_dict["current"])
         donotupdate = rs.strategy_table.table_entry("donotupdate").lower()
         if donotupdate != '-':
             donotupdate = [x.upper() for x in donotupdate.split(',')]
@@ -177,12 +177,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         # stateOneNext is not updated when it says "do not update"
         # state.current is updated for all results
-        (rs.stateInfo.state_info_dict, _, rs.stateOneNext) = \
-            mpy.update_state(rs.stateInfo.state_info_dict,
+        (rs.state_info.state_info_dict, _, rs.stateOneNext) = \
+            mpy.update_state(rs.state_info.state_info_dict,
                              rs.retrievalInfo.retrieval_info_obj,
                              self.results.resultsList, rs.cloud_prefs,
                              rs.table_step, donotupdate, rs.stateOneNext)
-        rs.stateInfo.state_info_dict = rs.stateInfo.state_info_dict.__dict__
+        rs.state_info.state_info_dict = rs.state_info.state_info_dict.__dict__
         if 'OCO2' in rs.instruments:
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels
@@ -230,7 +230,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             rs.radianceStep,
             radianceNoise,
             rs.retrievalInfo.retrieval_info_obj,
-            rs.stateInfo.state_info_obj,
+            rs.state_info.state_info_obj,
             rs.errorInitial,
             rs.errorCurrent,
             rs.windows,
@@ -242,7 +242,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.results = mpy.write_retrieval_summary(
             rs.strategy_table.analysis_directory,
             rs.retrievalInfo.retrieval_info_obj,
-            rs.stateInfo.state_info_obj,
+            rs.state_info.state_info_obj,
             None,
             self.results,
             rs.windows,
@@ -309,8 +309,8 @@ class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
         return super().retrieval_step(retrieval_type, rs)
 
     def extra_after_run_retrieval_step(self, rs):
-        rs.stateInfo.state_info_dict["constraint"]['omi']['cloud_fraction'] = \
-            rs.stateInfo.state_info_dict["current"]['omi']['cloud_fraction']
+        rs.state_info.state_info_dict["constraint"]['omi']['cloud_fraction'] = \
+            rs.state_info.state_info_dict["current"]['omi']['cloud_fraction']
         
 
 class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve):
@@ -323,8 +323,8 @@ class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve
         return super().retrieval_step(retrieval_type, rs)
 
     def extra_after_run_retrieval_step(self, rs):
-        rs.stateInfo.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = \
-            rs.stateInfo.state_info_dict["current"]['tropomi']['cloud_fraction']
+        rs.state_info.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = \
+            rs.state_info.state_info_dict["current"]['tropomi']['cloud_fraction']
     
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepNotImplemented())
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())

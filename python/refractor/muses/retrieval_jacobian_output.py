@@ -114,11 +114,11 @@ class RetrievalJacobianOutput(RetrievalOutput):
         infoFile = mpy.tes_file_get_struct(fileID)  # infoFile OBJECT_TYPE dict
 
         my_data.soundingID = infoFile['preferences']['key']
-        my_data.latitude = np.float32(self.stateInfo.state_info_obj.current['latitude'])
-        my_data.longitude = np.float32(self.stateInfo.state_info_obj.current['longitude'])
-        my_data.surfaceAltitudeMeters = np.float32(self.stateInfo.state_info_obj.current['tsa']['surfaceAltitudeKm']*1000)
+        my_data.latitude = np.float32(self.state_info.state_info_obj.current['latitude'])
+        my_data.longitude = np.float32(self.state_info.state_info_obj.current['longitude'])
+        my_data.surfaceAltitudeMeters = np.float32(self.state_info.state_info_obj.current['tsa']['surfaceAltitudeKm']*1000)
 
-        if self.stateInfo.state_info_obj.current['surfaceType'].upper() == 'OCEAN':
+        if self.state_info.state_info_obj.current['surfaceType'].upper() == 'OCEAN':
             my_data.land = np.int16(0)
         else:
             my_data.land = np.int16(1)
@@ -126,10 +126,10 @@ class RetrievalJacobianOutput(RetrievalOutput):
         my_data.quality = np.int16(self.results.masterQuality)
         my_data.radianceResidualMean = np.float32(self.results.radianceResidualMean[0])
         my_data.radianceResidualRMS = np.float32(self.results.radianceResidualRMS[0])
-        my_data.cloudTopPressure = np.float32(self.stateInfo.state_info_obj.current['PCLOUD'][0])
+        my_data.cloudTopPressure = np.float32(self.state_info.state_info_obj.current['PCLOUD'][0])
 
         my_data.cloudOpticalDepth = np.float32(self.results.cloudODAve)
-        my_data.surfaceTemperature = np.float32(self.stateInfo.state_info_obj.current['TSUR'])
+        my_data.surfaceTemperature = np.float32(self.state_info.state_info_obj.current['TSUR'])
 
         # Create a dictionary of units.  In our case, the units are dummy: "()"
         mydata_as_dict = my_data.__dict__

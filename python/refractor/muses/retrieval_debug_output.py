@@ -19,7 +19,7 @@ class RetrievalInputOutput(RetrievalOutput):
         # May need to extend this logic here
         detectorsUse = [1]
         mpy.write_retrieval_inputs(self.strategy_table.strategy_table_dict,
-                                   self.stateInfo.state_info_obj,
+                                   self.state_info.state_info_obj,
                                    self.windows,
                                    self.retrievalInfo.retrieval_info_obj,
                                    self.table_step,
@@ -49,7 +49,7 @@ class RetrievalPlotResult(RetrievalOutput):
         os.makedirs(self.step_directory, exist_ok=True)
         mpy.plot_results(f"{self.step_directory}/", self.results,
                          self.retrievalInfo.retrieval_info_obj,
-                         self.stateInfo.state_info_obj)
+                         self.state_info.state_info_obj)
 
 class RetrievalPlotRadiance(RetrievalOutput):
     def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,

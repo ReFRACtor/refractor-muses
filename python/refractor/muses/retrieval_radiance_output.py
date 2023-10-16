@@ -70,8 +70,8 @@ class RetrievalRadianceOutput(RetrievalOutput):
         ndet = 1
         nitems = len(self.results.error)
         ff = len(self.results.frequency)
-        num_emis_points = self.stateInfo.state_info_obj.emisPars['num_frequencies']
-        num_cloud_points = self.stateInfo.state_info_obj.cloudPars['num_frequencies']
+        num_emis_points = self.state_info.state_info_obj.emisPars['num_frequencies']
+        num_cloud_points = self.state_info.state_info_obj.cloudPars['num_frequencies']
 
         if len(self.myobsrad['instrumentNames']) == 1 or self.myobsrad['instrumentNames'][0] == self.myobsrad['instrumentNames'][1]:
             fullFrequency = len(self.myobsrad['frequency'])
@@ -222,12 +222,12 @@ class RetrievalRadianceOutput(RetrievalOutput):
         taitime = mpy.tes_file_get_preference(fileID, "TAI_Time_of_ZPD")
         my_data.time = np.float64(taitime)  # Because taitime is a string '6.4668561156126893E+08' we have to convert it to double.
 
-        my_data.emis[:] = self.stateInfo.state_info_obj.current['emissivity'][0:self.stateInfo.state_info_obj.emisPars['num_frequencies']]
-        my_data.emisFreq[:] = self.stateInfo.state_info_obj.emisPars['frequency'][0:self.stateInfo.state_info_obj.emisPars['num_frequencies']]
+        my_data.emis[:] = self.state_info.state_info_obj.current['emissivity'][0:self.state_info.state_info_obj.emisPars['num_frequencies']]
+        my_data.emisFreq[:] = self.state_info.state_info_obj.emisPars['frequency'][0:self.state_info.state_info_obj.emisPars['num_frequencies']]
 
-        if self.stateInfo.state_info_obj.cloudPars['num_frequencies'] > 0:
-            my_data.cloud[:] = self.stateInfo.state_info_obj.current['cloudEffExt'][0, 0:self.stateInfo.state_info_obj.cloudPars['num_frequencies']]
-            my_data.cloudFreq[:] = self.stateInfo.state_info_obj.cloudPars['frequency'][0:self.stateInfo.state_info_obj.cloudPars['num_frequencies']]
+        if self.state_info.state_info_obj.cloudPars['num_frequencies'] > 0:
+            my_data.cloud[:] = self.state_info.state_info_obj.current['cloudEffExt'][0, 0:self.state_info.state_info_obj.cloudPars['num_frequencies']]
+            my_data.cloudFreq[:] = self.state_info.state_info_obj.cloudPars['frequency'][0:self.state_info.state_info_obj.cloudPars['num_frequencies']]
 
         my_data.frequency[:] = self.results.frequency[:]
 
@@ -236,11 +236,11 @@ class RetrievalRadianceOutput(RetrievalOutput):
         infoFile = mpy.tes_file_get_struct(fileID)  # infoFile OBJECT_TYPE dict
 
         my_data.soundingID[:] = bytearray(infoFile['preferences']['key'], 'utf8')
-        my_data.latitude = np.float32(self.stateInfo.state_info_obj.current['latitude'])
-        my_data.longitude = np.float32(self.stateInfo.state_info_obj.current['longitude'])
-        my_data.surfaceAltitudeMeters = np.float32(self.stateInfo.state_info_obj.current['tsa']['surfaceAltitudeKm']*1000)
+        my_data.latitude = np.float32(self.state_info.state_info_obj.current['latitude'])
+        my_data.longitude = np.float32(self.state_info.state_info_obj.current['longitude'])
+        my_data.surfaceAltitudeMeters = np.float32(self.state_info.state_info_obj.current['tsa']['surfaceAltitudeKm']*1000)
 
-        if self.stateInfo.state_info_obj.current['surfaceType'].upper() == 'OCEAN':
+        if self.state_info.state_info_obj.current['surfaceType'].upper() == 'OCEAN':
             my_data.land = np.int16(0)
         else:
             my_data.land = np.int16(1)
@@ -248,9 +248,9 @@ class RetrievalRadianceOutput(RetrievalOutput):
         my_data.quality = np.int16(self.results.masterQuality)
         my_data.radianceResidualMean = np.float32(self.results.radianceResidualMean[0])
         my_data.radianceResidualRMS = np.float32(self.results.radianceResidualRMS[0])
-        my_data.cloudTopPressure = np.float32(self.stateInfo.state_info_obj.current['PCLOUD'][0])
+        my_data.cloudTopPressure = np.float32(self.state_info.state_info_obj.current['PCLOUD'][0])
         my_data.cloudOpticalDepth = np.float32(self.results.cloudODAve)
-        my_data.surfaceTemperature = np.float32(self.stateInfo.state_info_obj.current['TSUR'])
+        my_data.surfaceTemperature = np.float32(self.state_info.state_info_obj.current['TSUR'])
 
         # Create a dictionary of units.  In our case, the units are dummy: "()"
         mydata_as_dict = my_data.__dict__

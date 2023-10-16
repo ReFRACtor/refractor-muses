@@ -195,7 +195,7 @@ class FmObsCreator:
         for instrument_name in self.rs.instruments_all:
             logger.info(f"Reading radiance: {instrument_name}")
             if instrument_name == 'OMI':
-                result = mpy.get_omi_radiance(self.rs.stateInfo.state_info_dict['current']['omi'], copy.deepcopy(self.o_omi))
+                result = mpy.get_omi_radiance(self.rs.state_info.state_info_dict['current']['omi'], copy.deepcopy(self.o_omi))
                 radiance = result['normalized_rad']
                 nesr = result['nesr']
                 my_filter = result['filter']
@@ -204,7 +204,7 @@ class FmObsCreator:
                 os.makedirs(os.path.dirname(fname), exist_ok=True)
                 pickle.dump(self.o_omi, open(fname, "wb"))
             if instrument_name == 'TROPOMI':
-                result = mpy.get_tropomi_radiance(self.rs.stateInfo.state_info_dict['current']['tropomi'], copy.deepcopy(self.o_tropomi))
+                result = mpy.get_tropomi_radiance(self.rs.state_info.state_info_dict['current']['tropomi'], copy.deepcopy(self.o_tropomi))
 
                 radiance = result['normalized_rad']
                 nesr = result['nesr']
@@ -295,7 +295,7 @@ class FmObsCreator:
             })
         else:
             rinfo = self.rs.retrievalInfo
-        rf_uip = RefractorUip.create_uip(self.rs.stateInfo, self.rs.strategy_table,
+        rf_uip = RefractorUip.create_uip(self.rs.state_info, self.rs.strategy_table,
                                          self.rs.windows, rinfo,
                                          self.o_airs, self.o_tes,
                                          self.o_cris, self.o_omi, self.o_tropomi,
