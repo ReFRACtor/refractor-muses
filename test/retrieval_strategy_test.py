@@ -94,8 +94,8 @@ def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     for each of the tests so we don't have to.'''
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
-    #diff_is_error = True
-    diff_is_error = False
+    diff_is_error = True
+    #diff_is_error = False
     for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_L2*.nc"):
         f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
@@ -153,6 +153,9 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     r = MusesRunDir(joint_omi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_airs_omi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    # Grab each step so we can separately test output
+    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
+    rs.add_observer(rscap)
     rs.retrieval_ms()
 
     # Temp, compare right after

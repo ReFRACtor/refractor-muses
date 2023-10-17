@@ -58,6 +58,14 @@ class RefractorRetrievalInfo:
     def pressure_list_fm(self):
         return self.retrieval_dict["pressureListFM"][0:self.n_totalParametersFM]
 
+    @property
+    def surface_type(self):
+        return self.retrieval_dict["surfaceType"]
+
+    @property
+    def is_ocean(self):
+        return self.surface_type == "OCEAN"
+    
     # Synonyms used in the muses-py code.
     @property
     def speciesListFM(self):

@@ -60,7 +60,7 @@ class RetrievalL2Output(RetrievalOutput):
         # Save these, used in later lite files. Note these actually get
         # saved between steps, so we initialize these for the first step but
         # then leave them alone
-        if(location == "retrieval step" and self.table_step == 0):
+        if(location == "retrieval step" and "dataTATM" not in self.__dict__):
             self.dataTATM = None
             self.dataH2O = None
             self.dataN2O = None
@@ -99,8 +99,7 @@ class RetrievalL2Output(RetrievalOutput):
                 # Fake the data
                 logger.warn("code has not been tested for species_name CH4 and dataN2O is None")
                 data2 = copy.deepcopy(dataInfo)
-                indn = self.state_info.state_info_obj.species.index('N2O')
-                value = self.state_info.state_info_obj.initial['values'][indn, :]
+                value = self.state_info.species_state("N2O", step="initial").value
                 data2['SPECIES'][data2['SPECIES'] > 0] = copy.deepcopy(value)
                 data2['INITIAL'][data2['SPECIES'] > 0] = copy.deepcopy(value)
                 data2['CONSTRAINTVECTOR'][data2['SPECIES'] > 0] = copy.deepcopy(value)
@@ -134,6 +133,61 @@ class RetrievalL2Output(RetrievalOutput):
                                   step=self.species_count[self.spcname],
                                   times_species_retrieved=self.species_count[self.spcname])
 
+    def generate_geo_data(self, species_data):
+        '''Generate the geo_data, pulled out just to keep write_l2 from getting
+        too long.'''
+        nobs = 1
+        geo_data = {
+            'DAYNIGHTFLAG': None,
+            'landFlag'.upper(): np.zeros(shape=(nobs), dtype=np.int32) - 999,
+            'LATITUDE': None,
+            'LONGITUDE': None,
+            'TIME': None,
+            'surfaceTypeFootprint'.upper(): np.zeros(shape=(nobs), dtype=np.int64) - 999,
+            'SOUNDINGID': None
+        }
+
+        geo_data = mpy.ObjectView(geo_data)
+        smeta = self.state_info.sounding_metadata()
+        geo_data.TIME = np.int32(smeta.wrong_tai_time)
+        geo_data.LATITUDE = smeta.latitude.convert("deg").value
+        geo_data.LONGITUDE = smeta.longitude.convert("deg").value
+        geo_data.SOUNDINGID = smeta.sounding_id
+        geo_data.LANDFLAG = np.int32(0 if smeta.is_ocean else 1)
+        geo_data.SURFACETYPEFOOTPRINT = np.int32(2 if smeta.is_ocean else 3)        
+
+        for inst in self.instruments:
+            geo_data.__dict__.update(self.state_info.l1b_file(inst).sounding_desc)
+        
+        # get surface type using hres database
+        if self.retrievalInfo.is_ocean:
+            geo_data.LANDFLAG = np.int32(0)
+            geo_data.SURFACETYPEFOOTPRINT = np.int32(2)
+
+            if np.amin(np.abs(smeta.height.convert("km").value)) > 0.1:
+                geo_data.SURFACETYPEFOOTPRINT = 1
+
+        hour = smeta.local_hour
+        if (hour >= 8 and hour <= 22):
+            geo_data.DAYNIGHTFLAG = np.int16(1)
+        elif (hour <= 5 or hour >= 22):
+            geo_data.DAYNIGHTFLAG = np.int16(0)
+        else:
+            geo_data.DAYNIGHTFLAG = np.int16(-999)
+
+        # if sza defined, then use this for daynight, update 12/2017, DF, SSK
+        if 'omi_sza_uv2' in species_data:
+            geo_data.DAYNIGHTFLAG = 0
+            if species_data["OMI_SZA_UV2"] < 85:
+                geo_data.DAYNIGHTFLAG = np.int16(1)
+
+        geo_data = geo_data.__dict__
+
+        for k, v in geo_data.items():
+            if isinstance(v, list):
+                geo_data[k] = np.asarray(v)
+        return geo_data
+
     def write_l2(self):
         '''Create L2 product file'''
         runtime_attributes = dict()
@@ -141,36 +195,18 @@ class RetrievalL2Output(RetrievalOutput):
         # AT_LINE 7 write_products_one.pro
         nobs = 1 # number of observations
         # num_pressures varies based on surface pressure.  We set it to max here.
-        num_pressures = 67  # 'np' is the numpy alias so we change to num_pressures.
+        num_pressures = 67  
         nfreqEmis = 121
 
-        if len(self.state_info.state_info_obj.current['pressure']) == 20:
-            num_pressures = 20  # OCO-2 has 20 levels (sigma)
+        if self.state_info.has_true_values:
+            # TODO If we get sample data, we can put this back in
+            logger.warning("There is a block of code in the muses-py for reporting true values. We don't have that code, because we don't have any test data for this. So skipping.")
+        if("OCO-2" in self.instruments):
+            # TODO If we get sample data, we can put this back in
+            logger.warning("There is a block of code in the muses-py for reporting OCO-2 values. We don't have that code, because we don't have any test data for this. So skipping.")
 
-        if np.max(self.state_info.state_info_obj.true['values']) > 0:
-            have_true = True
-        else:
-            have_true = False
-
-
-
-        # 0.0 = np.ndarray(shape=(nobs), dtype=np.float32)
-        # 0.0.fill(-999)
-        # if 0.0.size == 1:
-        #     0.0 = -999
-
-        # -999 = np.ndarray(shape=(nobs), dtype=np.int32)
-        # -999.fill(-999)
-        # if -999.size == 1:
-        #     -999 = -999
-
-        niter = len(self.results.LMResults_costThresh) # set this so that uniform size
         nfilter = len(self.results.filter_index)-1
 
-        # AT_LINE 16 write_products_one.pro
-        # PYTHON_NOTE: To make life easier, we will store all keys in this dictionary as uppercase.  All keys coming from other objects will be treated accordingly.
-
-        # TODO: Replace with Python data class. Use snake_case for member variables
         species_data = {
             'SPECIES'.upper(): np.zeros(shape=(num_pressures), dtype=np.float32) - 999, 
             'PRIORCOVARIANCE'.upper(): np.zeros(shape=(num_pressures, num_pressures), dtype=np.float32) - 999, 
@@ -255,8 +291,8 @@ class RetrievalL2Output(RetrievalOutput):
             'lmresults_delta'.upper(): self.results.LMResults_delta[self.results.bestIteration]
         }
 
-        nx = self.state_info.state_info_obj.emisPars['num_frequencies']
-        if nx == 0:
+        emis_state = self.state_info.species_state("emissivity")
+        if emis_state.wavelength.shape[0] == 0:
             del species_data['EMISSIVITY_CONSTRAINT']
             del species_data['EMISSIVITY_ERROR']
             del species_data['EMISSIVITY_INITIAL']
@@ -264,48 +300,10 @@ class RetrievalL2Output(RetrievalOutput):
             del species_data['EMISSIVITY_WAVENUMBER']
 
 
-        species_data = mpy.ObjectView(species_data)  # Convert to ObjectView so we can use the '.' notation to access the fields.
-
-        # AT_LINE 92 write_products_one.pro
-        # PYTHON_NOTE: To make life easier, we will store all keys in this class as uppercase.  All keys coming from other objects will be treated accordingly.
-        geo_data = {
-            'DayNightFlag'.upper(): -999,                            
-            'landFlag'.upper(): np.zeros(shape=(nobs), dtype=np.int32) - 999,
-            'LATITUDE'.upper(): np.zeros(shape=(nobs), dtype=np.float64) - 999,
-            'LONGITUDE'.upper(): np.zeros(shape=(nobs), dtype=np.float64) - 999,
-            'TIME'.upper(): np.zeros(shape=(nobs), dtype=np.int64) - 999,
-            'surfaceTypeFootprint'.upper(): np.zeros(shape=(nobs), dtype=np.int64) - 999,
-            'soundingID'.upper(): ['' for ii in range(nobs)]
-        }
-
-        geo_data = mpy.ObjectView(geo_data)  # Convert to ObjectView so we can use the '.' notation to access the fields.
-
-        # AT_LINE 103 write_products_one.pro
-        # PYTHON_NOTE: To make life easier, we will store all keys in this class as uppercase.  All keys coming from other objects will be treated accordingly.
-        ancillary_data = {
-            'FILTER_POSITION_1A'.upper(): -999,
-            'FILTER_POSITION_1B'.upper(): -999,
-            'FILTER_POSITION_2A'.upper(): -999,
-            'FILTER_POSITION_2B'.upper(): -999,
-            'ORBITASCENDINGFLAG'.upper(): -999,
-            'PIXELSUSEDFLAG'.upper(): np.zeros(shape=(64), dtype=np.int32) - 999,
-            'SOLARAZIMUTHANGLE'.upper(): np.zeros(shape=(64), dtype=np.float32) - 999,
-            'SPACECRAFTALTITUDE'.upper(): -999,
-            'SPACECRAFTLATITUDE'.upper(): 0.0,
-            'SPACECRAFTLONGITUDE'.upper(): 0.0,
-            'SURFACEEMISSCONSTRAINT'.upper(): np.zeros(shape=(nfreqEmis), dtype=np.float32) - 999,
-            'SURFACEEMISSERRORS'.upper(): np.zeros(shape=(nfreqEmis), dtype=np.float32) - 999,
-            'SURFACEEMISSINITIAL'.upper(): np.zeros(shape=(nfreqEmis), dtype=np.float32) - 999,
-            'SURFACEEMISSIVITY'.upper(): np.zeros(shape=(nfreqEmis), dtype=np.float32) - 999,
-            'emissivity_Wavenumber'.upper(): np.zeros(shape=(nfreqEmis), dtype=np.float32) - 999,
-        }
-
-        ancillary_data = mpy.ObjectView(ancillary_data) # Convert to ObjectView so we can use the '.' notation to access the fields.
+        species_data = mpy.ObjectView(species_data) 
 
         # AT_LINE 121 write_products_one.pro
-        species_data.TROPOPAUSEPRESSURE = self.results.tropopausePressure
-        if self.state_info.state_info_obj.gmaoTropopausePressure > 0:
-            species_data.TROPOPAUSEPRESSURE = self.state_info.state_info_obj.gmaoTropopausePressure
+        species_data.TROPOPAUSEPRESSURE = self.state_info.gmao_tropopause_pressure() if self.state_info.gmao_tropopause_pressure() > 0 else self.results.tropopausePressure
 
         # AT_LINE 126 write_products_one.pro
         species_data.DESERT_EMISS_QA = self.results.Desert_Emiss_QA
@@ -316,25 +314,27 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.RESIDUALNORMFINAL = self.results.residualNormFinal
         species_data.RESIDUALNORMINITIAL = self.results.residualNormInitial
 
-        # AT_LINE 149 write_products_one.pro
+        smeta = self.state_info.sounding_metadata()
+
+        # Determine subset of the max num_pressures that we actually have
+        # data for
+        num_actual_pressures = self.state_info.species_state(self.state_info.species_on_levels[0]).value.shape[0]
+        # And get the range of data we use to fill in our fields
+        pslice = slice(num_pressures-num_actual_pressures,num_pressures)
         # get column / altitude / air density / trop column stuff
-        stateOne = mpy.ObjectView(self.state_info.state_info_obj.current) # Convert to ObjectView so we can use the dot '.' notation to access the fields.
-        waterType = None
-        pge_flag = True
+        altitudeResult, _ = mpy.compute_altitude_pge(
+            self.state_info.pressure, 
+            self.state_info.species_state("TATM").value, 
+            self.state_info.species_state("H2O").value, 
+            smeta.surface_altitude.convert("m").value, 
+            smeta.latitude.convert("deg").value, 
+            i_waterType=None, i_pge=True)
 
-        utilList = mpy.UtilList()
-        indt = np.where(np.array(self.state_info.state_info_obj.species) == 'TATM')[0][0]
-        indh = np.where(np.array(self.state_info.state_info_obj.species) == 'H2O')[0][0]
-        (altitudeResult, x) = mpy.compute_altitude_pge(
-            self.state_info.state_info_obj.current['pressure'], 
-            stateOne.values[indt, :], 
-            stateOne.values[indh, :], 
-            stateOne.tsa['surfaceAltitudeKm'] * 1000, 
-            stateOne.latitude, 
-            waterType, pge_flag)
+        altitudeResult = mpy.ObjectView(altitudeResult) 
+        species_data.AIRDENSITY[pslice] = (altitudeResult.airDensity*1e6)[:] #convert molec/cm3 -> molec/m3
 
-        # altitudeResult OBJECT_TYPE is dict
-        altitudeResult = mpy.ObjectView(altitudeResult) # Convert to ObjectView so we can use the dot '.' notation to access the fields.
+        species_data.ALTITUDE[pslice] = altitudeResult.altitude[:]
+
 
         # AT_LINE 169 write_products_one.pro
         if self.spcname == 'O3':
@@ -344,19 +344,8 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.O3_COLUMNERRORDU = self.results.O3_columnErrorDU
             species_data.O3_TROPO_CONSISTENCY_QA = self.results.O3_tropo_consistency
 
-        # AT_LINE 191 write_products_one.pro
-        indcol = utilList.WhereEqualIndices(self.results.columnSpecies, self.spcname)
-
-        # 0 = total
-        # 1 is tropospheric
-        # 2 is upper trop
-        # 3 is lower trop
-        # 4 is strato
-
-        # Because 'column' fields have different shapes, care must be taken to use the appropriate indices on the right hand side.
-        # AT_LINE 196 write_products_one.pro
-        if len(indcol) > 0:
-            indcol = indcol[0]
+        if self.spcname in self.results.columnSpecies:
+            indcol = self.results.columnSpecies.index(self.spcname)
 
             species_data.COLUMN = copy.deepcopy(self.results.column[:, indcol])
             species_data.COLUMN_AIR = copy.deepcopy(self.results.columnAir[:])
@@ -366,11 +355,6 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.COLUMN_PRESSUREMAX = copy.deepcopy(self.results.columnPressureMax[:])
             species_data.COLUMN_PRESSUREMIN = copy.deepcopy(self.results.columnPressureMin[:])
             species_data.COLUMN_PRIOR = copy.deepcopy(self.results.columnPrior[:, indcol])
-
-        # AT_LINE 211 write_products_one.pro
-        # move 'ALL' to it's own variable.  So set [1:*] to [0:*-1]
-        #filters = ['UV1', 'UV2', 'VIS', '2B1', '1B2', '2A1', '1A1']
-        #index to filter names
         species_data.RADIANCERESIDUALRMS_FILTER = self.results.radianceResidualRMS[1:]
         species_data.RADIANCERESIDUALMEAN_FILTER = self.results.radianceResidualMean[1:]
         species_data.radianceResidualRMSRelativeContinuum_FILTER = self.results.radianceResidualRMSRelativeContinuum[1:]
@@ -379,14 +363,11 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.FILTER_INDEX = self.results.filter_index[1:]
         species_data.RADIANCERESIDUALSLOPE_FILTER = self.results.residualSlope[1:]
         species_data.RADIANCERESIDUALQUADRATIC_FILTER = self.results.residualQuadratic[1:]
-
-
-
-        # AT_LINE 211 write_products_one.pro
         species_data.RADIANCERESIDUALRMS = self.results.radianceResidualRMS[0]
         species_data.RADIANCERESIDUALMEAN = self.results.radianceResidualMean[0]
         species_data.RADIANCE_RESIDUAL_STDEV_CHANGE = self.results.radianceResidualRMSInitial[0] - self.results.radianceResidualRMS[0]
-
+        
+        # ==============> Cleanup to this point
 
         if 'OMI' in self.instruments:
             # Make all names uppercased to make life easier.
@@ -505,184 +486,30 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TROPOMI_TEMPSHIFTBAND3 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND3']
             species_data.TROPOMI_TEMPSHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND7']
 
-        if 'OCO2' in self.instruments:
-            # info from pre-processor or instrument information used in quality flags
-            species_data.OCO2_CO2_RATIO_IDP = self.state_info.state_info_obj.current['oco2']['co2_ratio_idp']
-            species_data.OCO2_H2O_RATIO_IDP = self.state_info.state_info_obj.current['oco2']['h2o_ratio_idp']
-            species_data.OCO2_DP_ABP = self.state_info.state_info_obj.current['oco2']['dp_abp']
-            species_data.OCO2_ALTITUDE_STDDEV = self.state_info.state_info_obj.current['oco2']['altitude_stddev']
-            species_data.OCO2_MAX_DECLOCKING_FACTOR_WCO2 = self.state_info.state_info_obj.current['oco2']['max_declocking_factor_wco2']
-            species_data.OCO2_MAX_DECLOCKING_FACTOR_SCO2 = self.state_info.state_info_obj.current['oco2']['max_declocking_factor_sco2']
-
-            # get albedo polynomial
-            from .nir.make_albedo_maps import make_albedo_maps
-            map_to_pars, map_to_state = make_albedo_maps(3, self.state_info.state_info_obj.current['nir']['albplwave']) 
-            albedo_poly = map_to_pars @ self.state_info.state_info_obj.current['nir']['albpl']
-            albedo_full = self.state_info.state_info_obj.current['nir']['albpl']
-
-            # convert to Lambertian
-            if self.state_info.state_info_obj.current['nir']['albtype'] == 2:
-                albedo_poly = albedo_poly * 0.07
-                albedo_full = albedo_full * 0.07
-            species_data.NIR_ALBEDO_POLY2 = albedo_poly
-            species_data.NIR_ALBEDO = albedo_full
-
-            # info from retrieval used in quality flags
-            if 'NIR1' in self.results.filter_list: # O2A is generically labeled NIR1
-                ind = np.where(np.array(self.results.filter_list) == 'NIR1')[0][0]
-                species_data.NIR_FLUOR_REL = self.state_info.state_info_obj.current['nir']['fluor'][0] / self.results.radianceContinuum[ind]
-            else:
-                species_data.NIR_FLUOR_REL = self.state_info.state_info_obj.current['nir']['fluor'][0]/self.results.radianceContinuum[1]*0 - 999 # keep same type
-            species_data.DELTA_P = self.state_info.state_info_obj.current['pressure'][0] - self.state_info.state_info_obj.constraint['pressure'][0]
-            indco2 = np.where(np.array(self.state_info.state_info_obj.species) == 'CO2')
-            indtatm = np.where(np.array(self.state_info.state_info_obj.species) == 'TATM')
-            species_data.CO2_GRAD_DEL = (self.state_info.state_info_obj.current['values'][indco2,0] - self.state_info.state_info_obj.constraint['values'][indco2,0] - self.state_info.state_info_obj.current['values'][indco2,7] + self.state_info.state_info_obj.constraint['values'][indco2,7])*1e6
-            ind = np.argmin(np.abs(self.state_info.state_info_obj.current['pressure'] - 750))
-            species_data.DELTA_T = np.mean(self.state_info.state_info_obj.current['values'][indtatm,ind]) - np.mean(self.state_info.state_info_obj.constraint['values'][indtatm,ind])
-            species_data.NIR_WINDSPEED = self.state_info.state_info_obj.current['nir']['wind']
-
-            # aod info, make od's have consistent ordering with 0 = total, 1 = ice_cloud..., 2 = wc_008, ...
-            mylist = [b'total', b'ice_cloud_MODIS6_deltaM_1000',b'wc_008',b'DU',b'SO',b'strat',b'oc', b'SS',b'BC']
-            naer = len(mylist)
-            aerod = np.zeros((naer),dtype=np.float32) - 999
-            aerp = np.zeros((naer),dtype=np.float32) - 999
-            for ii in range(0,naer):
-                ind = np.where(np.array(self.state_info.state_info_obj.current['nir']['aertype']) == mylist[ii])[0]
-                if len(ind) > 0:
-                    aerod[ii] = self.state_info.state_info_obj.current['nir']['aerod'][ind[0]]
-                    aerp[ii] = self.state_info.state_info_obj.current['nir']['aerp'][ind[0]]
-
-            # get total OD
-            aerod[0]=np.sum(self.state_info.state_info_obj.current['nir']['aerod'])
-            # get aerosol mean pressure by weighting with OD
-            aerp[0]=np.sum(self.state_info.state_info_obj.current['nir']['aerod'] * self.state_info.state_info_obj.current['nir']['aerp'])/np.sum(self.state_info.state_info_obj.current['nir']['aerod'])
-            species_data.NIR_AEROD = aerod
-            species_data.NIR_AERP = aerp
-
-            # cloud3d
-            species_data.NIR_CLOUD3D_SLOPE = self.state_info.state_info_obj.current['nir']['cloud3dslope']
-            species_data.NIR_CLOUD3D_OFFSET = self.state_info.state_info_obj.current['nir']['cloud3doffset']
-
-            if have_true:
-                # true values for nir quantities
-                # species_data.NIR_ALBEDO_POLY2_TRUE
-                # species_data.NIR_FLUOR_REL_TRUE
-                # species_data.DELTA_P_TRUE
-                # species_data.CO2_GRAD_DEL_TRUE
-                # species_data.DELTA_T_TRUE
-                # species_data.NIR_WINDSPEED_TRUE
-                # species_data.NIR_AEROD_TRUE
-                # species_data.NIR_AERP_TRUE
-                # species_data.NIR_CLOUD3D_SLOPE_TRUE
-
-                # get albedo polynomial
-                albedo_poly = map_to_pars @ self.state_info.state_info_obj.true['nir']['albpl']
-                albedo_full = self.state_info.state_info_obj.true['nir']['albpl']
-                albedo_poly_full = map_to_state @ map_to_pars @ self.state_info.state_info_obj.true['nir']['albpl']
-
-                # convert to Lambertian
-                if self.state_info.state_info_obj.true['nir']['albtype'] == 2:
-                    albedo_poly = albedo_poly * 0.07
-                    albedo_full = albedo_full * 0.07
-                    albedo_poly_full = albedo_poly_full * 0.07
-                species_data.NIR_ALBEDO_POLY2_TRUE = albedo_poly
-                species_data.NIR_ALBEDO_TRUE = albedo_full
-
-                # how much different 2nd order polynomial is from true albedo
-                species_data.NIR_ALBEDO_POLY2_ERROR_TRUE = albedo_full - albedo_poly_full
-
-                # info from retrieval used in quality flags
-                if 'NIR1' in self.results.filter_list: # O2A is generically labeled NIR1
-                    ind = np.where(np.array(self.results.filter_list) == 'NIR1')[0][0]
-                    species_data.NIR_FLUOR_REL_TRUE = self.state_info.state_info_obj.true['nir']['fluor'][0] / self.results.radianceContinuum[ind]
-                else:
-                    species_data.NIR_FLUOR_REL_TRUE = self.state_info.state_info_obj.true['nir']['fluor'][0]/self.results.radianceContinuum[1]*0 - 999 # keep same type
-
-                species_data.DELTA_P_TRUE = self.state_info.state_info_obj.true['pressure'][0] - self.state_info.state_info_obj.constraint['pressure'][0]
-                indco2 = np.where(np.array(self.state_info.state_info_obj.species) == 'CO2')
-                indtatm = np.where(np.array(self.state_info.state_info_obj.species) == 'TATM')
-                species_data.CO2_GRAD_DEL_TRUE = (self.state_info.state_info_obj.true['values'][indco2,0] - self.state_info.state_info_obj.constraint['values'][indco2,0] - self.state_info.state_info_obj.true['values'][indco2,7] + self.state_info.state_info_obj.constraint['values'][indco2,7])*1e6
-                ind = np.argmin(np.abs(self.state_info.state_info_obj.true['pressure'] - 750))
-                species_data.DELTA_T_TRUE = np.mean(self.state_info.state_info_obj.true['values'][indtatm,ind]) - np.mean(self.state_info.state_info_obj.constraint['values'][indtatm,ind])
-                species_data.NIR_WINDSPEED_TRUE = self.state_info.state_info_obj.true['nir']['wind']
-
-                # aod info, make od's have consistent ordering with 0 = total, 1 = ice_cloud..., 2 = wc_008, ...
-                mylist = [b'total', b'ice_cloud_MODIS6_deltaM_1000',b'wc_008',b'DU',b'SO',b'strat',b'oc', b'SS',b'BC']
-                naer = len(mylist)
-                aerod = np.zeros((naer),dtype=np.float32) - 999
-                aerp = np.zeros((naer),dtype=np.float32) - 999
-                for ii in range(0,naer):
-                    ind = np.where(np.array(self.state_info.state_info_obj.true['nir']['aertype']) == mylist[ii])[0]
-                    if len(ind) > 0:
-                        aerod[ii] = self.state_info.state_info_obj.true['nir']['aerod'][ind[0]]
-                        aerp[ii] = self.state_info.state_info_obj.true['nir']['aerp'][ind[0]]
-
-                # get total OD
-                aerod[0]=np.sum(self.state_info.state_info_obj.true['nir']['aerod'])
-                # get aerosol mean pressure by weighting with OD
-                aerp[0]=np.sum(self.state_info.state_info_obj.true['nir']['aerod'] * self.state_info.state_info_obj.true['nir']['aerp'])/np.sum(self.state_info.state_info_obj.true['nir']['aerod'])
-                species_data.NIR_AEROD_TRUE = aerod
-                species_data.NIR_AERP_TRUE = aerp
-
-                # cloud3d
-                species_data.NIR_CLOUD3D_SLOPE_TRUE = self.state_info.state_info_obj.true['nir']['cloud3dslope']
-                species_data.NIR_CLOUD3D_OFFSET_TRUE = self.state_info.state_info_obj.true['nir']['cloud3doffset']
-
-
+        
         # AT_LINE 268 write_products_one.pro
         # get results... first how many pressures?
-        myP = len(self.state_info.state_info_obj.current['values'][0, :])
-        indConv = np.asarray([ii for ii in range(myP)])
-        indConv = indConv + (num_pressures - myP)
-        indf1 = num_pressures - myP
-        indf2 = num_pressures # index + 1
 
         # get species results
         FM_Flag = True
 
         # IDL_NOTE: FLTARR(67, 1) is the same as FLTARR(67)
         # PYTHON_NOTE: Because in Python, the 2nd dimension of 1 is explicit, we have to use it to refer on the left hand side as [indConv, 0].
-        species_data.SPECIES[indConv] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag)[:]
-
-        if have_true:
-            species_data.TRUE = np.zeros(shape=(num_pressures), dtype=np.float32) - 999
-            utilList = mpy.UtilList()
-            indfs = np.where(np.array(self.retrievalInfo.retrieval_info_obj.speciesListFM) == self.spcname)[0]
-            species_data.TRUE[indConv] = self.retrievalInfo.retrieval_info_obj.trueParameterListFM[indfs]
-
-            species_data.TRUE_AK = np.zeros(shape=(num_pressures), dtype=np.float32) - 999
-            true = self.retrievalInfo.retrieval_info_obj.trueParameterListFM[indfs]
-            xa = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, self.spcname, 1, i_CONSTRAINT_Flag=True)[:]
-            ispecie = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.species, self.spcname)
-            ispecie = ispecie[0]  # We just need one from the list so we can index into various variables.
-            ind1FM = self.retrievalInfo.retrieval_info_obj.parameterStartFM[ispecie]
-            ind2FM = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecie]
-            ak = self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
-            species_data.TRUE_AK[indConv] = xa + ak.T @ (true - xa)
-
-
+        species_data.SPECIES[pslice] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag)[:]
 
         FM_Flag = True
         INITIAL_Flag = True
-        species_data.INITIAL[indConv] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.initialGuessList, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag, INITIAL_Flag)[:]
+        species_data.INITIAL[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.initialGuessList, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag, INITIAL_Flag)[:]
 
         FM_Flag = True
         INITIAL_Flag = True
-        species_data.CONSTRAINTVECTOR[indConv] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag, INITIAL_Flag)[:]
+        species_data.CONSTRAINTVECTOR[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag, INITIAL_Flag)[:]
 
-        species_data.PRESSURE[indConv] = self.state_info.state_info_obj.current['pressure'][:]
-
-        # altitude /air density
-        # PYTHON_NOTE: Something is weird here.  We need to be smart about converting from from molec/cm3 to molec/m3
-        # As of 12/19/2018, doing the division make the output much smaller than the IDL code in column_integrate() function.
-        # For now, we will only do the division of the largest value is larger than 1e25.
-        # AT_LINE 278 write_products_one.pro
-        species_data.AIRDENSITY[indConv] = (altitudeResult.airDensity*1e6)[:] #convert molec/cm3 -> molec/m3
-
-        species_data.ALTITUDE[indConv] = altitudeResult.altitude[:]
+        species_data.PRESSURE[pslice] = self.state_info.state_info_obj.current['pressure'][:]
 
         # AT_LINE 281 write_products_one.pro
         species_data.CLOUDTOPPRESSURE = self.state_info.state_info_obj.current['PCLOUD'][0]
+        utilList = mpy.UtilList()
         indx = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'PCLOUD')
         if len(indx) > 0:
             indx = indx[0]
@@ -744,7 +571,7 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 342 write_products_one.pro
         species_data.DOFS = np.sum(mpy.get_diagonal(self.results.A[ind1FM: ind2FM+1, ind1FM: ind2FM+1]))
-        species_data.PRECISION[indConv] = np.sqrt(mpy.get_diagonal(self.results.Sx_rand[ind1FM: ind2FM+1, ind1FM: ind2FM+1]))
+        species_data.PRECISION[pslice] = np.sqrt(mpy.get_diagonal(self.results.Sx_rand[ind1FM: ind2FM+1, ind1FM: ind2FM+1]))
 
         # Build a 3D array so we can use it to access the below assignments.
         #third_index = np.asarray([0 for ii in range(1)])  # Set the 3rd index all to 0.
@@ -754,25 +581,25 @@ class RetrievalL2Output(RetrievalOutput):
         #rhs_range_index = np.asarray([ii for ii in range(ind1FM, ind2FM + 1)])
 
         # Using slow method because fast method (using Python awesome list of locations as arrays for indices) is not working.
-        species_data.AVERAGINGKERNEL[indf1:indf2, indf1:indf2] = self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
-        species_data.MEASUREMENTERRORCOVARIANCE[indf1:indf2, indf1:indf2] = self.results.Sx_rand[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
-        species_data.TOTALERRORCOVARIANCE[indf1:indf2, indf1:indf2] = self.results.Sx[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
+        species_data.AVERAGINGKERNEL[pslice, pslice] = self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
+        species_data.MEASUREMENTERRORCOVARIANCE[pslice, pslice] = self.results.Sx_rand[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
+        species_data.TOTALERRORCOVARIANCE[pslice, pslice] = self.results.Sx[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
 
         # We pass in for rhs_start_index because sum_Sx_Sx_sys_Sx_crossState already contain the correct shape.
         sum_Sx_Sx_sys_Sx_crossState = self.results.Sx_rand[ind1FM:ind2FM+1, ind1FM:ind2FM+1] + \
                                       self.results.Sx_sys[ind1FM:ind2FM+1, ind1FM:ind2FM+1]  + \
                                       self.results.Sx_crossState[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
 
-        species_data.OBSERVATIONERRORCOVARIANCE[indf1:indf2, indf1:indf2] = sum_Sx_Sx_sys_Sx_crossState
+        species_data.OBSERVATIONERRORCOVARIANCE[pslice, pslice] = sum_Sx_Sx_sys_Sx_crossState
 
         #
         # Not sure if the right hand side indices are correct for Python.
         #
         #
 
-        species_data.PRIORCOVARIANCE[indf1:indf2, indf1:indf2] = self.results.Sa[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
-        species_data.AVERAGINGKERNELDIAGONAL[indConv] = mpy.get_diagonal(self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]) ## utilGeneral.ManualArraySets(species_data.AVERAGINGKERNELDIAGONAL, get_diagonal(self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]), indConv, rhs_start_index=0)
-        species_data.TOTALERROR[indConv] = np.sqrt(mpy.get_diagonal(self.results.Sx[ind1FM:ind2FM+1, ind1FM:ind2FM+1]))
+        species_data.PRIORCOVARIANCE[pslice, pslice] = self.results.Sa[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
+        species_data.AVERAGINGKERNELDIAGONAL[pslice] = mpy.get_diagonal(self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]) ## utilGeneral.ManualArraySets(species_data.AVERAGINGKERNELDIAGONAL, get_diagonal(self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]), indConv, rhs_start_index=0)
+        species_data.TOTALERROR[pslice] = np.sqrt(mpy.get_diagonal(self.results.Sx[ind1FM:ind2FM+1, ind1FM:ind2FM+1]))
 
         # AT_LINE 355 write_products_one.pro
         if self.state_info.state_info_obj.cloudPars['num_frequencies'] > 0:
@@ -809,51 +636,51 @@ class RetrievalL2Output(RetrievalOutput):
 
             matrix = species_data.AVERAGINGKERNEL * 0 - 999
             species_data.HDO_H2OAVERAGINGKERNEL = copy.deepcopy(matrix)
-            species_data.HDO_H2OAVERAGINGKERNEL[indf1:indf2, indf1:indf2] = self.results.A[indfh, indfd]
+            species_data.HDO_H2OAVERAGINGKERNEL[pslice, pslice] = self.results.A[indfh, indfd]
 
             species_data.H2O_HDOAVERAGINGKERNEL = copy.deepcopy(matrix)
-            species_data.H2O_HDOAVERAGINGKERNEL[indf1:indf2, indf1:indf2] = self.results.A[indfd, indfh]
+            species_data.H2O_HDOAVERAGINGKERNEL[pslice, pslice] = self.results.A[indfd, indfh]
 
             # AT_LINE 407 src_ms-2018-12-10/write_products_one.pro
             species_data.H2O_H2OAVERAGINGKERNEL = copy.deepcopy(matrix)
-            species_data.H2O_H2OAVERAGINGKERNEL[indf1:indf2, indf1:indf2] = self.results.A[indfh, indfh]
+            species_data.H2O_H2OAVERAGINGKERNEL[pslice, pslice] = self.results.A[indfh, indfh]
 
             species_data.HDO_H2OMEASUREMENTERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.HDO_H2OMEASUREMENTERRORCOVARIANCE[indf1:indf2, indf1:indf2] = self.results.Sx_rand[indfh, indfd]
+            species_data.HDO_H2OMEASUREMENTERRORCOVARIANCE[pslice, pslice] = self.results.Sx_rand[indfh, indfd]
 
             # AT_LINE 396 write_products_one.pro
             species_data.H2O_HDOMEASUREMENTERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.H2O_HDOMEASUREMENTERRORCOVARIANCE[indf1:indf2, indf1:indf2] = self.results.Sx_rand[indfd, indfh]
+            species_data.H2O_HDOMEASUREMENTERRORCOVARIANCE[pslice, pslice] = self.results.Sx_rand[indfd, indfh]
 
             # AT_LINE 417 src_ms-2018-12-10/write_products_one.pro
             species_data.H2O_H2OMEASUREMENTERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.H2O_H2OMEASUREMENTERRORCOVARIANCE[indf1:indf2, indf1:indf2] = self.results.Sx_rand[indfh, indfh]
+            species_data.H2O_H2OMEASUREMENTERRORCOVARIANCE[pslice, pslice] = self.results.Sx_rand[indfh, indfh]
 
             # AT_LINE 400 write_products_one.pro
             error = self.results.Sx_rand + self.results.Sx_crossState + self.results.Sx_sys
 
             species_data.HDO_H2OOBSERVATIONERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.HDO_H2OOBSERVATIONERRORCOVARIANCE[indf1:indf2, indf1:indf2] = error[indfh, indfd]
+            species_data.HDO_H2OOBSERVATIONERRORCOVARIANCE[pslice, pslice] = error[indfh, indfd]
 
             species_data.H2O_HDOOBSERVATIONERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.H2O_HDOOBSERVATIONERRORCOVARIANCE[indf1:indf2, indf1:indf2] = error[indfd, indfh]
+            species_data.H2O_HDOOBSERVATIONERRORCOVARIANCE[pslice, pslice] = error[indfd, indfh]
 
             # AT_LINE 434 src_ms-2018-12-10/write_products_one.pro
             species_data.H2O_H2OOBSERVATIONERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.H2O_H2OOBSERVATIONERRORCOVARIANCE[indf1:indf2, indf1:indf2] = error[indfh, indfh]
+            species_data.H2O_H2OOBSERVATIONERRORCOVARIANCE[pslice, pslice] = error[indfh, indfh]
 
             # AT_LINE 408 write_products_one.pro
             error = self.results.Sx
 
             species_data.HDO_H2OTOTALERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.HDO_H2OTOTALERRORCOVARIANCE[indf1:indf2, indf1:indf2] = error[indfh, indfd]
+            species_data.HDO_H2OTOTALERRORCOVARIANCE[pslice, pslice] = error[indfh, indfd]
 
             species_data.H2O_HDOTOTALERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.H2O_HDOTOTALERRORCOVARIANCE[indf1:indf2, indf1:indf2] = error[indfd, indfh]
+            species_data.H2O_HDOTOTALERRORCOVARIANCE[pslice, pslice] = error[indfd, indfh]
 
             # AT_LINE 445 src_ms-2018-12-10/write_products_one.pro
             species_data.H2O_H2OTOTALERRORCOVARIANCE = copy.deepcopy(matrix)
-            species_data.H2O_H2OTOTALERRORCOVARIANCE[indf1:indf2, indf1:indf2] = error[indfh, indfh]
+            species_data.H2O_H2OTOTALERRORCOVARIANCE[pslice, pslice] = error[indfh, indfh]
 
             # AT_LINE 448 src_ms-2018-12-10/write_products_one.pro
             vector_of_fills = np.ndarray(shape=(num_pressures), dtype=np.float32)
@@ -873,191 +700,18 @@ class RetrievalL2Output(RetrievalOutput):
         # end if self.spcname == 'HDO':
 
 
-        # AT_LINE 432 write_products_one.pro
-        filename = './DateTime.asc'
-        (read_status, fileID) = mpy.read_all_tes(filename)
-
-        utctime = mpy.tes_file_get_preference(fileID, "UTC_Time")
-        timestruct = mpy.utc(utctime)
-        geo_data.TIME = mpy.tai(timestruct, True).astype(np.int32)
-
-        # get target ID
-        # AT_LINE 439 write_products_one.pro
-        filename = './Measurement_ID.asc'
-        (read_status, fileID) = mpy.read_all_tes(filename)
-        infoFile = mpy.tes_file_get_struct(fileID)
-
-        geo_data.SOUNDINGID = infoFile['preferences']['key']
-
-        # AT_LINE 483 src_ms-2019-05-29/write_products_one.pro
-        if 'AIRS' in self.instruments:
-            geo_data.AIRS_GRANULE = np.int16(infoFile['preferences']['AIRS_Granule'])       
-            geo_data.AIRS_ATRACK_INDEX = np.int16(infoFile['preferences']['AIRS_ATrack_Index'])
-            geo_data.AIRS_XTRACK_INDEX = np.int16(infoFile['preferences']['AIRS_XTrack_Index'])    
-            geo_data.POINTINGANGLE_AIRS = abs(stateOne.airs['scanAng'])
-
-        # AT_LINE 490 src_ms-2019-05-29/write_products_one.pro
-        if 'TES' in self.instruments:
-            geo_data.TES_RUN = np.int16(infoFile['preferences']['TES_run'])
-            geo_data.TES_SEQUENCE = np.int16(infoFile['preferences']['TES_sequence'])
-            geo_data.TES_SCAN = np.int16(infoFile['preferences']['TES_scan'])
-            geo_data.POINTINGANGLE_TES = self.state_info.state_info_obj.current['tes']['boresightNadirRadians']*180/np.pi
-
-        # AT_LINE 497 src_ms-2019-05-29/write_products_one.pro
-        if 'OMI' in self.instruments:
-            geo_data.OMI_ATRACK_INDEX = np.int16(infoFile['preferences']['OMI_ATrack_Index'])
-            geo_data.OMI_XTRACK_INDEX_UV1 = np.int16(infoFile['preferences']['OMI_XTrack_UV1_Index'])
-            geo_data.OMI_XTRACK_INDEX_UV2 = np.int16(infoFile['preferences']['OMI_XTrack_UV2_Index'])
-            geo_data.POINTINGANGLE_OMI = np.abs(self.state_info.state_info_obj.current['omi']['vza_uv2'])
-
-
-        if 'TROPOMI' in self.instruments:
-            geo_data.TROPOMI_ATRACK_INDEX = np.int16(infoFile['preferences']['TROPOMI_ATrack_Index'])
-            # EM NOTE - Because variable numbers of bands may be used in retrievals, will have to try each one
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND1 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND1'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND1 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND1'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND1 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND1 = -999.0
-
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND2 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND2'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND2 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND2'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND2 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND2 = -999.0
-
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND3 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND3'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND3 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND3'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND3 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND3 = -999.0
-
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND7 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND7'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND7 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND7'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND7 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND7 = -999.0
-
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND4 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND4'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND4 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND4'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND4 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND4 = -999.0
-
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND5 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND5'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND5 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND5'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND5 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND5 = -999.0
-
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND6 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND6'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND6 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND6'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND6 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND6 = -999.0
-
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND7 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND7'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND7 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND7'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND7 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND7 = -999.0
-
-            try:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND8 = np.int16(infoFile['preferences']['TROPOMI_XTrack_Index_BAND8'])
-                geo_data.POINTINGANGLE_TROPOMI_BAND8 = np.abs(self.state_info.state_info_obj.current['tropomi']['vza_BAND8'])
-            except:
-                geo_data.TROPOMI_XTRACK_INDEX_BAND8 = np.int16(-999)
-                geo_data.POINTINGANGLE_TROPOMI_BAND8 = -999.0
-
-
-        # AT_LINE 504 src_ms-2018-12-10/write_products_one.pro
-        if 'CRIS' in self.instruments:
-            geo_data.CRIS_GRANULE = np.int16(infoFile['preferences']['CRIS_Granule'])
-            geo_data.CRIS_ATRACK_INDEX = np.int16(infoFile['preferences']['CRIS_ATrack_Index'])
-            geo_data.CRIS_XTRACK_INDEX = np.int16(infoFile['preferences']['CRIS_XTrack_Index'])
-            geo_data.CRIS_PIXEL_INDEX = np.int16(infoFile['preferences']['CRIS_Pixel_Index'])
-            geo_data.POINTINGANGLE_CRIS = abs(stateOne.cris['scanAng'])
-
-            # track instrument and resolution for cris
-            mydict = {'suomi_nasa_nsr':0, 'suomi_nasa_fsr':1, 'suomi_nasa_nomw':2,
-                'jpss1_nasa_fsr':3, 'suomi_cspp_fsr':4, 'jpss1_cspp_fsr':5, 'jpss2_cspp_fsr':6}
-            geo_data.CRIS_L1B_TYPE = np.int16(mydict[self.state_info.state_info_obj.current['cris']['l1bType']])
-
-        # AT_LINE 554 write_products_one.pro (from idl-retrieve 1.12, not 1.3)
-
-        # should do fresh water too
-        if self.state_info.state_info_obj.current['surfaceType'].upper() == 'OCEAN':
-            geo_data.SURFACETYPEFOOTPRINT = np.int32(2)
-            geo_data.LANDFLAG = np.int32(0)
-        else:
-            geo_data.SURFACETYPEFOOTPRINT = np.int32(3)
-            geo_data.LANDFLAG = np.int32(1)
-
-        # get surface type using hres database
-        if self.retrievalInfo.retrieval_info_obj.surfaceType == 'OCEAN':
-            geo_data.LANDFLAG = np.int32(0)
-            geo_data.SURFACETYPEFOOTPRINT = np.int32(2)
-
-            # Not sure how to translate this: IF min(ABS(state.current.heightKm)) GT 0.1 THEN geo_data.surfaceTypeFootprint = 1
-            if np.amin(np.abs(self.state_info.state_info_obj.current['heightKm'])) > 0.1:
-                geo_data.SURFACETYPEFOOTPRINT = 1
-        # end if self.retrievalInfo.retrieval_info_obj.surfaceType == 'OCEAN':
-
-        geo_data.LATITUDE = self.state_info.state_info_obj.current['latitude']
-        geo_data.LONGITUDE = self.state_info.state_info_obj.current['longitude']
-
-        ancillary_data.ORBITASCENDINGFLAG = self.state_info.state_info_obj.current['tes']['orbitAscending']
-
-        # AT_LINE 499 write_products_one.pro
-        # discriminate day or night
-        # approximate time using longitude to adjust
-
-        # there was a domain error near the dateline.  SSK 6/2023
-        hour = timestruct['hour'] + geo_data.LONGITUDE / 180. * 12
-        if hour < 0:
-            hour += 24
-        if hour > 24:
-            hour -= 24
-
-        if (hour >= 8 and hour <= 22):
-            geo_data.DAYNIGHTFLAG = np.int16(1)
-
-        if (hour <= 5 or hour >= 22):
-            geo_data.DAYNIGHTFLAG = np.int16(0)
-
-        # if sza defined, then use this for daynight, update 12/2017, DF, SSK
-        if 'omi_sza_uv2' in species_data.__dict__:
-            geo_data.DAYNIGHTFLAG = 0
-            if species_data.OMI_SZA_UV2 < 85:
-                geo_data.DAYNIGHTFLAG = np.int16(1)
-
-        # AT_LINE 536 write_products_one.pro
         ind = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'EMIS')
         if len(ind) > 0:
             # Create an array of indices so we can access i_results.Sx matrix.
             array_2d_indices = np.ix_(ind, ind)  # (64, 64)
-            ancillary_data.SURFACEEMISSERRORS = np.sqrt(mpy.get_diagonal(self.results.Sx[array_2d_indices]))
+            species_data.EMISSIVITY_ERROR = np.sqrt(mpy.get_diagonal(self.results.Sx[array_2d_indices]))
 
         nx = self.state_info.state_info_obj.emisPars['num_frequencies']
         if nx > 0:
-            ancillary_data.SURFACEEMISSINITIAL = self.state_info.state_info_obj.initialInitial['emissivity'][0:nx]
-            ancillary_data.SURFACEEMISSIVITY = self.state_info.state_info_obj.current['emissivity'][0:nx]
-            ancillary_data.EMISSIVITY_WAVENUMBER = self.state_info.state_info_obj.emisPars['frequency'][0:nx]
-
-            # add emissivity to products files
             species_data.EMISSIVITY_CONSTRAINT = self.state_info.state_info_obj.constraint['emissivity'][0:nx]
-            species_data.EMISSIVITY_ERROR = ancillary_data.SURFACEEMISSERRORS
-            species_data.EMISSIVITY_INITIAL = ancillary_data.SURFACEEMISSINITIAL
-            species_data.EMISSIVITY = ancillary_data.SURFACEEMISSIVITY
-            species_data.EMISSIVITY_WAVENUMBER = ancillary_data.EMISSIVITY_WAVENUMBER
+            species_data.EMISSIVITY_INITIAL = self.state_info.state_info_obj.initialInitial['emissivity'][0:nx]
+            species_data.EMISSIVITY = self.state_info.state_info_obj.current['emissivity'][0:nx]
+            species_data.EMISSIVITY_WAVENUMBER = self.state_info.state_info_obj.emisPars['frequency'][0:nx]
             if 'native_emissivity' in self.state_info.state_info_obj.initialInitial:
                 species_data.NATIVE_HSR_EMISSIVITY_INITIAL = self.state_info.state_info_obj.initialInitial['native_emissivity']
                 species_data.NATIVE_HSR_EMIS_WAVENUMBER = self.state_info.state_info_obj.initialInitial['native_emis_wavenumber']
@@ -1091,28 +745,28 @@ class RetrievalL2Output(RetrievalOutput):
                 species_data.N2O_DOFS = np.sum(mpy.get_diagonal(self.results.A[ind1FMN2O:ind2FMN2O+1, ind1FMN2O:ind2FMN2O+1]))
 
                 FM_Flag = True
-                species_data.N2O_SPECIES[indConv] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'N2O', FM_Flag)
+                species_data.N2O_SPECIES[pslice] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'N2O', FM_Flag)
 
                 INITIAL_Flag = True
-                species_data.N2O_CONSTRAINTVECTOR[indConv] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'N2O', FM_Flag, INITIAL_Flag)
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'N2O', FM_Flag, INITIAL_Flag)
             else:
                 # N2O not retrieved... use values from initial guess
                 logger.warning("code has not been tested for N2O not retrieved.")
                 indn2o = utilList.WhereEqualIndices(self.state_info.state_info_obj.species, 'N2O')
                 value = self.state_info.state_info_obj.initial['values'][indn2o, :]
-                species_data.N2O_SPECIES[indConv] = copy.deepcopy(value)
-                species_data.N2O_CONSTRAINTVECTOR[indConv] = copy.deepcopy(value)
+                species_data.N2O_SPECIES[pslice] = copy.deepcopy(value)
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = copy.deepcopy(value)
 
             # correct ch4 from n2o
             species_data.ORIGINAL_SPECIES = copy.deepcopy(species_data.SPECIES)
 
             # AT_LINE 649 write_products_one.pro
             # AT_LINE 699 src_ms-2018-12-10/write_products_one.pro
-            n2o = species_data.N2O_SPECIES[indConv]
-            n2o_xa = species_data.N2O_CONSTRAINTVECTOR[indConv]
-            ch4 = species_data.SPECIES[indConv]
+            n2o = species_data.N2O_SPECIES[pslice]
+            n2o_xa = species_data.N2O_CONSTRAINTVECTOR[pslice]
+            ch4 = species_data.SPECIES[pslice]
 
-            species_data.SPECIES[indConv] = np.exp(np.log(ch4) + np.log(n2o_xa) - np.log(n2o))
+            species_data.SPECIES[pslice] = np.exp(np.log(ch4) + np.log(n2o_xa) - np.log(n2o))
 
             # track ev's used
             # AT_LINE 657 write_products_one.pro
@@ -1131,10 +785,10 @@ class RetrievalL2Output(RetrievalOutput):
             ind2FMTATM = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecieTATM]
 
             FM_Flag = True
-            species_data.TATM_SPECIES[indConv] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'TATM', FM_Flag)
+            species_data.TATM_SPECIES[pslice] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'TATM', FM_Flag)
 
             INITIAL_Flag = True
-            species_data.TATM_CONSTRAINTVECTOR[indConv] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'TATM', FM_Flag, INITIAL_Flag)
+            species_data.TATM_CONSTRAINTVECTOR[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'TATM', FM_Flag, INITIAL_Flag)
 
             # AT_LINE 725 src_ms-2018-12-10/write_products_one.pro
 
@@ -1146,51 +800,25 @@ class RetrievalL2Output(RetrievalOutput):
             ind1FMH2O = self.retrievalInfo.retrieval_info_obj.parameterStartFM[ispecieH2O]
             ind2FMH2O = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecieH2O]
 
-            species_data.H2O_SPECIES[indConv] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag)
-            species_data.H2O_CONSTRAINTVECTOR[indConv] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag, INITIAL_Flag)
+            species_data.H2O_SPECIES[pslice] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag)
+            species_data.H2O_CONSTRAINTVECTOR[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag, INITIAL_Flag)
 
             indp = np.where(species_data.TATM_SPECIES > 0)[0]
             maxx = np.amax(np.abs(species_data.TATM_SPECIES[indp] - species_data.TATM_CONSTRAINTVECTOR[indp]))
             species_data.TATM_DEVIATION = maxx # maximum deviation from prior
         # end if species_name == 'CH4' and 'TATM' in self.retrievalInfo.retrieval_info_obj.species:
 
-        # AT_LINE 682 write_products_one.pro
-
-        # convert species_data lists to arrays
-        mydata_as_dict = species_data.__dict__
-        my_keys = list(mydata_as_dict.keys())
-
-        for xx in range(0, len(my_keys)):
-            if isinstance(mydata_as_dict[my_keys[xx]], list):
-                mydata_as_dict[my_keys[xx]] = np.asarray(mydata_as_dict[my_keys[xx]])
-
-        # convert geo_data lists to arrays
-        mydata_as_dict = geo_data.__dict__
-        my_keys = list(mydata_as_dict.keys())
-
-        for xx in range(0, len(my_keys)):
-            if isinstance(mydata_as_dict[my_keys[xx]], list):
-                mydata_as_dict[my_keys[xx]] = np.asarray(mydata_as_dict[my_keys[xx]])
-
-        # print(function_name, "Writing: ", netcdf_filename)
-
+        species_data = species_data.__dict__
+        for k, v in species_data.items():
+            if isinstance(v, list):
+                species_data[k] = np.asarray(v)
+                
         #######
         # write with lite format using cdf_write_tes
 
-        # need to combine species_data and geo_data into one dictionary
-        # NOTE: No ancillary_data. Do we need that?
-        # o_data = struct_combine(species_data.__dict__, geo_data.__dict__)
-
-        # same as struct_combine
-        o_data = vars(species_data)
-        data2 = vars(geo_data)
-        o_data.update(data2)
-
-        # then can immediately use cdf_write_tes
+        o_data = species_data
+        o_data.update(self.generate_geo_data(species_data))
         mpy.cdf_write_tes(o_data, self.out_fname, runtimeAttributes=runtime_attributes)
-
-        # AT_LINE 684 write_products_one.pro
-
         return o_data
 
 __all__ = ["RetrievalL2Output", ] 
