@@ -487,28 +487,12 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TROPOMI_TEMPSHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND7']
 
         
-        # AT_LINE 268 write_products_one.pro
-        # get results... first how many pressures?
-
-        # get species results
-        FM_Flag = True
-
-        # IDL_NOTE: FLTARR(67, 1) is the same as FLTARR(67)
-        # PYTHON_NOTE: Because in Python, the 2nd dimension of 1 is explicit, we have to use it to refer on the left hand side as [indConv, 0].
-        species_data.SPECIES[pslice] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag)[:]
-
-        FM_Flag = True
-        INITIAL_Flag = True
-        species_data.INITIAL[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.initialGuessList, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag, INITIAL_Flag)[:]
-
-        FM_Flag = True
-        INITIAL_Flag = True
-        species_data.CONSTRAINTVECTOR[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, self.spcname, FM_Flag, INITIAL_Flag)[:]
-
-        species_data.PRESSURE[pslice] = self.state_info.state_info_obj.current['pressure'][:]
-
-        # AT_LINE 281 write_products_one.pro
-        species_data.CLOUDTOPPRESSURE = self.state_info.state_info_obj.current['PCLOUD'][0]
+        species_data.SPECIES[pslice] = self.retrievalInfo.species_results(self.results, self.spcname)
+        species_data.INITIAL[pslice] = self.retrievalInfo.species_initial(self.spcname)
+        species_data.CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint(self.spcname)
+        species_data.PRESSURE[pslice] = self.state_info.pressure
+        species_data.CLOUDTOPPRESSURE = self.state_info.species_state("PCLOUD").value[0]
+        
         utilList = mpy.UtilList()
         indx = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'PCLOUD')
         if len(indx) > 0:
@@ -688,15 +672,19 @@ class RetrievalL2Output(RetrievalOutput):
 
             # add H2O constraint and result
             species_data.H2O_CONSTRAINTVECTOR = copy.deepcopy(vector_of_fills)
-            species_data.H2O_CONSTRAINTVECTOR[indp] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag)
+            species_data.H2O_CONSTRAINTVECTOR[indp] = self.retrievalInfo.species_constraint("H2O")
 
             species_data.H2O_SPECIES = copy.deepcopy(vector_of_fills)
-            species_data.H2O_SPECIES[indp] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag)
+            species_data.H2O_SPECIES[indp] = self.retrievalInfo.species_results(self.results, "H2O")
 
             species_data.H2O_INITIAL = copy.deepcopy(vector_of_fills)
 
-            INITIAL_Flag = True
-            species_data.H2O_INITIAL[indp] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag, INITIAL_Flag)
+            # TODO
+            # This looks wrong to me. Although this is marked initial, it is getting
+            # this from the results. It is possible this is correct, perhaps this
+            # the value used for the HDO? We should double check this. But this
+            # is what the current muses-py code does
+            species_data.H2O_INITIAL[indp] = self.retrievalInfo.species_results(self.results, "H2O", INITIAL_Flag=True)
         # end if self.spcname == 'HDO':
 
 
@@ -744,11 +732,8 @@ class RetrievalL2Output(RetrievalOutput):
                 species_data.N2O_DOFS = 0.0
                 species_data.N2O_DOFS = np.sum(mpy.get_diagonal(self.results.A[ind1FMN2O:ind2FMN2O+1, ind1FMN2O:ind2FMN2O+1]))
 
-                FM_Flag = True
-                species_data.N2O_SPECIES[pslice] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'N2O', FM_Flag)
-
-                INITIAL_Flag = True
-                species_data.N2O_CONSTRAINTVECTOR[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'N2O', FM_Flag, INITIAL_Flag)
+                species_data.N2O_SPECIES[pslice] = self.retrievalInfo.species_results(self.results, 'N2O')
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint('N2O')
             else:
                 # N2O not retrieved... use values from initial guess
                 logger.warning("code has not been tested for N2O not retrieved.")
@@ -784,11 +769,8 @@ class RetrievalL2Output(RetrievalOutput):
             ind1FMTATM = self.retrievalInfo.retrieval_info_obj.parameterStartFM[ispecieTATM]
             ind2FMTATM = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecieTATM]
 
-            FM_Flag = True
-            species_data.TATM_SPECIES[pslice] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'TATM', FM_Flag)
-
-            INITIAL_Flag = True
-            species_data.TATM_CONSTRAINTVECTOR[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'TATM', FM_Flag, INITIAL_Flag)
+            species_data.TATM_SPECIES[pslice] = self.retrievalInfo.species_results(self.results, "TATM")
+            species_data.TATM_CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint("TATM")
 
             # AT_LINE 725 src_ms-2018-12-10/write_products_one.pro
 
@@ -800,8 +782,8 @@ class RetrievalL2Output(RetrievalOutput):
             ind1FMH2O = self.retrievalInfo.retrieval_info_obj.parameterStartFM[ispecieH2O]
             ind2FMH2O = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecieH2O]
 
-            species_data.H2O_SPECIES[pslice] = mpy.get_vector(self.results.resultsList, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag)
-            species_data.H2O_CONSTRAINTVECTOR[pslice] = mpy.get_vector(self.retrievalInfo.retrieval_info_obj.constraintVector, self.retrievalInfo.retrieval_info_obj, 'H2O', FM_Flag, INITIAL_Flag)
+            species_data.H2O_SPECIES[pslice] = self.retrievalInfo.species_results(self.results, "H2O")
+            species_data.H2O_CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint("H2O")
 
             indp = np.where(species_data.TATM_SPECIES > 0)[0]
             maxx = np.amax(np.abs(species_data.TATM_SPECIES[indp] - species_data.TATM_CONSTRAINTVECTOR[indp]))

@@ -455,7 +455,7 @@ class RefractorStateInfo:
             return EmissivityState(self, step=step)
         if(name == "cloudEffExt"):
             return CloudState(self, step=step)
-        if(name in ("PCLOUD", "PSUR")):
+        if(name in ("PCLOUD", "PSUR", "TSUR")):
             return SpeciesOrParametersState(name, self.state_info_dict[step][name])
         if(name in self.species_on_levels):
             return SpeciesOnLevels(self, name, step=step)

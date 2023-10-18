@@ -30,6 +30,23 @@ class RefractorRetrievalInfo:
         return self.retrieval_dict["initialGuessList"]
 
     @property
+    def constraintVector(self):
+        '''This is the initial guess for the state vector (not the full state)'''
+        return self.retrieval_dict["constraintVector"]
+
+    def species_results(self, results, spcname, FM_Flag=True, INITIAL_Flag=False):
+        return mpy.get_vector(results.resultsList, self.retrieval_info_obj, spcname,
+                              FM_Flag, INITIAL_Flag)
+
+    def species_initial(self, spcname, FM_Flag=True):
+        return mpy.get_vector(self.initialGuessList, self.retrieval_info_obj,
+                              spcname, FM_Flag, True)
+
+    def species_constraint(self, spcname, FM_Flag=True):
+        return mpy.get_vector(self.constraintVector, self.retrieval_info_obj,
+                              spcname, FM_Flag, True)
+
+    @property
     def initialGuessListFM(self):
         '''This is the initial guess for the FM state vector'''
         return self.retrieval_dict["initialGuessListFM"]
