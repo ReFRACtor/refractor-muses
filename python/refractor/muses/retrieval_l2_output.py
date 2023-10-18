@@ -4,7 +4,7 @@ import refractor.muses.muses_py as mpy
 import os
 from collections import defaultdict
 import copy
-from .retrieval_output import RetrievalOutput
+from .retrieval_output import RetrievalOutput, CdfWriteTes
 import numpy as np
 
 logger = logging.getLogger("py-retrieve")
@@ -116,22 +116,24 @@ class RetrievalL2Output(RetrievalOutput):
                 liteDirectory = '../OSP/Lite/'
                 # Code assumes we are in rundir
                 with self.retrieval_strategy.chdir_run_dir():
-                    mpy.make_lite_casper_script_retrieval(self.table_step,
-                                  self.out_fname, self.quality_name, self.instruments,
-                                  liteDirectory, dataInfo, self.dataTATM, "RH",
-                                  step=self.species_count[self.spcname],
-                                  times_species_retrieved=self.species_count[self.spcname])
+                    t = CdfWriteTes()
+                    t.write_lite(self.table_step,
+                                 self.out_fname, self.quality_name, self.instruments,
+                                 liteDirectory, dataInfo, self.dataTATM, "RH",
+                                 step=self.species_count[self.spcname],
+                                 times_species_retrieved=self.species_count[self.spcname])
                 
         self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
         if 'OCO2' not in self.instruments:
             liteDirectory = '../OSP/Lite/'
             # Code assumes we are in rundir
             with self.retrieval_strategy.chdir_run_dir():
-                data2 = mpy.make_lite_casper_script_retrieval(self.table_step,
-                                  self.out_fname, self.quality_name, self.instruments,
-                                  liteDirectory, dataInfo, data2, self.spcname,
-                                  step=self.species_count[self.spcname],
-                                  times_species_retrieved=self.species_count[self.spcname])
+                t = CdfWriteTes()
+                data2 = t.write_lite(
+                    self.table_step, self.out_fname, self.quality_name,
+                    self.instruments, liteDirectory, dataInfo, data2, self.spcname,
+                    step=self.species_count[self.spcname],
+                    times_species_retrieved=self.species_count[self.spcname])
 
     def generate_geo_data(self, species_data):
         '''Generate the geo_data, pulled out just to keep write_l2 from getting
@@ -486,7 +488,8 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TROPOMI_TEMPSHIFTBAND3 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND3']
             species_data.TROPOMI_TEMPSHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND7']
 
-        
+
+        #species_data.TROPOMI_EOF1 = 1.0
         species_data.SPECIES[pslice] = self.retrievalInfo.species_results(self.results, self.spcname)
         species_data.INITIAL[pslice] = self.retrievalInfo.species_initial(self.spcname)
         species_data.CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint(self.spcname)
@@ -550,8 +553,6 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.RETRIEVEINLOG = np.int32(0)
         else:
             species_data.RETRIEVEINLOG = np.int32(1)
-
-        utilMath = mpy.UtilMath()
 
         # AT_LINE 342 write_products_one.pro
         species_data.DOFS = np.sum(mpy.get_diagonal(self.results.A[ind1FM: ind2FM+1, ind1FM: ind2FM+1]))
@@ -800,7 +801,9 @@ class RetrievalL2Output(RetrievalOutput):
 
         o_data = species_data
         o_data.update(self.generate_geo_data(species_data))
-        mpy.cdf_write_tes(o_data, self.out_fname, runtimeAttributes=runtime_attributes)
+        t = CdfWriteTes()
+        t.write(o_data, self.out_fname, runtimeAttributes=runtime_attributes)
+        
         return o_data
 
 __all__ = ["RetrievalL2Output", ] 

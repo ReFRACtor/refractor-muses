@@ -42,6 +42,10 @@ if(have_muses_py):
     from py_retrieve.app.optimization.optimization import *
     from py_retrieve.app.optimization.lib import *
     from py_retrieve.app.refractor.replace_function import *
+    from py_retrieve.app.tools.cdf_var_add_strings import *
+    from py_retrieve.app.tools.cdf_var_attributes import *
+    from py_retrieve.app.tools.cdf_var_names import *
+    from py_retrieve.app.tools.cdf_var_map import *
     
 del _broken
 del _i

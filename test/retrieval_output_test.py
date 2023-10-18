@@ -42,7 +42,7 @@ def test_retrieval_jacobian_output(isolated_dir, vlidort_cli, osp_dir, gmao_dir)
 def test_retrieval_l2_output(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     do_cris=True
     if do_cris:
-        step_number = 2
+        step_number = 12
         r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
         pname = f"/home/smyth/Local/refractor-muses/retrieval_strategy_cris_tropomi/20190807_065_04_08_5/retrieval_step_{step_number}.pkl"
     else:
