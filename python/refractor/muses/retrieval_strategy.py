@@ -137,18 +137,22 @@ class RetrievalStrategy:
     def retrieval_ms_body(self):
         start_date = time.strftime("%c")
         start_time = time.time()
-        # Might be good to wrap these in classes
-        (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
-         self.state_info) = mpy.script_retrieval_setup_ms(self.strategy_table.strategy_table_dict, False)
+
+        # This is a bit convoluted. We are trying to get away from having the various
+        # items like o_cris here, pushing that down to the Observation classes. But
+        # we don't have this untangled yet. So get the radiance data from FmObsCreator,
+        # which as the side effect of creating a o_cris. We grab this. This is
+        # clumsy, and we should replace this. But right now we need o_cris for our
+        # create_windows function.
+        self.instruments_all = mpy.get_unique_windows(
+            mpy.new_mw_from_table_all_steps(self.strategy_table.strategy_table_dict))
+        self.fm_obs_creator.create_o_obs()
+        self.o_cris = self.fm_obs_creator.o_cris
+        
         self.create_windows(all_step=True)
-        # Instruments is normally the instruments for a particular retrieval step.
-        # But because of the "all_step" at this point it is all in the instruments
-        # in all steps. Grab a copy of this so we have the full list.
-        self.instruments_all = copy.deepcopy(self.instruments)
-        self.state_info = RefractorStateInfo(self.state_info, self.run_dir)
-        self.state_info.state_info_dict = mpy.states_initial_update(
-            self.state_info.state_info_dict, self.strategy_table.strategy_table_dict,
-            self.fm_obs_creator.radiance(), self.instruments)
+        self.state_info = RefractorStateInfo(
+            self.strategy_table, self.fm_obs_creator,
+            self.instruments_all, self.run_dir)
         self.notify_update("initial set up done")
 
         self.errorInitial = None

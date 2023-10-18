@@ -168,10 +168,18 @@ class FmObsCreator:
         self.o_tropomi = None
         self.o_tes = None
         self.o_oco2 = None
+        self._created_o = False
         self._radiance = None
         self.rs = rs
 
-    def _read_rad(self):
+    def create_o_obs(self):
+        if(self._created_o):
+            return
+        (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
+         _) = mpy.script_retrieval_setup_ms(self.rs.strategy_table.strategy_table_dict, False)
+        self._created_o = True
+        
+    def _read_rad(self, state_info, instruments_all):
         '''This is a placeholder, we want to get this stuff pushed down into
         the handle for each instrument, probably into the various Observable classes.
         But for now we have this centralized so we can call the existing muses-py code.
@@ -179,23 +187,22 @@ class FmObsCreator:
         if(self._radiance is not None):
             return
         with self.rs.chdir_run_dir():
-            (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
-             _) = mpy.script_retrieval_setup_ms(self.rs.strategy_table.strategy_table_dict, False)
-            self._create_radiance()
+            self.create_o_obs()
+            self._create_radiance(state_info, instruments_all)
 
-    def _create_radiance(self):
+    def _create_radiance(self, state_info, instruments_all):
         '''Read the radiance data. We can  perhaps move this into a Observation class
         by instrument.
 
         Note that this also creates the magic files Radiance_OMI_.pkl and
         Radiance_TROPOMI_.pkl. It would be nice if can rework that.
         '''
-        logger.info(f"Instruments: {len(self.rs.instruments_all)} {self.rs.instruments_all}")
+        logger.info(f"Instruments: {len(instruments_all)} {instruments_all}")
         obsrad = None
-        for instrument_name in self.rs.instruments_all:
+        for instrument_name in instruments_all:
             logger.info(f"Reading radiance: {instrument_name}")
             if instrument_name == 'OMI':
-                result = mpy.get_omi_radiance(self.rs.state_info.state_info_dict['current']['omi'], copy.deepcopy(self.o_omi))
+                result = mpy.get_omi_radiance(state_info.state_info_dict['current']['omi'], copy.deepcopy(self.o_omi))
                 radiance = result['normalized_rad']
                 nesr = result['nesr']
                 my_filter = result['filter']
@@ -204,7 +211,7 @@ class FmObsCreator:
                 os.makedirs(os.path.dirname(fname), exist_ok=True)
                 pickle.dump(self.o_omi, open(fname, "wb"))
             if instrument_name == 'TROPOMI':
-                result = mpy.get_tropomi_radiance(self.rs.state_info.state_info_dict['current']['tropomi'], copy.deepcopy(self.o_tropomi))
+                result = mpy.get_tropomi_radiance(state_info.state_info_dict['current']['tropomi'], copy.deepcopy(self.o_tropomi))
 
                 radiance = result['normalized_rad']
                 nesr = result['nesr']
@@ -245,7 +252,7 @@ class FmObsCreator:
                 obsrad = mpy.radiance_add_filter(obsrad, radiance, nesr, [-1], frequency, my_filter, instrument_name)
         self._radiance = obsrad
 
-    def radiance(self):
+    def radiance(self, state_info, instruments_all):
         '''I'm not 100% sure if this can go way or not, but state_initial_update
         depends on the radiance. For now, allow access to this.
 
@@ -254,13 +261,13 @@ class FmObsCreator:
         used in creating our RetrievalState. For now, just allow access this so
         we can push this out of RetrievalStrategy even if we shuffle around where
         this comes from.'''
-        self._read_rad()
+        self._read_rad(state_info, instruments_all)
         return self._radiance
 
     def _create_radiance_step(self):
         # Note, I think we might replace this just with our SpectralWindow stuff,
         # along with an Observation class
-        self._read_rad()
+        self._read_rad(self.rs.state_info, self.rs.instruments_all)
         radianceStepIn = self._radiance
         radianceStepIn = mpy.radiance_set_windows(radianceStepIn, self.rs.windows)
 

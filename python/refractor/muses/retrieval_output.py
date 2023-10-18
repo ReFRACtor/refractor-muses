@@ -91,7 +91,7 @@ class RetrievalOutput:
 
     @property
     def radiance_full(self):
-        return self.retrieval_strategy.fm_obs_creator.radiance()
+        return self.retrieval_strategy.fm_obs_creator.radiance(self.retrieval_strategy.state_info, self.retrieval_strategy.instruments_all)
     
     @property
     def radianceStep(self):

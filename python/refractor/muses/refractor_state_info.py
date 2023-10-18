@@ -384,8 +384,14 @@ class RefractorStateInfo:
     write_products_one_radiance
     write_products_one
     '''
-    def __init__(self, state_info_dict, run_dir):
-        self.state_info_dict = state_info_dict
+    def __init__(self, strategy_table : 'StrategyTable',
+                 fm_obs_creator : 'FmObsCreator', instruments_all, run_dir : str):
+        (_, _, _, _, _, _,
+         self.state_info_dict) = mpy.script_retrieval_setup_ms(strategy_table.strategy_table_dict, False)
+        self.state_info_dict = mpy.states_initial_update(
+            self.state_info_dict, strategy_table.strategy_table_dict,
+            fm_obs_creator.radiance(self, instruments_all), instruments_all)
+
         # Read some metadata that isn't already available
         tai_time = mpy.tes_file_get_preference(
             mpy.read_all_tes(f"{run_dir}/DateTime.asc")[1], "TAI_Time_of_ZPD")
