@@ -26,7 +26,7 @@ logger = logging.getLogger("py-retrieve")
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
-class RetrievalStrategy:
+class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
     '''This is an attempt to make the muses-py script_retrieval_ms
     more like our JointRetrieval stuff (pretty dated, but
     https://github.jpl.nasa.gov/refractor/joint_retrieval)
@@ -90,6 +90,24 @@ class RetrievalStrategy:
                 self.add_observer(RetrievalPlotResult())
                 self.add_observer(RetrievalPlotRadiance())
 
+    def register_with_muses_py(self):
+        '''Register run_ms as a replacement for script_retrieval_ms'''
+        mpy.register_replacement_function("script_retrieval_ms", self)
+
+    def should_replace_function(self, func_name, parms):
+        return True
+
+    def replace_function(self, func_name, parms):
+        if(func_name == "script_retrieval_ms"):
+            return self.script_retrieval_ms(**parms)
+
+    def script_retrieval_ms(self, filename, writeOutput=False, writePlots=False,
+                            debug=False, update_product_format=False):
+        # Ignore arguments. We can clean this up if needed, perhaps delay the
+        # initialization or something. But for now, just assume this is
+        # "./Table.asc"
+        return self.retrieval_ms()
+    
     @property
     def run_dir(self):
         return self.capture_directory.rundir
