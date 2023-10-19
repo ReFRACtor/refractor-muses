@@ -447,6 +447,18 @@ class RefractorStateInfo:
         return self.state_info_dict["species"]
 
     @property
+    def nh3type(self):
+        return self.state_info_dict["nh3type"]
+
+    @property
+    def hcoohtype(self):
+        return self.state_info_dict["hcoohtype"]
+
+    @property
+    def ch3ohtype(self):
+        return self.state_info_dict["ch3ohtype"]
+    
+    @property
     def pressure(self):
         # The pressure is kind of like a SpeciesOnLevels, but it is a bit of a special
         # case. This is needed to interpret the rest of the data.

@@ -205,7 +205,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         mpy.set_retrieval_results_derived(self.results, rs.radianceStep,
                                           self.propagatedTATMQA, self.propagatedO3QA,
                                           self.propagatedH2OQA)
-        self.error_analysis(rs)
+        self.results = rs.error_analysis.error_analysis(rs, self.results)
         self.update_retrieval_summary(rs)
         # The solver can't be pickled, because a few pieces of the cost function
         # can't be pickled. We could sort that out if it becomes an issue, but for
@@ -219,24 +219,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         
         return (True, None)
 
-
-    def error_analysis(self, rs):
-        # Doesn't seem to be used for anything, but we need to pass in. I think
-        # this might have been something that was used in the past?
-        radianceNoise = {"radiance" : np.zeros_like(rs.radianceStep["radiance"]) }
-        (self.results, rs.errorCurrent) = mpy.error_analysis_wrapper(
-            rs.table_step,
-            rs.strategy_table.analysis_directory,
-            rs.radianceStep,
-            radianceNoise,
-            rs.retrievalInfo.retrieval_info_obj,
-            rs.state_info.state_info_obj,
-            rs.errorInitial,
-            rs.errorCurrent,
-            rs.windows,
-            self.results
-            )
-
     def update_retrieval_summary(self, rs):
         '''Calculate various summary statistics for retrieval'''
         self.results = mpy.write_retrieval_summary(
@@ -249,9 +231,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             rs.press_list,
             rs.quality_name, 
             rs.table_step, 
-            rs.errorCurrent, 
+            rs.error_analysis.error_current, 
             writeOutputFlag=False, 
-            errorInitial=rs.errorInitial
+            errorInitial=rs.error_analysis.error_initial
         )
         if 'TATM' in rs.retrievalInfo.species_names:
             self.propagatedTATMQA = self.results.masterQuality

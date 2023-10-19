@@ -52,7 +52,7 @@ class RetrievalOutput:
 
     @property
     def errorCurrent(self):
-        return self.retrieval_strategy.errorCurrent
+        return self.retrieval_strategy.error_analysis.error_current
     
     @property
     def special_tag(self):

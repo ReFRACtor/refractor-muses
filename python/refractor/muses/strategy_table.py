@@ -88,6 +88,14 @@ class StrategyTable:
     def output_directory(self):
         return self.abs_filename(self.strategy_table_dict["outputDirectory"])
 
+    @property
+    def error_species(self):
+        return self.strategy_table_dict["errorSpecies"]
+
+    @property
+    def error_map_type(self):
+        return self.strategy_table_dict["errorMaptype"]
+    
     def table_entry(self, nm, stp=None):
         return mpy.table_get_entry(self.strategy_table_dict,
                                    stp if stp is not None else self.table_step, nm)

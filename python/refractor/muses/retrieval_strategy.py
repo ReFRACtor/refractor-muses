@@ -10,6 +10,7 @@ from .strategy_table import StrategyTable
 from .fm_obs_creator import FmObsCreator
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
+from .error_analysis import ErrorAnalysis
 import logging
 import refractor.muses.muses_py as mpy
 import os
@@ -173,8 +174,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             self.instruments_all, self.run_dir)
         self.notify_update("initial set up done")
 
-        self.errorInitial = None
-        self.errorCurrent = None
+        self.error_analysis = ErrorAnalysis(self.strategy_table, self.state_info)
         self.retrievalInfo = None
         
         # Go through all the steps once, to make sure we can get all the information
@@ -288,10 +288,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     def get_initial_guess(self):
         '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
-        (self.retrievalInfo, self.errorInitial, self.errorCurrent) = \
+        (self.retrievalInfo, _, _) = \
             mpy.get_species_information(self.strategy_table.strategy_table_dict,
                                         self.state_info.state_info_obj,
-                                        self.errorInitial, self.errorCurrent)
+                                        None, None)
         
         #self.retrievalInfo = mpy.ObjectView.as_object(self.retrievalInfo)
         self.retrievalInfo = RefractorRetrievalInfo(self.retrievalInfo.__dict__)

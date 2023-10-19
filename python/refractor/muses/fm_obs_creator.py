@@ -294,7 +294,7 @@ class FmObsCreator:
                 'n_species': retrieval_info.n_speciesSys,
                 'speciesList': retrieval_info.speciesListSys,
                 'speciesListFM': retrieval_info.speciesListSys,
-                'mapTypeListFM': mpy.constraint_get_maptype(self.rs.errorCurrent, retrieval_info.speciesListSys),
+                'mapTypeListFM': mpy.constraint_get_maptype(self.rs.error_analysis.error_current, retrieval_info.speciesListSys),
                 'initialGuessListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
                 'constraintVectorListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
                 'initialGuessList': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
