@@ -471,7 +471,7 @@ class CdfWriteTes:
     def write_lite(self, stepNumber, filenameIn, qualityFilename, instrument,
                    liteDirectory, data1In, data2=None, species_name='', step=0,
                    times_species_retrieved=0):
-        '''This is a lightly editted version of make_lite_casper_script_retrieval,
+        '''This is a lightly edited version of make_lite_casper_script_retrieval,
         mainly we want this to call our cdf_write_tes so we can add new species in.'''
         data1 = copy.deepcopy(data1In)
 
@@ -503,12 +503,12 @@ class CdfWriteTes:
         useData = True
         dataAnc = copy.deepcopy(data1)
         (data, data2, pressuresMax) = mpy.make_one_lite(
-            stepNumber, species_name, runs, starttai, endtai, instrument,
+            species_name, runs, starttai, endtai, instrument,
             directory, pressuresMax,
             qualityFilename, liteDirectory,
             version, versionLite,
             useData, data1, data2, dataAnc,
-            step, times_species_retrieved
+            step
         )
         tracer = species_name
         retrieval_pressures = pressuresMax

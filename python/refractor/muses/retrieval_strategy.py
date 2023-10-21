@@ -163,8 +163,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # which as the side effect of creating a o_cris. We grab this. This is
         # clumsy, and we should replace this. But right now we need o_cris for our
         # create_windows function.
-        self.instruments_all = mpy.get_unique_windows(
-            mpy.new_mw_from_table_all_steps(self.strategy_table.strategy_table_dict))
+        self.instruments_all = mpy.mw_instruments(
+            mpy.table_new_mw_from_all_steps(self.strategy_table.strategy_table_dict))
         self.fm_obs_creator.create_o_obs()
         self.o_cris = self.fm_obs_creator.o_cris
         
@@ -254,11 +254,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # We should rework this a bit, it is just a string of magic code. Perhaps
         # we should have each instrument have a function for this?
         if(all_step):
-            self.windows = mpy.new_mw_from_table_all_steps(self.strategy_table.strategy_table_dict)
+            self.windows = mpy.table_new_mw_from_all_steps(self.strategy_table.strategy_table_dict)
         else:
-            self.windows = mpy.new_mw_from_table(self.strategy_table.strategy_table_dict, self.table_step)
+            self.windows = mpy.table_new_mw_from_step(self.strategy_table.strategy_table_dict, self.table_step)
             
-        self.instruments = mpy.get_unique_windows(self.windows)
+        self.instruments = mpy.mw_instruments(self.windows)
 
         # This magic adjustment should go somewhere else
         if 'CRIS' in self.instruments:
