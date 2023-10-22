@@ -29,7 +29,7 @@ class RefractorRetrievalInfo:
                  state_info : "RefractorStateInfo"):
         self.retrieval_dict = \
             self.init_data(error_analysis,
-                           strategy_table.strategy_table_dict,
+                           strategy_table,
                            state_info.state_info_dict)
         self.retrieval_dict = self.retrieval_dict.__dict__
 
@@ -181,7 +181,6 @@ class RefractorRetrievalInfo:
         found_tropomi_species_flag = False
 
         stateInfo = mpy.ObjectView(state_info)
-        i_table_struct = mpy.ObjectView(strategy_table)
 
         # true used for synthetic radiances only.  Here check if true has non-fill values.
         # the -999 (fill) messes up with log mapping, so only fill true if non-fill.
@@ -190,13 +189,8 @@ class RefractorRetrievalInfo:
         else:
             have_true = False
 
-        if isinstance(i_table_struct.preferences, dict):
-            preferences = mpy.ObjectView(i_table_struct.preferences)
-        else:
-            preferences = i_table_struct.preferences
-
         # AT_LINE 13 Get_Species_Information.pro
-        step = i_table_struct.step
+        step = strategy_table.table_step
         # this should be the current state
         pressure = stateInfo.current['pressure'][:]
         surfacePressure = stateInfo.current['pressure'][0]
@@ -204,10 +198,8 @@ class RefractorRetrievalInfo:
 
         # user specifies the number of forward model levels
         # AT_LINE 22 Get_Species_Information.pro
-        if int(preferences.num_FMLevels) > num_pressures:
-            i_table_struct.preferences['num_FMLevels'] = num_pressures
-        else:
-            pressure = pressure[0:int(preferences.num_FMLevels)]
+        if int(strategy_table.preferences["num_FMLevels"]) < num_pressures:
+            pressure = pressure[0:int(strategy_table.preferences["num_FMLevels"])]
 
         # Get it again to make sure we have the correct number.
         num_pressures = len(pressure)
@@ -217,7 +209,7 @@ class RefractorRetrievalInfo:
         #                                       constraints.
 
         # AT_LINE 32 Get_Species_Information.pro
-        num_errorSpecies = len(i_table_struct.errorSpecies)
+        num_errorSpecies = len(strategy_table.error_species)
         nn = num_pressures
 
         # get retrieval parameters, including a list of retrieved species,
@@ -287,7 +279,7 @@ class RefractorRetrievalInfo:
         # o_retrievalInfo OBJECT_TYPE dict
 
         # AT_LINE 83 Get_Species_Information.pro
-        o_retrievalInfo['type'] = mpy.table_get_entry(i_table_struct, step, "retrievalType")
+        o_retrievalInfo['type'] = strategy_table.retrieval_type
 
         o_retrievalInfo = mpy.ObjectView(o_retrievalInfo)  # Convert to object so we can use '.' to access member variables.
 
@@ -312,8 +304,6 @@ class RefractorRetrievalInfo:
         # map types for all species
         # now in strategy table
        
-        mpy.table_set_step(i_table_struct, step)
-
         # AT_LINE 121 Get_Species_Information.pro
 
         retrievalType = o_retrievalInfo.type.lower()
@@ -329,7 +319,7 @@ class RefractorRetrievalInfo:
 
             # order species stuff.  We also have to order everything that is associated with 
             # each species, e.g. mapType, initialGuessSource
-            result = mpy.table_get_unpacked_entry(i_table_struct, step, "retrievalElements")
+            result = strategy_table.retrieval_elements
 
             retrievalElementsArray = mpy.order_species(result)
 
@@ -356,12 +346,12 @@ class RefractorRetrievalInfo:
                 species_name = retrievalElementsArray[ii]
 
                 # Open, read species file
-                speciesInformationFilename = mpy.table_get_pref(i_table_struct, "speciesDirectory")  + os.path.sep + species_name + retrievalTypeStr + '.asc'
+                speciesInformationFilename = f"{strategy_table.species_directory}/{species_name}{retrievalTypeStr}.asc"
 
                 files = glob.glob(speciesInformationFilename)
                 if len(files) == 0:
                     # Look for alternate file.
-                    speciesInformationFilename = mpy.table_get_pref(i_table_struct, "speciesDirectory")  + os.path.sep + species_name + '.asc'
+                    speciesInformationFilename = f"{strategy_table.species_directory}/{species_name}.asc"
 
                 # AT_LINE 156 Get_Species_Information.pro
                 (_, fileID) = mpy.read_all_tes_cache(speciesInformationFilename)
@@ -1020,7 +1010,7 @@ class RefractorRetrievalInfo:
                      (species_name == 'CALSCALE') or (species_name == 'CALOFFSET'):
 
                     # IDL AT_LINE 243 Get_Species_Information:
-                    microwindows = mpy.table_new_mw_from_step(i_table_struct, step)
+                    microwindows = strategy_table.microwindows
 
                     # Select non-UV windows
                     ind = []
@@ -1130,7 +1120,7 @@ class RefractorRetrievalInfo:
                     if species_name == 'CLOUDEXT':
                         # get IGR frequency mode
                         # AT_LINE 308 Get_Species_Information.pro
-                        filename = mpy.table_get_pref(i_table_struct, "CloudParameterFilename")
+                        filename = strategy_table.cloud_parameters_filename
                         if not os.path.isfile(filename):
                             raise RuntimeError(f"File not found:  {filename}")
 
@@ -1142,7 +1132,7 @@ class RefractorRetrievalInfo:
                         # step type
                         # AT_LINE 318 Get_Species_Information.pro
                         frequencyIn = stateInfo.cloudPars['frequency'][0:int(stateInfo.cloudPars['num_frequencies'])]
-                        stepType = mpy.table_get_entry(i_table_struct, step, "retrievalType")
+                        stepType = strategy_table.retrieval_type
                         stepFMSelect = mpy.mw_frequency_needed(microwindows, frequencyIn, stepType, freqMode)
 
                         nn = len(stepFMSelect)
@@ -1379,7 +1369,7 @@ class RefractorRetrievalInfo:
                         trueParameterListFM = math.log(stateInfo.true['PCLOUD'][0])
 
                     # get constraint
-                    stepType = mpy.table_get_entry(i_table_struct, step, "retrievalType")
+                    stepType = strategy_table.retrieval_type
                     tag_names = mpy.idl_tag_names(speciesInformationFile)
                     if 'sSubaDiagonalValues' not in tag_names:
                         raise RuntimeError(f"Preference 'sSubaDiagonalValues' NOT found in file {speciesInformationFile.filename}")
@@ -1455,7 +1445,7 @@ class RefractorRetrievalInfo:
 
                     tag_names = mpy.idl_tag_names(speciesInformationFile)
                     upperTags = [x.upper() for x in tag_names]
-                    step_name = mpy.table_get_entry(i_table_struct, step, "stepName")
+                    step_name = strategy_table.step_name
                     full_step_label = ('sSubaDiagonalValues-'  + step_name).upper()
                     if full_step_label in upperTags:
                         sSubaDiagonalValues = np.asarray(speciesInformationFile[upperTags.index(full_step_label)])
@@ -1494,7 +1484,7 @@ class RefractorRetrievalInfo:
 
                     tag_names = mpy.idl_tag_names(speciesInformationFile)
                     upperTags = [x.upper() for x in tag_names]
-                    step_name = mpy.table_get_entry(i_table_struct, step, "stepName")
+                    step_name = strategy_table.step_name
                     full_step_label = ('sSubaDiagonalValues-'  + step_name).upper()
                     if full_step_label in upperTags:
                         sSubaDiagonalValues = np.asarray(speciesInformationFile[upperTags.index(full_step_label)])
@@ -1655,10 +1645,7 @@ class RefractorRetrievalInfo:
                         levels_tokens = speciesInformationFile.retrievalLevels.split(',')
                         int_levels_arr = [int(x) for x in levels_tokens]
                         levels0 = np.asarray(int_levels_arr)
-    #                    if len(levels0) == len(i_table_struct.pressureFM) and len(levels0) == len(stateInfo.current['pressure']):
-    #                        # for sigma pressure grid of OCO-2
-    #                        i_table_struct.pressureFM = stateInfo.current['pressure'].copy()
-                        retrievalParameters = mpy.supplier_retrieval_levels_tes(levels0, i_table_struct.pressureFM, stateInfo.current['pressure'])
+                        retrievalParameters = mpy.supplier_retrieval_levels_tes(levels0, strategy_table.pressure_fm, stateInfo.current['pressure'])
 
                         # PYTHON_NOTE: It is possible that some values in i_levels may index passed the size of pressure.
                         # The size of pressure may be 63 and one indices may be 64.
@@ -1707,18 +1694,18 @@ class RefractorRetrievalInfo:
                     # AT_LINE 668 Get_Species_Information.pro
                     if mapType.lower() == 'log':
                         if have_true:
-                            if mpy.table_get_pref(i_table_struct, "mapTrueFullStateVector") == 'yes':
+                            if strategy_table.preferences["mapTrueFullStateVector"] == 'yes':
                                 trueStateFM = np.exp(np.matmul(np.matmul(mapToState, mapToParameters), np.log(trueStateFM)))
 
-                        if mpy.table_get_pref(i_table_struct, "mapInitialGuess") == 'yes':
+                        if strategy_table.preferences["mapInitialGuess"] == 'yes':
                             initialGuessFM = np.exp(np.matmul(np.log(initialGuessFM), np.matmul(mapToParameters, mapToState)))
                             currentGuessFM = np.exp(np.matmul(np.log(currentGuessFM), np.matmul(mapToParameters, mapToState)))
                     else:
                         if have_true:
-                            if mpy.table_get_pref(i_table_struct, "mapTrueFullStateVector") == 'yes':
+                            if strategy_table.preferences["mapTrueFullStateVector"] == 'yes':
                                 trueStateFM = np.matmul(np.matmul(mapToState, mapToParameters), trueStateFM)
 
-                        if mpy.table_get_pref(i_table_struct, "mapInitialGuess") == 'yes':
+                        if strategy_table.preferences["mapInitialGuess"] == 'yes':
                             initialGuess = np.matmul(initialGuessFM, np.matmul(mapToParameters, mapToState), initialGuessFM) # TRICKY_LOGIC
                             currentGuess = np.matmul(currentGuessFM, np.matmul(mapToParameters, mapToState))              # TRICKY_LOGIC
 
@@ -2016,7 +2003,7 @@ class RefractorRetrievalInfo:
             # 02/03/2020: Finally found the missing Python code which may be the cause of CLOUDEXT species not matching in the resultsList retrieval.
             # AT_LINE 861 Get_Species_Information.py
 
-            sys_tokens = mpy.table_get_unpacked_entry(i_table_struct, step, "errorAnalysisInterferents")
+            sys_tokens = strategy_table.error_analysis_interferents
 
             # For some reason, the returned value of sys_tokens is a list of list so we just desire a regular list.
             sys_tokens = mpy.flat_list(sys_tokens)
@@ -2067,7 +2054,7 @@ class RefractorRetrievalInfo:
             # only allow PREMADE type?
             hdo_h2o_flag = 1
             names = ['H2O', 'HDO']
-            species_dir = mpy.table_get_pref(i_table_struct, "speciesDirectory")
+            species_dir = strategy_table.species_directory
 
             loop_count = 0
             for xx in range(2):

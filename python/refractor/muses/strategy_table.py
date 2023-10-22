@@ -31,6 +31,10 @@ class StrategyTable:
     @property
     def input_directory(self):
         return self.strategy_table_dict["dirInput"]
+
+    @property
+    def pressure_fm(self):
+        return self.strategy_table_dict["pressureFM"]
     
     @property
     def preferences(self) -> dict:
@@ -89,12 +93,37 @@ class StrategyTable:
         return self.abs_filename(self.strategy_table_dict["outputDirectory"])
 
     @property
+    def species_directory(self):
+        return self.abs_filename(self.preferences["speciesDirectory"])
+
+    @property
     def error_species(self):
         return self.strategy_table_dict["errorSpecies"]
 
     @property
     def error_map_type(self):
         return self.strategy_table_dict["errorMaptype"]
+
+    @property
+    def retrieval_type(self):
+        return self.table_entry("retrievalType")
+
+    @property
+    def retrieval_elements(self, stp=None):
+        return mpy.table_get_unpacked_entry(
+            self.strategy_table_dict, stp if stp is not None else self.table_step,
+            "retrievalElements")
+
+    @property
+    def error_analysis_interferents(self, stp=None):
+        return mpy.table_get_unpacked_entry(
+            self.strategy_table_dict, stp if stp is not None else self.table_step,
+            "errorAnalysisInterferents")
+    
+    @property
+    def microwindows(self, stp=None):
+        return mpy.table_new_mw_from_step(self.strategy_table_dict,
+                                          stp if stp is not None else self.table_step)
     
     def table_entry(self, nm, stp=None):
         return mpy.table_get_entry(self.strategy_table_dict,
