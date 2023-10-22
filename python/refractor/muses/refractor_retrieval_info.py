@@ -24,10 +24,12 @@ class RefractorRetrievalInfo:
     write_retrieval_summary
     write_products_one
     '''
-    def __init__(self, strategy_table : "StrategyTable",
+    def __init__(self, error_analysis : "ErrorAnalysis",
+                 strategy_table : "StrategyTable",
                  state_info : "RefractorStateInfo"):
-        (self.retrieval_dict, _, _) = \
-            self.init_data(strategy_table.strategy_table_dict,
+        self.retrieval_dict = \
+            self.init_data(error_analysis,
+                           strategy_table.strategy_table_dict,
                            state_info.state_info_dict)
         self.retrieval_dict = self.retrieval_dict.__dict__
 
@@ -166,15 +168,14 @@ class RefractorRetrievalInfo:
         # initial guess
         return self.initialGuessListFM.shape[0]
 
-    def init_data(self, strategy_table : "StrategyTable",
+    def init_data(self, error_analysis : "ErrorAnalysis",
+                  strategy_table : "StrategyTable",
                   state_info : "RefractorStateInfo"):
         # This is a reworking of get_species_information in muses-py
         utilLevels = mpy.UtilLevels()
 
 
         o_retrievalInfo = None
-        o_errorInitial = None
-        o_errorCurrent = None
 
         found_omi_species_flag = False
         found_tropomi_species_flag = False
@@ -310,24 +311,7 @@ class RefractorRetrievalInfo:
 
         # map types for all species
         # now in strategy table
-
-        if o_errorInitial is None:
-            # get errorInitial, from the a priori covariances
-            # requires the pressure grid to be set
-            nh3type = stateInfo.nh3type
-            hcoohtype = stateInfo.hcoohtype
-            ch3ohtype = stateInfo.ch3ohtype
-
-            # AT_LINE 109 Get_Species_Information.pro
-            o_errorInitial = mpy.get_prior_error(i_table_struct.errorSpecies, i_table_struct.errorMaptype,
-                                             stateInfo.current["pressure"], latitude, nh3type, hcoohtype,
-                                             ch3ohtype, surfaceType)
-
-        o_errorCurrent = copy.deepcopy(o_errorInitial)   # Make a separate copy of o_errorInitial to o_errorCurrent.
-        # At this point, both o_errorInitial and o_errorCurrent are valid objects.
-
-        # AT_LINE 117 Get_Species_Information.pro
-
+       
         mpy.table_set_step(i_table_struct, step)
 
         # AT_LINE 121 Get_Species_Information.pro
@@ -2037,24 +2021,19 @@ class RefractorRetrievalInfo:
             # For some reason, the returned value of sys_tokens is a list of list so we just desire a regular list.
             sys_tokens = mpy.flat_list(sys_tokens)
 
-            # added 6/2023 SSK.  Inside constraint_get_species, it has code:  i_constraintStruct.species, so
-            # o_errorInitial needs to be an object.  So convert it here.
-            if isinstance(o_errorInitial, dict):
-                o_errorInitial = mpy.ObjectView(o_errorInitial)
-
-
             if sys_tokens[0] != '-' and sys_tokens[0] != '':
                 sys_tokens = mpy.order_species(sys_tokens)
                 o_retrievalInfo.n_speciesSys = len(sys_tokens)
                 o_retrievalInfo.speciesSys[0:o_retrievalInfo.n_speciesSys] = sys_tokens[:]
-                o_retrievalInfo.n_totalParametersSys = len(mpy.constraint_get_species(o_errorInitial, sys_tokens))
+                o_retrievalInfo.n_totalParametersSys = len(mpy.constraint_get_species(error_analysis.error_initial, sys_tokens))
             else:
                 o_retrievalInfo.n_speciesSys = 0
             # end else portion of if (sys_tokens[0] != '-' and sys_tokens[0] != ''):
 
             # AT_LINE 872 Get_Species_Information.py
             if sys_tokens[0] != '-' and sys_tokens[0] != '':
-                myspec = mpy.constraint_get_species(o_errorInitial, sys_tokens)
+                myspec = mpy.constraint_get_species(error_analysis.error_initial,
+                                                    sys_tokens)
                 for ll in range(0, len(sys_tokens)):
                     my_ind = np.where(np.asarray(myspec) == sys_tokens[ll])[0]
                     # PYTHON_NOTE: If the len of my_ind, that means we don't have any matching species names.
@@ -2263,13 +2242,6 @@ class RefractorRetrievalInfo:
         if isinstance(o_retrievalInfo, dict):
             o_retrievalInfo = mpy.ObjectView(o_retrievalInfo)
 
-        if isinstance(o_errorInitial, dict):
-            o_errorInitial = mpy.ObjectView(o_errorInitial)
-
-        if isinstance(o_errorCurrent, dict):
-            o_errorCurrent = mpy.ObjectView(o_errorCurrent)
-
-
-        return (o_retrievalInfo, o_errorInitial, o_errorCurrent)
+        return o_retrievalInfo
         
     

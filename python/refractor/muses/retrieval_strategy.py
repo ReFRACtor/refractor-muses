@@ -288,8 +288,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     def get_initial_guess(self):
         '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
-        self.retrievalInfo = RefractorRetrievalInfo(self.strategy_table,
-                                                    self.state_info)
+        self.retrievalInfo = RefractorRetrievalInfo(
+            self.error_analysis, self.strategy_table, self.state_info)
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
