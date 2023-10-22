@@ -17,8 +17,13 @@ class RefractorRetrievalInfo:
     write_retrieval_summary
     write_products_one
     '''
-    def __init__(self, retrieval_dict):
-        self.retrieval_dict = retrieval_dict
+    def __init__(self, strategy_table : "StrategyTable",
+                 state_info : "RefractorStateInfo"):
+        (self.retrieval_dict, _, _) = \
+            mpy.get_species_information(strategy_table.strategy_table_dict,
+                                        state_info.state_info_obj,
+                                        None, None)
+        self.retrieval_dict = self.retrieval_dict.__dict__
 
     @property
     def retrieval_info_obj(self):

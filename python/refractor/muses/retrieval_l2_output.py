@@ -424,12 +424,7 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TROPOMI_RAZ_BAND3 = self.state_info.state_info_obj.current['tropomi']['raz_BAND3']
             species_data.TROPOMI_VZA_BAND3 = self.state_info.state_info_obj.current['tropomi']['vza_BAND3']
             species_data.TROPOMI_SCA_BAND3 = self.state_info.state_info_obj.current['tropomi']['sca_BAND3']
-
-            species_data.TROPOMI_SZA_BAND7 = self.state_info.state_info_obj.current['tropomi']['sza_BAND7']
-            species_data.TROPOMI_RAZ_BAND7 = self.state_info.state_info_obj.current['tropomi']['raz_BAND7']
-            species_data.TROPOMI_VZA_BAND7 = self.state_info.state_info_obj.current['tropomi']['vza_BAND7']
-            species_data.TROPOMI_SCA_BAND7 = self.state_info.state_info_obj.current['tropomi']['sca_BAND7']
-
+            
             # could get these from state.current.tropomipars
             species_data.TROPOMI_CLOUDFRACTION = self.state_info.state_info_obj.current['tropomi']['cloud_fraction']
             species_data.TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['cloud_fraction']
@@ -444,17 +439,11 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TROPOMI_SURFACEALBEDOBAND3 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_BAND3']
             species_data.TROPOMI_SURFACEALBEDOBAND3CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_BAND3']
 
-            species_data.TROPOMI_SURFACEALBEDOBAND7 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_BAND7']
-            species_data.TROPOMI_SURFACEALBEDOBAND7CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_BAND7']
-
             species_data.TROPOMI_SURFACEALBEDOSLOPEBAND2 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_BAND2']
             species_data.TROPOMI_SURFACEALBEDOSLOPEBAND2CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND2']
 
             species_data.TROPOMI_SURFACEALBEDOSLOPEBAND3 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_BAND3']
             species_data.TROPOMI_SURFACEALBEDOSLOPEBAND3CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND3']
-
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND7 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_BAND7']
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND7CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND7']
 
             species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND2']
             species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND2']
@@ -462,31 +451,23 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND3']
             species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND3']
 
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND7 = self.state_info.state_info_obj.current['tropomi']['surface_albedo_slope_order2_BAND7']
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND7CONSTRAINTVECTOR = self.state_info.state_info_obj.constraint['tropomi']['surface_albedo_slope_BAND7']
-
             species_data.TROPOMI_SOLARSHIFTBAND1 = self.state_info.state_info_obj.current['tropomi']['solarshift_BAND1']
             species_data.TROPOMI_SOLARSHIFTBAND2 = self.state_info.state_info_obj.current['tropomi']['solarshift_BAND2']
             species_data.TROPOMI_SOLARSHIFTBAND3 = self.state_info.state_info_obj.current['tropomi']['solarshift_BAND3']
-            species_data.TROPOMI_SOLARSHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['solarshift_BAND7']
 
             species_data.TROPOMI_RADIANCESHIFTBAND1 = self.state_info.state_info_obj.current['tropomi']['radianceshift_BAND1']
             species_data.TROPOMI_RADIANCESHIFTBAND2 = self.state_info.state_info_obj.current['tropomi']['radianceshift_BAND2']
             species_data.TROPOMI_RADIANCESHIFTBAND3 = self.state_info.state_info_obj.current['tropomi']['radianceshift_BAND3']
-            species_data.TROPOMI_RADIANCESHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['radianceshift_BAND7']
 
             species_data.TROPOMI_RADSQUEEZEBAND1 = self.state_info.state_info_obj.current['tropomi']['radsqueeze_BAND1']
             species_data.TROPOMI_RADSQUEEZEBAND2 = self.state_info.state_info_obj.current['tropomi']['radsqueeze_BAND2']
             species_data.TROPOMI_RADSQUEEZEBAND3 = self.state_info.state_info_obj.current['tropomi']['radsqueeze_BAND3']
-            species_data.TROPOMI_RADSQUEEZEBAND7 = self.state_info.state_info_obj.current['tropomi']['radsqueeze_BAND7']
 
             species_data.TROPOMI_RINGSFBAND1 = self.state_info.state_info_obj.current['tropomi']['ring_sf_BAND1']
             species_data.TROPOMI_RINGSFBAND2 = self.state_info.state_info_obj.current['tropomi']['ring_sf_BAND2']
             species_data.TROPOMI_RINGSFBAND3 = self.state_info.state_info_obj.current['tropomi']['ring_sf_BAND3']
-            species_data.TROPOMI_RINGSFBAND7 = self.state_info.state_info_obj.current['tropomi']['ring_sf_BAND7']
 
             species_data.TROPOMI_TEMPSHIFTBAND3 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND3']
-            species_data.TROPOMI_TEMPSHIFTBAND7 = self.state_info.state_info_obj.current['tropomi']['temp_shift_BAND7']
 
 
         #species_data.TROPOMI_EOF1 = 1.0

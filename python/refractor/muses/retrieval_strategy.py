@@ -288,25 +288,17 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     def get_initial_guess(self):
         '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
-        (self.retrievalInfo, _, _) = \
-            mpy.get_species_information(self.strategy_table.strategy_table_dict,
-                                        self.state_info.state_info_obj,
-                                        None, None)
-        
-        #self.retrievalInfo = mpy.ObjectView.as_object(self.retrievalInfo)
-        self.retrievalInfo = RefractorRetrievalInfo(self.retrievalInfo.__dict__)
+        self.retrievalInfo = RefractorRetrievalInfo(self.strategy_table,
+                                                    self.state_info)
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
-        # AT_LINE 319 Script_Retrieval_ms.pro
         nn = self.retrievalInfo.n_totalParameters
         logger.info(f"Step: {self.table_step}, Total Parameters: {nn}")
 
-        # AT_LINE 320 Script_Retrieval_ms.pro
         if nn > 0:
             xig = self.retrievalInfo.initialGuessList[0:nn]
 
-            # Note that we do not pass in stateOneNext (None) and do not get back stateOneNext on the left handside as donotcare_stateOneNext.
             (self.state_info.state_info_dict, _, _) = \
                 mpy.update_state(self.state_info.state_info_dict,
                                  self.retrievalInfo.retrieval_info_obj,

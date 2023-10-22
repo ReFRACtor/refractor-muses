@@ -189,8 +189,8 @@ def test_compare_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli):
     for each of the tests so we don't have to.'''
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
-    #diff_is_error = True
-    diff_is_error = False
+    diff_is_error = True
+    #diff_is_error = False
     for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_L2*.nc"):
         f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
