@@ -1,5 +1,6 @@
 from test_support import *
 from refractor.muses import (RefractorRetrievalInfo,
+                             RefractorRetrievalInfoOld,
                              RetrievalStrategy,
                              MusesRunDir)
 import subprocess
@@ -11,16 +12,16 @@ def struct_compare(s1, s2):
         print(k)
         if(isinstance(s1[k], np.ndarray) and
            np.can_cast(s1[k], np.float64)):
-           npt.assert_allclose(s1[k], s2[k])
+           npt.assert_allclose(s1[k], s2[k], rtol=1e-12)
         elif(isinstance(s1[k], np.ndarray)):
             assert np.all(s1[k] == s2[k])
         else:
             assert s1[k] == s2[k]
 
 # Temporary, depends on our test run
+@pytest.mark.parametrize("step_number", [1,2,3,4,5,6,7,8,9,10,11,12])
 @require_muses_py
-def test_retrieval_info(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
-    step_number = 12
+def test_retrieval_info(isolated_dir, vlidort_cli, osp_dir, gmao_dir, step_number):
     r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
     pname = f"/home/smyth/Local/refractor-muses/retrieval_strategy_cris_tropomi/20190807_065_04_08_5/retrieval_step_{step_number}.pkl"
     rs, kwarg = RetrievalStrategy.load_retrieval_strategy(pname, vlidort_cli=vlidort_cli)
@@ -30,8 +31,10 @@ def test_retrieval_info(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
         rinfo = RefractorRetrievalInfo(rs.error_analysis, rs.strategy_table,
                                        rs.state_info)
     if False:
-        pickle.dump(rinfo, open("/home/smyth/Local/refractor-muses/rinfo_base.pkl", "wb"))
-    rinfo_expect = pickle.load(open("/home/smyth/Local/refractor-muses/rinfo_base.pkl", "rb"))
+        with rs.chdir_run_dir():
+            rinfo2 = RefractorRetrievalInfoOld(rs.strategy_table, rs.state_info)
+        pickle.dump(rinfo2, open(f"/home/smyth/Local/refractor-muses/rinfo_base_{step_number}.pkl", "wb"))
+    rinfo_expect = pickle.load(open(f"/home/smyth/Local/refractor-muses/rinfo_base_{step_number}.pkl", "rb"))
     struct_compare(rinfo.retrieval_dict, rinfo_expect.retrieval_dict)
 
     

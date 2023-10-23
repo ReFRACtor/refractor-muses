@@ -16,14 +16,27 @@ import refractor.muses.muses_py as mpy
 import os
 import copy
 import numpy as np
+import numpy.testing as npt
 import pickle
 from pathlib import Path
 from pprint import pformat, pprint
 import time
 from contextlib import contextmanager
 from .refractor_retrieval_info import RefractorRetrievalInfo
+from .refractor_retrieval_info_old import RefractorRetrievalInfoOld
 from .refractor_state_info import RefractorStateInfo
 logger = logging.getLogger("py-retrieve")
+
+def struct_compare(s1, s2):
+    for k in s1.keys():
+        print(k)
+        if(isinstance(s1[k], np.ndarray) and
+           np.can_cast(s1[k], np.float64)):
+           npt.assert_allclose(s1[k], s2[k])
+        elif(isinstance(s1[k], np.ndarray)):
+            assert np.all(s1[k] == s2[k])
+        else:
+            assert s1[k] == s2[k]
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
@@ -288,8 +301,22 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     def get_initial_guess(self):
         '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
-        self.retrievalInfo = RefractorRetrievalInfo(
-            self.error_analysis, self.strategy_table, self.state_info)
+        # Temporary, leave old code in place as we sort out the new code. This
+        # can go away in a bit.
+        if True:
+            self.retrievalInfo = RefractorRetrievalInfo(
+                self.error_analysis, self.strategy_table, self.state_info)
+        else:
+            self.retrievalInfo = RefractorRetrievalInfoOld(
+                self.strategy_table, self.state_info)
+
+        # Similarly if we need to compare stuff - again this can go away in a
+        # bit when we have stuff sorted out.
+        if False:
+            r2 = RefractorRetrievalInfoOld(self.strategy_table, self.state_info)
+            struct_compare(self.retrievalInfo.retrieval_dict,
+                           r2.retrieval_dict)
+            
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
