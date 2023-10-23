@@ -101,6 +101,10 @@ class StrategyTable:
         return self.strategy_table_dict["errorSpecies"]
 
     @property
+    def number_fm_levels(self):
+        return int(self.preferences["num_FMLevels"])
+
+    @property
     def error_map_type(self):
         return self.strategy_table_dict["errorMaptype"]
 

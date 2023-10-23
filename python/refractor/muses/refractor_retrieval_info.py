@@ -1,5 +1,6 @@
 import refractor.muses.muses_py as mpy
 import numpy as np
+from scipy.linalg import block_diag
 import copy
 import os
 import glob
@@ -30,7 +31,7 @@ class RefractorRetrievalInfo:
         self.retrieval_dict = \
             self.init_data(error_analysis,
                            strategy_table,
-                           state_info.state_info_dict)
+                           state_info)
         self.retrieval_dict = self.retrieval_dict.__dict__
 
     @property
@@ -180,101 +181,86 @@ class RefractorRetrievalInfo:
         found_omi_species_flag = False
         found_tropomi_species_flag = False
 
-        stateInfo = mpy.ObjectView(state_info)
+        stateInfo = mpy.ObjectView(state_info.state_info_dict)
 
-        # true used for synthetic radiances only.  Here check if true has non-fill values.
-        # the -999 (fill) messes up with log mapping, so only fill true if non-fill.
-        if np.max(stateInfo.true['values']) > 0:
-            have_true = True
-        else:
-            have_true = False
 
         # AT_LINE 13 Get_Species_Information.pro
         step = strategy_table.table_step
         # this should be the current state
-        pressure = stateInfo.current['pressure'][:]
-        surfacePressure = stateInfo.current['pressure'][0]
-        num_pressures = len(pressure)
-
+        pressure = state_info.pressure
         # user specifies the number of forward model levels
-        # AT_LINE 22 Get_Species_Information.pro
-        if int(strategy_table.preferences["num_FMLevels"]) < num_pressures:
-            pressure = pressure[0:int(strategy_table.preferences["num_FMLevels"])]
-
-        # Get it again to make sure we have the correct number.
+        if strategy_table.number_fm_levels < len(pressure):
+            pressure = pressure[:strategy_table.number_fm_levels]
+        surfacePressure = pressure[0]
         num_pressures = len(pressure)
 
         # errors propagated from step to step - possibly used as covariances
         #                                       but perhaps also as propagated
         #                                       constraints.
-
-        # AT_LINE 32 Get_Species_Information.pro
+        
         num_errorSpecies = len(strategy_table.error_species)
         nn = num_pressures
 
         # get retrieval parameters, including a list of retrieved species,
         # initial values for each parameter, true values for each parameter,
         # constraints for all parameters, maps for each parameter
-        # 10/9/2019 Need to have different pressureList for every state
 
-        # Info by retrieval parameter
-        # AT_LINE 39 Get_Species_Information.pro
+        smeta = state_info.sounding_metadata()
         o_retrievalInfo = { 
             # Info by retrieval parameter
-            'surfaceType' : '',  
+            'surfaceType' : 'OCEAN' if smeta.is_ocean else 'LAND',
 
-            'speciesList' : [''] * (10*nn+100),  
-            'pressureList': [0.0 for x in range(10*nn+100)], 
-            'altitudeList': [0.0 for x in range(10*nn+100)], # not needed in retrieval system; for archiving
-            'mapTypeList' : [''] * (10*nn+100),  
+            'speciesList' : [],
+            'pressureList': [],
+            'altitudeList': [],
+            'mapTypeList' : [],
 
-            'initialGuessList' : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'constraintVector' : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'trueParameterList': np.zeros(shape=(10*nn+100), dtype=np.float64),
+            'initialGuessList' : [],
+            'constraintVector' : [],
+            'trueParameterList': [],
 
             # optional allowed range and maximum stepsize during retrieval, set to -999 if not used
-            'minimumList' : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'maximumList' : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'maximumChangeList' : np.zeros(shape=(10*nn+100), dtype=np.float64),
+            'minimumList' : [],
+            'maximumList' : [],
+            'maximumChangeList' : [],
 
-            'doUpdateFM'       : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'speciesListFM'    : [''] * (10*nn+100),  
-            'pressureListFM'     : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'altitudeListFM'     : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'constraintListFM' : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'initialGuessListFM' : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'constraintVectorListFM' : np.zeros(shape=(10*nn+100), dtype=np.float64),
-            'trueParameterListFM': np.zeros(shape=(10*nn+100), dtype=np.float64),
+            'doUpdateFM'       : None,
+            'speciesListFM'    : [],  
+            'pressureListFM'     : [],
+            'altitudeListFM'     : [],
+            'initialGuessListFM' : [],
+            'constraintVectorListFM' : [],
+            'trueParameterListFM': [],
 
             'n_totalParametersFM': 0,
 
-            'parameterStartFM': [0  for x in range(18)],
-            'parameterEndFM'  : [0  for x in range(18)],
-            'mapTypeListFM'   : [''] * (10*nn+100),
+            'parameterStartFM': [],
+            'parameterEndFM'  : [],
+            'mapTypeListFM'   : [],
 
             # Info by species
             'n_speciesSys'     : 0,
-            'speciesSys'       : ["" for x in range(18)],
-            'parameterStartSys': [0  for x in range(18)],
-            'parameterEndSys'  : [0  for x in range(18)],
-            'speciesListSys'   : np.asarray([''] * (10*nn+100), dtype='<U20'),
+            'speciesSys'       : [],
+            'parameterStartSys': [],
+            'parameterEndSys'  : [],
+            'speciesListSys'   : [],
 
             'n_totalParametersSys': 0,
             'n_species'           : 0,
-            'species'             : ["" for x in range(18)],
-            'parameterStart'      : [0  for x in range(18)],
-            'parameterEnd'        : [0  for x in range(18)],
+            'species'             : [],
+            'parameterStart'      : [],
+            'parameterEnd'        : [],
 
-            'n_parametersFM' : [0  for x in range(18)],
-            'n_parameters'   : [0  for x in range(18)],
-            'mapType'        : ["" for x in range(18)],
-            'mapToState'     : np.zeros(shape=(nn*10+100, nn*10+100), dtype=np.float64),
-            'mapToParameters': np.zeros(shape=(nn*10+100, nn*10+100), dtype=np.float64),
+            'n_parametersFM' : [],
+            'n_parameters'   : [],
+            'mapType'        : [],
+            'mapToState'     : [],
+            'mapToParameters': [],
 
             # Constraint & SaTrue, & info for all parameters
             'n_totalParameters': 0,
             'Constraint'       : np.zeros(shape=(10*nn, 10*nn), dtype=np.float64),
-            'type'             : '',
+            'type'             : None,
         }
         # o_retrievalInfo OBJECT_TYPE dict
 
@@ -290,10 +276,6 @@ class RefractorRetrievalInfo:
         row = 0
         rowFM = 0
 
-        surfaceType = 'LAND'
-        if stateInfo.surfaceType.upper() == 'OCEAN':
-            surfaceType = 'OCEAN'
-        o_retrievalInfo.surfaceType = surfaceType
 
         current = mpy.ObjectView(stateInfo.current) # Convert to object so we can use '.' to access member variables.
 
@@ -407,14 +389,14 @@ class RefractorRetrievalInfo:
                     constraintVector = stateInfo.constraint['omi'][actual_omi_key]
                     constraintVectorFM = stateInfo.constraint['omi'][actual_omi_key]
 
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterList = stateInfo.true['omi'][actual_omi_key]
 
                     # It is also possible that these values are scalar, we convert them to an array of 1.
                     if np.isscalar(initialGuessList):
                         initialGuessList = np.asarray([initialGuessList])
 
-                    if have_true:
+                    if state_info.has_true_values():
                         if np.isscalar(trueParameterList):
                             trueParameterList = np.asarray([trueParameterList])
 
@@ -423,7 +405,7 @@ class RefractorRetrievalInfo:
                         constraintVectorFM = np.asarray([constraintVectorFM])
 
                     initialGuessListFM = initialGuessList[:]
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterListFM = trueParameterList[:]
 
                     # AT_LINE 184 Get_Species_Information.pro
@@ -467,7 +449,7 @@ class RefractorRetrievalInfo:
                         initialGuessListFM = np.log(initialGuessListFM)
                         constraintVector = np.log(constraintVector)
                         initialGuessList = np.log(initialGuessList)
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = np.log(trueParameterList)
                             trueParameterListFM = np.log(trueParameterListFM)
                     # end if (speciesInformationFile.mapType) == 'LOG':
@@ -489,7 +471,7 @@ class RefractorRetrievalInfo:
                     # PYTHON_NOTE: To get access to a dictionary, we use a key instead of an index as IDL does.
                     # At this point, the value of actual_omi_key is the key we want to access the 'omi' dictionary.
                     initialGuessList = stateInfo.current['tropomi'][actual_tropomi_key]
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterList = stateInfo.true['tropomi'][actual_tropomi_key]
                     constraintVector = stateInfo.constraint['tropomi'][actual_tropomi_key]
                     constraintVectorFM = stateInfo.constraint['tropomi'][actual_tropomi_key]
@@ -498,7 +480,7 @@ class RefractorRetrievalInfo:
                     if np.isscalar(initialGuessList):
                         initialGuessList = np.asarray([initialGuessList])
 
-                    if have_true:
+                    if state_info.has_true_values():
                         if np.isscalar(trueParameterList):
                             trueParameterList = np.asarray([trueParameterList])
 
@@ -506,7 +488,7 @@ class RefractorRetrievalInfo:
                         constraintVector = np.asarray([constraintVector])
 
                     initialGuessListFM = initialGuessList[:]
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterListFM = trueParameterList[:]
 
                     # AT_LINE 184 Get_Species_Information.pro
@@ -550,7 +532,7 @@ class RefractorRetrievalInfo:
                         initialGuessListFM = np.log(initialGuessListFM)
                         constraintVector = np.log(constraintVector)
                         initialGuessList = np.log(initialGuessList)
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterListFM = np.log(trueParameterListFM)
                             trueParameterList = np.log(trueParameterList)
                     # end if (speciesInformationFile.mapType) == 'LOG':
@@ -573,7 +555,7 @@ class RefractorRetrievalInfo:
                     initialGuessListFM = stateInfo.current['nir']['albpl']*mult
                     nn = len(initialGuessListFM)
                     initialGuessListFM = initialGuessListFM.reshape(nn)
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterListFM = stateInfo.true['nir']['albpl'].reshape(nn)*mult
                     constraintVectorFM = stateInfo.constraint['nir']['albpl'].reshape(nn)*mult
                     pressureListFM = stateInfo.current['nir']['albplwave']
@@ -620,13 +602,13 @@ class RefractorRetrievalInfo:
                             constraintVector = np.zeros(mm,dtype = np.float32) + 0
                             initialGuessList = np.transpose(mapToParameters) @ (trueParameterListFM - constraintVectorFM)
                             initialGuessListFM = constraintVectorFM + np.transpose(mapToState) @ initialGuessList
-                            if have_true:
+                            if state_info.has_true_values():
                                 trueParameterList = np.transpose(mapToParameters) @ (trueParameterListFM - constraintVectorFM)
                         else:
                             constraintVector = np.zeros(mm,dtype = np.float32) + 0
                             initialGuessList = np.transpose(mapToParameters) @ (np.log(trueParameterListFM) - np.log(constraintVectorFM))
                             initialGuessListFM = np.exp(np.log(constraintVectorFM) + mapToState @ initialGuessList)
-                            if have_true:
+                            if state_info.has_true_values():
                                 trueParameterList = np.transpose(mapToParameters) @ (np.log(trueParameterListFM) - np.log(constraintVectorFM))
                     # end part of elif (mapType == 'linearpca') or (mapType == 'logpca'):
 
@@ -669,7 +651,7 @@ class RefractorRetrievalInfo:
                             altitudeList = altitudeListFM
                             constraintVector = constraintVectorFM
                             initialGuessList = initialGuessListFM
-                            if have_true:
+                            if state_info.has_true_values():
                                 trueParameterList = trueParameterListFM
                         else:
                             # ensure each band edge matches, match to pressureListFM, then create maps
@@ -705,7 +687,7 @@ class RefractorRetrievalInfo:
 
                         constraintVector = maps['toPars'].transpose() @ constraintVectorFM
                         initialGuessList = maps['toPars'].transpose() @ initialGuessListFM
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = maps['toPars'].transpose() @ trueParameterListFM
 
                         mapToParameters = maps['toPars']
@@ -743,7 +725,7 @@ class RefractorRetrievalInfo:
                     constraintVector = stateInfo.constraint['nir'][mykey]
                     constraintVectorFM = stateInfo.constraint['nir'][mykey]
                     initialGuessListFM = copy.deepcopy(initialGuessList)
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterListFM = copy.deepcopy(trueParameterList)
                         trueParameterList = stateInfo.true['nir'][mykey]
 
@@ -842,7 +824,7 @@ class RefractorRetrievalInfo:
 
                         initialGuessListFM = stateInfo.current['nir']['albpl'] * mult
                         initialGuessList = mapToParameters @ initialGuessListFM
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterListFM = stateInfo.true['nir']['albpl'] * mult
                             trueParameterList = mapToParameters @ trueParameterListFM
                         constraintVector = mapToParameters @ (stateInfo.constraint['nir']['albpl'] * mult)
@@ -858,7 +840,7 @@ class RefractorRetrievalInfo:
                         constraintVector = (stateInfo.constraint['nir'][mykey][:,0:npoly]).reshape(npoly*3)
                         constraintVectorFM = (stateInfo.constraint['nir'][mykey][:,0:npoly]).reshape(npoly*3)
                         initialGuessListFM = initialGuessList.copy()
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = (stateInfo.true['nir'][mykey][:,0:npoly]).reshape(npoly*3)
                             trueParameterListFM = trueParameterList.copy()
                     elif species_name == 'NIREOF':
@@ -868,7 +850,7 @@ class RefractorRetrievalInfo:
                         constraintVector = stateInfo.constraint['nir'][mykey].reshape(npar*nband)
                         constraintVectorFM = stateInfo.constraint['nir'][mykey].reshape(npar*nband)
                         initialGuessListFM = copy.deepcopy(initialGuessList)
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = stateInfo.true['nir'][mykey].reshape(npar*nband)
                             trueParameterListFM = copy.deepcopy(trueParameterList)
                     # elif species_name == 'NIRCLOUD3D':
@@ -885,7 +867,7 @@ class RefractorRetrievalInfo:
                         constraintVector = [stateInfo.constraint['nir']['wind']]
                         constraintVectorFM = [stateInfo.constraint['nir']['wind']]
                         initialGuessListFM = [copy.deepcopy(initialGuessList)]
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterListFM = [stateInfo.true['nir']['wind']]
                             trueParameterList = [stateInfo.true['nir']['wind']]
                     else:
@@ -893,7 +875,7 @@ class RefractorRetrievalInfo:
                         constraintVector = stateInfo.constraint['nir'][mykey]
                         constraintVectorFM = stateInfo.constraint['nir'][mykey]
                         initialGuessListFM = copy.deepcopy(initialGuessList)
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = stateInfo.true['nir'][mykey]
                             trueParameterListFM = copy.deepcopy(trueParameterList)
 
@@ -996,7 +978,7 @@ class RefractorRetrievalInfo:
                         initialGuessListFM = np.log(initialGuessListFM)
                         constraintVector = np.log(constraintVector)
                         initialGuessList = np.log(initialGuessList)
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = np.log(trueParameterList)
                             trueParameterListFM = np.log(trueParameterListFM)
 
@@ -1109,7 +1091,7 @@ class RefractorRetrievalInfo:
                         altitudeListFM = stateInfo.emisPars['frequency'][0:nn] / 100. # just for spacing
                         constraintVectorFM = stateInfo.constraint['emissivity'][0:nn]
                         initialGuessListFM = stateInfo.current['emissivity'][0:nn]
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterListFM = stateInfo.true['emissivity'][0:nn]
                     # end part of if (species_name == 'EMIS'):
                     # AT_LINE 300 Get_Species_Information.pro
@@ -1161,7 +1143,7 @@ class RefractorRetrievalInfo:
                         altitudeListFM = stateInfo.cloudPars['frequency'][0:nn] / 100.0           
                         constraintVectorFM = np.log(stateInfo.constraint['cloudEffExt'][0, 0:nn]) 
                         initialGuessListFM = np.log(stateInfo.current['cloudEffExt'][0, 0:nn]) 
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterListFM = np.log(stateInfo.true['cloudEffExt'][0, 0:nn]) 
 
                             # get true values for 2 clouds.
@@ -1206,7 +1188,7 @@ class RefractorRetrievalInfo:
                         altitudeListFM = stateInfo.calibrationPars['frequency'][0:nn] / 100.0
                         constraintVectorFM = stateInfo.constraint['calibrationScale'][0:nn]
                         initialGuessListFM = stateInfo.current['calibrationScale'][0:nn]
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterListFM = stateInfo.true['calibrationScale'][0:nn]
                         assert False
                     # end part of if (species_name == 'CALSCALE'):
@@ -1242,7 +1224,7 @@ class RefractorRetrievalInfo:
                         altitudeListFM = stateInfo.calibrationPars['frequency'][0:nn] / 100.0
                         constraintVectorFM = stateInfo.constraint['calibrationOffset'][0:nn]
                         initialGuessListFM = stateInfo.current['calibrationOffset'][0:nn]
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterListFM = stateInfo.true['calibrationOffset'][0:nn]
                         assert False
                     # end part of if (species_name == 'CALOFFSET'):
@@ -1262,14 +1244,14 @@ class RefractorRetrievalInfo:
                         pressureList = np.matmul(pressureListFM, m)
                         constraintVector = np.matmul(constraintVectorFM, m)
                         initialGuessList = np.matmul(initialGuessListFM, m)
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = np.matmul(trueParameterListFM, m)
                     else:
                         altitudeList = np.sum(m * altitudeListFM)
                         pressureList = np.sum(m * pressureListFM)
                         constraintVector = np.sum(m * constraintVectorFM)
                         initialGuessList = np.sum(m * initialGuessListFM)
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = np.sum(m * trueParameterListFM)
 
                     # AT_LINE 443 Get_Species_Information.pro
@@ -1335,7 +1317,7 @@ class RefractorRetrievalInfo:
                     constraintVectorFM = stateInfo.constraint['tes']['boresightNadirRadians']
                     initialGuessList = stateInfo.current['tes']['boresightNadirRadians']
                     initialGuessListFM = stateInfo.current['tes']['boresightNadirRadians']
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterList = stateInfo.true['tes']['boresightNadirRadians']
                         trueParameterListFM = stateInfo.true['tes']['boresightNadirRadians']
 
@@ -1364,7 +1346,7 @@ class RefractorRetrievalInfo:
                     constraintVectorFM = math.log(stateInfo.constraint['PCLOUD'][0])
                     initialGuessList = math.log(stateInfo.current['PCLOUD'][0])
                     initialGuessListFM = math.log(stateInfo.current['PCLOUD'][0])
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterList = math.log(stateInfo.true['PCLOUD'][0])
                         trueParameterListFM = math.log(stateInfo.true['PCLOUD'][0])
 
@@ -1378,7 +1360,7 @@ class RefractorRetrievalInfo:
                     constraintMatrix = np.float64(speciesInformationFile.sSubaDiagonalValues)
                     constraintMatrix = 1 / constraintMatrix / constraintMatrix
 
-                    if have_true:
+                    if state_info.has_true_values():
 
                         # pick thickest cloud for cloud height
                         if stateInfo.true['num_clouds'] == 2:
@@ -1409,7 +1391,7 @@ class RefractorRetrievalInfo:
                     constraintVectorFM = [1, 1]
                     initialGuessList = [0, 0]
                     initialGuessListFM = [1, 1]
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterList = [1, 1]
                         trueParameterListFM = [1, 1]
 
@@ -1439,7 +1421,7 @@ class RefractorRetrievalInfo:
                     constraintVector = stateInfo.constraint['TSUR']
                     initialGuessList = stateInfo.current['TSUR']
                     initialGuessListFM = stateInfo.current['TSUR']
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterList = stateInfo.true['TSUR']
                         trueParameterListFM = stateInfo.true['TSUR']
 
@@ -1478,7 +1460,7 @@ class RefractorRetrievalInfo:
                     constraintVectorFM = stateInfo.constraint['pressure'][0]
                     initialGuessList = stateInfo.current['pressure'][0]
                     initialGuessListFM = stateInfo.current['pressure'][0]
-                    if have_true:
+                    if state_info.has_true_values():
                         trueParameterList = stateInfo.true['pressure'][0]
                         trueParameterListFM = stateInfo.true['pressure'][0]
 
@@ -1524,7 +1506,7 @@ class RefractorRetrievalInfo:
                     currentGuessFM = stateInfo.current['values'][ind, :]
                     constraintVectorFM = stateInfo.constraint['values'][ind, :]
                     constraintMatrix = stateInfo.constraint['values'][ind, :]
-                    if have_true:
+                    if state_info.has_true_values():
                         trueStateFM = stateInfo.true['values'][ind, :]
 
                     sSubaDiagonalValues = np.float64(speciesInformationFile.sSubaDiagonalValues)
@@ -1539,14 +1521,14 @@ class RefractorRetrievalInfo:
                         constraintVector = 0
                         initialGuessList = np.mean(initialGuessFM - constraintVectorFM)
                         initialGuessListFM = constraintVectorFM + initialGuessList
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = np.mean(trueStateFM - initialGuessFM)
                             trueParameterListFM = np.copy(trueStateFM)
                     else:
                         constraintVector = 1
                         initialGuessList = np.mean(constraintVectorFM / initialGuessFM)
                         initialGuessListFM = constraintVectorFM * initialGuessList
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = np.mean(trueStateFM / initialGuessFM)
                             trueParameterListFM = np.copy(trueStateFM)                
                 # end part of elif (mapType == 'linearscale') or (mapType == 'logscale'):
@@ -1602,7 +1584,7 @@ class RefractorRetrievalInfo:
                     initialGuessFM = stateInfo.current['values'][ind, :].reshape(nn)   # Keep the array as 2 dimensions so we can multiply them later.
                     currentGuessFM = stateInfo.current['values'][ind, :].reshape(nn)
                     constraintVectorFM = stateInfo.constraint['values'][ind, :].reshape(nn)
-                    if have_true:
+                    if state_info.has_true_values():
                         trueStateFM = stateInfo.true['values'][ind, :].reshape(nn)
 
 
@@ -1615,14 +1597,14 @@ class RefractorRetrievalInfo:
                         initialGuessList = np.transpose(mapToParameters) @ (initialGuessFM - constraintVectorFM)
                         initialGuessListFM = np.copy(constraintVectorFM) + np.transpose(mapToState) @ initialGuessList
 
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = np.transpose(mapToParameters) @ (trueState - constraintVectorFM)
                             trueParameterListFM = np.copy(trueState)
                     else:
                         constraintVector = np.zeros(mm,dtype = np.float32) + 0
                         initialGuessList = np.transpose(mapToParameters) @ (np.log(initialGuessFM) - np.log(constraintVectorFM))
                         initialGuessListFM = np.copy(constraintVectorFM) + np.transpose(np.mapToState) @ initialGuessList
-                        if have_true:
+                        if state_info.has_true_values():
                             trueParameterList = np.transpose(mapToParameters) @ (np.log(trueState) - np.log(constraintVectorFM))
                             trueParameterListFM = np.copy(trueState)                
                 # end part of elif (mapType == 'linearpca') or (mapType == 'logpca'):
@@ -1681,7 +1663,7 @@ class RefractorRetrievalInfo:
                     initialGuessFM = stateInfo.current['values'][ind, :]   # Keep the array as 2 dimensions so we can multiply them later.
                     currentGuessFM = stateInfo.current['values'][ind, :]
                     constraintVectorFM = stateInfo.constraint['values'][ind, :]
-                    if have_true:
+                    if state_info.has_true_values():
                         trueStateFM = stateInfo.true['values'][ind, :]
 
                     # allows two NH3 steps which start at different initial
@@ -1693,7 +1675,7 @@ class RefractorRetrievalInfo:
 
                     # AT_LINE 668 Get_Species_Information.pro
                     if mapType.lower() == 'log':
-                        if have_true:
+                        if state_info.has_true_values():
                             if strategy_table.preferences["mapTrueFullStateVector"] == 'yes':
                                 trueStateFM = np.exp(np.matmul(np.matmul(mapToState, mapToParameters), np.log(trueStateFM)))
 
@@ -1701,7 +1683,7 @@ class RefractorRetrievalInfo:
                             initialGuessFM = np.exp(np.matmul(np.log(initialGuessFM), np.matmul(mapToParameters, mapToState)))
                             currentGuessFM = np.exp(np.matmul(np.log(currentGuessFM), np.matmul(mapToParameters, mapToState)))
                     else:
-                        if have_true:
+                        if state_info.has_true_values():
                             if strategy_table.preferences["mapTrueFullStateVector"] == 'yes':
                                 trueStateFM = np.matmul(np.matmul(mapToState, mapToParameters), trueStateFM)
 
@@ -1786,26 +1768,26 @@ class RefractorRetrievalInfo:
                         if mapType == 'linear':
                             initialGuessList = np.mean(initialGuessListFM - constraintVectorFM)
                             initialGuessListFM = constraintVectorFM + initialGuessList
-                            if have_true:
+                            if state_info.has_true_values():
                                 trueParameterList = np.mean(trueStateFM - constraintVectorFM)
                                 trueParameterListFM = constraintVectorFM + trueParameterList
                         else:
                             initialGuessList = np.mean(initialGuessListFM / constraintVectorFM)
                             initialGuessListFM = constraintVectorFM * initialGuessList
-                            if have_true:
+                            if state_info.has_true_values():
                                 trueParameterList = np.mean(trueStateFM / constraintVectorFM)
                                 trueParameterListFM = constraintVectorFM * trueParameterList
                     else:    
                         if mapType == 'log':
                             initialGuessList = np.matmul(np.log(initialGuessFM), mapToParameters)
                             initialGuessListFM = np.log(initialGuessFM)
-                            if have_true:
+                            if state_info.has_true_values():
                                 trueParameterList = np.matmul(np.log(trueState), mapToParameters)
                                 trueParameterListFM = np.log(trueStateFM)
                         elif mapType == 'linear':
                             initialGuessList = np.matmul(initialGuessFM, mapToParameters)
                             initialGuessListFM = np.copy(initialGuessFM)
-                            if have_true:
+                            if state_info.has_true_values():
                                 trueParameterList = np.matmul(trueStateFM, mapToParameters)
                                 trueParameterListFM = np.copy(trueStateFM)
 
@@ -1813,7 +1795,7 @@ class RefractorRetrievalInfo:
                                 # Re-shape back to 1-D array: from (1,30) to (30,)
                                 initialGuessList = np.reshape(initialGuessList, (initialGuessList.shape[1]))
 
-                            if have_true:
+                            if state_info.has_true_values():
                                 if len(trueParameterList.shape) >= 2 and trueParameterList.shape[0] == 1:
                                     # Re-shape back to 1-D array: from (1,30) to (30,)
                                     trueParameterList = np.reshape(trueParameterList, (trueParameterList.shape[1]))
@@ -1828,7 +1810,7 @@ class RefractorRetrievalInfo:
                                 initialGuessList[ind1] = np.amin(initialGuessList[ind2])
                             # end if np.amin(initialGuessList) < 0 and np.max(initialGuessList) > 0:
 
-                            if have_true:
+                            if state_info.has_true_values():
                                 if np.amin(trueParameterList) < 0 and np.amax(trueParameterList) > 0:
                                     logger.info(f"Fix negative mapping: initialGuessList: species_name: {species_name}")
                                     # fix issue with mapping going to negative #s
@@ -1847,7 +1829,7 @@ class RefractorRetrievalInfo:
                     # AT_LINE 789 Get_Species_Information.pro
                     stateInfo.initial['values'][loc, :] = initialGuessFM[:]
                     stateInfo.current['values'][loc, :] = currentGuessFM[:]
-                    if have_true:
+                    if state_info.has_true_values():
                         stateInfo.true['values'][loc, :] = trueStateFM[:]
 
                 # end else part from AT_LINE 629 Get_Species_Information.pro
@@ -1897,7 +1879,7 @@ class RefractorRetrievalInfo:
                     constraintVectorFM = np.asanyarray(constraintVectorFM)
 
 
-                if have_true:
+                if state_info.has_true_values():
                     if np.isscalar(trueParameterList):
                         trueParameterList = np.asanyarray([trueParameterList])
                     else:
@@ -1947,52 +1929,48 @@ class RefractorRetrievalInfo:
                 except:
                     pass
 
-                o_retrievalInfo.pressureList[row:row + mm] = pressureList[:]
-                o_retrievalInfo.altitudeList[row:row + mm] = altitudeList[:]
-                o_retrievalInfo.speciesList[row:row + mm] = [species_name] * mm
+                o_retrievalInfo.pressureList.extend(pressureList)
+                o_retrievalInfo.altitudeList.extend(altitudeList)
+                o_retrievalInfo.speciesList.extend([species_name] * mm)
+                o_retrievalInfo.pressureListFM.append(pressureListFM)
+                o_retrievalInfo.altitudeListFM.append(altitudeListFM)
+                o_retrievalInfo.speciesListFM.extend([species_name] * nn)
+                o_retrievalInfo.constraintVector.append(constraintVector)
+                o_retrievalInfo.initialGuessList.append(initialGuessList)
+                o_retrievalInfo.initialGuessListFM.append(initialGuessListFM)
+                o_retrievalInfo.constraintVectorListFM.append(constraintVectorFM)
+                o_retrievalInfo.minimumList.append(minimum)
+                o_retrievalInfo.maximumList.append(maximum)
+                o_retrievalInfo.maximumChangeList.append(maximum_change)
 
-                o_retrievalInfo.pressureListFM[rowFM:rowFM + nn] = pressureListFM[:]
-                o_retrievalInfo.altitudeListFM[rowFM:rowFM + nn] = altitudeListFM[:]
-                o_retrievalInfo.speciesListFM[rowFM:rowFM + nn] = [species_name] * nn
-
-                # AT_LINE 807 Get_Species_Information.pro
-                o_retrievalInfo.constraintVector[row:row + mm] = constraintVector[:]
-                o_retrievalInfo.initialGuessList[row:row + mm] = initialGuessList[:]
-                o_retrievalInfo.initialGuessListFM[rowFM:rowFM + nn] = initialGuessListFM[:]
-                o_retrievalInfo.constraintVectorListFM[rowFM:rowFM + nn] = constraintVectorFM[:]
-
-                if have_true:
-                    o_retrievalInfo.trueParameterList[row:row + mm] = trueParameterList[:]
-                    o_retrievalInfo.trueParameterListFM[rowFM:rowFM + nn] = trueParameterListFM[:]
-
-                o_retrievalInfo.minimumList[row:row + mm] = minimum[:]
-                o_retrievalInfo.maximumList[row:row + mm] = maximum[:]
-                o_retrievalInfo.maximumChangeList[row:row + mm] = maximum_change[:]
+                if state_info.has_true_values():
+                    o_retrievalInfo.trueParameterList.append(trueParameterList)
+                    o_retrievalInfo.trueParameterListFM.append(trueParameterListFM)
 
 
-                o_retrievalInfo.mapToState[row:row + mm, rowFM:rowFM + nn] = mapToState
-                o_retrievalInfo.mapToParameters[rowFM:rowFM + nn, row:row + mm] = mapToParameters
 
-                o_retrievalInfo.species[ii] = species_name
-                o_retrievalInfo.parameterStart[ii] = row
-                o_retrievalInfo.parameterEnd[ii] = row + mm - 1
-                o_retrievalInfo.n_parameters[ii] = mm
-                o_retrievalInfo.n_parametersFM[ii] = nn
+                o_retrievalInfo.mapToState.append(mapToState)
+                o_retrievalInfo.mapToParameters.append(mapToParameters)
 
-                o_retrievalInfo.mapTypeList[row:row + mm] = [mapType] * mm
-                o_retrievalInfo.mapTypeListFM[rowFM:rowFM + nn] = [mapType] * nn
+                o_retrievalInfo.parameterStart.append(row)
+                o_retrievalInfo.parameterEnd.append(row + mm - 1)
+                o_retrievalInfo.n_parameters.append(mm)
+                o_retrievalInfo.n_parametersFM.append(nn)
 
-                o_retrievalInfo.mapType[ii] = mapType
+                o_retrievalInfo.mapTypeList.extend([mapType] * mm)
+                o_retrievalInfo.mapTypeListFM.extend([mapType] * nn)
+
+                o_retrievalInfo.mapType.append(mapType)
 
                 # AT_LINE 826 Get_Species_Information.pro
                 o_retrievalInfo.Constraint[row:row + mm, row:row + mm] = constraintMatrix
 
                 o_retrievalInfo.n_totalParameters = row + mm
 
-                o_retrievalInfo.parameterStartFM[ii] = rowFM
+                o_retrievalInfo.parameterStartFM.append(rowFM)
 
                 rowFM = rowFM + nn
-                o_retrievalInfo.parameterEndFM[ii] = rowFM - 1
+                o_retrievalInfo.parameterEndFM.append(rowFM - 1)
 
                 o_retrievalInfo.n_totalParametersFM = rowFM
 
@@ -2011,7 +1989,7 @@ class RefractorRetrievalInfo:
             if sys_tokens[0] != '-' and sys_tokens[0] != '':
                 sys_tokens = mpy.order_species(sys_tokens)
                 o_retrievalInfo.n_speciesSys = len(sys_tokens)
-                o_retrievalInfo.speciesSys[0:o_retrievalInfo.n_speciesSys] = sys_tokens[:]
+                o_retrievalInfo.speciesSys.extend(sys_tokens)
                 o_retrievalInfo.n_totalParametersSys = len(mpy.constraint_get_species(error_analysis.error_initial, sys_tokens))
             else:
                 o_retrievalInfo.n_speciesSys = 0
@@ -2021,16 +1999,16 @@ class RefractorRetrievalInfo:
             if sys_tokens[0] != '-' and sys_tokens[0] != '':
                 myspec = mpy.constraint_get_species(error_analysis.error_initial,
                                                     sys_tokens)
-                for ll in range(0, len(sys_tokens)):
-                    my_ind = np.where(np.asarray(myspec) == sys_tokens[ll])[0]
+                for ll, tk in enumerate(sys_tokens):
+                    my_ind = np.where(np.asarray(myspec) == tk)[0]
                     # PYTHON_NOTE: If the len of my_ind, that means we don't have any matching species names.
                     if len(my_ind) > 0:
-                        o_retrievalInfo.parameterStartSys[ll] = np.amin(my_ind)
-                        o_retrievalInfo.parameterEndSys[ll] = np.amax(my_ind)
-                        o_retrievalInfo.speciesListSys[my_ind] = o_retrievalInfo.speciesSys[ll]
+                        o_retrievalInfo.parameterStartSys.append(np.amin(my_ind))
+                        o_retrievalInfo.parameterEndSys.append(np.amax(my_ind))
+                        o_retrievalInfo.speciesListSys.extend([o_retrievalInfo.speciesSys[ll]] * len(my_ind))
                     else:
-                        o_retrievalInfo.parameterStartSys[ll] = -1
-                        o_retrievalInfo.parameterEndSys[ll] = -1
+                        o_retrievalInfo.parameterStartSys.append(-1)
+                        o_retrievalInfo.parameterEndSys.append(-1)
             # end for ll = 0,len(sys_tokens):
 
         # end else portion of if retrievalType == 'bt' or retrievalType == 'forwardmodel' or retrievalType == 'fullfilter':
@@ -2088,7 +2066,6 @@ class RefractorRetrievalInfo:
                     mm = o_retrievalInfo.n_parameters[locs[0]]    # Note the spelling of this key 'n_parameters'
                     nn = o_retrievalInfo.n_parametersFM[locs[0]]  # Note the spelling of this key 'n_parametersFM'
                     mapType = 'log'
-                    mapToParameters = o_retrievalInfo.mapToParameters[loc11FM:loc12FM, loc11:loc12] # Note the spelling of this key 'mapToParameters'
                     pressureListFM = o_retrievalInfo.pressureListFM[loc11FM:loc12FM]
                     pressureList = o_retrievalInfo.pressureListFM[loc11:loc12]
 
@@ -2137,13 +2114,6 @@ class RefractorRetrievalInfo:
 
         # AT_LINE 926 Get_Species_Information.py
 
-        # Check the constaint vector for sanity.
-        if np.all(np.isfinite(o_retrievalInfo.constraintVector) == False):
-            raise RuntimeError(f"NaN's in constraint vector!! Constraint vector is: {o_retrievalInfo.constraintVector}. Check species {o_retrievalInfo.speciesList}")
-
-        # Check the constaint matrix for sanity.
-        if np.all(np.isfinite(o_retrievalInfo.Constraint)) == False:
-            raise RuntimeError(f"NaN's in constraint matrix!! Constraint matrix is: {o_retrievalInfo.Constraint}. Check species {o_retrievalInfo.speciesList}")
 
         # get to right sizes
         # resave to a structure that is "just right"
@@ -2161,7 +2131,6 @@ class RefractorRetrievalInfo:
         if nsys == 0:
             nsys = 1
 
-        r = o_retrievalInfo
 
         if mmm == 0:
             mmm = 1
@@ -2169,66 +2138,39 @@ class RefractorRetrievalInfo:
         if nnn == 0:
             nnn = 1
 
-        # AT_LINE 960 Get_Species_Information.py
-        o_retrievalInfo = { 
-            # Info by retrieval parameter
-            'surfaceType' : r.surfaceType,                    
-            'speciesList' : r.speciesList[0:mmm],             
-            'pressureList': r.pressureList[0:mmm],            
-            'altitudeList': r.altitudeList[0:mmm],            
-            'mapTypeList' : r.mapTypeList[0:mmm],             
+        # Convert to numpy arrays
+        for key in ("initialGuessList", "constraintVector",
+                    "trueParameterList", "trueParameterListFM",
+                    "pressureListFM", "altitudeListFM",
+                    "initialGuessListFM", "constraintVectorListFM",
+                    "minimumList", "maximumList", "maximumChangeList"):
+            if(len(o_retrievalInfo.__dict__[key]) > 0):
+                o_retrievalInfo.__dict__[key] = np.concatenate(
+                    [a.flatten() for a in o_retrievalInfo.__dict__[key]])
+            else:
+                o_retrievalInfo.__dict__[key] = np.zeros(0)
+        # Few block diagonal matrixes
+        for key in ("mapToState","mapToParameters", "Constraint"):
+            o_retrievalInfo.__dict__[key] = block_diag(*o_retrievalInfo.__dict__[key])
+                
+        o_retrievalInfo.doUpdateFM = np.zeros(o_retrievalInfo.n_totalParametersFM)
+        o_retrievalInfo.speciesListSys = np.array(o_retrievalInfo.speciesListSys)
+        if(o_retrievalInfo.trueParameterList.shape[0] == 0):
+            o_retrievalInfo.trueParameterList = np.zeros(o_retrievalInfo.n_totalParameters)
+        if(o_retrievalInfo.trueParameterListFM.shape[0] == 0):
+            o_retrievalInfo.trueParameterListFM = np.zeros(o_retrievalInfo.n_totalParametersFM)
 
-            'minimumList' : r.minimumList[0:mmm],             
-            'maximumList' : r.maximumList[0:mmm],             
-            'maximumChangeList' : r.maximumChangeList[0:mmm],             
+        # Check the constaint vector for sanity.
+        if np.all(np.isfinite(o_retrievalInfo.constraintVector)) == False:
+            raise RuntimeError(f"NaN's in constraint vector!! Constraint vector is: {o_retrievalInfo.constraintVector}. Check species {o_retrievalInfo.speciesList}")
 
-            'initialGuessList' :  r.initialGuessList[0:mmm],  
-            'constraintVector' : r.constraintVector[0:mmm],   
-            'trueParameterList': r.trueParameterList[0:mmm],  
-            'doUpdateFM'       : r.doUpdateFM[0:nnn],         
-            'speciesListFM'    : r.speciesListFM[0:nnn],      
+        # Check the constaint matrix for sanity.
+        if np.all(np.isfinite(o_retrievalInfo.Constraint)) == False:
+            raise RuntimeError(f"NaN's in constraint matrix!! Constraint matrix is: {o_retrievalInfo.Constraint}. Check species {o_retrievalInfo.speciesList}")
 
-            'pressureListFM'     : r.pressureListFM[0:nnn],      
-            'altitudeListFM'     : r.altitudeListFM[0:nnn],      
-            'initialGuessListFM' : r.initialGuessListFM[0:nnn],  
-            'constraintVectorListFM' : r.constraintVectorListFM[0:nnn],  
-            'trueParameterListFM': r.trueParameterListFM[0:nnn], 
-            'n_totalParametersFM': r.n_totalParametersFM,        
-
-            'parameterStartFM': r.parameterStartFM[0:r.n_species],  
-            'parameterEndFM'  : r.parameterEndFM[0:r.n_species],    
-            'mapTypeListFM'   : r.mapTypeListFM[0:nnn],             
-
-            # Info by species
-            'n_speciesSys'     : r.n_speciesSys,                 
-            'speciesSys'       : r.speciesSys[0:nsys],           
-            'parameterStartSys': r.parameterStartSys[0:nsys],    
-            'parameterEndSys'  : r.parameterEndSys[0:nsys],      
-            'speciesListSys'   : r.speciesListSys[0:sss],        
-
-            'n_totalParametersSys': r.n_totalParametersSys,          
-            'n_species'           : r.n_species,                     
-            'species'             : r.species[0:r.n_species],        
-            'parameterStart'      : r.parameterStart[0:r.n_species], 
-            'parameterEnd'        : r.parameterEnd[0:r.n_species],   
-
-            'n_parametersFM' : r.n_parametersFM[0:r.n_species],      
-            'n_parameters'   : r.n_parameters[0:r.n_species],        
-            'mapType'        : r.mapType[0:r.n_species],             
-            'mapToState'     : r.mapToState[0:mmm, 0:nnn],           
-            'mapToParameters': r.mapToParameters[0:nnn, 0:mmm],       
-
-            # Constraint & SaTrue, & info for all parameters
-            'n_totalParameters': r.n_totalParameters,        
-            'Constraint'       : r.Constraint[0:mmm, 0:mmm],  
-            'type'             : r.type                     
-        }
-
-
-        # Convert any dictionaries to objects.
-        if isinstance(o_retrievalInfo, dict):
-            o_retrievalInfo = mpy.ObjectView(o_retrievalInfo)
-
+        o_retrievalInfo.Constraint = \
+            o_retrievalInfo.Constraint[0:o_retrievalInfo.n_totalParameters,
+                                       0:o_retrievalInfo.n_totalParameters]
         return o_retrievalInfo
         
     
