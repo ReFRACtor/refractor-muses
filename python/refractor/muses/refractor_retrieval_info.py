@@ -197,13 +197,10 @@ class RefractorRetrievalInfo:
                 o_retrievalInfo.parameterEndSys.append(-1)
 
         
-    def init_species(self, species_index, strategy_table, state_info,
+    def init_species(self, species_name, strategy_table, state_info,
                      o_retrievalInfo):
         '''Pull out the main loop in init_data, just so we can start pulling
         pieces apart'''
-        row = o_retrievalInfo.n_totalParameters
-        rowFM = o_retrievalInfo.n_totalParametersFM
-        ii = species_index
         pressure = state_info.pressure
         # user specifies the number of forward model levels
         if strategy_table.number_fm_levels < len(pressure):
@@ -214,9 +211,6 @@ class RefractorRetrievalInfo:
         stateInfo = mpy.ObjectView(state_info.state_info_dict)
         current = mpy.ObjectView(stateInfo.current)
         
-        # AT_LINE 148 Get_Species_Information.pro
-        species_name = o_retrievalInfo.species[ii]
-
         # Open, read species file
         retrievalTypeStr = '_' + strategy_table.retrieval_type.lower()
         if strategy_table.retrieval_type.lower() == 'default':
@@ -1720,6 +1714,7 @@ class RefractorRetrievalInfo:
         # end else part from AT_LINE 629 Get_Species_Information.pro
         # end else part of if 'OMI' in species_name:
 
+        # ---- MMS This seems to always be executed
         # AT_LINE 799 Get_Species_Information.pro
 
         # Convert any scalar values to array so we can use the [:] index syntax.
@@ -1814,6 +1809,39 @@ class RefractorRetrievalInfo:
         except:
             pass
 
+        # If we skipped setting true values, go ahead and put a placeholder of
+        # zeros, just so we don't need special handling
+        if not state_info.has_true_values():
+            trueParameterList = np.zeros_like(initialGuessList)
+            trueParameterListFM = np.zeros_like(initialGuessListFM)
+            
+        return (mapType,
+                pressureList.flatten(), altitudeList.flatten(),
+                constraintVector.flatten(), initialGuessList.flatten(),
+                pressureListFM.flatten(), altitudeListFM.flatten(),
+                constraintVectorFM.flatten(), initialGuessListFM.flatten(),
+                minimum.flatten(), maximum.flatten(), maximum_change.flatten(),
+                trueParameterList.flatten(), trueParameterListFM.flatten(),
+                mapToState, mapToParameters,
+                constraintMatrix)
+
+    def add_species(self, species_name, strategy_table, state_info,
+                    o_retrievalInfo):
+        (mapType,
+         pressureList, altitudeList,
+         constraintVector, initialGuessList,
+         pressureListFM, altitudeListFM,
+         constraintVectorFM, initialGuessListFM,
+         minimum, maximum, maximum_change,
+         trueParameterList, trueParameterListFM,
+         mapToState, mapToParameters,
+         constraintMatrix) = self.init_species(species_name, strategy_table,
+                                               state_info, o_retrievalInfo)
+        
+        row = o_retrievalInfo.n_totalParameters
+        rowFM = o_retrievalInfo.n_totalParametersFM
+        mm = len(initialGuessList)
+        nn = len(initialGuessListFM)
         o_retrievalInfo.pressureList.extend(pressureList)
         o_retrievalInfo.altitudeList.extend(altitudeList)
         o_retrievalInfo.speciesList.extend([species_name] * mm)
@@ -1827,29 +1855,19 @@ class RefractorRetrievalInfo:
         o_retrievalInfo.minimumList.append(minimum)
         o_retrievalInfo.maximumList.append(maximum)
         o_retrievalInfo.maximumChangeList.append(maximum_change)
-
-        if state_info.has_true_values():
-            o_retrievalInfo.trueParameterList.append(trueParameterList)
-            o_retrievalInfo.trueParameterListFM.append(trueParameterListFM)
-
-
-
+        o_retrievalInfo.trueParameterList.append(trueParameterList)
+        o_retrievalInfo.trueParameterListFM.append(trueParameterListFM)
         o_retrievalInfo.mapToState.append(mapToState)
         o_retrievalInfo.mapToParameters.append(mapToParameters)
-
         o_retrievalInfo.parameterStart.append(row)
         o_retrievalInfo.parameterEnd.append(row + mm - 1)
         o_retrievalInfo.n_parameters.append(mm)
         o_retrievalInfo.n_parametersFM.append(nn)
-
         o_retrievalInfo.mapTypeList.extend([mapType] * mm)
         o_retrievalInfo.mapTypeListFM.extend([mapType] * nn)
-
         o_retrievalInfo.mapType.append(mapType)
-
-        # AT_LINE 826 Get_Species_Information.pro
+        
         o_retrievalInfo.Constraint[row:row + mm, row:row + mm] = constraintMatrix
-
         o_retrievalInfo.parameterStartFM.append(rowFM)
         o_retrievalInfo.parameterEndFM.append(rowFM + nn - 1)
         o_retrievalInfo.n_totalParameters = row + mm
@@ -2052,8 +2070,9 @@ class RefractorRetrievalInfo:
             o_retrievalInfo.species = state_info.order_species(strategy_table.retrieval_elements)
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
-            for ii in range(o_retrievalInfo.n_species):
-                self.init_species(ii, strategy_table, state_info, o_retrievalInfo)
+            for species_name in o_retrievalInfo.species:
+                self.add_species(species_name, strategy_table, state_info,
+                                 o_retrievalInfo)
 
             self.init_interferents(strategy_table, state_info, o_retrievalInfo,
                                    error_analysis)
@@ -2077,13 +2096,8 @@ class RefractorRetrievalInfo:
         o_retrievalInfo.Constraint = \
             o_retrievalInfo.Constraint[0:o_retrievalInfo.n_totalParameters,
                                        0:o_retrievalInfo.n_totalParameters]
-        
         o_retrievalInfo.doUpdateFM = np.zeros(o_retrievalInfo.n_totalParametersFM)
         o_retrievalInfo.speciesListSys = np.array(o_retrievalInfo.speciesListSys)
-        if(o_retrievalInfo.trueParameterList.shape[0] == 0):
-            o_retrievalInfo.trueParameterList = np.zeros(o_retrievalInfo.n_totalParameters)
-        if(o_retrievalInfo.trueParameterListFM.shape[0] == 0):
-            o_retrievalInfo.trueParameterListFM = np.zeros(o_retrievalInfo.n_totalParametersFM)
         # Not sure if these empty values are important or not, but for now
         # match what the existing muses-py code does.
         for k in ("speciesList","speciesListFM", "mapTypeList","speciesSys",
