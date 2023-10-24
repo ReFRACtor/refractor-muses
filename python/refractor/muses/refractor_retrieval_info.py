@@ -169,36 +169,33 @@ class RefractorRetrievalInfo:
         # initial guess
         return self.initialGuessListFM.shape[0]
 
-    def init_interferents(self, strategy_table, o_retrievalInfo, error_analysis):
+    def init_interferents(self, strategy_table, state_info, o_retrievalInfo,
+                          error_analysis):
+        '''Update the various "Sys" stuff in o_retrievalInfo to add in
+        the error analysis interferents'''
         sys_tokens = strategy_table.error_analysis_interferents
-
-        # For some reason, the returned value of sys_tokens is a list of list so we just desire a regular list.
         sys_tokens = mpy.flat_list(sys_tokens)
-
-        if sys_tokens[0] != '-' and sys_tokens[0] != '':
-            sys_tokens = mpy.order_species(sys_tokens)
-            o_retrievalInfo.n_speciesSys = len(sys_tokens)
-            o_retrievalInfo.speciesSys.extend(sys_tokens)
-            o_retrievalInfo.n_totalParametersSys = len(mpy.constraint_get_species(error_analysis.error_initial, sys_tokens))
-        else:
+        if sys_tokens[0] in ('-',  ''):
             o_retrievalInfo.n_speciesSys = 0
-        # end else portion of if (sys_tokens[0] != '-' and sys_tokens[0] != ''):
+            return
+           
+        sys_tokens = state_info.order_species(sys_tokens)
+        o_retrievalInfo.n_speciesSys = len(sys_tokens)
+        o_retrievalInfo.speciesSys.extend(sys_tokens)
+        myspec = list(mpy.constraint_get_species(error_analysis.error_initial,
+                                                 sys_tokens))
+        o_retrievalInfo.n_totalParametersSys = len(myspec)
+        for tk in sys_tokens:
+            cnt = sum(t == tk for t in myspec)
+            if cnt > 0:
+                pstart = myspec.index(tk)
+                o_retrievalInfo.parameterStartSys.append(pstart)
+                o_retrievalInfo.parameterEndSys.append(pstart+cnt-1)
+                o_retrievalInfo.speciesListSys.extend([tk] * cnt)
+            else:
+                o_retrievalInfo.parameterStartSys.append(-1)
+                o_retrievalInfo.parameterEndSys.append(-1)
 
-        # AT_LINE 872 Get_Species_Information.py
-        if sys_tokens[0] != '-' and sys_tokens[0] != '':
-            myspec = mpy.constraint_get_species(error_analysis.error_initial,
-                                                sys_tokens)
-            for ll, tk in enumerate(sys_tokens):
-                my_ind = np.where(np.asarray(myspec) == tk)[0]
-                # PYTHON_NOTE: If the len of my_ind, that means we don't have any matching species names.
-                if len(my_ind) > 0:
-                    o_retrievalInfo.parameterStartSys.append(np.amin(my_ind))
-                    o_retrievalInfo.parameterEndSys.append(np.amax(my_ind))
-                    o_retrievalInfo.speciesListSys.extend([o_retrievalInfo.speciesSys[ll]] * len(my_ind))
-                else:
-                    o_retrievalInfo.parameterStartSys.append(-1)
-                    o_retrievalInfo.parameterEndSys.append(-1)
-        # end for ll = 0,len(sys_tokens):
         
     def init_species(self, species_index, strategy_table, state_info,
                      o_retrievalInfo):
@@ -2052,17 +2049,14 @@ class RefractorRetrievalInfo:
         if strategy_table.retrieval_type.lower() in ('bt', 'forwardmodel'):
             pass
         else:
-
-            # order species stuff.  We also have to order everything that is
-            # associated with each species, e.g. mapType, initialGuessSource
-            
-            o_retrievalInfo.species = mpy.order_species(strategy_table.retrieval_elements)
+            o_retrievalInfo.species = state_info.order_species(strategy_table.retrieval_elements)
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for ii in range(o_retrievalInfo.n_species):
                 self.init_species(ii, strategy_table, state_info, o_retrievalInfo)
 
-            self.init_interferents(strategy_table, o_retrievalInfo, error_analysis)
+            self.init_interferents(strategy_table, state_info, o_retrievalInfo,
+                                   error_analysis)
 
         self.init_joint(o_retrievalInfo, strategy_table, state_info)
         
