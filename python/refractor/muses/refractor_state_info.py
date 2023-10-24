@@ -485,6 +485,11 @@ class RefractorStateInfo:
                       (v not in self._ordered_species_list,
                        self._ordered_species_list.index(v) if
                        v in self._ordered_species_list else v))
+    
+    def species_state2(self,name):
+        '''Need to merge this with the one below, but for now leave as this.'''
+        from .species_or_parameter_state import MusesPySpeciesOrParametersState
+        return MusesPySpeciesOrParametersState(self, name)
 
     def species_state(self, name, step="current"):
         '''Return the SpeciesOrParametersState for the give species/parameter name'''
