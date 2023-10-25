@@ -15,7 +15,7 @@ class SpeciesOrParametersState:
     out, and try to figure out the right design here.
 
     These get referenced by a "name", usually called a "species_name"
-    in the muses-py code. The RefractorStateInfo can be used to look these
+    in the muses-py code. The StateInfo can be used to look these
     up.
     '''
     def __init__(self, name, value=None):
@@ -203,8 +203,8 @@ class SoundingMetadata:
 class Level1bAirs:
     '''This is like a Level1b class from framework, although right now we won't
     bother making this actually one those. Instead this pulls stuff out of
-    RefractorStateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from RefractorStateInfo and put this
+    StateInfo and makes in looks like we got it from a Level1bAirs file.
+    We'll then eventually separate this out from StateInfo and put this
     over with the Observation.'''
     def __init__(self, rs):
         self.rs = rs
@@ -241,8 +241,8 @@ class Level1bAirs:
 class Level1bTes:
     '''This is like a Level1b class from framework, although right now we won't
     bother making this actually one those. Instead this pulls stuff out of
-    RefractorStateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from RefractorStateInfo and put this
+    StateInfo and makes in looks like we got it from a Level1bAirs file.
+    We'll then eventually separate this out from StateInfo and put this
     over with the Observation.'''
     def __init__(self, rs):
         self.rs = rs
@@ -266,8 +266,8 @@ class Level1bTes:
 class Level1bOmi:
     '''This is like a Level1b class from framework, although right now we won't
     bother making this actually one those. Instead this pulls stuff out of
-    RefractorStateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from RefractorStateInfo and put this
+    StateInfo and makes in looks like we got it from a Level1bAirs file.
+    We'll then eventually separate this out from StateInfo and put this
     over with the Observation.'''
     def __init__(self, rs):
         self.rs = rs
@@ -291,8 +291,8 @@ class Level1bOmi:
 class Level1bCris:
     '''This is like a Level1b class from framework, although right now we won't
     bother making this actually one those. Instead this pulls stuff out of
-    RefractorStateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from RefractorStateInfo and put this
+    StateInfo and makes in looks like we got it from a Level1bAirs file.
+    We'll then eventually separate this out from StateInfo and put this
     over with the Observation.'''
     def __init__(self, rs):
         self.rs = rs
@@ -327,8 +327,8 @@ class Level1bCris:
 class Level1bTropomi:
     '''This is like a Level1b class from framework, although right now we won't
     bother making this actually one those. Instead this pulls stuff out of
-    RefractorStateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from RefractorStateInfo and put this
+    StateInfo and makes in looks like we got it from a Level1bAirs file.
+    We'll then eventually separate this out from StateInfo and put this
     over with the Observation.'''
     def __init__(self, rs):
         self.rs = rs
@@ -359,13 +359,8 @@ class Level1bTropomi:
         v = self.rs.state_info_dict["current"]['tropomi'].get(f'vza_BAND{ind+1}', -999)
         return rf.DoubleWithUnit(float(v), "deg")
     
-# Not really clear how to handle this. But we'll start throwing something together.
-# We'll want to separate these later on
-class RefractorStateInfo:
-    '''Like RefractorRetrievalInfo, this just wraps up the existing StateInfo
-    class so we can figure out how it is used in code and get clear boundaries
-    for the class.
-
+class StateInfo:
+    '''
     A few functions seem sort of like member functions, we'll just make a list
     of these to sort out later but not try to get the full interface in place.
 
@@ -509,3 +504,6 @@ class RefractorStateInfo:
     
         
         
+__all__ = ["SpeciesOrParametersState", "SpeciesOnLevels",
+           "SpeciesOrParametersWithFrequencyState",
+           "SoundingMetadata", "StateInfo"]

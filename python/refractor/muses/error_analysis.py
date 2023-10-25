@@ -1,5 +1,5 @@
 from .strategy_table import StrategyTable
-from .refractor_state_info import RefractorStateInfo
+from .state_info import StateInfo
 import refractor.muses.muses_py as mpy
 import copy
 import numpy as np
@@ -9,7 +9,7 @@ class ErrorAnalysis:
     to put this together. Nothing more than a shuffling around of stuff already
     in muses-py
     '''
-    def __init__(self, strategy_table: StrategyTable, state_info: RefractorStateInfo):
+    def __init__(self, strategy_table: StrategyTable, state_info: StateInfo):
         smeta = state_info.sounding_metadata()
         self.error_initial = mpy.get_prior_error(
             strategy_table.error_species, strategy_table.error_map_type,

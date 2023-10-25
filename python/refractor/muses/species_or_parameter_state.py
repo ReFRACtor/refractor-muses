@@ -1,5 +1,5 @@
 import refractor.muses.muses_py as mpy
-from .refractor_state_info import SpeciesOrParametersState
+from .state_info import SpeciesOrParametersState
 import numpy as np
 import copy
 import os

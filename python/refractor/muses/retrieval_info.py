@@ -8,7 +8,7 @@ import math
 import logging
 logger = logging.getLogger("py-retrieve")
 
-class RefractorRetrievalInfo:
+class RetrievalInfo:
     '''Not sure if we'll keep this or not, but pull out RetrievalInfo stuff so
     we can figure out the interface and if we should replace this.
 
@@ -27,7 +27,7 @@ class RefractorRetrievalInfo:
     '''
     def __init__(self, error_analysis : "ErrorAnalysis",
                  strategy_table : "StrategyTable",
-                 state_info : "RefractorStateInfo"):
+                 state_info : "StateInfo"):
         self.retrieval_dict = \
             self.init_data(error_analysis,
                            strategy_table,
@@ -333,7 +333,7 @@ class RefractorRetrievalInfo:
 
     def init_data(self, error_analysis : "ErrorAnalysis",
                   strategy_table : "StrategyTable",
-                  state_info : "RefractorStateInfo"):
+                  state_info : "StateInfo"):
         # This is a reworking of get_species_information in muses-py
         utilLevels = mpy.UtilLevels()
 
@@ -493,3 +493,4 @@ class RefractorRetrievalInfo:
         return o_retrievalInfo
         
     
+__all__ = ["RetrievalInfo",]

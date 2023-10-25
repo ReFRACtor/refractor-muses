@@ -7,11 +7,11 @@ import math
 import logging
 logger = logging.getLogger("py-retrieve")
 
-class RefractorRetrievalInfoOld:
+class RetrievalInfoOld:
     '''Original version of this, so we can debug/compare issues with the new one.
     '''
     def __init__(self, strategy_table : "StrategyTable",
-                 state_info : "RefractorStateInfo"):
+                 state_info : "StateInfo"):
         (self.retrieval_dict, _, _) = \
             self.init_data(strategy_table.strategy_table_dict,
                            state_info.state_info_dict)
@@ -153,7 +153,7 @@ class RefractorRetrievalInfoOld:
         return self.initialGuessListFM.shape[0]
 
     def init_data(self, strategy_table : "StrategyTable",
-                  state_info : "RefractorStateInfo"):
+                  state_info : "StateInfo"):
         # This is a reworking of get_species_information in muses-py
         utilLevels = mpy.UtilLevels()
 
@@ -2259,3 +2259,4 @@ class RefractorRetrievalInfoOld:
         return (o_retrievalInfo, o_errorInitial, o_errorCurrent)
         
     
+__all__ = ["RetrievalInfoOld"]

@@ -6,7 +6,7 @@ import refractor.framework as rf
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .refractor_uip import RefractorUip
-from .refractor_retrieval_info import RefractorRetrievalInfo
+from .retrieval_info import RetrievalInfo
 from .fm_obs_creator import FmObsCreator
 from .cost_function import CostFunction
 from .muses_retrieval_step import MusesRetrievalStep
@@ -83,7 +83,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
                       mytimingFlag, writeoutputFlag, rf_uip):
         '''run_retrieval when maxIter is 0, pulled out just to simplify
         the code'''
-        if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
+        if(isinstance(i_retrievalInfo, RetrievalInfo)):
             jacobian_speciesNames = i_retrievalInfo.species_names
             jacobian_speciesList = i_retrievalInfo.species_list_fm
         else:
@@ -97,7 +97,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
             mytimingFlag, 
             writeoutputFlag)
         if jacobian_speciesList[0] != '':
-            if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
+            if(isinstance(i_retrievalInfo, RetrievalInfo)):
                 xret = i_retrievalInfo.apriori
             else:
                 xret = i_retrievalInfo.constraintVector[0:i_retrievalInfo.n_totalParameters]
@@ -169,7 +169,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         meas_err = mpy.glom(tweaked_array_nesr, 0, 1)
 
         # apriori and sqrt_constraint
-        if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
+        if(isinstance(i_retrievalInfo, RetrievalInfo)):
             constraint = i_retrievalInfo.apriori_cov
             xa = i_retrievalInfo.apriori
         else:
@@ -251,7 +251,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         radianceOut2['radiance'][:] = radiance_fm
 
         detectors = [0]
-        if(isinstance(i_retrievalInfo, RefractorRetrievalInfo)):
+        if(isinstance(i_retrievalInfo, RetrievalInfo)):
             speciesFM = i_retrievalInfo.species_list_fm
         else:
             speciesFM = i_retrievalInfo.speciesListFM[0:i_retrievalInfo.n_totalParametersFM]

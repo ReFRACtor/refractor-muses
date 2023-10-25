@@ -22,9 +22,9 @@ from pathlib import Path
 from pprint import pformat, pprint
 import time
 from contextlib import contextmanager
-from .refractor_retrieval_info import RefractorRetrievalInfo
-from .refractor_retrieval_info_old import RefractorRetrievalInfoOld
-from .refractor_state_info import RefractorStateInfo
+from .retrieval_info import RetrievalInfo
+from .retrieval_info_old import RetrievalInfoOld
+from .state_info import StateInfo
 logger = logging.getLogger("py-retrieve")
 
 def struct_compare(s1, s2):
@@ -182,7 +182,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.o_cris = self.fm_obs_creator.o_cris
         
         self.create_windows(all_step=True)
-        self.state_info = RefractorStateInfo(
+        self.state_info = StateInfo(
             self.strategy_table, self.fm_obs_creator,
             self.instruments_all, self.run_dir)
         self.notify_update("initial set up done")
@@ -304,16 +304,16 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # Temporary, leave old code in place as we sort out the new code. This
         # can go away in a bit.
         if True:
-            self.retrievalInfo = RefractorRetrievalInfo(
+            self.retrievalInfo = RetrievalInfo(
                 self.error_analysis, self.strategy_table, self.state_info)
         else:
-            self.retrievalInfo = RefractorRetrievalInfoOld(
+            self.retrievalInfo = RetrievalInfoOld(
                 self.strategy_table, self.state_info)
 
         # Similarly if we need to compare stuff - again this can go away in a
         # bit when we have stuff sorted out.
         if False:
-            r2 = RefractorRetrievalInfoOld(self.strategy_table, self.state_info)
+            r2 = RetrievalInfoOld(self.strategy_table, self.state_info)
             struct_compare(self.retrievalInfo.retrieval_dict,
                            r2.retrieval_dict)
             

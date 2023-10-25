@@ -1,6 +1,6 @@
 from test_support import *
-from refractor.muses import (RefractorRetrievalInfo,
-                             RefractorRetrievalInfoOld,
+from refractor.muses import (RetrievalInfo,
+                             RetrievalInfoOld,
                              RetrievalStrategy,
                              MusesRunDir)
 import subprocess
@@ -28,11 +28,11 @@ def test_retrieval_info(isolated_dir, vlidort_cli, osp_dir, gmao_dir, step_numbe
     # Currently depends on being in local directory, we can try to relax
     # that as we work through this.
     with rs.chdir_run_dir():
-        rinfo = RefractorRetrievalInfo(rs.error_analysis, rs.strategy_table,
+        rinfo = RetrievalInfo(rs.error_analysis, rs.strategy_table,
                                        rs.state_info)
     if False:
         with rs.chdir_run_dir():
-            rinfo2 = RefractorRetrievalInfoOld(rs.strategy_table, rs.state_info)
+            rinfo2 = RetrievalInfoOld(rs.strategy_table, rs.state_info)
         pickle.dump(rinfo2, open(f"/home/smyth/Local/refractor-muses/rinfo_base_{step_number}.pkl", "wb"))
     rinfo_expect = pickle.load(open(f"/home/smyth/Local/refractor-muses/rinfo_base_{step_number}.pkl", "rb"))
     struct_compare(rinfo.retrieval_dict, rinfo_expect.retrieval_dict)
