@@ -1,6 +1,11 @@
+from __future__ import annotations # We can remove this when we upgrade to python 3.9
 import refractor.muses.muses_py as mpy
-from .state_info import SpeciesOrParametersState
+from .state_info import (SpeciesOrParametersState, SpeciesOrParametersHandle,
+                         SpeciesOrParametersHandleSet, StateInfo)
+from .strategy_table import StrategyTable
 import numpy as np
+import numbers
+import refractor.framework as rf
 import copy
 import os
 import glob
@@ -12,11 +17,11 @@ class MusesPySpeciesOrParametersState(SpeciesOrParametersState):
     '''This will need a bit of work, right now we don't exactly know what
     this interface should look like. This doesn't match the other species
     we have created, so we'll need to get this worked out.'''
-    def __init__(self, state_info, name):
-        super().__init__(name)
-        self.state_info = state_info
+    def __init__(self, state_info : StateInfo, name : str, step : str):
+        super().__init__(state_info, name)
+        self.step = step
         
-    def update_initial_guess(self, strategy_table):
+    def update_initial_guess(self, strategy_table : StrategyTable):
         species_list = self.state_info.order_species(strategy_table.retrieval_elements)
         species_name = self._name
         pressure = self.state_info.pressure
@@ -1651,3 +1656,151 @@ class MusesPySpeciesOrParametersState(SpeciesOrParametersState):
         self.mapToParameters = mapToParameters
         self.constraintMatrix = constraintMatrix
         
+
+class MusesPySpeciesOrParametersHandle(SpeciesOrParametersHandle):
+    def species_object(self, state_info : StateInfo,
+                       species_name : str) -> \
+            tuple[bool, tuple[SpeciesOrParametersState,
+               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
+        return (True, (
+            MusesPySpeciesOrParametersState(state_info, species_name, "initialInitial"),
+            MusesPySpeciesOrParametersState(state_info, species_name, "initial"),
+            MusesPySpeciesOrParametersState(state_info, species_name, "current")))
+
+
+class SpeciesOnLevels(MusesPySpeciesOrParametersState):
+    '''These are things that are reported on our pressure levels.
+    '''
+    def __init__(self, state_info : StateInfo, name : str, step : str):
+        super().__init__(state_info, name, step)
+        self._ind = self.state_info.species_on_levels.index(name)
+
+    @property
+    def value(self):
+        return self.state_info.state_info_dict[self.step]["values"][self._ind, :]
+
+class SpeciesOnLevelsHandle(SpeciesOrParametersHandle):
+    def species_object(self, state_info : StateInfo,
+                       species_name : str) -> \
+            tuple[bool, tuple[SpeciesOrParametersState,
+               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
+        if(species_name not in state_info.species_on_levels):
+            return (False, None)
+        return (True, (SpeciesOnLevels(state_info, species_name, "initialInitial"),
+                       SpeciesOnLevels(state_info, species_name, "initial"), 
+                       SpeciesOnLevels(state_info, species_name, "current")))
+
+
+class SpeciesInDict(MusesPySpeciesOrParametersState):
+    def __init__(self, state_info : StateInfo, name : str, step : str):
+        super().__init__(state_info, name, step)
+
+    @property
+    def value(self):
+        v = self.state_info.state_info_dict[self.step][self.name]
+        # So we don't need special cases, always have a numpy array. A
+        # single value is an array with one value.
+        if(isinstance(v, numbers.Number)):
+            return np.array([v,])
+        return v
+    
+class SpeciesInDictHandle(SpeciesOrParametersHandle):
+    def species_object(self, state_info : StateInfo,
+                       species_name : str) -> \
+            tuple[bool, tuple[SpeciesOrParametersState,
+               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
+        if(species_name not in state_info.state_info_dict["current"]):
+            return (False, None)
+        return (True, (SpeciesInDict(state_info, species_name, "initialInitial"),
+                       SpeciesInDict(state_info, species_name, "initial"), 
+                       SpeciesInDict(state_info, species_name, "current")))
+
+    
+class SpeciesOrParametersWithFrequencyState(MusesPySpeciesOrParametersState):
+    '''Some of the species also have frequencies associated with them.
+    We return these as Refractor SpectralDomain objects.
+
+    TODO I'm pretty sure these are in nm, but this would be worth verifying.'''
+    def __init__(self, state_info : "StateInfo", name : str, step : str):
+        super().__init__(state_info, name, step)
+        
+    @property
+    def spectral_range(self):
+        raise NotImplementedError
+
+    @property
+    def wavelength(self):
+        '''Short cut to return the spectral range in units of nm.'''
+        return self.spectral_range.convert_wave(rf.Unit("nm"))
+
+class EmissivityState(SpeciesOrParametersWithFrequencyState):
+    def __init__(self, state_info, step):
+        super().__init__(state_info, "emissivity", step)
+
+    @property
+    def spectral_range(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        r = range(0,self.state_info.state_info_dict["emisPars"]["num_frequencies"])
+        return rf.SpectralDomain(self.state_info.state_info_dict["emisPars"]["frequency"][r], rf.Unit("nm"))
+    
+    @property
+    def value(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        r = range(0,self.state_info.state_info_dict["emisPars"]["num_frequencies"])
+        return self.state_info.state_info_dict[self.step]["emissivity"][r]
+        
+    @property
+    def camel_distance(self):
+        # Not sure what this is, but seems worth keeping
+        return state_info.state_info_dict["emisPars"]["camel_distance"]
+
+    @property
+    def prior_source(self):
+        '''Source of prior.'''
+        return state_info.state_info_dict["emisPars"]["emissivity_prior_source"]
+
+class CloudState(SpeciesOrParametersWithFrequencyState):
+    def __init__(self, state_info, step):
+        super().__init__(state_info, "cloudEffExt", step)
+        self.step = step
+
+    @property
+    def spectral_range(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        r = range(0,self.state_info.state_info_dict["cloudPars"]["num_frequencies"])
+        return rf.SpectralDomain(self.state_info.state_info_dict["cloudPars"]["frequency"][r], rf.Unit("nm"))
+    
+    @property
+    def value(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        r = range(0,self.state_info.state_info_dict["cloudPars"]["num_frequencies"])
+        return self.state_info.state_info_dict[self.step]["cloudEffExt"][:,r]
+
+class SingleSpeciesHandle(SpeciesOrParametersHandle):
+    def __init__(self, species_name, species_class):
+        self.species_name = species_name
+        self.species_class = species_class
+        
+    def species_object(self, state_info : StateInfo,
+                       species_name : str) -> \
+            tuple[bool, tuple[SpeciesOrParametersState,
+               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
+        if(species_name != self.species_name):
+            return (False, None)
+        return (True, (self.species_class(state_info, "initialInitial"),
+                       self.species_class(state_info, "initial"), 
+                       self.species_class(state_info, "current")))
+
+SpeciesOrParametersHandleSet.add_default_handle(SingleSpeciesHandle("emissivity", EmissivityState), priority_order=1)
+SpeciesOrParametersHandleSet.add_default_handle(SingleSpeciesHandle("cloudEffExt", CloudState), priority_order=1)
+SpeciesOrParametersHandleSet.add_default_handle(SpeciesInDictHandle())    
+SpeciesOrParametersHandleSet.add_default_handle(SpeciesOnLevelsHandle())    
+# If nothing else handles a species, fall back to the muses-py code.    
+SpeciesOrParametersHandleSet.add_default_handle(MusesPySpeciesOrParametersHandle(),
+                                                priority_order = -1)
+    
+    

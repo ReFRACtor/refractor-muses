@@ -15,7 +15,7 @@ def test_strategy_table(isolated_dir, osp_dir, gmao_dir):
     assert s.table_step == 0
     assert s.number_table_step == 2
     assert s.step_name == "OMICLOUDFRACTION"
-    assert s.output_directory == os.path.abspath(".") 
+    assert s.output_directory == os.path.abspath("./20160414_23_394_11_23") 
     
     s.table_step = 1
     assert os.path.basename(s.spectral_filename) == "Windows_Nadir_O3.asc"
@@ -23,7 +23,7 @@ def test_strategy_table(isolated_dir, osp_dir, gmao_dir):
     assert s.table_step == 1
     assert s.number_table_step == 2
     assert s.step_name == "O3_OMI"
-    assert s.output_directory == os.path.abspath(".") 
+    assert s.output_directory == os.path.abspath("./20160414_23_394_11_23") 
 
     
     

@@ -1,3 +1,6 @@
+from __future__ import annotations # We can remove this when we upgrade to python 3.9
+import abc
+from .priority_handle_set import PriorityHandleSet
 import refractor.muses.muses_py as mpy
 import copy
 import refractor.framework as rf
@@ -18,102 +21,46 @@ class SpeciesOrParametersState:
     in the muses-py code. The StateInfo can be used to look these
     up.
     '''
-    def __init__(self, name, value=None):
+    def __init__(self, state_info : "StateInfo", name : str):
         self._name = name
-        if(value is not None):
-            # So we don't need special cases, always have a numpy array. A
-            # single value is an array with one value.
-            if(isinstance(value, numbers.Number)):
-                self._value = np.array([value,])
-            else:
-                self._value = value.copy()
-        else:
-            self._value = np.array([0.0,])
-        self._apriori_cov = np.array([[0.0,],])
-
+        self.state_info = state_info
+        
     @property
     def name(self):
         return self._name
     
     @property
     def value(self):
-        return self._value
+        raise NotImplementedError
 
-class SpeciesOnLevels:
-    '''These are things that are reported on our pressure levels.
+    
+class SpeciesOrParametersHandle(object, metaclass=abc.ABCMeta):
+    '''Return 3 SpeciesOrParametersState objects, for initialInitial, initial and
+    current state. For many classes, this will just be a deepcopy of the same class,
+    but at least for now the older muses-py code stores these in different places.
+    We can perhaps change this interface in the future as we move out the old muses-py
+    stuff.
     '''
-    def __init__(self, state_info, name, step="current"):
-        self._name = name
-        ind = state_info.species_on_levels.index(name)
-        self._value = state_info.state_info_dict[step]["values"][ind, :]
-        self._apriori_cov = np.array([[0.0,],])
+    @abc.abstractmethod
+    def species_object(self, state_info : "StateInfo",
+                       species_name : str) -> \
+            tuple[bool, tuple[SpeciesOrParametersState,
+               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
+        raise NotImplementedError
 
-    @property
-    def name(self):
-        return self._name
-    
-    @property
-    def value(self):
-        return self._value
-    
-class SpeciesOrParametersWithFrequencyState(SpeciesOrParametersState):
-    '''Some of the species also have frequencies associated with them.
-    We return these as Refractor SpectralDomain objects.
+class SpeciesOrParametersHandleSet(PriorityHandleSet):
+    '''This maps a species name to the SpeciesOrParametersState object that handles
+    it.'''
+    def species_object(self, state_info : StateInfo, species_name : str) -> \
+            tuple[SpeciesOrParametersState, SpeciesOrParametersState,
+                  SpeciesOrParametersState]:
+        return self.handle(state_info, species_name)
 
-    TODO I'm pretty sure these are in nm, but this would be worth verifying.'''
-    def __init__(self, name):
-        super().__init__(name)
-        self._sr = rf.SpectralDomain([0.0], rf.Unit("nm"))
-        
-    @property
-    def spectral_range(self):
-        return self._sr
-
-    @property
-    def wavelength(self):
-        '''Short cut to return the spectral range in units of nm.'''
-        return self._sr.convert_wave(rf.Unit("nm"))
-
-class EmissivityState(SpeciesOrParametersWithFrequencyState):
-    def __init__(self, state_info, step="current"):
-        super().__init__("emissivity")
-        if(step not in ("current", "initial", "initialInitial")):
-            raise RuntimeError("Don't support anything other than the current, initial, or initialInitial step")
-        # Probably to support old IDL, the arrays are larger than the actual data.
-        # We need to subset to get the actual data.
-        r = range(0,state_info.state_info_dict["emisPars"]["num_frequencies"])
-        self._value = state_info.state_info_dict[step]["emissivity"][r]
-        self._sr = rf.SpectralDomain(state_info.state_info_dict["emisPars"]["frequency"][r], rf.Unit("nm"))
-        # We may actually want constraint, we need to see how this maps
-        self._apriori_cov = np.array([[0.0,],])
-        # Couple other pieces of metadata that seem worth keeping
-        self._camel_distance = state_info.state_info_dict["emisPars"]["camel_distance"]
-        self._prior_source = state_info.state_info_dict["emisPars"]["emissivity_prior_source"]
-        
-    @property
-    def camel_distance(self):
-        # Not sure what this is, but seems worth keeping
-        return self._camel_distance
-
-    @property
-    def prior_source(self):
-        '''Source of prior.'''
-        return self._prior_source
-
-class CloudState(SpeciesOrParametersWithFrequencyState):
-    def __init__(self, state_info, step="current"):
-        super().__init__("emissivity")
-        if(step not in ("current", "initial", "initialInitial")):
-            raise RuntimeError("Don't support anything other than the current, initial, or initialInitial step")
-        # Probably to support old IDL, the arrays are larger than the actual data.
-        # We need to subset to get the actual data.
-        r = range(0,state_info.state_info_dict["cloudPars"]["num_frequencies"])
-        # Note cloud has 2 columns. I'm not sure why, or if this matters. But for
-        # now just carry this through
-        self._value = state_info.state_info_dict[step]["cloudEffExt"][:,r]
-        self._sr = rf.SpectralDomain(state_info.state_info_dict["cloudPars"]["frequency"][r], rf.Unit("nm"))
-        # We may actually want constraint, we need to see how this maps
-        self._apriori_cov = np.array([[0.0,],])
+    def handle_h(self, h : SpeciesOrParametersHandle,
+                 state_info : StateInfo, species_name : str)  -> \
+            tuple[bool, tuple[SpeciesOrParametersState,
+               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
+        return h.species_object(state_info, species_name)
     
 class SoundingMetadata:
     '''Not really clear that this belongs in the StateInfo, but the muses-py seems
@@ -379,7 +326,25 @@ class StateInfo:
     write_products_one_radiance
     write_products_one
     '''
-    def __init__(self, strategy_table : 'StrategyTable',
+    def __init__(self):
+        self.state_info_dict = None
+        self._ordered_species_list = mpy.ordered_species_list()
+        self.species_handle_set = copy.deepcopy(SpeciesOrParametersHandleSet.default_handle_set())
+        self.initialInitial = {}
+        self.initial = {}
+        self.current = {}
+        self.next_state = None
+        
+        # Odds an ends that are currently in the StateInfo. Doesn't exactly have
+        # to do with the state, but we don't have another place for these.
+        # Perhaps SoundingMetadata can migrate into its own thing, and these can
+        # get moved over to there.
+        self._tai_time = None
+        self._utc_time = None
+        self.info_file = None
+        self._sounding_id = None
+        
+    def init_state(self, strategy_table : 'StrategyTable',
                  fm_obs_creator : 'FmObsCreator', instruments_all, run_dir : str):
         (_, _, _, _, _, _,
          self.state_info_dict) = mpy.script_retrieval_setup_ms(strategy_table.strategy_table_dict, False)
@@ -397,7 +362,6 @@ class StateInfo:
         self.info_file = mpy.tes_file_get_struct(
             mpy.read_all_tes(f"{run_dir}/Measurement_ID.asc")[1])
         self._sounding_id = self.info_file['preferences']['key']
-        self._ordered_species_list = mpy.ordered_species_list()
         
     @property
     def state_info_obj(self):
@@ -481,29 +445,23 @@ class StateInfo:
                        self._ordered_species_list.index(v) if
                        v in self._ordered_species_list else v))
     
-    def species_state2(self,name):
+    def species_state(self, species_name, step="current"):
         '''Need to merge this with the one below, but for now leave as this.'''
-        from .species_or_parameter_state import MusesPySpeciesOrParametersState
-        return MusesPySpeciesOrParametersState(self, name)
 
-    def species_state(self, name, step="current"):
-        '''Return the SpeciesOrParametersState for the give species/parameter name'''
-        # TODO We will replace this with just collections of these objects, but for
-        # now we map all this to the existing structure. Once the outside is fully
-        # using this interface, we can clean up the insides here.
-        if(name == "emissivity"):
-            return EmissivityState(self, step=step)
-        if(name == "cloudEffExt"):
-            return CloudState(self, step=step)
-        if(name in ("PCLOUD", "PSUR", "TSUR")):
-            return SpeciesOrParametersState(name, self.state_info_dict[step][name])
-        if(name in self.species_on_levels):
-            return SpeciesOnLevels(self, name, step=step)
-        raise KeyError(f"Don't recognize species name {name}")
-
-    
+        # We create the species objects on first use
+        if species_name not in self.current:
+            (self.initialInitial[species_name], self.initial[species_name],
+             self.current[species_name]) = self.species_handle_set.species_object(self, species_name)
+        if(step == "initialInitial"):
+            return self.initialInitial[species_name]
+        elif(step == "initial"):
+            return self.initial[species_name]
+        elif(step == "current"):
+            return self.current[species_name]
+        else:
+            raise RuntimeError("step must be initialInitial, initial, or current")
         
         
-__all__ = ["SpeciesOrParametersState", "SpeciesOnLevels",
-           "SpeciesOrParametersWithFrequencyState",
+__all__ = ["SpeciesOrParametersState", "SpeciesOrParametersHandle",
+           "SpeciesOrParametersHandleSet",
            "SoundingMetadata", "StateInfo"]

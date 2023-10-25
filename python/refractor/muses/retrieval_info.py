@@ -199,7 +199,7 @@ class RetrievalInfo:
         
     def add_species(self, species_name, strategy_table, state_info,
                     o_retrievalInfo):
-        spc = state_info.species_state2(species_name)
+        spc = state_info.species_state(species_name)
         spc.update_initial_guess(strategy_table)
         
         row = o_retrievalInfo.n_totalParameters
