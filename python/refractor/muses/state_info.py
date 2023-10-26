@@ -363,6 +363,7 @@ class StateInfo:
         self.info_file = mpy.tes_file_get_struct(
             mpy.read_all_tes(f"{run_dir}/Measurement_ID.asc")[1])
         self._sounding_id = self.info_file['preferences']['key']
+        self.next_state_dict = None
         
     @property
     def state_info_obj(self):
@@ -370,15 +371,28 @@ class StateInfo:
 
     def copy_current_initialInitial(self):
         self.state_info_dict["initialInitial"] = copy.deepcopy(self.state_info_dict["current"])
-        self.initialInitial = copy.deepcopy(self.current)
+        # Don't actually want to copy current, since a lot of the species are
+        # hardcoded to current. We can perhaps come up with some kind of "clone"
+        # or "copy" function that is nothing on the existing muses-py, but copies
+        # state information for something that maintains the state
+        #self.initialInitial = copy.deepcopy(self.current)
 
     def copy_current_initial(self):
         self.state_info_dict["initial"] = copy.deepcopy(self.state_info_dict["current"])
-        self.initial = copy.deepcopy(self.current)
+        
+        # Don't actually want to copy current, since a lot of the species are
+        # hardcoded to current. We can perhaps come up with some kind of "clone"
+        # or "copy" function that is nothing on the existing muses-py, but copies
+        # state information for something that maintains the state
+        #self.initial = copy.deepcopy(self.current)
 
-    def copy_state_next(self):
-        self.state_info_dict["current"] = copy.deepcopy(self.next_state_dict)
-        self.current = copy.deepcopy(self.next_state)
+    def next_state_to_current(self):
+        # We might have not actually called update, so skip this if we don't
+        # have a next state
+        if(self.next_state_dict is not None):
+            self.state_info_dict["current"] = self.next_state_dict
+        self.next_state_dict = None
+        #self.current = copy.deepcopy(self.next_state)
 
     def l1b_file(self, instrument):
         if(instrument == "AIRS"):
@@ -450,14 +464,20 @@ class StateInfo:
                        v in self._ordered_species_list else v))
 
     def update_state(self, retrieval_info : "RetrievalInfo",
-                     results_list, donotupdate, cloud_prefs, step):
+                     results_list, do_not_update, cloud_prefs, step):
+        '''Note this updates the current state, and also creates a "next_state".
+        The difference is that current gets all the changes found in the
+        results_list, but next_state only gets the elements updated that aren't
+        listed in do_not_update. This allows things to be done in a particular
+        retrieval step, but not actually propagated to the next retrieval step.
+        Call next_state_to_current() to update the current state with the
+        next_state (i.e., remove the changes for things listed in do_not_update).'''
         self.next_state_dict = copy.deepcopy(self.state_info_dict["current"])
-        self.next_state = copy.deepcopy(self.current)
         (self.state_info_dict, _, self.next_state_dict) = \
             mpy.update_state(self.state_info_dict,
                              retrieval_info.retrieval_info_obj,
                              results_list, cloud_prefs,
-                             step, donotupdate, self.next_state_dict)
+                             step, do_not_update, self.next_state_dict)
         self.state_info_dict = self.state_info_dict.__dict__
         self.next_state_dict = self.next_state_dict.__dict__
     

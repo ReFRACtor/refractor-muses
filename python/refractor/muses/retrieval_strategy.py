@@ -209,7 +209,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             stp += 1
             self.table_step = stp
             self.state_info.copy_current_initial()
-            self.stateOneNext = copy.deepcopy(self.state_info.state_info_dict["current"])
             logger.info(f'\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
             logger.info(f'\n---')
@@ -217,8 +216,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             self.create_windows(all_step=False)
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
             self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
-            self.state_info.next_state_dict = self.stateOneNext.__dict__
-            self.state_info.copy_state_next()
+            self.state_info.next_state_to_current()
             logger.info(f"Done with step {self.table_step}")
 
         stop_date = time.strftime("%c")
@@ -328,14 +326,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
         if nn > 0:
             xig = self.retrievalInfo.initialGuessList[0:nn]
-
-            (self.state_info.state_info_dict, _, _) = \
-                mpy.update_state(self.state_info.state_info_dict,
-                                 self.retrievalInfo.retrieval_info_obj,
-                                 xig, self.cloud_prefs, self.table_step, [], None)
-            self.state_info.state_info_dict = self.state_info.state_info_dict.__dict__
-            #self.state_info.update_state(self.retrievalInfo, xig, [],
-            #                             self.cloud_prefs, self.table_step)
+            self.state_info.update_state(self.retrievalInfo, xig, [],
+                                         self.cloud_prefs, self.table_step)
 
     @property
     def threshold(self):

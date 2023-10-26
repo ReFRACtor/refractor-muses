@@ -12,6 +12,17 @@ import numpy as np
 
 logger = logging.getLogger("py-retrieve")
 
+def struct_compare(s1, s2):
+    for k in s1.keys():
+        print(k)
+        if(isinstance(s1[k], np.ndarray) and
+           np.can_cast(s1[k], np.float64)):
+           npt.assert_allclose(s1[k], s2[k])
+        elif(isinstance(s1[k], np.ndarray)):
+            assert np.all(s1[k] == s2[k])
+        else:
+            assert s1[k] == s2[k]
+
 class RetrievalStrategyStepSet(PriorityHandleSet):
     '''This takes the retrieval_type and determines a RetrievalStrategyStep
     to handle this. It then does the retrieval step'''
@@ -90,7 +101,6 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         # Put into structure expected by modify_from_bt
         radiance_res = {"radiance" : radiance_fm,
                         "frequency" : freq_fm }
-        rs.stateOneNext = copy.deepcopy(rs.state_info.state_info_dict["current"])
         (rs.strategy_table.strategy_table_dict, rs.state_info.state_info_dict) = mpy.modify_from_bt(
             mpy.ObjectView(rs.strategy_table.strategy_table_dict), rs.table_step,
             radianceStepIn,
@@ -99,7 +109,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             writeOutputFlag=False)
         rs.strategy_table.strategy_table_dict = rs.strategy_table.strategy_table_dict.__dict__
         logger.info(f"Step: {rs.table_step},  Total Steps (after modify_from_bt): {rs.number_table_step}")
-        rs.stateOneNext = mpy.ObjectView(copy.deepcopy(rs.state_info.state_info_dict["current"]))
+        rs.state_info.next_state_dict = copy.deepcopy(rs.state_info.state_info_dict["current"])
         return (True, None)
 
 class RetrievalStrategyStepIRK(RetrievalStrategyStep):
@@ -168,25 +178,18 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                       rs.radianceStep, self.propagatedTATMQA,
                       self.propagatedO3QA, self.propagatedH2OQA)
         
-        rs.stateOneNext = copy.deepcopy(rs.state_info.state_info_dict["current"])
-        donotupdate = rs.strategy_table.table_entry("donotupdate").lower()
-        if donotupdate != '-':
-            donotupdate = [x.upper() for x in donotupdate.split(',')]
+        do_not_update = rs.strategy_table.table_entry("donotupdate").lower()
+        if do_not_update != '-':
+            do_not_update = [x.upper() for x in do_not_update.split(',')]
         else:
-            donotupdate = []
+            do_not_update = []
 
-        # stateOneNext is not updated when it says "do not update"
-        # state.current is updated for all results
-        (rs.state_info.state_info_dict, _, rs.stateOneNext) = \
-            mpy.update_state(rs.state_info.state_info_dict,
-                             rs.retrievalInfo.retrieval_info_obj,
-                             self.results.resultsList, rs.cloud_prefs,
-                             rs.table_step, donotupdate, rs.stateOneNext)
-        rs.state_info.state_info_dict = rs.state_info.state_info_dict.__dict__
+        rs.state_info.update_state(rs.retrievalInfo, self.results.resultsList,
+                                   do_not_update, rs.cloud_prefs, rs.table_step)
         if 'OCO2' in rs.instruments:
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels
-            rs.strategy_table.strategy_table_dict['pressureFM'] = rs.stateOneNext.pressure
+            rs.strategy_table.strategy_table_dict['pressureFM'] = rs.state_info.next_state_dict.pressure
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
 
