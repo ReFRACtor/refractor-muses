@@ -217,7 +217,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             self.create_windows(all_step=False)
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
             self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
-            self.state_info.copy_state_one_next(self.stateOneNext)
+            self.state_info.next_state_dict = self.stateOneNext.__dict__
+            self.state_info.copy_state_next()
             logger.info(f"Done with step {self.table_step}")
 
         stop_date = time.strftime("%c")
@@ -333,6 +334,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                                  self.retrievalInfo.retrieval_info_obj,
                                  xig, self.cloud_prefs, self.table_step, [], None)
             self.state_info.state_info_dict = self.state_info.state_info_dict.__dict__
+            #self.state_info.update_state(self.retrievalInfo, xig, [],
+            #                             self.cloud_prefs, self.table_step)
 
     @property
     def threshold(self):

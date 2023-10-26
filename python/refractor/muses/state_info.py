@@ -333,7 +333,8 @@ class StateInfo:
         self.initialInitial = {}
         self.initial = {}
         self.current = {}
-        self.next_state = None
+        self.next_state = {}
+        self.next_state_dict = {}
         
         # Odds an ends that are currently in the StateInfo. Doesn't exactly have
         # to do with the state, but we don't have another place for these.
@@ -369,12 +370,15 @@ class StateInfo:
 
     def copy_current_initialInitial(self):
         self.state_info_dict["initialInitial"] = copy.deepcopy(self.state_info_dict["current"])
+        self.initialInitial = copy.deepcopy(self.current)
 
     def copy_current_initial(self):
         self.state_info_dict["initial"] = copy.deepcopy(self.state_info_dict["current"])
+        self.initial = copy.deepcopy(self.current)
 
-    def copy_state_one_next(self, state_one_next):
-        self.state_info_dict["current"] = copy.deepcopy(state_one_next.__dict__)
+    def copy_state_next(self):
+        self.state_info_dict["current"] = copy.deepcopy(self.next_state_dict)
+        self.current = copy.deepcopy(self.next_state)
 
     def l1b_file(self, instrument):
         if(instrument == "AIRS"):
@@ -444,6 +448,18 @@ class StateInfo:
                       (v not in self._ordered_species_list,
                        self._ordered_species_list.index(v) if
                        v in self._ordered_species_list else v))
+
+    def update_state(self, retrieval_info : "RetrievalInfo",
+                     results_list, donotupdate, cloud_prefs, step):
+        self.next_state_dict = copy.deepcopy(self.state_info_dict["current"])
+        self.next_state = copy.deepcopy(self.current)
+        (self.state_info_dict, _, self.next_state_dict) = \
+            mpy.update_state(self.state_info_dict,
+                             retrieval_info.retrieval_info_obj,
+                             results_list, cloud_prefs,
+                             step, donotupdate, self.next_state_dict)
+        self.state_info_dict = self.state_info_dict.__dict__
+        self.next_state_dict = self.next_state_dict.__dict__
     
     def species_state(self, species_name, step="current"):
         '''Need to merge this with the one below, but for now leave as this.'''

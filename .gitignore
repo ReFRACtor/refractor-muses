@@ -24,3 +24,22 @@ python/refractor_muses.egg-info
 
 # py.test cache directories
 .cache/
+
+# Various test directory stuff
+*.pkl
+*.log
+t1*
+t2*
+temp*
+try*.py
+original_airs_omi/
+original_retrieval_airs_omi/
+original_retrieval_cris_tropomi/
+original_retrieval_cris_tropomi_full_muses_py/
+retrieval_strategy/
+retrieval_strategy_airs_omi.log
+retrieval_strategy_airs_omi/
+retrieval_strategy_airs_omi_before/
+retrieval_strategy_cris_tropomi.keep/
+retrieval_strategy_cris_tropomi.keep2/
+retrieval_strategy_cris_tropomi
