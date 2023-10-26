@@ -242,9 +242,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             sg = rf.SampleGridSpectralDomain(self.instrument_spectral_domain[fm_idx],
                                              self.filter_name[fm_idx])
 
-            if self.rf_uip.ils_method(fm_idx,
-                         self.rf_uip.instrument_name(ii_mw)) == "FASTCONV":
-                ils_params = self.rf_uip.ils_params(fm_idx)
+            ils_method = self.rf_uip.ils_method(fm_idx, self.rf_uip.instrument_name(ii_mw))
+            if ils_method == "FASTCONV":
+                ils_params = self.rf_uip.ils_params(fm_idx, self.rf_uip.instrument_name(ii_mw))
 
                 # High res extensions unused by IlsFastApply
                 high_res_ext = rf.DoubleWithUnit(0, rf.Unit("nm"))
@@ -256,11 +256,62 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                           sg,
                                           high_res_ext,
                                           self.filter_name[fm_idx], self.filter_name[fm_idx])
+            elif ils_method == "POSTCONV":
+                ils_params = self.rf_uip.ils_params(fm_idx, self.rf_uip.instrument_name(ii_mw))
+                # Calculate the wavelength grid first - deltas in wavelength don't translate to wavenumber deltas
+                # JLL: I *think* that "central_wavelength" from the UIP ILS parameters will be the wavelengths that the 
+                #  ISRF is defined on and "central_wavelength_fm" will be the wavelength grid we need to simulate on.
+                response_wavelength = ils_params['central_wavelength'].reshape(-1,1) + ils_params['delta_wavelength']
+
+                # Convert to frequency-ordered wavenumber arrays. The 2D arrays need flipped on both axes since the order reverses in both
+                center_wn = np.flip(rf.ArrayWithUnit(ils_params['central_wavelength'], 'nm').convert_wave('cm^-1').value)
+                response_wn = np.flip(np.flip(rf.ArrayWithUnit(response_wavelength, 'nm').convert_wave('cm^-1').value, axis=1), axis=0)
+                response = np.flip(np.flip(ils_params['isrf'], axis=1), axis=0)
+
+                # Calculate the deltas in wavenumber space
+                delta_wn = response_wn - center_wn.reshape(-1,1)
+
+                # Build a table of ILSs at the sampled wavelengths/frequencies
+                interp_wavenumber = True
+                band_name = self.rf_uip.filter_name(ii_mw)
+                ils_func = rf.IlsTableLinear(center_wn, delta_wn, response, band_name, band_name, interp_wavenumber)
+
+                # That defines the ILS function, but now we need to get the actual grating object.
+                # Technically we've conflating things here; POSTCONV doesn't necessarily need to 
+                # mean a grating spectrometer - there's no reason we couldn't be working with an FTIR.
+                # But we'll deal with that when ReFRACtor has an FTIR ILS object.
+                #
+                # It also seems to be important that the hwhm be in the same units as the ILS table. In my CO development,
+                # when I tried using a HWHM in nm, increasing it from ~0.2 nm to ~0.25 nm make the line widths simulated by
+                # ReFRACtor compare worse to measured TROPOMI radiances, but discussion with Matt Thill suggested that the
+                # HWHM input to the IlsGrating should just set how wide a window around the central wavelength that component
+                # does its calculations over, so a wider window should always produce a more accurate result. Converting
+                # HWHM to wavenumber seems to fix that issue; once I did that the 0.2 and 0.25 nm HWHM gave similar results.
+                hwhm = self.instrument_hwhm(ii_mw)
+                if hwhm.units.name != 'cm^-1':
+                    # Don't try to convert non-wavenumber values - remember, this is a delta, and delta wavelengths
+                    # can't be simply converted to delta wavenumbers without knowing what wavelength we're working at.
+                    raise ValueError('Half width at half max values for POSTCONV ILSes must be given in wavenumbers')
+                
+                model_wavenumbers = rf.ArrayWithUnit(ils_params['central_wavelength_fm'], 'nm').convert_wave('cm^-1')
+                spec_domain = rf.SpectralDomain(model_wavenumbers)
+                sample_grid = rf.SampleGridSpectralDomain(spec_domain, band_name)
+
+                ils_obj = rf.IlsGrating(sample_grid, ils_func, hwhm)
             else:
                 ils_obj = rf.IdentityIls(sg)
 
             ils_vec.push_back(ils_obj)
         return rf.IlsInstrument(ils_vec, self.instrument_correction)
+    
+    @abc.abstractproperty
+    def instrument_hwhm(self, ii_mw: int) -> rf.DoubleWithUnit:
+        '''Grating spectrometers like OMI and TROPOMI require a fixed half 
+        width at half max for the IlsGrating object. This can vary from band
+        to band. This function must return the HWHM in wavenumbers for the 
+        band indicated by `ii_mw`, which will be the index from `self.channel_list()`
+        for the current band.'''
+        raise NotImplementedError
 
     @cached_property
     def pressure_fm(self):

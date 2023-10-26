@@ -651,7 +651,7 @@ class RefractorUip:
         if(instrument_name == "OMI"):
             return self.uip_omi["ils_%02d" % (mw_index+1)]
         elif(instrument_name == "TROPOMI"):
-            return self.uip_tropomi["ils_%02d" % (mw_index+1)]
+            return self.uip_tropomi["ils_mw_%02d" % (mw_index+1)]
         else: 
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
