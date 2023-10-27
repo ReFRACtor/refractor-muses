@@ -7,11 +7,12 @@ import refractor.framework as rf
 import numpy as np
 import numbers
 
-class SpeciesOrParametersState:
+class StateElement(object, metaclass=abc.ABCMeta):
     '''Muses-py tends to call everything in its state "species",
     although in a few places things things are called
     "parameters". These should really be thought of as "things that go
-    into a StateVector".
+    into a StateVector". So we refer to these as StateElements, which also
+    parallels the species we retrieve on referred to as RetrievalElements.
 
     We try to treat all these things as identical at some level, but
     there is some behavior that is species dependent. We'll sort that
@@ -30,37 +31,70 @@ class SpeciesOrParametersState:
         return self._name
     
     @property
+    @abc.abstractmethod
     def value(self):
         raise NotImplementedError
 
+class RetrievableStateElement(StateElement):
+    '''This has additional functionality to have a StateElement be retrievable,
+    so things like having a priori and initial guess needed in a retrieval. Most
+    StateElements are retrievable, but not all - so we separate out the
+    functionality.'''
+    @abc.abstractmethod
+    def update_initial_guess(self, strategy_table : StrategyTable):
+        '''Create/update a initial guess. This currently fills in a number
+        of member variables. I'm not sure that all of this is actually needed,
+        we may clean up this list. But right now RetrievalInfo needs all these
+        values. We'll perhaps clean up RetrievalInfo, and then in turn clean this
+        up.
+
+        The list of variables filled in are:
+        
+        self.mapType
+        self.pressureList
+        self.altitudeList
+        self.constraintVector
+        self.initialGuessList
+        self.trueParameterList
+        self.pressureListFM
+        self.altitudeListFM
+        self.constraintVectorFM
+        self.initialGuessListFM
+        self.trueParameterListFM
+        self.minimum
+        self.maximum
+        self.maximum_change
+        self.mapToState
+        self.mapToParameters
+        self.constraintMatrix
+        '''
+        raise NotImplementedError
     
-class SpeciesOrParametersHandle(object, metaclass=abc.ABCMeta):
-    '''Return 3 SpeciesOrParametersState objects, for initialInitial, initial and
+class StateElementHandle(object, metaclass=abc.ABCMeta):
+    '''Return 3 StateElement objects, for initialInitial, initial and
     current state. For many classes, this will just be a deepcopy of the same class,
     but at least for now the older muses-py code stores these in different places.
     We can perhaps change this interface in the future as we move out the old muses-py
-    stuff.
+    stuff, it is sort of odd to create these 3 things at once. But we'll match
+    what muses-py does for now
     '''
     @abc.abstractmethod
-    def species_object(self, state_info : "StateInfo",
-                       species_name : str) -> \
-            tuple[bool, tuple[SpeciesOrParametersState,
-               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
+    def state_element_object(self, state_info : "StateInfo",
+                             name : str) -> \
+            tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
         raise NotImplementedError
 
-class SpeciesOrParametersHandleSet(PriorityHandleSet):
+class StateElementHandleSet(PriorityHandleSet):
     '''This maps a species name to the SpeciesOrParametersState object that handles
     it.'''
-    def species_object(self, state_info : StateInfo, species_name : str) -> \
-            tuple[SpeciesOrParametersState, SpeciesOrParametersState,
-                  SpeciesOrParametersState]:
-        return self.handle(state_info, species_name)
+    def state_element_object(self, state_info : StateInfo, name : str) -> \
+            tuple[StateElement, StateElement, StateElement]:
+        return self.handle(state_info, name)
 
-    def handle_h(self, h : SpeciesOrParametersHandle,
-                 state_info : StateInfo, species_name : str)  -> \
-            tuple[bool, tuple[SpeciesOrParametersState,
-               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
-        return h.species_object(state_info, species_name)
+    def handle_h(self, h : StateElementHandle,
+                 state_info : StateInfo, name : str)  -> \
+            tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        return h.state_element_object(state_info, name)
     
 class SoundingMetadata:
     '''Not really clear that this belongs in the StateInfo, but the muses-py seems
@@ -329,14 +363,14 @@ class StateInfo:
     def __init__(self):
         self.state_info_dict = None
         self._ordered_species_list = mpy.ordered_species_list()
-        self.species_handle_set = copy.deepcopy(SpeciesOrParametersHandleSet.default_handle_set())
+        self.state_element_handle_set = copy.deepcopy(StateElementHandleSet.default_handle_set())
         self.initialInitial = {}
         self.initial = {}
         self.current = {}
         self.next_state = {}
         self.next_state_dict = {}
         
-        # Odds an ends that are currently in the StateInfo. Doesn't exactly have
+        # Odds and ends that are currently in the StateInfo. Doesn't exactly have
         # to do with the state, but we don't have another place for these.
         # Perhaps SoundingMetadata can migrate into its own thing, and these can
         # get moved over to there.
@@ -371,7 +405,7 @@ class StateInfo:
 
     def copy_current_initialInitial(self):
         self.state_info_dict["initialInitial"] = copy.deepcopy(self.state_info_dict["current"])
-        # Don't actually want to copy current, since a lot of the species are
+        # Don't actually want to copy current, since a lot of the StateElements are
         # hardcoded to current. We can perhaps come up with some kind of "clone"
         # or "copy" function that is nothing on the existing muses-py, but copies
         # state information for something that maintains the state
@@ -380,7 +414,7 @@ class StateInfo:
     def copy_current_initial(self):
         self.state_info_dict["initial"] = copy.deepcopy(self.state_info_dict["current"])
         
-        # Don't actually want to copy current, since a lot of the species are
+        # Don't actually want to copy current, since a lot of the StateElements are
         # hardcoded to current. We can perhaps come up with some kind of "clone"
         # or "copy" function that is nothing on the existing muses-py, but copies
         # state information for something that maintains the state
@@ -421,7 +455,7 @@ class StateInfo:
         return self.state_info_dict["gmaoTropopausePressure"]
 
     @property
-    def species_on_levels(self):
+    def state_element_on_levels(self):
         return self.state_info_dict["species"]
 
     @property
@@ -438,8 +472,8 @@ class StateInfo:
     
     @property
     def pressure(self):
-        # The pressure is kind of like a SpeciesOnLevels, but it is a bit of a special
-        # case. This is needed to interpret the rest of the data.
+        # The pressure is kind of like a StateElementOnLevels, but it is a bit of a
+        # special case. This is needed to interpret the rest of the data.
         return self.state_info_dict["current"]["pressure"]
 
     def order_species(self, species_list):
@@ -917,23 +951,22 @@ class StateInfo:
             i_retrievalInfo.doUpdateFM[0:i_retrievalInfo.n_totalParametersFM] = doUpdateFM
         return (stateInfo, i_retrievalInfo, i_stateOneNext)
     
-    def species_state(self, species_name, step="current"):
-        '''Need to merge this with the one below, but for now leave as this.'''
-
-        # We create the species objects on first use
-        if species_name not in self.current:
-            (self.initialInitial[species_name], self.initial[species_name],
-             self.current[species_name]) = self.species_handle_set.species_object(self, species_name)
+    def state_element(self, name, step="current"):
+        '''Return the state element with the given name.'''
+        # We create the StateElement objects on first use
+        if name not in self.current:
+            (self.initialInitial[name], self.initial[name],
+             self.current[name]) = self.state_element_handle_set.state_element_object(self, name)
         if(step == "initialInitial"):
-            return self.initialInitial[species_name]
+            return self.initialInitial[name]
         elif(step == "initial"):
-            return self.initial[species_name]
+            return self.initial[name]
         elif(step == "current"):
-            return self.current[species_name]
+            return self.current[name]
         else:
             raise RuntimeError("step must be initialInitial, initial, or current")
         
         
-__all__ = ["SpeciesOrParametersState", "SpeciesOrParametersHandle",
-           "SpeciesOrParametersHandleSet",
+__all__ = ["StateElement", "StateElementHandle", "RetrievableStateElement",
+           "StateElementHandleSet",
            "SoundingMetadata", "StateInfo"]

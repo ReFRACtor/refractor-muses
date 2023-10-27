@@ -1,7 +1,8 @@
 from __future__ import annotations # We can remove this when we upgrade to python 3.9
 import refractor.muses.muses_py as mpy
-from .state_info import (SpeciesOrParametersState, SpeciesOrParametersHandle,
-                         SpeciesOrParametersHandleSet, StateInfo)
+from .state_info import (StateElement, StateElementHandle,
+                         RetrievableStateElement,
+                         StateElementHandleSet, StateInfo)
 from .strategy_table import StrategyTable
 import numpy as np
 import numbers
@@ -13,13 +14,20 @@ import math
 import logging
 logger = logging.getLogger("py-retrieve")
 
-class MusesPySpeciesOrParametersState(SpeciesOrParametersState):
+class MusesPyStateElement(RetrievableStateElement):
     '''This will need a bit of work, right now we don't exactly know what
     this interface should look like. This doesn't match the other species
     we have created, so we'll need to get this worked out.'''
     def __init__(self, state_info : StateInfo, name : str, step : str):
         super().__init__(state_info, name)
         self.step = step
+
+    @property
+    def value(self):
+        # Temporary, define this so we can use a MusesPyStateElement, but
+        # we don't actually have code for a value for this. But until we have
+        # the full set of species in place, it is useful for us to just ignore that.
+        raise NotImplementedError
         
     def update_initial_guess(self, strategy_table : StrategyTable):
         species_list = self.state_info.order_species(strategy_table.retrieval_elements)
@@ -1657,41 +1665,40 @@ class MusesPySpeciesOrParametersState(SpeciesOrParametersState):
         self.constraintMatrix = constraintMatrix
         
 
-class MusesPySpeciesOrParametersHandle(SpeciesOrParametersHandle):
-    def species_object(self, state_info : StateInfo,
-                       species_name : str) -> \
-            tuple[bool, tuple[SpeciesOrParametersState,
-               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
+class MusesPyStateElementHandle(StateElementHandle):
+    def state_element_object(self, state_info : StateInfo,
+                       name : str) -> \
+            tuple[bool, tuple[StateElement,
+               StateElement, StateElement] | None]:
         return (True, (
-            MusesPySpeciesOrParametersState(state_info, species_name, "initialInitial"),
-            MusesPySpeciesOrParametersState(state_info, species_name, "initial"),
-            MusesPySpeciesOrParametersState(state_info, species_name, "current")))
+            MusesPyStateElement(state_info, name, "initialInitial"),
+            MusesPyStateElement(state_info, name, "initial"),
+            MusesPyStateElement(state_info, name, "current")))
 
 
-class SpeciesOnLevels(MusesPySpeciesOrParametersState):
+class StateElementOnLevels(MusesPyStateElement):
     '''These are things that are reported on our pressure levels.
     '''
     def __init__(self, state_info : StateInfo, name : str, step : str):
         super().__init__(state_info, name, step)
-        self._ind = self.state_info.species_on_levels.index(name)
+        self._ind = self.state_info.state_element_on_levels.index(name)
 
     @property
     def value(self):
         return self.state_info.state_info_dict[self.step]["values"][self._ind, :]
 
-class SpeciesOnLevelsHandle(SpeciesOrParametersHandle):
-    def species_object(self, state_info : StateInfo,
-                       species_name : str) -> \
-            tuple[bool, tuple[SpeciesOrParametersState,
-               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
-        if(species_name not in state_info.species_on_levels):
+class StateElementOnLevelsHandle(StateElementHandle):
+    def state_element_object(self, state_info : StateInfo,
+                             name : str) -> \
+            tuple[bool, tuple[StateElement,
+               StateElement, StateElement] | None]:
+        if(name not in state_info.state_element_on_levels):
             return (False, None)
-        return (True, (SpeciesOnLevels(state_info, species_name, "initialInitial"),
-                       SpeciesOnLevels(state_info, species_name, "initial"), 
-                       SpeciesOnLevels(state_info, species_name, "current")))
+        return (True, (StateElementOnLevels(state_info, name, "initialInitial"),
+                       StateElementOnLevels(state_info, name, "initial"), 
+                       StateElementOnLevels(state_info, name, "current")))
 
-
-class SpeciesInDict(MusesPySpeciesOrParametersState):
+class StateElementInDict(MusesPyStateElement):
     def __init__(self, state_info : StateInfo, name : str, step : str):
         super().__init__(state_info, name, step)
 
@@ -1704,19 +1711,19 @@ class SpeciesInDict(MusesPySpeciesOrParametersState):
             return np.array([v,])
         return v
     
-class SpeciesInDictHandle(SpeciesOrParametersHandle):
-    def species_object(self, state_info : StateInfo,
-                       species_name : str) -> \
-            tuple[bool, tuple[SpeciesOrParametersState,
-               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
-        if(species_name not in state_info.state_info_dict["current"]):
+class StateElementInDictHandle(StateElementHandle):
+    def state_element_object(self, state_info : StateInfo,
+                       name : str) -> \
+            tuple[bool, tuple[StateElement,
+               StateElement, StateElement] | None]:
+        if(name not in state_info.state_info_dict["current"]):
             return (False, None)
-        return (True, (SpeciesInDict(state_info, species_name, "initialInitial"),
-                       SpeciesInDict(state_info, species_name, "initial"), 
-                       SpeciesInDict(state_info, species_name, "current")))
+        return (True, (StateElementInDict(state_info, name, "initialInitial"),
+                       StateElementInDict(state_info, name, "initial"), 
+                       StateElementInDict(state_info, name, "current")))
 
     
-class SpeciesOrParametersWithFrequencyState(MusesPySpeciesOrParametersState):
+class StateElementWithFrequency(MusesPyStateElement):
     '''Some of the species also have frequencies associated with them.
     We return these as Refractor SpectralDomain objects.
 
@@ -1733,7 +1740,7 @@ class SpeciesOrParametersWithFrequencyState(MusesPySpeciesOrParametersState):
         '''Short cut to return the spectral range in units of nm.'''
         return self.spectral_range.convert_wave(rf.Unit("nm"))
 
-class EmissivityState(SpeciesOrParametersWithFrequencyState):
+class EmissivityState(StateElementWithFrequency):
     def __init__(self, state_info, step):
         super().__init__(state_info, "emissivity", step)
 
@@ -1761,7 +1768,7 @@ class EmissivityState(SpeciesOrParametersWithFrequencyState):
         '''Source of prior.'''
         return state_info.state_info_dict["emisPars"]["emissivity_prior_source"]
 
-class CloudState(SpeciesOrParametersWithFrequencyState):
+class CloudState(StateElementWithFrequency):
     def __init__(self, state_info, step):
         super().__init__(state_info, "cloudEffExt", step)
         self.step = step
@@ -1780,27 +1787,27 @@ class CloudState(SpeciesOrParametersWithFrequencyState):
         r = range(0,self.state_info.state_info_dict["cloudPars"]["num_frequencies"])
         return self.state_info.state_info_dict[self.step]["cloudEffExt"][:,r]
 
-class SingleSpeciesHandle(SpeciesOrParametersHandle):
-    def __init__(self, species_name, species_class):
-        self.species_name = species_name
-        self.species_class = species_class
+class SingleSpeciesHandle(StateElementHandle):
+    def __init__(self, name, state_element_class):
+        self.name = name
+        self.state_element_class = state_element_class
         
-    def species_object(self, state_info : StateInfo,
-                       species_name : str) -> \
-            tuple[bool, tuple[SpeciesOrParametersState,
-               SpeciesOrParametersState, SpeciesOrParametersState] | None]:
-        if(species_name != self.species_name):
+    def state_element_object(self, state_info : StateInfo,
+                       name : str) -> \
+            tuple[bool, tuple[StateElement,
+               StateElement, StateElement] | None]:
+        if(name != self.name):
             return (False, None)
-        return (True, (self.species_class(state_info, "initialInitial"),
-                       self.species_class(state_info, "initial"), 
-                       self.species_class(state_info, "current")))
+        return (True, (self.state_element_class(state_info, "initialInitial"),
+                       self.state_element_class(state_info, "initial"), 
+                       self.state_element_class(state_info, "current")))
 
-SpeciesOrParametersHandleSet.add_default_handle(SingleSpeciesHandle("emissivity", EmissivityState), priority_order=1)
-SpeciesOrParametersHandleSet.add_default_handle(SingleSpeciesHandle("cloudEffExt", CloudState), priority_order=1)
-SpeciesOrParametersHandleSet.add_default_handle(SpeciesInDictHandle())    
-SpeciesOrParametersHandleSet.add_default_handle(SpeciesOnLevelsHandle())    
-# If nothing else handles a species, fall back to the muses-py code.    
-SpeciesOrParametersHandleSet.add_default_handle(MusesPySpeciesOrParametersHandle(),
+StateElementHandleSet.add_default_handle(SingleSpeciesHandle("emissivity", EmissivityState), priority_order=1)
+StateElementHandleSet.add_default_handle(SingleSpeciesHandle("cloudEffExt", CloudState), priority_order=1)
+StateElementHandleSet.add_default_handle(StateElementInDictHandle())    
+StateElementHandleSet.add_default_handle(StateElementOnLevelsHandle())    
+# If nothing else handles a state_element, fall back to the muses-py code.    
+StateElementHandleSet.add_default_handle(MusesPyStateElementHandle(),
                                                 priority_order = -1)
     
     

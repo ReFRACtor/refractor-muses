@@ -99,7 +99,7 @@ class RetrievalL2Output(RetrievalOutput):
                 # Fake the data
                 logger.warn("code has not been tested for species_name CH4 and dataN2O is None")
                 data2 = copy.deepcopy(dataInfo)
-                value = self.state_info.species_state("N2O", step="initial").value
+                value = self.state_info.state_element("N2O", step="initial").value
                 data2['SPECIES'][data2['SPECIES'] > 0] = copy.deepcopy(value)
                 data2['INITIAL'][data2['SPECIES'] > 0] = copy.deepcopy(value)
                 data2['CONSTRAINTVECTOR'][data2['SPECIES'] > 0] = copy.deepcopy(value)
@@ -293,7 +293,7 @@ class RetrievalL2Output(RetrievalOutput):
             'lmresults_delta'.upper(): self.results.LMResults_delta[self.results.bestIteration]
         }
 
-        emis_state = self.state_info.species_state("emissivity")
+        emis_state = self.state_info.state_element("emissivity")
         if emis_state.wavelength.shape[0] == 0:
             del species_data['EMISSIVITY_CONSTRAINT']
             del species_data['EMISSIVITY_ERROR']
@@ -320,14 +320,14 @@ class RetrievalL2Output(RetrievalOutput):
 
         # Determine subset of the max num_pressures that we actually have
         # data for
-        num_actual_pressures = self.state_info.species_state(self.state_info.species_on_levels[0]).value.shape[0]
+        num_actual_pressures = self.state_info.state_element(self.state_info.state_element_on_levels[0]).value.shape[0]
         # And get the range of data we use to fill in our fields
         pslice = slice(num_pressures-num_actual_pressures,num_pressures)
         # get column / altitude / air density / trop column stuff
         altitudeResult, _ = mpy.compute_altitude_pge(
             self.state_info.pressure, 
-            self.state_info.species_state("TATM").value, 
-            self.state_info.species_state("H2O").value, 
+            self.state_info.state_element("TATM").value, 
+            self.state_info.state_element("H2O").value, 
             smeta.surface_altitude.convert("m").value, 
             smeta.latitude.convert("deg").value, 
             i_waterType=None, i_pge=True)
@@ -475,7 +475,7 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.INITIAL[pslice] = self.retrievalInfo.species_initial(self.spcname)
         species_data.CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint(self.spcname)
         species_data.PRESSURE[pslice] = self.state_info.pressure
-        species_data.CLOUDTOPPRESSURE = self.state_info.species_state("PCLOUD").value[0]
+        species_data.CLOUDTOPPRESSURE = self.state_info.state_element("PCLOUD").value[0]
         
         utilList = mpy.UtilList()
         indx = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'PCLOUD')

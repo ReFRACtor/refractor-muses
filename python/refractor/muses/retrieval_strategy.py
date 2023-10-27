@@ -90,7 +90,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.kwargs["vlidort_cli"] = vlidort_cli
 
         self.state_info = StateInfo()
-        self.species_handle_set = self.state_info.species_handle_set
+        self.state_element_handle_set = self.state_info.state_element_handle_set
 
         self.strategy_table = StrategyTable(self.filename)
         
