@@ -639,7 +639,14 @@ class RefractorUip:
             if(self.instrument_name(ii_mw) == "OMI"):
                 all_freq = self.uip_omi['fullbandfrequency']
                 filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
-            elif(self.instrument_name(ii_mw)):
+            elif(self.instrument_name(ii_mw) == "TROPOMI" and self.ils_method(mw_index, self.instrument_name(ii_mw)) == "POSTCONV"):
+                # JLL: see make_uip_tropomi around line 142 (the `if ils_tropomi_xsection == 'POSTCONV'` block) - it adds a bunch of 
+                # extra monochromatic wavelengths to the full band frequency if using POSTCONV, presumably so that it can do the 
+                # convolution later. I don't think that's what we want for a ReFRACtor spectral grid so get the TROPOMI wavelengths 
+                # from a different part of the UIP that should *just* be the original TROPOMI wavelengths
+                all_freq = self.uip_tropomi['tropomiInfo']['Earth_Radiance']['Wavelength']
+                filt_loc = self.uip_tropomi['tropomiInfo']['Earth_Radiance']['EarthWavelength_Filter']
+            elif(self.instrument_name(ii_mw) == "TROPOMI"):
                 all_freq = self.uip_tropomi['fullbandfrequency']
                 filt_loc = np.array(self.uip_tropomi['frequencyfilterlist'])
             else:
@@ -651,7 +658,9 @@ class RefractorUip:
         if(instrument_name == "OMI"):
             return self.uip_omi["ils_%02d" % (mw_index+1)]
         elif(instrument_name == "TROPOMI"):
-            return self.uip_tropomi["ils_mw_%02d" % (mw_index+1)]
+            # JLL: the TROPOMI UIP seems to use a different naming convention than the OMI UIP
+            # (ils_mw_II, where II is the zero-based index - see end of make_uip_tropomi).
+            return self.uip_tropomi["ils_mw_%02d" % (mw_index)]
         else: 
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 

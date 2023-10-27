@@ -260,7 +260,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 ils_params = self.rf_uip.ils_params(fm_idx, self.rf_uip.instrument_name(ii_mw))
                 # Calculate the wavelength grid first - deltas in wavelength don't translate to wavenumber deltas
                 # JLL: I *think* that "central_wavelength" from the UIP ILS parameters will be the wavelengths that the 
-                #  ISRF is defined on and "central_wavelength_fm" will be the wavelength grid we need to simulate on.
+                #  ISRF is defined on. Not sure what "central_wavelength_fm" is; in testing, it was identical to central_wavelength.
                 response_wavelength = ils_params['central_wavelength'].reshape(-1,1) + ils_params['delta_wavelength']
 
                 # Convert to frequency-ordered wavenumber arrays. The 2D arrays need flipped on both axes since the order reverses in both
@@ -293,7 +293,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     # can't be simply converted to delta wavenumbers without knowing what wavelength we're working at.
                     raise ValueError('Half width at half max values for POSTCONV ILSes must be given in wavenumbers')
                 
-                model_wavenumbers = rf.ArrayWithUnit(ils_params['central_wavelength_fm'], 'nm').convert_wave('cm^-1')
+                model_wavenumbers = self.rf_uip.sample_grid(fm_idx, ii_mw).convert_wave('cm^-1')
                 spec_domain = rf.SpectralDomain(model_wavenumbers)
                 sample_grid = rf.SampleGridSpectralDomain(spec_domain, band_name)
 
@@ -304,7 +304,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             ils_vec.push_back(ils_obj)
         return rf.IlsInstrument(ils_vec, self.instrument_correction)
     
-    @abc.abstractproperty
+    @abc.abstractmethod
     def instrument_hwhm(self, ii_mw: int) -> rf.DoubleWithUnit:
         '''Grating spectrometers like OMI and TROPOMI require a fixed half 
         width at half max for the IlsGrating object. This can vary from band
