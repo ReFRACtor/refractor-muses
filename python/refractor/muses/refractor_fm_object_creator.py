@@ -278,8 +278,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
                 # That defines the ILS function, but now we need to get the actual grating object.
                 # Technically we've conflating things here; POSTCONV doesn't necessarily need to 
-                # mean a grating spectrometer - there's no reason we couldn't be working with an FTIR.
-                # But we'll deal with that when ReFRACtor has an FTIR ILS object.
+                # mean a grating spectrometer - we could be working with an FTIR. But we'll deal 
+                # with that when ReFRACtor has an FTIR ILS object.
                 #
                 # It also seems to be important that the hwhm be in the same units as the ILS table. In my CO development,
                 # when I tried using a HWHM in nm, increasing it from ~0.2 nm to ~0.25 nm make the line widths simulated by
