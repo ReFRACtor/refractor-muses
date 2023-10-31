@@ -30,6 +30,10 @@ class MusesRunDir:
         for f in ("Table", "DateTime"):
             shutil.copy(f"{refractor_sounding_dir}/{f}.asc",
                         f"{self.run_dir}/{f}.asc")
+        for f in ("PRECONV_2STOKES",):
+            if(os.path.exists(f"{refractor_sounding_dir}/{f}.asc")):
+                shutil.copy(f"{refractor_sounding_dir}/{f}.asc",
+                            f"{self.run_dir}/{f}.asc")
         _, d = mpy.read_all_tes(f"{refractor_sounding_dir}/Measurement_ID.asc")
         for k in ("AIRS_filename", "OMI_filename", "OMI_Cloud_filename",
                   "CRIS_filename",
