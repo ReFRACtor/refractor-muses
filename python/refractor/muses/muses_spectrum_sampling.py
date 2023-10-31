@@ -12,9 +12,9 @@ class MusesSpectrumSampling(rf.SpectrumSampling):
         self.instrument_name = instrument_name
         
     def spectral_domain(self, fm_idx: int, lowres_grid: rf.SpectralDomain, edge_extension: rf.DoubleWithUnit) -> rf.SpectralDomain:
-        if self.rf_uip.ils_method(fm_idx, self.instrument_name) == "FASTCONV":
-            ils_uip_info = self.rf_uip.ils_params(fm_idx)
-            return rf.SpectralDomain(ils_uip_info["monochromgrid"], rf.Unit("nm"))
+        if self.rf_uip.ils_method(fm_idx, self.instrument_name) in ("FASTCONV", "POSTCONV"):
+            ils_uip_info = self.rf_uip.ils_params(fm_idx, self.instrument_name)
+            return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
         else:
             return lowres_grid
 

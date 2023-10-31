@@ -632,23 +632,16 @@ class RefractorUip:
         Right now this is omi specific.'''
 
         if self.ils_method(mw_index,self.instrument_name(ii_mw)) == "FASTCONV":
-            ils_uip_info = self.ils_params(mw_index)
+            ils_uip_info = self.ils_params(mw_index, self.instrument_name(ii_mw))
 
             return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
         else:
             if(self.instrument_name(ii_mw) == "OMI"):
                 all_freq = self.uip_omi['fullbandfrequency']
                 filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
-            elif(self.instrument_name(ii_mw) == "TROPOMI" and self.ils_method(mw_index, self.instrument_name(ii_mw)) == "POSTCONV"):
-                # JLL: see make_uip_tropomi around line 142 (the `if ils_tropomi_xsection == 'POSTCONV'` block) - it adds a bunch of 
-                # extra monochromatic wavelengths to the full band frequency if using POSTCONV, presumably so that it can do the 
-                # convolution later. I don't think that's what we want for a ReFRACtor spectral grid so get the TROPOMI wavelengths 
-                # from a different part of the UIP that should *just* be the original TROPOMI wavelengths
-                all_freq = self.uip_tropomi['tropomiInfo']['Earth_Radiance']['Wavelength']
-                filt_loc = self.uip_tropomi['tropomiInfo']['Earth_Radiance']['EarthWavelength_Filter']
             elif(self.instrument_name(ii_mw) == "TROPOMI"):
-                all_freq = self.uip_tropomi['fullbandfrequency']
-                filt_loc = np.array(self.uip_tropomi['frequencyfilterlist'])
+                all_freq = self.uip_tropomi['tropomiInfo']["Earth_Radiance"]["Wavelength"]
+                filt_loc = np.array(self.uip_tropomi['tropomiInfo']["Earth_Radiance"]["EarthWavelength_Filter"])
             else:
                 raise RuntimeError(f"Invalid instrument {self.instrument_name(ii_mw)}")
             return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
@@ -694,6 +687,20 @@ class RefractorUip:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return pickle.load(open(fname, "rb"))
 
+    def mw_slice(self, mw_index, instrument_name):
+        '''Variation of mw_slice that uses startmw and endmw. I think these are
+        the same if we aren't doing an ILS, but different if we are. Should track
+        this through, but for now just try this out'''
+        if(instrument_name == "OMI"):
+            startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
+            endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
+        elif(instrument_name == "TROPOMI"):
+            startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw"][mw_index]
+            endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw"][mw_index]
+        else:
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+        return slice(startmw_fm, endmw_fm+1)
+
     def mw_fm_slice(self, mw_index, instrument_name):
         '''This is the portion of the full microwindow frequencies that we are
         using in calculations such as RamanSioris. This is a bit
@@ -727,7 +734,7 @@ class RefractorUip:
 
         '''This is the wavelengths that the L1B data was measured at, truncated
         to fit our microwindow'''
-        slc = self.mw_fm_slice(mw_index, instrument_name)
+        slc = self.mw_slice(mw_index, instrument_name)
         rad_info = self.radiance_info(mw_index, instrument_name)
         return rf.SpectralDomain(rad_info['Earth_Radiance']['Wavelength'][slc],
                                  rf.Unit("nm"))        
@@ -736,7 +743,7 @@ class RefractorUip:
         '''This is currently just used for the Raman calculation of the 
         RefractorRtfOmi class. This has been adjusted for the 
         '''
-        slc = self.mw_fm_slice(mw_index, instrument_name)
+        slc = self.mw_slice(mw_index, instrument_name)
         rad_info = self.radiance_info(mw_index, instrument_name)
 
         # Note this looks wrong (why not use Solar_Radiance Wavelength here?),

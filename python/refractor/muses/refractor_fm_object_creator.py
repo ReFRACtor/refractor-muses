@@ -180,7 +180,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         swin= rf.SpectralWindowRange(rf.ArrayWithUnit(t, "nm"))
         if(not self.include_bad_sample):
             for i in range(swin.number_spectrometer):
-                swin.bad_sample_mask(self.observation.bad_sample_mask(i), i)
+                swin.bad_sample_mask(self.observation.bad_sample_mask_full(i), i)
         return swin
 
     @cached_property
@@ -275,7 +275,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 interp_wavenumber = True
                 band_name = self.rf_uip.filter_name(ii_mw)
                 ils_func = rf.IlsTableLinear(center_wn, delta_wn, response, band_name, band_name, interp_wavenumber)
-
+                
                 # That defines the ILS function, but now we need to get the actual grating object.
                 # Technically we've conflating things here; POSTCONV doesn't necessarily need to 
                 # mean a grating spectrometer - we could be working with an FTIR. But we'll deal 
