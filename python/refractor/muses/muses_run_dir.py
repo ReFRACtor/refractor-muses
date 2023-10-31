@@ -34,7 +34,10 @@ class MusesRunDir:
         for k in ("AIRS_filename", "OMI_filename", "OMI_Cloud_filename",
                   "CRIS_filename",
                   "TROPOMI_filename_BAND3",
+                  "TROPOMI_filename_BAND7",
+                  "TROPOMI_filename_BAND8",
                   "TROPOMI_IRR_filename",
+                  "TROPOMI_IRR_SIR_filename",
                   "TROPOMI_Cloud_filename"):
             if k in d['preferences']:
                 f = d['preferences'][k]
@@ -88,7 +91,10 @@ class MusesRunDir:
         for k in ("AIRS_filename", "OMI_filename", "OMI_Cloud_filename",
                   "CRIS_filename",
                   "TROPOMI_filename_BAND3",
+                  "TROPOMI_filename_BAND7",
+                  "TROPOMI_filename_BAND8",
                   "TROPOMI_IRR_filename",
+                  "TROPOMI_IRR_SIR_filename",
                   "TROPOMI_Cloud_filename"):
             if k in d['preferences']:
                 f = d['preferences'][k]
