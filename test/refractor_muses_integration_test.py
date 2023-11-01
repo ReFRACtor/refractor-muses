@@ -26,12 +26,7 @@ def test_run_forward_model_joint_tropomi(call_num,
                                          vlidort_cli):
     pfile = f"{joint_tropomi_test_in_dir}/run_forward_model_call_{call_num}.pkl"
     curdir = os.path.abspath(os.path.curdir)
-    rrefractor = MusesForwardModelStep.load_forward_model_step(pfile,
-                osp_dir=osp_dir, gmao_dir=gmao_dir, path="refractor",
-                change_to_dir=True)
-    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
-    (uip, o_radianceOut, o_jacobianOut) = rmi.run_forward_model(**rrefractor.params)
-        
+    
     # Results to compare against
     os.chdir(curdir)
     rmuses_py =MusesForwardModelStep.load_forward_model_step(pfile,
@@ -39,6 +34,14 @@ def test_run_forward_model_joint_tropomi(call_num,
                        change_to_dir=True)
     (uip2, o_radianceOut2, o_jacobianOut2) = rmuses_py.run_forward_model(vlidort_cli=vlidort_cli)
 
+    
+    rrefractor = MusesForwardModelStep.load_forward_model_step(pfile,
+                osp_dir=osp_dir, gmao_dir=gmao_dir, path="refractor",
+                change_to_dir=True)
+    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
+    (uip, o_radianceOut, o_jacobianOut) = rmi.run_forward_model(**rrefractor.params)
+
+    
     struct_compare(o_radianceOut, o_radianceOut2)
     struct_compare(o_jacobianOut, o_jacobianOut2)
 
