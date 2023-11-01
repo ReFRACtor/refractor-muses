@@ -598,6 +598,23 @@ class RefractorUip:
 
         return np.array(sv_extract_index)
 
+    def species_lin_log_mapping(self, specie_name: str) -> str:
+        output_map = None
+
+        # JLL: figured we might as well go through this process of checking the UIP each call rather than doing any caching,
+        # that way if the UIP changes we get the updated map type.
+        for fm_spec, fm_map in zip(self.uip['speciesListFM'], self.uip['mapTypeListFM']):
+            if fm_spec == specie_name and output_map is None:
+                output_map = fm_map
+            elif fm_spec == specie_name and output_map != fm_map:
+                raise RuntimeError(f'There were at least two different FM map types in the UIP for specie {specie_name}: {output_map} and {fm_map}')
+
+        if output_map is None:
+            raise ValueError(f'Specie {specie_name} was not present in the FM species list, so could not find its map type')
+        else:
+            return output_map
+            
+
     def earth_sun_distance(self, instrument_name):
         '''Earth sun distance, in meters. Right now this is OMI specific'''
         # Same value for all the bands, so just grab the first one
@@ -615,16 +632,16 @@ class RefractorUip:
         Right now this is omi specific.'''
 
         if self.ils_method(mw_index,self.instrument_name(ii_mw)) == "FASTCONV":
-            ils_uip_info = self.ils_params(mw_index)
+            ils_uip_info = self.ils_params(mw_index, self.instrument_name(ii_mw))
 
             return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
         else:
             if(self.instrument_name(ii_mw) == "OMI"):
                 all_freq = self.uip_omi['fullbandfrequency']
                 filt_loc = np.array(self.uip_omi['frequencyfilterlist'])
-            elif(self.instrument_name(ii_mw)):
-                all_freq = self.uip_tropomi['fullbandfrequency']
-                filt_loc = np.array(self.uip_tropomi['frequencyfilterlist'])
+            elif(self.instrument_name(ii_mw) == "TROPOMI"):
+                all_freq = self.uip_tropomi['tropomiInfo']["Earth_Radiance"]["Wavelength"]
+                filt_loc = np.array(self.uip_tropomi['tropomiInfo']["Earth_Radiance"]["EarthWavelength_Filter"])
             else:
                 raise RuntimeError(f"Invalid instrument {self.instrument_name(ii_mw)}")
             return rf.SpectralDomain(all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm"))
@@ -634,7 +651,9 @@ class RefractorUip:
         if(instrument_name == "OMI"):
             return self.uip_omi["ils_%02d" % (mw_index+1)]
         elif(instrument_name == "TROPOMI"):
-            return self.uip_tropomi["ils_%02d" % (mw_index+1)]
+            # JLL: the TROPOMI UIP seems to use a different naming convention than the OMI UIP
+            # (ils_mw_II, where II is the zero-based index - see end of make_uip_tropomi).
+            return self.uip_tropomi["ils_mw_%02d" % (mw_index)]
         else: 
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
@@ -667,6 +686,20 @@ class RefractorUip:
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return pickle.load(open(fname, "rb"))
+
+    def mw_slice(self, mw_index, instrument_name):
+        '''Variation of mw_slice that uses startmw and endmw. I think these are
+        the same if we aren't doing an ILS, but different if we are. Should track
+        this through, but for now just try this out'''
+        if(instrument_name == "OMI"):
+            startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
+            endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
+        elif(instrument_name == "TROPOMI"):
+            startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw"][mw_index]
+            endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw"][mw_index]
+        else:
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+        return slice(startmw_fm, endmw_fm+1)
 
     def mw_fm_slice(self, mw_index, instrument_name):
         '''This is the portion of the full microwindow frequencies that we are
@@ -701,7 +734,7 @@ class RefractorUip:
 
         '''This is the wavelengths that the L1B data was measured at, truncated
         to fit our microwindow'''
-        slc = self.mw_fm_slice(mw_index, instrument_name)
+        slc = self.mw_slice(mw_index, instrument_name)
         rad_info = self.radiance_info(mw_index, instrument_name)
         return rf.SpectralDomain(rad_info['Earth_Radiance']['Wavelength'][slc],
                                  rf.Unit("nm"))        
@@ -710,7 +743,7 @@ class RefractorUip:
         '''This is currently just used for the Raman calculation of the 
         RefractorRtfOmi class. This has been adjusted for the 
         '''
-        slc = self.mw_fm_slice(mw_index, instrument_name)
+        slc = self.mw_slice(mw_index, instrument_name)
         rad_info = self.radiance_info(mw_index, instrument_name)
 
         # Note this looks wrong (why not use Solar_Radiance Wavelength here?),

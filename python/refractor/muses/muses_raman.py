@@ -38,7 +38,7 @@ class MusesRaman(rf.RamanSiorisEffect):
                 surf_alb = 0.80
             else:
                 surf_alb = self.rf_uip.omi_params[f'surface_albedo_{str.lower(filter_name)}']
-        elif filter_name in ("BAND1", "BAND2", "BAND3"):
+        elif filter_name in ("BAND1", "BAND2", "BAND3", "BAND7"):
             if self._pressure.do_cloud:
                 surf_alb = self.rf_uip.tropomi_params["cloud_Surface_Albedo"]
             else:
