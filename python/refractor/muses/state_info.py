@@ -507,23 +507,41 @@ class StateInfo:
         Call next_state_to_current() to update the current state with the
         next_state (i.e., remove the changes for things listed in do_not_update).'''
         self.next_state_dict = copy.deepcopy(self.state_info_dict["current"])
-        (self.state_info_dict, _, self.next_state_dict) = \
-            self.update_state2(self.state_info_dict,
-                             retrieval_info.retrieval_info_obj,
-                             results_list, cloud_prefs,
-                             step, do_not_update, self.next_state_dict)
-        self.state_info_dict = self.state_info_dict.__dict__
-        self.next_state_dict = self.next_state_dict.__dict__
 
-    def update_state_element(self, ij, stateInfo, i_retrievalInfo, i_resultsList,
-                             i_updatePrefs, i_step, donotupdate, i_stateOneNext,
-                             doUpdateFM):
-        # AT_LINE 24 Update_State.pro
+        do_update_fm = np.zeros(retrieval_info.n_totalParametersFM)
+
+        for state_element_name in retrieval_info.species_names:
+            self.update_state_element(state_element_name, self,
+                                      retrieval_info, results_list, do_not_update,
+                                      cloud_prefs, step, do_update_fm)
+        # Update altitude and air density
+        indt = self.state_element_on_levels.index("TATM")
+        indh = self.state_element_on_levels.index("H2O")
+        smeta = self.sounding_metadata()
+        (results, _) = mpy.compute_altitude_pge(
+            self.pressure,
+            self.state_info_dict["current"]["values"][indt, :],
+            self.state_info_dict["current"]["values"][indh, :],
+            smeta.surface_altitude.convert("m").value,
+            smeta.latitude.value,
+            None, True)
+        self.state_info_dict["current"]['heightKm'] = results["altitude"] / 1000.0
+        self.state_info_dict["current"]['airDensity'] = results["airDensity"]
+        # Update doUpdateFM in i_retrievalInfo. Note it might be good to move this
+        # out of this function, it isn't good to have "side effects". But leave for
+        # now
+        retrieval_info.retrieval_dict["doUpdateFM"] = do_update_fm
+
+    def update_state_element(self, state_element_name, state_info,
+                             retrieval_info, results_list, donotupdate,
+                             cloud_prefs, step, do_update_fm):
         updateFlag = True
+        ij = retrieval_info.species_names.index(state_element_name)
+        i_stateOneNext = mpy.ObjectView(state_info.next_state_dict)
         if len(donotupdate) > 0:
             ind = []
             for nn in range(len(donotupdate)):
-                if i_retrievalInfo.species[ij] == donotupdate[nn]:
+                if state_element_name == donotupdate[nn]:
                     ind.append(nn)
 
             if len(ind) > 0:
@@ -534,31 +552,22 @@ class StateInfo:
         TRUE_Flag = False
         CONSTRAINT_Flag = False
 
-        # AT_LINE 32 Update_State.pro
-        result = mpy.get_vector(i_resultsList, i_retrievalInfo, i_retrievalInfo.species[ij], FM_Flag, INITIAL_Flag, TRUE_Flag, CONSTRAINT_Flag)
+        result = mpy.get_vector(results_list, retrieval_info.retrieval_info_obj,
+                                state_element_name, FM_Flag, INITIAL_Flag, TRUE_Flag,
+                                CONSTRAINT_Flag)
 
-        # AT_LINE 35 Update_State.pro
         loc = []
-        for ii in range(len(stateInfo.species)):
-            if i_retrievalInfo.species[ij] == stateInfo.species[ii]:
+        for ii in range(len(state_info.state_element_on_levels)):
+            if state_element_name == state_info.state_element_on_levels[ii]:
                 loc.append(ii)
 
-        # AT_LINE 37 Update_State.pro
-        m = i_retrievalInfo.n_parameters[ij]
-        n = stateInfo.num_pressures
-
-        # get part of state to update (for EMIS and CLOUDTAU)
-        # AT_LINE 41 Update_State.pro
-        ind1 = i_retrievalInfo.parameterStartFM[ij]
-        ind2 = i_retrievalInfo.parameterEndFM[ij]
-        nn = i_retrievalInfo.n_parametersFM
+        ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
+        ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
 
         # set which parameters are updated in state AND in error
         # analysis... check movement from i.g.
-
-        # AT_LINE 47 Update_State.pro
-        myinitial = copy.deepcopy(i_retrievalInfo.initialGuessListFM)  # Make a copy so we can work on a copy instead of actually changing the content of i_retrievalInfo.initialGuessListFM.
-        mapTypeListFM = (np.char.asarray(i_retrievalInfo.mapTypeListFM)).lower()
+        myinitial = copy.deepcopy(retrieval_info.initialGuessListFM)  # Make a copy so we can work on a copy instead of actually changing the content of i_retrievalInfo.initialGuessListFM.
+        mapTypeListFM = (np.char.asarray(retrieval_info.retrieval_info_obj.mapTypeListFM)).lower()
 
         # For every indices where 'log' is in mapTypeListFM, we take the exponent of myinitial.
         # AT_LINE 49 Update_State.pro
@@ -572,20 +581,17 @@ class StateInfo:
         utilGeneral = mpy.UtilGeneral()
         ind = utilGeneral.WhereGreaterEqualIndices(abs_array, compare_value)
 
-        # AT_LINE 52 Update_State.pro
         if ind.size > 0:
-            doUpdateFM[ind+ind1] = 1
+            do_update_fm[ind+ind1] = 1
         else:
             # if all at i.g., then must've started at true e.g. for spectral
             # window selection.  Here we want accurate error estimates.
-            doUpdateFM[:] = 1
+            do_update_fm[:] = 1
 
-        # AT_LINE 60 Update_State.pro
-        # NOTE: get_one_map will return maps that have columns and rows switched compared to the IDL implementation
-        my_map = mpy.get_one_map(i_retrievalInfo, ij)
+        my_map = mpy.get_one_map(retrieval_info.retrieval_info_obj, ij)
 
         # Get indices influenced by retrieval.
-        n = i_retrievalInfo.n_parametersFM[ij]
+        n = retrieval_info.retrieval_info_obj.n_parametersFM[ij]
 
         ind = [0 for i in range(n)]
         for ii in range(0, n):
@@ -597,25 +603,25 @@ class StateInfo:
         # Code already interpolates to missing emissivity via the mapping
 
         # AT_LINE 70 Update_State.pro
-        if i_retrievalInfo.species[ij] == 'EMIS':
+        if state_element_name == 'EMIS':
             # only update non-zero emissivities.  Eventually move to
             # emis map
             # ind = where(result NE 0)
             if ind.size > 0:
-                stateInfo.current['emissivity'][ind] = result[ind]
+                state_info.state_info_obj.current['emissivity'][ind] = result[ind]
 
             # mapping takes care of all interpolation.
             # see get_species_information for that.
             if updateFlag and (i_stateOneNext is not None):
-                i_stateOneNext.emissivity = copy.deepcopy(stateInfo.current['emissivity'])
+                i_stateOneNext.emissivity = copy.deepcopy(state_info.state_info_obj.current['emissivity'])
 
-        elif i_retrievalInfo.species[ij] == 'CLOUDEXT':
+        elif state_element_name == 'CLOUDEXT':
             # Note that the variable ind is the list of frequencies that are retrieved
             # AT_LINE 85 Update_State.pro
-            if i_retrievalInfo.type.lower() != 'bt_ig_refine':
+            if retrieval_info.retrieval_info_obj.type.lower() != 'bt_ig_refine':
                 if ind.size > 0: 
                     # AT_LINE 87 Update_State.pro
-                    stateInfo.current['cloudEffExt'][0, ind] = result[ind]
+                    state_info.state_info_obj.current['cloudEffExt'][0, ind] = result[ind]
 
                     # update all frequencies surrounded by current windows
                     # I think the PGE only updates retrieved frequencies
@@ -624,19 +630,19 @@ class StateInfo:
                     # PYTHON_NOTE: Because Python slice does not include the end point, we add 1 to np.amax(ind)
                     interpolated_array = mpy.idl_interpol_1d(
                         np.log(result[ind]),
-                        stateInfo.cloudPars['frequency'][ind],
-                        stateInfo.cloudPars['frequency'][np.amin(ind):np.amax(ind)+1]
+                        state_info.state_info_obj.cloudPars['frequency'][ind],
+                        state_info.state_info_obj.cloudPars['frequency'][np.amin(ind):np.amax(ind)+1]
                     )
 
-                    stateInfo.current['cloudEffExt'][0, np.amin(ind):np.amax(ind)+1] = np.exp(interpolated_array)[:]
+                    state_info.state_info_obj.current['cloudEffExt'][0, np.amin(ind):np.amax(ind)+1] = np.exp(interpolated_array)[:]
                 else:
                     assert False
             else:
                 # IGR step
                 # get update preferences
-                updateAve = i_updatePrefs['CLOUDEXT_IGR_Average'].lower()
-                maxAve = float(i_updatePrefs['CLOUDEXT_IGR_Max'])
-                resetAve = float(i_updatePrefs['CLOUDEXT_Reset_Value'])
+                updateAve = cloud_prefs['CLOUDEXT_IGR_Average'].lower()
+                maxAve = float(cloud_prefs['CLOUDEXT_IGR_Max'])
+                resetAve = float(cloud_prefs['CLOUDEXT_Reset_Value'])
 
                 # Python note:  During development, we see that it is possible for the value of ind.size to be 0
                 #               A side effect of that is we cannot use ind array as indices into other arrays.
@@ -657,300 +663,259 @@ class StateInfo:
 
                 # Set everywhere to ave but keep structure in areas retrieved
                 # AT_LINE 115 Update_State.pro
-                stateInfo.current['cloudEffExt'][:] = ave
+                state_info.state_info_obj.current['cloudEffExt'][:] = ave
 
                 if updateAve == 'no':
                     if n > 0:
-                        stateInfo.current['cloudEffExt'][0, ind] = result[ind]
+                        state_info.state_info_obj.current['cloudEffExt'][0, ind] = result[ind]
 
                         # update areas surrounded by current windows
 
                         # PYTHON_NOTE: Because Python slice does not include the end point, we add 1 to np.amax(ind)
-                        stateInfo.current['cloudEffExt'][0, np.amin(ind):np.amax(ind)+1] = \
+                        state_info.state_info_obj.current['cloudEffExt'][0, np.amin(ind):np.amax(ind)+1] = \
                             np.exp(
                                 mpy.idl_interpol_1d(
                                     np.log(result[ind]),
-                                    stateInfo.cloudPars['frequency'][ind],
-                                    stateInfo.cloudPars['frequency'][np.amin(ind):np.amax(ind)+1]
+                                    state_info.state_info_obj.cloudPars['frequency'][ind],
+                                    state_info.state_info_obj.cloudPars['frequency'][np.amin(ind):np.amax(ind)+1]
                                 )
                             )
                 else:
-                    stateInfo.current['cloudEffExt'][:] = ave
+                    state_info.state_info_obj.current['cloudEffExt'][:] = ave
 
                 # check each value to see if > maxAve
                 # don't let get "too large" in refinement step
                 # AT_LINE 131 Update_State.pro
-                ind = utilGeneral.WhereGreaterEqualIndices(stateInfo.current['cloudEffExt'][0, :], maxAve)
+                ind = utilGeneral.WhereGreaterEqualIndices(state_info.state_info_obj.current['cloudEffExt'][0, :], maxAve)
 
                 # Sanity check for zero size array.
                 if ind.size > 0:
-                    stateInfo.current['cloudEffExt'][0, ind] = resetAve
+                    state_info.state_info_obj.current['cloudEffExt'][0, ind] = resetAve
             # end part of: if stepType != 'bt_ig_refine':
 
             if updateFlag and (i_stateOneNext is not None):
                 # Something strange here. Sometimes the variable i_stateOneNext is ObjectView, sometimes it is a dictionary.
                 if isinstance(i_stateOneNext, dict):
-                    i_stateOneNext['cloudEffExt'] = copy.deepcopy(stateInfo.current['cloudEffExt'])
+                    i_stateOneNext['cloudEffExt'] = copy.deepcopy(state_info.state_info_obj.current['cloudEffExt'])
                 else:
-                    i_stateOneNext.cloudEffExt = copy.deepcopy(stateInfo.current['cloudEffExt'])
+                    i_stateOneNext.cloudEffExt = copy.deepcopy(state_info.state_info_obj.current['cloudEffExt'])
 
-            if stateInfo.current['cloudEffExt'][0, 0] == 0.01:
-                print(function_name, 'Warning: ', "stateInfo.current['cloudEffExt'][0, 0] == 0.01")
-        # end elif i_retrievalInfo.species[ij] == 'CLOUDEXT'
+            if state_info.state_info_obj.current['cloudEffExt'][0, 0] == 0.01:
+                print(function_name, 'Warning: ', "state_info.state_info_obj.current['cloudEffExt'][0, 0] == 0.01")
+        # end elif state_element_name == 'CLOUDEXT'
 
-        elif i_retrievalInfo.species[ij] == 'CALSCALE':
+        elif state_element_name == 'CALSCALE':
             # Sanity check for zero size array.
             if ind.size > 0:
-                stateInfo.current['calibrationScale'][ind] = result[ind]
+                state_info.state_info_obj.current['calibrationScale'][ind] = result[ind]
 
             if updateFlag and (i_stateOneNext is not None):
-                i_stateOneNext.calibrationScale = copy.deepcopy(stateInfo.current['calibrationScale'])
+                i_stateOneNext.calibrationScale = copy.deepcopy(state_info.state_info_obj.current['calibrationScale'])
 
-        elif i_retrievalInfo.species[ij] == 'CALOFFSET':
+        elif state_element_name == 'CALOFFSET':
             if ind.size > 0:
-                stateInfo.current['calibrationOffset'][ind] = result[ind]
+                state_info.state_info_obj.current['calibrationOffset'][ind] = result[ind]
 
-        elif 'OMI' in i_retrievalInfo.species[ij] and 'TROPOMI' not in i_retrievalInfo.species[ij]:
+        elif 'OMI' in state_element_name and 'TROPOMI' not in state_element_name:
 
             # Not sure if an assignment is bug or not.  Will try to make a copy.
-            #stateInfo.current['omi']['OMIcloudfraction'] = result;  # Since we know the name of the key, we can use it directly.
+            #state_info.state_info_obj.current['omi']['OMIcloudfraction'] = result;  # Since we know the name of the key, we can use it directly.
 
-            # PYTHON_NOTE: Because within (stateInfo.current['omi'] we want to replace all fields with actual value from results.
-            #              Using the species_name, 'OMICLOUDFRACTION', we look for 'cloud_fraction' in the keys of stateInfo.current['omi'].
+            # PYTHON_NOTE: Because within (state_info.state_info_obj.current['omi'] we want to replace all fields with actual value from results.
+            #              Using the species_name, 'OMICLOUDFRACTION', we look for 'cloud_fraction' in the keys of state_info.state_info_obj.current['omi'].
             #              So, given OMICLOUDFRACTION, we return the actual_omi_key as 'cloud_fraction'.
-            species_name = i_retrievalInfo.species[ij]
+            species_name = state_element_name
 
-            omiInfo = mpy.ObjectView(stateInfo.current['omi'])
+            omiInfo = mpy.ObjectView(state_info.state_info_obj.current['omi'])
 
             actual_omi_key = mpy.get_omi_key(omiInfo, species_name)
-            stateInfo.current['omi'][actual_omi_key] = copy.deepcopy(result)  # Use the actual key and replace the exist key.
+            state_info.state_info_obj.current['omi'][actual_omi_key] = copy.deepcopy(result)  # Use the actual key and replace the exist key.
 
             if i_stateOneNext is not None and updateFlag is True:
                 # Something strange here.  Sometimes the variable i_stateOneNext is ObjectView, sometimes it is a dictionary.
                 if isinstance(i_stateOneNext, mpy.ObjectView):
-                    i_stateOneNext.omi[actual_omi_key] = copy.deepcopy(stateInfo.current['omi'][actual_omi_key])
+                    i_stateOneNext.omi[actual_omi_key] = copy.deepcopy(state_info.state_info_obj.current['omi'][actual_omi_key])
                 else:
-                    i_stateOneNext['omi'][actual_omi_key] = copy.deepcopy(stateInfo.current['omi'][actual_omi_key])
+                    i_stateOneNext['omi'][actual_omi_key] = copy.deepcopy(state_info.state_info_obj.current['omi'][actual_omi_key])
 
         # AT_LINE 175 Update_State.pro
-        elif 'TROPOMI' in i_retrievalInfo.species[ij]:
-            # PYTHON_NOTE: Because within (stateInfo.current['tropomi'] we want to replace all fields with actual value from results.
-            #              Using the species_name, 'TROPOMICLOUDFRACTION', we look for 'cloud_fraction' in the keys of stateInfo.current['tropomi'].
+        elif 'TROPOMI' in state_element_name:
+            # PYTHON_NOTE: Because within (state_info.state_info_obj.current['tropomi'] we want to replace all fields with actual value from results.
+            #              Using the species_name, 'TROPOMICLOUDFRACTION', we look for 'cloud_fraction' in the keys of state_info.state_info_obj.current['tropomi'].
             #              So, given TROPOMICLOUDFRACTION, we return the actual_tropomi_key as 'cloud_fraction'.
-            species_name = i_retrievalInfo.species[ij]
-            tropomiInfo = mpy.ObjectView(stateInfo.current['tropomi'])
+            species_name = state_element_name
+            tropomiInfo = mpy.ObjectView(state_info.state_info_obj.current['tropomi'])
 
             actual_tropomi_key = mpy.get_tropomi_key(tropomiInfo, species_name)
-            stateInfo.current['tropomi'][actual_tropomi_key] = copy.deepcopy(result)  # Use the actual key and replace the exist key.
+            state_info.state_info_obj.current['tropomi'][actual_tropomi_key] = copy.deepcopy(result)  # Use the actual key and replace the exist key.
 
             if i_stateOneNext is not None and updateFlag is True:
                 # Something strange here.  Sometimes the variable i_stateOneNext is ObjectView, sometimes it is a dictionary.
                 if isinstance(i_stateOneNext, mpy.ObjectView):
-                    i_stateOneNext.tropomi[actual_tropomi_key] = copy.deepcopy(stateInfo.current['tropomi'][actual_tropomi_key])
+                    i_stateOneNext.tropomi[actual_tropomi_key] = copy.deepcopy(state_info.state_info_obj.current['tropomi'][actual_tropomi_key])
                 else:
-                    i_stateOneNext['tropomi'][actual_tropomi_key] = copy.deepcopy(stateInfo.current['tropomi'][actual_tropomi_key])
+                    i_stateOneNext['tropomi'][actual_tropomi_key] = copy.deepcopy(state_info.state_info_obj.current['tropomi'][actual_tropomi_key])
 
-        elif 'NIR' in i_retrievalInfo.species[ij][0:3]:
+        elif 'NIR' in state_element_name[0:3]:
             #tag_names_str = tag_names(state.current.nir)
             #ntag = n_elements(tag_names_str)
             #tag_names_str_new = strarr(ntag)        
             #for tempi = 0,ntag-1 do tag_names_str_new[tempi] = 'NIR'+ replace(tag_names_str[tempi],'_','')
             #indtag = where(tag_names_str_new EQ retrieval.species[ij])
-            my_species = i_retrievalInfo.species[ij][3:].lower()
+            my_species = state_element_name[3:].lower()
             if my_species == 'alblamb':
                 mult = 1
-                if stateInfo.current['nir']['albtype'] == 2:
+                if state_info.state_info_obj.current['nir']['albtype'] == 2:
                     mult = 1.0/.07
-                if stateInfo.current['nir']['albtype'] == 3:
+                if state_info.state_info_obj.current['nir']['albtype'] == 3:
                     print(function_name, "Mismatch in albedo type")
                     assert False
-                stateInfo.current['nir']['albpl'] = result * mult
+                state_info.state_info_obj.current['nir']['albpl'] = result * mult
                 my_species = 'albpl'
             elif my_species == 'albbrdf':
                 mult = 1
-                if stateInfo.current['nir']['albtype'] == 1:
+                if state_info.state_info_obj.current['nir']['albtype'] == 1:
                     mult = .07
-                if stateInfo.current['nir']['albtype'] == 3:
+                if state_info.state_info_obj.current['nir']['albtype'] == 3:
                     print(function_name, "Mismatch in albedo type")
                     assert False
-                stateInfo.current['nir']['albpl'] = result * mult
+                state_info.state_info_obj.current['nir']['albpl'] = result * mult
                 my_species = 'albpl'
             elif my_species == 'albcm':
                 mult = 1
-                if stateInfo.current['nir']['albtype'] != 3:
+                if state_info.state_info_obj.current['nir']['albtype'] != 3:
                     print(function_name, "Mismatch in albedo type")
                     assert False
-                stateInfo.current['nir']['albpl'] = result * mult
+                state_info.state_info_obj.current['nir']['albpl'] = result * mult
                 my_species = 'albpl'
             elif my_species == 'albbrdfpl':
                 mult = 1
-                if stateInfo.current['nir']['albtype'] == 1:
+                if state_info.state_info_obj.current['nir']['albtype'] == 1:
                     mult = .07
-                if stateInfo.current['nir']['albtype'] == 3:
+                if state_info.state_info_obj.current['nir']['albtype'] == 3:
                     print(function_name, "Mismatch in albedo type")
                     assert False
-                stateInfo.current['nir']['albpl'] = result * mult
+                state_info.state_info_obj.current['nir']['albpl'] = result * mult
                 my_species = 'albpl'
             elif my_species == 'alblambpl':
                 mult = 1
-                if stateInfo.current['nir']['albtype'] == 2:
+                if state_info.state_info_obj.current['nir']['albtype'] == 2:
                     mult = 1/.07
-                if stateInfo.current['nir']['albtype'] == 3:
+                if state_info.state_info_obj.current['nir']['albtype'] == 3:
                     print(function_name, "Mismatch in albedo type")
                     assert False
-                stateInfo.current['nir']['albpl'] = result * mult
+                state_info.state_info_obj.current['nir']['albpl'] = result * mult
                 my_species = 'albpl'
             elif my_species == 'disp':
                 # update only part of the state
                 npoly = np.int(len(result)/3)
-                stateInfo.current['nir']['disp'][:,0:npoly] = np.reshape(result,(3,2))
+                state_info.state_info_obj.current['nir']['disp'][:,0:npoly] = np.reshape(result,(3,2))
             elif my_species == 'eof':
                 # reshape
-                stateInfo.current['nir']['eof'][:,:] = np.reshape(result,(3,3)) # checked ordering is good 12/2021
+                state_info.state_info_obj.current['nir']['eof'][:,:] = np.reshape(result,(3,3)) # checked ordering is good 12/2021
             elif my_species == 'cloud3d':
                 # reshape
-                stateInfo.current['nir']['cloud3d'][:,:] = np.reshape(result,(3,2)) # checked ordering is good 12/2021
+                state_info.state_info_obj.current['nir']['cloud3d'][:,:] = np.reshape(result,(3,2)) # checked ordering is good 12/2021
             else:
-                 stateInfo.current['nir'][my_species] = result
+                 state_info.state_info_obj.current['nir'][my_species] = result
 
             if i_stateOneNext is not None and updateFlag is True:
                 if isinstance(i_stateOneNext, mpy.ObjectView):
-                    i_stateOneNext.nir[my_species] = stateInfo.current['nir'][my_species]
+                    i_stateOneNext.nir[my_species] = state_info.state_info_obj.current['nir'][my_species]
                 else:
-                    i_stateOneNext['nir'][my_species] = stateInfo.current['nir'][my_species]
+                    i_stateOneNext['nir'][my_species] = state_info.state_info_obj.current['nir'][my_species]
 
 
 
         # AT_LINE 175 Update_State.pro
-        elif i_retrievalInfo.species[ij] == 'PCLOUD':
+        elif state_element_name == 'PCLOUD':
             # Note: Variable result is ndarray (sequence) of size 730
-            #       The variable  stateInfo.current['PCLOUD'][0] is an element.  We cannot assign an array element with a sequence
+            #       The variable  state_info.state_info_obj.current['PCLOUD'][0] is an element.  We cannot assign an array element with a sequence
             # AT_LINE 284 Update_State.pro
             if isinstance(result, np.ndarray):
-                stateInfo.current['PCLOUD'][0] = result[0]  # IDL_NOTE: With IDL, we can be sloppy, but in Python, we must use index [0] so we can just get one element.
+                state_info.state_info_obj.current['PCLOUD'][0] = result[0]  # IDL_NOTE: With IDL, we can be sloppy, but in Python, we must use index [0] so we can just get one element.
             else:
-                stateInfo.current['PCLOUD'][0] = result
+                state_info.state_info_obj.current['PCLOUD'][0] = result
 
             # do bounds checking for refinement step
-            if i_retrievalInfo.type.lower() == 'bt_ig_refine':
-                igr_min_reset = float(i_updatePrefs['PCLOUD_IGR_Min'])
+            if retrieval_info.retrieval_info_obj.type.lower() == 'bt_ig_refine':
+                igr_min_reset = float(cloud_prefs['PCLOUD_IGR_Min'])
                 resetValue = -1
-                if 'PCLOUD_IGR_Reset_Value' in i_updatePrefs.keys():
-                    resetValue = float(i_updatePrefs['PCLOUD_IGR_Reset_Value'])
+                if 'PCLOUD_IGR_Reset_Value' in cloud_prefs.keys():
+                    resetValue = float(cloud_prefs['PCLOUD_IGR_Reset_Value'])
                 if resetValue == -1:
-                    resetValue = int(i_updatePrefs['PCLOUD_Reset_Value'])
+                    resetValue = int(cloud_prefs['PCLOUD_Reset_Value'])
 
-                if stateInfo.current['PCLOUD'][0] > stateInfo.current['pressure'][0]:
-                    stateInfo.current['PCLOUD'][0] = stateInfo.current['pressure'][1]
+                if state_info.state_info_obj.current['PCLOUD'][0] > state_info.state_info_obj.current['pressure'][0]:
+                    state_info.state_info_obj.current['PCLOUD'][0] = state_info.state_info_obj.current['pressure'][1]
 
-                if stateInfo.current['PCLOUD'][0] < resetValue:
-                    stateInfo.current['PCLOUD'][0] = resetValue
+                if state_info.state_info_obj.current['PCLOUD'][0] < resetValue:
+                    state_info.state_info_obj.current['PCLOUD'][0] = resetValue
 
             if i_stateOneNext is not None and updateFlag is True:
-                i_stateOneNext.PCLOUD[0] = stateInfo.current['PCLOUD'][0]
+                i_stateOneNext.PCLOUD[0] = state_info.state_info_obj.current['PCLOUD'][0]
 
-        elif i_retrievalInfo.species[ij] == 'TSUR':
-            stateInfo.current['TSUR'] = result
+        elif state_element_name == 'TSUR':
+            state_info.state_info_obj.current['TSUR'] = result
             if i_stateOneNext is not None and updateFlag is True:
                 i_stateOneNext.TSUR = result
-        elif i_retrievalInfo.species[ij] == 'PSUR':
+        elif state_element_name == 'PSUR':
             # surface pressure
             # update sigma levels
 
-            stateInfo.current['pressure'][0] = result
+            state_info.state_info_obj.current['pressure'][0] = result
 
             if i_stateOneNext is not None and updateFlag is True:
                 i_stateOneNext.pressure[0] = result
                 i_stateOneNext.pressure = pressure_sigma(i_stateOneNext.pressure[0],len(i_stateOneNext.pressure), 'surface')
-        elif i_retrievalInfo.species[ij] == 'PTGANG':
-            stateInfo.current['tes']['boresightNadirRadians'] = result
+        elif state_element_name == 'PTGANG':
+            state_info.state_info_obj.current['tes']['boresightNadirRadians'] = result
             if i_stateOneNext is not None and updateFlag is True:
-                i_stateOneNext.tes['boresightNadirRadians'] = stateInfo.current['tes']['boresightNadirRadians']
+                i_stateOneNext.tes['boresightNadirRadians'] = state_info.state_info_obj.current['tes']['boresightNadirRadians']
 
-        elif i_retrievalInfo.species[ij] == 'RESSCALE':
-            stateInfo.current.residualscale[i_step:] = result
+        elif state_element_name == 'RESSCALE':
+            state_info.state_info_obj.current.residualscale[i_step:] = result
             if i_stateOneNext is not None and updateFlag is True:
-                i_stateOneNext.residualScale = stateInfo.current['residualScale']
+                i_stateOneNext.residualScale = state_info.state_info_obj.current['residualScale']
         else:
             # AT_LINE 289 Update_State.pro
-            max_index = (stateInfo.current['values'].shape)[1]  # Get access to the 63 in (1,63)
-            stateInfo.current['values'][loc, :] = result[0:max_index]
+            max_index = (state_info.state_info_obj.current['values'].shape)[1]  # Get access to the 63 in (1,63)
+            state_info.state_info_obj.current['values'][loc, :] = result[0:max_index]
             if i_stateOneNext is not None and updateFlag is True:
-                i_stateOneNext.values[loc, :] = stateInfo.current['values'][loc, :]
+                i_stateOneNext.values[loc, :] = state_info.state_info_obj.current['values'][loc, :]
 
-        # end part of if (i_retrievalInfo.species[ij] == 'EMIS'):
+        # end part of if (state_element_name == 'EMIS'):
 
-        locHDO = utilGeneral.WhereEqualIndices(stateInfo.species, 'HDO')
-        locH2O = utilGeneral.WhereEqualIndices(stateInfo.species, 'H2O')
-        locRetHDO = utilGeneral.WhereEqualIndices(i_retrievalInfo.species, 'HDO')
-        if (i_retrievalInfo.species[ij] == 'H2O') and (locHDO.size > 0) and (locRetHDO.size == 0):
+        locHDO = utilGeneral.WhereEqualIndices(state_info.state_info_obj.species, 'HDO')
+        locH2O = utilGeneral.WhereEqualIndices(state_info.state_info_obj.species, 'H2O')
+        locRetHDO = utilGeneral.WhereEqualIndices(retrieval_info.retrieval_info_obj.species, 'HDO')
+        if (state_element_name == 'H2O') and (locHDO.size > 0) and (locRetHDO.size == 0):
             # get initial guess ratio...
-            initialRatio = stateInfo.initial['values'][locHDO[0], 0:len(result)] / stateInfo.initial['values'][locH2O[0], 0:len(result)]
+            initialRatio = state_info.state_info_obj.initial['values'][locHDO[0], 0:len(result)] / state_info.state_info_obj.initial['values'][locH2O[0], 0:len(result)]
 
             # set HDO by initial ratio multiplied by retrieved H2O
-            stateInfo.current['values'][locHDO[0], 0:len(result)] = result * initialRatio
+            state_info.state_info_obj.current['values'][locHDO[0], 0:len(result)] = result * initialRatio
             if i_stateOneNext is not None and updateFlag is True:
-                i_stateOneNext.values[locHDO[0], :] = stateInfo.current['values'][locHDO[0], :]
+                i_stateOneNext.values[locHDO[0], :] = state_info.state_info_obj.current['values'][locHDO[0], :]
 
-        locH2O18 = utilGeneral.WhereEqualIndices(stateInfo.species, 'H2O18')
-        locH2O = utilGeneral.WhereEqualIndices(stateInfo.species, 'H2O')
-        locRetH2O18 = utilGeneral.WhereEqualIndices(i_retrievalInfo.species, 'H2O18')
-        if (i_retrievalInfo.species[ij] == 'H2O') and (locH2O18.size > 0) and (locRetH2O18.size == 0):
+        locH2O18 = utilGeneral.WhereEqualIndices(state_info.state_info_obj.species, 'H2O18')
+        locH2O = utilGeneral.WhereEqualIndices(state_info.state_info_obj.species, 'H2O')
+        locRetH2O18 = utilGeneral.WhereEqualIndices(retrieval_info.retrieval_info_obj.species, 'H2O18')
+        if (state_element_name == 'H2O') and (locH2O18.size > 0) and (locRetH2O18.size == 0):
             # get initial guess ratio...
-            initialRatio = stateInfo.initial['values'][locH2O18[0], 0:len(result)] / stateInfo.initial['values'][locH2O[0], 0:len(result)]
+            initialRatio = state_info.state_info_obj.initial['values'][locH2O18[0], 0:len(result)] / state_info.state_info_obj.initial['values'][locH2O[0], 0:len(result)]
             # set HDO by initial ratio multiplied by retrieved H2O
-            stateInfo.current['values'][locH2O18[0], 0:len(result)] = result*initialRatio
+            state_info.state_info_obj.current['values'][locH2O18[0], 0:len(result)] = result*initialRatio
 
-        locH2O17 = utilGeneral.WhereEqualIndices(stateInfo.species, 'H2O17')
-        locH2O = utilGeneral.WhereEqualIndices(stateInfo.species, 'H2O')
-        locRetH2O17 = utilGeneral.WhereEqualIndices(i_retrievalInfo.species, 'H2O17')
-        if (i_retrievalInfo.species[ij] == 'H2O') and (locH2O17.size > 0) and (locRetH2O17.size == 0):
+        locH2O17 = utilGeneral.WhereEqualIndices(state_info.state_info_obj.species, 'H2O17')
+        locH2O = utilGeneral.WhereEqualIndices(state_info.state_info_obj.species, 'H2O')
+        locRetH2O17 = utilGeneral.WhereEqualIndices(retrieval_info.retrieval_info_obj.species, 'H2O17')
+        if (state_element_name == 'H2O') and (locH2O17.size > 0) and (locRetH2O17.size == 0):
             # get initial guess ratio...
-            initialRatio = stateInfo.initial['values'][locH2O17[0], 0:len(result)] / stateInfo.initial['values'][locH2O[0], 0:len(result)]
+            initialRatio = state_info.state_info_obj.initial['values'][locH2O17[0], 0:len(result)] / state_info.state_info_obj.initial['values'][locH2O[0], 0:len(result)]
             # set HDO by initial ratio multiplied by retrieved H2O
-            stateInfo.current['values'][locH2O17[0], 0:len(result)] = result*initialRatio
+            state_info.state_info_obj.current['values'][locH2O17[0], 0:len(result)] = result*initialRatio
 
-        
-    def update_state2(self, i_stateInfo, i_retrievalInfo, i_resultsList,
-                      i_updatePrefs, i_step, donotupdate, i_stateOneNext):
-        stateInfo = mpy.ObjectView(i_stateInfo)
-        i_stateOneNext = mpy.ObjectView(i_stateOneNext)
-        num_species = i_retrievalInfo.n_species
-
-        i_retrievalInfo.doUpdateFM[:] = 0
-
-        doUpdateFM = [0 for x in  range(i_retrievalInfo.n_totalParametersFM)]
-        doUpdateFM = np.asarray(doUpdateFM)
-
-        for ij in range(0, num_species):
-            self.update_state_element(ij, stateInfo, i_retrievalInfo, i_resultsList,
-                                      i_updatePrefs, i_step, donotupdate,
-                                      i_stateOneNext, doUpdateFM)
-
-        waterType = None
-        pge_flag = True
-
-        # Update altitude and air density
-        indt = np.where(np.array(stateInfo.species) == 'TATM')[0][0]
-        indh = np.where(np.array(stateInfo.species) == 'H2O')[0][0]
-        (results, x) = mpy.compute_altitude_pge(stateInfo.current['pressure'],
-                                            stateInfo.current['values'][indt, :],
-                                            stateInfo.current['values'][indh, :],
-                                            stateInfo.current['tsa']['surfaceAltitudeKm'] * 1000,
-                                            stateInfo.current['latitude'],
-                                            waterType, pge_flag)
-
-        results = mpy.ObjectView(results)
-        stateInfo.current['heightKm'] = results.altitude / 1000.0
-        stateInfo.current['airDensity'] = copy.deepcopy(results.airDensity)
-
-        # Update doUpdateFM in i_retrievalInfo. Note it might be good to move this
-        # out of this function, it isn't good to have "side effects". But leave for
-        # now
-        if i_retrievalInfo.n_totalParametersFM > 0:
-            i_retrievalInfo.doUpdateFM[0:i_retrievalInfo.n_totalParametersFM] = doUpdateFM
-        return (stateInfo, i_retrievalInfo, i_stateOneNext)
-    
     def state_element(self, name, step="current"):
         '''Return the state element with the given name.'''
         # We create the StateElement objects on first use
