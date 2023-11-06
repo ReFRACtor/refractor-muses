@@ -130,20 +130,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.raz_with_unit = rf.ArrayWithUnit(self.raz, "deg")
         self.filter_name = [self.rf_uip.filter_name(i) for i in self.channel_list()]
 
-        unique_filters = set(self.filter_name)
-        if len(unique_filters) != 1:
-            raise NotImplementedError('Cannot handle multiple bands yet (requires different absorbers per band)')
-        unique_filters = unique_filters.pop()
-        if unique_filters == 'BAND3':
-            self._inner_absorber = O3Absorber(self)
-        elif unique_filters == 'BAND7':
-            self._inner_absorber = SwirAbsorber(self)
-        elif self.instrument_name == 'OMI':
-            # JLL: this should keep this class working for OMI but have not tested.
-            self._inner_absorber = O3Absorber(self)
-        else:
-            raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
-
+        # This is what OMI currently uses, and TROPOMI band 3. We may put all this
+        # together, but right now tropomi_fm_object_creator may replace this.
+        self._inner_absorber = O3Absorber(self)
 
     def channel_list(self):
         '''This is list of microwindows relevant to self.instrument_name

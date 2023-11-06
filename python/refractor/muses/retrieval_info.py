@@ -82,8 +82,12 @@ class RetrievalInfo:
         return self.retrieval_dict["species"][0:self.retrieval_dict["n_species"]]
 
     @property
+    def species_list(self):
+        return np.array(self.retrieval_dict["speciesList"][0:self.n_totalParameters])
+
+    @property
     def species_list_fm(self):
-        return self.retrieval_dict["speciesListFM"][0:self.n_totalParametersFM]
+        return np.array(self.retrieval_dict["speciesListFM"][0:self.n_totalParametersFM])
 
     @property
     def pressure_list_fm(self):
