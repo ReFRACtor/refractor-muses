@@ -562,8 +562,14 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         res = rf.vector_vector_spectrum_effect()
         for fm_idx, ii_mw in enumerate(self.channel_list()):
             per_channel_eff = rf.vector_spectrum_effect()
-            if(self.use_raman):
+            if(self.use_raman and self.raman_effect[fm_idx] is not None):
                 per_channel_eff.push_back(self.raman_effect[fm_idx])
+            else:
+                # JLL - every channel probably needs a solar model, so if we're not
+                # using Raman either because use_raman is False or a Raman effect is 
+                # not configured for this band (e.g. the SWIR bands where Raman scattering
+                # shouldn't be important), fall back on a plain solar model.
+                per_channel_eff.push_back(self.solar_model(fm_idx))
             res.push_back(per_channel_eff)
         return res
 
