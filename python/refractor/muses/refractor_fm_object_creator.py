@@ -846,4 +846,4 @@ class SwirAbsorber(AbstractAbsorber):
         return vmrs
     
 
-__all__ = ["RefractorFmObjectCreator", ]
+__all__ = ["RefractorFmObjectCreator", "O3Absorber", "SwirAbsorber"]

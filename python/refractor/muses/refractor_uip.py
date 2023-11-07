@@ -730,11 +730,10 @@ class RefractorUip:
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
             
-    def rad_wavelength(self, mw_index, instrument_name):
-
+    def raman_wavelength(self, mw_index, instrument_name):
         '''This is the wavelengths that the L1B data was measured at, truncated
         to fit our microwindow'''
-        slc = self.mw_slice(mw_index, instrument_name)
+        slc = self.mw_fm_slice(mw_index, instrument_name)
         rad_info = self.radiance_info(mw_index, instrument_name)
         return rf.SpectralDomain(rad_info['Earth_Radiance']['Wavelength'][slc],
                                  rf.Unit("nm"))        
@@ -743,7 +742,7 @@ class RefractorUip:
         '''This is currently just used for the Raman calculation of the 
         RefractorRtfOmi class. This has been adjusted for the 
         '''
-        slc = self.mw_slice(mw_index, instrument_name)
+        slc = self.mw_fm_slice(mw_index, instrument_name)
         rad_info = self.radiance_info(mw_index, instrument_name)
 
         # Note this looks wrong (why not use Solar_Radiance Wavelength here?),
