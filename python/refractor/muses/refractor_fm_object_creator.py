@@ -169,7 +169,15 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         swin= rf.SpectralWindowRange(rf.ArrayWithUnit(t, "nm"))
         if(not self.include_bad_sample):
             for i in range(swin.number_spectrometer):
-                swin.bad_sample_mask(self.observation.bad_sample_mask_full(i), i)
+                # This is a bit awkward, but right now we use the full l1b range when
+                # we have an ILS, but the data is already subsetted for PRECONV. We
+                # should rationalize this at some point
+                iname = self.rf_uip.instrument_name(self.channel_list()[i])
+                ils_method = self.rf_uip.ils_method(i, iname)
+                if ils_method in ("FASTCONV", "POSTCONV"):
+                   swin.bad_sample_mask(self.observation.bad_sample_mask_full(i), i)
+                else:
+                   swin.bad_sample_mask(self.observation.bad_sample_mask(i), i)
         return swin
 
     @cached_property
