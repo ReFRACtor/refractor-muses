@@ -1,4 +1,5 @@
 import refractor.framework as rf
+from .refractor_uip import RefractorUip
 from . import muses_py as mpy
 from typing import List
 import numpy as np
@@ -67,6 +68,15 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             return self.fm_wrapper(**parms)
         elif(func_name == "residual_fm_jacobian"):
             return self.residual_fm_jacobian(**parms)
+        elif(func_name == "update_uip"):
+            return self.update_uip(**parms)
+
+    def update_uip(self, i_uip, i_ret_info, i_retrieval_vec):
+        '''This is an adapter to call our RefractorUip version of update_uip.
+        This is needed to handle new state element vectors.'''
+        uip = RefractorUip(i_uip, self.basis_matrix)
+        uip.update_uip(i_retrieval_vec)
+        return (mpy.ObjectView(uip.uip), i_retrieval_vec)
     
     def fm_wrapper(self, i_uip, i_windows, oco_info):
         '''This uses the CostFunction to calculate the same things that

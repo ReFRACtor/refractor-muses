@@ -79,23 +79,25 @@ class MusesLevmarSolver:
         
 
     def solve(self):
-        with register_replacement_function_in_block("residual_fm_jacobian",
+        with register_replacement_function_in_block("update_uip",
                                                     self.cfunc):
+            with register_replacement_function_in_block("residual_fm_jacobian",
+                                                        self.cfunc):
             # We want some of these to go away
-            (xret, self.diag_lambda_rho_delta, self.stopcrit, self.resdiag, 
-             self.x_iter, res_iter, radiance_fm, self.radiance_iter,
-             jacobian_fm, self.iterNum, self.stopCode, self.success_flag) =  \
-                 mpy.levmar_nllsq_elanor(  
-                     self.rf_uip.current_state_x, 
-                     None, 
-                     self.rf_uip.uip, 
-                     {'basis_matrix' : self.rf_uip.basis_matrix},
-                     self.max_iter, 
-                     verbose=False, 
-                     delta_value=self.delta_value, 
-                     ConvTolerance=self.conv_tolerance,
-                     Chi2Tolerance=self.chi2_tolerance
-                    )
+                (xret, self.diag_lambda_rho_delta, self.stopcrit, self.resdiag, 
+                 self.x_iter, res_iter, radiance_fm, self.radiance_iter,
+                 jacobian_fm, self.iterNum, self.stopCode, self.success_flag) =  \
+                     mpy.levmar_nllsq_elanor(  
+                         self.rf_uip.current_state_x, 
+                         None, 
+                         self.rf_uip.uip, 
+                         {'basis_matrix' : self.rf_uip.basis_matrix},
+                         self.max_iter, 
+                         verbose=False, 
+                         delta_value=self.delta_value, 
+                         ConvTolerance=self.conv_tolerance,
+                         Chi2Tolerance=self.chi2_tolerance
+                     )
             # Since xret is the best iteration, which might not be the last,
             # set the cost function to this. Note the cost function does internal
             # caching, so if this is the last one then we don't recalculate

@@ -13,6 +13,7 @@ import glob
 import pickle
 from collections import UserDict, defaultdict
 import copy
+import math
 
 if(mpy.have_muses_py):
     class _FakeUipExecption(Exception):
@@ -865,7 +866,7 @@ class RefractorUip:
             return np.asarray(self.tropomi_obs_table["XTRACK"])[self.channel_indexes(ii_mw)]
         raise RuntimeError("Don't know how to find observation table")
 
-    def update_uip(self, retrieval_vec):
+    def update_uip(self, i_retrieval_vec):
         '''This updates the underlying UIP with the new retrieval_vec,
         e.g., this is the muses-py equivalent up updating the
         StateVector in ReFRACtor.
@@ -874,10 +875,404 @@ class RefractorUip:
         '''
         # Fake the ret_info structure. update_uip only uses the basis
         # matrix
-        ret_info = {'basis_matrix' : self.basis_matrix}
-        self.uip, _ = mpy.update_uip(self.uip, ret_info, retrieval_vec)
-        if(hasattr(self.uip, 'as_dict')): 
-            self.uip = self.uip.as_dict(self.uip)
+        ret_info = mpy.ObjectView({'basis_matrix' : self.basis_matrix})
+
+        # This is a copy of mpy.update_uip, modified slightly to ignore retrieval
+        # elements we don't recognize.
+        # Note I'd like to get away from the UIP, it is really just a shuffling
+        # of our StateInfo. But at least for now, we need to call old muses-py code.
+        
+        o_uip = mpy.ObjectView(self.uip)
+
+        o_retrieval_vec = copy.deepcopy(i_retrieval_vec)  # Make a deep copy of i_retrieval_vec in case we need to modify it later in this function.
+
+        # MAP THE RETRIEVAL VECTOR TO THE FULL STATE VECTOR
+        # replace things in this in specific cases, e.g. exp()
+        fm_vec = i_retrieval_vec @ ret_info.basis_matrix
+
+        num_map = ret_info.basis_matrix.shape[1] # Get the 2nd dimension of ((163,471).
+        update_arr = np.zeros(shape=(num_map), dtype=np.int)
+
+        for ii in range(num_map):
+            if np.sum(ret_info.basis_matrix[:, ii]) != 0.0:
+                update_arr[ii] = 1
+
+        # POPULATE THE UIP
+
+        # AT_LINE 69 Optimization/update_uip.pro update_uip
+
+        # We need to set a flag if len(uip.jacobians_all) is 9 or more because it contains these jacobian species:
+        # ['O3', 
+        # 'OMICLOUDFRACTION', 
+        # 'OMISURFACEALBEDOUV1', 'OMISURFACEALBEDOUV2', 'OMISURFACEALBEDOSLOPEUV2', 
+        # 'OMINRADWAVUV1', 'OMINRADWAVUV2', 
+        # 'OMIODWAVUV1', 'OMIODWAVUV2']
+
+        for ii in range(len(o_uip.jacobians_all)):
+            specie = o_uip.jacobians_all[ii]
+
+            ind_ret = np.where(np.asarray(o_uip.speciesList) == specie)[0]
+            ind = ind_ret
+            ind_fm = np.where(np.asarray(o_uip.speciesListFM) == specie)[0]
+            mapType = o_uip.mapTypeListFM[ind_fm[0]]
+
+            if 'TSUR' == specie:
+                o_uip.surface_temperature = fm_vec[ind_fm][0]
+            elif 'PSUR' == specie:
+                #  Susan Kulawik, 12/2021
+                o_uip.atmosphere[0,0] = fm_vec[ind_fm]
+                o_uip.atmosphere[0,:] = mpy.pressure_sigma(o_uip.atmosphere[0,0], len(o_uip.atmosphere[0,:]), 'surface')
+            elif 'EMIS' == specie: 
+                for jj in range(len(ind_fm)):
+                    my_ind = ind_fm[0]+jj
+                    if update_arr[my_ind] == 1:
+                        o_uip.emissivity['value'][jj] = fm_vec[my_ind]
+            elif 'CALSCALE' == specie:
+                raise RuntimeError('Needs update... look at EMIS')
+            elif 'CALOFFSET' == specie: 
+                raise RuntimeError('Needs update... look at EMIS')
+            elif 'PTGANG' == specie: 
+                o_uip.obs_table['pointing_angle'] = fm_vec[ind_fm][0]
+            elif 'RESSCALE' == specie: 
+                o_uip.res_scale = fm_vec[ind_fm][0]
+            elif 'CLOUDEXT' == specie:
+                for jj in range(len(ind_fm)):
+                    my_ind = ind_fm[0] + jj
+                    if update_arr[my_ind] == 1:
+                        fm_vec[my_ind] = math.exp(fm_vec[my_ind])
+                        if fm_vec[my_ind] > 20: 
+                            fm_vec[my_ind] = 20
+                        o_uip.cloud['extinction'][jj] = fm_vec[my_ind]
+
+            elif 'PCLOUD' == specie:
+                fm_vec[ind_fm] = np.exp(fm_vec[ind_fm][0])
+                if fm_vec[ind_fm] < 50:
+                    fm_vec[ind_fm] = 50
+                o_uip.cloud['pressure'] = fm_vec[ind_fm][0]
+            elif 'OMICLOUDFRACTION' == specie:
+                o_uip.omiPars['cloud_fraction'] = fm_vec[ind_fm][0]
+            elif 'OMISURFACEALBEDOUV1' == specie:
+                o_uip.omiPars['surface_albedo_uv1'] = fm_vec[ind_fm][0]
+            elif 'OMISURFACEALBEDOUV2' == specie:
+                o_uip.omiPars['surface_albedo_uv2'] = fm_vec[ind_fm][0]
+            elif 'OMISURFACEALBEDOSLOPEUV2' == specie:
+                o_uip.omiPars['surface_albedo_slope_uv2'] = fm_vec[ind_fm][0]
+            elif 'OMINRADWAVUV1' == specie:
+                o_uip.omiPars['nradwav_uv1'] = fm_vec[ind_fm][0]
+            elif 'OMINRADWAVUV2' == specie:
+                o_uip.omiPars['nradwav_uv2'] = fm_vec[ind_fm][0]
+            elif 'OMIODWAVUV1' == specie:
+                o_uip.omiPars['odwav_uv1'] = fm_vec[ind_fm][0]
+            elif 'OMIODWAVUV2' == specie:
+                o_uip.omiPars['odwav_uv2'] = fm_vec[ind_fm][0]
+            elif 'OMIODWAVSLOPEUV1' == specie:
+                o_uip.omiPars['odwav_slope_uv1'] = fm_vec[ind_fm][0]
+            elif 'OMIODWAVSLOPEUV2' == specie:
+                o_uip.omiPars['odwav_slope_uv2'] = fm_vec[ind_fm][0]
+            elif 'OMIRINGSFUV1' == specie:
+                o_uip.omiPars['ring_sf_uv1'] = fm_vec[ind_fm][0]
+            elif 'OMIRINGSFUV2' == specie:
+                o_uip.omiPars['ring_sf_uv2'] = fm_vec[ind_fm][0]
+
+            ## EM 04-2021 Adding TROPOMI parameters
+            elif 'TROPOMICLOUDFRACTION' == specie:
+                o_uip.tropomiPars['cloud_fraction'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOBAND1' == specie:
+                o_uip.tropomiPars['surface_albedo_BAND1'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOBAND2' == specie:
+                o_uip.tropomiPars['surface_albedo_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOBAND3' == specie:
+                o_uip.tropomiPars['surface_albedo_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOBAND7' == specie:
+                o_uip.tropomiPars['surface_albedo_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOBAND3TIGHT' == specie:
+                o_uip.tropomiPars['surface_albedo_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOSLOPEBAND2' == specie:
+                o_uip.tropomiPars['surface_albedo_slope_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOSLOPEBAND3' == specie:
+                o_uip.tropomiPars['surface_albedo_slope_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOSLOPEBAND7' == specie:
+                o_uip.tropomiPars['surface_albedo_slope_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOSLOPEBAND3TIGHT' == specie:
+                o_uip.tropomiPars['surface_albedo_slope_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOSLOPEORDER2BAND2' == specie:
+                o_uip.tropomiPars['surface_albedo_slope_order2_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOSLOPEORDER2BAND3' == specie:
+                o_uip.tropomiPars['surface_albedo_slope_order2_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOSLOPEORDER2BAND7' == specie:
+                o_uip.tropomiPars['surface_albedo_slope_order2_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISURFACEALBEDOSLOPEORDER2BAND3TIGHT' == specie:
+                o_uip.tropomiPars['surface_albedo_slope_order2_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISOLARSHIFTBAND1' == specie:
+                o_uip.tropomiPars['solarshift_BAND1'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISOLARSHIFTBAND2' == specie:
+                o_uip.tropomiPars['solarshift_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISOLARSHIFTBAND3' == specie:
+                o_uip.tropomiPars['solarshift_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMISOLARSHIFTBAND7' == specie:
+                o_uip.tropomiPars['solarshift_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRADIANCESHIFTBAND1' == specie:
+                o_uip.tropomiPars['radianceshift_BAND1'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRADIANCESHIFTBAND2' == specie:
+                o_uip.tropomiPars['radianceshift_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRADIANCESHIFTBAND3' == specie:
+                o_uip.tropomiPars['radianceshift_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRADIANCESHIFTBAND7' == specie:
+                o_uip.tropomiPars['radianceshift_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRADSQUEEZEBAND1' == specie:
+                o_uip.tropomiPars['radsqueeze_BAND1'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRADSQUEEZEBAND2' == specie:
+                o_uip.tropomiPars['radsqueeze_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRADSQUEEZEBAND3' == specie:
+                o_uip.tropomiPars['radsqueeze_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRADSQUEEZEBAND7' == specie:
+                o_uip.tropomiPars['radsqueeze_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRINGSFBAND1' == specie:
+                o_uip.tropomiPars['ring_sf_BAND1'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRINGSFBAND2' == specie:
+                o_uip.tropomiPars['ring_sf_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRINGSFBAND3' == specie:
+                o_uip.tropomiPars['ring_sf_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRINGSFBAND7' == specie:
+                o_uip.tropomiPars['ring_sf_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO0BAND2' == specie:
+                o_uip.tropomiPars['resscale_O0_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO1BAND2' == specie:
+                o_uip.tropomiPars['resscale_O1_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO2BAND2' == specie:
+                o_uip.tropomiPars['resscale_O2_BAND2'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO0BAND3' == specie:
+                o_uip.tropomiPars['resscale_O0_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO1BAND3' == specie:
+                o_uip.tropomiPars['resscale_O1_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO2BAND3' == specie:
+                o_uip.tropomiPars['resscale_O2_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMITEMPSHIFTBAND3' == specie:
+                o_uip.tropomiPars['temp_shift_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO0BAND7' == specie:
+                o_uip.tropomiPars['resscale_O0_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO1BAND7' == specie:
+                o_uip.tropomiPars['resscale_O1_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMIRESSCALEO2BAND7' == specie:
+                o_uip.tropomiPars['resscale_O2_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMITEMPSHIFTBAND7' == specie:
+                o_uip.tropomiPars['temp_shift_BAND7'] = fm_vec[ind_fm][0]
+            elif 'TROPOMITEMPSHIFTBAND3TIGHT' == specie:
+                o_uip.tropomiPars['temp_shift_BAND3'] = fm_vec[ind_fm][0]
+            elif 'TROPOMICLOUDSURFACEALBEDO' == specie:
+                o_uip.tropomiPars['cloud_Surface_Albedo'] = fm_vec[ind_fm][0]
+
+            # OCO
+            elif specie == 'NIRAEROD' or specie == 'AEROD':
+                # if linear, OD cannot be less than 0.
+
+                if mapType == 'log':
+                    o_uip.nirPars['aerod'] = np.exp(fm_vec[ind_fm])
+                else:
+                    indx = np.where(fm_vec[ind_fm] < 0.0001)[0]
+                    if len(indx) > 0:
+                        fm_vec[ind_fm[indx]] = 0.0001
+
+                    indx = np.where(i_retrieval_vec[ind_ret] < 0.00001)[0]
+                    if len(indx) > 0:
+                        o_retrieval_vec[ind_ret[indx]] = 0.00001
+
+                    o_uip.nirPars['aerod'] = fm_vec[ind_fm]
+
+            elif specie == 'NIRAERP' or specie == 'AERP':
+
+                # check range on fm_vec and retrieval_vec
+                indx = np.where(fm_vec[ind_fm] < 0.02)[0]
+                if len(indx) > 0:
+                    fm_vec[ind_fm[indx]] = 0.02
+                indx = np.where(fm_vec[ind_fm] > 0.98)[0]
+                if len(indx) > 0:
+                    fm_vec[ind_fm[indx]] = 0.98
+
+                indx = np.where(i_retrieval_vec[ind_ret] < 0.02)[0]
+                if len(indx) > 0:
+                    o_retrieval_vec[ind_ret[indx]] = 0.02
+                indx = np.where(i_retrieval_vec[ind_ret] > 0.98)[0]
+                if len(indx) > 0:
+                    o_retrieval_vec[ind_ret[indx]] = 0.98
+
+                #old = uip.nirPars.aerp
+                o_uip.nirPars['aerp'] = fm_vec[ind_fm]
+
+            elif specie == 'NIRAERW' or specie == 'AERW':
+
+                #old = uip.nirPars.aerw
+                indx = np.where(fm_vec[ind_fm] < 0)[0]
+                if len(indx) > 0:
+                    fm_vec[ind_fm[indx]] = 0.01
+                indx = np.where(fm_vec[ind_fm] > 0.2)[0]
+                if len(indx) > 0:
+                    fm_vec[ind_fm[indx]] = 0.20
+
+                indx = np.where(i_retrieval_vec[ind_ret] < 0)[0]
+                if len(indx) > 0:
+                    o_retrieval_vec[ind_ret[indx]] = 0.01
+                indx = np.where(i_retrieval_vec[ind_ret] > 0.2)[0]
+                if len(indx) > 0:
+                    o_retrieval_vec[ind_ret[indx]] = 0.20
+
+                o_uip.nirPars['aerw'] = fm_vec[ind_fm]
+
+            elif specie == 'NIRALBBRDF' or specie == 'ALBBRDF':
+                mult = 1
+                if o_uip.nirPars['albtype'] == 1:
+                    mult = .07 # convert species BRDF to uip lambertian
+                #npoly = N_ELEMENTS(fs_vec[indfs])/3
+                #;uip.nirPars.alb = 0
+                #;uip.nirPars.alb[0:npoly-1,*] = fs_vec[indfs] * mult
+                o_uip.nirPars['albpl'] = fm_vec[ind_fm] * mult
+            elif specie == 'NIRALBLAMB' or specie == 'ALBLAMB':
+                mult = 1
+                if o_uip.nirPars['albtype'] == 2:
+                    mult = 1/.07 # convert species lambertian to uip BRDF
+                #npoly = N_ELEMENTS(fs_vec[indfs])/3
+                #uip.nirPars.alb = 0
+                #uip.nirPars.alb[0:npoly-1,*] = fs_vec[indfs] * mult
+                o_uip.nirPars['albpl'] = fm_vec[ind_fm] * mult
+            elif specie == 'NIRALBCM' or specie == 'ALBCM':
+                # cox-munk albedo multiplier (ocean).  Does not convert with other types.
+                if o_uip.nirPars['albtype'] != 3:
+                    assert "Type mismatch for ALBCM"
+                o_uip.nirPars['albpl'] = fm_vec[ind_fm]
+            elif specie == 'NIRALBBRDFPL' or specie == 'ALBBRDFPL' or specie == 'NIRALBLAMBPL' or specie == 'ALBLAMBPL':
+                mult = 1
+                if o_uip.nirPars['albtype'] == 2 and (specie == 'NIRALBLAMBPL' or specie == 'ALBLAMBPL'):
+                    mult = 1/.07 # convert species lambertian to uip BRDF
+                if o_uip.nirPars['albtype'] == 1 and (specie == 'NIRALBBRDFPL' or specie == 'ALBBRDFPL'):
+                    mult = .07 # convert species lambertian to uip BRDF
+                if mapType == 'linearpca':
+                    constraint = o_uip.constraintVectorListFM[ind_fm]
+                    map = ret_info.basis_matrix[ind_ret,:]
+                    map = map[:,ind_fm]
+                    fm_vec[ind_fm] = constraint + map.T @ o_retrieval_vec[ind]
+                elif mapType == 'logpca':
+                    constraint = o_uip.constraintVectorListFM[ind_fm]
+                    map = ret_info.basis_matrix[ind_ret,:]
+                    map = map[:,ind_fm]
+                    fm_vec[ind_fm] = np.exp(np.log(constraint) + map.T @ o_retrieval_vec[ind])
+                o_uip.nirPars['albpl'] = fm_vec[ind_fm] * mult
+            elif specie == 'NIRDISP' or specie == 'DISP':
+                # only fill in retrieved values; leave higher order as is
+                npoly = np.int(len(fm_vec[ind_fm])/3)
+                for iq in range(0,3):
+                    o_uip.nirPars['disp'][iq,0:npoly] = fm_vec[ind_fm[0]+npoly*iq:ind_fm[0]+npoly*(iq+1)]
+
+                # update wavelength if dispersion is retrieved
+                # apply to uip.nirPars.alblambplwave beginning and end frequencies
+                # apply to uip.uip_OCO2.wavelength and uip.uip_OCO2.frequencylist
+
+                # dispersion applies to OBSERVED wavelength
+                # therefore update OBSERVED wavelength in UIP
+                ff = mpy.oco2_get_wavelength(o_uip.nirPars['disp'], o_uip.uip_OCO2['sample_indexes'])
+                o_uip.uip_OCO2['wavelength'] = ff
+                o_uip.uip_OCO2['frequencylist'] = ff
+                # update albplwave, if this is used, according to wavelength ranges of bands.
+                #IF uip.nirPars.albplwave[0] GE 0 THEN BEGIN
+                #    result = get_nir_albedo_piecewise(fltarr(2,3)+1e-5, wavefull = uip.uip_OCO2.wavelength)
+                #    uip.nirPars.albplwave = [result.wavelength1,result.wavelength2,result.wavelength3]
+                #ENDIF
+
+                # match wavelength edges
+                o_uip.nirPars['albplwave'] = mpy.nir_match_wavelength_edges(o_uip.uip_OCO2['wavelength'], o_uip.nirPars['albplwave'])
+
+            elif specie == 'NIREOF' or specie == 'EOF':
+                # this is right way round
+                o_uip.nirPars['eof'][:,:] = fm_vec[ind_fm].reshape(3,3)
+            elif specie == 'NIRCLOUD3DOFFSET' or specie == 'CLOUD3DOFFSET':
+                # not sure if the right way round
+                o_uip.nirPars['cloud3doffset'][:] = fm_vec[ind_fm] #.reshape(3,2)
+            elif specie == 'NIRCLOUD3DSLOPE' or specie == 'CLOUD3DSLOPE':
+                # not sure if the right way round
+                o_uip.nirPars['cloud3dslope'][:] = fm_vec[ind_fm]
+            elif specie == 'NIRFLUOR' or specie == 'FLUOR':
+                o_uip.nirPars['fluor'] = fm_vec[ind_fm]
+            elif specie == 'NIRWIND' or specie == 'WIND':
+                o_uip.nirPars['wind'] = fm_vec[ind_fm]
+
+            #  line species
+            else:
+                param_pos = np.where(o_uip.atmosphere_params == specie)[0]
+
+                if len(param_pos) == 0:
+                    # This is something not in the UIP, so just ignore for now
+                    continue
+                    #raise RuntimeError(f'Retrieval parameter label not found {specie}')
+
+                if mapType == 'linearscale':
+                    initial = o_uip.constraintVectorListFM[ind_fm]
+                    o_uip.atmosphere[param_pos[0], :] = initial + o_retrieval_vec[ind[0]]
+                    fm_vec[ind_fm] = o_uip.atmosphere[param_pos[0], :]
+                elif mapType == 'linearpca':
+                    initial = o_uip.constraintVectorListFM[ind_fm]
+                    map = ret_info.basis_matrix[ind_ret,:]
+                    map = map[:,ind_fm]
+                    o_uip.atmosphere[param_pos[0], :] = initial + map.T @ o_retrieval_vec[ind]
+                    fm_vec[ind_fm] = o_uip.atmosphere[param_pos[0], :]
+                elif mapType == 'logscale':
+                    initial = o_uip.constraintVectorListFM[ind_fm]
+                    o_uip.atmosphere[param_pos[0], :] = initial * o_retrieval_vec[ind[0]]
+                    fm_vec[ind_fm] = o_uip.atmosphere[param_pos[0], :]
+                elif mapType == 'logpca':
+                    initial = o_uip.constraintVectorListFM[ind_fm]
+                    map = ret_info.basis_matrix[ind_ret,:]
+                    map = map[:,ind_fm]
+                    o_uip.atmosphere[param_pos[0], :] = np.exp(np.log(initial) + map.T @ o_retrieval_vec[ind])
+                    fm_vec[ind_fm] = o_uip.atmosphere[param_pos[0], :]
+                elif mapType == 'log':
+                    fm_vec[ind_fm] = np.exp(fm_vec[ind_fm])
+                    o_uip.atmosphere[param_pos[0], :] = fm_vec[ind_fm]
+                elif mapType == 'linear':
+                    value = fm_vec[ind_fm]  # Note that in Python, the slice does not include the end point.
+
+                    # this is for negative VMRs.  Small VMRs also cause
+                    # issues (get large Jacobians for very small VMRs)
+                    threshold = -999
+                    if specie == 'HCN':
+                        threshold = 1e-12
+
+                    if specie == 'NH3':
+                        threshold = 5e-11
+
+                    if specie == 'ACET':
+                        threshold = 1e-12
+
+                    # Don't do this correction for PAN. 
+                    # Starting from v1.14 small and negative PAN is handled in fm_oss.pro 
+                    # if specie == 'PAN':
+                    #     threshold = 1e-12
+
+                    ind_neg = np.where(value < threshold)[0]
+                    if len(ind_neg) > 0:
+                        value[ind_neg] = threshold
+
+                    o_uip.atmosphere[param_pos[0], :] = value
+                    fm_vec[ind_fm] = value
+
+                    # update retrieval vector
+                    value = o_retrieval_vec[ind]
+                    ind_neg = np.where(value < threshold)[0]
+                    if len(ind_neg) > 0:
+                        value[ind_neg] = threshold
+
+                    o_retrieval_vec[ind] = value  # Use o_retrieval_vec so it is more evident that we are returning it.
+                else:
+                    raise RuntimeError(f'Maptype not found: {mapType}')
+                # end else portion of if len(ind1) == 0 and specie != 'TATM':
+            # end long else portion of 'TSUR' == specie:
+        # end for ii in range(len(uip.jacobians_all)):
+
+        # AT_LINE 256 Optimization/update_uip.pro update_uip
+
+        # update uip with retrieval and fm vectors
+        o_uip.currentGuessList = o_retrieval_vec
+        o_uip.currentGuessListFM = fm_vec
+
+        self.uip = o_uip.__dict__
 
     @classmethod
     def create_uip(cls, i_stateInfo, i_strategy_table, i_windows,     
