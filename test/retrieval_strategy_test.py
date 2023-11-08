@@ -9,17 +9,6 @@ import subprocess
 import pprint
 import glob
 
-def struct_compare(s1, s2):
-    for k in s1.keys():
-        #print(k)
-        if(isinstance(s1[k], np.ndarray) and
-           np.can_cast(s1[k], np.float64)):
-           npt.assert_allclose(s1[k], s2[k])
-        elif(isinstance(s1[k], np.ndarray)):
-            assert np.all(s1[k] == s2[k])
-        else:
-            assert s1[k] == s2[k]
-
 @long_test
 @require_muses_py
 def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,

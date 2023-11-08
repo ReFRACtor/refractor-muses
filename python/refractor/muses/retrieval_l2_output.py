@@ -110,6 +110,8 @@ class RetrievalL2Output(RetrievalOutput):
         else:
             data2 = None
 
+        state_element_out = [t for t in self.state_info.state_element_list() if t.should_write_to_l2_product(self.instruments)]
+            
         if(self.spcname == "H2O" and self.dataTATM is not None):
             self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Lite_Products_L2-RH-{self.species_count[self.spcname]}.nc"
             if("OCO2" not in self.instruments):
@@ -117,11 +119,13 @@ class RetrievalL2Output(RetrievalOutput):
                 # Code assumes we are in rundir
                 with self.retrieval_strategy.chdir_run_dir():
                     t = CdfWriteTes()
-                    t.write_lite(self.table_step,
-                                 self.out_fname, self.quality_name, self.instruments,
-                                 liteDirectory, dataInfo, self.dataTATM, "RH",
-                                 step=self.species_count[self.spcname],
-                                 times_species_retrieved=self.species_count[self.spcname])
+                    t.write_lite(
+                        self.table_step,
+                        self.out_fname, self.quality_name, self.instruments,
+                        liteDirectory, dataInfo, self.dataTATM, "RH",
+                        step=self.species_count[self.spcname],
+                        times_species_retrieved=self.species_count[self.spcname],
+                        state_element_out=state_element_out)
                 
         self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
         if 'OCO2' not in self.instruments:
@@ -133,7 +137,8 @@ class RetrievalL2Output(RetrievalOutput):
                     self.table_step, self.out_fname, self.quality_name,
                     self.instruments, liteDirectory, dataInfo, data2, self.spcname,
                     step=self.species_count[self.spcname],
-                    times_species_retrieved=self.species_count[self.spcname])
+                    times_species_retrieved=self.species_count[self.spcname],
+                    state_element_out=state_element_out)
 
     def generate_geo_data(self, species_data):
         '''Generate the geo_data, pulled out just to keep write_l2 from getting
@@ -370,7 +375,6 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.RADIANCE_RESIDUAL_STDEV_CHANGE = self.results.radianceResidualRMSInitial[0] - self.results.radianceResidualRMS[0]
         
         # ==============> Cleanup to this point
-
         if 'OMI' in self.instruments:
             # Make all names uppercased to make life easier.
             species_data.OMI_SZA_UV2 = self.state_info.state_info_obj.current['omi']['sza_uv2']
@@ -406,7 +410,6 @@ class RetrievalL2Output(RetrievalOutput):
 
             species_data.OMI_RINGSFUV1 = self.state_info.state_info_obj.current['omi']['ring_sf_uv1']
             species_data.OMI_RINGSFUV2 = self.state_info.state_info_obj.current['omi']['ring_sf_uv2']
-
         if 'TROPOMI' in self.instruments:
             # As with OMI, make all names uppercased to make life easier.
             # EM NOTE - This will have to be expanded if additional tropomi bands are used
@@ -776,6 +779,8 @@ class RetrievalL2Output(RetrievalOutput):
         for k, v in species_data.items():
             if isinstance(v, list):
                 species_data[k] = np.asarray(v)
+
+        state_element_out = [t for t in self.state_info.state_element_list() if t.should_write_to_l2_product(self.instruments)]
                 
         #######
         # write with lite format using cdf_write_tes
@@ -783,7 +788,8 @@ class RetrievalL2Output(RetrievalOutput):
         o_data = species_data
         o_data.update(self.generate_geo_data(species_data))
         t = CdfWriteTes()
-        t.write(o_data, self.out_fname, runtimeAttributes=runtime_attributes)
+        t.write(o_data, self.out_fname, runtimeAttributes=runtime_attributes,
+                state_element_out=state_element_out)
         
         return o_data
 

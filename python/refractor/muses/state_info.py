@@ -29,7 +29,34 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @property
     def name(self):
         return self._name
-    
+
+    def should_write_to_l2_product(self, instruments):
+        '''Give a list of instruments that a retrieval step operates on, return
+        True if this should get written to a netCDF L2 Product and Lite file
+        (in RetrievalL2Output).
+
+        StateElements that are already in muses-py should return False
+        here, since they get otherwise handled. We may change this behavior and move
+        the muses-py StateElements to operate the same way, but for now this is
+        how this gets handled (see the discussion on RetrievalOutput for the
+        state_element_out keyword).'''
+        return False
+
+    def net_cdf_struct_units(self):
+        '''Returns the attributes attached to a netCDF write out of this
+        StateElement.'''
+        return {'Longname': self.name.lower(), 'Units': 'degrees', 'FillValue': '',
+                'MisingValue': ''}
+
+    def net_cdf_variable_name(self):
+        '''Variable name to use when writing to a netCDF file.'''
+        return self.name
+
+    def net_cdf_group_name(self):
+        '''Group that variable goes into in a netCDF file. Use the empty string
+        if this doesn't go into a group, but rather is a top level variable.'''
+        return ''
+        
     @property
     @abc.abstractmethod
     def value(self):
@@ -549,6 +576,19 @@ class StateInfo:
         # now
         retrieval_info.retrieval_dict["doUpdateFM"] = do_update_fm
 
+    def state_element_list(self, step="current"):
+        '''Return the list of state elements that we already have in StateInfo.
+        Note that state_element creates this on first use, the list returned is
+        those state elements that have already been created.'''
+        if(step == "current"):
+            return list(self.current.values())
+        elif(step == "initialInitial"):
+            return list(self.initialInitial.values())
+        elif(step == "initial"):
+            return list(self.initial.values())
+        else:
+            raise RuntimeError("step must be initialInitial, initial, or current")
+        
     def state_element(self, name, step="current"):
         '''Return the state element with the given name.'''
         # We create the StateElement objects on first use

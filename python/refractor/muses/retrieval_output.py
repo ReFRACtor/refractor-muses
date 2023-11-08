@@ -121,9 +121,18 @@ class CdfWriteTes:
 
     def write(self, dataOut, filenameOut, tracer_species="species",
               retrieval_pressures=None,
-              write_met=False, version=None, liteVersion=None, runtimeAttributes=None):
+              write_met=False, version=None, liteVersion=None, runtimeAttributes=None,
+              state_element_out=None):
+        '''We pass in state_element_out for StateElement not otherwise handled. This
+        separates out the species that were in muses-py vs stuff we may have added.
+        Perhaps we'll get all the StateElements handled the same way at some point,
+        muses-py is really overly complicated. On the other hand, this is just output
+        code which tends to get convoluted to create specific output, so perhaps
+        this isn't so much an issue.'''
         if runtimeAttributes is None:
             runtimeAttributes = {}
+        if(state_element_out is None):
+            state_element_out = {}
         dims = {}
         tagnames = list(dataOut.keys())
         
@@ -450,6 +459,21 @@ class CdfWriteTes:
             if isinstance(variable_data, list):
                 structIn[tag_name] = np.asarray(variable_data)
 
+        # StateElements we haven't already gotten. These are
+        # StateElement that weren't originally in muses-py.
+        
+        for selem in state_element_out:
+            structIn[selem.name] = selem.value
+            # For simplicity, value is always a numpy array. If it is size 1,
+            # we want to pull this out so the data is written in netcdf as
+            # a scalar rather than a array of size 1
+            if(len(selem.value.shape) == 1 and selem.value.shape[0] == 1):
+                structIn[selem.name] = selem.value[0]
+            structUnits.append(selem.net_cdf_struct_units())
+            exact_cased_variable_names[selem.name] = selem.net_cdf_variable_name()
+            groupvarnames.append([selem.net_cdf_group_name(),
+                                  selem.net_cdf_variable_name()])
+
         #===============================
         # write data (Use the service of cdf_write() function.)
         #===============================
@@ -470,9 +494,17 @@ class CdfWriteTes:
 
     def write_lite(self, stepNumber, filenameIn, qualityFilename, instrument,
                    liteDirectory, data1In, data2=None, species_name='', step=0,
-                   times_species_retrieved=0):
+                   times_species_retrieved=0, state_element_out=None):
         '''This is a lightly edited version of make_lite_casper_script_retrieval,
-        mainly we want this to call our cdf_write_tes so we can add new species in.'''
+        mainly we want this to call our cdf_write_tes so we can add new species in.
+
+        We pass in state_element_out for StateElement not otherwise handled. This
+        separates out the species that were in muses-py vs stuff we may have added.
+        Perhaps we'll get all the StateElements handled the same way at some point,
+        muses-py is really overly complicated. On the other hand, this is just output
+        code which tends to get convoluted to create specific output, so perhaps
+        this isn't so much an issue.
+        '''
         data1 = copy.deepcopy(data1In)
 
         version = 'v006'
@@ -515,7 +547,7 @@ class CdfWriteTes:
         version = version
         liteVersion = versionLite
         write_met = False
-        self.write(data, filenameOut, tracer, retrieval_pressures, write_met, version, liteVersion)
+        self.write(data, filenameOut, tracer, retrieval_pressures, write_met, version, liteVersion, state_element_out=state_element_out)
         return data2
         
 __all__ = ["RetrievalOutput", "CdfWriteTes"] 

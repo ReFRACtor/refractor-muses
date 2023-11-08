@@ -208,7 +208,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         mpy.set_retrieval_results_derived(self.results, rs.radianceStep,
                                           self.propagatedTATMQA, self.propagatedO3QA,
                                           self.propagatedH2OQA)
-        self.results = rs.error_analysis.error_analysis(rs, self.results)
+        # Temp, skip
+        #self.results = rs.error_analysis.error_analysis(rs, self.results)
         self.update_retrieval_summary(rs)
         # The solver can't be pickled, because a few pieces of the cost function
         # can't be pickled. We could sort that out if it becomes an issue, but for

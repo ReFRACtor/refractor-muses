@@ -7,17 +7,6 @@ import subprocess
 import glob
 import pickle
 
-def struct_compare(s1, s2):
-    for k in s1.keys():
-        print(k)
-        if(isinstance(s1[k], np.ndarray) and
-           np.can_cast(s1[k], np.float64)):
-           npt.assert_allclose(s1[k], s2[k], rtol=1e-12)
-        elif(isinstance(s1[k], np.ndarray)):
-            assert np.all(s1[k] == s2[k])
-        else:
-            assert s1[k] == s2[k]
-
 # Temporary, depends on our test run
 @pytest.mark.parametrize("step_number", [1,2,3,4,5,6,7,8,9,10,11,12])
 @require_muses_py
