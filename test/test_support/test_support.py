@@ -184,9 +184,16 @@ def all_output_disabled():
     finally:
         logging.disable(previous_level)
 
-def struct_compare(s1, s2):
+def struct_compare(s1, s2, skip_list=None, verbose=False):
+    if(skip_list is None):
+        skip_list = []
     for k in s1.keys():
-        #print(k)
+        if(k in skip_list):
+            if(verbose):
+                print(f"Skipping {k}")
+            continue
+        if(verbose):
+            print(k)
         if(isinstance(s1[k], np.ndarray) and
            np.can_cast(s1[k], np.float64)):
            npt.assert_allclose(s1[k], s2[k])

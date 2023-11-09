@@ -199,6 +199,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             self.table_step = stp
             self.get_initial_guess()
         self.state_info.copy_current_initialInitial()
+        self.notify_update("starting retrieval steps")
         # Now go back through and actually do retrievals.
         # Note that a BT step might change the number of steps we have, it
         # modifies the strategy table. So we can't use a normal for
