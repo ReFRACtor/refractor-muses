@@ -114,15 +114,30 @@ class StrategyTable:
 
     @property
     def retrieval_elements(self, stp=None):
+        '''This is the retrieval elements for the given step, defaulting to
+        self.table_step if not specified.'''
         return mpy.table_get_unpacked_entry(
             self.strategy_table_dict, stp if stp is not None else self.table_step,
             "retrievalElements")
 
     @property
+    def retrieval_elements_all_step(self):
+        '''All the retrieval elements found in any of the steps.'''
+        return mpy.table_get_all_values(self.strategy_table_dict, 'retrievalElements')
+
+    @property
     def error_analysis_interferents(self, stp=None):
+        '''Interferent species/StateElement used in error analysis for the given
+        step (defaults to self.table_step.'''
         return mpy.table_get_unpacked_entry(
             self.strategy_table_dict, stp if stp is not None else self.table_step,
             "errorAnalysisInterferents")
+    
+    @property
+    def error_analysis_interferents_all_step(self):
+        '''All the interferent species found in any of the steps.'''
+        return mpy.table_get_all_values(self.strategy_table_dict, 'errorAnalysisInterferents')
+        
     
     @property
     def microwindows(self, stp=None):

@@ -42,10 +42,4 @@ def test_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     assert sinfo.sounding_metadata().local_hour == pytest.approx(11.40252685546875)
     assert sinfo.sounding_metadata().height.value[0] == 0
     assert sinfo.state_element("TATM").value[0] == pytest.approx(293.28302002)
-
-    # Have a mix of species names in the muses-py ordered list and not. Check
-    # that we handle the sort correctly.
-    species_list = ["Fred", 'TROPOMICLOUDSURFACEALBEDO', "Carl", 'TROPOMITEMPSHIFTBAND7',
-                    "Al"]
-    assert sinfo.order_species(species_list) == ['TROPOMITEMPSHIFTBAND7', 'TROPOMICLOUDSURFACEALBEDO', "Al", "Carl", "Fred"]
     

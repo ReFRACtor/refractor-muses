@@ -357,7 +357,6 @@ class RetrievalInfo:
         #                                       but perhaps also as propagated
         #                                       constraints.
         
-        num_errorSpecies = len(strategy_table.error_species)
         nn = len(state_info.pressure)
 
         # get retrieval parameters, including a list of retrieved species,

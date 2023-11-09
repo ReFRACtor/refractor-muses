@@ -404,7 +404,6 @@ class StateInfo:
     '''
     def __init__(self):
         self.state_info_dict = None
-        self._ordered_species_list = mpy.ordered_species_list()
         self.state_element_handle_set = copy.deepcopy(StateElementHandleSet.default_handle_set())
         self.initialInitial = {}
         self.initial = {}
@@ -517,27 +516,6 @@ class StateInfo:
         # The pressure is kind of like a StateElementOnLevels, but it is a bit of a
         # special case. This is needed to interpret the rest of the data.
         return self.state_info_dict["current"]["pressure"]
-
-    def order_species(self, species_list):
-        '''This provides an order to the given species list.
-
-        It isn't really clear why this is needed, but it is in the existing muses-py.
-        We use the list order they have for items found in that list, and then we
-        just alphabetize any species not found in that list. We could adapt this
-        logic if needed (e.g., extend ordered_species_list), but is isn't really
-        clear why the ordering is done in the first place.'''
-        
-        # The use of a tuple here is a standard python "trick" to separate out
-        # the values sorted
-        # by _ordered_species_list vs. alphabetically. In python
-        # False < True, so all the items in _ordered_species_list are put first in
-        # the sorted list. The second part of the tuple is only sorted for things
-        # that are in the same set for the first test, so using integers from index
-        # vs. string comparison is separated nicely.
-        return sorted(species_list, key=lambda v:
-                      (v not in self._ordered_species_list,
-                       self._ordered_species_list.index(v) if
-                       v in self._ordered_species_list else v))
 
     def update_state(self, retrieval_info : "RetrievalInfo",
                      results_list: np.array, do_not_update, cloud_prefs:dict, step:int):
