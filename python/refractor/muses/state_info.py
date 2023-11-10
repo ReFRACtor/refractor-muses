@@ -30,6 +30,16 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def name(self):
         return self._name
 
+    def sa_covariance(self):
+        '''Return sa covariance matrix, and also pressure. This is what
+        ErrorAnalysis needs.'''
+        raise NotImplementedError()
+
+    def sa_cross_covariance(self, selem2 : StateElement):
+        '''Return the cross covariance matrix with selem 2. This returns None
+        if there is no cross covariance.'''
+        return None
+
     def should_write_to_l2_product(self, instruments):
         '''Give a list of instruments that a retrieval step operates on, return
         True if this should get written to a netCDF L2 Product and Lite file

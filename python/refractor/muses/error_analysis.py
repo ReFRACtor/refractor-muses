@@ -29,9 +29,12 @@ class ErrorAnalysis:
                               set(strategy_table.error_analysis_interferents_all_step))
 
         selem_list = []
+        # TODO
         # Note clear why, but we get slightly different results if we update
         # the original state_info and strategy_table. May want to track this
-        # down, but as a work around we just copy this.
+        # down, but as a work around we just copy this. This is just needed
+        # to get the mapping type, I don't think anything else is needed. We
+        # should be able to pull that out from the full initial guess update.
         s_table = copy.deepcopy(strategy_table)
         sinfo = copy.deepcopy(state_info)
         s_table.table_step = 1
@@ -44,8 +47,6 @@ class ErrorAnalysis:
         # uses the map type to look up files, and rather than "linear" or "log" it
         # needs "Linear" or "Log"
 
-        surfacetype = "OCEAN" if smeta.is_ocean else "LAND"
-
         pressure_list = []
         species_list = []
         map_list = []
@@ -54,32 +55,18 @@ class ErrorAnalysis:
         matrix_list = []
         # AT_LINE 25 get_prior_error.pro 
         for selem in selem_list:
-            # Note the odd seeming "capitalize" here. This is because get_prior_error
-            # uses the map type to look up files, and rather than "linear" or "log" it
-            # needs "Linear" or "Log"
-            maptype = selem.mapType.capitalize()
-
-            # MMS override covariance matrix director so we can add
-            # Band 7 stuff
-            i_directory = "../OSP/Strategy_Tables/tropomi_nir/Covariance/"
-            (matrix, pressureSa) = mpy.get_prior_covariance(
-                selem.name, smeta.latitude.value, state_info.pressure, 
-                surfacetype, state_info.nh3type,
-                state_info.ch3ohtype, state_info.hcoohtype, maptype, i_directory)
-
+            matrix, pressureSa = selem.sa_covariance()
             pressure_list.extend(pressureSa)
             species_list.extend([selem.name] * matrix.shape[0])
             matrix_list.append(matrix)
-            map_list.extend([maptype.lower()] * matrix.shape[0])
+            map_list.extend([selem.mapType] * matrix.shape[0])
         
         initial = block_diag(*matrix_list)
         # Off diagonal blocks for covariance.
         for i, selem1 in enumerate(selem_list):
             for selem2 in selem_list[i+1:]:
-                (matrix, pressureSa) = mpy.get_prior_cross_covariance(
-                    selem1.name, selem2.name, smeta.latitude.value,
-                    state_info.pressure, surfacetype)
-                if len(matrix.shape) > 1 and matrix[0, 0] >= -990:
+                matrix = selem1.sa_cross_covariance(selem2)
+                if matrix is not None:
                     initial[np.array(species_list) == selem1.name, :][:,np.array(species_list) == selem2.name] = matrix
                     initial[np.array(species_list) == selem2.name, :][:,np.array(species_list) == selem1.name] = np.transpose(matrix)
 

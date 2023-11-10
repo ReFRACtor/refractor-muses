@@ -29,7 +29,37 @@ class MusesPyStateElement(RetrievableStateElement):
         # we don't actually have code for a value for this. But until we have
         # the full set of species in place, it is useful for us to just ignore that.
         raise NotImplementedError
+
+    def sa_covariance(self):
+        '''Return sa covariance matrix, and also pressure. This is what
+        ErrorAnalysis needs.'''
+        smeta = self.state_info.sounding_metadata()
+        surfacetype = "OCEAN" if smeta.is_ocean else "LAND"
+        # TODO Would be good to get mapType available not depending on
+        # us calling update_initial_guess. But for right now, we assume
+        # that this is available
+        maptype = self.mapType.capitalize()
         
+        # Kludge we had for starting to put in Band 7 stuff
+        #i_directory = "../OSP/Strategy_Tables/tropomi_nir/Covariance/"
+        i_directory = None
+        (matrix, pressureSa) = mpy.get_prior_covariance(
+            self.name, smeta.latitude.value, self.state_info.pressure, 
+            surfacetype, self.state_info.nh3type,
+            self.state_info.ch3ohtype, self.state_info.hcoohtype,
+            maptype, i_directory)
+        return (matrix, pressureSa)
+        
+    def sa_cross_covariance(self, selem2 : StateElement):
+        smeta = self.state_info.sounding_metadata()
+        surfacetype = "OCEAN" if smeta.is_ocean else "LAND"
+        matrix, _ = mpy.get_prior_cross_covariance(
+            self.name, selem2.name, smeta.latitude.value,
+            self.state_info.pressure, surfacetype)
+        if len(matrix.shape) > 1 and matrix[0, 0] >= -990:
+            return matrix
+        return None
+    
     def update_state_element(self, state_info : "StateInfo",
                              retrieval_info: RetrievalInfo,
                              results_list: np.array,
