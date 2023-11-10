@@ -1,4 +1,5 @@
 import refractor.muses.muses_py as mpy
+from .order_species import order_species
 import numpy as np
 from scipy.linalg import block_diag
 import copy
@@ -183,7 +184,7 @@ class RetrievalInfo:
             o_retrievalInfo.n_speciesSys = 0
             return
            
-        sys_tokens = state_info.order_species(sys_tokens)
+        sys_tokens = order_species(sys_tokens)
         o_retrievalInfo.n_speciesSys = len(sys_tokens)
         o_retrievalInfo.speciesSys.extend(sys_tokens)
         myspec = list(mpy.constraint_get_species(error_analysis.error_initial,
@@ -434,7 +435,7 @@ class RetrievalInfo:
         if strategy_table.retrieval_type.lower() in ('bt', 'forwardmodel'):
             pass
         else:
-            o_retrievalInfo.species = state_info.order_species(strategy_table.retrieval_elements)
+            o_retrievalInfo.species = order_species(strategy_table.retrieval_elements)
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for species_name in o_retrievalInfo.species:

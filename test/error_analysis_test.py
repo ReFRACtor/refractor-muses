@@ -3,7 +3,7 @@ from refractor.muses import ErrorAnalysis, RetrievalStrategy, MusesRunDir
 
 class RetrievalStrategyStop:
     def notify_update(self, retrieval_strategy, location, **kwargs):
-        if(location == "starting retrieval steps"):
+        if(location == "initial set up done"):
             raise StopIteration()
 
 @require_muses_py

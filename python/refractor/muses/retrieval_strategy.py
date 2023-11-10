@@ -187,10 +187,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.create_windows(all_step=True)
         self.state_info.init_state(self.strategy_table, self.fm_obs_creator,
                                    self.instruments_all, self.run_dir)
-        self.notify_update("initial set up done")
 
         self.error_analysis = ErrorAnalysis(self.strategy_table, self.state_info)
         self.retrievalInfo = None
+        self.notify_update("initial set up done")
         
         # Go through all the steps once, to make sure we can get all the information
         # we need. This way we fail up front, rather than after multiple retrieval

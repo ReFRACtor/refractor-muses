@@ -4,6 +4,7 @@ from .state_info import (StateElement, StateElementHandle,
                          RetrievableStateElement,
                          StateElementHandleSet, StateInfo)
 from .strategy_table import StrategyTable
+from .order_species import order_species
 import numpy as np
 import numbers
 import refractor.framework as rf
@@ -389,7 +390,7 @@ class MusesPyStateElement(RetrievableStateElement):
             state_info.state_info_obj.current['values'][locH2O17[0], 0:len(result)] = result*initialRatio
         
     def update_initial_guess(self, strategy_table : StrategyTable):
-        species_list = self.state_info.order_species(strategy_table.retrieval_elements)
+        species_list = order_species(strategy_table.retrieval_elements)
         species_name = self._name
         pressure = self.state_info.pressure
         # user specifies the number of forward model levels
@@ -1819,6 +1820,7 @@ class MusesPyStateElement(RetrievableStateElement):
                         raise RuntimeError(f"Name not found for Covariance constraint In file {speciesInformationFile.filename}")
 
                     constraintMatrix = mpy.supplier_constraint_matrix_ssuba(
+                        constraintVector,
                         species_name, mapType, mapToParameters,
                         pressureListFM, pressureList, filename,
                         i_nh3type = self.state_info.nh3type,
