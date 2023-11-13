@@ -420,7 +420,7 @@ class MusesPyStateElement(RetrievableStateElement):
             state_info.state_info_obj.current['values'][locH2O17[0], 0:len(result)] = result*initialRatio
         
     def update_initial_guess(self, strategy_table : StrategyTable):
-        species_list = order_species(strategy_table.retrieval_elements)
+        species_list = order_species(strategy_table.retrieval_elements())
         species_name = self._name
         pressure = self.state_info.pressure
         # user specifies the number of forward model levels

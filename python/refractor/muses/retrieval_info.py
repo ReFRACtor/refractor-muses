@@ -178,15 +178,11 @@ class RetrievalInfo:
                           error_analysis):
         '''Update the various "Sys" stuff in o_retrievalInfo to add in
         the error analysis interferents'''
-        sys_tokens = strategy_table.error_analysis_interferents
-        sys_tokens = mpy.flat_list(sys_tokens)
-        if sys_tokens[0] in ('-',  ''):
-            o_retrievalInfo.n_speciesSys = 0
-            return
-           
-        sys_tokens = order_species(sys_tokens)
+        sys_tokens = strategy_table.error_analysis_interferents()
         o_retrievalInfo.n_speciesSys = len(sys_tokens)
         o_retrievalInfo.speciesSys.extend(sys_tokens)
+        if(len(sys_tokens) == 0):
+            return
         myspec = list(mpy.constraint_get_species(error_analysis.error_initial,
                                                  sys_tokens))
         o_retrievalInfo.n_totalParametersSys = len(myspec)
@@ -435,7 +431,7 @@ class RetrievalInfo:
         if strategy_table.retrieval_type.lower() in ('bt', 'forwardmodel'):
             pass
         else:
-            o_retrievalInfo.species = order_species(strategy_table.retrieval_elements)
+            o_retrievalInfo.species = order_species(strategy_table.retrieval_elements())
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for species_name in o_retrievalInfo.species:

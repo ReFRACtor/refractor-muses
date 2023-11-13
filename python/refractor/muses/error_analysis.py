@@ -27,14 +27,14 @@ class ErrorAnalysis:
         
         sname_list = order_species(set(strategy_table.retrieval_elements_all_step) |
                               set(strategy_table.error_analysis_interferents_all_step))
-
         selem_list = []
         # TODO
         # Note clear why, but we get slightly different results if we update
         # the original state_info and strategy_table. May want to track this
         # down, but as a work around we just copy this. This is just needed
         # to get the mapping type, I don't think anything else is needed. We
-        # should be able to pull that out from the full initial guess update.
+        # should be able to pull that out from the full initial guess update at
+        # some point, so we don't need to do the full initial guess
         s_table = copy.deepcopy(strategy_table)
         sinfo = copy.deepcopy(state_info)
         s_table.table_step = 1

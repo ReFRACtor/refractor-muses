@@ -1,6 +1,7 @@
 import refractor.muses.muses_py as mpy
 from contextlib import contextmanager
 import os
+from .order_species import order_species
 
 class StrategyTable:
     '''This wraps the existing muses-py routines working with the
@@ -112,7 +113,6 @@ class StrategyTable:
     def retrieval_type(self):
         return self.table_entry("retrievalType")
 
-    @property
     def retrieval_elements(self, stp=None):
         '''This is the retrieval elements for the given step, defaulting to
         self.table_step if not specified.'''
@@ -123,20 +123,39 @@ class StrategyTable:
     @property
     def retrieval_elements_all_step(self):
         '''All the retrieval elements found in any of the steps.'''
-        return mpy.table_get_all_values(self.strategy_table_dict, 'retrievalElements')
-
-    @property
+        # table_get_all_values only includes muses-py species list. So we can
+        # just generate this by going through all the steps
+        #return mpy.table_get_all_values(self.strategy_table_dict, 'retrievalElements')
+        res = set()
+        for i in range(self.number_table_step):
+            res.update(set(self.retrieval_elements(i)))
+        res.discard('')
+        return order_species(list(res))
+        
     def error_analysis_interferents(self, stp=None):
         '''Interferent species/StateElement used in error analysis for the given
         step (defaults to self.table_step.'''
-        return mpy.table_get_unpacked_entry(
+        # The muses-py kind of has an odd convention for an empty list here.
+        # Use this convention, and just translate this to an empty list
+        r = mpy.table_get_unpacked_entry(
             self.strategy_table_dict, stp if stp is not None else self.table_step,
             "errorAnalysisInterferents")
+        r = mpy.flat_list(r)
+        if r[0] in ('-',  ''):
+            return []
+        return order_species(r)
     
     @property
     def error_analysis_interferents_all_step(self):
         '''All the interferent species found in any of the steps.'''
-        return mpy.table_get_all_values(self.strategy_table_dict, 'errorAnalysisInterferents')
+        # table_get_all_values only includes muses-py species list. So we can
+        # just generate this by going through all the steps
+        #return mpy.table_get_all_values(self.strategy_table_dict, 'errorAnalysisInterferents')
+        res = set()
+        for i in range(self.number_table_step):
+            res.update(set(self.error_analysis_interferents(i)))
+        res.discard('')
+        return order_species(list(res))
         
     
     @property
