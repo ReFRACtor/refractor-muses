@@ -1,5 +1,4 @@
 import refractor.muses.muses_py as mpy
-from .order_species import order_species
 import numpy as np
 from scipy.linalg import block_diag
 import copy
@@ -431,7 +430,7 @@ class RetrievalInfo:
         if strategy_table.retrieval_type.lower() in ('bt', 'forwardmodel'):
             pass
         else:
-            o_retrievalInfo.species = order_species(strategy_table.retrieval_elements())
+            o_retrievalInfo.species = strategy_table.retrieval_elements()
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for species_name in o_retrievalInfo.species:

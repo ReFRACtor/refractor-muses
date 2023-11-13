@@ -115,11 +115,20 @@ class StrategyTable:
 
     def retrieval_elements(self, stp=None):
         '''This is the retrieval elements for the given step, defaulting to
-        self.table_step if not specified.'''
-        return mpy.table_get_unpacked_entry(
+        self.table_step if not specified.
+
+        The data is returned ordered by order_species, because some of the
+        muses-py code expects that.'''
+        # The muses-py kind of has an odd convention for an empty list here.
+        # Use this convention, and just translate this to an empty list
+        r = mpy.table_get_unpacked_entry(
             self.strategy_table_dict, stp if stp is not None else self.table_step,
             "retrievalElements")
-
+        r = mpy.flat_list(r)
+        if r[0] in ('-',  ''):
+            return []
+        return order_species(r)
+    
     @property
     def retrieval_elements_all_step(self):
         '''All the retrieval elements found in any of the steps.'''
@@ -134,7 +143,10 @@ class StrategyTable:
         
     def error_analysis_interferents(self, stp=None):
         '''Interferent species/StateElement used in error analysis for the given
-        step (defaults to self.table_step.'''
+        step (defaults to self.table_step).
+
+        The data is returned ordered by order_species, because some of the
+        muses-py code expects that.'''
         # The muses-py kind of has an odd convention for an empty list here.
         # Use this convention, and just translate this to an empty list
         r = mpy.table_get_unpacked_entry(
