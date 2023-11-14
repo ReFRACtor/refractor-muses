@@ -66,6 +66,16 @@ class StateElement(object, metaclass=abc.ABCMeta):
         '''Group that variable goes into in a netCDF file. Use the empty string
         if this doesn't go into a group, but rather is a top level variable.'''
         return ''
+
+    def clone_for_other_state(self):
+        '''StateInfo has copy_current_initialInitial and copy_current_initial.
+        The simplest thing would be to just copy the current dict. However,
+        the muses-py StateElement maintain their state outside of the classes in
+        various dicts in StateInfo (probably left over from IDL). So we have
+        this function. For ReFRACtor StateElement, this should just be a copy of
+        StateElement, but for muses-py we return None. The copy_current_initialInitial
+        and copy_current_initial then handle these two cases.'''
+        return copy.deepcopy(self)
         
     @property
     @abc.abstractmethod
@@ -456,29 +466,42 @@ class StateInfo:
 
     def copy_current_initialInitial(self):
         self.state_info_dict["initialInitial"] = copy.deepcopy(self.state_info_dict["current"])
-        # Don't actually want to copy current, since a lot of the StateElements are
-        # hardcoded to current. We can perhaps come up with some kind of "clone"
-        # or "copy" function that is nothing on the existing muses-py, but copies
-        # state information for something that maintains the state
-        #self.initialInitial = copy.deepcopy(self.current)
+        # The simplest thing would be to just copy the current dict. However,
+        # the muses-py StateElement maintain their state outside of the classes in
+        # various dicts in StateInfo (probably left over from IDL). So we have
+        # this function. For ReFRACtor StateElement, this should just be a copy of
+        # StateElement, but for muses-py we return None        
+
+        for k, selem in self.current.items():
+            scopy = selem.clone_for_other_state()
+            if(scopy is not None):
+                self.initialInitial[k] = scopy
 
     def copy_current_initial(self):
         self.state_info_dict["initial"] = copy.deepcopy(self.state_info_dict["current"])
-        
-        # Don't actually want to copy current, since a lot of the StateElements are
-        # hardcoded to current. We can perhaps come up with some kind of "clone"
-        # or "copy" function that is nothing on the existing muses-py, but copies
-        # state information for something that maintains the state
-        #self.initial = copy.deepcopy(self.current)
+        # The simplest thing would be to just copy the current dict. However,
+        # the muses-py StateElement maintain their state outside of the classes in
+        # various dicts in StateInfo (probably left over from IDL). So we have
+        # this function. For ReFRACtor StateElement, this should just be a copy of
+        # StateElement, but for muses-py we return None        
+
+        for k, selem in self.current.items():
+            scopy = selem.clone_for_other_state()
+            if(scopy is not None):
+                self.initial[k] = scopy
 
     def next_state_to_current(self):
-        # We might have not actually called update, so skip this if we don't
-        # have a next state
+        # muses-py StateElement maintains state outside of the classes, so
+        # copy this dictionary
         if(self.next_state_dict is not None):
             self.state_info_dict["current"] = self.next_state_dict
         self.next_state_dict = None
-        #self.current = copy.deepcopy(self.next_state)
-
+        # For ReFRACtor StateElement, we have already updated current. But
+        # if the request was not to pass this on to the next step, we set this
+        # aside in self.next_state. Go ahead and put that into place
+        self.current.update(self.next_state)
+        self.next_state = {}
+        
     def l1b_file(self, instrument):
         if(instrument == "AIRS"):
             return Level1bAirs(self)

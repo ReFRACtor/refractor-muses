@@ -1,6 +1,7 @@
 from test_support import *
 from refractor.muses import (StateInfo, RetrievalStrategy, MusesRunDir,
-                             RetrievalInfo)
+                             RetrievalInfo, SingleSpeciesHandle,
+                             OmiEofStateElement)
 
 class RetrievalStrategyStop:
     def notify_update(self, retrieval_strategy, location, **kwargs):
@@ -236,5 +237,200 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
     
     
+@require_muses_py
+def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+    '''Repeat the tests for OMICLOUDFRACTION for our own ReFRACtor only
+    StateElement. This is the OmiEofStateElement, but this should be pretty
+    much the same for any other ReFRACtor only StateElement.'''
+    try:
+        with all_output_disabled():
+            r = MusesRunDir(omi_test_in_dir,
+                            osp_dir, gmao_dir, path_prefix=".")
+            # Modify the Table.asc to add a EOF element. This is just a short cut,
+            # so we don't need to make a new strategy table. Eventually a new table
+            # will be needed in the OSP directory, but it is too early for that.
+            # Extra space is so we change the retrieval list, not the retrieval
+            # step name (which is the same OMICLOUDFRACTION)
+            subprocess.run(f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOF/" {r.run_dir}/Table.asc', shell=True)
+            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs.clear_observers()
+            rs.add_observer(RetrievalStrategyStop())
+            rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOF", OmiEofStateElement, pass_state=False))
+            rs.retrieval_ms()
+    except StopIteration:
+        pass
+    sinfo = rs.state_info
+    stable = rs.strategy_table
+    stable.table_step = 0
+    selement = sinfo.state_element("OMIEOF")
+    selement.update_initial_guess(stable)
+    # Test all the initial values at step 0
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.value, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVector, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.minimum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.mapToState, np.eye(3))
+    npt.assert_allclose(selement.mapToParameters, np.eye(3))
+    npt.assert_allclose(selement.constraintMatrix, np.diag([100,100,100]))
+
+
+    # Update results, and make sure element gets updated
+    rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
+    results_list = np.zeros((rinfo.n_totalParameters))
+    results_list[rinfo.species_list == "OMIEOF"] = [0.5, 0.3, 0.2]
+    sinfo.update_state(rinfo, results_list, [], rs.cloud_prefs,
+                       stable.table_step)
     
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.value, np.array([0.5,0.3,0.2]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVector, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.minimum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.mapToState, np.eye(3))
+    npt.assert_allclose(selement.mapToParameters, np.eye(3))
+    npt.assert_allclose(selement.constraintMatrix, np.diag([100,100,100]))
+
+    # Go to the next step, and check that the state element is updated
+    sinfo.next_state_to_current()
+    stable.table_step = 1
+    selement = sinfo.state_element("OMIEOF")
+    selement.update_initial_guess(stable)
+    # Test all the initial values at step 1, after an update
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.value, np.array([0.5,0.3,0.2]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0.5,0.3,0.2]))
+    npt.assert_allclose(selement.constraintVector, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0.5,0.3,0.2]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.minimum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.mapToState, np.eye(3))
+    npt.assert_allclose(selement.mapToParameters, np.eye(3))
+    npt.assert_allclose(selement.constraintMatrix, np.diag([100,100,100]))
+
+@require_muses_py
+def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+    '''Repeat the previous test, but label the update as "do_not_update". This
+    tests the handling of that case.'''
+    try:
+        with all_output_disabled():
+            r = MusesRunDir(omi_test_in_dir,
+                            osp_dir, gmao_dir, path_prefix=".")
+            # Modify the Table.asc to add a EOF element. This is just a short cut,
+            # so we don't need to make a new strategy table. Eventually a new table
+            # will be needed in the OSP directory, but it is too early for that.
+            # Extra space is so we change the retrieval list, not the retrieval
+            # step name (which is the same OMICLOUDFRACTION)
+            subprocess.run(f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOF/" {r.run_dir}/Table.asc', shell=True)
+            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs.clear_observers()
+            rs.add_observer(RetrievalStrategyStop())
+            rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOF", OmiEofStateElement, pass_state=False))
+            rs.retrieval_ms()
+    except StopIteration:
+        pass
+    sinfo = rs.state_info
+    stable = rs.strategy_table
+    stable.table_step = 0
+    selement = sinfo.state_element("OMIEOF")
+    selement.update_initial_guess(stable)
+    # Test all the initial values at step 0
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.value, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVector, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.minimum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.mapToState, np.eye(3))
+    npt.assert_allclose(selement.mapToParameters, np.eye(3))
+    npt.assert_allclose(selement.constraintMatrix, np.diag([100,100,100]))
+
+
+    # Update results, and make sure element gets updated
+    rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
+    results_list = np.zeros((rinfo.n_totalParameters))
+    results_list[rinfo.species_list == "OMIEOF"] = [0.5, 0.3, 0.2]
+    sinfo.update_state(rinfo, results_list, ["OMIEOF"], rs.cloud_prefs,
+                       stable.table_step)
+    
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.value, np.array([0.5,0.3,0.2]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVector, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.minimum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.mapToState, np.eye(3))
+    npt.assert_allclose(selement.mapToParameters, np.eye(3))
+    npt.assert_allclose(selement.constraintMatrix, np.diag([100,100,100]))
+
+    # Go to the next step, and check that the state element is updated
+    sinfo.next_state_to_current()
+    stable.table_step = 1
+    selement = sinfo.state_element("OMIEOF")
+    selement.update_initial_guess(stable)
+    # Test all the initial values at step 1, after an update
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,-2,-2]))
+    npt.assert_allclose(selement.value, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVector, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0,0,0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0,0,0]))
+    npt.assert_allclose(selement.minimum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999, -999, -999]))
+    npt.assert_allclose(selement.mapToState, np.eye(3))
+    npt.assert_allclose(selement.mapToParameters, np.eye(3))
+    npt.assert_allclose(selement.constraintMatrix, np.diag([100,100,100]))
     

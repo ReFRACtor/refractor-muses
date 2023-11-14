@@ -23,6 +23,16 @@ class MusesPyStateElement(RetrievableStateElement):
         super().__init__(state_info, name)
         self.step = step
 
+    def clone_for_other_state(self):
+        '''StateInfo has copy_current_initialInitial and copy_current_initial.
+        The simplest thing would be to just copy the current dict. However,
+        the muses-py StateElement maintain their state outside of the classes in
+        various dicts in StateInfo (probably left over from IDL). So we have
+        this function. For ReFRACtor StateElement, this should just be a copy of
+        StateElement, but for muses-py we return None. The copy_current_initialInitial
+        and copy_current_initial then handle these two cases.'''
+        return None
+
     @property
     def value(self):
         # Temporary, define this so we can use a MusesPyStateElement, but
@@ -2140,10 +2150,11 @@ class CloudState(StateElementWithFrequency):
         return self.state_info.state_info_dict[self.step]["cloudEffExt"][:,r]
 
 class SingleSpeciesHandle(StateElementHandle):
-    def __init__(self, name, state_element_class, pass_state=True):
+    def __init__(self, name, state_element_class, pass_state=True, **kwargs):
         self.name = name
         self.state_element_class = state_element_class
         self.pass_state = pass_state
+        self.kwargs = kwargs
         
     def state_element_object(self, state_info : StateInfo,
                        name : str) -> \
@@ -2152,13 +2163,16 @@ class SingleSpeciesHandle(StateElementHandle):
         if(name != self.name):
             return (False, None)
         if(self.pass_state):
-            return (True, (self.state_element_class(state_info, "initialInitial"),
-                           self.state_element_class(state_info, "initial"), 
-                           self.state_element_class(state_info, "current")))
+            return (True, (self.state_element_class(state_info, "initialInitial",
+                                                    **self.kwargs),
+                           self.state_element_class(state_info, "initial",
+                                                    **self.kwargs),
+                           self.state_element_class(state_info, "current",
+                                                    **self.kwargs)))
         else:
-            return (True, (self.state_element_class(state_info),
-                           self.state_element_class(state_info), 
-                           self.state_element_class(state_info)))
+            return (True, (self.state_element_class(state_info, **self.kwargs),
+                           self.state_element_class(state_info, **self.kwargs), 
+                           self.state_element_class(state_info, **self.kwargs)))
 
 StateElementHandleSet.add_default_handle(SingleSpeciesHandle("emissivity", EmissivityState), priority_order=1)
 StateElementHandleSet.add_default_handle(SingleSpeciesHandle("cloudEffExt", CloudState), priority_order=1)
@@ -2171,3 +2185,8 @@ StateElementHandleSet.add_default_handle(MusesPyStateElementHandle(),
                                                 priority_order = -2)
     
     
+__all__ = ["MusesPyStateElement", "MusesPyOmiStateElement", "StateElementOnLevels",
+           "StateElementOnLevelsHandle", "StateElementInDict",
+           "StateElementInDictHandle", "StateElementWithFrequency",
+           "EmissivityState", "CloudState", "SingleSpeciesHandle"]
+           
