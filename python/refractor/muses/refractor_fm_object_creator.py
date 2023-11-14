@@ -836,6 +836,15 @@ class SwirAbsorber(AbstractAbsorber):
         # before mapping to a different number of levels
         # (JLL: I take it the mappings are applied from the end of the vector to the front?)
         for specie in self._parent.rf_uip.atm_params(self._parent.instrument_name)['species']:
+            if specie not in self.available_species:
+                # This keeps us from trying to simulate species like e.g. CO2 that are in the TIR
+                # but which we don't have SWIR tables for
+                continue
+            if specie not in self._parent.rf_uip.uip['speciesListFM']:
+                # This should keep us from trying to simulate species that are not requested in the forward
+                # model (and for which we don't know whether the mapping is linear or logarithmic)
+                continue
+
             mappings = rf.vector_state_mapping()
             if(not self._parent.use_full_state_vector):
                 basis_matrix = self._parent.rf_uip.species_basis_matrix(specie).transpose()
