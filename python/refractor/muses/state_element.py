@@ -412,7 +412,9 @@ class MusesPyStateElement(RetrievableStateElement):
         if len(files) == 0:
             # Look for alternate file.
             speciesInformationFilename = f"{strategy_table.species_directory}/{self.name}.asc"
-
+        # Can turn this one if we want to see what gets read. A bit noisy to
+        # have on in general though.
+        #logger.debug(f"Reading file {speciesInformationFilename}")
         # AT_LINE 156 Get_Species_Information.pro
         (_, fileID) = mpy.read_all_tes_cache(speciesInformationFilename)
         return mpy.ObjectView(fileID['preferences'])
@@ -1982,7 +1984,7 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         do_update_fm[ind1:ind2] = 1
         next_state = mpy.ObjectView(self.state_info.next_state_dict)
         if(update_next):
-            self.state_info.next_state_dict["omi"][self.omi_key] = self.value
+            self.state_info.next_state_dict["omi"][self.omi_key] = self.value[0]
 
     def update_initial_guess(self, strategy_table : StrategyTable):
         self.mapType = 'linear'
@@ -1993,18 +1995,18 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         # Apriori
         self.initialGuessList = self.value
         self.initialGuessListFM = self.initialGuessList
-        self.constraintVector = self.state_info.state_info_dict["constraint"]["omi"][self.omi_key]
+        self.constraintVector = np.array([self.state_info.state_info_dict["constraint"]["omi"][self.omi_key]])
         self.constraintVectorFM = self.constraintVector
         if self.state_info.has_true_values():
-            self.trueParameterList = self.state_info.state_info_dict["true"]["omi"][self.omi_key]
+            self.trueParameterList = np.array([self.state_info.state_info_dict["true"]["omi"][self.omi_key]])
             self.trueParameterListFM = self.trueParameterList
         else:
             self.trueParameterList = np.array([0.0])
             self.trueParameterListFM = self.trueParameterList
 
-        self.minimum = np.array([-999])
-        self.maximum = np.array([-999])
-        self.maximum_change = np.array([-999])
+        self.minimum = np.array([-999.0])
+        self.maximum = np.array([-999.0])
+        self.maximum_change = np.array([-999.0])
         self.mapToState = np.eye(1)
         self.mapToParameters = np.eye(1)
         # Not sure if the is covariance, or sqrt covariance

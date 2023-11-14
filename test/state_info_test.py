@@ -1,5 +1,6 @@
 from test_support import *
-from refractor.muses import StateInfo, RetrievalStrategy, MusesRunDir
+from refractor.muses import (StateInfo, RetrievalStrategy, MusesRunDir,
+                             RetrievalInfo)
 
 class RetrievalStrategyStop:
     def notify_update(self, retrieval_strategy, location, **kwargs):
@@ -42,4 +43,198 @@ def test_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     assert sinfo.sounding_metadata().local_hour == pytest.approx(11.40252685546875)
     assert sinfo.sounding_metadata().height.value[0] == 0
     assert sinfo.state_element("TATM").value[0] == pytest.approx(293.28302002)
+
+
+@require_muses_py
+def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+    '''Test updating OMICLOUDFRACTION. Nothing particularly special about this
+    StateElement, it is just a good simple test case for checking the muses-py
+    species handling.'''
+    try:
+        with all_output_disabled():
+            r = MusesRunDir(omi_test_in_dir,
+                            osp_dir, gmao_dir, path_prefix=".")
+            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs.clear_observers()
+            rs.add_observer(RetrievalStrategyStop())
+            rs.retrieval_ms()
+    except StopIteration:
+        pass
+    sinfo = rs.state_info
+    stable = rs.strategy_table
+    stable.table_step = 0
+    selement = sinfo.state_element("OMICLOUDFRACTION")
+    selement.update_initial_guess(stable)
+    # Test all the initial values at step 0
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,]))
+    npt.assert_allclose(selement.value, np.array([0.3533266]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVector, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0.0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0.0]))
+    npt.assert_allclose(selement.minimum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999.0]))
+    npt.assert_allclose(selement.mapToState, np.eye(1))
+    npt.assert_allclose(selement.mapToParameters, np.eye(1))
+    npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
+
+    # Update results, and make sure element gets updated
+    rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
+    results_list = np.zeros((rinfo.n_totalParameters))
+    results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
+    sinfo.update_state(rinfo, results_list, [], rs.cloud_prefs,
+                       stable.table_step)
+    
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,]))
+    npt.assert_allclose(selement.value, np.array([0.5]))
+    # Note these don't get updated yet, until we update the initial guess
+    npt.assert_allclose(selement.initialGuessList, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVector, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0.0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0.0]))
+    npt.assert_allclose(selement.minimum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999.0]))
+    npt.assert_allclose(selement.mapToState, np.eye(1))
+    npt.assert_allclose(selement.mapToParameters, np.eye(1))
+    npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
+
+    # Go to the next step, and check that the state element is updated
+    sinfo.next_state_to_current()
+    stable.table_step = 1
+    selement = sinfo.state_element("OMICLOUDFRACTION")
+    selement.update_initial_guess(stable)
+    # Test all the initial values at step 1, after an update
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,]))
+    npt.assert_allclose(selement.value, np.array([0.5]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0.5]))
+    npt.assert_allclose(selement.constraintVector, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0.0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0.5]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0.0]))
+    npt.assert_allclose(selement.minimum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999.0]))
+    npt.assert_allclose(selement.mapToState, np.eye(1))
+    npt.assert_allclose(selement.mapToParameters, np.eye(1))
+    # Note the constraintMatrix has been updated. There was a different
+    # species information file read in the first step, this the value for
+    # other steps. So the difference here is actually correct
+    npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
+
+@require_muses_py
+def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+    '''Repeat the previous test, but label the update as "do_not_update". This
+    tests the handling of that case.'''
+    try:
+        with all_output_disabled():
+            r = MusesRunDir(omi_test_in_dir,
+                            osp_dir, gmao_dir, path_prefix=".")
+            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs.clear_observers()
+            rs.add_observer(RetrievalStrategyStop())
+            rs.retrieval_ms()
+    except StopIteration:
+        pass
+    sinfo = rs.state_info
+    stable = rs.strategy_table
+    stable.table_step = 0
+    selement = sinfo.state_element("OMICLOUDFRACTION")
+    selement.update_initial_guess(stable)
+    # Test all the initial values at step 0
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,]))
+    npt.assert_allclose(selement.value, np.array([0.3533266]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVector, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0.0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0.0]))
+    npt.assert_allclose(selement.minimum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999.0]))
+    npt.assert_allclose(selement.mapToState, np.eye(1))
+    npt.assert_allclose(selement.mapToParameters, np.eye(1))
+    npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
+
+    # Update results, and make sure element gets updated
+    rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
+    results_list = np.zeros((rinfo.n_totalParameters))
+    results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
+    sinfo.update_state(rinfo, results_list, ["OMICLOUDFRACTION"], rs.cloud_prefs,
+                       stable.table_step)
+    
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,]))
+    npt.assert_allclose(selement.value, np.array([0.5]))
+    # Note these don't get updated yet, until we update the initial guess
+    npt.assert_allclose(selement.initialGuessList, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVector, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0.0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0.0]))
+    npt.assert_allclose(selement.minimum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999.0]))
+    npt.assert_allclose(selement.mapToState, np.eye(1))
+    npt.assert_allclose(selement.mapToParameters, np.eye(1))
+    npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
+
+    # Go to the next step, and check that the state element is updated
+    sinfo.next_state_to_current()
+    stable.table_step = 1
+    selement = sinfo.state_element("OMICLOUDFRACTION")
+    selement.update_initial_guess(stable)
+    # Test all the initial values at step 1, after an update
+    assert selement.mapType == "linear"
+    npt.assert_allclose(selement.pressureList, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeList, np.array([-2,]))
+    npt.assert_allclose(selement.pressureListFM, np.array([-2,]))
+    npt.assert_allclose(selement.altitudeListFM, np.array([-2,]))
+    # These go back to the original values
+    npt.assert_allclose(selement.value, np.array([0.3533266]))
+    npt.assert_allclose(selement.initialGuessList, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVector, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterList, np.array([0.0]))
+    npt.assert_allclose(selement.initialGuessListFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.constraintVectorFM, np.array([0.3533266]))
+    npt.assert_allclose(selement.trueParameterListFM, np.array([0.0]))
+    npt.assert_allclose(selement.minimum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum, np.array([-999.0]))
+    npt.assert_allclose(selement.maximum_change, np.array([-999.0]))
+    npt.assert_allclose(selement.mapToState, np.eye(1))
+    npt.assert_allclose(selement.mapToParameters, np.eye(1))
+    # Note the constraintMatrix still has been updated. This is separate
+    # from the "do_not_update" handling, it just depends on what
+    # strategy step we are on.
+    npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
+    
+    
+    
     
