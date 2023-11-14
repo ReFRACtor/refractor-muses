@@ -87,6 +87,14 @@ class RefractorUip:
 
     This is a light wrapper in ReFRACtor for working with the UIP.
 
+    Note the UIP is really just a reformatting of information found
+    in the StateInfo. We'd like to get away from using the UIP for
+    ReFRACtor, it is a needless complication. But we aren't ready to
+    abandon the uip because all the muses-py forward models depend on this.
+    We may have time at some point to figure out how to separate this out,
+    but for now just tack the state info on so we can use this in our
+    RefractorFmObjectCreator.
+
     We give a number of access routines to various pieces of the UIP we 
     are interested in. This 1) gives a cleaner interface and 2) protects
     somewhat from changes to the uip (so changed names just need to be 
@@ -122,7 +130,7 @@ class RefractorUip:
 
     '''
 
-    def __init__(self, uip = None, basis_matrix = None):
+    def __init__(self, uip = None, basis_matrix = None, state_info = None):
         '''Constructor. This takes the uip structure (the muses-py dictionary)
         and a basis_matrix if available
         '''
@@ -141,6 +149,14 @@ class RefractorUip:
         # muses-py code self.uip = ConstantDict(self.uip)
         self.basis_matrix = basis_matrix
         self.capture_directory = RefractorCaptureDirectory()
+        # Note the UIP is really just a reformatting of information found
+        # in the state_info. We'd like to get away from using the UIP for
+        # ReFRACtor, it is a needless complication. But we aren't ready to
+        # abandon the uip because all the muses-py forward models depend on this.
+        # We may have time at some point to figure out how to separate this out,
+        # but for now just tack the state info on so we can use this in our
+        # RefractorFmObjectCreator.
+        self.state_info = state_info
 
     def __getstate__(self):
         '''Pickling grabs attributes, which includes properties.
@@ -1334,7 +1350,7 @@ class RefractorUip:
             basis_matrix = retrieval_info.mapToState[0:mmm, 0:nnn]
         else:
             basis_matrix = None
-        rf_uip = cls(uip, basis_matrix)
+        rf_uip = cls(uip, basis_matrix, state_info=i_stateInfo)
         
         # Group windows by instrument
         inst_to_window = defaultdict(list)
