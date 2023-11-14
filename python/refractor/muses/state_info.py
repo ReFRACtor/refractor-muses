@@ -78,7 +78,7 @@ class RetrievableStateElement(StateElement):
     StateElements are retrievable, but not all - so we separate out the
     functionality.'''
     @abc.abstractmethod
-    def update_state_element(self, state_info : "StateInfo",
+    def update_state_element(self, 
                              retrieval_info: RetrievalInfo,
                              results_list: np.array,
                              update_next: bool,
@@ -543,7 +543,7 @@ class StateInfo:
         for state_element_name in retrieval_info.species_names:
             update_next = False if state_element_name in do_not_update else True
             self.state_element(state_element_name).update_state_element(
-                self, retrieval_info, results_list, update_next,
+                retrieval_info, results_list, update_next,
                 cloud_prefs, step, do_update_fm)
             
         # Update altitude and air density

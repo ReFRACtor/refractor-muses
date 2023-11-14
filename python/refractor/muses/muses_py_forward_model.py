@@ -19,7 +19,7 @@ logger = logging.getLogger('py-retrieve')
 #============================================================================
 # Note the classes in this file shouldn't be used in general.
 # 
-# Instead, RefractorResidualFmJacobian should be used.
+# Instead, MusesForwardModel or other ReFRACtor ForwardModel should be used.
 #
 # These classes are used by RefractorTropOrOmiFmMusesPy to  
 # initially to do a detailed comparison between the existing muses-py code

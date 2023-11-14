@@ -10,7 +10,7 @@ import numpy as np
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
 # ForwardModel, and wrapper for Observation. This is used by
-# CostFuncCreator to use the using muses-py code for different
+# FmObsCreator to use the using muses-py code for different
 # instruments rather than ReFRACtor.
 
 def _new_from_init(cls, *args):
