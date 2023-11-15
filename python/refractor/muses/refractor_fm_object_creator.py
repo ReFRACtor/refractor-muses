@@ -103,6 +103,14 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.include_bad_sample = include_bad_sample
 
         self.rf_uip = rf_uip
+        # Hopefully we can move away from using rf_uip and use state_info
+        # directly. But for now we get this from the rf_uip
+        # Short term, support this missing in rf_uip. This is because we
+        # have old test data that doesn't have this in it yet.
+        if(hasattr(rf_uip, "state_info")):
+            self.state_info = rf_uip.state_info
+        else:
+            self.state_info = None
 
         if(self.input_dir is None):
             self.input_dir = os.path.realpath(os.path.join(rf_uip.uip_all(self.instrument_name)['L2_OSP_PATH'], "OMI"))
@@ -169,15 +177,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         swin= rf.SpectralWindowRange(rf.ArrayWithUnit(t, "nm"))
         if(not self.include_bad_sample):
             for i in range(swin.number_spectrometer):
-                # This is a bit awkward, but right now we use the full l1b range when
-                # we have an ILS, but the data is already subsetted for PRECONV. We
-                # should rationalize this at some point
-                iname = self.rf_uip.instrument_name(self.channel_list()[i])
-                ils_method = self.rf_uip.ils_method(i, iname)
-                if ils_method in ("FASTCONV", "POSTCONV"):
-                   swin.bad_sample_mask(self.observation.bad_sample_mask_full(i), i)
-                else:
-                   swin.bad_sample_mask(self.observation.bad_sample_mask(i), i)
+                swin.bad_sample_mask(self.observation.bad_sample_mask_full(i), i)
         return swin
 
     @cached_property
@@ -223,20 +223,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return None
 
     @cached_property
-    def instrument_spectral_domain(self):
-        res = []
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-            full_sd = self.rf_uip.sample_grid(fm_idx, ii_mw)
-            mw = self.rf_uip.micro_windows(ii_mw).value[0]
-            sd = rf.SpectralDomain(full_sd.data[np.logical_and(full_sd.data>=mw[0],full_sd.data<=mw[1])], full_sd.units)
-            res.append(rf.SpectralDomain(sd.wavelength("nm"), rf.Unit("nm")))
-        return res
-
-    @cached_property
     def instrument(self):
         ils_vec = rf.vector_ils()
         for fm_idx, ii_mw in enumerate(self.channel_list()):
-            sg = rf.SampleGridSpectralDomain(self.instrument_spectral_domain[fm_idx],
+            sg = rf.SampleGridSpectralDomain(self.rf_uip.sample_grid(fm_idx, ii_mw),
                                              self.filter_name[fm_idx])
 
             ils_method = self.rf_uip.ils_method(fm_idx, self.rf_uip.instrument_name(ii_mw))

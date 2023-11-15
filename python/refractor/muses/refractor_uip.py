@@ -456,8 +456,18 @@ class RefractorUip:
             return self.uip_tropomi['freqIndex']
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+
+    def freqfilter(self, instrument_name, sensor_index):
+        '''freq_index is subsetted by the microwindow. This version gives
+        the full set of indices for a particular sensor index'''
+        if(instrument_name == "OMI"):
+            return self.uip_omi["frequencyfilterlist"] == self.filter_name(sensor_index)
+        elif(instrument_name == "TROPOMI"):
+            return self.uip_tropomi["frequencyfilterlist"] == self.filter_name(sensor_index)
+        else:
+            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
     
-    def measured_radiance(self, instrument_name):
+    def measured_radiance(self, instrument_name, sensor_index=None, full_freq=False):
         '''Note muses-py handles the radiance data in pretty much the reverse
         way that ReFRACtor does.
 
@@ -477,6 +487,10 @@ class RefractorUip:
         isn't currently set up to work this way. So we need to track the
         solar model state vector elements/jacobians separate from the
         ReFRACtor ForwardModel.
+
+        The default version of this function returns the data subsetted by the
+        microwindows. You can request instead the full set of values for a given
+        sensor index.
         '''
         if(instrument_name == "OMI"):
             rad = mpy.get_omi_radiance(self.omi_params)
@@ -484,7 +498,10 @@ class RefractorUip:
             rad = mpy.get_tropomi_radiance(self.tropomi_params)
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
-        freqindex = self.freq_index(instrument_name)
+        if(not full_freq):
+            freqindex = self.freq_index(instrument_name)
+        else:
+            freqindex = self.freqfilter(instrument_name, sensor_index)
         return {
             'wavelength'  : rad['wavelength'][freqindex],
             'measured_radiance_field': rad['normalized_rad'][freqindex],  
