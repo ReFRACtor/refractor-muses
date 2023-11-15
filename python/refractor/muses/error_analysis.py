@@ -69,7 +69,6 @@ class ErrorAnalysis:
                 if matrix is not None:
                     initial[np.array(species_list) == selem1.name, :][:,np.array(species_list) == selem2.name] = matrix
                     initial[np.array(species_list) == selem2.name, :][:,np.array(species_list) == selem1.name] = np.transpose(matrix)
-
         self.error_initial = mpy.constraint_data(initial, pressure_list,
                                                  species_list, map_list)
 

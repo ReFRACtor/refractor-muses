@@ -2150,8 +2150,8 @@ class CloudState(StateElementWithFrequency):
         return self.state_info.state_info_dict[self.step]["cloudEffExt"][:,r]
 
 class SingleSpeciesHandle(StateElementHandle):
-    def __init__(self, name, state_element_class, pass_state=True, **kwargs):
-        self.name = name
+    def __init__(self, specname, state_element_class, pass_state=True, **kwargs):
+        self.name = specname
         self.state_element_class = state_element_class
         self.pass_state = pass_state
         self.kwargs = kwargs

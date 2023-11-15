@@ -14,9 +14,9 @@ class OmiEofStateElement(RetrievableStateElement):
 
     We can use the SingleSpeciesHandle to add this in, e.g.,
 
-    rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOF", EofStateElement, pass_state=False))
+    rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV1", EofStateElement, pass_state=False))
     '''
-    def __init__(self, state_info : StateInfo, name="OMIEOF", number_eof=3):
+    def __init__(self, state_info : StateInfo, name="OMIEOFUV1", number_eof=3):
         super().__init__(state_info, name)
         self._value = np.zeros(number_eof)
         self._constraint = self._value.copy()
@@ -40,7 +40,8 @@ class OmiEofStateElement(RetrievableStateElement):
         return False
     
     def net_cdf_variable_name(self):
-        return "OMI_EOF"
+        # Want names like OMI_EOF_UV1
+        return self.name.replace("EOF","_EOF_")
     
     def net_cdf_struct_units(self):
         '''Returns the attributes attached to a netCDF write out of this
