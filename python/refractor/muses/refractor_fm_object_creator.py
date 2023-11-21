@@ -840,10 +840,6 @@ class SwirAbsorber(AbstractAbsorber):
                 # This keeps us from trying to simulate species like e.g. CO2 that are in the TIR
                 # but which we don't have SWIR tables for
                 continue
-            if specie not in self._parent.rf_uip.uip['speciesListFM']:
-                # This should keep us from trying to simulate species that are not requested in the forward
-                # model (and for which we don't know whether the mapping is linear or logarithmic)
-                continue
 
             mappings = rf.vector_state_mapping()
             if(not self._parent.use_full_state_vector):
@@ -851,7 +847,13 @@ class SwirAbsorber(AbstractAbsorber):
                 if(len(basis_matrix) > 0):
                     mappings.push_back(rf.StateMappingBasisMatrix(basis_matrix))
 
-            map_type = self._parent.rf_uip.species_lin_log_mapping(specie).lower()
+            if specie in self._parent.rf_uip.uip['speciesListFM']:
+                map_type = self._parent.rf_uip.species_lin_log_mapping(specie).lower()
+            else:
+                # JLL: When the specie isn't listed in speciesListFM we can't know the mapping, however
+                # Mike indicated that it doesn't matter because it won't be used.
+                map_type = 'linear'
+
             if map_type == 'log':
                 mappings.push_back(rf.StateMappingLog())
             elif map_type != 'linear':
