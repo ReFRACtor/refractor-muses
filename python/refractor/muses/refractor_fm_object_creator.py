@@ -586,6 +586,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                                self.cloud_fraction)
         res.add_cloud_handling_object(self.pressure)
         res.add_cloud_handling_object(self.ground)
+        logger.debug("Forward Model: %s", res)
         return res
 
     @abc.abstractproperty
@@ -796,6 +797,7 @@ class SwirAbsorber(AbstractAbsorber):
         return rf.AbsorberAbsco(self.absorber_vmr, self._parent.pressure,
                                 self._parent.temperature,
                                 self._parent.altitude, absorptions, self._parent.constants)
+        
 
 
     def find_swir_absco_filename(self, specie, version='latest'):
@@ -852,7 +854,7 @@ class SwirAbsorber(AbstractAbsorber):
             else:
                 # JLL: When the specie isn't listed in speciesListFM we can't know the mapping, however
                 # Mike indicated that it doesn't matter because it won't be used.
-                map_type = 'linear'
+                map_type = 'log'
 
             if map_type == 'log':
                 mappings.push_back(rf.StateMappingLog())
@@ -861,10 +863,11 @@ class SwirAbsorber(AbstractAbsorber):
 
             smap = rf.StateMappingComposite(mappings)
 
-            vmrs.push_back(rf.AbsorberVmrLevel(self._parent.pressure_fm,
-                                               self._parent.rf_uip.atmosphere_column(specie),
-                                               specie,
-                                               smap))
+            t = rf.AbsorberVmrLevel(self._parent.pressure_fm,
+                                    self._parent.rf_uip.atmosphere_column(specie),
+                                    specie,
+                                    smap)
+            vmrs.push_back(t)
         return vmrs
     
 
