@@ -2,6 +2,9 @@ import refractor.framework as rf
 from . import muses_py as mpy
 from typing import List
 import numpy as np
+import logging
+
+logger = logging.getLogger("py-retrieve")
 
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     '''This is the cost function we use to interface between ReFRACtor
@@ -158,6 +161,9 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             raise RuntimeError("Radiance is not finite")
         if(not np.all(np.isfinite(jac_fm))):
             raise RuntimeError("Jacobian is not finite")
+        if True:
+            for fm in self.fm_list:
+                logger.debug(f"Forward model: {fm}")
         return (uip, residual, jac_residual, radiance_fm,
                 jac_fm, stop_flag)
         
