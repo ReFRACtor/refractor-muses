@@ -12,6 +12,7 @@ from .muses_retrieval_step import MusesRetrievalStep
 from .muses_forward_model_step import MusesForwardModelStep
 import numpy as np
 import copy
+import os
 import pickle
 import sys
 
@@ -199,6 +200,14 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         cfunc = CostFunction(*self.fm_obs_creator.fm_and_obs(rf_uip, ret_info,
                                                              **self.kwargs))
         
+        outputDir = i_tableStruct['dirStep']
+        dir_tokens = outputDir.split("/")  # e.g. ..//00_AIRS_LAND-20130629_189_000_09/Step01_TATM, H2O, HDO, N2O, CH4, TSUR, CLOUDEXT, EMIS/
+        if dir_tokens[-1] == '':
+            stepName = dir_tokens[-2]
+        else:
+            stepName = dir_tokens[-1]
+        logfile = os.path.join(outputDir, f'Logfile-{stepName}.log')
+        
         # TODO Make this look like a ReFRACtor solver
         with register_replacement_function_in_block("residual_fm_jacobian",
                                                     cfunc):
@@ -213,7 +222,9 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
                     verbose=False, 
                     delta_value=delta_value, 
                     ConvTolerance=ConvTolerance,   
-                    Chi2Tolerance=Chi2Tolerance
+                    Chi2Tolerance=Chi2Tolerance,
+                    logWrite=writeoutputFlag,
+                    logFile=logfile
                     )
 
         # Update radiance data, based on what we got from the forward
