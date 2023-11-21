@@ -586,6 +586,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                                self.cloud_fraction)
         res.add_cloud_handling_object(self.pressure)
         res.add_cloud_handling_object(self.ground)
+        logger.debug("Forward Model: %s", res)
         return res
 
     @abc.abstractproperty
@@ -796,6 +797,7 @@ class SwirAbsorber(AbstractAbsorber):
         return rf.AbsorberAbsco(self.absorber_vmr, self._parent.pressure,
                                 self._parent.temperature,
                                 self._parent.altitude, absorptions, self._parent.constants)
+        
 
 
     def find_swir_absco_filename(self, specie, version='latest'):
@@ -840,18 +842,16 @@ class SwirAbsorber(AbstractAbsorber):
                 # This keeps us from trying to simulate species like e.g. CO2 that are in the TIR
                 # but which we don't have SWIR tables for
                 continue
-            if specie not in self._parent.rf_uip.uip['speciesListFM']:
-                # This should keep us from trying to simulate species that are not requested in the forward
-                # model (and for which we don't know whether the mapping is linear or logarithmic)
-                continue
 
             mappings = rf.vector_state_mapping()
             if(not self._parent.use_full_state_vector):
                 basis_matrix = self._parent.rf_uip.species_basis_matrix(specie).transpose()
                 if(len(basis_matrix) > 0):
                     mappings.push_back(rf.StateMappingBasisMatrix(basis_matrix))
-
-            map_type = self._parent.rf_uip.species_lin_log_mapping(specie).lower()
+            if specie not in self._parent.rf_uip.uip['speciesListFM']:
+                map_type = "log"
+            else:
+                map_type = self._parent.rf_uip.species_lin_log_mapping(specie).lower()
             if map_type == 'log':
                 mappings.push_back(rf.StateMappingLog())
             elif map_type != 'linear':
@@ -859,10 +859,11 @@ class SwirAbsorber(AbstractAbsorber):
 
             smap = rf.StateMappingComposite(mappings)
 
-            vmrs.push_back(rf.AbsorberVmrLevel(self._parent.pressure_fm,
+            t = rf.AbsorberVmrLevel(self._parent.pressure_fm,
                                                self._parent.rf_uip.atmosphere_column(specie),
                                                specie,
-                                               smap))
+                                               smap)
+            vmrs.push_back(t)
         return vmrs
     
 
