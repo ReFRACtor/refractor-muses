@@ -31,17 +31,11 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         self.sv_apriori = sv_apriori
         self.sv_sqrt_constraint = sv_sqrt_constraint
         self.basis_matrix = basis_matrix
-        fm_vec = rf.Vector_ForwardModel()
-        obs_vec = rf.Vector_Observation()
-        for fm in self.fm_list:
-            fm_vec.push_back(fm)
-        for obs in self.obs_list:
-            obs_vec.push_back(obs)
         if(self.basis_matrix is not None):
             mapping = rf.StateMappingBasisMatrix(self.basis_matrix.transpose())
         else:
             mapping = rf.StateMappingLinear()
-        mstand = rf.MaxAPosterioriSqrtConstraint(fm_vec, obs_vec, self.sv,
+        mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, self.sv,
                                   self.sv_apriori, self.sv_sqrt_constraint,
                                   mapping)
         super().__init__(mstand)

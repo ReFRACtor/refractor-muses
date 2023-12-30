@@ -45,14 +45,15 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     pressure levels. Because these objects get updated by for example the 
     rf.StateVector, we need to have only one instance of them.
 
-    An important bug note, round tripping by sending a python object to
-    C++ and then getting it back again will result in memory problems. See
-    refractor_object_creator_test.py for an example of this. Basically the
-    combination of python, directors, and smart pointers is a bit buggy in
-    swig (last tested 3.0.12). It is possible that this will get fixed at
-    some point in a later version of swig, or perhaps it becomes enough of
-    an issue that we figure out how to work around whatever swig is doing
-    wrong here.
+    An important bug note, round tripping by sending a python object
+    to C++ and then getting it back again will result in memory
+    problems. See tropomi_fm_object_creator_test.py (in tropomi
+    repository) for an example of this. Basically the combination of
+    python, directors, and smart pointers is a bit buggy in swig (last
+    tested 3.0.12). It is possible that this will get fixed at some
+    point in a later version of swig, or perhaps it becomes enough of
+    an issue that we figure out how to work around whatever swig is
+    doing wrong here.
 
     But an easy work around is to just keep a copy of the python object from
     before we hand it to C++ and then just use that object. So for example
@@ -62,6 +63,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     This is annoying, and clearly a bug, but for now we can just live with
     this.
+
     '''
 
     def __init__(self, rf_uip : RefractorUip,
@@ -210,10 +212,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def instrument_correction(self):
-        res = rf.vector_vector_instrument_correction()
+        res = []
         for fm_idx, ii_mw in enumerate(self.channel_list()):
-            v = rf.vector_instrument_correction()
-            res.push_back(v)
+            v = []
+            res.append(v)
         return res
 
     @cached_property
@@ -224,7 +226,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def instrument(self):
-        ils_vec = rf.vector_ils()
+        ils_vec = []
         for fm_idx, ii_mw in enumerate(self.channel_list()):
             sg = rf.SampleGridSpectralDomain(self.rf_uip.sample_grid(fm_idx, ii_mw),
                                              self.filter_name[fm_idx])
@@ -288,7 +290,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             else:
                 ils_obj = rf.IdentityIls(sg)
 
-            ils_vec.push_back(ils_obj)
+            ils_vec.append(ils_obj)
         return rf.IlsInstrument(ils_vec, self.instrument_correction)
     
     @abc.abstractmethod
@@ -401,7 +403,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def altitude(self):
-        res = rf.vector_altitude()
+        res = []
         for i in self.channel_list():
             # chan_alt = rf.AltitudeHydrostatic(self.pressure,
             #     self.temperature, self.rf_uip.latitude_with_unit(i),
@@ -409,7 +411,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
             chan_alt = MusesAltitude(self.rf_uip, self.instrument_name,
                         self.pressure, self.rf_uip.latitude_with_unit(i))
-            res.push_back(chan_alt)
+            res.append(chan_alt)
         return res
 
     @cached_property
@@ -546,12 +548,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def spectrum_effect(self):
-        res = rf.vector_vector_spectrum_effect()
+        res = []
         for fm_idx, ii_mw in enumerate(self.channel_list()):
-            per_channel_eff = rf.vector_spectrum_effect()
+            per_channel_eff = []
             if(self.use_raman):
-                per_channel_eff.push_back(self.raman_effect[fm_idx])
-            res.push_back(per_channel_eff)
+                per_channel_eff.append(self.raman_effect[fm_idx])
+            res.append(per_channel_eff)
         return res
 
     @cached_property
@@ -687,17 +689,17 @@ class O3Absorber(AbstractAbsorber):
         This does not include the ILS at the absorption calculation level,
         so to get good results we should include an ILS with our forward
         model.'''
-        xsectable = rf.vector_xsec_table()
+        xsectable = []
         for gas in ["O3", ]:
             xsec_data = np.loadtxt(rf.cross_section_filenames[gas])
             cfac = rf.cross_section_file_conversion_factors.get(gas, 1.0)
             spec_grid = rf.ArrayWithUnit(xsec_data[:, 0], "nm")
             xsec_values = rf.ArrayWithUnit(xsec_data[:, 1:], "cm^2")
             if xsec_data.shape[1] >= 4:
-                xsectable.push_back(rf.XSecTableTempDep(spec_grid, xsec_values,
+                xsectable.append(rf.XSecTableTempDep(spec_grid, xsec_values,
                                                         cfac))
             else:
-                xsectable.push_back(rf.XSecTableSimple(spec_grid, xsec_values,
+                xsectable.append(rf.XSecTableSimple(spec_grid, xsec_values,
                                                        cfac))
         return rf.AbsorberXSec(self.absorber_vmr, self._parent.pressure,
                                self._parent.temperature, self._parent.altitude,
@@ -706,9 +708,9 @@ class O3Absorber(AbstractAbsorber):
     @cached_property
     def absorber_absco(self):
         '''Use ABSCO tables to calculation absorption.'''
-        absorptions = rf.vector_gas_absorption()
+        absorptions = []
         absco_filename = self.find_absco_fname("O3_*_v0.0_init.nc")
-        absorptions.push_back(rf.AbscoAer(absco_filename, 1.0, 5000,
+        absorptions.append(rf.AbscoAer(absco_filename, 1.0, 5000,
                               rf.AbscoAer.NEAREST_NEIGHBOR_WN))
         return rf.AbsorberAbsco(self.absorber_vmr, self._parent.pressure,
                                 self._parent.temperature,
@@ -716,26 +718,25 @@ class O3Absorber(AbstractAbsorber):
 
     @cached_property
     def absorber_vmr(self):
-        vmrs = rf.vector_absorber_vmr()
+        vmrs = []
 
         # Log mapping must come first to convert state vector elements from log first
         # before mapping to a different number of levels
         # TODO from JLL: if the approach used in the SwirAbsorber (using `available_species`
         # and the UIP to determine which species are absorbers) is correct and more general,
         # then this should be modified to be consistent with that method. 
-        mappings = rf.vector_state_mapping()
+        mappings = []
         if(not self._parent.use_full_state_vector):
             basis_matrix = self._parent.rf_uip.species_basis_matrix("O3").transpose()
             if(len(basis_matrix) > 0):
-                mappings.push_back(rf.StateMappingBasisMatrix(basis_matrix))
-        mappings.push_back(rf.StateMappingLog())
+                mappings.append(rf.StateMappingBasisMatrix(basis_matrix))
+        mappings.append(rf.StateMappingLog())
 
         smap = rf.StateMappingComposite(mappings)
 
-        vmrs.push_back(rf.AbsorberVmrLevel(self._parent.pressure_fm,
-                                           self._parent.rf_uip.atmosphere_column("O3"),
-                                           "O3",
-                                           smap))
+        vmrs.append(rf.AbsorberVmrLevel(self._parent.pressure_fm,
+                         self._parent.rf_uip.atmosphere_column("O3"),
+                         "O3", smap))
         return vmrs
 
 
@@ -763,7 +764,7 @@ class SwirAbsorber(AbstractAbsorber):
     @cached_property
     def absorber(self):
         '''Use ABSCO tables to calculation absorption.'''
-        absorptions = rf.vector_gas_absorption()
+        absorptions = []
         species = self._parent.rf_uip.atm_params(self._parent.instrument_name)['species']
         skipped_species = []
         for spec in species:
@@ -771,8 +772,8 @@ class SwirAbsorber(AbstractAbsorber):
                 absco_filename = self.find_swir_absco_filename(spec)
                 # JLL: during development, I used an AbscoStub class that inherited from rf.Absco.
                 # Not sure if there are key differences with the rf.AbscoAer class.
-                absorptions.push_back(rf.AbscoAer(absco_filename, 1.0, 5000,
-                                      rf.AbscoAer.NEAREST_NEIGHBOR_WN))
+                absorptions.append(rf.AbscoAer(absco_filename, 1.0, 5000,
+                                               rf.AbscoAer.NEAREST_NEIGHBOR_WN))
             else:
                 skipped_species.append(spec)
 
@@ -817,30 +818,29 @@ class SwirAbsorber(AbstractAbsorber):
 
     @cached_property
     def absorber_vmr(self):        
-        vmrs = rf.vector_absorber_vmr()
+        vmrs = []
 
         # Log mapping must come first to convert state vector elements from log first
         # before mapping to a different number of levels
         # (JLL: I take it the mappings are applied from the end of the vector to the front?)
         for specie in self._parent.rf_uip.atm_params(self._parent.instrument_name)['species']:
-            mappings = rf.vector_state_mapping()
+            mappings = []
             if(not self._parent.use_full_state_vector):
                 basis_matrix = self._parent.rf_uip.species_basis_matrix(specie).transpose()
                 if(len(basis_matrix) > 0):
-                    mappings.push_back(rf.StateMappingBasisMatrix(basis_matrix))
+                    mappings.append(rf.StateMappingBasisMatrix(basis_matrix))
 
             map_type = self._parent.rf_uip.species_lin_log_mapping(specie).lower()
             if map_type == 'log':
-                mappings.push_back(rf.StateMappingLog())
+                mappings.append(rf.StateMappingLog())
             elif map_type != 'linear':
                 raise NotImplementedError(f'Unknown map type "{map_type}"')
 
             smap = rf.StateMappingComposite(mappings)
 
-            vmrs.push_back(rf.AbsorberVmrLevel(self._parent.pressure_fm,
-                                               self._parent.rf_uip.atmosphere_column(specie),
-                                               specie,
-                                               smap))
+            vmrs.append(rf.AbsorberVmrLevel(self._parent.pressure_fm,
+                             self._parent.rf_uip.atmosphere_column(specie),
+                             specie, smap))
         return vmrs
     
 

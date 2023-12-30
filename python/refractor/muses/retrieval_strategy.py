@@ -93,7 +93,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.state_element_handle_set = self.state_info.state_element_handle_set
 
         self.strategy_table = StrategyTable(self.filename)
-        
         # Right now, we hardcode the output observers. Probably want to
         # rework this
         self.add_observer(RetrievalJacobianOutput())

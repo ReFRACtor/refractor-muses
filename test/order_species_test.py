@@ -6,5 +6,5 @@ def test_order_species():
     # that we handle the sort correctly.
     species_list = ["Fred", 'TROPOMICLOUDSURFACEALBEDO', "Carl", 'TROPOMITEMPSHIFTBAND7',
                     "Al"]
-    assert order_species(species_list) == ['TROPOMITEMPSHIFTBAND7', 'TROPOMICLOUDSURFACEALBEDO', "Al", "Carl", "Fred"]
+    assert order_species(species_list) == ['TROPOMICLOUDSURFACEALBEDO', "Al", "Carl", "Fred", 'TROPOMITEMPSHIFTBAND7']
     

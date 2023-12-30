@@ -21,6 +21,10 @@ logger = logging.getLogger('py-retrieve')
 class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
     '''This handles the Refractor/Muses integration.
 
+    Note that this should be largely replaced with RetrievalStrategy, which
+    largely replaces Muses-py. But we leave this integration in place for
+    doing more details testing at a lower level.
+
     We do this by replacing two top level functions, run_retrieval
     and run_forward_model. Both of these are changed to use our CostFunction,
     and applies the various plumbing to give Muses-py what it expects from
