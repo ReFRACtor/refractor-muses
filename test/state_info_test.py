@@ -251,18 +251,20 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
             # will be needed in the OSP directory, but it is too early for that.
             # Extra space is so we change the retrieval list, not the retrieval
             # step name (which is the same OMICLOUDFRACTION)
-            subprocess.run(f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOF/" {r.run_dir}/Table.asc', shell=True)
+            subprocess.run(f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOFUV1,OMIEOFUV2/" {r.run_dir}/Table.asc', shell=True)
             rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
-            rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOF", OmiEofStateElement, pass_state=False))
+            rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV1", OmiEofStateElement, pass_state=False, name="OMIEOFUV1", number_eof=3))
+            rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV2", OmiEofStateElement, pass_state=False, name="OMIEOFUV2", number_eof=3))
             rs.retrieval_ms()
     except StopIteration:
         pass
     sinfo = rs.state_info
     stable = rs.strategy_table
     stable.table_step = 0
-    selement = sinfo.state_element("OMIEOF")
+    selement = sinfo.state_element("OMIEOFUV1")
     selement.update_initial_guess(stable)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
@@ -288,7 +290,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # Update results, and make sure element gets updated
     rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[rinfo.species_list == "OMIEOF"] = [0.5, 0.3, 0.2]
+    results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     sinfo.update_state(rinfo, results_list, [], rs.cloud_prefs,
                        stable.table_step)
     
@@ -314,7 +316,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
     stable.table_step = 1
-    selement = sinfo.state_element("OMIEOF")
+    selement = sinfo.state_element("OMIEOFUV1")
     selement.update_initial_guess(stable)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"
@@ -349,18 +351,20 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
             # will be needed in the OSP directory, but it is too early for that.
             # Extra space is so we change the retrieval list, not the retrieval
             # step name (which is the same OMICLOUDFRACTION)
-            subprocess.run(f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOF/" {r.run_dir}/Table.asc', shell=True)
+            subprocess.run(f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOFUV1,OMIEOFUV2/" {r.run_dir}/Table.asc', shell=True)
             rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
-            rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOF", OmiEofStateElement, pass_state=False))
+            rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV1", OmiEofStateElement, pass_state=False))
+            rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV2", OmiEofStateElement, pass_state=False))
             rs.retrieval_ms()
     except StopIteration:
         pass
     sinfo = rs.state_info
     stable = rs.strategy_table
     stable.table_step = 0
-    selement = sinfo.state_element("OMIEOF")
+    selement = sinfo.state_element("OMIEOFUV1")
     selement.update_initial_guess(stable)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
@@ -386,8 +390,8 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # Update results, and make sure element gets updated
     rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[rinfo.species_list == "OMIEOF"] = [0.5, 0.3, 0.2]
-    sinfo.update_state(rinfo, results_list, ["OMIEOF"], rs.cloud_prefs,
+    results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
+    sinfo.update_state(rinfo, results_list, ["OMIEOFUV1"], rs.cloud_prefs,
                        stable.table_step)
     
     assert selement.mapType == "linear"
@@ -412,7 +416,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
     stable.table_step = 1
-    selement = sinfo.state_element("OMIEOF")
+    selement = sinfo.state_element("OMIEOFUV1")
     selement.update_initial_guess(stable)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"

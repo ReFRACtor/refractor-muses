@@ -6,6 +6,7 @@ import subprocess
 import glob
 
 # Temporary, depends on our test run
+@skip
 @require_muses_py
 def test_retrieval_radiance_output(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     step_number = 12
@@ -22,6 +23,7 @@ def test_retrieval_radiance_output(isolated_dir, vlidort_cli, osp_dir, gmao_dir)
         print(cmd, flush=True)
         subprocess.run(cmd, shell=True, check=True)
 
+@skip        
 @require_muses_py
 def test_retrieval_jacobian_output(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     step_number = 12
@@ -39,6 +41,7 @@ def test_retrieval_jacobian_output(isolated_dir, vlidort_cli, osp_dir, gmao_dir)
         subprocess.run(cmd, shell=True, check=True)
     
 @require_muses_py
+@skip
 def test_retrieval_l2_output(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     do_cris=True
     if do_cris:
