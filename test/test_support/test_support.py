@@ -9,6 +9,7 @@ from refractor.muses import (RefractorUip, osswrapper, MusesRetrievalStep,
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
 from scipy.io import readsav
+import netCDF4 as ncdf
 import glob
 import subprocess
 import numpy as np
@@ -24,9 +25,16 @@ else:
     test_base_path = os.path.abspath(f"{os.path.dirname(__file__)}/../../../refractor_test_data")
 
 tropomi_test_in_dir = f"{test_base_path}/tropomi/in/sounding_1"
+tropomi_test_in_dir2 = f"{test_base_path}/tropomi/in/sounding_2"
+tropomi_band7_test_in_dir = f"{test_base_path}/tropomi_band7/in/sounding_1"
+tropomi_band7_expected_results_dir = f"{test_base_path}/tropomi_band7/expected/"
+tropomi_band7_swir_step_test_in_dir = f"{test_base_path}/tropomi_band7/in/sounding_one_step"
 joint_tropomi_test_in_dir = f"{test_base_path}/cris_tropomi/in/sounding_1"
 omi_test_in_dir = f"{test_base_path}/omi/in/sounding_1"
+omi_test_expected_results_dir = f"{test_base_path}/omi/expected"
 joint_omi_test_in_dir = f"{test_base_path}/airs_omi/in/sounding_1"
+if not os.path.exists(tropomi_test_in_dir):
+    raise RuntimeError(f"ERROR: unit test data not found at {test_base_path}. Please clone the test data repo there.")
 
 # Short hand for marking as unconditional skipping. Good for tests we
 # don't normally run, but might want to comment out for a specific debugging
@@ -137,6 +145,40 @@ def tropomi_uip_step_2(isolated_dir, osp_dir, gmao_dir):
     return load_uip(tropomi_test_in_dir, step_number=2,
                     osp_dir=osp_dir, gmao_dir=gmao_dir)
                     
+@pytest.fixture(scope="function")
+def tropomi_uip_sounding_2_step_1(isolated_dir):
+    '''Return a RefractorUip for strategy step 1, and also unpack all the 
+    support files into a directory'''
+    return load_uip(tropomi_test_in_dir2, step_number=1)
+
+@pytest.fixture(scope="function")
+def tropomi_uip_band7_step_1(isolated_dir):
+    '''Return a RefractorUip for strategy step 1, and also unpack all the 
+    support files into a directory'''
+    return load_uip(tropomi_band7_test_in_dir, step_number=1)
+
+
+@pytest.fixture(scope="function")
+def tropomi_uip_band7_swir_step(isolated_dir):
+    '''Return a RefractorUip for step 1 of a test-only strategy table with
+    only the Band 7 SWIR step, and also unpack all the support files into a
+    directory'''
+    return load_uip(tropomi_band7_swir_step_test_in_dir, step_number=1)
+
+@pytest.fixture(scope="function")
+def tropomi_band7_simple_ils_test_data():
+    simple_results_file = os.path.join(tropomi_band7_expected_results_dir, 'ils', 'simple_ils_test.nc')
+    with ncdf.Dataset(simple_results_file) as ds:
+        return {
+            'hi_res_freq': ds['hi_res_freq'][:].filled(np.nan),
+            'hi_res_spec': ds['hi_res_spectrum'][:].filled(np.nan),
+            'convolved_spec': ds['convolved_spectrum'][:].filled(np.nan)
+        }
+
+@pytest.fixture(scope="function")
+def omi_config_dir():
+    '''Returns configuration directory'''
+    yield os.path.abspath(os.path.dirname(__file__) + "/../../python/refractor/omi/config") + "/"
 
 @pytest.fixture(scope="function")
 def omi_uip_step_1(isolated_dir, osp_dir, gmao_dir):
