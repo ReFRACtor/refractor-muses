@@ -501,7 +501,10 @@ class RefractorUip:
         if(not full_freq):
             freqindex = self.freq_index(instrument_name)
         else:
-            freqindex = self.freqfilter(instrument_name, sensor_index)
+            offset = [i for i in range(len(self.uip['microwindows_all']))
+                      if self.uip['microwindows_all'][i]['instrument'] ==
+                      instrument_name][0]
+            freqindex = self.freqfilter(instrument_name, sensor_index+offset)
         return {
             'wavelength'  : rad['wavelength'][freqindex],
             'measured_radiance_field': rad['normalized_rad'][freqindex],  

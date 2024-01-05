@@ -132,9 +132,6 @@ def test_fm_run_step2(omi_uip_step_2, clean_up_replacement_function):
     npt.assert_allclose(spectrum_lidort.spectral_domain.data, spectrum_pca.spectral_domain.data, rtol=1e-10)
     npt.assert_allclose(spectrum_lidort.spectral_range.data, spectrum_pca.spectral_range.data, rtol=2e-2)
 
-# Temporary, this doesn't work. Skip for now so we can get everything else
-# working and then come back to this.
-@skip    
 @require_muses_py
 def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     '''Test out the CostFunction residual_fm_jacobian using our forward model. Note
