@@ -44,26 +44,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     *same* pressure object, not just two objects that have the same 
     pressure levels. Because these objects get updated by for example the 
     rf.StateVector, we need to have only one instance of them.
-
-    An important bug note, round tripping by sending a python object
-    to C++ and then getting it back again will result in memory
-    problems. See tropomi_fm_object_creator_test.py (in tropomi
-    repository) for an example of this. Basically the combination of
-    python, directors, and smart pointers is a bit buggy in swig (last
-    tested 3.0.12). It is possible that this will get fixed at some
-    point in a later version of swig, or perhaps it becomes enough of
-    an issue that we figure out how to work around whatever swig is
-    doing wrong here.
-
-    But an easy work around is to just keep a copy of the python object from
-    before we hand it to C++ and then just use that object. So for example
-    if we are using MusesOpticalDepthFile as our absorber, then we can
-    get access to that by self.absorber rather than something like
-    self.atmosphere.absorber.
-
-    This is annoying, and clearly a bug, but for now we can just live with
-    this.
-
     '''
 
     def __init__(self, rf_uip : RefractorUip,

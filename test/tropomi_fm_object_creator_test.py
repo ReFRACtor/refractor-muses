@@ -223,31 +223,30 @@ def test_raman_effect(tropomi_uip_step_1, clean_up_replacement_function):
 @require_muses_py
 def test_forward_model_step2(tropomi_uip_step_2, clean_up_replacement_function):
     '''Step 2, which has two microwindows'''
+    print("Start of test, ignore valgrind errors before this", flush=True)
     obj_creator = TropomiFmObjectCreator(tropomi_uip_step_2)
     fmodel = obj_creator.forward_model
     print(fmodel)
     atm = obj_creator.underlying_forward_model.radiative_transfer.atmosphere
+    # This use to be a bug, we fixed this in framework so it works now
     if True:
-        # This combination causes an invalid read error with valgrind. Leave
-        # this off and it doesn't, something about this combination causes
-        # the problem. The issue seems to be the round tripping through
-        # swig. With valgrind, we get a "Invalid read" when we attempt to
-        # read data from freeded memory.
+        # This combination causes an use to cause an invalid read error with
+        # valgrind. This is fixes now.
         #
         # BTW, to run with valgrind do something like;
-        # PYTHONMALLOC=malloc valgrind $(which python) $(which pytest) -s test/tropomi_fm_object_creator_test.py -k test_forward_model_step2
+        # PYTHONMALLOC=malloc valgrind --track-origins=yes --suppressions=valgrind-python.supp $(which python) $(which pytest) -s test/tropomi_fm_object_creator_test.py -k test_forward_model_step2
         #
         # The PYTHONMALLOC is important, see https://stackoverflow.com/questions/20112989/how-to-use-valgrind-with-python.
         # Without PYTHONMALLOC you will get a zillion valgrind errors.
+        # The valgrind-python.supp comes from python source code.
+        #
+        # There are a number of errors unrelated to our code (triggered by
+        # __mpn_construct_long_double). I think this is numpy are scipy. In
+        # any case, ignore errors before the message "Start of test"
         absorber = atm.absorber
     else:
-        # This on the other hand is fine.
-        #
-        # We should perhaps find a fix for this at some point, but swig
-        # with directors combined with shared_ptr has had issues. Perhaps a
-        # newer version of swig will fix this, but for now we can just
-        # work around this by keeping a copy of the object we pass to C++
-        # in python, and just using that version.
+        # This is an alternative which didn't cause the read error initially
+        # (and of course still doesn't)
         absorber = obj_creator.absorber
     
     
