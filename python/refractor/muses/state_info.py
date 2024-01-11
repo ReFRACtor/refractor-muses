@@ -550,6 +550,41 @@ class StateInfo:
         # special case. This is needed to interpret the rest of the data.
         return self.state_info_dict["current"]["pressure"]
 
+    def omi_params(self, o_omi):
+        '''omi_params is used in creating the uip. This is a mix of parameters from the o_omi object
+        returned by mpy.read_omi and various state elements. Put this together, so we have this
+        for the UIP. Note we are trying to move away from the UIP, it is just a shuffling around
+        of data found in the StateInfo. But for now go ahead and support this.'''
+        return {
+            'surface_albedo_uv1': self.state_element("OMISURFACEALBEDOUV1").value[0],
+            'surface_albedo_uv2': self.state_element("OMISURFACEALBEDOUV2").value[0],
+            'surface_albedo_slope_uv2': self.state_element("OMISURFACEALBEDOSLOPEUV2").value[0],
+            'nradwav_uv1': self.state_element("OMINRADWAVUV1").value[0],
+            'nradwav_uv2': self.state_element("OMINRADWAVUV2").value[0],
+            'odwav_uv1': self.state_element("OMIODWAVUV1").value[0],
+            'odwav_uv2': self.state_element("OMIODWAVUV2").value[0],
+            'odwav_slope_uv1': self.state_element("OMIODWAVSLOPEUV1").value[0],
+            'odwav_slope_uv2': self.state_element("OMIODWAVSLOPEUV2").value[0],
+            'ring_sf_uv1': self.state_element("OMIRINGSFUV1").value[0],
+            'ring_sf_uv2': self.state_element("OMIRINGSFUV2").value[0],
+            'cloud_fraction': self.state_element("OMICLOUDFRACTION").value[0],
+            'cloud_pressure': o_omi['Cloud']['CloudPressure'],                                             
+            'cloud_Surface_Albedo': 0.8,
+            'xsecscaling': 1.0, 
+            'resscale_uv1': -999.0, 
+            'resscale_uv2': -999.0, 
+            'SPACECRAFTALTITUDE': np.mean(o_omi['Earth_Radiance']['ObservationTable']['SpacecraftAltitude']),  
+            'sza_uv1': o_omi['Earth_Radiance']['ObservationTable']['SolarZenithAngle'][0],          
+            'raz_uv1': o_omi['Earth_Radiance']['ObservationTable']['RelativeAzimuthAngle'][0],      
+            'vza_uv1': o_omi['Earth_Radiance']['ObservationTable']['ViewingZenithAngle'][0],        
+            'sca_uv1': o_omi['Earth_Radiance']['ObservationTable']['ScatteringAngle'][0],           
+            'sza_uv2': np.mean(o_omi['Earth_Radiance']['ObservationTable']['SolarZenithAngle'][1:3]),     
+            'raz_uv2': np.mean(o_omi['Earth_Radiance']['ObservationTable']['RelativeAzimuthAngle'][1:3]), 
+            'vza_uv2': np.mean(o_omi['Earth_Radiance']['ObservationTable']['ViewingZenithAngle'][1:3]),   
+            'sca_uv2': np.mean(o_omi['Earth_Radiance']['ObservationTable']['ScatteringAngle'][1:3])       
+        }
+        
+
     def update_state(self, retrieval_info : "RetrievalInfo",
                      results_list: np.array, do_not_update, cloud_prefs:dict, step:int):
         '''Note this updates the current state, and also creates a "next_state".

@@ -1344,6 +1344,9 @@ class RefractorUip:
                                   i_windows, jacobian_speciesNames,
                                   i_cloudIndex=0, 
                                   i_modifyCloudFreq=True)
+        if(i_omi is not None and hasattr(i_stateInfo, "omi_params")):
+            uip["omiPars"] = i_stateInfo.omi_params(i_omi)
+            
         # run_forward_model doesn't have mapType, not really sure why. It
         # just puts an empty list here. Similarly no n_totalParameters.
         if ('mapType' in retrieval_info.__dict__
