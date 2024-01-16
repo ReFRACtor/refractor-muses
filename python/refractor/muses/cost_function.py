@@ -3,6 +3,9 @@ from .refractor_uip import RefractorUip
 from . import muses_py as mpy
 from typing import List
 import numpy as np
+import logging
+
+logger = logging.getLogger("py-retrieve")
 
 def _new_from_init(cls, *args):
     '''For use with pickle, covers common case where we just store the
@@ -197,6 +200,9 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             raise RuntimeError("Radiance is not finite")
         if(not np.all(np.isfinite(jac_fm))):
             raise RuntimeError("Jacobian is not finite")
+        if True:
+            for fm in self.fm_list:
+                logger.debug(f"Forward model: {fm}")
         return (uip, residual, jac_residual, radiance_fm,
                 jac_fm, stop_flag)
 

@@ -30,7 +30,7 @@ class MusesRunDir:
         for f in ("Table", "DateTime"):
             shutil.copy(f"{refractor_sounding_dir}/{f}.asc",
                         f"{self.run_dir}/{f}.asc")
-        for f in ("PRECONV_2STOKES",):
+        for f in ("PRECONV_2STOKES","rayTable-NADIR", "observationTable-NADIR"):
             if(os.path.exists(f"{refractor_sounding_dir}/{f}.asc")):
                 shutil.copy(f"{refractor_sounding_dir}/{f}.asc",
                             f"{self.run_dir}/{f}.asc")
