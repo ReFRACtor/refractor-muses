@@ -7,7 +7,9 @@ from test_support import *
 import refractor.framework as rf
 import glob
 from refractor.muses import (RefractorMusesIntegration, MusesRunDir,
-                             FmObsCreator, CostFunction, MusesForwardModelStep)
+                             FmObsCreator, CostFunction, MusesForwardModelStep,
+                             StateInfo)
+from refractor.muses import(RefractorFmObjectCreatorNew)
 import subprocess
 
 DEBUG = False
@@ -21,6 +23,8 @@ def test_solar_model(omi_uip_step_1):
 def test_spec_win(omi_uip_step_1):
     fm = OmiFmObjectCreator(omi_uip_step_1)
     print(fm.spec_win)
+    obj_creator2 = RefractorFmObjectCreatorNew(*StateInfo.create_from_uip(omi_uip_step_1), "OMI")
+    print(obj_creator2.spec_win)
 
 
 def test_spectrum_sampling(omi_uip_step_1):

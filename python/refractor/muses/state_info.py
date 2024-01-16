@@ -439,7 +439,17 @@ class StateInfo:
         self._utc_time = None
         self.info_file = None
         self._sounding_id = None
-        
+
+    @classmethod
+    def create_from_uip(cls, rf_uip):
+        '''For testing purposes, it can be useful to pickle a  UIP from a previous py-retrieve run
+        and then use in ReFRACtor to duplicate/compare with py-retrieve. We are trying to get away from
+        the UIP, so this create an equivalent StateInfo. We also create some related information,
+        returning the i_windows structure (which we may'''
+        res = cls()
+        i_windows = rf_uip.uip['microwindows_all']
+        return (res, i_windows)
+    
     def init_state(self, strategy_table : 'StrategyTable',
                  fm_obs_creator : 'FmObsCreator', instruments_all, run_dir : str):
         (_, _, _, _, _, _,

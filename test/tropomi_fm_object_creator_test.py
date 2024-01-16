@@ -7,7 +7,9 @@ from test_support import *
 import refractor.framework as rf
 import glob
 from refractor.muses import (RefractorMusesIntegration, MusesRunDir,
-                             FmObsCreator, CostFunction, MusesForwardModelStep)
+                             FmObsCreator, CostFunction, MusesForwardModelStep,
+                             StateInfo)
+from refractor.muses import(RefractorFmObjectCreatorNew)
 import subprocess
 
 DEBUG = False
@@ -16,6 +18,9 @@ DEBUG = False
 def test_spec_win(tropomi_uip_step_1):
     obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1)
     print(obj_creator.spec_win)
+    obj_creator2 = RefractorFmObjectCreatorNew(*StateInfo.create_from_uip(tropomi_uip_step_1), "TROPOMI")
+    print(obj_creator2.spec_win)
+    
 
 def test_spectrum_sampling(tropomi_uip_step_1):
     obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1)
