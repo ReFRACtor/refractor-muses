@@ -176,7 +176,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             else:
                 raise RuntimeError("Unrecognized filter_name")
             res.append(MusesRaman(self.rf_uip, self.instrument_name,
-                self.rf_uip.raman_wavelength(fm_idx, self.instrument_name),
+                self.rf_uip.rad_wavelength(fm_idx, self.instrument_name),
                 float(scale_factor),
                 fm_idx,
                 ii_mw,

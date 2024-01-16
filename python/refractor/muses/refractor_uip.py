@@ -767,7 +767,7 @@ class RefractorUip:
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
             
-    def raman_wavelength(self, mw_index, instrument_name):
+    def rad_wavelength(self, mw_index, instrument_name):
         '''This is the wavelengths that the L1B data was measured at, truncated
         to fit our microwindow'''
         slc = self.mw_fm_slice(mw_index, instrument_name)
