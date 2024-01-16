@@ -231,7 +231,8 @@ def test_forward_model_step2(tropomi_uip_step_2, clean_up_replacement_function):
     # This use to be a bug, we fixed this in framework so it works now
     if True:
         # This combination causes an use to cause an invalid read error with
-        # valgrind. This is fixes now.
+        # valgrind. This is fixed now, but leave test here to demonstrate this
+        # is fixed.
         #
         # BTW, to run with valgrind do something like;
         # PYTHONMALLOC=malloc valgrind --track-origins=yes --suppressions=valgrind-python.supp $(which python) $(which pytest) -s test/tropomi_fm_object_creator_test.py -k test_forward_model_step2
@@ -241,8 +242,9 @@ def test_forward_model_step2(tropomi_uip_step_2, clean_up_replacement_function):
         # The valgrind-python.supp comes from python source code.
         #
         # There are a number of errors unrelated to our code (triggered by
-        # __mpn_construct_long_double). I think this is numpy are scipy. In
-        # any case, ignore errors before the message "Start of test"
+        # __mpn_construct_long_double). I think this is numpy or scipy. In
+        # any case, ignore errors before the message "Start of test", they
+        # aren't ours
         absorber = atm.absorber
     else:
         # This is an alternative which didn't cause the read error initially
