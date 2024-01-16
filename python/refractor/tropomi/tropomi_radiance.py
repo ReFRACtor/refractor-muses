@@ -9,20 +9,21 @@ class TropomiRadiance(rf.ObservationSvImpBase):
 
     The radiance takes the parameters solarshift_BAND3, radianceshift_BAND3 and
     radsqueeze_BAND3.'''
-    def __init__(self, coeff, which_retrieved, include_bad_sample=False):
+    def __init__(self, coeff, which_retrieved, include_bad_sample=False, band=3):
         super().__init__(coeff, rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
         self.include_bad_sample=include_bad_sample
+        self._band = band
         # Easy way for radiance_all_with_bad_sample to get radiance_all to
         # include bad samples
         self._force_include_bad_sample=False
         
     def state_vector_name_i(self, i):
         if(i == 0):
-            return "Solar shift Band 3"
+            return f"Solar shift Band {self._band}"
         if(i == 1):
-            return "Radiance shift Band 3"
+            return f"Radiance shift Band {self._band}"
         if(i == 2):
-            return "Radiance squeeze Band 3"
+            return f"Radiance squeeze Band {self._band}"
         return f"State vector element {i}"
 
     def radiance_all_with_bad_sample(self):
@@ -119,7 +120,7 @@ class TropomiRadianceRefractor(TropomiRadiance):
         which_retrieved = [f"TROPOMISOLARSHIFT{band}" in self.rf_uip.state_vector_params("TROPOMI"),
                            f"TROPOMIRADIANCESHIFT{band}" in self.rf_uip.state_vector_params("TROPOMI"),
                            f"TROPOMIRADSQUEEZE{band}" in self.rf_uip.state_vector_params("TROPOMI")]
-        super().__init__(coeff, which_retrieved, include_bad_sample=include_bad_sample)
+        super().__init__(coeff, which_retrieved, include_bad_sample=include_bad_sample, band=band)
         # Can perhaps get this more directly, but current set up is
         # to read a pickle file.
         tropomi = pickle.load(open(fname, "rb"))

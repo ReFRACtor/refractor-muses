@@ -181,7 +181,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def raman_effect(self):
-       # Note we should probably look at this sample grid, and
+        # Note we should probably look at this sample grid, and
         # make sure it goes RamanSioris.ramam_edge_wavenumber past
         # the edges of our spec_win. Also there isn't any particular
         # reason that the solar data/optical depth should be calculated
@@ -189,21 +189,33 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # does, so we'll match that for now.
         res = []
         for fm_idx, ii_mw in enumerate(self.channel_list()):
-            if(self.filter_name[fm_idx] in ("BAND1", "BAND2", "BAND3", "BAND7")):
+            if(self.filter_name[fm_idx] in ("BAND1", "BAND2", "BAND3")):
                 scale_factor = self.uip_params[f"ring_sf_{self.filter_name[fm_idx]}"]
+            elif(self.filter_name[fm_idx] in ("BAND7", "BAND8")):
+                # JLL: The SWIR bands should not need to account for Raman scattering -
+                # Vijay has never seen Raman scattering accounted for in the CO band.
+                scale_factor = None
             else:
                 raise RuntimeError("Unrecognized filter_name")
-            res.append(MusesRaman(self.rf_uip, self.instrument_name,
-                self.rf_uip.raman_wavelength(fm_idx, self.instrument_name),
-                float(scale_factor),
-                fm_idx,
-                ii_mw,
-                self.sza_with_unit[fm_idx],
-                self.oza_with_unit[fm_idx],
-                self.raz_with_unit[fm_idx],
-                self.atmosphere,
-                self.solar_model(fm_idx),
-                rf.StateMappingLinear()))
+            if scale_factor is None:
+                # JLL: As of 2023-11-02, it's important that there be an entry for each channel
+                # in res, otherwise the indexing in the `spectrum_effect` method of `RefractorFmObjectCreator`
+                # won't match. It might be better long term to store these in a dictionary with
+                # the microwindows as keys, but need to make sure that this method isn't called anywhere
+                # else first.
+                res.append(None)
+            else:
+                res.append(MusesRaman(self.rf_uip, self.instrument_name,
+                    self.rf_uip.rad_wavelength(fm_idx, self.instrument_name),
+                    float(scale_factor),
+                    fm_idx,
+                    ii_mw,
+                    self.sza_with_unit[fm_idx],
+                    self.oza_with_unit[fm_idx],
+                    self.raz_with_unit[fm_idx],
+                    self.atmosphere,
+                    self.solar_model(fm_idx),
+                    rf.StateMappingLinear()))
         return res
 
 
