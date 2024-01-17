@@ -308,14 +308,31 @@ def test_tropomi_fm_object_creator_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
 
     Data goes in the local directory, rather than an isolated one.'''
     subprocess.run("rm -r tropomi_fm_object_creator_cris_tropomi", shell=True)
-    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
-    rmi.register_with_muses_py()
-    ihandle = TropomiInstrumentHandle(use_pca=False, use_lrad=False,
-                                  lrad_second_order=False)
-    rmi.instrument_handle_set.add_handle(ihandle, priority_order=100)
     r = MusesRunDir(joint_tropomi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="tropomi_fm_object_creator_cris_tropomi")
-    r.run_retrieval(vlidort_cli=vlidort_cli)
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    ihandle = TropomiInstrumentHandle(use_pca=False, use_lrad=False,
+                                      lrad_second_order=False)
+    rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
+    rs.retrieval_ms()
+    
+    # Temp, compare right after
+    diff_is_error = True
+    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_L2*.nc"):
+        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_Radiance*.nc"):
+        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_Jacobian*.nc"):
+        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
 
 @long_test
 @require_muses_py
@@ -347,19 +364,21 @@ def test_compare_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     '''Quick test to compare cris_tropomi runs. This assumes they are
     already done. This is just h5diff, but this figures out the path
     for each of the tests so we don't have to.'''
+    diff_is_error = True
+    #diff_is_error = False
     for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_L2*.nc"):
         f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_Radiance*.nc"):
         f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_Jacobian*.nc"):
         f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
-        subprocess.run(cmd, shell=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     

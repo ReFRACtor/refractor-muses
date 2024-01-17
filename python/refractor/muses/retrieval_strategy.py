@@ -78,8 +78,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         logger.info(f"Strategy table filename {filename}")
         self.capture_directory = RefractorCaptureDirectory()
         self._observers = set()
-        self.filename = os.path.abspath(filename)
-        self.run_dir = os.path.dirname(self.filename)
+        # For calling from py-retrieve, it is useful to delay the filename. See
+        # script_retrieval_ms below
+        if(filename is not None):
+            self.filename = os.path.abspath(filename)
+            self.run_dir = os.path.dirname(self.filename)
+            self.strategy_table = StrategyTable(self.filename)
         self.vlidort_cli = vlidort_cli
         self._table_step = -1
 
@@ -92,7 +96,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.state_info = StateInfo()
         self.state_element_handle_set = self.state_info.state_element_handle_set
 
-        self.strategy_table = StrategyTable(self.filename)
         # Right now, we hardcode the output observers. Probably want to
         # rework this
         self.add_observer(RetrievalJacobianOutput())
@@ -119,9 +122,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     def script_retrieval_ms(self, filename, writeOutput=False, writePlots=False,
                             debug=False, update_product_format=False):
-        # Ignore arguments. We can clean this up if needed, perhaps delay the
-        # initialization or something. But for now, just assume this is
-        # "./Table.asc"
+        # Ignore arguments other than filename.
+        # We can clean this up if needed, perhaps delay the
+        # initialization or something.
+        
+        # Delayed setting of filename
+        self.filename = os.path.abspath(filename)
+        self.run_dir = os.path.dirname(self.filename)
+        self.strategy_table = StrategyTable(self.filename)
         return self.retrieval_ms()
     
     @property
