@@ -47,6 +47,18 @@ class StrategyTable:
         with self.chdir_run_dir():
             return os.path.abspath(mpy.table_get_spectral_filename(self.strategy_table_dict, self.table_step))
 
+    def ils_method(self, instrument_name):
+        if(instrument_name == "OMI"):
+            res =  self.preferences["ils_omi_xsection"].upper()
+        elif(instrument_name == "TROPOMI"):
+            res =  self.preferences["ils_tropomi_xsection"].upper()
+        else:
+            raise RuntimeError("instrument_name must be either 'OMI' or 'TROPOMI'")
+        # NOAPPLY is alias of POSTCONV
+        if(res == "NOAPPLY"):
+            res = "POSTCONV"
+        return res
+        
     @property
     def cloud_parameters_filename(self):
         return self.abs_filename(self.preferences['CloudParameterFilename'])
@@ -178,5 +190,15 @@ class StrategyTable:
     def table_entry(self, nm, stp=None):
         return mpy.table_get_entry(self.strategy_table_dict,
                                    stp if stp is not None else self.table_step, nm)
-        
-__all__ = ["StrategyTable", ]
+
+class FakeStrategyTable:
+    '''For testing purposes, it is useful to create a StrategyTable from a UIP, see
+    StateInfo.create_from_uip for more details about this. This class supplies the handful of
+    functions we need for testing. This is pretty minimal, but is sufficient for what we need.'''
+    def __init__(self, ils_method="APPLY"):
+        self._ils_method = ils_method
+
+    def ils_method(self, instrument_name):
+        return self._ils_method
+    
+__all__ = ["StrategyTable", "FakeStrategyTable"]

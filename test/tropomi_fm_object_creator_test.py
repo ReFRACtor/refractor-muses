@@ -25,6 +25,9 @@ def test_spec_win(tropomi_uip_step_1):
 def test_spectrum_sampling(tropomi_uip_step_1):
     obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1)
     print(obj_creator.spectrum_sampling)
+    obj_creator2 = RefractorFmObjectCreatorNew(*StateInfo.create_from_uip(tropomi_uip_step_1), "TROPOMI")
+    print(obj_creator2.spectrum_sampling)
+
 
 
 def test_instrument(tropomi_uip_step_1):

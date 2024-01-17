@@ -15,8 +15,6 @@ import numpy as np
 import glob
 import abc
 
-from typing import Sequence
-
 logger = logging.getLogger("py-retrieve")
 
 class RefractorFmObjectCreatorNew(object, metaclass=abc.ABCMeta):
@@ -47,6 +45,7 @@ class RefractorFmObjectCreatorNew(object, metaclass=abc.ABCMeta):
     '''
 
     def __init__(self, state_info : StateInfo,
+                 strategy_table,
                  i_windows,
                  instrument_name: str, 
                  # Short term, so we can flip between pca vs lidort
@@ -86,6 +85,7 @@ class RefractorFmObjectCreatorNew(object, metaclass=abc.ABCMeta):
 
         self.state_info = state_info
         self.i_windows = i_windows
+        self.strategy_table = strategy_table
 
         #self.num_channel = len(self.channel_list())
 
@@ -118,5 +118,11 @@ class RefractorFmObjectCreatorNew(object, metaclass=abc.ABCMeta):
                 raise NotImplementedError()
                 #swin.bad_sample_mask(self.observation.bad_sample_mask_full(i), i)
         return swin
+
+    @cached_property
+    def spectrum_sampling(self):
+        return MusesSpectrumSampling(self.instrument_name,
+                                     ils_method = self.strategy_table.ils_method(self.instrument_name))
+
         
 

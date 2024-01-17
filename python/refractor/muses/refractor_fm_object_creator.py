@@ -164,7 +164,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def spectrum_sampling(self):
-        return MusesSpectrumSampling(self.rf_uip, self.instrument_name)
+        return MusesSpectrumSampling(self.instrument_name, rf_uip=self.rf_uip)
 
     @cached_property
     def dispersion(self):

@@ -1,6 +1,7 @@
 from __future__ import annotations # We can remove this when we upgrade to python 3.9
 import abc
 from .priority_handle_set import PriorityHandleSet
+from .strategy_table import FakeStrategyTable
 import refractor.muses.muses_py as mpy
 import copy
 import refractor.framework as rf
@@ -445,10 +446,12 @@ class StateInfo:
         '''For testing purposes, it can be useful to pickle a  UIP from a previous py-retrieve run
         and then use in ReFRACtor to duplicate/compare with py-retrieve. We are trying to get away from
         the UIP, so this create an equivalent StateInfo. We also create some related information,
-        returning the i_windows structure (which we may'''
+        returning the StrategyTable and i_windows structure (which we may turn into a class)'''
         res = cls()
+        strategy_table = FakeStrategyTable(rf_uip.uip_omi['ils_omi_xsection'] if rf_uip.uip_omi else
+                                           rf_uip.uip_tropomi['ils_tropomi_xsection'])
         i_windows = rf_uip.uip['microwindows_all']
-        return (res, i_windows)
+        return (res, strategy_table, i_windows)
     
     def init_state(self, strategy_table : 'StrategyTable',
                  fm_obs_creator : 'FmObsCreator', instruments_all, run_dir : str):
