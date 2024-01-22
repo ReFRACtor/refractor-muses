@@ -14,13 +14,17 @@ import logging
 import numpy as np
 import h5py
 import copy
+# for netCDF3 support which is not supported in h5py
+from netCDF4 import Dataset
 
 logger = logging.getLogger("py-retrieve")
 
 class OmiFmObjectCreator(RefractorFmObjectCreator):
-    def __init__(self, rf_uip : RefractorUip, use_eof=False, **kwargs):
+    def __init__(self, rf_uip : RefractorUip, use_eof=False, eof_dir=None,
+                 **kwargs):
         super().__init__(rf_uip, "OMI", **kwargs)
         self.use_eof = use_eof
+        self.eof_dir = eof_dir
         
     @cached_property
     def instrument_correction(self):
@@ -28,7 +32,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         for fm_idx, ii_mw in enumerate(self.channel_list()):
             v = rf.vector_instrument_correction()
             if(self.use_eof):
-                for e in self.eof[self.rf_uip.filter_name(fm_idx)]:
+                for e in self.eof[self.rf_uip.filter_name(ii_mw)]:
                     v.push_back(e)
             res.push_back(v)
         return res
@@ -45,14 +49,57 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             # run the forward model on don't really matter - we don't end up using
             # them. We can set these to zero if desired.
             npixel = np.count_nonzero(self.rf_uip.uip_omi["frequencyfilterlist"] == band)
-            # This should get replaced with the real EOF waveform. Not sure about the
-            # units, but this is what we assigned to our forward model, and the EOF
-            # needs to match
-            wform = rf.ArrayWithUnit(np.zeros(npixel), rf.Unit("sr^-1"))
-            for i in range(selem.number_eof):
-                r.append(rf.EmpiricalOrthogonalFunction(selem.value[i], wform, i+1,
-                                                        band))
-            res[band] = r
+            # Note: npixel is 577 for UV2, which doesn't make sense given indexes in EOF
+            # Muses uses fullbandfrequency subset by microwindow info (shown below) instead
+
+            if(self.eof_dir is not None):
+                uv1_index = 0
+                uv2_index = 0
+                uv_basename = "EOF_xtrack_{0}-{1:02d}_window_{0}.nc"
+                uv1_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv1', uv1_index))}"
+                uv2_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv2', uv2_index))}"
+
+                if band == "UV1":
+                    eof_fname = uv1_fname
+                    mw_index = 0
+                elif band == "UV2":
+                    eof_fname = uv2_fname
+                    mw_index = 1
+
+                # Note: We hit this code when retrieving cloud fraction which uses 7 freq. and 1 microwin
+                if len(self.rf_uip.uip_omi["microwindows"]) == 1:
+                    res["UV2"] = []
+                    continue
+
+                # Enabling the code below leads to Out of range error in FullPhysics::NLLSMaxAPosteriori::residual()
+                # startmw = self.rf_uip.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
+                # endmw = self.rf_uip.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
+                # wave_arr =self.rf_uip.uip_omi["fullbandfrequency"][startmw:endmw+1]
+                # npixel = len(wave_arr)
+
+                eof_path = "/eign_vector"
+                eof_index_path = "/Index"
+                with Dataset(eof_fname) as eof_ds:
+                    eofs = eof_ds[eof_path][:]
+                    pixel_indexes = eof_ds[eof_index_path][:]
+            
+                for basis_index in range(selem.number_eof):
+                    wform_data = np.zeros(npixel)
+                    for eof_index, pixel_index in enumerate(pixel_indexes):
+                        wform_data[pixel_index] = eofs[basis_index,eof_index]
+                    # Not sure about the units, but this is what we assigned to our
+                    # forward model, and the EOF needs to match
+                    wform = rf.ArrayWithUnit(wform_data, rf.Unit("sr^-1"))
+                    r.append(rf.EmpiricalOrthogonalFunction(selem.value[basis_index], wform, basis_index+1, band))
+                res[band] = r
+            else:
+                # If we don't have EOF data, use all zeros. This should go
+                # away, this is just so we can start using the EOF before
+                # we have all the data sorted out
+                wform = rf.ArrayWithUnit(np.zeros(npixel), rf.Unit("sr^-1"))
+                for i in range(selem.number_eof):
+                    r.append(rf.EmpiricalOrthogonalFunction(selem.value[i], wform, i+1, band))               
+                res[band] = r
         return res
         
     
