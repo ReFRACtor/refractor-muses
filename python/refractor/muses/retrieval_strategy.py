@@ -217,14 +217,19 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             stp += 1
             self.table_step = stp
             self.state_info.copy_current_initial()
+            self.notify_update("done copy_current_initial")
             logger.info(f'\n---')
             logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
             logger.info(f'\n---')
             self.get_initial_guess()
+            self.notify_update("done get_initial_guess")
             self.create_windows(all_step=False)
+            self.notify_update("done create_windows")
             logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
             self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
+            self.notify_update("done retrieval_step")
             self.state_info.next_state_to_current()
+            self.notify_update("done next_state_to_current")
             logger.info(f"Done with step {self.table_step}")
 
         stop_date = time.strftime("%c")
@@ -1021,7 +1026,28 @@ class RetrievalStrategyCaptureObserver:
             return
         fname = f"{self.basefname}_{retrieval_strategy.table_step}.pkl"
         retrieval_strategy.save_pickle(fname, **kwargs)
+
+class RetrievalStrategyMemoryUse:
+    def __init__(self):
+        self.tr = None
+
+    def notify_update(self, retrieval_strategy, location, **kwargs):
+        # Need pympler here, but don't generally need it. Include this
+        # so this isn't a requirement, unless we are running with this
+        # observer
+        from pympler import tracker
+        if(location == "starting retrieval steps"):
+            self.tr = tracker.SummaryTracker()
+        elif(location in ("done copy_current_initial",
+                          "done get_initial_guess",
+                          "done create_windows",
+                          "done retrieval_step",
+                          "done next_state_to_current")):
+            logger.info(f"Memory change when {location}")
+            self.tr.print_diff()
+            
         
-__all__ = ["RetrievalStrategy", "RetrievalStrategyCaptureObserver"]    
+__all__ = ["RetrievalStrategy", "RetrievalStrategyCaptureObserver",
+           "RetrievalStrategyMemoryUse"]    
 
     

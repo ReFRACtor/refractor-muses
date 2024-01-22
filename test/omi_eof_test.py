@@ -13,7 +13,8 @@ from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              StrategyTable,
                              OmiEofStateElement,
                              SingleSpeciesHandle,
-                             FmObsCreator, RetrievableStateElement)
+                             FmObsCreator, RetrievableStateElement,
+                             RetrievalStrategyMemoryUse)
 import subprocess
 
 class RetrievalStrategyStop:
@@ -91,6 +92,9 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     # Save data so we can work on getting output in isolation
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
     rs.add_observer(rscap)
+    # Watch memory usage.
+    rsmem = RetrievalStrategyMemoryUse()
+    rs.add_observer(rsmem)
     ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False, use_eof=True,
                                   eof_dir = "/tb/sandbox21/lkuai/muses/output_py/airs_omi/plot/no_softCal_EOF/EOFout")
