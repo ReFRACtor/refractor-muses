@@ -555,7 +555,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                                self.cloud_fraction)
         res.add_cloud_handling_object(self.pressure)
         res.add_cloud_handling_object(self.ground)
-        logger.debug("Forward Model: %s", res)
+        #logger.debug("Forward Model: %s", res)
         return res
 
     @abc.abstractproperty

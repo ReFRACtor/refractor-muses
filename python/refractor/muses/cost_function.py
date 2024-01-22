@@ -200,7 +200,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             raise RuntimeError("Radiance is not finite")
         if(not np.all(np.isfinite(jac_fm))):
             raise RuntimeError("Jacobian is not finite")
-        if True:
+        if False:
             for fm in self.fm_list:
                 logger.debug(f"Forward model: {fm}")
         return (uip, residual, jac_residual, radiance_fm,
