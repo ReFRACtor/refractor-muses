@@ -76,7 +76,19 @@ class StateElement(object, metaclass=abc.ABCMeta):
         this function. For ReFRACtor StateElement, this should just be a copy of
         StateElement, but for muses-py we return None. The copy_current_initialInitial
         and copy_current_initial then handle these two cases.'''
-        return copy.deepcopy(self)
+        # Default is to just copy all the data, other than the reference
+        # to state_info we have. Derived classes should override this to make
+        # sure we aren't copying things that shouldn't be copied (e.g., a
+        # open file handle or something like that).
+        sinfo_save = self.state_info
+        try:
+            self.state_info = None
+            res = copy.deepcopy(self)
+            res.state_info = sinfo_save
+        finally:
+            # Restore this even if an error occurs
+            self.state_info = sinfo_save
+        return res
         
     @property
     @abc.abstractmethod
