@@ -4,6 +4,7 @@ from refractor.muses import (FmObsCreator, CostFunction,
                              MusesRunDir,
                              RefractorMusesIntegration,
                              RetrievalStrategy, RetrievalStrategyCaptureObserver)
+from refractor.omi import OmiInstrumentHandle
 import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
@@ -145,6 +146,13 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     # Grab each step so we can separately test output
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
     rs.add_observer(rscap)
+    if False:
+        # Use refractor forward model. We default to not, because we are
+        # mostly testing everything *other* than the forward model with this
+        # test. But can be useful to run with this occasionally
+        ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
+                                      lrad_second_order=False, use_eof=False)
+        rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
     rs.retrieval_ms()
 
     # Temp, compare right after
