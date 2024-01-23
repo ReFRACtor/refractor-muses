@@ -79,7 +79,7 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
         raise RuntimeError(f"We don't currently support retrieval_type {retrieval_type}")
 
 class RetrievalStrategyStepBT(RetrievalStrategyStep):
-    '''Branch Type strategy step.'''
+    '''Brightness Temperature strategy step.'''
     def __init__(self):
         self.BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
         
