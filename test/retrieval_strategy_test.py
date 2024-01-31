@@ -5,6 +5,7 @@ from refractor.muses import (FmObsCreator, CostFunction,
                              RefractorMusesIntegration,
                              RetrievalStrategy, RetrievalStrategyCaptureObserver)
 from refractor.omi import OmiInstrumentHandle
+from refractor.tropomi import TropomiInstrumentHandle
 import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
@@ -208,4 +209,22 @@ def test_compare_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli):
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
         subprocess.run(cmd, shell=True, check=diff_is_error)
-        
+
+@long_test
+@require_muses_py
+def test_two_tropomi(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+    '''Run two soundings, using a single RetrievalStrategy. This is how the
+    MPI version of py-retrieve works, and we need to make sure any caching
+    etc. gets cleared out from the first sounding to the second.'''
+    r = MusesRunDir(tropomi_test_in_dir,
+                    osp_dir, gmao_dir)
+    r2 = MusesRunDir(tropomi_test_in_dir3,
+                     osp_dir, gmao_dir, skip_sym_link=True)
+    
+    rs = RetrievalStrategy(None, writeOutput=True, writePlots=True,
+                           vlidort_cli=vlidort_cli)
+    rs.instrument_handle_set.add_handle(TropomiInstrumentHandle(use_pca=True,
+                                       use_lrad=False, lrad_second_order=False),
+                                       priority_order=100)
+    rs.script_retrieval_ms(f"{r.run_dir}/Table.asc")
+    rs.script_retrieval_ms(f"{r2.run_dir}/Table.asc")

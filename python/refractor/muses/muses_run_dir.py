@@ -15,7 +15,7 @@ class MusesRunDir:
     a full py-retrieval call.
     '''
     def __init__(self, refractor_sounding_dir, osp_dir, gmao_dir,
-                 path_prefix="."):
+                 path_prefix=".", skip_sym_link=False):
         '''Set up a run directory in the given path_prefix with the
         data saved in a sounding 1 save directory (e.g.,
         ~/muses/refractor_test_data/omi/sounding_1).
@@ -25,8 +25,9 @@ class MusesRunDir:
         sid = open(f"{refractor_sounding_dir}/sounding.txt").read().rstrip()
         self.run_dir = os.path.abspath(f"{path_prefix}/{sid}")
         subprocess.run(["mkdir","-p",self.run_dir])
-        os.symlink(osp_dir, f"{path_prefix}/OSP")
-        os.symlink(gmao_dir, f"{path_prefix}/GMAO")
+        if(not skip_sym_link):
+            os.symlink(osp_dir, f"{path_prefix}/OSP")
+            os.symlink(gmao_dir, f"{path_prefix}/GMAO")
         for f in ("Table", "DateTime"):
             shutil.copy(f"{refractor_sounding_dir}/{f}.asc",
                         f"{self.run_dir}/{f}.asc")
