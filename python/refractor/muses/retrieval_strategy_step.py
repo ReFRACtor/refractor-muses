@@ -25,16 +25,38 @@ def struct_compare(s1, s2):
 
 class RetrievalStrategyStepSet(PriorityHandleSet):
     '''This takes the retrieval_type and determines a RetrievalStrategyStep
-    to handle this. It then does the retrieval step'''
+    to handle this. It then does the retrieval step.
+
+    Note RetrievalStrategyStep can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.'''
     def retrieval_step(self, retrieval_type : str, rs : 'RetrievalStrategy') -> None:
         self.handle(retrieval_type, rs)
+
+    def notify_update_target(self, rs : 'RetrievalStrategy'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                h.notify_update_target(rs)
         
     def handle_h(self, h : 'RetrievalStrategyStep', retrieval_type : str,
                  rs : 'RetrievalStrategy') -> (bool, None):
         return h.retrieval_step(retrieval_type, rs)
 
 class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
-    '''Do the retrieval step indicated by retrieval_type'''
+    '''Do the retrieval step indicated by retrieval_type
+    
+    Note RetrievalStrategyStep can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.'''
+
+    def notify_update_target(self, rs : 'RetrievalStrategy'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        # Default is to do nothing
+        pass
+    
     @abc.abstractmethod
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
@@ -81,6 +103,9 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
 class RetrievalStrategyStepBT(RetrievalStrategyStep):
     '''Brightness Temperature strategy step.'''
     def __init__(self):
+        self.notify_update_target(None)
+
+    def notify_update_target(self, rs : 'RetrievalStrategy'):
         self.BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
         
     def retrieval_step(self, retrieval_type : str,
@@ -141,6 +166,9 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
 class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     '''Strategy step that does a retrieval (e.g., the default strategy step).'''
     def __init__(self):
+        self.notify_update_target(None)
+
+    def notify_update_target(self, rs : 'RetrievalStrategy'):
         self.propagatedTATMQA = 1
         self.propagatedH2OQA = 1
         self.propagatedO3QA = 1

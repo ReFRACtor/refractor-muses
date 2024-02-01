@@ -89,7 +89,18 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
     '''Base class for InstrumentHandle. Note we use duck typing, so you
     don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents
-    that a class is intended for this.'''
+    that a class is intended for this.
+
+    Note InstrumentHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.'''
+
+    def notify_update_target(self, rs: 'RetrievalStategy'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        # Default is to do nothing
+        pass
+        
     @abc.abstractmethod
     def fm_and_obs(instrument_name : str, rf_uip : RefractorUip,
                    svhandle: StateVectorHandleSet,
@@ -105,7 +116,17 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
     
 class InstrumentHandleSet(PriorityHandleSet):
     '''This takes  the instrument name and RefractorUip, and
-    creates a FowardModel and Observation for that instrument.'''
+    creates a FowardModel and Observation for that instrument.
+
+    Note InstrumentHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.'''
+    def notify_update_target(self, rs: 'RetrievalStategy'):
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                h.notify_update_target(rs)
+        
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
                    svhandle : StateVectorHandleSet,
                    use_full_state_vector=True,
@@ -162,6 +183,9 @@ class FmObsCreator:
     '''
     def __init__(self, rs : 'Optional(RetrievalStategy)' = None):
         self.instrument_handle_set = copy.deepcopy(InstrumentHandleSet.default_handle_set())
+        self.notify_update_target(rs)
+
+    def notify_update_target(self, rs : 'RetrievalStategy'):
         self.o_airs = None
         self.o_cris = None
         self.o_omi = None
@@ -171,6 +195,7 @@ class FmObsCreator:
         self._created_o = False
         self._radiance = None
         self.rs = rs
+        self.instrument_handle_set.notify_update_target(rs)
 
     def create_o_obs(self):
         if(self._created_o):

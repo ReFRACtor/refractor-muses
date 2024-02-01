@@ -21,12 +21,12 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     These get referenced by a "name", usually called a "species_name"
     in the muses-py code. The StateInfo can be used to look these
-    up.
-    '''
+    up.'''
+
     def __init__(self, state_info : "StateInfo", name : str):
         self._name = name
         self.state_info = state_info
-        
+
     @property
     def name(self):
         return self._name
@@ -151,8 +151,18 @@ class StateElementHandle(object, metaclass=abc.ABCMeta):
     but at least for now the older muses-py code stores these in different places.
     We can perhaps change this interface in the future as we move out the old muses-py
     stuff, it is sort of odd to create these 3 things at once. But we'll match
-    what muses-py does for now
-    '''
+    what muses-py does for now.
+
+    Note StateElementHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.'''
+    
+    def notify_update_target(self, rs : 'RetrievalStrategy'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        # Default is to do nothing
+        pass
+        
     @abc.abstractmethod
     def state_element_object(self, state_info : "StateInfo",
                              name : str) -> \
@@ -161,11 +171,23 @@ class StateElementHandle(object, metaclass=abc.ABCMeta):
 
 class StateElementHandleSet(PriorityHandleSet):
     '''This maps a species name to the SpeciesOrParametersState object that handles
-    it.'''
+    it.
+
+    Note StatElementHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.'''
+    
     def state_element_object(self, state_info : StateInfo, name : str) -> \
             tuple[StateElement, StateElement, StateElement]:
         return self.handle(state_info, name)
 
+    def notify_update_target(self, rs : 'RetrievalStrategy'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                h.notify_update_target(rs)
+                
     def handle_h(self, h : StateElementHandle,
                  state_info : StateInfo, name : str)  -> \
             tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
@@ -416,28 +438,23 @@ class Level1bTropomi:
         return rf.DoubleWithUnit(float(v), "deg")
     
 class StateInfo:
-    '''
-    A few functions seem sort of like member functions, we'll just make a list
-    of these to sort out later but not try to get the full interface in place.
+    '''State Info during a retrieval - so what gets passed between RetrievalStrategyStep.
 
-    script_retrieval_setup_ms
-    states_initial_update - These seem to create the stateInfo
-    get_species_information - Seems to read a lot from stateinfo
-    update_state
-    create_uip - lots of reading here
-    modify_from_bt
-    write_retrieval_input
-    plot_results
-    set_retrieval_results
-    write_retrieval_summary
-    error_analysis_wrapper
-    write_products_one_jacobian
-    write_products_one_radiance
-    write_products_one
+    Note that StateInfo can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.
+
+    This is also true for all the StateElementHandle we have.
+
     '''
+    
     def __init__(self):
-        self.state_info_dict = None
         self.state_element_handle_set = copy.deepcopy(StateElementHandleSet.default_handle_set())
+        self.notify_update_target(None)
+
+    def notify_update_target(self, rs : 'RetrievalStrategy'):
+        self.state_info_dict = None
         self.initialInitial = {}
         self.initial = {}
         self.current = {}
@@ -452,7 +469,8 @@ class StateInfo:
         self._utc_time = None
         self.info_file = None
         self._sounding_id = None
-
+        self.state_element_handle_set.notify_update_target(rs)
+        
     @classmethod
     def create_from_uip(cls, rf_uip):
         '''For testing purposes, it can be useful to pickle a  UIP from a previous py-retrieve run

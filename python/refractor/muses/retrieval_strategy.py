@@ -120,6 +120,17 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         if(func_name == "script_retrieval_ms"):
             return self.script_retrieval_ms(**parms)
 
+    def notify_update_target(self):
+        '''A number of objects related to this one might do caching based on the
+        target, e.g., read the input files once. py-retrieve can call script_retrieval_ms
+        multiple times with different targets, so we need to notify all the objects
+        when this changes in case they need to clear out any caching.'''
+        self.notify_update("update target")
+        self.retrieval_strategy_step_set.notify_update_target(self)
+        self.fm_obs_creator.notify_update_target(self)
+        self.state_info.notify_update_target(self)
+        
+
     def script_retrieval_ms(self, filename, writeOutput=False, writePlots=False,
                             debug=False, update_product_format=False):
         # Ignore arguments other than filename.
@@ -130,6 +141,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.filename = os.path.abspath(filename)
         self.run_dir = os.path.dirname(self.filename)
         self.strategy_table = StrategyTable(self.filename)
+        self.notify_update_target()
         return self.retrieval_ms()
     
     @property
