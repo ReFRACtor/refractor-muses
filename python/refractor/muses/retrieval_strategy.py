@@ -186,7 +186,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # for now we'll do that.
         with muses_py_call(self.run_dir,
                            vlidort_cli=self.vlidort_cli):
-            self.retrieval_ms_body()
+            return self.retrieval_ms_body()
 
     def retrieval_ms_body(self):
         start_date = time.strftime("%c")
