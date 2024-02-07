@@ -20,17 +20,28 @@ logger = logging.getLogger("py-retrieve")
 
 class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def __init__(self, rf_uip : RefractorUip, **kwargs):
+        # Initialize first b/c we need access to the filters to figure out some defaults
         super().__init__(rf_uip, "TROPOMI", **kwargs)
+
         unique_filters = set(self.filter_name)
         if len(unique_filters) != 1:
             raise NotImplementedError('Cannot handle multiple bands yet (requires different absorbers per band)')
         unique_filters = unique_filters.pop()
         if unique_filters == 'BAND3':
             self._inner_absorber = O3Absorber(self)
+            use_raman = True
         elif unique_filters == 'BAND7':
             self._inner_absorber = SwirAbsorber(self)
+            use_raman = False
         else:
             raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
+
+        # The different bands need different defaults for use_raman; since there wasn't
+        # a convenient way to determine which bands we were retrieving before now, we
+        # reset the instance attribute to the value we need if it wasn't specified in the
+        # creation arguments.
+        if 'use_raman' not in kwargs:
+            self.use_raman = use_raman
         
 
     @cached_property
@@ -197,14 +208,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                 scale_factor = None
             else:
                 raise RuntimeError("Unrecognized filter_name")
-            if scale_factor is None:
-                # JLL: As of 2023-11-02, it's important that there be an entry for each channel
-                # in res, otherwise the indexing in the `spectrum_effect` method of `RefractorFmObjectCreator`
-                # won't match. It might be better long term to store these in a dictionary with
-                # the microwindows as keys, but need to make sure that this method isn't called anywhere
-                # else first.
-                res.append(None)
-            else:
+                
+            if scale_factor is not None:
                 res.append(MusesRaman(self.rf_uip, self.instrument_name,
                     self.rf_uip.rad_wavelength(fm_idx, self.instrument_name),
                     float(scale_factor),
@@ -227,10 +232,7 @@ class TropomiStateVectorHandle(StateVectorHandle):
         if(species_name == "TROPOMICLOUDFRACTION"):
             sv.add_observer(self.obj_creator.cloud_fraction)
         elif(species_name in ("O3", "CO", "CH4", "H2O", "HDO")):
-            # MMS, Right now we only deal with O3. Silently ignore the other
-            # species, we'll presumably get those in place in the future
-            if(species_name == "O3"):
-                sv.add_observer(self.obj_creator.absorber.absorber_vmr(species_name))
+            sv.add_observer(self.obj_creator.absorber.absorber_vmr(species_name))
         elif(species_name.startswith(("TROPOMISURFACEALBEDOBAND", "TROPOMISURFACEALBEDOSLOPEBAND", "TROPOMISURFACEALBEDOSLOPEORDER2BAND"))):
             # JLL: this should match any band's albedo variables.
             self.add_sv_once(sv, self.obj_creator.ground_clear)
