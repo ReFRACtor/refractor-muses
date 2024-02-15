@@ -11,6 +11,36 @@ import subprocess
 import pprint
 import glob
 
+def compare_run(expected_dir, run_dir, diff_is_error=True):
+    '''Compare products from two runs.'''
+    for f in glob.glob(f"{expected_dir}/*/Products/Products_L2*.nc"):
+        f2 = f.replace(expected_dir, run_dir)
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob(f"{expected_dir}/*/Products/Lite_Products_*.nc"):
+        f2 = f.replace(expected_dir, run_dir)
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob(f"{expected_dir}/*/Products/Products_Radiance*.nc"):
+        f2 = f.replace(expected_dir, run_dir)
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob(f"{expected_dir}/*/Products/Products_Jacobian*.nc"):
+        f2 = f.replace(expected_dir, run_dir)
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+    
+# This test was used to generate the original test data using py-retrieve. We have
+# tweaked the expected output slightly for test_retrieval_strategy_cris_tropomi (so
+# minor round off differeneces). But leave this code around, it can still be useful to
+# have the full original run if we need to dig into and issue with
+# test_retrieval_strategy_cris_tropomi. But note the output isn't identical, just pretty
+# close.
+@skip
 @long_test
 @require_muses_py
 def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
@@ -36,15 +66,16 @@ def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
 @require_muses_py
 def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
                                          clean_up_replacement_function):
-    '''Full run, that we can compare the output files. This is not
-    really a unit test, but for convenience we have it here. We don't
-    actually do anything with the data, other than make it available.
+    '''Full run, that we then compare the output files to expected results.
+    This is not really a unit test, but for convenience we have it here.
+    Note that a "failure" in the comparison might not actually indicate a problem, just
+    that the output changed. You may need to look into detail and decide that the
+    run was successful and we just want to update the expected results.
 
-    Data goes in the local directory, rather than an isolated one.'''
+    Data goes in the local directory, rather than an isolated one. We can change this
+    in the future if desired, but  for now it is useful to be able to look into the directory
+    if some kind of a problem arises.'''
     subprocess.run("rm -r retrieval_strategy_cris_tropomi", shell=True)
-    # Think we can remove this
-    #rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
-    #rmi.register_with_muses_py()
     r = MusesRunDir(joint_tropomi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_cris_tropomi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", writeOutput=True, writePlots=True,
@@ -52,62 +83,39 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     # Grab each step so we can separately test output
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
     rs.add_observer(rscap)
+    if False:
+        # Use refractor forward model. We default to not, because we are
+        # mostly testing everything *other* than the forward model with this
+        # test. But can be useful to run with this occasionally
+        ihandle = TropomiInstrumentHandle(use_pca=True, use_lrad=False,
+                                          lrad_second_order=False)
+        rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
     rs.retrieval_ms()
 
-    # Temp, do compare right after
     diff_is_error = True
-    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_L2*.nc"):
-        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Lite_Products_*.nc"):
-        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Radiance*.nc"):
-        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Jacobian*.nc"):
-        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    
+    compare_run(joint_tropomi_test_expected_dir, "retrieval_strategy_cris_tropomi",
+                diff_is_error=diff_is_error)
+
 @long_test
 @require_muses_py
 def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
-    '''Quick test to compare cris_tropomi runs. This assumes they are
-    already done. This is just h5diff, but this figures out the path
-    for each of the tests so we don't have to.'''
+    '''The test_retrieval_strategy_cris_tropomi already checks the results, but it is nice
+    to have a stand alone run that just checks the results. Note that this depends on
+    test_retrieval_strategy_cris_tropomi already having been run.'''
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
     diff_is_error = True
     #diff_is_error = False
-    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_L2*.nc"):
-        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Lite_Products_*.nc"):
-        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Radiance*.nc"):
-        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_cris_tropomi/*/Products/Products_Jacobian*.nc"):
-        f2 = f.replace("original_retrieval_cris_tropomi", "retrieval_strategy_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
+    compare_run(joint_tropomi_test_expected_dir, "retrieval_strategy_cris_tropomi",
+                diff_is_error=diff_is_error)
 
+# This test was used to generate the original test data using py-retrieve. We have
+# tweaked the expected output slightly for test_retrieval_strategy_airs_omi (so
+# minor round off differeneces). But leave this code around, it can still be useful to
+# have the full original run if we need to dig into and issue with
+# test_retrieval_strategy_airs_omi. But note the output isn't identical, just pretty
+# close.
+@skip
 @long_test
 @require_muses_py
 def test_original_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli,
@@ -133,14 +141,16 @@ def test_original_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli,
 @require_muses_py
 def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
                                          clean_up_replacement_function):
-    '''Full run, that we can compare the output files. This is not
-    really a unit test, but for convenience we have it here. We don't
-    actually do anything with the data, other than make it available.
+    '''Full run, that we then compare the output files to expected results.
+    This is not really a unit test, but for convenience we have it here.
+    Note that a "failure" in the comparison might not actually indicate a problem, just
+    that the output changed. You may need to look into detail and decide that the
+    run was successful and we just want to update the expected results.
 
-    Data goes in the local directory, rather than an isolated one.'''
+    Data goes in the local directory, rather than an isolated one. We can change this
+    in the future if desired, but  for now it is useful to be able to look into the directory
+    if some kind of a problem arises.'''
     subprocess.run("rm -r retrieval_strategy_airs_omi", shell=True)
-    #rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
-    #rmi.register_with_muses_py()
     r = MusesRunDir(joint_omi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_airs_omi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
@@ -151,64 +161,27 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
         # Use refractor forward model. We default to not, because we are
         # mostly testing everything *other* than the forward model with this
         # test. But can be useful to run with this occasionally
-        ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
+        ihandle = OmiInstrumentHandle(use_pca=True, use_lrad=False,
                                       lrad_second_order=False, use_eof=False)
         rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
     rs.retrieval_ms()
 
-    # Temp, compare right after
     diff_is_error = True
-    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_L2*.nc"):
-        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_airs_omi/*/Products/Lite_Products_*.nc"):
-        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_Radiance*.nc"):
-        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_Jacobian*.nc"):
-        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
+    compare_run(joint_omi_test_expected_dir, "retrieval_strategy_airs_omi",
+                diff_is_error=diff_is_error)
     
 @long_test
 @require_muses_py
 def test_compare_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli):
-    '''Quick test to compare airs_omi runs. This assumes they are
-    already done. This is just h5diff, but this figures out the path
-    for each of the tests so we don't have to.'''
+    '''The test_retrieval_strategy_airs_omi already checks the results, but it is nice
+    to have a stand alone run that just checks the results. Note that this depends on
+    test_retrieval_strategy_airs_omi already having been run.'''
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
     diff_is_error = True
     #diff_is_error = False
-    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_L2*.nc"):
-        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_airs_omi/*/Products/Lite_Products_*.nc"):
-        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_Radiance*.nc"):
-        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("original_retrieval_airs_omi/*/Products/Products_Jacobian*.nc"):
-        f2 = f.replace("original_retrieval_airs_omi", "retrieval_strategy_airs_omi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
+    compare_run(joint_omi_test_expected_dir, "retrieval_strategy_airs_omi",
+                diff_is_error=diff_is_error)
 
 @long_test
 @require_muses_py
