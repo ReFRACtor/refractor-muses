@@ -990,7 +990,7 @@ class MusesPyStateElement(RetrievableStateElement):
              (species_name == 'CALSCALE') or (species_name == 'CALOFFSET'):
 
             # IDL AT_LINE 243 Get_Species_Information:
-            microwindows = strategy_table.microwindows
+            microwindows = strategy_table.microwindows()
 
             # Select non-UV windows
             ind = []

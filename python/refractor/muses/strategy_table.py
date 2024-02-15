@@ -1,18 +1,23 @@
 import refractor.muses.muses_py as mpy
+import refractor.framework as rf
+from .misc import osp_setup
 from contextlib import contextmanager
 import os
 from .order_species import order_species
+import numpy as np
 
 class StrategyTable:
     '''This wraps the existing muses-py routines working with the
-    strategy table into a python object. This is just syntactic sugar,
-    we could do the same thing calling the existing routines. But nice
-    to treat as any other python object, plus it gives us a good place to
-    unit test stuff.'''
-    def __init__(self, filename : str):
-        '''Read the given strategy table.'''
+    strategy table into a python object. '''
+    def __init__(self, filename : str, osp_dir=None):
+        '''Read the given strategy table.  Note that the strategy table file tends to use
+        a lot of relative paths. We either assume that the directory structure is set up,
+        changing to the directory of table file name. Or if the osp_dir is supplied, we set up
+        a temporary directory for reading this file (useful for example to read a file sitting
+        in the refractor_test_data directory).'''
         self.filename = os.path.abspath(filename)
         self._table_step = -1
+        self.osp_dir = osp_dir
         with self.chdir_run_dir():
             self.strategy_table_dict = mpy.table_read(self.filename)[1].__dict__
             
@@ -75,12 +80,19 @@ class StrategyTable:
         that the strategy table lives in. This gives a nice way to ensure
         that is the case. Uses this as a context manager
         '''
-        curdir = os.getcwd()
-        try:
-            os.chdir(os.path.dirname(self.filename))
-            yield
-        finally:
-            os.chdir(curdir)
+        # If we have an osp_dir, then set up a temporary directory with the OSP
+        # set up
+        if(self.osp_dir is not None):
+            with osp_setup(osp_dir=self.osp_dir):
+                yield
+        else:
+            # Otherwise we assume that this is in a run directory
+            curdir = os.getcwd()
+            try:
+                os.chdir(os.path.dirname(self.filename))
+                yield
+            finally:
+                os.chdir(curdir)
 
     @property
     def table_step(self):
@@ -181,8 +193,28 @@ class StrategyTable:
         res.discard('')
         return order_species(list(res))
         
-    
-    @property
+
+    def spectral_window(self, instrument_name, stp=None):
+        '''This creates a rf.SpectralWindowRange for the given instrument and
+        step (defaults to self.table_step). Note that a SpectralWindow has a number of
+        microwindows associated with it - RefRACtor doesn't really distinguish this and
+        just uses the whole SpectralWindow to choose which frequencies pass the SpectralWindow.
+
+        This doesn't include bad sample masking, although that can be added to the
+        rf.SpectralWindowRange returned.'''
+        mwall = [mw for mw in self.microwindows(stp=stp) if mw['instrument'] == instrument_name]
+        # May need to update logic here, not sure how to handle multiple spectral channels in
+        # an instrument.
+        nspec = 1
+        nmw = len(mwall)
+        mw_range = np.zeros((nspec, nmw, 2))
+        spec_channel = 0
+        for i, mw in enumerate(mwall):
+            mw_range[spec_channel,i,0] = mw['start']
+            mw_range[spec_channel,i,1] = mw['endd']
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        return rf.SpectralWindowRange(mw_range)
+        
     def microwindows(self, stp=None):
         return mpy.table_new_mw_from_step(self.strategy_table_dict,
                                           stp if stp is not None else self.table_step)

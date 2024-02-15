@@ -69,11 +69,9 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             return self.update_uip(**parms)
 
     def update_uip(self, i_uip, i_ret_info, i_retrieval_vec):
-        '''This is an adapter to call our RefractorUip version of update_uip.
-        This is needed to handle new state element vectors.'''
-        uip = RefractorUip(i_uip, self.basis_matrix)
-        uip.update_uip(i_retrieval_vec)
-        return (mpy.ObjectView(uip.uip), i_retrieval_vec)
+        '''This is an adapter that stubs out the updating of the UIP. We don't actually
+        need to do this, but levmar_nllsq_elanor expects a function here.'''
+        return (None, i_retrieval_vec)
     
     def fm_wrapper(self, i_uip, i_windows, oco_info):
         '''This uses the CostFunction to calculate the same things that
@@ -143,15 +141,12 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         replacement for mpy.fm_wrapper but possibly using ReFRACtor objects
         and 2) make a more direct comparison between ReFRACtor and muses-py
         (e.g., for testing)'''
-        # In addition to the returned items, the uip gets updated (and
-        # returned). I think it is just the retrieval_vec that updates
-        # the uip.
-        #
         # In addition, ret_info has obs_rad and meas_err
         # updated for OMI and TROPOMI. This seems kind of bad to me,
         # but the values get used in run_retrieval of muses-py, so
         # we need to update this.
-        uip.iteration = iterNum
+        # Stub out the UIP, it isn't actually needed for anything. We can have this as None,
+        # just because levmar_nllsq_elanor expects to pass in this argument
         if(self.expected_parameter_size != len(retrieval_vec)):
             raise RuntimeError("We aren't expecting parameters the size of retrieval_vec. Did you forget use_full_state_vector=False when creating the ForwardModels?")
         self.parameters = retrieval_vec

@@ -339,6 +339,11 @@ class FmObsCreator:
             'sqrt_constraint': (mpy.sqrt_matrix(self.rs.retrievalInfo.apriori_cov)).transpose(),
             'const_vec': self.rs.retrievalInfo.apriori,
         }
+        # Note, we are trying to decouple the rf_uip from everywhere. Right now this
+        # function is only called by RetrievalStrategyStep.create_cost_function which
+        # is set up for rf_uip to None, so we can start moving this out. Right now, if the
+        # rf_uip is set, we make sure the rf_uip gets updated when the CostFunction.parameters
+        # get updated. But this is only needed if we have a ForwardModel with a rf_uip.
         return (self.fm_and_obs(rf_uip, ret_info,
                                use_full_state_vector=use_full_state_vector,
                                 **kwargs), rf_uip, radianceStepIn)

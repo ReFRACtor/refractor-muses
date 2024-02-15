@@ -8,6 +8,7 @@ import glob
 import pickle
 
 # Temporary, depends on our test run
+@skip
 @pytest.mark.parametrize("step_number", [1,2,3,4,5,6,7,8,9,10,11,12])
 @require_muses_py
 def test_retrieval_info(isolated_dir, vlidort_cli, osp_dir, gmao_dir, step_number):

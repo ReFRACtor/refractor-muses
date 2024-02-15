@@ -10,15 +10,10 @@ class MusesLevmarSolver:
     a NLLSSolver. Right now we don't actually derive from that, we can perhaps
     put that in place if useful. But for now, just provide a "solve" function.
     '''
-    # TODO Clean this up. Among other things, remove uip and just
-    # do a pass through. uip is only passed to update_uip
-    # and residual_fm_jacobian, both of which we can override to just take
-    # a None or something like that.
     def __init__(self, cfunc: CostFunction, 
-                 rf_uip, max_iter: int, delta_value: float, conv_tolerance: float,
+                 max_iter: int, delta_value: float, conv_tolerance: float,
                  chi2_tolerance: float):
         self.cfunc = cfunc
-        self.rf_uip = rf_uip
         self.max_iter = max_iter
         self.delta_value = delta_value
         self.conv_tolerance = conv_tolerance
@@ -88,10 +83,10 @@ class MusesLevmarSolver:
                  self.x_iter, res_iter, radiance_fm, self.radiance_iter,
                  jacobian_fm, self.iterNum, self.stopCode, self.success_flag) =  \
                      mpy.levmar_nllsq_elanor(  
-                         self.rf_uip.current_state_x, 
+                         self.cfunc.parameters, 
                          None, 
-                         self.rf_uip.uip, 
-                         {'basis_matrix' : self.rf_uip.basis_matrix},
+                         None, 
+                         {},
                          self.max_iter, 
                          verbose=False, 
                          delta_value=self.delta_value, 

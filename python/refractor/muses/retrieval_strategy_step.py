@@ -8,6 +8,7 @@ from pprint import pprint, pformat
 from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
+from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 import numpy as np
 
 logger = logging.getLogger("py-retrieve")
@@ -83,8 +84,14 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
                     fix_apriori_size=fix_apriori_size,
                     jacobian_speciesIn=jacobian_speciesIn, **rs.kwargs)
         cfunc = CostFunction(*args)
+        # If we have an UIP, then update this when the parameters get updated.
+        # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
+        # have no parameters, for example for RetrievalStrategyStepBT. Any time we
+        # have parameters, the basis_matrix shouldn't be None.
+        if(rf_uip is not None and rf_uip.basis_matrix is not None):
+            cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(rf_uip))
         cfunc.parameters = rf_uip.current_state_x
-        return (rf_uip, cfunc, radianceStepIn)
+        return (cfunc, radianceStepIn)
         
 
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
@@ -117,9 +124,9 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         jacobianOut = None
         mytiming = None
         logger.info("Running run_forward_model ...")
-        _,cfunc,radianceStepIn = self.create_cost_function(rs, include_bad_sample=True,
-                                          fix_apriori_size=True,
-                                          jacobian_speciesIn=jacobian_speciesNames)
+        cfunc,radianceStepIn = self.create_cost_function(rs, include_bad_sample=True,
+                                                         fix_apriori_size=True,
+                                                         jacobian_speciesIn=jacobian_speciesNames)
         radiance_fm = cfunc.max_a_posteriori.model
         freq_fm = np.concatenate([fm.spectral_domain_all().data
                                   for fm in cfunc.max_a_posteriori.forward_model])
@@ -228,7 +235,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # nice not to have special handling to add bad samples if we turn around and
         # weed them out.
         if(rs.retrievalInfo.n_speciesSys > 0):
-            _,cfunc_sys,_ = self.create_cost_function(rs, do_systematic=True,
+            cfunc_sys,_ = self.create_cost_function(rs, do_systematic=True,
                                      include_bad_sample=True, fix_apriori_size=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
@@ -276,7 +283,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
-        rf_uip, cfunc,radianceStepIn = self.create_cost_function(rs)
+        cfunc,radianceStepIn = self.create_cost_function(rs)
         maxIter = int(rs.strategy_table.table_entry("maxNumIterations"))
         
         # Various thresholds from the input table
@@ -294,7 +301,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
 
         self.slv = MusesLevmarSolver(cfunc,
-                                     rf_uip,
                                      maxIter,
                                      delta_value,
                                      ConvTolerance,   

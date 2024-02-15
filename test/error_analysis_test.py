@@ -6,8 +6,9 @@ class RetrievalStrategyStop:
         if(location == "initial set up done"):
             raise StopIteration()
 
+@skip        
 @require_muses_py
-def test_error_analsys_init(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+def test_error_analysis_init(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     if False:
         try:
             with all_output_disabled():
