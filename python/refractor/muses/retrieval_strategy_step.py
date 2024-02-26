@@ -8,7 +8,6 @@ from pprint import pprint, pformat
 from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
-from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 import numpy as np
 
 logger = logging.getLogger("py-retrieve")
@@ -78,21 +77,10 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         If do_systematic is True, then we use the systematic species list. Not
         exactly sure how this is different then just subsetting the full retrieval,
         but at least for now duplicate what muses-py does.'''
-
-        args, rf_uip, radianceStepIn = rs.cost_function_creator.fm_and_obs_rs(
-                    do_systematic=do_systematic, include_bad_sample=include_bad_sample,
-                    fix_apriori_size=fix_apriori_size,
-                    jacobian_speciesIn=jacobian_speciesIn, **rs.kwargs)
-        cfunc = CostFunction(*args)
-        # If we have an UIP, then update this when the parameters get updated.
-        # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
-        # have no parameters, for example for RetrievalStrategyStepBT. Any time we
-        # have parameters, the basis_matrix shouldn't be None.
-        if(rf_uip is not None and rf_uip.basis_matrix is not None):
-            cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(rf_uip))
-        cfunc.parameters = rf_uip.current_state_x
-        return (cfunc, radianceStepIn)
-        
+        return rs.cost_function_creator.cost_function(
+            do_systematic=do_systematic, include_bad_sample=include_bad_sample,
+            fix_apriori_size=fix_apriori_size,
+            jacobian_speciesIn=jacobian_speciesIn, **rs.kwargs)
 
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     '''There seems to be a few retrieval types that aren't implemented in
@@ -124,9 +112,9 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         jacobianOut = None
         mytiming = None
         logger.info("Running run_forward_model ...")
-        cfunc,radianceStepIn = self.create_cost_function(rs, include_bad_sample=True,
-                                                         fix_apriori_size=True,
-                                                         jacobian_speciesIn=jacobian_speciesNames)
+        cfunc = self.create_cost_function(rs, include_bad_sample=True,
+                                          fix_apriori_size=True,
+                                          jacobian_speciesIn=jacobian_speciesNames)
         radiance_fm = cfunc.max_a_posteriori.model
         freq_fm = np.concatenate([fm.spectral_domain_all().data
                                   for fm in cfunc.max_a_posteriori.forward_model])
@@ -135,7 +123,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
                         "frequency" : freq_fm }
         (rs.strategy_table.strategy_table_dict, rs.state_info.state_info_dict) = mpy.modify_from_bt(
             mpy.ObjectView(rs.strategy_table.strategy_table_dict), rs.table_step,
-            radianceStepIn,
+            rs.cost_function_creator.radiance_step_in,
             radiance_res, rs.windows, rs.state_info.state_info_dict,
             self.BTstruct,
             writeOutputFlag=False)
@@ -235,7 +223,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # nice not to have special handling to add bad samples if we turn around and
         # weed them out.
         if(rs.retrievalInfo.n_speciesSys > 0):
-            cfunc_sys,_ = self.create_cost_function(rs, do_systematic=True,
+            cfunc_sys = self.create_cost_function(rs, do_systematic=True,
                                      include_bad_sample=True, fix_apriori_size=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
@@ -283,14 +271,14 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
-        cfunc,radianceStepIn = self.create_cost_function(rs)
+        cfunc = self.create_cost_function(rs)
         maxIter = int(rs.strategy_table.table_entry("maxNumIterations"))
         
         # Various thresholds from the input table
         ConvTolerance_CostThresh = np.float(rs.strategy_table.preferences["ConvTolerance_CostThresh"])
         ConvTolerance_pThresh = np.float(rs.strategy_table.preferences["ConvTolerance_pThresh"])
         ConvTolerance_JacThresh = np.float(rs.strategy_table.preferences["ConvTolerance_JacThresh"])
-        Chi2Tolerance = 2.0 / len(radianceStepIn["NESR"]) # theoretical value for tolerance
+        Chi2Tolerance = 2.0 / len(rs.cost_function_creator.radiance_step_in["NESR"]) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
             ConvTolerance_CostThresh = 0.00001
             ConvTolerance_pThresh = 0.00001
@@ -308,7 +296,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         if(maxIter > 0):
             self.slv.solve()
         # TODO Hopefully this can go away
-        rs.radianceStep = cfunc.radianceStep(radianceStepIn)
+        rs.radianceStep = cfunc.radianceStep(rs.cost_function_creator.radiance_step_in)
         return self.slv.retrieval_results()
     
 

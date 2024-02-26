@@ -8,7 +8,7 @@ def test_fm_obs_creator_tropomi(joint_tropomi_uip_step_12):
     
     # We test using this else where. Here, just make sure we can
     # call the creation function.
-    (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint, basis_matrix) = creator.fm_and_fake_obs(rf_uip)
+    cf = creator.cost_function_from_uip(rf_uip, None)
 
 @require_muses_py
 def test_fm_obs_creator_omi(joint_omi_uip_step_8):
@@ -17,6 +17,6 @@ def test_fm_obs_creator_omi(joint_omi_uip_step_8):
     
     # We test using this else where. Here, just make sure we can
     # call the creation function.
-    (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint, basis_matrix) = creator.fm_and_fake_obs(rf_uip)
+    cf = creator.cost_function_from_uip(rf_uip, None)
     
     

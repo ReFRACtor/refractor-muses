@@ -1,6 +1,7 @@
 from .refractor_uip import RefractorUip
+from .cost_function import CostFunction
 from .priority_handle_set import PriorityHandleSet
-from .uip_updater import StateVectorUpdateUip
+from .uip_updater import (StateVectorUpdateUip, MaxAPosterioriSqrtConstraintUpdateUip)
 import refractor.framework as rf
 import abc
 import copy
@@ -302,9 +303,29 @@ class CostFunctionCreator:
         if np.all(np.isfinite(radianceStepIn['NESR'])) == False:
             raise RuntimeError('ERROR! radiance error NOT FINITE!')
         return radianceStepIn
-        
 
-    def fm_and_obs_rs(self,
+
+    def cost_function(self, 
+                      do_systematic=False,
+                      jacobian_speciesIn=None,
+                      **kwargs):
+        '''Return cost function for the RetrievalStrategy. Also sets self.radiance_step_in
+        - this is a bit awkward but I think we may replace radiance_steo_in. Right now this is
+        only used in RetrievalStrategyStep.'''
+        args, rf_uip, self.radiance_step_in = self._fm_and_obs_rs(
+            do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
+            **kwargs)
+        cfunc = CostFunction(*args)
+        # If we have an UIP, then update this when the parameters get updated.
+        # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
+        # have no parameters, for example for RetrievalStrategyStepBT. Any time we
+        # have parameters, the basis_matrix shouldn't be None.
+        if(rf_uip is not None and rf_uip.basis_matrix is not None):
+            cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(rf_uip))
+        cfunc.parameters = rf_uip.current_state_x
+        return cfunc
+
+    def _fm_and_obs_rs(self,
                       do_systematic=False,
                       use_full_state_vector=True,
                       jacobian_speciesIn=None,
@@ -344,17 +365,46 @@ class CostFunctionCreator:
         # is set up for rf_uip to None, so we can start moving this out. Right now, if the
         # rf_uip is set, we make sure the rf_uip gets updated when the CostFunction.parameters
         # get updated. But this is only needed if we have a ForwardModel with a rf_uip.
-        return (self.fm_and_obs(rf_uip, ret_info,
+        return (self._fm_and_obs(rf_uip, ret_info,
                                use_full_state_vector=use_full_state_vector,
                                 **kwargs), rf_uip, radianceStepIn)
-                               
+
+    def cost_function_from_uip(self, rf_uip : RefractorUip,
+                               ret_info : dict,
+                               **kwargs):
+        '''Create a cost function from a RefractorUip and a ret_info. Note that this is really
+        just for backwards testing, we are trying to get away from using the RefractorUip because
+        it ties stuff too tightly together.
+
+        As a convenience, ret_info can be passed as None. It is useful
+        to use our CostFunction to calculate the
+        fm_wrapper/run_forward_model function because it has all the
+        logic in place for stitching the different ForwardModel
+        together. However we don't actually have all the data we need
+        to calculate the Observation, nor do we have access to the
+        apriori and sqrt_constraint.  However we don't actually need
+        that to just calculate the ForwardModel data. So it can be
+        useful to create all the pieces and just have dummy data for
+        the missing parts.
+
+        This is entirely a matter of convenience, we could instead just
+        duplicate the stitching together part of our CostFunction and skip
+        this. But for now this seems like the easiest thing thing to do. We
+        can revisit this decision in the future if needed - it is never
+        great to have fake data but in this case seemed the easiest path
+        forward.
+        '''
+        if(ret_info is None):
+            return CostFunction(*self._fm_and_fake_obs(rf_uip, **kwargs))
+        return CostFunction(*self._fm_and_obs(rf_uip, ret_info, **kwargs))
     
-    def fm_and_obs(self, rf_uip : RefractorUip,
+    def _fm_and_obs(self, rf_uip : RefractorUip,
                    ret_info : dict,
                    use_full_state_vector=True,
                    fix_apriori_size=False,
                    identity_basis_matrix=False,
                    **kwargs):
+
         '''This returns a list of ForwardModel and Observation that goes
         with the supplied rf_uip. We also return a StateVector that has
         all the pieces of the ForwardModel and Observation objects
@@ -391,7 +441,7 @@ class CostFunctionCreator:
         return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint,
                 bmatrix)
     
-    def fm_and_fake_obs(self, rf_uip: RefractorUip,
+    def _fm_and_fake_obs(self, rf_uip: RefractorUip,
                         use_full_state_vector=True,
                         identity_basis_matrix=True,
                         **kwargs):
@@ -417,7 +467,7 @@ class CostFunctionCreator:
         fake_ret_info["const_vec"] = np.zeros((1,))
         fake_ret_info["sqrt_constraint"] = np.eye(1)
         (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint, bmatrix) = \
-            self.fm_and_obs(rf_uip, fake_ret_info,
+            self._fm_and_obs(rf_uip, fake_ret_info,
                             use_full_state_vector=use_full_state_vector,
                             identity_basis_matrix=identity_basis_matrix,
                             **kwargs)

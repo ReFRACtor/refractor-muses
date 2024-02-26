@@ -215,8 +215,8 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
             
         # Create a cost function, and use to implement residual_fm_jacobian
         # when we call levmar_nllsq_elanor
-        cfunc = CostFunction(*self.cost_function_creator.fm_and_obs(rf_uip, ret_info,
-                                                             **self.kwargs))
+        cfunc = self.cost_function_creator.cost_function_from_uip(rf_uip, ret_info,
+                                                                  **self.kwargs)
         
         outputDir = i_tableStruct['dirStep']
         dir_tokens = outputDir.split("/")  # e.g. ..//00_AIRS_LAND-20130629_189_000_09/Step01_TATM, H2O, HDO, N2O, CH4, TSUR, CLOUDEXT, EMIS/
@@ -325,9 +325,9 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         # We don't have the Observation for this, but we don't actually use
         # it in fm_wrapper. So we just fake it so we have the proper fields
         # for CostFunction.
-        cfunc = CostFunction(*self.cost_function_creator.fm_and_fake_obs(rf_uip,
-                             **self.kwargs, use_full_state_vector=True,
-                             include_bad_sample=True))
+        cfunc = self.cost_function_creator.cost_function_from_uip(rf_uip, None,
+                                                                  include_bad_sample=True,
+                                                                  **self.kwargs)
         (o_radiance, jac_fm, _, _, _) = cfunc.fm_wrapper(rf_uip.uip, None, {})
         o_jacobian = mpy.jacobian_data(jac_fm, o_radiance['detectors'],
                                        o_radiance['frequency'],

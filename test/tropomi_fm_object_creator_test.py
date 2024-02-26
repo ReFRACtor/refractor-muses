@@ -292,9 +292,9 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     ihandle = TropomiInstrumentHandle(use_pca=False, use_lrad=False,
                                       lrad_second_order=False)
     creator.instrument_handle_set.add_handle(ihandle, priority_order=100)
-    cfunc = CostFunction(*creator.fm_and_obs(rf_uip,
-                                             rrefractor.params["ret_info"],
-                                             vlidort_cli=vlidort_cli))
+    cfunc = creator.cost_function_from_uip(rf_uip,
+                                           rrefractor.params["ret_info"],
+                                           vlidort_cli=vlidort_cli)
     (uip, o_residual, o_jacobian_ret, radiance_out,
      o_jacobianOut, o_stop_flag) = cfunc.residual_fm_jacobian(**rrefractor.params)
 
