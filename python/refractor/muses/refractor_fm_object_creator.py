@@ -7,6 +7,7 @@ from .muses_altitude import MusesAltitude
 from .muses_spectrum_sampling import MusesSpectrumSampling
 from .muses_raman import MusesRaman
 from .refractor_uip import RefractorUip
+from .muses_forward_model import RefractorForwardModel
 import refractor.framework as rf
 import os
 from pathlib import Path
@@ -555,6 +556,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                                self.cloud_fraction)
         res.add_cloud_handling_object(self.pressure)
         res.add_cloud_handling_object(self.ground)
+        if(False):
+            # Add a wrapper in python, so we can get timings include ReFRACtor
+            res = RefractorForwardModel(res)
         #logger.debug("Forward Model: %s", res)
         return res
 

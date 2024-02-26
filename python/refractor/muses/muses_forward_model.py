@@ -115,6 +115,26 @@ class MusesForwardModelBase(rf.ForwardModel):
         gmask = self.bad_sample_mask(sensor_index) != True
         return rf.SpectralDomain(self.rf_uip.frequency_list(self.instrument_name)[gmask], rf.Unit("nm"))
 
+# Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
+# using something like --profile-svg in pytest
+class RefractorForwardModel(rf.ForwardModel):
+    def __init__(self, fm):
+        super().__init__()
+        self.fm = fm
+
+    def setup_grid(self):
+        self.fm.setup_grid()
+    
+    def _v_num_channels(self):
+        return self.fm.num_channels
+
+    def spectral_domain(self, sensor_index):
+        return self.fm.spectral_domain(sensor_index)
+
+    def radiance(self, sensor_index, skip_jacobian = False):
+        print("hi, in radiance")
+        return self.fm.radiance(sensor_index, skip_jacobian)
+        
 class MusesOssForwardModelBase(MusesForwardModelBase):
     '''Common behavior for the OSS based forward models'''
     def __init__(self, rf_uip : RefractorUip, instrument_name, obs,
