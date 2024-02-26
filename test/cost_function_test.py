@@ -1,5 +1,5 @@
 from test_support import *
-from refractor.muses import (FmObsCreator, CostFunction, muses_py_call,
+from refractor.muses import (CostFunctionCreator, CostFunction, muses_py_call,
                              osswrapper)
 import refractor.muses.muses_py as mpy
 
@@ -8,7 +8,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_uip_step_12, vlidort_cli):
     '''Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.'''
     rf_uip = joint_tropomi_uip_step_12
-    creator = FmObsCreator()
+    creator = CostFunctionCreator()
     cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
                                                   use_full_state_vector=True,
                                                   vlidort_cli=vlidort_cli,
@@ -40,7 +40,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_uip_step_12, vlidort_cli):
 @require_muses_py
 def test_fm_wrapper_omi(joint_omi_uip_step_8, vlidort_cli):
     rf_uip = joint_omi_uip_step_8
-    creator = FmObsCreator()
+    creator = CostFunctionCreator()
     cfunc = CostFunction(*creator.fm_and_fake_obs(rf_uip,
                                                   use_full_state_vector=True,
                                                   vlidort_cli=vlidort_cli,
@@ -97,7 +97,7 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
-    creator = FmObsCreator()
+    creator = CostFunctionCreator()
     cfunc = CostFunction(*creator.fm_and_obs(rf_uip,
                                              rrefractor.params["ret_info"],
                                              vlidort_cli=vlidort_cli))
@@ -158,7 +158,7 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
-    creator = FmObsCreator()
+    creator = CostFunctionCreator()
     cfunc = CostFunction(*creator.fm_and_obs(rf_uip,
                                              rrefractor.params["ret_info"],
                                              vlidort_cli=vlidort_cli))

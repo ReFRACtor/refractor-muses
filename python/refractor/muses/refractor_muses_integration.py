@@ -7,7 +7,7 @@ from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .refractor_uip import RefractorUip
 from .retrieval_info import RetrievalInfo
-from .fm_obs_creator import FmObsCreator
+from .cost_function_creator import CostFunctionCreator
 from .cost_function import CostFunction
 from .muses_retrieval_step import MusesRetrievalStep
 from .muses_forward_model_step import MusesForwardModelStep
@@ -53,7 +53,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
     '''
     
     def __init__(self, save_debug_data=False, **kwargs):
-        '''This take the keywords that we pass to FmObsCreator to create
+        '''This take the keywords that we pass to CostFunctionCreator to create
         the forward model and state vector.
 
         If save_debug_data is True, then we save MusesRetrievalStep and
@@ -61,8 +61,8 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         is called. This can then be used to debug any issues with a
         particular step of the processing.
         '''
-        self.fm_obs_creator = FmObsCreator()
-        self.instrument_handle_set = self.fm_obs_creator.instrument_handle_set
+        self.cost_function_creator = CostFunctionCreator()
+        self.instrument_handle_set = self.cost_function_creator.instrument_handle_set
         self.save_debug_data = save_debug_data
         self.kwargs = kwargs
         
@@ -215,7 +215,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
             
         # Create a cost function, and use to implement residual_fm_jacobian
         # when we call levmar_nllsq_elanor
-        cfunc = CostFunction(*self.fm_obs_creator.fm_and_obs(rf_uip, ret_info,
+        cfunc = CostFunction(*self.cost_function_creator.fm_and_obs(rf_uip, ret_info,
                                                              **self.kwargs))
         
         outputDir = i_tableStruct['dirStep']
@@ -325,7 +325,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         # We don't have the Observation for this, but we don't actually use
         # it in fm_wrapper. So we just fake it so we have the proper fields
         # for CostFunction.
-        cfunc = CostFunction(*self.fm_obs_creator.fm_and_fake_obs(rf_uip,
+        cfunc = CostFunction(*self.cost_function_creator.fm_and_fake_obs(rf_uip,
                              **self.kwargs, use_full_state_vector=True,
                              include_bad_sample=True))
         (o_radiance, jac_fm, _, _, _) = cfunc.fm_wrapper(rf_uip.uip, None, {})

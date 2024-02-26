@@ -484,12 +484,12 @@ class StateInfo:
         return (res, strategy_table, i_windows)
     
     def init_state(self, strategy_table : 'StrategyTable',
-                 fm_obs_creator : 'FmObsCreator', instruments_all, run_dir : str):
+                 cost_function_creator : 'CostFunctionCreator', instruments_all, run_dir : str):
         (_, _, _, _, _, _,
          self.state_info_dict) = mpy.script_retrieval_setup_ms(strategy_table.strategy_table_dict, False)
         self.state_info_dict = mpy.states_initial_update(
             self.state_info_dict, strategy_table.strategy_table_dict,
-            fm_obs_creator.radiance(self, instruments_all), instruments_all)
+            cost_function_creator.radiance(self, instruments_all), instruments_all)
 
         # Read some metadata that isn't already available
         tai_time = mpy.tes_file_get_preference(

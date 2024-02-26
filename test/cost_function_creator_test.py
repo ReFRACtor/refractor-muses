@@ -1,10 +1,10 @@
 from test_support import *
-from refractor.muses import FmObsCreator
+from refractor.muses import CostFunctionCreator
 
 @require_muses_py
 def test_fm_obs_creator_tropomi(joint_tropomi_uip_step_12):
     rf_uip = joint_tropomi_uip_step_12
-    creator = FmObsCreator()
+    creator = CostFunctionCreator()
     
     # We test using this else where. Here, just make sure we can
     # call the creation function.
@@ -13,7 +13,7 @@ def test_fm_obs_creator_tropomi(joint_tropomi_uip_step_12):
 @require_muses_py
 def test_fm_obs_creator_omi(joint_omi_uip_step_8):
     rf_uip = joint_omi_uip_step_8
-    creator = FmObsCreator()
+    creator = CostFunctionCreator()
     
     # We test using this else where. Here, just make sure we can
     # call the creation function.

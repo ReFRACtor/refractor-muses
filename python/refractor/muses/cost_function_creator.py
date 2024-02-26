@@ -156,9 +156,9 @@ class InstrumentHandleSet(PriorityHandleSet):
             return (False, None)
         return (True, (fm, obs))
                  
-class FmObsCreator:
-    '''This creates the set of ForwardModel and Observation that goes with
-    a RefractorUip.
+class CostFunctionCreator:
+    '''This creates the set of ForwardModel and Observation and then uses those to
+    create the CostFunction.
 
     The default ForwardModel that does the actual calculations wrap
     the existing py-retrieve forward model functions. But this object is
@@ -427,7 +427,7 @@ class FmObsCreator:
     
 __all__ = ["StateVectorHandle", "StateVectorHandleSet",
            "InstrumentHandle", "InstrumentHandleSet",
-           "FmObsCreator"]
+           "CostFunctionCreator"]
         
         
         

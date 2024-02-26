@@ -7,7 +7,7 @@ from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult
                                      RetrievalPlotRadiance, RetrievalPlotResult)
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .strategy_table import StrategyTable
-from .fm_obs_creator import FmObsCreator
+from .cost_function_creator import CostFunctionCreator
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .error_analysis import ErrorAnalysis
@@ -88,8 +88,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._table_step = -1
 
         self.retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
-        self.fm_obs_creator = FmObsCreator(rs=self)
-        self.instrument_handle_set = self.fm_obs_creator.instrument_handle_set
+        self.cost_function_creator = CostFunctionCreator(rs=self)
+        self.instrument_handle_set = self.cost_function_creator.instrument_handle_set
         self.kwargs = kwargs
         self.kwargs["vlidort_cli"] = vlidort_cli
 
@@ -127,7 +127,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         when this changes in case they need to clear out any caching.'''
         self.notify_update("update target")
         self.retrieval_strategy_step_set.notify_update_target(self)
-        self.fm_obs_creator.notify_update_target(self)
+        self.cost_function_creator.notify_update_target(self)
         self.state_info.notify_update_target(self)
         
 
@@ -194,17 +194,17 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
         # This is a bit convoluted. We are trying to get away from having the various
         # items like o_cris here, pushing that down to the Observation classes. But
-        # we don't have this untangled yet. So get the radiance data from FmObsCreator,
+        # we don't have this untangled yet. So get the radiance data from CostFunctionCreator,
         # which as the side effect of creating a o_cris. We grab this. This is
         # clumsy, and we should replace this. But right now we need o_cris for our
         # create_windows function.
         self.instruments_all = mpy.mw_instruments(
             mpy.table_new_mw_from_all_steps(self.strategy_table.strategy_table_dict))
-        self.fm_obs_creator.create_o_obs()
-        self.o_cris = self.fm_obs_creator.o_cris
+        self.cost_function_creator.create_o_obs()
+        self.o_cris = self.cost_function_creator.o_cris
         
         self.create_windows(all_step=True)
-        self.state_info.init_state(self.strategy_table, self.fm_obs_creator,
+        self.state_info.init_state(self.strategy_table, self.cost_function_creator,
                                    self.instruments_all, self.run_dir)
 
         self.error_analysis = ErrorAnalysis(self.strategy_table, self.state_info)

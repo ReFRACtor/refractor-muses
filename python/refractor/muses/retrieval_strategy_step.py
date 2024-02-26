@@ -79,7 +79,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         exactly sure how this is different then just subsetting the full retrieval,
         but at least for now duplicate what muses-py does.'''
 
-        args, rf_uip, radianceStepIn = rs.fm_obs_creator.fm_and_obs_rs(
+        args, rf_uip, radianceStepIn = rs.cost_function_creator.fm_and_obs_rs(
                     do_systematic=do_systematic, include_bad_sample=include_bad_sample,
                     fix_apriori_size=fix_apriori_size,
                     jacobian_speciesIn=jacobian_speciesIn, **rs.kwargs)

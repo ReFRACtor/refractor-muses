@@ -13,7 +13,7 @@ from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              StrategyTable,
                              OmiEofStateElement,
                              SingleSpeciesHandle,
-                             FmObsCreator, RetrievableStateElement,
+                             RetrievableStateElement,
                              RetrievalStrategyMemoryUse)
 import subprocess
 

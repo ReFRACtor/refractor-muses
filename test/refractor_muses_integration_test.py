@@ -1,6 +1,5 @@
 from test_support import *
-from refractor.muses import (FmObsCreator, CostFunction,
-                             MusesForwardModelStep,
+from refractor.muses import (MusesForwardModelStep,
                              MusesRunDir,
                              RefractorMusesIntegration)
 import refractor.muses.muses_py as mpy

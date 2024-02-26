@@ -7,7 +7,7 @@ from test_support import *
 import refractor.framework as rf
 import glob
 from refractor.muses import (RefractorMusesIntegration, MusesRunDir,
-                             FmObsCreator, CostFunction, MusesForwardModelStep,
+                             CostFunctionCreator, CostFunction, MusesForwardModelStep,
                              StateInfo)
 from refractor.muses import(RefractorFmObjectCreatorNew)
 import subprocess
@@ -288,7 +288,7 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
-    creator = FmObsCreator()
+    creator = CostFunctionCreator()
     ihandle = TropomiInstrumentHandle(use_pca=False, use_lrad=False,
                                       lrad_second_order=False)
     creator.instrument_handle_set.add_handle(ihandle, priority_order=100)
