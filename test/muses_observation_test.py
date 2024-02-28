@@ -1,5 +1,6 @@
 from refractor.muses import (MusesAirsObservationNew, MusesRunDir, MusesAirsObservation,
-                             StrategyTable)
+                             StrategyTable, RetrievalStrategy, ObservationHandleSet,
+                             StateVectorHandleSet)
 import refractor.framework as rf
 from test_support import *
 
@@ -27,10 +28,35 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
     # code mpy.modify_from_bt changes the number of steps
-    obs.spectral_window = stable.spectral_window("AIRS", stp=step_number+1)
+    swin = stable.spectral_window("AIRS", stp=step_number+1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
+    npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
     print(obs_old.radiance(0).spectral_range.data)
+    npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data)
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "AIRS"])
+
+def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
+                                       vlidort_cli):
+    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    obs = MusesAirsObservationNew.create_from_rs(rs)
+    step_number = 8
+    rs.strategy_table.table_step = step_number+1
+    swin = rs.strategy_table.spectral_window("AIRS")
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    print(obs.spectral_domain(0).data)
+    print(obs.radiance(0).spectral_range.data)
+    # Try again from our handle set
+    hset = ObservationHandleSet.default_handle_set()
+    svhandle = StateVectorHandleSet()
+    obs = hset.observation("AIRS", rs, svhandle)
+    try:
+        obs = hset.observation("OMI", rs, svhandle)
+    except RuntimeError:
+        obs = None

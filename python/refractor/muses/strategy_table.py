@@ -214,10 +214,21 @@ class StrategyTable:
             mw_range[spec_channel,i,1] = mw['endd']
         mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
         return rf.SpectralWindowRange(mw_range)
+
+    def filter_list(self, instrument_name):
+        '''Not sure if the order matters here or not. We keep the same order this appears in
+        table_new_mw_from_all_steps. We can revisit this if needed. I'm also not sure how important
+        the filter list is.'''
+        return list(dict.fromkeys([m['filter'] for m in self.microwindows(all_step=True) if m["instrument"] == instrument_name]))
         
-    def microwindows(self, stp=None):
-        return mpy.table_new_mw_from_step(self.strategy_table_dict,
-                                          stp if stp is not None else self.table_step)
+    def microwindows(self, stp=None, all_step=False):
+        '''Microwindows for the given step, used self.table_step is not supplied.
+        If all_step is True, then we return table_new_mw_from_all_steps instead.'''
+        with self.chdir_run_dir():
+            if(all_step):
+                return mpy.table_new_mw_from_all_steps(self.strategy_table_dict)
+            return mpy.table_new_mw_from_step(self.strategy_table_dict,
+                                              stp if stp is not None else self.table_step)
     
     def table_entry(self, nm, stp=None):
         return mpy.table_get_entry(self.strategy_table_dict,

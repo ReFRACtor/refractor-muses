@@ -84,6 +84,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             self.filename = os.path.abspath(filename)
             self.run_dir = os.path.dirname(self.filename)
             self.strategy_table = StrategyTable(self.filename)
+            self.measurement_id_file = mpy.tes_file_get_struct(
+                mpy.read_all_tes(f"{self.run_dir}/Measurement_ID.asc")[1])
         self.vlidort_cli = vlidort_cli
         self._table_step = -1
 
@@ -140,6 +142,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # Delayed setting of filename
         self.filename = os.path.abspath(filename)
         self.run_dir = os.path.dirname(self.filename)
+        self.measurement_id_file = mpy.tes_file_get_struct(
+            mpy.read_all_tes(f"{self.run_dir}/Measurement_ID.asc")[1])
         self.strategy_table = StrategyTable(self.filename)
         self.notify_update_target()
         return self.retrieval_ms()
@@ -198,8 +202,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # which as the side effect of creating a o_cris. We grab this. This is
         # clumsy, and we should replace this. But right now we need o_cris for our
         # create_windows function.
-        self.instruments_all = mpy.mw_instruments(
-            mpy.table_new_mw_from_all_steps(self.strategy_table.strategy_table_dict))
+        self.instruments_all = mpy.mw_instruments(self.strategy_table.microwindows(all_step=True))
         self.cost_function_creator.create_o_obs()
         self.o_cris = self.cost_function_creator.o_cris
         

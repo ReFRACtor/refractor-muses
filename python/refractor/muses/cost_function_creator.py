@@ -103,7 +103,7 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
         pass
         
     @abc.abstractmethod
-    def fm_and_obs(instrument_name : str, rf_uip : RefractorUip,
+    def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
                    svhandle: StateVectorHandleSet,
                    use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
@@ -156,6 +156,64 @@ class InstrumentHandleSet(PriorityHandleSet):
         if(fm is None):
             return (False, None)
         return (True, (fm, obs))
+
+class ObservationHandle(object, metaclass=abc.ABCMeta):
+    '''Base class for InstrumentHandle. Note we use duck typing, so you
+    don't need to actually derive from this object. But it can be
+    useful because it 1) provides the interface and 2) documents
+    that a class is intended for this.
+
+    Note InstrumentHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.'''
+    def notify_update_target(self, rs: 'RetrievalStategy'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        # Default is to do nothing
+        pass
+
+    @abc.abstractmethod
+    def observation(self, instrument_name : str, rs: 'RetrievalStategy',
+                    svhandle: 'StateVectorHandleSet', **kwargs):
+        '''Return Observation if we can process the given instrument_name, or
+        None if we can't. Add and StateVectorHandle needed to the passed in set.
+
+        The StateVectorHandleSet svhandle is modified by having any
+        StateVectorHandle added to it.'''
+        raise NotImplementedError()
+
+class ObservationHandleSet(PriorityHandleSet):
+    '''This takes  the instrument name and a RetrievalStategy, and
+    creates an Observation for that instrument.
+
+    Note ObservationHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next.'''
+    def notify_update_target(self, rs: 'RetrievalStategy'):
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                h.notify_update_target(rs)
+        
+    def observation(self, instrument_name : str, rs: 'RetrievalStategy',
+                    svhandle : StateVectorHandleSet,
+                    **kwargs):
+        '''Create an Observation for the given instrument.
+        
+        The StateVectorHandleSet svhandle is modified by having any
+        StateVectorHandle added to it.'''
+        return self.handle(instrument_name, rs, svhandle,
+                           **kwargs)
+    
+    def handle_h(self, h : ObservationHandle, instrument_name : str,
+                 rs: 'RetrievalStategy',
+                 svhandle : StateVectorHandleSet,
+                 **kwargs):
+        '''Process a registered function'''
+        obs = h.observation(instrument_name, rs, svhandle,**kwargs)
+        if(obs is None):
+            return (False, None)
+        return (True, obs)
                  
 class CostFunctionCreator:
     '''This creates the set of ForwardModel and Observation and then uses those to
@@ -184,6 +242,7 @@ class CostFunctionCreator:
     '''
     def __init__(self, rs : 'Optional(RetrievalStategy)' = None):
         self.instrument_handle_set = copy.deepcopy(InstrumentHandleSet.default_handle_set())
+        self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
         self.notify_update_target(rs)
 
     def notify_update_target(self, rs : 'RetrievalStategy'):
@@ -197,6 +256,7 @@ class CostFunctionCreator:
         self._radiance = None
         self.rs = rs
         self.instrument_handle_set.notify_update_target(rs)
+        self.observation_handle_set.notify_update_target(rs)
 
     def create_o_obs(self):
         if(self._created_o):
@@ -365,6 +425,24 @@ class CostFunctionCreator:
         # is set up for rf_uip to None, so we can start moving this out. Right now, if the
         # rf_uip is set, we make sure the rf_uip gets updated when the CostFunction.parameters
         # get updated. But this is only needed if we have a ForwardModel with a rf_uip.
+        #
+        # Temp, use the new handle if we have it, otherwise we use the old fm_and_obs. We'll
+        # remove this once we have all the obs we need.
+        self.newobslist = []
+        self.state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
+        for instrument_name in rf_uip.instrument:
+            try:
+                #if(do_systematic):
+                #    breakpoint()
+                obs = self.observation_handle_set.observation(instrument_name, self.rs,
+                                                              self.state_vector_handle_set,
+                                                              do_systematic=do_systematic,
+                                                              **kwargs)
+                # Temp, just skip
+                obs = None
+            except RuntimeError:
+                obs = None
+            self.newobslist.append(obs)
         return (self._fm_and_obs(rf_uip, ret_info,
                                use_full_state_vector=use_full_state_vector,
                                 **kwargs), rf_uip, radianceStepIn)
@@ -394,6 +472,8 @@ class CostFunctionCreator:
         great to have fake data but in this case seemed the easiest path
         forward.
         '''
+        self.state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
+        self.newobslist = [None,] * len(rf_uip.instrument)
         if(ret_info is None):
             return CostFunction(*self._fm_and_fake_obs(rf_uip, **kwargs))
         return CostFunction(*self._fm_and_obs(rf_uip, ret_info, **kwargs))
@@ -416,19 +496,23 @@ class CostFunctionCreator:
         '''
         fm_list = []
         obs_list = []
-        state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
         obs_rad = ret_info["obs_rad"]
         meas_err = ret_info["meas_err"]
         sv_apriori = ret_info["const_vec"]
         sv_sqrt_constraint = ret_info["sqrt_constraint"].transpose()
-        for instrument_name in rf_uip.instrument:
+        for i, instrument_name in enumerate(rf_uip.instrument):
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
-                                  rf_uip, state_vector_handle_set,
+                                  rf_uip, self.state_vector_handle_set,
                                   use_full_state_vector=use_full_state_vector,
                                   obs_rad=obs_rad, meas_err=meas_err,**kwargs)
             fm_list.append(fm)
-            obs_list.append(obs)
-        sv = state_vector_handle_set.create_state_vector(rf_uip,
+            # Temp, we use the new obs list if we have a value, fall back to old if not.
+            if(self.newobslist[i] is not None):
+                logger.info(f"Hi there, using {self.newobslist[i]}")
+                obs_list.append(self.newobslist[i])
+            else:
+                obs_list.append(obs)
+        sv = self.state_vector_handle_set.create_state_vector(rf_uip,
                                use_full_state_vector=use_full_state_vector,
                                **kwargs)
         if(identity_basis_matrix):
@@ -477,7 +561,7 @@ class CostFunctionCreator:
     
 __all__ = ["StateVectorHandle", "StateVectorHandleSet",
            "InstrumentHandle", "InstrumentHandleSet",
-           "CostFunctionCreator"]
+           "CostFunctionCreator", "ObservationHandleSet", "ObservationHandle"]
         
         
         

@@ -20,6 +20,13 @@ def _new_from_init(cls, *args):
     inst.__init__(*args)
     return inst
 
+def _new_from_init2(cls, args,kwargs):
+    '''For use with pickle, covers common case where we just store the
+    arguments needed to create an object.'''
+    inst = cls.__new__(cls)
+    inst.__init__(*args, **kwargs)
+    return inst
+
 class MusesObservationBase(rf.ObservationSvImpBase):
     # Note the handling of include_bad_sample is important here. muses-py
     # expects to get all the samples in the forward model run in the routine
@@ -314,15 +321,15 @@ class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
         super().__init__(rf_uip, "TROPOMI", **kwargs)
         
     def __reduce__(self):
-        return (_new_from_init,
-                (self.__class__, self.rf_uip, self.kwargs))
+        return (_new_from_init2,
+                (self.__class__, (self.rf_uip,), self.kwargs))
 
 class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
     def __init__(self, rf_uip : RefractorUip, **kwargs):
         super().__init__(rf_uip, "OMI", **kwargs)
     def __reduce__(self):
-        return (_new_from_init,
-                (self.__class__, self.rf_uip, self.kwargs))
+        return (_new_from_init2,
+                (self.__class__, (self.rf_uip,), self.kwargs))
         
 class MusesCrisForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for CRiS instrument'''
@@ -330,8 +337,8 @@ class MusesCrisForwardModel(MusesOssForwardModelBase):
         super().__init__(rf_uip, "CRIS", obs,
                          use_full_state_vector=use_full_state_vector, **kwargs)
     def __reduce__(self):
-        return (_new_from_init,
-                (self.__class__, self.rf_uip, self.obs, self.kwargs))
+        return (_new_from_init2,
+                (self.__class__, (self.rf_uip, self.obs), self.kwargs))
 
 class MusesCrisObservation(MusesObservationBase):
     '''Wrapper that just returns the passed in measured radiance
@@ -340,7 +347,7 @@ class MusesCrisObservation(MusesObservationBase):
         super().__init__(rf_uip, "CRIS", obs_rad, meas_err, **kwargs)
         
     def __reduce__(self):
-        return (_new_from_init,
+        return (_new_from_init2,
                 (self.__class__, self.rf_uip, self.obs_rad, self.meas_err))
 
 class MusesAirsForwardModel(MusesOssForwardModelBase):
@@ -352,8 +359,8 @@ class MusesAirsForwardModel(MusesOssForwardModelBase):
                          **kwargs)
         
     def __reduce__(self):
-        return (_new_from_init,
-                (self.__class__, self.rf_uip, self.obs, self.kwargs))
+        return (_new_from_init2,
+                (self.__class__, (self.rf_uip, self.obs), self.kwargs))
 
 class MusesAirsObservation(MusesObservationBase):
     '''Wrapper that just returns the passed in measured radiance
