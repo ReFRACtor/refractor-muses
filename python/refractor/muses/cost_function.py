@@ -7,13 +7,6 @@ import logging
 
 logger = logging.getLogger("py-retrieve")
 
-def _new_from_init(cls, *args):
-    '''For use with pickle, covers common case where we just store the
-    arguments needed to create an object.'''
-    inst = cls.__new__(cls)
-    inst.__init__(*args)
-    return inst
-
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     '''This is the cost function we use to interface between ReFRACtor
     and muses-py. This is just a standard rf.NLLSMaxAPosteriori with
@@ -46,16 +39,6 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     def parameters_fm(self):
         '''Parameters on the full forward model grid.'''
         return self.max_a_posteriori.mapping.mapped_state(rf.ArrayAd_double_1(self.parameters)).value
-
-    def __reduce__(self):
-        # Note that this often fails, because self.sv points to
-        # C++ versions of pieces of self.fm_list, which might not
-        # be able to be pickled. We could probably revisit this if
-        # needed, but for now it is better to just try to work around this.
-        return (_new_from_init, (self.obs_list, self.fm_list,
-                                 self.sv, self.sv_apriori,
-                                 self.sv_sqrt_constraint,
-                                 self.basis_matrix))
 
     def should_replace_function(self, func_name, parms):
         return True
