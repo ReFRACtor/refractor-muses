@@ -17,8 +17,11 @@ def test_muses_cris_forward_model(joint_tropomi_uip_step_12):
     meas_err_fake = np.ones(obs_rad_fake.shape)
     obs = MusesCrisObservation(rf_uip, obs_rad = obs_rad_fake, meas_err=meas_err_fake)
     fm = MusesCrisForwardModel(rf_uip, obs)
-    print(pickle.loads(pickle.dumps(obs)))
+    print("hi")
+    #print(pickle.loads(pickle.dumps(obs)))
+    print("hi2")
     print(pickle.loads(pickle.dumps(fm)))
+    print("hi3")
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

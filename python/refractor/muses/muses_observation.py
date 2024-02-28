@@ -22,16 +22,28 @@ class MusesObservation(rf.ObservationSvImpBase):
     We may modify this over time, but this is at least a good place to start.
     '''
     def __init__(self, muses_py_dict, filter_list):
-        super().__init__()
+        super().__init__([])
         self.muses_py_dict = muses_py_dict
         self.filter_list = filter_list
         self._spectral_window = None
+        self._spectral_window_with_bad_sample = None
         self._sd = [None,]
         self._spec = [None,]
         
     def _v_num_channels(self):
         return 1
     
+    @property
+    def spectral_window_with_bad_sample(self):
+        '''SpectralWindow to apply to the observation data, which include bad samples. I'm not
+        sure how much sense it makes, but some of the output includes bad sample data. This
+        applies the spectral window, but not the bad sample removal'''
+        return self._spectral_window_with_bad_sample
+
+    @spectral_window_with_bad_sample.setter
+    def spectral_window_with_bad_sample(self, val):
+        self._spectral_window_with_bad_sample = val
+        
     @property
     def spectral_window(self):
         '''SpectralWindow to apply to the observation data.'''
@@ -48,6 +60,15 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     def spectral_domain(self, sensor_index):
         return self.radiance(sensor_index).spectral_domain
+
+    def radiance_all_with_bad_sample(self):
+        # Assuming just 1 sensor_index, we may need to come back to this
+        freq = self.frequency_full()
+        sindex = np.array(list(range(len(freq)))) + 1
+        sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+        sr = rf.SpectralRange(self.radiance_full(), rf.Unit("sr^-1"), self.nesr_full())
+        sp = rf.Spectrum(sd, sr)
+        return self.spectral_window_with_bad_sample.apply(sp, 0)
 
     def radiance(self, sensor_index, skip_jacobian=False):
         # Not sure how to work with sensor_index, we'll need need to sort that out
@@ -104,7 +125,7 @@ class MusesObservationHandle(ObservationHandle):
 
     def observation(self, instrument_name : str, rs: 'RetrievalStategy',
                     svhandle: 'StateVectorHandleSet', include_bad_sample=False,
-                    do_systematic = False, **kwargs):
+                    **kwargs):
         if(instrument_name != self.instrument_name):
             return None
         if(self.obs is None):
@@ -113,8 +134,17 @@ class MusesObservationHandle(ObservationHandle):
         # state elements in them.
 
         # Update the spectral window
+        
+        # Always include a spectral window which doesn't remove bad samples. I'm not
+        # sure how much sense this makes, but py-retrieve has various output that include
+        # bad samples. We might want to remove this in the future, but for now keep the
+        # option of handling this
         swin = rs.strategy_table.spectral_window(self.instrument_name)
-        if(do_systematic or not include_bad_sample):
+        self.obs.spectral_window_with_bad_sample = swin
+        swin = rs.strategy_table.spectral_window(self.instrument_name)
+        if(not include_bad_sample):
+            # Unless we are told otherwise, also give a spectral window that removes
+            # bad samples
             swin.bad_sample_mask(self.obs.bad_sample_mask(0), 0)
         self.obs.spectral_window = swin
         return self.obs

@@ -432,14 +432,11 @@ class CostFunctionCreator:
         self.state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
         for instrument_name in rf_uip.instrument:
             try:
-                #if(do_systematic):
-                #    breakpoint()
                 obs = self.observation_handle_set.observation(instrument_name, self.rs,
                                                               self.state_vector_handle_set,
-                                                              do_systematic=do_systematic,
                                                               **kwargs)
                 # Temp, just skip
-                obs = None
+                #obs = None
             except RuntimeError:
                 obs = None
             self.newobslist.append(obs)
