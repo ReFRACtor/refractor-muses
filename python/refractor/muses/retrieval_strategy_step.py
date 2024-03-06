@@ -112,12 +112,12 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         jacobianOut = None
         mytiming = None
         logger.info("Running run_forward_model ...")
-        cfunc = self.create_cost_function(rs, include_bad_sample=True,
-                                          fix_apriori_size=True,
-                                          jacobian_speciesIn=jacobian_speciesNames)
-        radiance_fm = cfunc.max_a_posteriori.model
+        self.cfunc = self.create_cost_function(rs, include_bad_sample=True,
+                                               fix_apriori_size=True,
+                                               jacobian_speciesIn=jacobian_speciesNames)
+        radiance_fm = self.cfunc.max_a_posteriori.model
         freq_fm = np.concatenate([fm.spectral_domain_all().data
-                                  for fm in cfunc.max_a_posteriori.forward_model])
+                                  for fm in self.cfunc.max_a_posteriori.forward_model])
         # Put into structure expected by modify_from_bt
         radiance_res = {"radiance" : radiance_fm,
                         "frequency" : freq_fm }
@@ -271,7 +271,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
-        cfunc = self.create_cost_function(rs)
+        self.cfunc = self.create_cost_function(rs)
         maxIter = int(rs.strategy_table.table_entry("maxNumIterations"))
         
         # Various thresholds from the input table
@@ -288,7 +288,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         delta_str = rs.strategy_table.preferences['LMDelta'] # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
 
-        self.slv = MusesLevmarSolver(cfunc,
+        self.slv = MusesLevmarSolver(self.cfunc,
                                      maxIter,
                                      delta_value,
                                      ConvTolerance,   
@@ -296,7 +296,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         if(maxIter > 0):
             self.slv.solve()
         # TODO Hopefully this can go away
-        rs.radianceStep = cfunc.radianceStep(rs.cost_function_creator.radiance_step_in)
+        rs.radianceStep = self.cfunc.radianceStep(rs.cost_function_creator.radiance_step_in)
         return self.slv.retrieval_results()
     
 

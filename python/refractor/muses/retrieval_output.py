@@ -87,6 +87,10 @@ class RetrievalOutput:
     @property
     def radiance_full(self):
         return self.retrieval_strategy.cost_function_creator.radiance(self.retrieval_strategy.state_info, self.retrieval_strategy.instruments_all)
+
+    @property
+    def obs_list(self):
+        return self.retrieval_strategy_step.cfunc.obs_list
     
     @property
     def radianceStep(self):

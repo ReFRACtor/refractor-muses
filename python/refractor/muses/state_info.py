@@ -278,44 +278,6 @@ class SoundingMetadata:
     def is_land(self):
         return self.surface_type == "LAND"
         
-class Level1bAirs:
-    '''This is like a Level1b class from framework, although right now we won't
-    bother making this actually one those. Instead this pulls stuff out of
-    StateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from StateInfo and put this
-    over with the Observation.'''
-    def __init__(self, state_info):
-        self.state_info = state_info
-
-    @property
-    def sounding_desc(self):
-        '''Different types of instruments have different description of the
-        sounding ID. This gets used in retrieval_l2_output for metadata.'''
-        info_file = self.state_info.info_file
-        return {
-            "AIRS_GRANULE" : np.int16(info_file['preferences']['AIRS_Granule']),
-            "AIRS_ATRACK_INDEX" : np.int16(info_file['preferences']['AIRS_ATrack_Index']),
-            "AIRS_XTRACK_INDEX" : np.int16(info_file['preferences']['AIRS_XTrack_Index']),
-            "POINTINGANGLE_AIRS" : abs(self.scan_angle(0).value)
-        }
-            
-    def altitude(self, ind):
-        return rf.DoubleWithUnit(float(self.state_info.state_info_obj.current["airs"]["satHeight"]), "km")
-
-    def latitude(self, ind):
-        return rf.DoubleWithUnit(float(self.state_info.state_info_obj.current["latitude"]), "deg")
-
-    def longitude(self, ind):
-        return rf.DoubleWithUnit(float(self.state_info.state_info_obj.current["longitude"]), "deg")
-
-    def scan_angle(self, ind):
-        return rf.DoubleWithUnit(float(self.state_info.state_info_obj.current["airs"]["scanAng"]), "deg")
-
-    def surface_altitude(self, ind):
-        # Not clear if this is the best place for this, but for now shove here.
-        # Framework didn't have this anywhere I don't think.
-        return rf.DoubleWithUnit(float(self.state_info.state_info_obj.current["tsa"]["surfaceAltitudeKm"]), "km")
-
 class Level1bTes:
     '''This is like a Level1b class from framework, although right now we won't
     bother making this actually one those. Instead this pulls stuff out of
@@ -366,7 +328,7 @@ class Level1bOmi:
         return rf.DoubleWithUnit(float(self.state_info.state_info_obj.current["omi"][f"vza_uv{ind+1}"]), "deg")
     
 
-class Level1bCris:
+class Level1bTropomi:
     '''This is like a Level1b class from framework, although right now we won't
     bother making this actually one those. Instead this pulls stuff out of
     StateInfo and makes in looks like we got it from a Level1bAirs file.
@@ -380,44 +342,8 @@ class Level1bCris:
         '''Different types of instruments have different description of the
         sounding ID. This gets used in retrieval_l2_output for metadata.'''
         info_file = self.state_info.info_file
-        return {
-            "CRIS_GRANULE" : np.int16(info_file['preferences']['CRIS_Granule']),
-            "CRIS_ATRACK_INDEX" : np.int16(info_file['preferences']['CRIS_ATrack_Index']),
-            "CRIS_XTRACK_INDEX" : np.int16(info_file['preferences']['CRIS_XTrack_Index']),
-            "CRIS_PIXEL_INDEX" : np.int16(info_file['preferences']['CRIS_Pixel_Index']),
-            "POINTINGANGLE_CRIS" : abs(self.scan_angle(0).value),
-            "CRIS_L1B_TYPE" : np.int16(self.l1b_type_int)
-        }
-
-    @property
-    def l1b_type_int(self):
-        return ['suomi_nasa_nsr', 'suomi_nasa_fsr', 'suomi_nasa_nomw',
-                'jpss1_nasa_fsr', 'suomi_cspp_fsr','jpss1_cspp_fsr',
-                'jpss2_cspp_fsr'].index(self.l1b_type)
-
-    @property
-    def l1b_type(self):
-        return self.state_info.state_info_dict["current"]["cris"]["l1bType"]
-    
-    def scan_angle(self, ind):
-        return rf.DoubleWithUnit(float(self.state_info.state_info_dict["current"]["cris"]["scanAng"]), "deg")
-
-class Level1bTropomi:
-    '''This is like a Level1b class from framework, although right now we won't
-    bother making this actually one those. Instead this pulls stuff out of
-    StateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from StateInfo and put this
-    over with the Observation.'''
-    def __init__(self, rs):
-        self.state_info = state_info
-        self.info_file = self.state_info.state_info
-
-    @property
-    def sounding_desc(self):
-        '''Different types of instruments have different description of the
-        sounding ID. This gets used in retrieval_l2_output for metadata.'''
         res = {
-            "TROPOMI_ATRACK_INDEX" : np.int16(self.info_file['preferences']['TROPOMI_ATrack_Index'])
+            "TROPOMI_ATRACK_INDEX" : np.int16(info_file['preferences']['TROPOMI_ATrack_Index'])
         }
         for b in range(8):
             res[f"TROPOMI_XTRACK_INDEX_BAND{b+1}"] = self.xtrack_index(b)
@@ -429,7 +355,7 @@ class Level1bTropomi:
         return res
             
     def xtrack_index(self, ind):
-        p = self.info_file["preferences"]
+        p = self.state_info.info_file["preferences"]
         ky = f'TROPOMI_XTrack_Index_BAND{ind+1}'
         return np.int16(p.get(ky, -999))
     
@@ -547,9 +473,9 @@ class StateInfo:
         
     def l1b_file(self, instrument):
         if(instrument == "AIRS"):
-            return Level1bAirs(self)
+            raise RuntimeError("No longer here")
         if(instrument == "CRIS"):
-            return Level1bCris(self)
+            raise RuntimeError("No longer here")
         elif(instrument == "TES"):
             return Level1bTes(self)
         elif(instrument == "OMI"):
