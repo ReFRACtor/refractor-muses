@@ -301,9 +301,46 @@ class MusesCrisObservationNew(MusesObservation):
         microwindows.'''
         return self.muses_py_dict['NESR']
 
+# We'll probably pull some of this out, omi and tropomi are similar    
+class MusesTropomiObservationNew(MusesObservation):
+    def __init__(self, filename_list, irr_filename, cld_filename, xtrack_list, atrack,
+                 utc_time, filter_list, calibration_filename=None, osp_dir=None):
+        # Filter list should be in the same order as filename_list, and should be
+        # things like "BAND3"
+        if(calibration_filename is not None):
+            raise RuntimeError("We don't support TROPOMI calibration yet")
+        i_windows = [{'instrument' : 'TROPOMI', 'filter' : flt} for flt in filter_list]
+        with(osp_setup(osp_dir)):
+            o_tropomi = mpy.read_tropomi(filename_list, irr_filename, cld_filename,
+                                         xtrack_list, atrack, utc_time, i_windows)
+        sdesc = {
+            "TROPOMI_ATRACK_INDEX" : np.int16(atrack),
+            'TROPOMI_XTRACK_INDEX_BAND1': np.int16(-999),
+            'POINTINGANGLE_TROPOMI_BAND1': -999.0,
+            'TROPOMI_XTRACK_INDEX_BAND2': np.int16(-999),
+            'POINTINGANGLE_TROPOMI_BAND2': -999.0,
+            'TROPOMI_XTRACK_INDEX_BAND3': np.int16(-999),
+            'POINTINGANGLE_TROPOMI_BAND3': -999.0,
+            'TROPOMI_XTRACK_INDEX_BAND4': np.int16(-999),
+            'POINTINGANGLE_TROPOMI_BAND4': -999.0,
+            'TROPOMI_XTRACK_INDEX_BAND5': np.int16(-999),
+            'POINTINGANGLE_TROPOMI_BAND5': -999.0,
+            'TROPOMI_XTRACK_INDEX_BAND6': np.int16(-999),
+            'POINTINGANGLE_TROPOMI_BAND6': -999.0,
+            'TROPOMI_XTRACK_INDEX_BAND7': np.int16(-999),
+            'POINTINGANGLE_TROPOMI_BAND7': -999.0,
+            'TROPOMI_XTRACK_INDEX_BAND8': np.int16(-999),
+            'POINTINGANGLE_TROPOMI_BAND8': -999.0,
+        }
+        # TODO Fill in POINTINGANGLE_TROPOMI
+        for i,flt in enumerate(filter_list):
+            sdesc[f'TROPOMI_XTRACK_INDEX_{flt}'] = np.int16(xtrack_list[i])
+            sdesc[f'POINTINGANGLE_TROPOMI_{flt}'] = None
+        super().__init__(o_tropomi, sdesc)
+    
     
 ObservationHandleSet.add_default_handle(MusesObservationHandle("AIRS", MusesAirsObservationNew))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("CRIS", MusesCrisObservationNew))
 
 __all__ = ["MusesAirsObservationNew", "MusesObservation", "MusesObservationHandle",
-           "MusesCrisObservationNew"]
+           "MusesCrisObservationNew", "MusesTropomiObservationNew",]
