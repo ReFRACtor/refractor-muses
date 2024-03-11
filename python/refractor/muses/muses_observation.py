@@ -21,8 +21,11 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     We may modify this over time, but this is at least a good place to start.
     '''
-    def __init__(self, muses_py_dict, sdesc, num_channels=1):
-        super().__init__([])
+    def __init__(self, muses_py_dict, sdesc, num_channels=1, coeff=None,which_retrieved=None):
+        if(coeff is None):
+            super().__init__([])
+        else:
+            super().__init__(coeff, rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
         self.muses_py_dict = muses_py_dict
         self._spectral_window = None
         self._spectral_window_with_bad_sample = None
@@ -122,8 +125,9 @@ class MusesObservation(rf.ObservationSvImpBase):
         raise NotImplementedError
 
     def bad_sample_mask(self, sensor_index):
-        # I think all the radiance data acts the same way, we throw out data with a negative
-        # nesr
+        # Default way to find bad samples is to look for negative NESR. Some of the
+        # the derived objects override this (e.g., Tropomi also check the solar model
+        # for negative values).
         return np.array(self.nesr_full(sensor_index) < 0)
 
 class MusesObservationHandle(ObservationHandle):
@@ -324,6 +328,36 @@ class MusesCrisObservationNew(MusesObservation):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict['NESR']
 
+class MusesDispersion:    
+    '''Helper class, just pull out the calculation of the wavelength at the pixel grid.
+    This is pretty similar to rf.DispersionPolynomial, but there are enough differences
+    that it is worth pulling this out.
+    Note that for convenience we don't actually handle the StateVector here, instead we
+    just handle the routing from the classes that use this.
+
+    Also, we include all pixels, including bad samples. Filtering of bad sample happens
+    outside of this class.
+    '''
+    def __init__(self, original_wav, bad_sample_mask, order):
+        self.orgwav = rf.vector_auto_derivative()
+        for v in original_wav:
+            self.orgwav.append(rf.AutoDerivativeDouble(float(v)))
+        self.offset = rf.AutoDerivativeDouble(0.0)
+        self.slope = rf.AutoDerivativeDouble(0.0)
+        self.order = order
+        self.orgwav_mean = np.mean(original_wav[bad_sample_mask != True])
+
+    def pixel_grid(self):
+        '''Return the pixel grid. This is in "nm", although for convenience we just return
+        the data.'''
+        if(self.order == 1):
+            return [self.orgwav[i] - self.offset for i in range(self.orgwav.size())]
+        elif(self.order == 2):
+            return [self.orgwav[i] - (self.offset+(self.orgwav[i]-self.orgwav_mean) * self.slope) 
+                    for i in range(self.orgwav.size())]
+        else:
+            raise RuntimeError("order needs to be 1 or 2.")
+        
 # We'll probably pull some of this out, omi and tropomi are similar    
 class MusesTropomiObservationNew(MusesObservation):
     def __init__(self, filename_list, irr_filename, cld_filename, xtrack_list, atrack,
@@ -361,7 +395,11 @@ class MusesTropomiObservationNew(MusesObservation):
             # Think this is right
             sdesc[f'POINTINGANGLE_TROPOMI_{flt}'] = o_tropomi["Earth_Radiance"]["ObservationTable"]["ViewingZenithAngle"][i]
         self.filter_list = filter_list
-        super().__init__(o_tropomi, sdesc)
+        # TODO Get this fully working
+        coeff = np.zeros((len(self.filter_list)*3))
+        which_retrieved = [True,]*(len(self.filter_list)*3)
+        super().__init__(o_tropomi, sdesc, num_channels=len(self.filter_list),
+                         coeff=coeff, which_retrieved=which_retrieved)
 
         # Stash some values we use in later calculations. Note that the radiance data
         # is all smooshed together, so we separate this.
@@ -373,6 +411,10 @@ class MusesTropomiObservationNew(MusesObservation):
         self._freq_data = []
         self._nesr_data = []
         self._bsamp = []
+        self._solar_wav = []
+        self._norm_rad_wav = []
+        self._solar_interp = []
+        self._earth_rad = []
         for i,flt in enumerate(filter_list):
             flt_sub = (o_tropomi['Earth_Radiance']['EarthWavelength_Filter'] == flt)
             self._freq_data.append(o_tropomi['Earth_Radiance']['Wavelength'][flt_sub])
@@ -380,7 +422,29 @@ class MusesTropomiObservationNew(MusesObservation):
             self._bsamp.append(
                 (o_tropomi['Earth_Radiance']['EarthRadianceNESR'][flt_sub] <= 0.0)  |
                  (o_tropomi['Solar_Radiance']['AdjustedSolarRadiance'][flt_sub]<=0.0))
+            self._earth_rad.append(o_tropomi['Earth_Radiance']['CalibratedEarthRadiance'][flt_sub])
+            self._solar_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
+                                                  order=1))
+            self._norm_rad_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
+                                                     order=2))
+            # Create a interpolator for the solar model, only using good data.
+            orgwav_good = rf.vector_auto_derivative()
+            for wav in self._freq_data[i][self.bad_sample_mask(i) != True]:
+                orgwav_good.append(rf.AutoDerivativeDouble(float(wav)))
+            solar_data = o_tropomi['Solar_Radiance']['AdjustedSolarRadiance'][flt_sub]
+            solar_good = rf.vector_auto_derivative()
+            for v in solar_data[self.bad_sample_mask(i) != True]:
+                solar_good.append(rf.AutoDerivativeDouble(float(v)))
+            self._solar_interp.append(rf.LinearInterpolateAutoDerivative(orgwav_good, solar_good))
 
+    def notify_update(self, sv):
+        # Not positive about this for more than one channel
+        for i in range(self.num_channels):
+            self._solar_wav[i].offset = self.mapped_state[i*3]
+            self._norm_rad_wav[i].offset = self.mapped_state[i*3+1]
+            self._norm_rad_wav[i].slope = self.mapped_state[i*3+2]
+        self._spec = [None,] * self.num_channels
+        
     def spectral_domain(self, sensor_index):
         # Since self.radiance involves more calculation, give a optimized version of
         # the spectral_domain function for when we just want this.
@@ -394,6 +458,7 @@ class MusesTropomiObservationNew(MusesObservation):
         microwindows.'''
         if(sensor_index < 0 or sensor_index >= self.num_channels):
             raise RuntimeError("sensor_index out of range")
+        print(self.norm_radiance(sensor_index))
         raise NotImplementedError
 
     def frequency_full(self, sensor_index):
@@ -414,6 +479,36 @@ class MusesTropomiObservationNew(MusesObservation):
         if(sensor_index < 0 or sensor_index >= self.num_channels):
             raise RuntimeError("sensor_index out of range")
         return self._bsamp[sensor_index]
+
+    def solar_radiance(self, sensor_index):
+        '''Use our interpolator to get the solar model at the
+        shifted spectrum. This is for all data, so filtering out bad sample happens outside
+        of this function. '''
+        pgrid = self._solar_wav[sensor_index].pixel_grid()
+        return [self._solar_interp[sensor_index](wav) for wav in pgrid]
+
+    def norm_radiance(self, sensor_index):
+        '''Calculate the normalized radiance. This is for all data, so filtering out bad
+        sample happens outside of this function. '''
+        pgrid = self._norm_rad_wav[sensor_index].pixel_grid()
+        ninterp = self._norm_rad_interp(sensor_index)
+        return [ninterp(wav) for wav in pgrid]
+        
+    def _norm_rad_interp(self, sensor_index):
+        '''Calculate the interpolator used for the normalized radiance. This can't be
+        done ahead of time, because the solar radiance used is the interpolated solar
+        radiance.'''
+        orgwav_good = rf.vector_auto_derivative()
+        for wav in self._freq_data[sensor_index][self.bad_sample_mask(sensor_index) != True]:
+            orgwav_good.append(rf.AutoDerivativeDouble(float(wav)))
+        bmask = self.bad_sample_mask(sensor_index)
+        solar_rad = self.solar_radiance(sensor_index)
+        norm_rad_good = rf.vector_auto_derivative()
+        for i in range(len(self._earth_rad[sensor_index])):
+            if(bmask[i] != True):
+                norm_rad_good.append(rf.AutoDerivativeDouble(float(self._earth_rad[sensor_index][i])) / solar_rad[i])
+        return rf.LinearInterpolateAutoDerivative(orgwav_good, norm_rad_good)
+        
     
 ObservationHandleSet.add_default_handle(MusesObservationHandle("AIRS", MusesAirsObservationNew))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("CRIS", MusesCrisObservationNew))

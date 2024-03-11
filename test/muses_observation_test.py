@@ -146,12 +146,15 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     rf_uip.tropomi_params["radsqueeze_BAND3"] = 0.03
     fname = glob.glob(f"{rf_uip.run_dir}/Input/Radiance_TROPOMI*.pkl")[0]
     obs_old = TropomiRadianceRefractor(rf_uip, ["BAND3",], fname)
+    sv = rf.StateVector()
+    sv.add_observer(obs)
     sv2 = rf.StateVector()
     sv2.add_observer(obs_old)
     x2 = np.array([rf_uip.tropomi_params["solarshift_BAND3"],
                    rf_uip.tropomi_params["radianceshift_BAND3"],
                    rf_uip.tropomi_params["radsqueeze_BAND3"],
                    ])
+    sv.update_state(x2)
     sv2.update_state(x2)
     # Note this is off by 1. The table numbering get redone after the BT step. It might
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
