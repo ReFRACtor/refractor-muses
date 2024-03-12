@@ -415,6 +415,7 @@ class MusesTropomiObservationNew(MusesObservation):
         self._norm_rad_wav = []
         self._solar_interp = []
         self._earth_rad = []
+        self._nesr = []
         for i,flt in enumerate(filter_list):
             flt_sub = (o_tropomi['Earth_Radiance']['EarthWavelength_Filter'] == flt)
             self._freq_data.append(o_tropomi['Earth_Radiance']['Wavelength'][flt_sub])
@@ -423,6 +424,7 @@ class MusesTropomiObservationNew(MusesObservation):
                 (o_tropomi['Earth_Radiance']['EarthRadianceNESR'][flt_sub] <= 0.0)  |
                  (o_tropomi['Solar_Radiance']['AdjustedSolarRadiance'][flt_sub]<=0.0))
             self._earth_rad.append(o_tropomi['Earth_Radiance']['CalibratedEarthRadiance'][flt_sub])
+            self._nesr.append(o_tropomi['Earth_Radiance']['EarthRadianceNESR'][flt_sub])
             self._solar_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
                                                   order=1))
             self._norm_rad_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
@@ -452,14 +454,43 @@ class MusesTropomiObservationNew(MusesObservation):
         sindex = np.array(list(range(len(freq)))) + 1
         sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
         return self.spectral_window.apply(sd, sensor_index)
+
+    def radiance(self, sensor_index, skip_jacobian=False):
+        # "Trick" to get radiance_all_with_bad_sample for free. We use the normal
+        # StackedRadianceMixin support, and call radiance_with_bad_sample instead.
+        if(self._force_no_bad_sample):
+            return self.radiance_with_bad_sample(sensor_index)
+        if(self._spec[sensor_index] is None):
+            self._spec[sensor_index] = self.spectral_window.apply(self.spectrum_full(sensor_index),
+                                                                  sensor_index)
+        return self._spec[sensor_index]
+
+    def radiance_with_bad_sample(self, sensor_index):
+        return self.spectral_window_with_bad_sample.apply(self.spectrum_full(sensor_index),
+                                                          sensor_index)
         
-    def radiance_full(self, sensor_index, skip_jacobian=False):
+    def spectrum_full(self, sensor_index, skip_jacobian=False):
         '''The full list of radiance, before we have removed bad samples or applied the
         microwindows.'''
         if(sensor_index < 0 or sensor_index >= self.num_channels):
             raise RuntimeError("sensor_index out of range")
-        print(self.norm_radiance(sensor_index))
-        raise NotImplementedError
+        nrad = self.norm_radiance(sensor_index)
+        uncer = self.norm_rad_nesr(sensor_index)
+        nrad_val = np.array([nrad[i].value for i in range(len(nrad))])
+        snr = nrad_val / uncer
+        uplimit = 500.0
+        tind = np.asarray(snr > uplimit)
+        uncer[tind] = nrad_val[tind] / uplimit
+        uncer[self.bad_sample_mask(sensor_index) == True] = -999.0
+        nrad_ad = rf.ArrayAd_double_1(len(nrad), self.mapped_state.number_variable)
+        for i,v in enumerate(self.bad_sample_mask(sensor_index)):
+            if(v is True):
+                uncer[i] = -999.0
+                nrad_ad[i] = rf.AutoDerivativeDouble(-999.0)
+            else:
+                nrad_ad[i] = nrad[i]
+        sr = rf.SpectralRange(nrad_ad, rf.Unit("sr^-1"), uncer)
+        return rf.Spectrum(self.spectral_domain(sensor_index), sr)
 
     def frequency_full(self, sensor_index):
         '''The full list of frequency, before we have removed bad samples or applied the
@@ -493,6 +524,13 @@ class MusesTropomiObservationNew(MusesObservation):
         pgrid = self._norm_rad_wav[sensor_index].pixel_grid()
         ninterp = self._norm_rad_interp(sensor_index)
         return [ninterp(wav) for wav in pgrid]
+
+    def norm_rad_nesr(self, sensor_index):
+        '''Calculate the normalized radiance. This is for all data, so filtering out bad
+        sample happens outside of this function.'''
+        sol_rad = self.solar_radiance(sensor_index)
+        return np.array([self._nesr[i] / sol_rad[i].value for i in
+                         range(len(self._nesr))])[0,:]
         
     def _norm_rad_interp(self, sensor_index):
         '''Calculate the interpolator used for the normalized radiance. This can't be
