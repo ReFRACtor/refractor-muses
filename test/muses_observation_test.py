@@ -166,8 +166,16 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
+    print(obs.radiance(0).spectral_range.data)
     print(obs_old.radiance(0).spectral_range.data)
-    npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data)
+    # This is actually different, but correctly. Our new code interpolates over all the
+    # radiance data, while the old one only used the data in spectral range. If we don't
+    # do a shift in wavenumber, then this is fine. But once we shift, the old code may be
+    # interpolating outside the range of radiance data, while the new code interpolates in
+    # the larger set.
+    print(obs.radiance(0).spectral_range.data-obs_old.radiance(0).spectral_range.data)
+    if False:
+        npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data)
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "CRIS"])

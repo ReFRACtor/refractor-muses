@@ -441,6 +441,7 @@ class MusesTropomiObservationNew(MusesObservation):
 
     def notify_update(self, sv):
         # Not positive about this for more than one channel
+        super().notify_update(sv)
         for i in range(self.num_channels):
             self._solar_wav[i].offset = self.mapped_state[i*3]
             self._norm_rad_wav[i].offset = self.mapped_state[i*3+1]
@@ -490,7 +491,10 @@ class MusesTropomiObservationNew(MusesObservation):
             else:
                 nrad_ad[i] = nrad[i]
         sr = rf.SpectralRange(nrad_ad, rf.Unit("sr^-1"), uncer)
-        return rf.Spectrum(self.spectral_domain(sensor_index), sr)
+        freq = self.frequency_full(sensor_index)
+        sindex = np.array(list(range(len(freq)))) + 1
+        sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+        return rf.Spectrum(sd, sr)
 
     def frequency_full(self, sensor_index):
         '''The full list of frequency, before we have removed bad samples or applied the

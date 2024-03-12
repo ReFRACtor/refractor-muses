@@ -186,6 +186,7 @@ class TropomiRadianceRefractor(TropomiRadiance):
         for i,j in enumerate(self.good_freq_index()):
             x.append(self.orgwav[j])
             y.append(rf.AutoDerivativeDouble(float(self.earth_rad[j])) / sol_rad[i])
+        
         norm_rad_interp = rf.LinearInterpolateAutoDerivative(x,y)
         delta_wav = self.mapped_state[1]
         delta_wav_slope = self.mapped_state[2]
