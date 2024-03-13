@@ -371,12 +371,15 @@ class MusesDispersion:
     Also, we include all pixels, including bad samples. Filtering of bad sample happens
     outside of this class.
     '''
-    def __init__(self, original_wav, bad_sample_mask, order):
+    def __init__(self, original_wav, bad_sample_mask, offset_func, slope_func, order):
+        '''For convenience, we take the offset and slope as a function. This allows
+        us to directly use data from the Observation class without needing to worry
+        about routing this'''
         self.orgwav = rf.vector_auto_derivative()
         for v in original_wav:
             self.orgwav.append(rf.AutoDerivativeDouble(float(v)))
-        self.offset = rf.AutoDerivativeDouble(0.0)
-        self.slope = rf.AutoDerivativeDouble(0.0)
+        self.offset_func = offset_func
+        self.slope_func = slope_func
         self.order = order
         self.orgwav_mean = np.mean(original_wav[bad_sample_mask != True])
 
@@ -384,9 +387,12 @@ class MusesDispersion:
         '''Return the pixel grid. This is in "nm", although for convenience we just return
         the data.'''
         if(self.order == 1):
-            return [self.orgwav[i] - self.offset for i in range(self.orgwav.size())]
+            offset = self.offset_func()
+            return [self.orgwav[i] - offset for i in range(self.orgwav.size())]
         elif(self.order == 2):
-            return [self.orgwav[i] - (self.offset+(self.orgwav[i]-self.orgwav_mean) * self.slope) 
+            offset = self.offset_func()
+            slope = self.slope_func()
+            return [self.orgwav[i] - (offset+(self.orgwav[i]-self.orgwav_mean) * slope) 
                     for i in range(self.orgwav.size())]
         else:
             raise RuntimeError("order needs to be 1 or 2.")
@@ -459,9 +465,12 @@ class MusesTropomiObservationNew(MusesObservation):
             self._earth_rad.append(o_tropomi['Earth_Radiance']['CalibratedEarthRadiance'][flt_sub])
             self._nesr.append(o_tropomi['Earth_Radiance']['EarthRadianceNESR'][flt_sub])
             self._solar_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
-                                                  order=1))
+                                                   lambda:self.mapped_state[i*3], None,
+                                                   order=1))
             self._norm_rad_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
-                                                     order=2))
+                                                      lambda:self.mapped_state[i*3+1],
+                                                      lambda:self.mapped_state[i*3+2],
+                                                      order=2))
             # Create a interpolator for the solar model, only using good data.
             orgwav_good = rf.vector_auto_derivative()
             for wav in self._freq_data[i][self.bad_sample_mask(i) != True]:
@@ -485,10 +494,6 @@ class MusesTropomiObservationNew(MusesObservation):
             which_retrieved.append(nm in rs.strategy_table.retrieval_elements())
         # Update the coefficients and mapping for this object
         self.init(np.array(coeff), rf.StateMappingAtIndexes(np.ravel(np.array(which_retrieved))))
-        for i in range(self.num_channels):
-            self._solar_wav[i].offset = self.mapped_state[i*3]
-            self._norm_rad_wav[i].offset = self.mapped_state[i*3+1]
-            self._norm_rad_wav[i].slope = self.mapped_state[i*3+2]
         self._spec = [None,] * self.num_channels
         
     @classmethod
@@ -511,10 +516,6 @@ class MusesTropomiObservationNew(MusesObservation):
     def notify_update(self, sv):
         # Not positive about this for more than one channel
         super().notify_update(sv)
-        for i in range(self.num_channels):
-            self._solar_wav[i].offset = self.mapped_state[i*3]
-            self._norm_rad_wav[i].offset = self.mapped_state[i*3+1]
-            self._norm_rad_wav[i].slope = self.mapped_state[i*3+2]
         self._spec = [None,] * self.num_channels
         
     def spectral_domain(self, sensor_index):
