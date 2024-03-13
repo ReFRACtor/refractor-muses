@@ -179,3 +179,24 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "CRIS"])
+
+def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
+                                       vlidort_cli):
+    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    step_number = 12
+    rs.strategy_table.table_step = step_number+1
+    with rs.chdir_run_dir():
+        rs.state_info.init_state(rs.strategy_table, rs.cost_function_creator,
+                                 ["CRIS", "TROPOMI"], rs.run_dir)
+    obs = MusesTropomiObservationNew.create_from_rs(rs)
+    swin = rs.strategy_table.spectral_window("TROPOMI")
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    print(obs.spectral_domain(0).data)
+    print(obs.radiance(0).spectral_range.data)
+    # Try again from our handle set
+    hset = ObservationHandleSet.default_handle_set()
+    svhandle = StateVectorHandleSet()
+    obs = hset.observation("TROPOMI", rs, svhandle)
+    

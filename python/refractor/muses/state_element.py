@@ -2037,7 +2037,89 @@ class MusesPyOmiStateElementHandle(StateElementHandle):
             MusesPyOmiStateElement(state_info, name, "initialInitial"),
             MusesPyOmiStateElement(state_info, name, "initial"),
             MusesPyOmiStateElement(state_info, name, "current")))
+
+class MusesPyTropomiStateElement(MusesPyStateElement):
+    '''MUSES-py groups all the OMI state elements together. While we could pull
+    this apart, the create_uip depends on finding the OMI stuff in a "omi" key
+    in the state info dict. We have no strong reason to pull this out right now.
+    Instead this class handles the mapping.
+
+    Note that new StateElement that don't need to map to the muses-py probably
+    shouldn't use this class, there is no reason to store this information in
+    a separate data structure.'''
+    def __init__(self, state_info : StateInfo, name : str, step : str):
+        super().__init__(state_info, name, step)
+        tropomiInfo = mpy.ObjectView(self.state_info.state_info_obj.current['tropomi'])
+        self.tropomi_key = mpy.get_tropomi_key(tropomiInfo, self.name)
+
+    @property
+    def value(self):
+        return np.array([self.state_info.state_info_dict["current"]["tropomi"][self.tropomi_key]])
+
+    @value.setter
+    def value(self, v):
+        self.state_info.state_info_dict["current"]["tropomi"][self.tropomi_key] = v[0]
+
+    def update_state_element(self, 
+                             retrieval_info: RetrievalInfo,
+                             results_list: np.array,
+                             update_next: bool,
+                             cloud_prefs : dict,
+                             step : int,
+                             do_update_fm : np.array):
+        # Note we assume here that all the mappings are linear. I'm pretty
+        # sure that is the case, we can put the extra logic in if needed.
+        self.value = results_list[retrieval_info.species_list==self.name]
+        ij = retrieval_info.species_names.index(self.name)
+        ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
+        ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
+        do_update_fm[ind1:ind2] = 1
+        next_state = mpy.ObjectView(self.state_info.next_state_dict)
+        if(update_next):
+            self.state_info.next_state_dict["tropomi"][self.tropomi_key] = self.value[0]
+
+    def update_initial_guess(self, strategy_table : StrategyTable):
+        self.mapType = 'linear'
+        self.pressureList = np.array([-2,])
+        self.altitudeList  = np.array([-2,])
+        self.pressureListFM = np.array([-2,])
+        self.altitudeListFM = np.array([-2,])
+        # Apriori
+        self.initialGuessList = self.value
+        self.initialGuessListFM = self.initialGuessList
+        self.constraintVector = np.array([self.state_info.state_info_dict["constraint"]["tropomi"][self.tropomi_key]])
+        self.constraintVectorFM = self.constraintVector
+        if self.state_info.has_true_values():
+            self.trueParameterList = np.array([self.state_info.state_info_dict["true"]["tropomi"][self.tropomi_key]])
+            self.trueParameterListFM = self.trueParameterList
+        else:
+            self.trueParameterList = np.array([0.0])
+            self.trueParameterListFM = self.trueParameterList
+
+        self.minimum = np.array([-999.0])
+        self.maximum = np.array([-999.0])
+        self.maximum_change = np.array([-999.0])
+        self.mapToState = np.eye(1)
+        self.mapToParameters = np.eye(1)
+        # Not sure if the is covariance, or sqrt covariance
+        sfile = self.species_information_file(strategy_table)
+        sSubaDiagonalValues = float(sfile.sSubaDiagonalValues) 
+        self.constraintMatrix = np.diag([1 / (sSubaDiagonalValues * sSubaDiagonalValues)])
         
+
+class MusesPyTropomiStateElementHandle(StateElementHandle):
+    def state_element_object(self, state_info : StateInfo,
+                       name : str) -> \
+            tuple[bool, tuple[StateElement,
+               StateElement, StateElement] | None]:
+        if(name not in mpy.ordered_species_list() or
+           not name.startswith("TROPOMI")):
+            return (False, None)
+        return (True, (
+            MusesPyTropomiStateElement(state_info, name, "initialInitial"),
+            MusesPyTropomiStateElement(state_info, name, "initial"),
+            MusesPyTropomiStateElement(state_info, name, "current")))
+    
 class StateElementOnLevels(MusesPyStateElement):
     '''These are things that are reported on our pressure levels.
     '''
@@ -2179,6 +2261,8 @@ StateElementHandleSet.add_default_handle(SingleSpeciesHandle("cloudEffExt", Clou
 StateElementHandleSet.add_default_handle(StateElementInDictHandle())    
 StateElementHandleSet.add_default_handle(StateElementOnLevelsHandle())
 StateElementHandleSet.add_default_handle(MusesPyOmiStateElementHandle(),
+                                         priority_order = -1)
+StateElementHandleSet.add_default_handle(MusesPyTropomiStateElementHandle(),
                                          priority_order = -1)
 # If nothing else handles a state_element, fall back to the muses-py code.    
 StateElementHandleSet.add_default_handle(MusesPyStateElementHandle(),

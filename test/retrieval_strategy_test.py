@@ -81,7 +81,7 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
                            vlidort_cli=vlidort_cli)
     # Grab each step so we can separately test output
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
-    rs.add_observer(rscap)
+    #rs.add_observer(rscap)
     if False:
         # Use refractor forward model. We default to not, because we are
         # mostly testing everything *other* than the forward model with this

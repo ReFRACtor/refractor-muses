@@ -236,7 +236,8 @@ class TropomiStateVectorHandle(StateVectorHandle):
             self.add_sv_once(sv, self.obj_creator.ground_clear)
         elif(species_name.startswith(("TROPOMISOLARSHIFTBAND", "TROPOMIRADIANCESHIFTBAND", "TROPOMIRADSQUEEZEBAND"))):
             # JLL: this should match any band's radiance/irradiance shift/squeeze variables.
-            self.add_sv_once(sv, self.obj_creator.observation)
+            #self.add_sv_once(sv, self.obj_creator.observation)
+            pass
         elif(species_name.startswith("TROPOMIRINGSFBAND")):
             # JLL: this should match any band's ring scale factor
             sv.add_observer(self.obj_creator.raman_effect[0])

@@ -1,12 +1,28 @@
 from .misc import osp_setup
 from .priority_handle_set import PriorityHandleSet
-from .cost_function_creator import ObservationHandle, ObservationHandleSet
+from .cost_function_creator import ObservationHandle, ObservationHandleSet, StateVectorHandle
 import refractor.muses.muses_py as mpy
 import os
 import numpy as np
 import refractor.framework as rf
 import abc
 
+class StateVectorHandleName(StateVectorHandle):
+    '''I think most of the StateVector attachment will be pretty similar. Not
+    exactly sure of the interface, but we'll start with this and see if we need
+    to change over time.'''
+    def __init__(self, obj_to_add, state_element_name_list):
+        self.obj_to_add = obj_to_add
+        self.state_element_name_list = state_element_name_list
+        
+    def add_sv(self, sv: rf.StateVector, state_element_name : str, 
+               pstart : int, plen : int, **kwargs):
+        if(state_element_name in self.state_element_name_list):
+            self.add_sv_once(sv, self.obj_to_add)
+        else:
+            # Didn't recognize the state_element_name, so we didn't handle this
+            return False
+        return True
     
 class MusesObservation(rf.ObservationSvImpBase):
     '''It isn't clear what exactly we want in this class. The Observation
@@ -130,6 +146,21 @@ class MusesObservation(rf.ObservationSvImpBase):
         # for negative values).
         return np.array(self.nesr_full(sensor_index) < 0)
 
+    def notify_update_rs(self, rs: 'RetrievalStategy'):
+        '''Do anything needed when we are on a new retrieval step. Default is to do nothing.'''
+        pass
+
+    def state_element_name_list(self):
+        '''List of state element names for this observation'''
+        return []
+    
+    def add_state_vector_handle(self, svhandle : StateVectorHandle):
+        '''Add a handle for attaching to the state vector.'''
+        slist = self.state_element_name_list()
+        if(len(slist) > 0):
+            svhandle.add_handle(StateVectorHandleName(self, slist))
+        
+
 class MusesObservationHandle(ObservationHandle):
     '''A lot of our observation classes just map a name to
     a object of a specific class. This handles this generic construction.'''
@@ -168,6 +199,8 @@ class MusesObservationHandle(ObservationHandle):
             # bad samples
             swin.bad_sample_mask(self.obs.bad_sample_mask(0), 0)
         self.obs.spectral_window = swin
+        self.obs.notify_update_rs(rs)
+        self.obs.add_state_vector_handle(svhandle)
         return self.obs
         
 
@@ -439,6 +472,42 @@ class MusesTropomiObservationNew(MusesObservation):
                 solar_good.append(rf.AutoDerivativeDouble(float(v)))
             self._solar_interp.append(rf.LinearInterpolateAutoDerivative(orgwav_good, solar_good))
 
+    def desc(self):
+        return "MusesTropomiObservationNew"
+
+    def notify_update_rs(self, rs: 'RetrievalStategy'):
+        # Grab all the coefficients from the StateInfo (since some of them might not
+        # be in the state vector), and determine which set will be retrieved.
+        coeff = []
+        which_retrieved = []
+        for nm in self.state_element_name_list():
+            coeff.extend(rs.state_info.state_element(nm).value)
+            which_retrieved.append(nm in rs.strategy_table.retrieval_elements())
+        # Update the coefficients and mapping for this object
+        self.init(np.array(coeff), rf.StateMappingAtIndexes(np.ravel(np.array(which_retrieved))))
+        for i in range(self.num_channels):
+            self._solar_wav[i].offset = self.mapped_state[i*3]
+            self._norm_rad_wav[i].offset = self.mapped_state[i*3+1]
+            self._norm_rad_wav[i].slope = self.mapped_state[i*3+2]
+        self._spec = [None,] * self.num_channels
+        
+    @classmethod
+    def create_from_rs(cls, rs: 'RetrievalStategy'):
+        # Measurement ID may have relative paths, so go ahead and run in that directory
+        with rs.chdir_run_dir():
+            p = rs.measurement_id_file['preferences']
+            if(int(p['TROPOMI_Rad_calRun_flag']) != 1):
+                raise RuntimeError("Don't support calibration files yet")
+            filter_list = rs.strategy_table.filter_list("TROPOMI")
+            irr_filename = p['TROPOMI_IRR_filename']
+            cld_filename = p['TROPOMI_Cloud_filename']
+            atrack = int(p['TROPOMI_ATrack_Index'])
+            utc_time = p['TROPOMI_utcTime']
+            filename_list = [p[f"TROPOMI_filename_{flt}"] for flt in filter_list]
+            xtrack_list = [int(p[f"TROPOMI_XTrack_Index_{flt}"]) for flt in filter_list]
+            return cls(filename_list, irr_filename, cld_filename, xtrack_list, atrack,
+                       utc_time, filter_list)
+        
     def notify_update(self, sv):
         # Not positive about this for more than one channel
         super().notify_update(sv)
@@ -550,10 +619,21 @@ class MusesTropomiObservationNew(MusesObservation):
             if(bmask[i] != True):
                 norm_rad_good.append(rf.AutoDerivativeDouble(float(self._earth_rad[sensor_index][i])) / solar_rad[i])
         return rf.LinearInterpolateAutoDerivative(orgwav_good, norm_rad_good)
-        
+
+    def state_element_name_list(self):
+        '''List of state element names for this observation'''
+        res = []
+        for flt in self.filter_list:
+            res.append(f"TROPOMISOLARSHIFT{flt}")
+            res.append(f"TROPOMIRADIANCESHIFT{flt}")
+            res.append(f"TROPOMIRADSQUEEZE{flt}")
+        return res
+    
     
 ObservationHandleSet.add_default_handle(MusesObservationHandle("AIRS", MusesAirsObservationNew))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("CRIS", MusesCrisObservationNew))
+ObservationHandleSet.add_default_handle(MusesObservationHandle("TROPOMI",
+                                                               MusesTropomiObservationNew))
 
 __all__ = ["MusesAirsObservationNew", "MusesObservation", "MusesObservationHandle",
            "MusesCrisObservationNew", "MusesTropomiObservationNew",]
