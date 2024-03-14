@@ -2,8 +2,9 @@ from refractor.muses import (MusesAirsObservationNew, MusesRunDir, MusesAirsObse
                              StrategyTable, RetrievalStrategy, ObservationHandleSet,
                              StateVectorHandleSet, MusesCrisObservationNew,
                              MusesCrisObservation,
-                             MusesTropomiObservationNew)
+                             MusesTropomiObservationNew, MusesOmiObservationNew)
 from refractor.tropomi import TropomiRadianceRefractor
+from refractor.omi import OmiRadiancePyRetrieve
 import refractor.framework as rf
 from test_support import *
 
@@ -178,7 +179,7 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
         npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data)
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
-           if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "CRIS"])
+           if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "TROPOMI"])
 
 def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
@@ -200,3 +201,128 @@ def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
     svhandle = StateVectorHandleSet()
     obs = hset.observation("TROPOMI", rs, svhandle)
     
+def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
+    xtrack_uv1 = 10
+    xtrack_uv2 = 20
+    atrack = 1139
+    filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0401t2215-o62308_v003-2016m0402t041806.he4"
+    cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
+    utc_time = "2016-04-01T23:07:33.676106Z"
+    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+                                 utc_time, calibration_filename,
+                                 ["UV1", "UV2"],
+                                 cld_filename=cld_filename,
+                                 osp_dir=osp_dir)
+    step_number = 8
+    iteration = 2
+    rrefractor = muses_residual_fm_jac(joint_omi_test_in_dir,
+                                       step_number=step_number,
+                                       iteration=iteration,
+                                       osp_dir=osp_dir,
+                                       gmao_dir=gmao_dir,
+                                       path="refractor")
+    rf_uip = RefractorUip(rrefractor.params["uip"],
+                          rrefractor.params["ret_info"]["basis_matrix"])
+    rf_uip.run_dir = rrefractor.run_dir
+    obs_old = OmiRadiancePyRetrieve(rf_uip)
+    sv = rf.StateVector()
+    sv.add_observer(obs)
+    sv2 = rf.StateVector()
+    sv2.add_observer(obs_old)
+    x2 = [0.01, 0.02, 0.03, 0.04, 0.001, 0.002]
+    sv.update_state(x2)
+    sv2.update_state(x2)
+    # Note this is off by 1. The table numbering get redone after the BT step. It might
+    # be nice to straighten this out - this is actually kind of confusing. Might be better to
+    # just have a way to skip steps - but this is at least how the code works. The
+    # code mpy.modify_from_bt changes the number of steps
+    swin = stable.spectral_window("OMI", stp=step_number+1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("OMI", stp=step_number+1)
+    obs.spectral_window_with_bad_sample = swin2
+    print(obs.spectral_domain(0).data)
+    print(obs_old.spectral_domain(0).data)
+    print(obs.spectral_domain(1).data)
+    print(obs_old.spectral_domain(1).data)
+    npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
+    npt.assert_allclose(obs.spectral_domain(1).data, obs_old.spectral_domain(1).data)
+    print("Solar radiance mine")
+    print([v.value for i,v in enumerate(obs.solar_radiance(0)) if obs.bad_sample_mask(0)[i] != True])
+    print([v.value for i,v in enumerate(obs.solar_radiance(1)) if obs.bad_sample_mask(1)[i] != True])
+    print(obs.radiance(0).spectral_range.data)
+    print(obs_old.radiance(0).spectral_range.data)
+    print(obs.radiance(1).spectral_range.data)
+    print(obs_old.radiance(1).spectral_range.data)
+    # This is actually different, the interpolation we use vs muses-py is similiar but
+    # not identical. We except small differences
+    print(obs.radiance(0).spectral_range.data-obs_old.radiance(0).spectral_range.data)
+    print(obs.radiance(1).spectral_range.data-obs_old.radiance(1).spectral_range.data)
+    npt.assert_allclose(obs.radiance(0).spectral_range.data,
+                        obs_old.radiance(0).spectral_range.data, atol=3e-4)
+    npt.assert_allclose(obs.radiance(1).spectral_range.data,
+                        obs_old.radiance(1).spectral_range.data, atol=3e-3)
+    print(obs.radiance_all())
+    print(obs.radiance_all_with_bad_sample())
+    print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
+           range(len(obs_old.rf_uip.uip['microwindows_all']))
+           if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "OMI"])
+
+def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
+                                       vlidort_cli):
+    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    step_number = 8
+    rs.strategy_table.table_step = step_number+1
+    with rs.chdir_run_dir():
+        rs.state_info.init_state(rs.strategy_table, rs.cost_function_creator,
+                                 ["AIRS", "OMI"], rs.run_dir)
+    obs = MusesOmiObservationNew.create_from_rs(rs)
+    swin = rs.strategy_table.spectral_window("OMI")
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
+    obs.spectral_window = swin
+    print(obs.spectral_domain(0).data)
+    print(obs.radiance(0).spectral_range.data)
+    # Try again from our handle set
+    hset = ObservationHandleSet.default_handle_set()
+    svhandle = StateVectorHandleSet()
+    obs = hset.observation("OMI", rs, svhandle)
+    
+def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
+    xtrack_uv1 = 10
+    xtrack_uv2 = 20
+    atrack = 1139
+    filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0401t2215-o62308_v003-2016m0402t041806.he4"
+    cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
+    utc_time = "2016-04-01T23:07:33.676106Z"
+    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+                                 utc_time, calibration_filename,
+                                 ["UV1", "UV2"],
+                                 cld_filename=cld_filename,
+                                 osp_dir=osp_dir)
+    step_number = 3
+    sv = rf.StateVector()
+    sv.add_observer(obs)
+    x2 = [0.01, 0.02, 0.03, 0.04, 0.001, 0.002]
+    sv.update_state(x2)
+    # Note this is off by 1. The table numbering get redone after the BT step. It might
+    # be nice to straighten this out - this is actually kind of confusing. Might be better to
+    # just have a way to skip steps - but this is at least how the code works. The
+    # code mpy.modify_from_bt changes the number of steps
+    swin = stable.spectral_window("OMI", stp=step_number+1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("OMI", stp=step_number+1)
+    obs.spectral_window_with_bad_sample = swin2
+    print(obs.spectral_domain(1).data)
+    print(obs.spectral_domain(1).sample_index)
+    # Check handling of data with bad samples. Should get set to -999
+    print(obs.radiance(1).spectral_range.data)
+    print(obs.radiance_with_bad_sample(1).spectral_range.data)

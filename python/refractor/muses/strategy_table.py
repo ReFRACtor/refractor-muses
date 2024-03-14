@@ -202,16 +202,29 @@ class StrategyTable:
 
         This doesn't include bad sample masking, although that can be added to the
         rf.SpectralWindowRange returned.'''
+        # Not sure to handle this in a generic way. For some instruments we consider
+        # different filters as different sensor_index and for others we don't. For
+        # now just hardcode this, and we can perhaps look for a way to handle this in
+        # the future
+        if(instrument_name in ("OMI", "TROPOMI")):
+            different_filter_different_sensor_index = True
+        else:
+            different_filter_different_sensor_index = False
+
+        filter_list = self.filter_list(instrument_name)
+        if(not different_filter_different_sensor_index):
+            filter_list = [None,]
         mwall = [mw for mw in self.microwindows(stp=stp) if mw['instrument'] == instrument_name]
-        # May need to update logic here, not sure how to handle multiple spectral channels in
-        # an instrument.
-        nspec = 1
-        nmw = len(mwall)
-        mw_range = np.zeros((nspec, nmw, 2))
-        spec_channel = 0
-        for i, mw in enumerate(mwall):
-            mw_range[spec_channel,i,0] = mw['start']
-            mw_range[spec_channel,i,1] = mw['endd']
+        nmw = []
+        for flt in filter_list:
+            mwlist = [mw for mw in mwall if mw['filter'] == flt or flt is None]
+            nmw.append(len(mwlist))
+        mw_range = np.zeros((len(filter_list), max(nmw), 2))
+        for i,flt in enumerate(filter_list):
+            mwlist = [mw for mw in mwall if mw['filter'] == flt or flt is None]
+            for j, mw in enumerate(mwlist):
+                mw_range[i,j,0] = mw['start']
+                mw_range[i,j,1] = mw['endd']
         mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
         return rf.SpectralWindowRange(mw_range)
 

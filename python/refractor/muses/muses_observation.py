@@ -171,6 +171,16 @@ class MusesObservationHandle(ObservationHandle):
         # change - we just update the spectral windows.
         self.obs = None
 
+    def __getstate__(self):
+        # If we pickle, don't include the stashed obs
+        attributes = self.__dict__.copy()
+        del attributes['obs']
+        return attributes
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.obs = None
+
     def notify_update_target(self, rs):
         # Need to read new data when the target changes
         self.obs = None
@@ -197,7 +207,8 @@ class MusesObservationHandle(ObservationHandle):
         if(not include_bad_sample):
             # Unless we are told otherwise, also give a spectral window that removes
             # bad samples
-            swin.bad_sample_mask(self.obs.bad_sample_mask(0), 0)
+            for i in range(self.obs.num_channels):
+                swin.bad_sample_mask(self.obs.bad_sample_mask(i), i)
         self.obs.spectral_window = swin
         self.obs.notify_update_rs(rs)
         self.obs.add_state_vector_handle(svhandle)
@@ -465,12 +476,12 @@ class MusesTropomiObservationNew(MusesObservation):
             self._earth_rad.append(o_tropomi['Earth_Radiance']['CalibratedEarthRadiance'][flt_sub])
             self._nesr.append(o_tropomi['Earth_Radiance']['EarthRadianceNESR'][flt_sub])
             self._solar_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
-                                                   lambda:self.mapped_state[i*3], None,
-                                                   order=1))
+                                  lambda:self.mapped_state[0*len(self.filter_list)+i], None,
+                                  order=1))
             self._norm_rad_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
-                                                      lambda:self.mapped_state[i*3+1],
-                                                      lambda:self.mapped_state[i*3+2],
-                                                      order=2))
+                                  lambda:self.mapped_state[1*len(self.filter_list)+i],
+                                  lambda:self.mapped_state[2*len(self.filter_list)+i],
+                                  order=2))
             # Create a interpolator for the solar model, only using good data.
             orgwav_good = rf.vector_auto_derivative()
             for wav in self._freq_data[i][self.bad_sample_mask(i) != True]:
@@ -524,7 +535,10 @@ class MusesTropomiObservationNew(MusesObservation):
         freq = self.frequency_full(sensor_index)
         sindex = np.array(list(range(len(freq)))) + 1
         sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
-        return self.spectral_window.apply(sd, sensor_index)
+        if(self._force_no_bad_sample):
+            return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
+        else:
+            return self.spectral_window.apply(sd, sensor_index)
 
     def radiance(self, sensor_index, skip_jacobian=False):
         # "Trick" to get radiance_all_with_bad_sample for free. We use the normal
@@ -553,13 +567,9 @@ class MusesTropomiObservationNew(MusesObservation):
         tind = np.asarray(snr > uplimit)
         uncer[tind] = nrad_val[tind] / uplimit
         uncer[self.bad_sample_mask(sensor_index) == True] = -999.0
-        nrad_ad = rf.ArrayAd_double_1(len(nrad), self.mapped_state.number_variable)
+        nrad_ad = rf.ArrayAd_double_1(len(nrad), self.coefficient.number_variable)
         for i,v in enumerate(self.bad_sample_mask(sensor_index)):
-            if(v is True):
-                uncer[i] = -999.0
-                nrad_ad[i] = rf.AutoDerivativeDouble(-999.0)
-            else:
-                nrad_ad[i] = nrad[i]
+            nrad_ad[i] = rf.AutoDerivativeDouble(-999.0) if v == True else nrad[i]
         sr = rf.SpectralRange(nrad_ad, rf.Unit("sr^-1"), uncer)
         freq = self.frequency_full(sensor_index)
         sindex = np.array(list(range(len(freq)))) + 1
@@ -603,8 +613,8 @@ class MusesTropomiObservationNew(MusesObservation):
         '''Calculate the normalized radiance. This is for all data, so filtering out bad
         sample happens outside of this function.'''
         sol_rad = self.solar_radiance(sensor_index)
-        return np.array([self._nesr[i] / sol_rad[i].value for i in
-                         range(len(self._nesr))])[0,:]
+        return np.array([self._nesr[sensor_index][i] / sol_rad[i].value for i in
+                         range(len(self._nesr[sensor_index]))])
         
     def _norm_rad_interp(self, sensor_index):
         '''Calculate the interpolator used for the normalized radiance. This can't be
@@ -626,8 +636,224 @@ class MusesTropomiObservationNew(MusesObservation):
         res = []
         for flt in self.filter_list:
             res.append(f"TROPOMISOLARSHIFT{flt}")
+        for flt in self.filter_list:
             res.append(f"TROPOMIRADIANCESHIFT{flt}")
+        for flt in self.filter_list:
             res.append(f"TROPOMIRADSQUEEZE{flt}")
+        return res
+
+class MusesOmiObservationNew(MusesObservation):
+    '''We should merge a fair amount of this with tropomi, but short term have everything
+    separate'''
+    def __init__(self, filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+                 filter_list, cld_filename=None, osp_dir=None):
+        with(osp_setup(osp_dir)):
+            o_omi = mpy.read_omi(filename, xtrack_uv2, atrack, utc_time, calibration_filename,
+                                 cldFilename=cld_filename)
+        sdesc = {
+            "OMI_ATRACK_INDEX": np.int16(atrack),
+            "OMI_XTRACK_INDEX_UV1": np.int16(xtrack_uv1),
+            "OMI_XTRACK_INDEX_UV2": np.int16(xtrack_uv2),
+            "POINTINGANGLE_OMI" : abs(o_omi["Earth_Radiance"]["ObservationTable"]["ViewingZenithAngle"][0])
+        }
+        self.filter_list = filter_list
+        # TODO Get this fully working
+        coeff = np.zeros((len(self.filter_list)*3))
+        which_retrieved = [True,]*(len(self.filter_list)*3)
+        super().__init__(o_omi, sdesc, num_channels=len(self.filter_list),
+                         coeff=coeff, which_retrieved=which_retrieved)
+
+        # Stash some values we use in later calculations. Note that the radiance data
+        # is all smooshed together, so we separate this.
+        #
+        # It isn't clear here if the best indexing is the full instrument (so 8 bands) with
+        # only some of the bands filled in, or instead the index number into the passed
+        # in filter_list. For now, we are using the index into the filter_list. We can possibly
+        # reevaluate this - it wouldn't be huge change in the code we have here.
+        self._freq_data = []
+        self._nesr_data = []
+        self._bsamp = []
+        self._solar_wav = []
+        self._norm_rad_wav = []
+        self._solar_interp = []
+        self._earth_rad = []
+        self._nesr = []
+        for i,flt in enumerate(self.filter_list):
+            flt_sub = (o_omi['Earth_Radiance']['EarthWavelength_Filter'] == flt)
+            self._freq_data.append(o_omi['Earth_Radiance']['Wavelength'][flt_sub])
+            self._nesr_data.append(o_omi['Earth_Radiance']['EarthRadianceNESR'][flt_sub])
+            self._bsamp.append(
+                (o_omi['Earth_Radiance']['EarthRadianceNESR'][flt_sub] <= 0.0)  |
+                 (o_omi['Solar_Radiance']['AdjustedSolarRadiance'][flt_sub]<=0.0))
+            self._earth_rad.append(o_omi['Earth_Radiance']['CalibratedEarthRadiance'][flt_sub])
+            self._nesr.append(o_omi['Earth_Radiance']['EarthRadianceNESR'][flt_sub])
+            self._solar_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
+                                  lambda:self.mapped_state[0*len(self.filter_list)+i], None,
+                                  order=1))
+            self._norm_rad_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
+                                  lambda:self.mapped_state[1*len(self.filter_list)+i],
+                                  lambda:self.mapped_state[2*len(self.filter_list)+i],
+                                  order=2))
+            # Create a interpolator for the solar model, only using good data.
+            orgwav_good = rf.vector_auto_derivative()
+            for wav in self._freq_data[i][self.bad_sample_mask(i) != True]:
+                orgwav_good.append(rf.AutoDerivativeDouble(float(wav)))
+            solar_data = o_omi['Solar_Radiance']['AdjustedSolarRadiance'][flt_sub]
+            solar_good = rf.vector_auto_derivative()
+            for v in solar_data[self.bad_sample_mask(i) != True]:
+                solar_good.append(rf.AutoDerivativeDouble(float(v)))
+            self._solar_interp.append(rf.LinearInterpolateAutoDerivative(orgwav_good, solar_good))
+
+    def desc(self):
+        return "MusesOmiObservationNew"
+
+    def notify_update_rs(self, rs: 'RetrievalStategy'):
+        # Grab all the coefficients from the StateInfo (since some of them might not
+        # be in the state vector), and determine which set will be retrieved.
+        coeff = []
+        which_retrieved = []
+        for nm in self.state_element_name_list():
+            coeff.extend(rs.state_info.state_element(nm).value)
+            which_retrieved.append(nm in rs.strategy_table.retrieval_elements())
+        # Update the coefficients and mapping for this object
+        self.init(np.array(coeff), rf.StateMappingAtIndexes(np.ravel(np.array(which_retrieved))))
+        self._spec = [None,] * self.num_channels
+        
+    @classmethod
+    def create_from_rs(cls, rs: 'RetrievalStategy'):
+        # Measurement ID may have relative paths, so go ahead and run in that directory
+        with rs.chdir_run_dir():
+            p = rs.measurement_id_file['preferences']
+            filter_list = rs.strategy_table.filter_list("OMI")
+            xtrack_uv1 = int(p["OMI_XTrack_UV1_Index"])
+            xtrack_uv2 = int(p["OMI_XTrack_UV2_Index"])
+            atrack = int(p['OMI_ATrack_Index'])
+            filename = p["OMI_filename"]
+            cld_filename = p['OMI_Cloud_filename']
+            utc_time = p['OMI_utcTime']
+            calibration_filename = rs.strategy_table.preferences["omi_calibrationFilename"]
+            return cls(filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
+                       calibration_filename, filter_list, cld_filename=cld_filename)
+        
+    def notify_update(self, sv):
+        # Not positive about this for more than one channel
+        super().notify_update(sv)
+        self._spec = [None,] * self.num_channels
+        
+    def spectral_domain(self, sensor_index):
+        # Since self.radiance involves more calculation, give a optimized version of
+        # the spectral_domain function for when we just want this.
+        freq = self.frequency_full(sensor_index)
+        sindex = np.array(list(range(len(freq)))) + 1
+        sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+        if(self._force_no_bad_sample):
+            return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
+        else:
+            return self.spectral_window.apply(sd, sensor_index)
+
+    def radiance(self, sensor_index, skip_jacobian=False):
+        # "Trick" to get radiance_all_with_bad_sample for free. We use the normal
+        # StackedRadianceMixin support, and call radiance_with_bad_sample instead.
+        if(self._force_no_bad_sample):
+            return self.radiance_with_bad_sample(sensor_index)
+        if(self._spec[sensor_index] is None):
+            self._spec[sensor_index] = self.spectral_window.apply(self.spectrum_full(sensor_index),
+                                                                  sensor_index)
+        return self._spec[sensor_index]
+
+    def radiance_with_bad_sample(self, sensor_index):
+        return self.spectral_window_with_bad_sample.apply(self.spectrum_full(sensor_index),
+                                                          sensor_index)
+        
+    def spectrum_full(self, sensor_index, skip_jacobian=False):
+        '''The full list of radiance, before we have removed bad samples or applied the
+        microwindows.'''
+        if(sensor_index < 0 or sensor_index >= self.num_channels):
+            raise RuntimeError("sensor_index out of range")
+        nrad = self.norm_radiance(sensor_index)
+        uncer = self.norm_rad_nesr(sensor_index)
+        nrad_val = np.array([nrad[i].value for i in range(len(nrad))])
+        snr = nrad_val / uncer
+        if(self.filter_list[sensor_index] == "UV2"):
+            uplimit = 800.0
+        else:
+            uplimit = 500.0
+        tind = np.asarray(snr > uplimit)
+        uncer[tind] = nrad_val[tind] / uplimit
+        uncer[self.bad_sample_mask(sensor_index) == True] = -999.0
+        nrad_ad = rf.ArrayAd_double_1(len(nrad), self.coefficient.number_variable)
+        for i,v in enumerate(self.bad_sample_mask(sensor_index)):
+            nrad_ad[i] = rf.AutoDerivativeDouble(-999.0) if v == True else nrad[i]
+        sr = rf.SpectralRange(nrad_ad, rf.Unit("sr^-1"), uncer)
+        freq = self.frequency_full(sensor_index)
+        sindex = np.array(list(range(len(freq)))) + 1
+        sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+        return rf.Spectrum(sd, sr)
+
+    def frequency_full(self, sensor_index):
+        '''The full list of frequency, before we have removed bad samples or applied the
+        microwindows.'''
+        if(sensor_index < 0 or sensor_index >= self.num_channels):
+            raise RuntimeError("sensor_index out of range")
+        return self._freq_data[sensor_index]
+
+    def nesr_full(self, sensor_index):
+        '''The full list of NESR, before we have removed bad samples or applied the
+        microwindows.'''
+        if(sensor_index < 0 or sensor_index >= self.num_channels):
+            raise RuntimeError("sensor_index out of range")
+        return self._nesr_data[sensor_index]
+
+    def bad_sample_mask(self, sensor_index):
+        if(sensor_index < 0 or sensor_index >= self.num_channels):
+            raise RuntimeError("sensor_index out of range")
+        return self._bsamp[sensor_index]
+
+    def solar_radiance(self, sensor_index):
+        '''Use our interpolator to get the solar model at the
+        shifted spectrum. This is for all data, so filtering out bad sample happens outside
+        of this function. '''
+        pgrid = self._solar_wav[sensor_index].pixel_grid()
+        return [self._solar_interp[sensor_index](wav) for wav in pgrid]
+
+    def norm_radiance(self, sensor_index):
+        '''Calculate the normalized radiance. This is for all data, so filtering out bad
+        sample happens outside of this function. '''
+        pgrid = self._norm_rad_wav[sensor_index].pixel_grid()
+        ninterp = self._norm_rad_interp(sensor_index)
+        return [ninterp(wav) for wav in pgrid]
+
+    def norm_rad_nesr(self, sensor_index):
+        '''Calculate the normalized radiance. This is for all data, so filtering out bad
+        sample happens outside of this function.'''
+        sol_rad = self.solar_radiance(sensor_index)
+        return np.array([self._nesr[sensor_index][i] / sol_rad[i].value for i in
+                         range(len(self._nesr[sensor_index]))])
+        
+    def _norm_rad_interp(self, sensor_index):
+        '''Calculate the interpolator used for the normalized radiance. This can't be
+        done ahead of time, because the solar radiance used is the interpolated solar
+        radiance.'''
+        orgwav_good = rf.vector_auto_derivative()
+        for wav in self._freq_data[sensor_index][self.bad_sample_mask(sensor_index) != True]:
+            orgwav_good.append(rf.AutoDerivativeDouble(float(wav)))
+        bmask = self.bad_sample_mask(sensor_index)
+        solar_rad = self.solar_radiance(sensor_index)
+        norm_rad_good = rf.vector_auto_derivative()
+        for i in range(len(self._earth_rad[sensor_index])):
+            if(bmask[i] != True):
+                norm_rad_good.append(rf.AutoDerivativeDouble(float(self._earth_rad[sensor_index][i])) / solar_rad[i])
+        return rf.LinearInterpolateAutoDerivative(orgwav_good, norm_rad_good)
+
+    def state_element_name_list(self):
+        '''List of state element names for this observation'''
+        res = []
+        for flt in self.filter_list:
+            res.append(f"OMINRADWAV{flt}")
+        for flt in self.filter_list:
+            res.append(f"OMIODWAV{flt}")
+        for flt in self.filter_list:
+            res.append(f"OMIODWAVSLOPE{flt}")
         return res
     
     
@@ -635,6 +861,9 @@ ObservationHandleSet.add_default_handle(MusesObservationHandle("AIRS", MusesAirs
 ObservationHandleSet.add_default_handle(MusesObservationHandle("CRIS", MusesCrisObservationNew))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("TROPOMI",
                                                                MusesTropomiObservationNew))
+ObservationHandleSet.add_default_handle(MusesObservationHandle("OMI",
+                                                               MusesOmiObservationNew))
 
 __all__ = ["MusesAirsObservationNew", "MusesObservation", "MusesObservationHandle",
-           "MusesCrisObservationNew", "MusesTropomiObservationNew",]
+           "MusesCrisObservationNew", "MusesTropomiObservationNew",
+           "MusesOmiObservationNew"]
