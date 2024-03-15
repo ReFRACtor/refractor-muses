@@ -177,6 +177,9 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     print(obs.radiance(0).spectral_range.data-obs_old.radiance(0).spectral_range.data)
     if False:
         npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data)
+    print(obs.radiance_all().spectral_range.uncertainty)
+    print(obs_old.radiance_all().spectral_range.uncertainty)
+    print((obs.radiance_all().spectral_range.uncertainty - obs_old.radiance_all().spectral_range.uncertainty) / obs_old.radiance_all().spectral_range.uncertainty)
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "TROPOMI"])
@@ -267,6 +270,11 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
                         obs_old.radiance(1).spectral_range.data, atol=3e-3)
     print(obs.radiance_all())
     print(obs.radiance_all_with_bad_sample())
+    print("uncer1")
+    print(obs.radiance_all().spectral_range.uncertainty)
+    print("uncer2")
+    print(obs_old.radiance_all().spectral_range.uncertainty)
+    print((obs.radiance_all().spectral_range.uncertainty - obs_old.radiance_all().spectral_range.uncertainty) / obs_old.radiance_all().spectral_range.uncertainty)
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "OMI"])
@@ -326,3 +334,4 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     # Check handling of data with bad samples. Should get set to -999
     print(obs.radiance(1).spectral_range.data)
     print(obs.radiance_with_bad_sample(1).spectral_range.data)
+    rf.write_shelve("temp.xml", obs)
