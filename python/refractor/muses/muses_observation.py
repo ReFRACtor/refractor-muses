@@ -656,6 +656,12 @@ class MusesOmiObservationNew(MusesObservation):
             "OMI_XTRACK_INDEX_UV2": np.int16(xtrack_uv2),
             "POINTINGANGLE_OMI" : abs(o_omi["Earth_Radiance"]["ObservationTable"]["ViewingZenithAngle"][0])
         }
+        dstruct = mpy.utc_from_string(utc_time)
+        # We double the NESR for OMI from 2010 onward. Not sure of the history of this,
+        # but this is in the muses-py code so we duplicate this here.
+        if(dstruct['utctime'].year >= 2010):
+            o_omi['Earth_Radiance']['EarthRadianceNESR'][o_omi['Earth_Radiance']['EarthRadianceNESR'] > 0] *= 2
+            
         self.filter_list = filter_list
         # TODO Get this fully working
         coeff = np.zeros((len(self.filter_list)*3))
