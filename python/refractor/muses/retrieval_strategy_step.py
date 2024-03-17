@@ -275,9 +275,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         maxIter = int(rs.strategy_table.table_entry("maxNumIterations"))
         
         # Various thresholds from the input table
-        ConvTolerance_CostThresh = np.float(rs.strategy_table.preferences["ConvTolerance_CostThresh"])
-        ConvTolerance_pThresh = np.float(rs.strategy_table.preferences["ConvTolerance_pThresh"])
-        ConvTolerance_JacThresh = np.float(rs.strategy_table.preferences["ConvTolerance_JacThresh"])
+        ConvTolerance_CostThresh = float(rs.strategy_table.preferences["ConvTolerance_CostThresh"])
+        ConvTolerance_pThresh = float(rs.strategy_table.preferences["ConvTolerance_pThresh"])
+        ConvTolerance_JacThresh = float(rs.strategy_table.preferences["ConvTolerance_JacThresh"])
         Chi2Tolerance = 2.0 / len(rs.cost_function_creator.radiance_step_in["NESR"]) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
             ConvTolerance_CostThresh = 0.00001

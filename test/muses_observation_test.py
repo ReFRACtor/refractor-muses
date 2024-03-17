@@ -267,6 +267,10 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
                         obs_old.radiance(1).spectral_range.data, atol=3e-3)
     print(obs.radiance_all())
     print(obs.radiance_all_with_bad_sample())
+    print(obs.radiance_all().spectral_range.uncertainty)
+    print(obs_old.radiance_all().spectral_range.uncertainty)
+    print(obs.radiance_all().spectral_range.uncertainty -obs_old.radiance_all().spectral_range.uncertainty)
+    print(obs.radiance(0).spectral_domain.sample_index)
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "OMI"])

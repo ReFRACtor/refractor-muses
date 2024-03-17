@@ -23,8 +23,8 @@ class MusesLevmarSolver:
         self.bestIter = 0
         self.residualRMS = np.asarray([0])
         self.diag_lambda_rho_delta = np.zeros((1,3))
-        self.stopcrit = np.zeros(shape=(1, 3), dtype=np.int)
-        self.resdiag = np.zeros(shape=(1, 5), dtype=np.int)
+        self.stopcrit = np.zeros(shape=(1, 3), dtype=int)
+        self.resdiag = np.zeros(shape=(1, 5), dtype=int)
         self.radiance_iter = np.zeros((1,1))
         self.iterNum = 0
         self.stopCode = -1

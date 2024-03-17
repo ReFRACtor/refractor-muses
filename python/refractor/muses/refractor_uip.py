@@ -927,7 +927,7 @@ class RefractorUip:
         fm_vec = i_retrieval_vec @ ret_info.basis_matrix
 
         num_map = ret_info.basis_matrix.shape[1] # Get the 2nd dimension of ((163,471).
-        update_arr = np.zeros(shape=(num_map), dtype=np.int)
+        update_arr = np.zeros(shape=(num_map), dtype=int)
 
         for ii in range(num_map):
             if np.sum(ret_info.basis_matrix[:, ii]) != 0.0:
@@ -1194,7 +1194,7 @@ class RefractorUip:
                 o_uip.nirPars['albpl'] = fm_vec[ind_fm] * mult
             elif specie == 'NIRDISP' or specie == 'DISP':
                 # only fill in retrieved values; leave higher order as is
-                npoly = np.int(len(fm_vec[ind_fm])/3)
+                npoly = int(len(fm_vec[ind_fm])/3)
                 for iq in range(0,3):
                     o_uip.nirPars['disp'][iq,0:npoly] = fm_vec[ind_fm[0]+npoly*iq:ind_fm[0]+npoly*(iq+1)]
 

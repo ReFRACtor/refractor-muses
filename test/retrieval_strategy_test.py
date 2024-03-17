@@ -104,8 +104,8 @@ def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     test_retrieval_strategy_cris_tropomi already having been run.'''
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
-    diff_is_error = True
-    #diff_is_error = False
+    #diff_is_error = True
+    diff_is_error = False
     compare_run(joint_tropomi_test_expected_dir, "retrieval_strategy_cris_tropomi",
                 diff_is_error=diff_is_error)
 

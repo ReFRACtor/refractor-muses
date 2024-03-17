@@ -105,7 +105,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
         # For every indices where 'log' is in mapTypeListFM, we take the exponent of myinitial.
         # AT_LINE 49 Update_State.pro
-        myinitial[mapTypeListFM == "log"] = np.exp(myinitial[[mapTypeListFM == "log"]])
+        myinitial[mapTypeListFM == "log"] = np.exp(myinitial[mapTypeListFM == "log"])
 
         # AT_LINE 50 Update_State.pro
 
@@ -307,7 +307,7 @@ class MusesPyStateElement(RetrievableStateElement):
                 my_species = 'albpl'
             elif my_species == 'disp':
                 # update only part of the state
-                npoly = np.int(len(result)/3)
+                npoly = int(len(result)/3)
                 self.state_info.state_info_obj.current['nir']['disp'][:,0:npoly] = np.reshape(result,(3,2))
             elif my_species == 'eof':
                 # reshape
@@ -585,8 +585,8 @@ class MusesPyStateElement(RetrievableStateElement):
                 mapToState = np.transpose(mapDict['to_state'])
                 mapToParameters = np.transpose(mapDict['to_pars'])
 
-                pressureList = np.zeros(mm,dtype=np.float)-999
-                altitudeList = np.zeros(mm,dtype=np.float)-999
+                pressureList = np.zeros(mm,dtype=float)-999
+                altitudeList = np.zeros(mm,dtype=float)-999
 
                 filename = speciesInformationFile.constraintFilename
                 (constraintStruct, constraintPressure) = mpy.constraint_read(filename)
@@ -741,7 +741,7 @@ class MusesPyStateElement(RetrievableStateElement):
             val = np.array((speciesInformationFile.sSubaDiagonalValues).split(','))
             constraintMatrix = np.identity(mm)
             for jj in range(mm):
-                constraintMatrix[jj,jj] = 1/np.float(val[myinds[jj]])/np.float(val[myinds[jj]])
+                constraintMatrix[jj,jj] = 1/float(val[myinds[jj]])/float(val[myinds[jj]])
 
             mapToState = np.identity(mm)
             mapToParameters = np.identity(mm)
@@ -812,11 +812,11 @@ class MusesPyStateElement(RetrievableStateElement):
                         raise RuntimeError("Mismatch in albedo type")
 
 
-                npoly = np.int(len((speciesInformationFile.sSubaDiagonalValues).split(','))/3)
+                npoly = int(len((speciesInformationFile.sSubaDiagonalValues).split(','))/3)
 
                 # get initial maps.  Maps will be updated when ReFRACtor is run
                 nfs = len(stateInfo.current['nir']['albpl'])
-                filename = '../OSP/OCO2/map'+str(nfs)+'x'+str(np.int(npoly*3))+'.nc'
+                filename = '../OSP/OCO2/map'+str(nfs)+'x'+str(int(npoly*3))+'.nc'
                 (_, mapToParameters, _) = nc_read_variable(filename, 'topars')
                 (_, mapToState, _) = nc_read_variable(filename, 'tostate')
 
@@ -1892,10 +1892,10 @@ class MusesPyStateElement(RetrievableStateElement):
         try:
             ff = (speciesInformationFile.minimum).split(',')
             if len(ff) == 1:
-                minimum = minimum*0 + np.float(ff[0])
+                minimum = minimum*0 + float(ff[0])
             else:
                 for ix in range(len(ff)):
-                    minimum[ix] = minimum[ix]*0 + np.float(ff[ix])
+                    minimum[ix] = minimum[ix]*0 + float(ff[ix])
         except:
             pass
 
@@ -1903,10 +1903,10 @@ class MusesPyStateElement(RetrievableStateElement):
         try:
             ff = (speciesInformationFile.maximum).split(',')
             if len(ff) == 1:
-                maximum = maximum*0 + np.float(ff[0])
+                maximum = maximum*0 + float(ff[0])
             else:
                 for ix in range(len(ff)):
-                    maximum[ix] = maximum[ix]*0 + np.float(ff[ix])
+                    maximum[ix] = maximum[ix]*0 + float(ff[ix])
         except:
             pass
 
@@ -1914,10 +1914,10 @@ class MusesPyStateElement(RetrievableStateElement):
         try:
             ff = (speciesInformationFile.maximumChange).split(',')
             if len(ff) == 1:
-                maximum_change = maximum_change*0 + np.float(ff[0])
+                maximum_change = maximum_change*0 + float(ff[0])
             else:
                 for ix in range(len(ff)):
-                    maximum_change[ix] = maximum_change[ix]*0 + np.float(ff[ix])
+                    maximum_change[ix] = maximum_change[ix]*0 + float(ff[ix])
         except:
             pass
 
