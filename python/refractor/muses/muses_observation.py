@@ -732,7 +732,7 @@ class MusesOmiObservationNew(MusesObservationReflectance):
             "OMI_ATRACK_INDEX": np.int16(atrack),
             "OMI_XTRACK_INDEX_UV1": np.int16(xtrack_uv1),
             "OMI_XTRACK_INDEX_UV2": np.int16(xtrack_uv2),
-            "POINTINGANGLE_OMI" : abs(o_omi["Earth_Radiance"]["ObservationTable"]["ViewingZenithAngle"][0])
+            "POINTINGANGLE_OMI" : abs(np.mean(o_omi["Earth_Radiance"]["ObservationTable"]["ViewingZenithAngle"][1:3]))
         }
         dstruct = mpy.utc_from_string(utc_time)
         # We double the NESR for OMI from 2010 onward. Not sure of the history of this,
