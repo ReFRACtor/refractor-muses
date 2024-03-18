@@ -117,6 +117,10 @@ class MusesObservationImp(MusesObservation):
     def _v_num_channels(self):
         return self._num_channels
     
+    def notify_update(self, sv):
+        super().notify_update(sv)
+        self._spec = [None,] * self.num_channels
+        
     @property
     def spectral_window_with_bad_sample(self):
         '''SpectralWindow to apply to the observation data, which include bad samples. I'm not
@@ -143,7 +147,11 @@ class MusesObservationImp(MusesObservation):
         self._spec = [None,] * self.num_channels
 
     def spectral_domain(self, sensor_index):
-        return self.radiance(sensor_index).spectral_domain
+        sd = self.spectral_domain_full(sensor_index)
+        if(self._force_no_bad_sample):
+            return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
+        else:
+            return self.spectral_window.apply(sd, sensor_index)
 
     def radiance_all_with_bad_sample(self):
         try:
@@ -161,32 +169,38 @@ class MusesObservationImp(MusesObservation):
         if(self._force_no_bad_sample):
             return self.radiance_with_bad_sample(sensor_index)
         if(self._spec[sensor_index] is None):
-            # By convention, sample index starts with 1. This was from OCO-2, I'm not
-            # sure if that necessarily makes sense here or not. But I think we have code
-            # that depends on the 1 base.
-            freq = self.frequency_full(sensor_index)
-            sindex = np.array(list(range(len(freq)))) + 1
-            sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
-            sr = rf.SpectralRange(self.radiance_full(sensor_index, skip_jacobian=skip_jacobian),
-                                  rf.Unit("sr^-1"), self.nesr_full(sensor_index))
-            sp = rf.Spectrum(sd, sr)
-            self._spec[sensor_index] = self.spectral_window.apply(sp, sensor_index)
+            self._spec[sensor_index] = self.spectral_window.apply(self.spectrum_full(sensor_index),
+                                                                  sensor_index)
         return self._spec[sensor_index]
 
     def radiance_with_bad_sample(self, sensor_index):
-        freq = self.frequency_full(sensor_index)
-        sindex = np.array(list(range(len(freq)))) + 1
-        sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
-        sr = rf.SpectralRange(self.radiance_full(sensor_index), rf.Unit("sr^-1"),
-                              self.nesr_full(sensor_index))
-        sp = rf.Spectrum(sd, sr)
-        return self.spectral_window_with_bad_sample.apply(sp, sensor_index)
-        
+        return self.spectral_window_with_bad_sample.apply(self.spectrum_full(sensor_index),
+                                                          sensor_index)
+
+    def spectrum_full(self, sensor_index, skip_jacobian=False):
+        '''The full list of radiance, before we have removed bad samples or applied the
+        microwindows.'''
+        if(sensor_index < 0 or sensor_index >= self.num_channels):
+            raise RuntimeError("sensor_index out of range")
+        sd = self.spectral_domain_full(sensor_index)
+        sr = rf.SpectralRange(self.radiance_full(sensor_index, skip_jacobian=skip_jacobian),
+                              rf.Unit("sr^-1"), self.nesr_full(sensor_index))
+        return rf.Spectrum(sd, sr)
+
     def radiance_full(self, sensor_index, skip_jacobian=False):
         '''The full list of radiance, before we have removed bad samples or applied the
         microwindows.'''
         raise NotImplementedError
 
+    def spectral_domain_full(self, sensor_index):
+        '''Spectral domain before we have removed bad samples or applied  the microwindows.'''
+        # By convention, sample index starts with 1. This was from OCO-2, I'm not
+        # sure if that necessarily makes sense here or not. But I think we have code
+        # that depends on the 1 base.
+        freq = self.frequency_full(sensor_index)
+        sindex = np.array(list(range(len(freq)))) + 1
+        return rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+        
     def frequency_full(self, sensor_index):
         '''The full list of frequency, before we have removed bad samples or applied the
         microwindows.'''
@@ -536,36 +550,6 @@ class MusesObservationReflectance(MusesObservationImp):
         self.init(np.array(coeff), rf.StateMappingAtIndexes(np.ravel(np.array(which_retrieved))))
         self._spec = [None,] * self.num_channels
         
-    def notify_update(self, sv):
-        # Not positive about this for more than one channel
-        super().notify_update(sv)
-        self._spec = [None,] * self.num_channels
-        
-    def spectral_domain(self, sensor_index):
-        # Since self.radiance involves more calculation, give a optimized version of
-        # the spectral_domain function for when we just want this.
-        freq = self.frequency_full(sensor_index)
-        sindex = np.array(list(range(len(freq)))) + 1
-        sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
-        if(self._force_no_bad_sample):
-            return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
-        else:
-            return self.spectral_window.apply(sd, sensor_index)
-
-    def radiance(self, sensor_index, skip_jacobian=False):
-        # "Trick" to get radiance_all_with_bad_sample for free. We use the normal
-        # StackedRadianceMixin support, and call radiance_with_bad_sample instead.
-        if(self._force_no_bad_sample):
-            return self.radiance_with_bad_sample(sensor_index)
-        if(self._spec[sensor_index] is None):
-            self._spec[sensor_index] = self.spectral_window.apply(self.spectrum_full(sensor_index),
-                                                                  sensor_index)
-        return self._spec[sensor_index]
-
-    def radiance_with_bad_sample(self, sensor_index):
-        return self.spectral_window_with_bad_sample.apply(self.spectrum_full(sensor_index),
-                                                          sensor_index)
-        
     def frequency_full(self, sensor_index):
         '''The full list of frequency, before we have removed bad samples or applied the
         microwindows.'''
@@ -642,9 +626,7 @@ class MusesObservationReflectance(MusesObservationImp):
         for i,v in enumerate(self.bad_sample_mask(sensor_index)):
             nrad_ad[i] = rf.AutoDerivativeDouble(-999.0) if v == True else nrad[i]
         sr = rf.SpectralRange(nrad_ad, rf.Unit("sr^-1"), uncer)
-        freq = self.frequency_full(sensor_index)
-        sindex = np.array(list(range(len(freq)))) + 1
-        sd = rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
+        sd = self.spectral_domain_full(sensor_index)
         return rf.Spectrum(sd, sr)
     
 
