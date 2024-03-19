@@ -164,13 +164,7 @@ class RetrievalL2Output(RetrievalOutput):
         geo_data.SURFACETYPEFOOTPRINT = np.int32(2 if smeta.is_ocean else 3)        
 
         for i, inst in enumerate(self.instruments):
-            # Temp, we'll get all of this from obs_list in a bit
-            if(hasattr(self.obs_list[i], 'sounding_desc')):
-                geo_data.__dict__.update(self.obs_list[i].sounding_desc)
-                print(f"hi there {inst}")
-                print(self.obs_list[i])
-            else:
-                geo_data.__dict__.update(self.state_info.l1b_file(inst).sounding_desc)
+            geo_data.__dict__.update(self.obs_list[i].sounding_desc)
         
         # get surface type using hres database
         if self.retrievalInfo.is_ocean:

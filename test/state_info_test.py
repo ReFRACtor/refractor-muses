@@ -24,10 +24,6 @@ def test_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    # Check a single value, just to make sure we can read this
-    if False:
-        print(sinfo.l1b_file("CRIS").sounding_desc)
-        print(sinfo.l1b_file("TROPOMI").sounding_desc)
     assert sinfo.sounding_metadata().wrong_tai_time == pytest.approx(839312679.58409)
     assert sinfo.state_element("emissivity").value[0] == pytest.approx(0.98081997)
     assert sinfo.state_element("emissivity").wavelength[0] == pytest.approx(600)
