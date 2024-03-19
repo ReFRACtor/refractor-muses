@@ -2,7 +2,6 @@ try:
     from functools import cached_property
 except ImportError:
     from backports.cached_property import cached_property
-from .tropomi_radiance import TropomiRadianceRefractor, TropomiRadiancePyRetrieve
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, StateVectorHandle,
                              O3Absorber, SwirAbsorber,
@@ -33,20 +32,10 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
         
 
-    @cached_property
-    def observation_py_retrieve(self):
-        return TropomiRadiancePyRetrieve(self.rf_uip,
-                                         include_bad_sample=self.include_bad_sample)
-
-    @cached_property
-    def observation_refractor(self):
-        fname = glob.glob(f"{self.rf_uip.run_dir}/Input/Radiance_TROPOMI*.pkl")[0]
-        return TropomiRadianceRefractor(self.rf_uip, bands=self.filter_name, fname=fname,
-                                        include_bad_sample=self.include_bad_sample)
-
+    # This will go away in a bit
     @property
     def observation(self):
-        return self.observation_refractor
+        return None
 
     @cached_property
     def instrument_correction(self):

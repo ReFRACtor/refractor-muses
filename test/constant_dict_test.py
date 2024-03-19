@@ -1,5 +1,5 @@
 from test_support import *
-from refractor.muses import ConstantDict
+from refractor.old_py_retrieve_wrapper import ConstantDict
 import numpy as np
 
 def test_constant_dict():

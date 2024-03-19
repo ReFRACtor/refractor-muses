@@ -3,12 +3,10 @@
 
 import refractor.muses.muses_py as mpy
 import refractor.framework as rf
-from .replace_function_helper import (suppress_replacement,
-                                      register_replacement_function_in_block)
-from .refractor_uip import RefractorUip
-from .retrieval_info import RetrievalInfo
-from .cost_function_creator import CostFunctionCreator
-from .cost_function import CostFunction
+from refractor.muses import (suppress_replacement,
+                             register_replacement_function_in_block,
+                             RefractorUip, RetrievalInfo, CostFunctionCreator,
+                             CostFunction)
 from .muses_retrieval_step import MusesRetrievalStep
 from .muses_forward_model_step import MusesForwardModelStep
 import numpy as np

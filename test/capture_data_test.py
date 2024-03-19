@@ -1,5 +1,6 @@
 from test_support import *
-from refractor.muses import *
+from refractor.old_py_retrieve_wrapper import RefractorMusesIntegration
+from refractor.muses import MusesRunDir, RetrievalStrategy
 
 # This contains all the capture tests. Note that there is no requirement at
 # all that this be in only one file, but we just collect everything here so

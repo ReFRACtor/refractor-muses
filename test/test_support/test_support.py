@@ -4,10 +4,10 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import (RefractorUip, osswrapper, MusesRetrievalStep,
-                             MusesResidualFmJacobian)
+from refractor.muses import RefractorUip, osswrapper
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
+from refractor.old_py_retrieve_wrapper import MusesResidualFmJacobian, MusesRetrievalStep
 from scipy.io import readsav
 import netCDF4 as ncdf
 import glob

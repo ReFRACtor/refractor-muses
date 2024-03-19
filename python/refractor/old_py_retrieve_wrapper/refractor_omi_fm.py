@@ -1,6 +1,5 @@
-from .omi_fm_object_creator import OmiFmObjectCreator
-from refractor.muses import (RefractorTropOrOmiFmMusesPy,
-                             RefractorTropOrOmiFm)
+from .muses_py_forward_model import (RefractorTropOrOmiFmMusesPy, RefractorTropOrOmiFm)
+from refractor.omi import OmiFmObjectCreator
 import refractor.muses.muses_py as mpy
 import numpy as np
 import pandas as pd

@@ -1,7 +1,6 @@
 from . import muses_py as mpy
 from .replace_function_helper import register_replacement_function_in_block
 from .refractor_capture_directory import RefractorCaptureDirectory
-from .constant_dict import ConstantDict
 from .osswrapper import osswrapper
 import refractor.framework as rf
 import os

@@ -2,7 +2,6 @@ try:
     from functools import cached_property
 except ImportError:
     from backports.cached_property import cached_property
-from .omi_radiance import OmiRadiancePyRetrieve
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, StateVectorHandle,
                              StateVectorHandleSet,
@@ -103,14 +102,10 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return res
         
     
-    @cached_property
-    def observation_py_retrieve(self):
-        return OmiRadiancePyRetrieve(self.rf_uip,
-                                     include_bad_sample=self.include_bad_sample)
-
+    # This will go away in a bit
     @property
     def observation(self):
-        return self.observation_py_retrieve
+        return None
 
     @cached_property
     def solar_reference_filename(self):
