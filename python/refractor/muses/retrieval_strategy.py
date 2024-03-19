@@ -409,7 +409,9 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     def output_directory(self):
         return self.strategy_table.output_directory
 
-    def retrieval_setup(self):
+    # Note this is not used at all. Leave the code here for a bit, because we want to be
+    # able to pull various pieces out of this into other places
+    def retrieval_setup_not_used(self):
         # Not sure we actually want this here, but short term we'll place this here
         # and ideally clean up and separate.
 

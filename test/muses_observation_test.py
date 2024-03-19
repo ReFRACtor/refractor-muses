@@ -45,6 +45,9 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "AIRS"])
+    # Basic test of serialization, just want to make sure we get no errors
+    t = pickle.dumps(obs)
+    obs2 = pickle.loads(t)
 
 def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
@@ -99,6 +102,9 @@ def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "CRIS"])
+    # Basic test of serialization, just want to make sure we get no errors
+    t = pickle.dumps(obs)
+    obs2 = pickle.loads(t)
     
 def test_create_muses_cris_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
@@ -180,6 +186,9 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "TROPOMI"])
+    # Basic test of serialization, just want to make sure we get no errors
+    t = pickle.dumps(obs)
+    obs2 = pickle.loads(t)
 
 def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
@@ -274,6 +283,9 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "OMI"])
+    # Basic test of serialization, just want to make sure we get no errors
+    t = pickle.dumps(obs)
+    obs2 = pickle.loads(t)
 
 def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):

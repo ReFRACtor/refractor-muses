@@ -7,6 +7,13 @@ import numpy as np
 import refractor.framework as rf
 import abc
 
+def _new_from_init(cls, *args):
+    '''For use with pickle, covers common case where we just store the
+    arguments needed to create an object.'''
+    inst = cls.__new__(cls)
+    inst.__init__(*args)
+    return inst
+
 class StateVectorHandleName(StateVectorHandle):
     '''I think most of the StateVector attachment will be pretty similar. Not
     exactly sure of the interface, but we'll start with this and see if we need
@@ -453,15 +460,19 @@ class MusesDispersion:
     Also, we include all pixels, including bad samples. Filtering of bad sample happens
     outside of this class.
     '''
-    def __init__(self, original_wav, bad_sample_mask, offset_func, slope_func, order):
-        '''For convenience, we take the offset and slope as a function. This allows
-        us to directly use data from the Observation class without needing to worry
-        about routing this'''
-        self.orgwav = rf.vector_auto_derivative()
-        for v in original_wav:
-            self.orgwav.append(rf.AutoDerivativeDouble(float(v)))
-        self.offset_func = offset_func
-        self.slope_func = slope_func
+    def __init__(self, original_wav, bad_sample_mask, parent_obj, offset_index,
+                 slope_index, order):
+        '''For convenience, we take the offset and slope as a index into parent.mapped_state.
+        This allows us to directly use data from the Observation class without needing to worry
+        about routing this.
+
+        Note we had previously just passed a lambda function of offset and slope, but we want
+        to be able to pickle this object and we can't pickle lambdas, at least without extra
+        work (e.g., using dill or hand coding something)'''
+        self.orgwav = original_wav.copy()
+        self.parent_obj = parent_obj
+        self.offset_index = offset_index
+        self.slope_index = slope_index
         self.order = order
         self.orgwav_mean = np.mean(original_wav[bad_sample_mask != True])
 
@@ -469,16 +480,50 @@ class MusesDispersion:
         '''Return the pixel grid. This is in "nm", although for convenience we just return
         the data.'''
         if(self.order == 1):
-            offset = self.offset_func()
-            return [self.orgwav[i] - offset for i in range(self.orgwav.size())]
+            offset = self.parent_obj.mapped_state[self.offset_index]
+            return [rf.AutoDerivativeDouble(float(self.orgwav[i])) -
+                    offset for i in range(self.orgwav.shape[0])]
         elif(self.order == 2):
-            offset = self.offset_func()
-            slope = self.slope_func()
-            return [self.orgwav[i] - (offset+(self.orgwav[i]-self.orgwav_mean) * slope) 
-                    for i in range(self.orgwav.size())]
+            offset = self.parent_obj.mapped_state[self.offset_index]
+            slope = self.parent_obj.mapped_state[self.slope_index]
+            return [rf.AutoDerivativeDouble(float(self.orgwav[i])) -
+                    (offset+(rf.AutoDerivativeDouble(float(self.orgwav[i]))-
+                             self.orgwav_mean) * slope) 
+                    for i in range(self.orgwav.shape[0])]
         else:
             raise RuntimeError("order needs to be 1 or 2.")
-        
+
+class LinearInterpolate(rf.LinearInterpolateAutoDerivative):
+    '''The refractor LinearInterpolateAutoDerivative is what we want to use for our
+    interpolation, but it is pretty low level and is also not something that can be
+    pickled. We add a little higher level interface here. This might be generally useful,
+    we can elevate this if it turns out to be useful. But right now, this just lives in
+    our MusesObservation code.'''
+    def __init__(self, x, y):
+        self.x = x.copy()
+        self.y = y.copy()
+        x_ad = rf.vector_auto_derivative()
+        y_ad = rf.vector_auto_derivative()
+        for xv in self.x:
+            x_ad.append(rf.AutoDerivativeDouble(float(xv)))
+        for yv in self.y:
+            y_ad.append(rf.AutoDerivativeDouble(float(yv)))
+        super().__init__(x_ad, y_ad)
+
+    def __reduce__(self):
+        return (_new_from_init, (self.__class__, self.x, self.y))
+
+class LinearInterpolate2(rf.LinearInterpolateAutoDerivative):
+    def __init__(self, x, y):
+        self.x = x.copy()
+        self.y = y.copy()
+        x_ad = rf.vector_auto_derivative()
+        y_ad = rf.vector_auto_derivative()
+        for xv in self.x:
+            x_ad.append(rf.AutoDerivativeDouble(float(xv)))
+        for yv in self.y:
+            y_ad.append(yv)
+        super().__init__(x_ad, y_ad)
     
 class MusesObservationReflectance(MusesObservationImp):
     '''Both omi and tropomi actually use reflectance rather than radiance. In additon,
@@ -519,21 +564,17 @@ class MusesObservationReflectance(MusesObservationImp):
             self._earth_rad.append(muses_py_dict['Earth_Radiance']['CalibratedEarthRadiance'][flt_sub])
             self._nesr.append(muses_py_dict['Earth_Radiance']['EarthRadianceNESR'][flt_sub])
             self._solar_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
-                                  lambda:self.mapped_state[0*len(self.filter_list)+i], None,
-                                  order=1))
+                                                   self, 0*len(self.filter_list)+i, None,
+                                                   order=1))
             self._norm_rad_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
-                                  lambda:self.mapped_state[1*len(self.filter_list)+i],
-                                  lambda:self.mapped_state[2*len(self.filter_list)+i],
-                                  order=2))
+                                                      self, 1*len(self.filter_list)+i,
+                                                      2*len(self.filter_list)+i,
+                                                      order=2))
             # Create a interpolator for the solar model, only using good data.
-            orgwav_good = rf.vector_auto_derivative()
-            for wav in self._freq_data[i][self.bad_sample_mask(i) != True]:
-                orgwav_good.append(rf.AutoDerivativeDouble(float(wav)))
             solar_data = muses_py_dict['Solar_Radiance']['AdjustedSolarRadiance'][flt_sub]
-            solar_good = rf.vector_auto_derivative()
-            for v in solar_data[self.bad_sample_mask(i) != True]:
-                solar_good.append(rf.AutoDerivativeDouble(float(v)))
-            self._solar_interp.append(rf.LinearInterpolateAutoDerivative(orgwav_good, solar_good))
+            orgwav_good = self._freq_data[i][self.bad_sample_mask(i) != True]
+            solar_good = solar_data[self.bad_sample_mask(i) != True]
+            self._solar_interp.append(LinearInterpolate(orgwav_good, solar_good))
 
     def desc(self):
         return "MusesObservationReflectance"
@@ -594,16 +635,12 @@ class MusesObservationReflectance(MusesObservationImp):
         '''Calculate the interpolator used for the normalized radiance. This can't be
         done ahead of time, because the solar radiance used is the interpolated solar
         radiance.'''
-        orgwav_good = rf.vector_auto_derivative()
-        for wav in self._freq_data[sensor_index][self.bad_sample_mask(sensor_index) != True]:
-            orgwav_good.append(rf.AutoDerivativeDouble(float(wav)))
-        bmask = self.bad_sample_mask(sensor_index)
         solar_rad = self.solar_radiance(sensor_index)
-        norm_rad_good = rf.vector_auto_derivative()
-        for i in range(len(self._earth_rad[sensor_index])):
-            if(bmask[i] != True):
-                norm_rad_good.append(rf.AutoDerivativeDouble(float(self._earth_rad[sensor_index][i])) / solar_rad[i])
-        return rf.LinearInterpolateAutoDerivative(orgwav_good, norm_rad_good)
+        norm_rad_good = [rf.AutoDerivativeDouble(self._earth_rad[sensor_index][i]) / solar_rad[i]
+                         for i in range(len(self._earth_rad[sensor_index]))
+                         if self.bad_sample_mask(sensor_index)[i] != True]
+        orgwav_good = self._freq_data[sensor_index][self.bad_sample_mask(sensor_index) != True]
+        return LinearInterpolate2(orgwav_good, norm_rad_good)
 
     def snr_uplimit(self,sensor_index):
         '''Upper limit for SNR, we adjust uncertainty is we are greater than this.'''
