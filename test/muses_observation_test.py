@@ -3,7 +3,7 @@ from refractor.muses import (MusesAirsObservationNew, MusesRunDir, MusesAirsObse
                              StateVectorHandleSet, MusesCrisObservationNew,
                              MusesCrisObservation,
                              MusesTropomiObservationNew, MusesOmiObservationNew)
-from refractor.tropomi import TropomiRadianceRefractor
+from refractor.tropomi import TropomiRadiancePyRetrieve
 from refractor.omi import OmiRadiancePyRetrieve
 import refractor.framework as rf
 from test_support import *
@@ -152,7 +152,7 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     rf_uip.tropomi_params["radianceshift_BAND3"] = 0.02
     rf_uip.tropomi_params["radsqueeze_BAND3"] = 0.03
     fname = glob.glob(f"{rf_uip.run_dir}/Input/Radiance_TROPOMI*.pkl")[0]
-    obs_old = TropomiRadianceRefractor(rf_uip, ["BAND3",], fname)
+    obs_old = TropomiRadiancePyRetrieve(rf_uip)
     sv = rf.StateVector()
     sv.add_observer(obs)
     sv2 = rf.StateVector()
@@ -170,19 +170,23 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     swin = stable.spectral_window("TROPOMI", stp=step_number+1)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
+    swin2 = stable.spectral_window("TROPOMI", stp=step_number+1)
+    obs.spectral_window_with_bad_sample = swin2
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
     print(obs_old.radiance(0).spectral_range.data)
-    # This is actually different, but correctly. Our new code interpolates over all the
-    # radiance data, while the old one only used the data in spectral range. If we don't
-    # do a shift in wavenumber, then this is fine. But once we shift, the old code may be
-    # interpolating outside the range of radiance data, while the new code interpolates in
-    # the larger set.
     print(obs.radiance(0).spectral_range.data-obs_old.radiance(0).spectral_range.data)
-    if False:
-        npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data)
+    npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data, atol=1e-6)
+    print(obs.radiance_all())
+    print(obs.radiance_all_with_bad_sample())
+    print(obs.radiance_all().spectral_range.uncertainty)
+    print(obs_old.radiance_all().spectral_range.uncertainty)
+    npt.assert_allclose(obs.radiance_all().spectral_range.uncertainty,
+                        obs_old.radiance_all().spectral_range.uncertainty, atol=1e-9)
+    print(obs.radiance_all().spectral_range.uncertainty -obs_old.radiance_all().spectral_range.uncertainty)
+    print(obs.radiance(0).spectral_domain.sample_index)
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
            range(len(obs_old.rf_uip.uip['microwindows_all']))
            if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "TROPOMI"])
@@ -234,6 +238,12 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
                                        path="refractor")
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
+    rf_uip.omi_params["nradwav_uv1"] = 0.01
+    rf_uip.omi_params["nradwav_uv2"] = 0.02
+    rf_uip.omi_params["odwav_uv1"] = 0.03
+    rf_uip.omi_params["odwav_uv2"] = 0.04
+    rf_uip.omi_params["odwav_slope_uv1"] = 0.001
+    rf_uip.omi_params["odwav_slope_uv2"] = 0.002
     rf_uip.run_dir = rrefractor.run_dir
     obs_old = OmiRadiancePyRetrieve(rf_uip)
     sv = rf.StateVector()
@@ -271,13 +281,15 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     print(obs.radiance(0).spectral_range.data-obs_old.radiance(0).spectral_range.data)
     print(obs.radiance(1).spectral_range.data-obs_old.radiance(1).spectral_range.data)
     npt.assert_allclose(obs.radiance(0).spectral_range.data,
-                        obs_old.radiance(0).spectral_range.data, atol=3e-4)
+                        obs_old.radiance(0).spectral_range.data)
     npt.assert_allclose(obs.radiance(1).spectral_range.data,
-                        obs_old.radiance(1).spectral_range.data, atol=3e-3)
+                        obs_old.radiance(1).spectral_range.data)
     print(obs.radiance_all())
     print(obs.radiance_all_with_bad_sample())
     print(obs.radiance_all().spectral_range.uncertainty)
     print(obs_old.radiance_all().spectral_range.uncertainty)
+    npt.assert_allclose(obs.radiance_all().spectral_range.uncertainty,
+                        obs_old.radiance_all().spectral_range.uncertainty)
     print(obs.radiance_all().spectral_range.uncertainty -obs_old.radiance_all().spectral_range.uncertainty)
     print(obs.radiance(0).spectral_domain.sample_index)
     print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
