@@ -51,6 +51,9 @@ long_test = pytest.mark.long_test
 # Marker for capture tests. Only run with --run-capture
 capture_test = pytest.mark.capture_test
 
+# Marker for initial capture tests. Only run with --run-initial-capture
+capture_initial_test = pytest.mark.capture_initial_test
+
 # Marker that skips a test if we don't have muses_py available
 require_muses_py = pytest.mark.skipif(not mpy.have_muses_py,
       reason="need muses-py available to run")

@@ -1,7 +1,6 @@
 from test_support import *
-from refractor.muses import (MusesForwardModelStep,
-                             MusesRunDir,
-                             RefractorMusesIntegration)
+from refractor.muses import MusesRunDir
+from refractor.old_py_retrieve_wrapper import MusesForwardModelStep, RefractorMusesIntegration
 import refractor.muses.muses_py as mpy
 import subprocess
 import pprint

@@ -19,9 +19,11 @@ from netCDF4 import Dataset
 logger = logging.getLogger("py-retrieve")
 
 class OmiFmObjectCreator(RefractorFmObjectCreator):
-    def __init__(self, rf_uip : RefractorUip, use_eof=False, eof_dir=None,
+    def __init__(self, rf_uip : RefractorUip,
+                 observation : 'MusesObservation',
+                 use_eof=False, eof_dir=None,
                  **kwargs):
-        super().__init__(rf_uip, "OMI", **kwargs)
+        super().__init__(rf_uip, "OMI", observation, **kwargs)
         self.use_eof = use_eof
         self.eof_dir = eof_dir
         
@@ -102,11 +104,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return res
         
     
-    # This will go away in a bit
-    @property
-    def observation(self):
-        return None
-
     @cached_property
     def solar_reference_filename(self):
         return os.path.join(self.input_dir, "OMI_Solar/omisol_v003_avg_nshi_backup.h5")

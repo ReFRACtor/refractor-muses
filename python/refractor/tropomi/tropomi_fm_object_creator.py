@@ -18,8 +18,9 @@ import copy
 logger = logging.getLogger("py-retrieve")
 
 class TropomiFmObjectCreator(RefractorFmObjectCreator):
-    def __init__(self, rf_uip : RefractorUip, **kwargs):
-        super().__init__(rf_uip, "TROPOMI", **kwargs)
+    def __init__(self, rf_uip : RefractorUip,
+                 observation : 'MusesObservation', **kwargs):
+        super().__init__(rf_uip, "TROPOMI", observation, **kwargs)
         unique_filters = set(self.filter_name)
         if len(unique_filters) != 1:
             raise NotImplementedError('Cannot handle multiple bands yet (requires different absorbers per band)')
@@ -31,11 +32,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         else:
             raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
         
-
-    # This will go away in a bit
-    @property
-    def observation(self):
-        return None
 
     @cached_property
     def instrument_correction(self):

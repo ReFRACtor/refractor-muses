@@ -4,10 +4,9 @@ import pandas as pd
 import numpy.testing as npt
 import os
 import refractor.muses.muses_py as mpy
-from refractor.omi import (RefractorOmiFmMusesPy,
-                           OmiFmObjectCreator,
-                           RefractorOmiFm)
-from refractor.muses import RefractorTropOrOmiFmPyRetrieve
+from refractor.omi import OmiFmObjectCreator
+from refractor.old_py_retrieve_wrapper import (RefractorOmiFmMusesPy, RefractorOmiFm,
+                                               RefractorTropOrOmiFmPyRetrieve)
 import refractor.framework as rf
 
 #============================================================================

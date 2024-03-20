@@ -1,16 +1,12 @@
 import numpy as np
 import numpy.testing as npt
-from refractor.omi import (OmiFmObjectCreator, RefractorOmiFm,
-                           OmiInstrumentHandle)
+from refractor.omi import OmiInstrumentHandle
 from test_support import *
 import refractor.framework as rf
 import glob
 from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              RetrievalStrategyCaptureObserver,
-                             RefractorMusesIntegration,
-                             RetrievalInfo,
                              RetrievalL2Output,
-                             StrategyTable,
                              OmiEofStateElement,
                              SingleSpeciesHandle,
                              RetrievableStateElement,

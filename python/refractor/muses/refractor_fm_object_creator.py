@@ -48,7 +48,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     '''
 
     def __init__(self, rf_uip : RefractorUip,
-                 instrument_name: str, input_dir=None, 
+                 instrument_name: str, observation : 'MusesObservation',
+                 input_dir=None,
                  # Short term, so we can flip between pca vs lidort
                  use_pca=True, use_lrad=False, lrad_second_order=False,
                  use_raman=True,
@@ -84,6 +85,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.lrad_second_order = lrad_second_order
         self.use_full_state_vector = use_full_state_vector
         self.include_bad_sample = include_bad_sample
+        self.observation = observation
 
         self.rf_uip = rf_uip
         # Hopefully we can move away from using rf_uip and use state_info

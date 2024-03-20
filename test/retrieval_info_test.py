@@ -1,8 +1,6 @@
 from test_support import *
-from refractor.muses import (RetrievalInfo,
-                             RetrievalInfoOld,
-                             RetrievalStrategy,
-                             MusesRunDir)
+from refractor.muses import (RetrievalInfo, RetrievalStrategy, MusesRunDir)
+from refractor.old_py_retrieve_wrapper import RetrievalInfoOld
 import subprocess
 import glob
 import pickle

@@ -4,12 +4,9 @@ import pandas as pd
 import numpy.testing as npt
 import os
 import refractor.muses.muses_py as mpy
-from refractor.tropomi import (RefractorTropOmiFm,
-                               TropomiFmObjectCreator,
-                               RefractorTropOmiFmMusesPy
-                               )
-from refractor.muses import RefractorTropOrOmiFmPyRetrieve
-                             
+from refractor.old_py_retrieve_wrapper import (RefractorTropOmiFm, RefractorTropOmiFmMusesPy,
+                                               RefractorTropOrOmiFmPyRetrieve)
+from refractor.tropomi import TropomiFmObjectCreator
 import refractor.framework as rf
 
 #============================================================================

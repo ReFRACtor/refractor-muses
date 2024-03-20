@@ -1,6 +1,7 @@
 from test_support import *
-from refractor.old_py_retrieve_wrapper import RefractorMusesIntegration
-from refractor.muses import MusesRunDir, RetrievalStrategy
+from refractor.old_py_retrieve_wrapper import (RefractorMusesIntegration, MusesForwardModelStep,
+                                               RefractorTropOrOmiFmPyRetrieve)
+from refractor.muses import MusesRunDir, RetrievalStrategy, RetrievalStrategyCaptureObserver
 
 # This contains all the capture tests. Note that there is no requirement at
 # all that this be in only one file, but we just collect everything here so
@@ -155,3 +156,120 @@ def test_capture_tropomi_cris_retrieval_strategy(isolated_dir, osp_dir, gmao_dir
     rs.retrieval_ms()
     
     
+# These next set of captures duplicates what muses-capture program does. You don't need to
+# run these if you already ran muses-capture. But it can be useful to run these here to
+# regenerate data, both because it uses our stashed version meaning we don't need access to
+# the full MUSES input directory, and because these can run in parallel.
+
+@pytest.mark.parametrize("step_number", [1, 2])
+@pytest.mark.parametrize("do_uip", [True, False])
+@capture_initial_test
+@require_muses_py
+def test_capture_initial_tropomi(isolated_dir, step_number, do_uip, osp_dir, gmao_dir,
+                                 vlidort_cli):
+    capoutdir = tropomi_test_in_dir
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    fname = f"{r.run_dir}/Table.asc"
+    if(do_uip):
+        RefractorUip.create_from_table(fname, step=step_number,
+                                       capture_directory=True,
+                                       save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl",
+                                       suppress_noisy_output=False,
+                                       vlidort_cli=vlidort_cli)
+    else:
+        MusesRetrievalStep.create_from_table(fname, step=step_number,
+                              capture_directory=True,
+                              save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl",
+                              suppress_noisy_output=False,
+                              vlidort_cli=vlidort_cli)
+
+@pytest.mark.parametrize("step_number", [1, 2])
+@pytest.mark.parametrize("do_uip", [True, False])
+@capture_initial_test
+@require_muses_py
+def test_capture_initial_omi(isolated_dir, step_number, do_uip, osp_dir, gmao_dir,
+                                 vlidort_cli):
+    capoutdir = omi_test_in_dir
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    fname = f"{r.run_dir}/Table.asc"
+    if(do_uip):
+        RefractorUip.create_from_table(fname, step=step_number,
+                                       capture_directory=True,
+                                       save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl",
+                                       suppress_noisy_output=False,
+                                       vlidort_cli=vlidort_cli)
+    else:
+        MusesRetrievalStep.create_from_table(fname, step=step_number,
+                              capture_directory=True,
+                              save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl",
+                              suppress_noisy_output=False,
+                              vlidort_cli=vlidort_cli)
+
+@pytest.mark.parametrize("step_number", [8,])
+@pytest.mark.parametrize("do_uip", [True, False])
+@capture_initial_test
+@require_muses_py
+def test_capture_initial_joint_omi(isolated_dir, step_number, do_uip, osp_dir, gmao_dir,
+                                 vlidort_cli):
+    os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
+    capoutdir = joint_omi_test_in_dir
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    fname = f"{r.run_dir}/Table.asc"
+    if(do_uip):
+        RefractorUip.create_from_table(fname, step=step_number,
+                                       capture_directory=True,
+                                       save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl",
+                                       suppress_noisy_output=False,
+                                       vlidort_cli=vlidort_cli)
+    else:
+        MusesRetrievalStep.create_from_table(fname, step=step_number,
+                              capture_directory=True,
+                              save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl",
+                              suppress_noisy_output=False,
+                              vlidort_cli=vlidort_cli)
+        
+@pytest.mark.parametrize("step_number", [12,])
+@pytest.mark.parametrize("do_uip", [True, False])
+@capture_initial_test
+@require_muses_py
+def test_capture_initial_joint_tropomi(isolated_dir, step_number, do_uip, osp_dir, gmao_dir,
+                                        vlidort_cli):
+    os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
+    capoutdir = joint_tropomi_test_in_dir
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    fname = f"{r.run_dir}/Table.asc"
+    if(do_uip):
+        RefractorUip.create_from_table(fname, step=step_number,
+                                       capture_directory=True,
+                                       save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl",
+                                       suppress_noisy_output=False,
+                                       vlidort_cli=vlidort_cli)
+    else:
+        MusesRetrievalStep.create_from_table(fname, step=step_number,
+                              capture_directory=True,
+                              save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl",
+                              suppress_noisy_output=False,
+                              vlidort_cli=vlidort_cli)
+
+@pytest.mark.parametrize("step_number", [1, 2])
+@pytest.mark.parametrize("do_uip", [True, False])
+@capture_initial_test
+@require_muses_py
+def test_capture_initial_tropomi_band7(isolated_dir, step_number, do_uip, osp_dir, gmao_dir,
+                                 vlidort_cli):
+    capoutdir = tropomi_band7_test_in_dir
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    fname = f"{r.run_dir}/Table.asc"
+    if(do_uip):
+        RefractorUip.create_from_table(fname, step=step_number,
+                                       capture_directory=True,
+                                       save_pickle_file=f"{capoutdir}/uip_step_{step_number}.pkl",
+                                       suppress_noisy_output=False,
+                                       vlidort_cli=vlidort_cli)
+    else:
+        MusesRetrievalStep.create_from_table(fname, step=step_number,
+                              capture_directory=True,
+                              save_pickle_file=f"{capoutdir}/run_retrieval_step_{step_number}.pkl",
+                              suppress_noisy_output=False,
+                              vlidort_cli=vlidort_cli)
+        

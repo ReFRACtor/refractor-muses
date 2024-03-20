@@ -1,8 +1,8 @@
 from test_support import *
 import numpy as np
 import numpy.testing as npt
-from refractor.tropomi import (TropomiRadiancePyRetrieve,
-                               TropomiRadianceRefractor)
+from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve,
+                                               TropomiRadianceRefractor)
 import refractor.framework as rf
 import glob
 import pandas as pd

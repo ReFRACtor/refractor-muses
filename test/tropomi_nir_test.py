@@ -7,7 +7,8 @@ import numpy.testing as npt
 from test_support import *
 import refractor.framework as rf
 from refractor.tropomi import (TropomiFmObjectCreator, TropomiInstrumentHandle)
-from refractor.muses import (RefractorMusesIntegration, MusesRunDir)
+from refractor.muses import MusesRunDir
+from refractor.old_py_retrieve_wrapper import RefractorMusesIntegration
 
 class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
 
