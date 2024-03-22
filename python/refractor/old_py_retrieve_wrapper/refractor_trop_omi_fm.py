@@ -34,12 +34,13 @@ class RefractorTropOmiFm(RefractorTropOrOmiFm):
 
     Use a ReFRACtor ForwardModel as a replacement for tropomi_fm.'''
 
-    def __init__(self, **kwargs):
+    def __init__(self, obs, **kwargs):
         super().__init__(func_name="tropomi_fm", **kwargs)
+        self._obs = obs
 
     @property
     def observation(self):
-        return self.obj_creator.observation
+        return self._obs
 
     @property
     def have_obj_creator(self):
@@ -52,7 +53,7 @@ class RefractorTropOmiFm(RefractorTropOrOmiFm):
         from refractor.tropomi import TropomiFmObjectCreator
         if("tropomi_fm_object_creator" not in self.rf_uip.refractor_cache):
             self.rf_uip.refractor_cache["tropomi_fm_object_creator"] = \
-                TropomiFmObjectCreator(self.rf_uip, **self.obj_creator_args)
+                TropomiFmObjectCreator(self.rf_uip, self._obs, **self.obj_creator_args)
         return self.rf_uip.refractor_cache["tropomi_fm_object_creator"]
 
     

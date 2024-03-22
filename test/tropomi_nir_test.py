@@ -29,7 +29,7 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
             pickle.dump(data, out)
 
 @require_muses_py            
-def test_nir_fm(tropomi_uip_sounding_2_step_1):
+def test_nir_fm(tropomi_uip_sounding_2_step_1, tropomi_obs_sounding_2_band7):
     '''This tests creating the forward model and running it.'''
     # NOTE - This depends on the newer OSP directory. If you don't have this
     # data, you should set the environment variable MUSES_OSP_PATH to
@@ -39,7 +39,8 @@ def test_nir_fm(tropomi_uip_sounding_2_step_1):
     # subset of the final convolved data is used. We need to update the logic
     # here to only run what is needed.
 
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_sounding_2_step_1, use_raman=False)
+    obj_creator = TropomiFmObjectCreator(tropomi_uip_sounding_2_step_1,
+                                         tropomi_obs_sounding_2_band7, use_raman=False)
     fm = obj_creator.forward_model
     #fm = obj_creator.underlying_forward_model
     fm.add_observer_and_keep_reference(SaveSpectrum("spectrum_{name}.pkl"))

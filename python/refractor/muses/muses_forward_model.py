@@ -364,7 +364,7 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
                    use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "CRIS"):
@@ -380,7 +380,7 @@ class MusesAirsInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
                    use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "AIRS"):
@@ -396,7 +396,7 @@ class MusesTropomiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
                    use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "TROPOMI"):
@@ -413,7 +413,7 @@ class MusesOmiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
                    use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "OMI"):

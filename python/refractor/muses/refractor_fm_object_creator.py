@@ -162,7 +162,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         swin= rf.SpectralWindowRange(rf.ArrayWithUnit(t, "nm"))
         if(not self.include_bad_sample):
             for i in range(swin.number_spectrometer):
-                swin.bad_sample_mask(self.observation.bad_sample_mask_full(i), i)
+                swin.bad_sample_mask(self.observation.bad_sample_mask(i), i)
         return swin
 
     @cached_property

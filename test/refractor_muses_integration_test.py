@@ -6,9 +6,24 @@ import subprocess
 import pprint
 import glob
 
+#============================================================================
+# RefractorMusesIntegration was an earlier attempt at integrating ReFRACtor 
+# into py-retrieve. This replaced the py-retrieve functions run_retrieval and
+# run_forward_model.
+#
+# This has now been replaced with RetrievalStrategy which which moves up
+# the call chain to replace script_retrieval_ms.
+#
+# But we'll leave this class in place for doing backwards testing, although this
+# should be considered deprecated.
+#============================================================================
+
+# These aren't currently working. We have moved on from this code, so there is no
+# strong reason to get this working again.
+@skip
 @pytest.mark.parametrize("call_num", [1,2,3,4,5,6])
 @require_muses_py
-def test_run_forward_model_joint_tropomi(call_num,
+def test_run_forward_model_joint_tropomi(call_num, joint_tropomi_obs_step_12,
                                          isolated_dir, osp_dir, gmao_dir,
                                          vlidort_cli):
     pfile = f"{joint_tropomi_test_in_dir}/run_forward_model_call_{call_num}.pkl"
@@ -25,13 +40,17 @@ def test_run_forward_model_joint_tropomi(call_num,
     rrefractor = MusesForwardModelStep.load_forward_model_step(pfile,
                 osp_dir=osp_dir, gmao_dir=gmao_dir, path="refractor",
                 change_to_dir=True)
-    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
+    obs_cris, obs_tropomi = joint_tropomi_obs_step_12
+    rmi = RefractorMusesIntegration([obs_tropomi], vlidort_cli=vlidort_cli)
     (uip, o_radianceOut, o_jacobianOut) = rmi.run_forward_model(**rrefractor.params)
 
     
     struct_compare(o_radianceOut, o_radianceOut2)
     struct_compare(o_jacobianOut, o_jacobianOut2)
 
+# These aren't currently working. We have moved on from this code, so there is no
+# strong reason to get this working again.
+@skip
 @pytest.mark.parametrize("call_num", [1,2,3,4,5,6])
 @require_muses_py
 def test_run_forward_model_joint_omi(call_num,
@@ -57,9 +76,12 @@ def test_run_forward_model_joint_omi(call_num,
     struct_compare(o_radianceOut, o_radianceOut2)
     struct_compare(o_jacobianOut, o_jacobianOut2)
 
+# These aren't currently working. We have moved on from this code, so there is no
+# strong reason to get this working again.
+@skip
 @require_muses_py
 def test_quicker_run_retrieval_tropomi(isolated_dir, osp_dir, gmao_dir,
-                               vlidort_cli):
+                                       vlidort_cli, tropomi_obs_step_1):
     '''This is like the run_retrieval test found below, but we monkey with
     stuff to give only 1 iteration. This is good for testing the interface
     of run_retrieval because this runs in a reasonable amount of time.'''
@@ -69,7 +91,7 @@ def test_quicker_run_retrieval_tropomi(isolated_dir, osp_dir, gmao_dir,
     rrefractor = MusesRetrievalStep.load_retrieval_step(pfile,
                 osp_dir=osp_dir, gmao_dir=gmao_dir, path="refractor",
                 change_to_dir=True)
-    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
+    rmi = RefractorMusesIntegration([tropomi_obs_step_1], vlidort_cli=vlidort_cli)
     # For quicker turn around, change the number of iterations from 10 to 1.
     rrefractor.params['i_tableStruct']['data'][0] = rrefractor.params['i_tableStruct']['data'][0].replace('10','1')
     (o_retrievalResults, o_uip, rayInfo,

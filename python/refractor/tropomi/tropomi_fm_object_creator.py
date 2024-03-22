@@ -243,11 +243,11 @@ class TropomiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
                    use_full_state_vector=False, include_bad_sample=False, **kwargs):
         if(instrument_name != "TROPOMI"):
             return (None, None)
-        obj_creator = TropomiFmObjectCreator(rf_uip, use_full_state_vector=use_full_state_vector, include_bad_sample=include_bad_sample, **self.creator_kwargs)
+        obj_creator = TropomiFmObjectCreator(rf_uip, obs, use_full_state_vector=use_full_state_vector, include_bad_sample=include_bad_sample, **self.creator_kwargs)
         svhandle.add_handle(TropomiStateVectorHandle(obj_creator),
                             priority_order=100)
         return (obj_creator.forward_model, obj_creator.observation)
