@@ -179,7 +179,6 @@ def tropomi_obs_sounding_2_band7(osp_dir):
     cld_filename = f"{tropomi_test_in_dir2}/../S5P_RPRO_L2__CLOUD__20220628T171636_20220628T185806_24393_03_020401_20230119T091435.nc"
     utc_time = "2022-06-28T18:07:51.984098Z"
     filter_list = ["BAND7",]
-    subprocess.run(f"cp {tropomi_test_in_dir2}/PRECONV_2STOKES.asc .", shell=True)
     stable = StrategyTable(f"{tropomi_test_in_dir2}/Table.asc", osp_dir=osp_dir)
     obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
