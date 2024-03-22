@@ -48,9 +48,7 @@ class MusesRaman(rf.RamanSiorisEffect):
 
         self.apply_raman_effect(spec, temp_layers, surf_alb)
 
-    def print_desc(self, ostream):
-        # A bit clumsy, we should perhaps put a better interface in
-        # here.
-        ostream.write("MusesRaman", len("MusesRaman"))
+    def desc(self):
+        return "MusesRaman"
         
 __all__ = ["MusesRaman",]

@@ -278,91 +278,6 @@ class SoundingMetadata:
     def is_land(self):
         return self.surface_type == "LAND"
         
-class Level1bTes:
-    '''This is like a Level1b class from framework, although right now we won't
-    bother making this actually one those. Instead this pulls stuff out of
-    StateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from StateInfo and put this
-    over with the Observation.'''
-    def __init__(self, state_info):
-        self.state_info = state_info
-
-    @property
-    def sounding_desc(self):
-        '''Different types of instruments have different description of the
-        sounding ID. This gets used in retrieval_l2_output for metadata.'''
-        info_file = self.state_info.info_file
-        return {
-            "TES_RUN" : np.int16(info_file['preferences']['TES_run']),
-            "TES_SEQUENCE" : np.int16(info_file['preferences']['TES_sequence']),
-            "TES_SCAN" : np.int16(info_file['preferences']['TES_scan']),
-            "POINTINGANGLE_TES" : self.boresight_angle.convert("deg").value
-        }
-
-    @property
-    def boresight_angle(self):
-        return rf.DoubleWithUnit(self.state_info.state_info_dict["current"]["boresightNadirRadians"], "rad")
-
-class Level1bOmi:
-    '''This is like a Level1b class from framework, although right now we won't
-    bother making this actually one those. Instead this pulls stuff out of
-    StateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from StateInfo and put this
-    over with the Observation.'''
-    def __init__(self, state_info):
-        self.state_info = state_info
-
-    @property
-    def sounding_desc(self):
-        '''Different types of instruments have different description of the
-        sounding ID. This gets used in retrieval_l2_output for metadata.'''
-        info_file = self.state_info.info_file
-        return {
-            "OMI_ATRACK_INDEX": np.int16(info_file['preferences']['OMI_ATrack_Index']),
-            "OMI_XTRACK_INDEX_UV1": np.int16(info_file['preferences']['OMI_XTrack_UV1_Index']),
-            "OMI_XTRACK_INDEX_UV2": np.int16(info_file['preferences']['OMI_XTrack_UV2_Index']),
-            "POINTINGANGLE_OMI" : abs(self.scan_angle(1).value)
-        }
-
-    def scan_angle(self, ind):
-        return rf.DoubleWithUnit(float(self.state_info.state_info_obj.current["omi"][f"vza_uv{ind+1}"]), "deg")
-    
-
-class Level1bTropomi:
-    '''This is like a Level1b class from framework, although right now we won't
-    bother making this actually one those. Instead this pulls stuff out of
-    StateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from StateInfo and put this
-    over with the Observation.'''
-    def __init__(self, state_info):
-        self.state_info = state_info
-
-    @property
-    def sounding_desc(self):
-        '''Different types of instruments have different description of the
-        sounding ID. This gets used in retrieval_l2_output for metadata.'''
-        info_file = self.state_info.info_file
-        res = {
-            "TROPOMI_ATRACK_INDEX" : np.int16(info_file['preferences']['TROPOMI_ATrack_Index'])
-        }
-        for b in range(8):
-            res[f"TROPOMI_XTRACK_INDEX_BAND{b+1}"] = self.xtrack_index(b)
-            if(self.xtrack_index(b) < -998):
-                res[f"POINTINGANGLE_TROPOMI_BAND{b+1}"] = -999.0
-            else:
-                sang = self.scan_angle(b).value
-                res[f"POINTINGANGLE_TROPOMI_BAND{b+1}"] = np.abs(sang) if sang > -998 else -999.0
-        return res
-            
-    def xtrack_index(self, ind):
-        p = self.state_info.info_file["preferences"]
-        ky = f'TROPOMI_XTrack_Index_BAND{ind+1}'
-        return np.int16(p.get(ky, -999))
-    
-    def scan_angle(self, ind):
-        v = self.state_info.state_info_dict["current"]['tropomi'].get(f'vza_BAND{ind+1}', -999)
-        return rf.DoubleWithUnit(float(v), "deg")
-    
 class StateInfo:
     '''State Info during a retrieval - so what gets passed between RetrievalStrategyStep.
 
@@ -471,20 +386,6 @@ class StateInfo:
         self.current.update(self.next_state)
         self.next_state = {}
         
-    def l1b_file(self, instrument):
-        if(instrument == "AIRS"):
-            raise RuntimeError("No longer here")
-        if(instrument == "CRIS"):
-            raise RuntimeError("No longer here")
-        elif(instrument == "TES"):
-            return Level1bTes(self)
-        elif(instrument == "OMI"):
-            return Level1bOmi(self)
-        elif(instrument == "TROPOMI"):
-            return Level1bTropomi(self)
-        else:
-            raise RuntimeError(f"Don't recognize instrument {instrument}")
-
     def sounding_metadata(self, step="current"):
         return SoundingMetadata(self, step=step)
 

@@ -1,10 +1,7 @@
 import refractor.muses.muses_py as mpy
 import refractor.framework as rf
-from .refractor_uip import RefractorUip
-from .osswrapper import osswrapper
-from .replace_function_helper import (suppress_replacement,
-                                      register_replacement_function_in_block)
-from .refractor_capture_directory import muses_py_call
+from refractor.muses import (RefractorUip, osswrapper, suppress_replacement, 
+                             register_replacement_function_in_block, muses_py_call)
 import os
 import pickle
 import tempfile

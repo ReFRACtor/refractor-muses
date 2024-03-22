@@ -4,10 +4,12 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import (RefractorUip, osswrapper, MusesRetrievalStep,
-                             MusesResidualFmJacobian)
+from refractor.muses import (RefractorUip, osswrapper, StrategyTable,
+                             MusesTropomiObservationNew, MusesOmiObservationNew,
+                             MusesCrisObservationNew, MusesAirsObservationNew)
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
+from refractor.old_py_retrieve_wrapper import MusesResidualFmJacobian, MusesRetrievalStep
 from scipy.io import readsav
 import netCDF4 as ncdf
 import glob
@@ -18,6 +20,7 @@ import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import logging
 import io
+import subprocess
 
 if("REFRACTOR_TEST_DATA" in os.environ):
     test_base_path = os.environ["REFRACTOR_TEST_DATA"]
@@ -50,6 +53,9 @@ long_test = pytest.mark.long_test
 
 # Marker for capture tests. Only run with --run-capture
 capture_test = pytest.mark.capture_test
+
+# Marker for initial capture tests. Only run with --run-initial-capture
+capture_initial_test = pytest.mark.capture_initial_test
 
 # Marker that skips a test if we don't have muses_py available
 require_muses_py = pytest.mark.skipif(not mpy.have_muses_py,
@@ -143,6 +149,138 @@ def tropomi_uip_step_1(isolated_dir, osp_dir, gmao_dir):
                     osp_dir=osp_dir, gmao_dir=gmao_dir)
 
 @pytest.fixture(scope="function")
+def tropomi_obs_step_1(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_list = [226,]
+    atrack = 359
+    filename_list = [f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc",]
+    irr_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    cld_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
+    utc_time = "2019-08-07T00:46:06.179000Z"
+    filter_list = ["BAND3",]
+    stable = StrategyTable(f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+                                     xtrack_list, atrack, utc_time, filter_list,
+                                     osp_dir=osp_dir)
+    swin = stable.spectral_window("TROPOMI", stp=1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("TROPOMI", stp=1)
+    obs.spectral_window_with_bad_sample = swin2
+    return obs
+
+@pytest.fixture(scope="function")
+def tropomi_obs_sounding_2_band7(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_list = [205,]
+    atrack = 2297
+    filename_list = [f"{tropomi_test_in_dir2}/../S5P_RPRO_L1B_RA_BD7_20220628T185806_20220628T203935_24394_03_020100_20230104T092546.nc",]
+    irr_filename = f"{tropomi_test_in_dir2}/../S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
+    cld_filename = f"{tropomi_test_in_dir2}/../S5P_RPRO_L2__CLOUD__20220628T171636_20220628T185806_24393_03_020401_20230119T091435.nc"
+    utc_time = "2022-06-28T18:07:51.984098Z"
+    filter_list = ["BAND7",]
+    stable = StrategyTable(f"{tropomi_test_in_dir2}/Table.asc", osp_dir=osp_dir)
+    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+                                     xtrack_list, atrack, utc_time, filter_list,
+                                     osp_dir=osp_dir)
+    swin = stable.spectral_window("TROPOMI", stp=0)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("TROPOMI", stp=0)
+    obs.spectral_window_with_bad_sample = swin2
+    return obs
+
+@pytest.fixture(scope="function")
+def tropomi_obs_step_2(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_list = [226,]
+    atrack = 359
+    filename_list = [f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc",]
+    irr_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    cld_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
+    utc_time = "2019-08-07T00:46:06.179000Z"
+    filter_list = ["BAND3",]
+    stable = StrategyTable(f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+                                     xtrack_list, atrack, utc_time, filter_list,
+                                     osp_dir=osp_dir)
+    swin = stable.spectral_window("TROPOMI", stp=1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("TROPOMI", stp=1)
+    obs.spectral_window_with_bad_sample = swin2
+    return obs
+
+@pytest.fixture(scope="function")
+def joint_tropomi_obs_step_12(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_list = [226,]
+    atrack = 2995
+    filename_list = [f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc",]
+    irr_filename = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    cld_filename = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
+    utc_time = "2019-08-07T06:24:33.584090Z"
+    filter_list = ["BAND3",]
+    stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+                                     xtrack_list, atrack, utc_time, filter_list,
+                                     osp_dir=osp_dir)
+    swin = stable.spectral_window("TROPOMI", stp=12+1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("TROPOMI", stp=12+1)
+    obs.spectral_window_with_bad_sample = swin2
+    granule = 65
+    xtrack = 8
+    atrack = 4
+    pixel_index = 5
+    fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
+    obscris = MusesCrisObservationNew(fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
+    swin = stable.spectral_window("CRIS", stp=12+1)
+    swin.bad_sample_mask(obscris.bad_sample_mask(0), 0)
+    obscris.spectral_window = swin
+    swin2 = stable.spectral_window("CRIS", stp=12+1)
+    obscris.spectral_window_with_bad_sample = swin2
+    return [obscris, obs]
+
+@pytest.fixture(scope="function")
+def joint_omi_obs_step_8(osp_dir):
+    xtrack_uv1 = 10
+    xtrack_uv2 = 20
+    atrack = 1139
+    filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0401t2215-o62308_v003-2016m0402t041806.he4"
+    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
+    utc_time = "2016-04-01T23:07:33.676106Z"
+    filter_list = ["UV1", "UV2"]
+    stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+                                 utc_time, calibration_filename,
+                                 filter_list,
+                                 cld_filename=cld_filename,
+                                 osp_dir=osp_dir)
+    swin = stable.spectral_window("OMI", stp=8+1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("OMI", stp=8+1)
+    obs.spectral_window_with_bad_sample = swin2
+    channel_list = ['1A1', '2A1', '1B2', '2B1']
+    granule = 231
+    xtrack = 29
+    atrack = 49
+    fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
+    obs_airs = MusesAirsObservationNew(fname, granule, xtrack, atrack, channel_list,
+                                  osp_dir=osp_dir)
+    swin = stable.spectral_window("AIRS", stp=8+1)
+    swin.bad_sample_mask(obs_airs.bad_sample_mask(0), 0)
+    obs_airs.spectral_window = swin
+    swin2 = stable.spectral_window("AIRS", stp=8+1)
+    obs_airs.spectral_window_with_bad_sample = swin2
+    return [obs_airs, obs]
+    
+
+@pytest.fixture(scope="function")
 def tropomi_uip_step_2(isolated_dir, osp_dir, gmao_dir):
     '''Return a RefractorUip for strategy step 2, and also unpack all the 
     support files into a directory'''
@@ -170,6 +308,27 @@ def tropomi_uip_band7_swir_step(isolated_dir):
     return load_uip(tropomi_band7_swir_step_test_in_dir, step_number=1)
 
 @pytest.fixture(scope="function")
+def tropomi_obs_band7_swir_step(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_list = [108,]
+    atrack = 1008
+    filename_list = [f"{tropomi_band7_swir_step_test_in_dir}/../S5P_OFFL_L1B_RA_BD7_20220628T185806_20220628T203935_24394_02_020000_20220628T222834.nc",]
+    irr_filename = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
+    cld_filename = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L2__CLOUD__20220628T185806_20220628T203935_24394_03_020401_20230119T091438.nc"
+    utc_time = "2022-06-28T19:33:47.130000Z"
+    filter_list = ["BAND7",]
+    stable = StrategyTable(f"{tropomi_band7_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+                                     xtrack_list, atrack, utc_time, filter_list,
+                                     osp_dir=osp_dir)
+    swin = stable.spectral_window("TROPOMI", stp=1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("TROPOMI", stp=1)
+    obs.spectral_window_with_bad_sample = swin2
+    return obs
+
+@pytest.fixture(scope="function")
 def tropomi_band7_simple_ils_test_data():
     simple_results_file = os.path.join(tropomi_band7_expected_results_dir, 'ils', 'simple_ils_test.nc')
     with ncdf.Dataset(simple_results_file) as ds:
@@ -190,6 +349,54 @@ def omi_uip_step_1(isolated_dir, osp_dir, gmao_dir):
     support files into a directory'''
     return load_uip(omi_test_in_dir, step_number=1,
                     osp_dir=osp_dir, gmao_dir=gmao_dir)
+
+@pytest.fixture(scope="function")
+def omi_obs_step_1(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_uv1 = 11
+    xtrack_uv2 = 23
+    atrack = 394
+    filename = f"{omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0414t2324-o62498_v003-2016m0415t050532.he4"
+    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
+    utc_time = "2016-04-14T23:59:46.000000Z"
+    filter_list = ["UV1", "UV2"]
+    stable = StrategyTable(f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+                                 utc_time, calibration_filename,
+                                 filter_list,
+                                 cld_filename=cld_filename,
+                                 osp_dir=osp_dir)
+    swin = stable.spectral_window("OMI", stp=1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("OMI", stp=1)
+    obs.spectral_window_with_bad_sample = swin2
+    return obs
+
+@pytest.fixture(scope="function")
+def omi_obs_step_2(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_uv1 = 11
+    xtrack_uv2 = 23
+    atrack = 394
+    filename = f"{omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0414t2324-o62498_v003-2016m0415t050532.he4"
+    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
+    utc_time = "2016-04-14T23:59:46.000000Z"
+    filter_list = ["UV1", "UV2"]
+    stable = StrategyTable(f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+                                 utc_time, calibration_filename,
+                                 filter_list,
+                                 cld_filename=cld_filename,
+                                 osp_dir=osp_dir)
+    swin = stable.spectral_window("OMI", stp=1)
+    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
+    obs.spectral_window = swin
+    swin2 = stable.spectral_window("OMI", stp=1)
+    obs.spectral_window_with_bad_sample = swin2
+    return obs
 
 @pytest.fixture(scope="function")
 def omi_uip_step_2(isolated_dir, osp_dir, gmao_dir):

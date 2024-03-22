@@ -1,14 +1,9 @@
-# This will likely migrate to refractor.muses, but it will start here as
-# we initially focus on tropomi.
-
 import refractor.muses.muses_py as mpy
 import refractor.framework as rf
-from .replace_function_helper import (suppress_replacement,
-                                      register_replacement_function_in_block)
-from .refractor_uip import RefractorUip
-from .retrieval_info import RetrievalInfo
-from .cost_function_creator import CostFunctionCreator
-from .cost_function import CostFunction
+from refractor.muses import (suppress_replacement,
+                             register_replacement_function_in_block,
+                             RefractorUip, RetrievalInfo, CostFunctionCreator,
+                             CostFunction)
 from .muses_retrieval_step import MusesRetrievalStep
 from .muses_forward_model_step import MusesForwardModelStep
 import numpy as np
@@ -18,6 +13,18 @@ import pickle
 import sys
 import logging
 logger = logging.getLogger('py-retrieve')
+
+#============================================================================
+# RefractorMusesIntegration was an earlier attempt at integrating ReFRACtor 
+# into py-retrieve. This replaced the py-retrieve functions run_retrieval and
+# run_forward_model.
+#
+# This has now been replaced with RetrievalStrategy which which moves up
+# the call chain to replace script_retrieval_ms.
+#
+# But we'll leave this class in place for doing backwards testing, although this
+# should be considered deprecated.
+#============================================================================
 
 class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
     '''This handles the Refractor/Muses integration.
@@ -49,10 +56,9 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
                    (e.g., AIRS+OMI)
       omi_fm (for OMI) Forward model
       rtf_omi - lower level of omi forward model
-
     '''
     
-    def __init__(self, save_debug_data=False, **kwargs):
+    def __init__(self, obslist, save_debug_data=False, **kwargs):
         '''This take the keywords that we pass to CostFunctionCreator to create
         the forward model and state vector.
 
@@ -64,6 +70,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         self.cost_function_creator = CostFunctionCreator()
         self.instrument_handle_set = self.cost_function_creator.instrument_handle_set
         self.save_debug_data = save_debug_data
+        self.obslist = obslist
         self.kwargs = kwargs
         
     def register_with_muses_py(self):
@@ -215,7 +222,8 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
             
         # Create a cost function, and use to implement residual_fm_jacobian
         # when we call levmar_nllsq_elanor
-        cfunc = self.cost_function_creator.cost_function_from_uip(rf_uip, ret_info,
+        cfunc = self.cost_function_creator.cost_function_from_uip(rf_uip, self.obslist,
+                                                                  ret_info,
                                                                   **self.kwargs)
         
         outputDir = i_tableStruct['dirStep']
@@ -325,7 +333,8 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         # We don't have the Observation for this, but we don't actually use
         # it in fm_wrapper. So we just fake it so we have the proper fields
         # for CostFunction.
-        cfunc = self.cost_function_creator.cost_function_from_uip(rf_uip, None,
+        cfunc = self.cost_function_creator.cost_function_from_uip(rf_uip, self.obslist,
+                                                                  None,
                                                                   include_bad_sample=True,
                                                                   **self.kwargs)
         (o_radiance, jac_fm, _, _, _) = cfunc.fm_wrapper(rf_uip.uip, None, {})

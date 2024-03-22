@@ -1,7 +1,5 @@
-from .tropomi_fm_object_creator import TropomiFmObjectCreator
 from .tropomi_radiance import TropomiRadiancePyRetrieve
-from refractor.muses import (RefractorTropOrOmiFmMusesPy,
-                             RefractorTropOrOmiFm)
+from .muses_py_forward_model import (RefractorTropOrOmiFmMusesPy, RefractorTropOrOmiFm)
 import refractor.muses.muses_py as mpy
 import numpy as np
 import pandas as pd
@@ -36,12 +34,13 @@ class RefractorTropOmiFm(RefractorTropOrOmiFm):
 
     Use a ReFRACtor ForwardModel as a replacement for tropomi_fm.'''
 
-    def __init__(self, **kwargs):
+    def __init__(self, obs, **kwargs):
         super().__init__(func_name="tropomi_fm", **kwargs)
+        self._obs = obs
 
     @property
     def observation(self):
-        return self.obj_creator.observation
+        return self._obs
 
     @property
     def have_obj_creator(self):
@@ -51,9 +50,10 @@ class RefractorTropOmiFm(RefractorTropOrOmiFm):
     def obj_creator(self):
         '''Object creator using to generate forward model. You can use
         this to get various pieces we use to create the forward model.'''
+        from refractor.tropomi import TropomiFmObjectCreator
         if("tropomi_fm_object_creator" not in self.rf_uip.refractor_cache):
             self.rf_uip.refractor_cache["tropomi_fm_object_creator"] = \
-                TropomiFmObjectCreator(self.rf_uip, **self.obj_creator_args)
+                TropomiFmObjectCreator(self.rf_uip, self._obs, **self.obj_creator_args)
         return self.rf_uip.refractor_cache["tropomi_fm_object_creator"]
 
     

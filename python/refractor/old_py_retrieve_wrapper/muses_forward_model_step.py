@@ -1,7 +1,6 @@
-from . import muses_py as mpy
-from .replace_function_helper import register_replacement_function_in_block
-from .refractor_capture_directory import (RefractorCaptureDirectory,
-                                          muses_py_call)
+import refractor.muses.muses_py as mpy
+from refractor.muses import (register_replacement_function_in_block,
+                             RefractorCaptureDirectory,muses_py_call)
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
@@ -39,44 +38,47 @@ def _all_output_disabled():
     finally:
         logging.disable(previous_level)
 
-class MusesRetrievalStep:
-    '''This class is used to capture the arguments to a py-retrieve
-    retrieval step, and to then call that step. This is little more than
-    the argument list plus a bit of support code.'''
+class MusesForwardModelStep:
+    '''This class is used to capture the arguments to a muses-py
+    run_forward_model, and to then call that function. This is little more than
+    the argument list plus a bit of support code.
+
+    We are interested in this because in some way the run_forward_model
+    is used by script_retrieval_ms to calculate the systematic jacobian.
+    I'm not sure what is going on here, or the exact logic, but we need to
+    replace this like we are the RefractorResidualFmJacobian.'''
     def __init__(self, params = None):
         self.params = params
         self.capture_directory = RefractorCaptureDirectory()
         self.run_path = None
 
     @property
-    def run_retrieval_path(self):
-        '''The path we run run_retrieval in.'''
+    def run_forward_model_path(self):
+        '''The path we run run_forward_model in.'''
         return self.run_path+"/"+self.capture_directory.runbase
     
-    def run_retrieval(self,
-                      vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
-                      vlidort_nstokes=2):
+    def run_forward_model(self,
+                vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli"):
         '''Run the retrieval step with the saved parameters'''
-        with muses_py_call(self.run_retrieval_path, vlidort_cli=vlidort_cli,
-                           vlidort_nstokes=vlidort_nstokes):
-            return mpy.run_retrieval(**self.params)
+        with muses_py_call(self.run_forward_model_path, vlidort_cli=vlidort_cli):
+            return mpy.run_forward_model(**self.params)
             
     @classmethod
     def create_from_table(cls, strategy_table, step=1, capture_directory=False,
               save_pickle_file=None,
               vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
               suppress_noisy_output=True):
-        '''This grabs the arguments passed to run_retrieval and stores them
+        '''This grabs the arguments passed to run_forward_model and stores them
         to allow calling this later.'''
         # TODO Note there is some duplication with create_from_table we
         # have in RefractorUip. We could possible extract this out
-        # somehow into a base class. But right now we only have these
-        # two classes, so this probably isn't worth it. So we are currently
+        # somehow into a base class. But right now we only have a
+        # few lasses, so this probably isn't worth it. So we are currently
         # just duplicating the code.
         with muses_py_call(os.path.dirname(strategy_table),
                            vlidort_cli=vlidort_cli):
             try:
-                with register_replacement_function_in_block("run_retrieval",
+                with register_replacement_function_in_block("run_forward_model",
                                  _CaptureParams(func_count=step)):
                     # This is pretty noisy, so suppress printing. We can revisit
                     # this if needed, but I think this is a good idea
@@ -88,7 +90,7 @@ class MusesRetrievalStep:
             except _FakeParamsExecption as e:
                 res = cls(params=e.params)
         if(capture_directory):
-            # Not needed, run_retrieval creates this itself
+            # Not needed, run_forward_model creates this itself
             vlidort_input = None
             res.capture_directory.save_directory(os.path.dirname(strategy_table), vlidort_input)
         if(save_pickle_file is not None):
@@ -96,7 +98,7 @@ class MusesRetrievalStep:
         return res
 
     @classmethod
-    def load_retrieval_step(cls, save_pickle_file, path=".",
+    def load_forward_model_step(cls, save_pickle_file, path=".",
                             change_to_dir = False,
                             osp_dir=None, gmao_dir=None):
         '''This is the pair to create_from_table, it loads a MusesRetrievalStep
@@ -109,3 +111,4 @@ class MusesRetrievalStep:
                               gmao_dir=gmao_dir)
         return res
     
+__all__ = ["MusesForwardModelStep",]

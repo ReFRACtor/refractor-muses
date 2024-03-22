@@ -1,5 +1,5 @@
 from test_support import *
-from refractor.muses import MusesRetrievalStep
+from refractor.old_py_retrieve_wrapper import MusesRetrievalStep
 
 @require_muses_py
 def test_muse_retrieval_step(isolated_dir):

@@ -4,12 +4,9 @@ import pandas as pd
 import numpy.testing as npt
 import os
 import refractor.muses.muses_py as mpy
-from refractor.tropomi import (RefractorTropOmiFm,
-                               TropomiFmObjectCreator,
-                               RefractorTropOmiFmMusesPy
-                               )
-from refractor.muses import RefractorTropOrOmiFmPyRetrieve
-                             
+from refractor.old_py_retrieve_wrapper import (RefractorTropOmiFm, RefractorTropOmiFmMusesPy,
+                                               RefractorTropOrOmiFmPyRetrieve)
+from refractor.tropomi import TropomiFmObjectCreator
 import refractor.framework as rf
 
 #============================================================================
@@ -93,7 +90,7 @@ def test_refractor_joint_fm_muses_py(isolated_dir, step_number, osp_dir,
 @pytest.mark.parametrize("step_number", [1, 2])
 @require_muses_py
 def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
-                                vlidort_cli):
+                                vlidort_cli, tropomi_obs_step_1):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
     iteration=2
@@ -102,7 +99,7 @@ def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
     vlidort_nstokes=1
     pfile = tropomi_test_in_dir + f"/refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
-    r = RefractorTropOmiFm(use_pca=False, use_lrad=False,
+    r = RefractorTropOmiFm(tropomi_obs_step_1, use_pca=False, use_lrad=False,
                            lrad_second_order=False)
     (o_jacobian, o_radiance,
      o_measured_radiance_tropomi, o_success_flag) = r.run_pickle_file(pfile,osp_dir=osp_dir,gmao_dir=gmao_dir,path="fm_muses_ref/", vlidort_cli=vlidort_cli)
@@ -129,7 +126,8 @@ def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
 @pytest.mark.parametrize("step_number", [12,])
 @require_muses_py
 def test_refractor_joint_fm_refractor(isolated_dir, step_number, osp_dir,
-                                      gmao_dir, vlidort_cli):
+                                      gmao_dir, vlidort_cli,
+                                      joint_tropomi_obs_step_12):
     # Note this is the TROPOMI part only, we save stuff after CrIS has been run
 
     # Just pick an iteration to use. Not sure that we care about looping
@@ -140,8 +138,8 @@ def test_refractor_joint_fm_refractor(isolated_dir, step_number, osp_dir,
     vlidort_nstokes=1
     pfile = f"{joint_tropomi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
-
-    r = RefractorTropOmiFm(use_pca=False, use_lrad=False,
+    obs_cris, obs_tropomi = joint_tropomi_obs_step_12 
+    r = RefractorTropOmiFm(obs_tropomi, use_pca=False, use_lrad=False,
                            lrad_second_order=False)
     (o_jacobian, o_radiance,
      o_measured_radiance_tropomi, o_success_flag) = r.run_pickle_file(pfile,osp_dir=osp_dir,gmao_dir=gmao_dir,path="fm_muses_ref/", vlidort_cli=vlidort_cli)
@@ -194,7 +192,7 @@ def test_refractor_joint_fm_refractor(isolated_dir, step_number, osp_dir,
 
 @require_muses_py
 def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
-                                         vlidort_cli):
+                                         vlidort_cli, tropomi_obs_step_2):
     '''Look at each piece in detail, so make sure we are agreeing'''
     step_number = 2
     iteration=2
@@ -203,7 +201,7 @@ def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
     vlidort_nstokes=1
     pfile = tropomi_test_in_dir + f"/refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
-    r = RefractorTropOmiFm(use_pca=False, use_lrad=False,
+    r = RefractorTropOmiFm(tropomi_obs_step_2, use_pca=False, use_lrad=False,
                            lrad_second_order=False)
     (o_jacobian, o_radiance,
      o_measured_radiance_tropomi, o_success_flag) = r.run_pickle_file(pfile,osp_dir=osp_dir,gmao_dir=gmao_dir,path="fm_muses_ref/", vlidort_cli=vlidort_cli)

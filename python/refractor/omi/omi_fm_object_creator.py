@@ -2,7 +2,6 @@ try:
     from functools import cached_property
 except ImportError:
     from backports.cached_property import cached_property
-from .omi_radiance import OmiRadiancePyRetrieve
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, StateVectorHandle,
                              StateVectorHandleSet,
@@ -20,9 +19,11 @@ from netCDF4 import Dataset
 logger = logging.getLogger("py-retrieve")
 
 class OmiFmObjectCreator(RefractorFmObjectCreator):
-    def __init__(self, rf_uip : RefractorUip, use_eof=False, eof_dir=None,
+    def __init__(self, rf_uip : RefractorUip,
+                 observation : 'MusesObservation',
+                 use_eof=False, eof_dir=None,
                  **kwargs):
-        super().__init__(rf_uip, "OMI", **kwargs)
+        super().__init__(rf_uip, "OMI", observation, **kwargs)
         self.use_eof = use_eof
         self.eof_dir = eof_dir
         
@@ -103,15 +104,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return res
         
     
-    @cached_property
-    def observation_py_retrieve(self):
-        return OmiRadiancePyRetrieve(self.rf_uip,
-                                     include_bad_sample=self.include_bad_sample)
-
-    @property
-    def observation(self):
-        return self.observation_py_retrieve
-
     @cached_property
     def solar_reference_filename(self):
         return os.path.join(self.input_dir, "OMI_Solar/omisol_v003_avg_nshi_backup.h5")
@@ -256,7 +248,8 @@ class OmiStateVectorHandle(StateVectorHandle):
                               "OMIODWAVSLOPEUV1",
                               "OMIODWAVSLOPEUV2",
                               )):
-            self.add_sv_once(sv, self.obj_creator.observation)
+            #self.add_sv_once(sv, self.obj_creator.observation)
+            pass
         elif(species_name == "OMIEOFUV1"):
             for eof in self.obj_creator.eof["UV1"]:
                 sv.add_observer(eof)
@@ -272,12 +265,12 @@ class OmiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
                    use_full_state_vector=True, include_bad_sample=False,
                    **kwargs):
         if(instrument_name != "OMI"):
             return (None, None)
-        obj_creator = OmiFmObjectCreator(rf_uip, use_full_state_vector=use_full_state_vector, include_bad_sample=include_bad_sample, **self.creator_kwargs)
+        obj_creator = OmiFmObjectCreator(rf_uip, obs, use_full_state_vector=use_full_state_vector, include_bad_sample=include_bad_sample, **self.creator_kwargs)
         svhandle.add_handle(OmiStateVectorHandle(obj_creator),
                             priority_order=100)
         return (obj_creator.forward_model, obj_creator.observation)

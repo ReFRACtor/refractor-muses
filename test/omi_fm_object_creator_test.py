@@ -1,57 +1,56 @@
 import numpy as np
 import numpy.testing as npt
 
-from refractor.omi import (OmiFmObjectCreator, RefractorOmiFm,
-                           OmiInstrumentHandle)
 from test_support import *
 import refractor.framework as rf
 import glob
-from refractor.muses import (RefractorMusesIntegration, MusesRunDir,
-                             CostFunctionCreator, CostFunction, MusesForwardModelStep,
-                             StateInfo)
-from refractor.muses import(RefractorFmObjectCreatorNew)
+from refractor.muses import (MusesRunDir, CostFunctionCreator, CostFunction, 
+                             StateInfo, RefractorFmObjectCreatorNew)
+from refractor.omi import (OmiFmObjectCreator, OmiInstrumentHandle)
+from refractor.old_py_retrieve_wrapper import (RefractorMusesIntegration,
+                                               RefractorOmiFm,MusesForwardModelStep,)
 import subprocess
 
 DEBUG = False
 
 
-def test_solar_model(omi_uip_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_solar_model(omi_uip_step_1, omi_obs_step_1):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.omi_solar_model[0])
 
 
-def test_spec_win(omi_uip_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_spec_win(omi_uip_step_1, omi_obs_step_1):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.spec_win)
     obj_creator2 = RefractorFmObjectCreatorNew(*StateInfo.create_from_uip(omi_uip_step_1), "OMI")
     print(obj_creator2.spec_win)
 
 
-def test_spectrum_sampling(omi_uip_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_spectrum_sampling(omi_uip_step_1, omi_obs_step_1):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.spectrum_sampling)
 
 
-def test_instrument(omi_uip_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_instrument(omi_uip_step_1, omi_obs_step_1):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.instrument)
 
 
 @require_muses_py
-def test_atmosphere(omi_uip_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_atmosphere(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.atmosphere)
 
 
 @require_muses_py
-def test_radiative_transfer(omi_uip_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_radiative_transfer(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.radiative_transfer)
 
 
 @require_muses_py
-def test_forward_model(omi_uip_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_forward_model(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.forward_model)
 
 
@@ -85,39 +84,39 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
 
 
 @require_muses_py
-def test_fm_run(omi_uip_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1).forward_model
+def test_fm_run(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1).forward_model
     fm.add_observer_and_keep_reference(PrintSpectrum())
     print(fm.radiance(0, True).value)
 
 
-def test_state_vector(omi_uip_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_state_vector(omi_uip_step_1, omi_obs_step_1):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.state_vector_for_testing)
 
 
 @require_muses_py
-def test_state_vector_step2(omi_uip_step_2, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_2)
+def test_state_vector_step2(omi_uip_step_2, omi_obs_step_2, clean_up_replacement_function):
+    fm = OmiFmObjectCreator(omi_uip_step_2, omi_obs_step_2)
     print(fm.state_vector_for_testing)
 
 
 @require_muses_py
-def test_raman_effect(omi_uip_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1)
+def test_raman_effect(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
+    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
     print(fm.raman_effect)
 
 
 @require_muses_py
-def test_forward_model_step2(omi_uip_step_2, clean_up_replacement_function):
+def test_forward_model_step2(omi_uip_step_2, omi_obs_step_2, clean_up_replacement_function):
     '''Step 2, which has two microwindows'''
-    fm = OmiFmObjectCreator(omi_uip_step_2)
+    fm = OmiFmObjectCreator(omi_uip_step_2, omi_obs_step_2)
     print(fm.forward_model)
 
 
 @require_muses_py
-def test_fm_run_step2(omi_uip_step_2, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_2, use_pca=False).forward_model
+def test_fm_run_step2(omi_uip_step_2, omi_obs_step_2, clean_up_replacement_function):
+    fm = OmiFmObjectCreator(omi_uip_step_2, omi_obs_step_2, use_pca=False).forward_model
 
     if DEBUG:
         fm.add_observer_and_keep_reference(SaveSpectrum("/home/mcduffie/Temp/lidort_radiance_{name}.pkl"))
@@ -125,7 +124,7 @@ def test_fm_run_step2(omi_uip_step_2, clean_up_replacement_function):
 
     spectrum_lidort = fm.radiance(0, True)
 
-    fm = OmiFmObjectCreator(omi_uip_step_2, use_pca=True).forward_model
+    fm = OmiFmObjectCreator(omi_uip_step_2, omi_obs_step_2, use_pca=True).forward_model
 
     if DEBUG:
         fm.add_observer_and_keep_reference(SaveSpectrum("/home/mcduffie/Temp/pca_radiance_{name}.pkl"))
@@ -137,7 +136,8 @@ def test_fm_run_step2(omi_uip_step_2, clean_up_replacement_function):
     npt.assert_allclose(spectrum_lidort.spectral_range.data, spectrum_pca.spectral_range.data, rtol=2e-2)
 
 @require_muses_py
-def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
+def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
+                             joint_omi_obs_step_8):
     '''Test out the CostFunction residual_fm_jacobian using our forward model. Note
     that this just tests that we can make the call, to debug any problems there. The
     actual comparison on results is done in full run tests below.'''
@@ -158,7 +158,7 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False)
     creator.instrument_handle_set.add_handle(ihandle, priority_order=100)
-    cfunc = creator.cost_function_from_uip(rf_uip,
+    cfunc = creator.cost_function_from_uip(rf_uip, joint_omi_obs_step_8,
                                            rrefractor.params["ret_info"],
                                            vlidort_cli=vlidort_cli)
     (uip, o_residual, o_jacobian_ret, radiance_out,

@@ -3,7 +3,8 @@ import click
 import logging
 import subprocess
 import os
-from refractor.muses import RefractorUip, MusesRunDir, MusesRetrievalStep
+from refractor.muses import RefractorUip, MusesRunDir
+from refractor.old_py_retrieve_wrapper import MusesRetrievalStep
 import refractor.muses.muses_py as mpy
 import shutil
 import h5py

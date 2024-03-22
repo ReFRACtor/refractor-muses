@@ -3,8 +3,7 @@ from refractor.muses import (MusesAirsObservationNew, MusesRunDir, MusesAirsObse
                              StateVectorHandleSet, MusesCrisObservationNew,
                              MusesCrisObservation,
                              MusesTropomiObservationNew, MusesOmiObservationNew)
-from refractor.tropomi import TropomiRadiancePyRetrieve
-from refractor.omi import OmiRadiancePyRetrieve
+from refractor.old_py_retrieve_wrapper import TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve
 import refractor.framework as rf
 from test_support import *
 

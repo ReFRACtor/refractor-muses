@@ -18,10 +18,17 @@ class StrategyTable:
         self.filename = os.path.abspath(filename)
         self._table_step = -1
         self.osp_dir = osp_dir
+        t = os.environ.get("strategy_table_dir")
         with self.chdir_run_dir():
-            self.strategy_table_dict = mpy.table_read(self.filename)[1].__dict__
-            
-
+            try:
+                os.environ["strategy_table_dir"] = os.path.dirname(self.filename)
+                self.strategy_table_dict = mpy.table_read(self.filename)[1].__dict__
+            finally:
+                if(t is not None):
+                    os.environ["strategy_table_dir"] = t
+                else:
+                    del os.environ["strategy_table_dir"]
+                    
     @property
     def analysis_directory(self):
         return self.strategy_table_dict["dirAnalysis"]

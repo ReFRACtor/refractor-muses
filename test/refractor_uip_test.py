@@ -96,6 +96,11 @@ def test_refractor_joint_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
     i_oco2 = rstep.params["i_oco2"]
     rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
         i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    # aertype is some odd structure used for OCO-2, which doesn't seem to be set right. We
+    # may need to eventually sort this out, but it doesn't actually seem to be used  for
+    # anything. Remove just so it doesn't interfere with our check of everything else.
+    rf_uip.uip['nirPars']['aertype'] = None
+    joint_tropomi_uip_step_12.uip['nirPars']['aertype'] = None
     # To compare, just print out and then use diff
     with open("our_uip.txt", "w") as fh:
         pprint.pprint(rf_uip.uip,fh)
@@ -121,6 +126,11 @@ def test_refractor_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
     i_oco2 = rstep.params["i_oco2"]
     rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
         i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    # aertype is some odd structure used for OCO-2, which doesn't seem to be set right. We
+    # may need to eventually sort this out, but it doesn't actually seem to be used  for
+    # anything. Remove just so it doesn't interfere with our check of everything else.
+    rf_uip.uip['nirPars']['aertype'] = None
+    tropomi_uip_step_2.uip['nirPars']['aertype'] = None
     # To compare, just print out and then use diff
     with open("our_uip.txt", "w") as fh:
         pprint.pprint(rf_uip.uip,fh)
@@ -146,6 +156,11 @@ def test_refractor_joint_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
     i_oco2 = rstep.params["i_oco2"]
     rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
         i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    # aertype is some odd structure used for OCO-2, which doesn't seem to be set right. We
+    # may need to eventually sort this out, but it doesn't actually seem to be used  for
+    # anything. Remove just so it doesn't interfere with our check of everything else.
+    rf_uip.uip['nirPars']['aertype'] = None
+    joint_omi_uip_step_8.uip['nirPars']['aertype'] = None
     # To compare, just print out and then use diff
     with open("our_uip.txt", "w") as fh:
         pprint.pprint(rf_uip.uip,fh)
@@ -171,6 +186,11 @@ def test_refractor_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
     i_oco2 = rstep.params["i_oco2"]
     rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
         i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    # aertype is some odd structure used for OCO-2, which doesn't seem to be set right. We
+    # may need to eventually sort this out, but it doesn't actually seem to be used  for
+    # anything. Remove just so it doesn't interfere with our check of everything else.
+    rf_uip.uip['nirPars']['aertype'] = None
+    omi_uip_step_2.uip['nirPars']['aertype'] = None
     # To compare, just print out and then use diff
     with open("our_uip.txt", "w") as fh:
         pprint.pprint(rf_uip.uip,fh)

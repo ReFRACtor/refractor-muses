@@ -23,7 +23,6 @@ from pprint import pformat, pprint
 import time
 from contextlib import contextmanager
 from .retrieval_info import RetrievalInfo
-from .retrieval_info_old import RetrievalInfoOld
 from .state_info import StateInfo
 logger = logging.getLogger("py-retrieve")
 
@@ -336,6 +335,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             self.retrievalInfo = RetrievalInfo(
                 self.error_analysis, self.strategy_table, self.state_info)
         else:
+            from refractor.old_py_retrieve_wrapper import RetrievalInfoOld
             self.retrievalInfo = RetrievalInfoOld(
                 self.strategy_table, self.state_info)
 

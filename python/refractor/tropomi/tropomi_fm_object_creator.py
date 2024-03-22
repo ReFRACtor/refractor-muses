@@ -2,7 +2,6 @@ try:
     from functools import cached_property
 except ImportError:
     from backports.cached_property import cached_property
-from .tropomi_radiance import TropomiRadianceRefractor, TropomiRadiancePyRetrieve
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, StateVectorHandle,
                              O3Absorber, SwirAbsorber,
@@ -19,8 +18,9 @@ import copy
 logger = logging.getLogger("py-retrieve")
 
 class TropomiFmObjectCreator(RefractorFmObjectCreator):
-    def __init__(self, rf_uip : RefractorUip, **kwargs):
-        super().__init__(rf_uip, "TROPOMI", **kwargs)
+    def __init__(self, rf_uip : RefractorUip,
+                 observation : 'MusesObservation', **kwargs):
+        super().__init__(rf_uip, "TROPOMI", observation, **kwargs)
         unique_filters = set(self.filter_name)
         if len(unique_filters) != 1:
             raise NotImplementedError('Cannot handle multiple bands yet (requires different absorbers per band)')
@@ -32,21 +32,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         else:
             raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
         
-
-    @cached_property
-    def observation_py_retrieve(self):
-        return TropomiRadiancePyRetrieve(self.rf_uip,
-                                         include_bad_sample=self.include_bad_sample)
-
-    @cached_property
-    def observation_refractor(self):
-        fname = glob.glob(f"{self.rf_uip.run_dir}/Input/Radiance_TROPOMI*.pkl")[0]
-        return TropomiRadianceRefractor(self.rf_uip, bands=self.filter_name, fname=fname,
-                                        include_bad_sample=self.include_bad_sample)
-
-    @property
-    def observation(self):
-        return self.observation_refractor
 
     @cached_property
     def instrument_correction(self):
@@ -258,11 +243,11 @@ class TropomiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, svhandle,
+    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
                    use_full_state_vector=False, include_bad_sample=False, **kwargs):
         if(instrument_name != "TROPOMI"):
             return (None, None)
-        obj_creator = TropomiFmObjectCreator(rf_uip, use_full_state_vector=use_full_state_vector, include_bad_sample=include_bad_sample, **self.creator_kwargs)
+        obj_creator = TropomiFmObjectCreator(rf_uip, obs, use_full_state_vector=use_full_state_vector, include_bad_sample=include_bad_sample, **self.creator_kwargs)
         svhandle.add_handle(TropomiStateVectorHandle(obj_creator),
                             priority_order=100)
         return (obj_creator.forward_model, obj_creator.observation)

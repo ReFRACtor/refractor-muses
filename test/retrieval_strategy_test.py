@@ -1,8 +1,6 @@
 from test_support import *
-from refractor.muses import (MusesForwardModelStep,
-                             MusesRunDir,
-                             RefractorMusesIntegration,
-                             RetrievalStrategy, RetrievalStrategyCaptureObserver)
+from refractor.muses import (MusesRunDir, RetrievalStrategy, RetrievalStrategyCaptureObserver)
+from refractor.old_py_retrieve_wrapper import RefractorMusesIntegration
 from refractor.omi import OmiInstrumentHandle
 from refractor.tropomi import TropomiInstrumentHandle
 import refractor.muses.muses_py as mpy
@@ -81,8 +79,7 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
                            vlidort_cli=vlidort_cli)
     # Grab each step so we can separately test output
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
-    # Temp, we need to fix serialization
-    #rs.add_observer(rscap)
+    rs.add_observer(rscap)
     if False:
         # Use refractor forward model. We default to not, because we are
         # mostly testing everything *other* than the forward model with this
@@ -156,8 +153,7 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     # Grab each step so we can separately test output
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
-    # Temp, we need to fix serialization
-    #rs.add_observer(rscap)
+    rs.add_observer(rscap)
     if False:
         # Use refractor forward model. We default to not, because we are
         # mostly testing everything *other* than the forward model with this

@@ -1,8 +1,7 @@
-from . import muses_py as mpy
-from .replace_function_helper import register_replacement_function_in_block
-from .refractor_capture_directory import (RefractorCaptureDirectory,
-                                          muses_py_call)
-from .osswrapper import osswrapper
+import refractor.muses.muses_py as mpy
+from refractor.muses import(register_replacement_function_in_block,
+                            RefractorCaptureDirectory, muses_py_call,
+                            osswrapper)
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io

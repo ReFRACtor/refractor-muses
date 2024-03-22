@@ -104,6 +104,7 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
         
     @abc.abstractmethod
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
+                   obs : 'MusesObservation',
                    svhandle: StateVectorHandleSet,
                    use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
@@ -129,6 +130,7 @@ class InstrumentHandleSet(PriorityHandleSet):
                 h.notify_update_target(rs)
         
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
+                   obs : 'MusesObservation',
                    svhandle : StateVectorHandleSet,
                    use_full_state_vector=True,
                    obs_rad=None, meas_err=None,
@@ -138,19 +140,20 @@ class InstrumentHandleSet(PriorityHandleSet):
         The StateVectorHandleSet svhandle is modified by having any
         StateVectorHandle added to it.'''
 
-        return self.handle(instrument_name, rf_uip, svhandle,
+        return self.handle(instrument_name, rf_uip, obs, svhandle,
                            use_full_state_vector=use_full_state_vector,
                            obs_rad=obs_rad, meas_err=meas_err,
                            **kwargs)
     
     def handle_h(self, h : InstrumentHandle, instrument_name : str,
                  rf_uip : RefractorUip,
+                 obs : 'MusesObservation',
                  svhandle : StateVectorHandleSet,
                  use_full_state_vector=True,
                  obs_rad=None, meas_err=None,
                  **kwargs):
         '''Process a registered function'''
-        fm, obs = h.fm_and_obs(instrument_name, rf_uip, svhandle,
+        fm, obs = h.fm_and_obs(instrument_name, rf_uip, obs, svhandle,
                                use_full_state_vector=use_full_state_vector,
                                obs_rad=obs_rad,meas_err=meas_err,**kwargs)
         if(fm is None):
@@ -425,26 +428,19 @@ class CostFunctionCreator:
         # is set up for rf_uip to None, so we can start moving this out. Right now, if the
         # rf_uip is set, we make sure the rf_uip gets updated when the CostFunction.parameters
         # get updated. But this is only needed if we have a ForwardModel with a rf_uip.
-        #
-        # Temp, use the new handle if we have it, otherwise we use the old fm_and_obs. We'll
-        # remove this once we have all the obs we need.
-        self.newobslist = []
+        self.obslist = []
         self.state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
         for instrument_name in rf_uip.instrument:
-            try:
-                obs = self.observation_handle_set.observation(instrument_name, self.rs,
-                                                              self.state_vector_handle_set,
-                                                              **kwargs)
-                # Temp, just skip
-                #obs = None
-            except RuntimeError:
-                obs = None
-            self.newobslist.append(obs)
+            obs = self.observation_handle_set.observation(instrument_name, self.rs,
+                                                          self.state_vector_handle_set,
+                                                          **kwargs)
+            self.obslist.append(obs)
         return (self._fm_and_obs(rf_uip, ret_info,
                                use_full_state_vector=use_full_state_vector,
                                 **kwargs), rf_uip, radianceStepIn)
 
     def cost_function_from_uip(self, rf_uip : RefractorUip,
+                               obslist,
                                ret_info : dict,
                                **kwargs):
         '''Create a cost function from a RefractorUip and a ret_info. Note that this is really
@@ -470,7 +466,10 @@ class CostFunctionCreator:
         forward.
         '''
         self.state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
-        self.newobslist = [None,] * len(rf_uip.instrument)
+        # Pass obs to a bit it kludge. We'll come back and rework this, but this is
+        # just jury rigged to get stuff working after we reworked the MusesObservation
+        # stuff
+        self.obslist = obslist
         if(ret_info is None):
             return CostFunction(*self._fm_and_fake_obs(rf_uip, **kwargs))
         return CostFunction(*self._fm_and_obs(rf_uip, ret_info, **kwargs))
@@ -498,17 +497,14 @@ class CostFunctionCreator:
         sv_apriori = ret_info["const_vec"]
         sv_sqrt_constraint = ret_info["sqrt_constraint"].transpose()
         for i, instrument_name in enumerate(rf_uip.instrument):
+                
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
-                                  rf_uip, self.state_vector_handle_set,
+                                  rf_uip, self.obslist[i], self.state_vector_handle_set,
                                   use_full_state_vector=use_full_state_vector,
                                   obs_rad=obs_rad, meas_err=meas_err,**kwargs)
             fm_list.append(fm)
             # Temp, we use the new obs list if we have a value, fall back to old if not.
-            if(self.newobslist[i] is not None):
-                logger.info(f"Hi there, using {self.newobslist[i]}")
-                obs_list.append(self.newobslist[i])
-            else:
-                obs_list.append(obs)
+            obs_list.append(self.obslist[i])
         sv = self.state_vector_handle_set.create_state_vector(rf_uip,
                                use_full_state_vector=use_full_state_vector,
                                **kwargs)

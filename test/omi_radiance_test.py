@@ -1,7 +1,7 @@
 from test_support import *
 import numpy as np
 import numpy.testing as npt
-from refractor.omi import OmiRadiancePyRetrieve, OmiRadianceToUip
+from refractor.old_py_retrieve_wrapper import OmiRadiancePyRetrieve, OmiRadianceToUip
 import refractor.framework as rf
 import glob
 import pandas as pd

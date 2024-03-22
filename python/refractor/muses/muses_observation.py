@@ -796,7 +796,36 @@ class MusesOmiObservationNew(MusesObservationReflectance):
             res.append(f"OMIODWAVSLOPE{flt}")
         return res
     
-    
+
+# We have old code with the TES sounding_desc. This isn't used anywhere, and should
+# go into a TES observation class when we get around to incorporating this. But
+# keep this code around for reference until we can create full observations.
+class Level1bTes:
+    '''This is like a Level1b class from framework, although right now we won't
+    bother making this actually one those. Instead this pulls stuff out of
+    StateInfo and makes in looks like we got it from a Level1bAirs file.
+    We'll then eventually separate this out from StateInfo and put this
+    over with the Observation.'''
+    def __init__(self, state_info):
+        self.state_info = state_info
+
+    @property
+    def sounding_desc(self):
+        '''Different types of instruments have different description of the
+        sounding ID. This gets used in retrieval_l2_output for metadata.'''
+        info_file = self.state_info.info_file
+        return {
+            "TES_RUN" : np.int16(info_file['preferences']['TES_run']),
+            "TES_SEQUENCE" : np.int16(info_file['preferences']['TES_sequence']),
+            "TES_SCAN" : np.int16(info_file['preferences']['TES_scan']),
+            "POINTINGANGLE_TES" : self.boresight_angle.convert("deg").value
+        }
+
+    @property
+    def boresight_angle(self):
+        return rf.DoubleWithUnit(self.state_info.state_info_dict["current"]["boresightNadirRadians"], "rad")
+
+
 ObservationHandleSet.add_default_handle(MusesObservationHandle("AIRS", MusesAirsObservationNew))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("CRIS", MusesCrisObservationNew))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("TROPOMI",
