@@ -8,6 +8,7 @@ from pprint import pprint, pformat
 from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
+from .current_state import CurrentState
 import numpy as np
 
 logger = logging.getLogger("py-retrieve")
@@ -77,7 +78,15 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         If do_systematic is True, then we use the systematic species list. Not
         exactly sure how this is different then just subsetting the full retrieval,
         but at least for now duplicate what muses-py does.'''
+        # TODO remove do_systematic, jacobian_speciesIn, do_systematic. Not sure about
+        # other options
+        def uip_func():
+            return None
         return rs.cost_function_creator.cost_function(
+            rs.strategy_table.instrument_name(),
+            CurrentState(),
+            rs.strategy_table.spectral_window_all(),
+            uip_func,
             do_systematic=do_systematic, include_bad_sample=include_bad_sample,
             fix_apriori_size=fix_apriori_size,
             jacobian_speciesIn=jacobian_speciesIn, **rs.kwargs)

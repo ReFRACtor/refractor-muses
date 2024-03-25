@@ -203,7 +203,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # which as the side effect of creating a o_cris. We grab this. This is
         # clumsy, and we should replace this. But right now we need o_cris for our
         # create_windows function.
-        self.instrument_name_all = self.strategy_table.instrument_name_all()
+        self.instrument_name_all = self.strategy_table.instrument_name(all_step=True)
         self.cost_function_creator.create_o_obs()
         self.o_cris = self.cost_function_creator.o_cris
         

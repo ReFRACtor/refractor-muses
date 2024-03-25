@@ -405,11 +405,38 @@ class CostFunctionCreator:
         return radianceStepIn
 
 
-    def cost_function(self, 
+    def cost_function(self,
+                      instrument_name_list : "list[str]",
+                      current_state : 'CurrentState',
+                      spec_win : "list[rf.SpectralWindowRange]",
+                      rf_uip_func,
                       do_systematic=False,
                       jacobian_speciesIn=None,
                       **kwargs):
-        '''Return cost function for the RetrievalStrategy. Also sets self.radiance_step_in
+        '''Return cost function for the RetrievalStrategy.
+
+        This takes the list of instrument names that make up this particular retrieval
+        step, the current state information (see CurrentState class for description), and
+        a list (one per instrument) of SpectralWindowRanges to apply the microwindows.
+        Note that the SpectralWindows should *not* exclude bad pixels at this point. We
+        generally need the Observation that we create as part of this function to determine
+        bad pixels, so we add that to the passed in SpectralWindows.
+
+        The muses-py versions of the ForwardModel depend on a RefractorUip structure. To
+        support these older ForwardModel, and function is passed in that can be called to
+        return the RefractorUip to use. We have this as a function, so we can avoid creating
+        the RefractorUip if we don't need it. The RefractorUip shouldn't be used otherwise,
+        it only has information that was needed by the old ForwardModel, and it is a
+        convoluted way to pass the information around. Basically the uip + muses-py code
+        is a old structural programming way to have a ForwardModel object.  We also don't
+        just generate the UIP internally when needed because it depends on other muses-py
+        structures that we don't have access to (by design, to reduce coupling in our code).
+        If you know you aren't using a muses-py ForwardModel, it is fine to just pass this as
+        None. It is possible that this argument will go away if we move far enough away from
+        the old muses-py code - however for the near future we want to be able maintain the
+        ability to run the old code to test against and diagnose any issues with ReFRACtor.
+
+        This Also sets self.radiance_step_in
         - this is a bit awkward but I think we may replace radiance_steo_in. Right now this is
         only used in RetrievalStrategyStep.'''
         args, rf_uip, self.radiance_step_in = self._fm_and_obs_rs(

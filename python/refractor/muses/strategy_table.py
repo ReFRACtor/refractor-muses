@@ -244,16 +244,26 @@ class StrategyTable:
     def filter_list_all(self):
         '''Dict with all the instruments to the filter_list for that instrument.'''
         res = {}
-        for instrument_name in self.instrument_name_all():
+        for instrument_name in self.instrument_name(all_step=True):
             res[instrument_name] = self.filter_list(instrument_name)
         return res
+
+    def spectral_window_all(self, stp=None, all_step=False):
+        '''dict of spectral_window for each instrument in the given step
+        (self.table_step if not supplied), or all steps if all_step is True'''
+        swin = {}
+        for iname in self.instrument_name(stp=stp,all_step=all_step):
+            swin[iname] = self.spectral_window(iname)
+        return swin
     
-    def instrument_name_all(self):
-        '''The complete list of instruments from all retrieval steps'''
-        return list(dict.fromkeys([m['instrument'] for m in self.microwindows(all_step=True)]))
+    def instrument_name(self, stp=None, all_step=False):
+        '''The list of instruments for the given step, used self.table_step if not supplied.
+        If all_step is True, then we return the list of instruments from all retrieval steps.'''
+        return list(dict.fromkeys([m['instrument'] for m in
+                                   self.microwindows(stp=stp, all_step=all_step)]))
     
     def microwindows(self, stp=None, all_step=False):
-        '''Microwindows for the given step, used self.table_step is not supplied.
+        '''Microwindows for the given step, used self.table_step if not supplied.
         If all_step is True, then we return table_new_mw_from_all_steps instead.'''
         with self.chdir_run_dir():
             if(all_step):
