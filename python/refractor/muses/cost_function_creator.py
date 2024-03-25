@@ -97,7 +97,7 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
 
-    def notify_update_target(self, rs: 'RetrievalStategy'):
+    def notify_update_target(self, measurement_id : dict, filter_list : dict):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # Default is to do nothing
         pass
@@ -124,10 +124,10 @@ class InstrumentHandleSet(PriorityHandleSet):
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
-    def notify_update_target(self, rs: 'RetrievalStategy'):
+    def notify_update_target(self, measurement_id : dict, filter_list : dict):
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(rs)
+                h.notify_update_target(measurement_id, filter_list)
         
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
                    obs : 'MusesObservation',
@@ -170,7 +170,7 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
-    def notify_update_target(self, rs: 'RetrievalStategy'):
+    def notify_update_target(self, measurement_id : dict, filter_list : dict):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # Default is to do nothing
         pass
@@ -193,10 +193,10 @@ class ObservationHandleSet(PriorityHandleSet):
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
-    def notify_update_target(self, rs: 'RetrievalStategy'):
+    def notify_update_target(self, measurement_id : dict, filter_list : dict):
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(rs)
+                h.notify_update_target(measurement_id, filter_list)
         
     def observation(self, instrument_name : str, rs: 'RetrievalStategy',
                     svhandle : StateVectorHandleSet,
@@ -246,9 +246,46 @@ class CostFunctionCreator:
     def __init__(self, rs : 'Optional(RetrievalStategy)' = None):
         self.instrument_handle_set = copy.deepcopy(InstrumentHandleSet.default_handle_set())
         self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
-        self.notify_update_target(rs)
+        self.measurement_id = None
+        self.filter_list = None
 
-    def notify_update_target(self, rs : 'RetrievalStategy'):
+    def update_target(self, measurement_id : dict, filter_list : dict, rs : 'RetrievalStategy'):
+        '''Set up for processing a target.
+
+        Note we separate this out from the cost_function creator
+        because we want to allow internal caching based on the
+        sounding - e.g., read the input file only once. Ignoring
+        performance, functionally this is just like two extra arguments
+        passed to cost_function.
+
+        We take measure_id, which should act like a dict to give us
+        the various sounding id information we need. The canonical
+        version of this is the "preferences" part of a MeasurementID
+        file, but we purposely just take a generic dict like structure
+        so you can run this with requiring a MeasurementID file,
+        e.g. for running stand alone tests.
+
+        Similarly, we take filter_list, which acts like dict. The keys
+        are the instruments we have for this target. These should be in
+        the order desired for the cost function residual (note as of python
+        3.6 the standard dict maintains insertion order - so the ordering
+        should be automatic). This then returns a list of filters for that
+        instrument.
+
+        The filter_list should be the *complete* set of filters
+        needed, so the union of the filter for all the retrieval
+        steps. The canonical way to get that is the
+        StrategyTable.filter_list_all(), but we purposely just take a
+        generic dict like structure so you can run this without requiring
+        a StrategyTable, e.g. for running stand alone tests.
+        '''
+        self.measurement_id = measurement_id
+        self.filter_list = filter_list
+        # TODO We want this to go away. But short term leave this here so we can
+        # get the code cleaned up in pieces.
+        self.rs = rs
+        
+        # Hopefully these will go away
         self.o_airs = None
         self.o_cris = None
         self.o_omi = None
@@ -257,9 +294,8 @@ class CostFunctionCreator:
         self.o_oco2 = None
         self._created_o = False
         self._radiance = None
-        self.rs = rs
-        self.instrument_handle_set.notify_update_target(rs)
-        self.observation_handle_set.notify_update_target(rs)
+        self.instrument_handle_set.notify_update_target(self.measurement_id, self.filter_list)
+        self.observation_handle_set.notify_update_target(self.measurement_id, self.filter_list)
 
     def create_o_obs(self):
         if(self._created_o):
@@ -268,7 +304,8 @@ class CostFunctionCreator:
          _) = mpy.script_retrieval_setup_ms(self.rs.strategy_table.strategy_table_dict, False)
         self._created_o = True
         
-    def _read_rad(self, state_info, instruments_all):
+    def _read_rad(self, state_info, instrument_name_all):
+
         '''This is a placeholder, we want to get this stuff pushed down into
         the handle for each instrument, probably into the various Observable classes.
         But for now we have this centralized so we can call the existing muses-py code.
@@ -277,18 +314,18 @@ class CostFunctionCreator:
             return
         with self.rs.chdir_run_dir():
             self.create_o_obs()
-            self._create_radiance(state_info, instruments_all)
+            self._create_radiance(state_info, instrument_name_all)
 
-    def _create_radiance(self, state_info, instruments_all):
+    def _create_radiance(self, state_info, instrument_name_all):
         '''Read the radiance data. We can  perhaps move this into a Observation class
         by instrument.
 
         Note that this also creates the magic files Radiance_OMI_.pkl and
         Radiance_TROPOMI_.pkl. It would be nice if can rework that.
         '''
-        logger.info(f"Instruments: {len(instruments_all)} {instruments_all}")
+        logger.info(f"Instruments: {len(instrument_name_all)} {instrument_name_all}")
         obsrad = None
-        for instrument_name in instruments_all:
+        for instrument_name in instrument_name_all:
             logger.info(f"Reading radiance: {instrument_name}")
             if instrument_name == 'OMI':
                 result = mpy.get_omi_radiance(state_info.state_info_dict['current']['omi'], copy.deepcopy(self.o_omi))
@@ -341,7 +378,7 @@ class CostFunctionCreator:
                 obsrad = mpy.radiance_add_filter(obsrad, radiance, nesr, [-1], frequency, my_filter, instrument_name)
         self._radiance = obsrad
 
-    def radiance(self, state_info, instruments_all):
+    def radiance(self, state_info, instrument_name_all):
         '''I'm not 100% sure if this can go way or not, but state_initial_update
         depends on the radiance. For now, allow access to this.
 
@@ -350,13 +387,13 @@ class CostFunctionCreator:
         used in creating our RetrievalState. For now, just allow access this so
         we can push this out of RetrievalStrategy even if we shuffle around where
         this comes from.'''
-        self._read_rad(state_info, instruments_all)
+        self._read_rad(state_info, instrument_name_all)
         return self._radiance
 
     def _create_radiance_step(self):
         # Note, I think we might replace this just with our SpectralWindow stuff,
         # along with an Observation class
-        self._read_rad(self.rs.state_info, self.rs.instruments_all)
+        self._read_rad(self.rs.state_info, self.rs.instrument_name_all)
         radianceStepIn = self._radiance
         radianceStepIn = mpy.radiance_set_windows(radianceStepIn, self.rs.windows)
 

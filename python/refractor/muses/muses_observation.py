@@ -259,7 +259,7 @@ class MusesObservationHandle(ObservationHandle):
         self.__dict__ = state
         self.obs = None
 
-    def notify_update_target(self, rs):
+    def notify_update_target(self, measurement_id : dict, filter_list : dict):
         # Need to read new data when the target changes
         self.obs = None
 

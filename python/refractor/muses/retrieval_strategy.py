@@ -77,20 +77,13 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         logger.info(f"Strategy table filename {filename}")
         self.capture_directory = RefractorCaptureDirectory()
         self._observers = set()
-        # For calling from py-retrieve, it is useful to delay the filename. See
-        # script_retrieval_ms below
-        if(filename is not None):
-            self.filename = os.path.abspath(filename)
-            self.run_dir = os.path.dirname(self.filename)
-            self.strategy_table = StrategyTable(self.filename)
-            self.measurement_id_file = mpy.tes_file_get_struct(
-                mpy.read_all_tes(f"{self.run_dir}/Measurement_ID.asc")[1])
         self.vlidort_cli = vlidort_cli
         self._table_step = -1
 
         self.retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
         self.cost_function_creator = CostFunctionCreator(rs=self)
         self.instrument_handle_set = self.cost_function_creator.instrument_handle_set
+        self.observation_handle_set = self.cost_function_creator.observation_handle_set
         self.kwargs = kwargs
         self.kwargs["vlidort_cli"] = vlidort_cli
 
@@ -109,6 +102,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             if(writePlots):
                 self.add_observer(RetrievalPlotResult())
                 self.add_observer(RetrievalPlotRadiance())
+                
+        # For calling from py-retrieve, it is useful to delay the filename. See
+        # script_retrieval_ms below
+        if(filename is not None):
+            self.update_target(filename)
 
     def register_with_muses_py(self):
         '''Register run_ms as a replacement for script_retrieval_ms'''
@@ -121,15 +119,26 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         if(func_name == "script_retrieval_ms"):
             return self.script_retrieval_ms(**parms)
 
-    def notify_update_target(self):
-        '''A number of objects related to this one might do caching based on the
+    def update_target(self, filename):
+        '''Set up to process a target, given the filename for the strategy table.
+
+        
+        A number of objects related to this one might do caching based on the
         target, e.g., read the input files once. py-retrieve can call script_retrieval_ms
         multiple times with different targets, so we need to notify all the objects
         when this changes in case they need to clear out any caching.'''
-        self.notify_update("update target")
+        self.filename = os.path.abspath(filename)
+        self.run_dir = os.path.dirname(self.filename)
+        self.measurement_id_file = mpy.tes_file_get_struct(
+            mpy.read_all_tes(f"{self.run_dir}/Measurement_ID.asc")[1])
+        self.strategy_table = StrategyTable(self.filename)
+        # TODO Remove passing "self" here, when we get CostFunctionCreator fully cleaned up.
+        self.cost_function_creator.update_target(self.measurement_id_file["preferences"],
+                                                 self.strategy_table.filter_list_all(),
+                                                 self)
         self.retrieval_strategy_step_set.notify_update_target(self)
-        self.cost_function_creator.notify_update_target(self)
         self.state_info.notify_update_target(self)
+        self.notify_update("update target")
         
 
     def script_retrieval_ms(self, filename, writeOutput=False, writePlots=False,
@@ -137,14 +146,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # Ignore arguments other than filename.
         # We can clean this up if needed, perhaps delay the
         # initialization or something.
-        
-        # Delayed setting of filename
-        self.filename = os.path.abspath(filename)
-        self.run_dir = os.path.dirname(self.filename)
-        self.measurement_id_file = mpy.tes_file_get_struct(
-            mpy.read_all_tes(f"{self.run_dir}/Measurement_ID.asc")[1])
-        self.strategy_table = StrategyTable(self.filename)
-        self.notify_update_target()
+        self.update_target(filename)
         return self.retrieval_ms()
     
     @property
@@ -201,13 +203,13 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # which as the side effect of creating a o_cris. We grab this. This is
         # clumsy, and we should replace this. But right now we need o_cris for our
         # create_windows function.
-        self.instruments_all = mpy.mw_instruments(self.strategy_table.microwindows(all_step=True))
+        self.instrument_name_all = self.strategy_table.instrument_name_all()
         self.cost_function_creator.create_o_obs()
         self.o_cris = self.cost_function_creator.o_cris
         
         self.create_windows(all_step=True)
         self.state_info.init_state(self.strategy_table, self.cost_function_creator,
-                                   self.instruments_all, self.run_dir)
+                                   self.instrument_name_all, self.run_dir)
 
         self.error_analysis = ErrorAnalysis(self.strategy_table, self.state_info)
         self.retrievalInfo = None

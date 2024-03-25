@@ -240,7 +240,18 @@ class StrategyTable:
         table_new_mw_from_all_steps. We can revisit this if needed. I'm also not sure how important
         the filter list is.'''
         return list(dict.fromkeys([m['filter'] for m in self.microwindows(all_step=True) if m["instrument"] == instrument_name]))
-        
+
+    def filter_list_all(self):
+        '''Dict with all the instruments to the filter_list for that instrument.'''
+        res = {}
+        for instrument_name in self.instrument_name_all():
+            res[instrument_name] = self.filter_list(instrument_name)
+        return res
+    
+    def instrument_name_all(self):
+        '''The complete list of instruments from all retrieval steps'''
+        return list(dict.fromkeys([m['instrument'] for m in self.microwindows(all_step=True)]))
+    
     def microwindows(self, stp=None, all_step=False):
         '''Microwindows for the given step, used self.table_step is not supplied.
         If all_step is True, then we return table_new_mw_from_all_steps instead.'''
