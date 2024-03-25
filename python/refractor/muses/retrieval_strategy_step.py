@@ -9,6 +9,7 @@ from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
 from .current_state import CurrentState
+from functools import partial
 import numpy as np
 
 logger = logging.getLogger("py-retrieve")
@@ -65,6 +66,43 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         otherwise'''
         raise NotImplementedError
 
+    def uip_func(self, rs, do_systematic, jacobian_speciesIn):
+        '''To support the old muses-py ForwardModel, we pass a uip_func to our
+        CostFunctionCreator that gets used if needed. This should only be used
+        by the old muses-py code, we shouldn't use this for ReFRACtor ForwardModel.
+        '''
+        if(self._uip is None):
+            # Would be good to get rid of this part, I'm not sure if we can. Could
+            # possibly also have this passed in to the uip_func? 
+            rs.cost_function_creator.create_o_obs()
+            if(do_systematic):
+                retrieval_info = rs.retrievalInfo.retrieval_info_obj
+                rinfo = mpy.ObjectView({
+                    'parameterStartFM': retrieval_info.parameterStartSys,
+                    'parameterEndFM' : retrieval_info.parameterEndSys,
+                    'species': retrieval_info.speciesSys,
+                    'n_species': retrieval_info.n_speciesSys,
+                    'speciesList': retrieval_info.speciesListSys,
+                    'speciesListFM': retrieval_info.speciesListSys,
+                    'mapTypeListFM': mpy.constraint_get_maptype(rs.error_analysis.error_current, retrieval_info.speciesListSys),
+                    'initialGuessListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+                    'constraintVectorListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+                    'initialGuessList': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
+                    'n_totalParametersFM': retrieval_info.n_totalParametersSys
+                })
+            else:
+                rinfo = rs.retrievalInfo
+            self._uip = RefractorUip.create_uip(rs.state_info, rs.strategy_table,
+                                                rs.windows, rinfo,
+                                                rs.cost_function_creator.o_airs,
+                                                rs.cost_function_creator.o_tes,
+                                                rs.cost_function_creator.o_cris,
+                                                rs.cost_function_creator.o_omi,
+                                                rs.cost_function_creator.o_tropomi,
+                                                rs.cost_function_creator.o_oco2,
+                                                jacobian_speciesIn=jacobian_speciesIn)
+        return self._uip
+
     def create_cost_function(self, rs : 'RetrievalStrategy',
                              do_systematic=False,
                              include_bad_sample=False,
@@ -73,24 +111,20 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         '''Create a CostFunction, for use either in retrieval or just for running
         the forward model (the CostFunction is a little overkill for just a
         forward model run, but it has all the pieces needed so no reason not to
-        just generate everything.
+        just generate everything).
 
         If do_systematic is True, then we use the systematic species list. Not
         exactly sure how this is different then just subsetting the full retrieval,
         but at least for now duplicate what muses-py does.'''
-        # TODO remove do_systematic, jacobian_speciesIn, do_systematic. Not sure about
-        # other options
-        def uip_func():
-            return None
+        self._uip = None
         return rs.cost_function_creator.cost_function(
             rs.strategy_table.instrument_name(),
             CurrentState(),
             rs.strategy_table.spectral_window_all(),
-            uip_func,
-            do_systematic=do_systematic, include_bad_sample=include_bad_sample,
-            fix_apriori_size=fix_apriori_size,
-            jacobian_speciesIn=jacobian_speciesIn, **rs.kwargs)
-
+            partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
+            include_bad_sample=include_bad_sample,
+            fix_apriori_size=fix_apriori_size, **rs.kwargs)
+        
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     '''There seems to be a few retrieval types that aren't implemented in
     py-retrieve. It might also be that we just don't have this implemented

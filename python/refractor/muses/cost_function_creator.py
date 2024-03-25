@@ -440,6 +440,7 @@ class CostFunctionCreator:
         - this is a bit awkward but I think we may replace radiance_steo_in. Right now this is
         only used in RetrievalStrategyStep.'''
         args, rf_uip, self.radiance_step_in = self._fm_and_obs_rs(
+            instrument_name_list, current_state, spec_win, rf_uip_func,
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
             **kwargs)
         cfunc = CostFunction(*args)
@@ -453,34 +454,15 @@ class CostFunctionCreator:
         return cfunc
 
     def _fm_and_obs_rs(self,
-                      do_systematic=False,
-                      use_full_state_vector=True,
-                      jacobian_speciesIn=None,
-                      **kwargs):
+                       instrument_name_list : "list[str]",
+                       current_state : 'CurrentState',
+                       spec_win : "list[rf.SpectralWindowRange]",
+                       rf_uip_func,
+                       **kwargs):
         radianceStepIn = self._create_radiance_step()
-        if(do_systematic):
-            retrieval_info = self.rs.retrievalInfo.retrieval_info_obj
-            rinfo = mpy.ObjectView({
-                'parameterStartFM': retrieval_info.parameterStartSys,
-                'parameterEndFM' : retrieval_info.parameterEndSys,
-                'species': retrieval_info.speciesSys,
-                'n_species': retrieval_info.n_speciesSys,
-                'speciesList': retrieval_info.speciesListSys,
-                'speciesListFM': retrieval_info.speciesListSys,
-                'mapTypeListFM': mpy.constraint_get_maptype(self.rs.error_analysis.error_current, retrieval_info.speciesListSys),
-                'initialGuessListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
-                'constraintVectorListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
-                'initialGuessList': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
-                'n_totalParametersFM': retrieval_info.n_totalParametersSys
-            })
-        else:
-            rinfo = self.rs.retrievalInfo
-        rf_uip = RefractorUip.create_uip(self.rs.state_info, self.rs.strategy_table,
-                                         self.rs.windows, rinfo,
-                                         self.o_airs, self.o_tes,
-                                         self.o_cris, self.o_omi, self.o_tropomi,
-                                         self.o_oco2,
-                                         jacobian_speciesIn=jacobian_speciesIn)
+        # TODO Right now always have rf_uip. We should extend our forward models to
+        # just tell us if the uip was created. But for now, always have this
+        rf_uip = rf_uip_func()
         ret_info = { 
             'obs_rad': radianceStepIn["radiance"],
             'meas_err':radianceStepIn["NESR"],            
@@ -499,9 +481,7 @@ class CostFunctionCreator:
                                                           self.state_vector_handle_set,
                                                           **kwargs)
             self.obslist.append(obs)
-        return (self._fm_and_obs(rf_uip, ret_info,
-                               use_full_state_vector=use_full_state_vector,
-                                **kwargs), rf_uip, radianceStepIn)
+        return (self._fm_and_obs(rf_uip, ret_info, **kwargs), rf_uip, radianceStepIn)
 
     def cost_function_from_uip(self, rf_uip : RefractorUip,
                                obslist,
@@ -540,7 +520,6 @@ class CostFunctionCreator:
     
     def _fm_and_obs(self, rf_uip : RefractorUip,
                    ret_info : dict,
-                   use_full_state_vector=True,
                    fix_apriori_size=False,
                    identity_basis_matrix=False,
                    **kwargs):
@@ -564,13 +543,13 @@ class CostFunctionCreator:
                 
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
                                   rf_uip, self.obslist[i], self.state_vector_handle_set,
-                                  use_full_state_vector=use_full_state_vector,
+                                  use_full_state_vector=True,
                                   obs_rad=obs_rad, meas_err=meas_err,**kwargs)
             fm_list.append(fm)
             # Temp, we use the new obs list if we have a value, fall back to old if not.
             obs_list.append(self.obslist[i])
         sv = self.state_vector_handle_set.create_state_vector(rf_uip,
-                               use_full_state_vector=use_full_state_vector,
+                               use_full_state_vector=True,
                                **kwargs)
         if(identity_basis_matrix):
             bmatrix = None
@@ -583,7 +562,6 @@ class CostFunctionCreator:
                 bmatrix)
     
     def _fm_and_fake_obs(self, rf_uip: RefractorUip,
-                        use_full_state_vector=True,
                         identity_basis_matrix=True,
                         **kwargs):
         '''It is useful to use our CostFunction to calculate the
@@ -609,7 +587,6 @@ class CostFunctionCreator:
         fake_ret_info["sqrt_constraint"] = np.eye(1)
         (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint, bmatrix) = \
             self._fm_and_obs(rf_uip, fake_ret_info,
-                            use_full_state_vector=use_full_state_vector,
                             identity_basis_matrix=identity_basis_matrix,
                             **kwargs)
         sv_apriori = np.zeros((sv.observer_claimed_size,))
