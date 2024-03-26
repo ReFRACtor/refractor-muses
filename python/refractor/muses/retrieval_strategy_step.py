@@ -117,9 +117,14 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         exactly sure how this is different then just subsetting the full retrieval,
         but at least for now duplicate what muses-py does.'''
         self._uip = None
+        cstate = CurrentState()
+        # Temp, until we get this sorted out
+        cstate.apriori_cov = rs.retrievalInfo.apriori_cov
+        cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
+        cstate.apriori = rs.retrievalInfo.apriori
         return rs.cost_function_creator.cost_function(
             rs.strategy_table.instrument_name(),
-            CurrentState(),
+            cstate,
             rs.strategy_table.spectral_window_all(),
             partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample,

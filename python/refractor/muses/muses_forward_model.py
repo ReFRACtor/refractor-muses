@@ -95,7 +95,10 @@ class MusesForwardModelBase(rf.ForwardModel):
         bmask = self.obs.bad_sample_mask(sensor_index)
         if(self.include_bad_sample):
             bmask[:] = False
-        return bmask
+        # This is the full bad sample mask, for all the indices. But here we only
+        # want the portion that fits in the spectral window
+        gindex = self.obs.spectral_window_with_bad_sample.grid_indexes(self.obs.spectral_domain_full(sensor_index), sensor_index)
+        return bmask[list(gindex)]
     
     def setup_grid(self):
         # Nothing that we need to do for this
@@ -105,8 +108,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         return 1
 
     def spectral_domain(self, sensor_index):
-        gmask = self.bad_sample_mask(sensor_index) != True
-        return rf.SpectralDomain(self.rf_uip.frequency_list(self.instrument_name)[gmask], rf.Unit("nm"))
+        return self.obs.spectral_domain(sensor_index)
 
 # Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
 # using something like --profile-svg in pytest
@@ -139,6 +141,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             raise ValueError("sensor_index must be 0")
         with osswrapper(self.rf_uip.uip):
             rad, jac = mpy.fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
+        # This is for the full set            
         gmask = self.bad_sample_mask(sensor_index) != True
         sd = self.spectral_domain(sensor_index)
         if(skip_jacobian):
@@ -373,7 +376,6 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
         # default handle list
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
-        obs = MusesCrisObservation(rf_uip, obs_rad, meas_err, **kwargs)
         return (MusesCrisForwardModel(rf_uip,obs, use_full_state_vector=use_full_state_vector, **kwargs), obs)
 
 class MusesAirsInstrumentHandle(InstrumentHandle):
@@ -389,7 +391,7 @@ class MusesAirsInstrumentHandle(InstrumentHandle):
         # default handle list
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
-        obs = MusesAirsObservation(rf_uip, obs_rad, meas_err, **kwargs)
+        #obs = MusesAirsObservation(rf_uip, obs_rad, meas_err, **kwargs)
         return (MusesAirsForwardModel(rf_uip,obs,use_full_state_vector=use_full_state_vector, **kwargs), obs)
 
 class MusesTropomiInstrumentHandle(InstrumentHandle):
