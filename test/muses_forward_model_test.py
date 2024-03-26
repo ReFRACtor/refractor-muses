@@ -2,8 +2,8 @@ from test_support import *
 from refractor.muses import (RefractorUip, StateVectorPlaceHolder,
                              MusesCrisForwardModel, MusesCrisObservation, 
                              MusesAirsForwardModel, MusesAirsObservation,
-                             MusesTropomiForwardModel, MusesTropomiObservation,
-                             MusesOmiForwardModel, MusesOmiObservation,
+                             MusesTropomiForwardModel, 
+                             MusesOmiForwardModel, 
                              StateVectorHandleSet, MusesStateVectorObserverHandle
                              )
 import refractor.framework as rf
@@ -11,12 +11,10 @@ import copy
 import pickle
 
 @require_muses_py
-def test_muses_cris_forward_model(joint_tropomi_uip_step_12):
+def test_muses_cris_forward_model(joint_tropomi_uip_step_12, joint_tropomi_obs_step_12):
     rf_uip = joint_tropomi_uip_step_12
-    obs_rad_fake = np.zeros((len(rf_uip.instrument_list),))
-    meas_err_fake = np.ones(obs_rad_fake.shape)
-    obs = MusesCrisObservation(rf_uip, obs_rad = obs_rad_fake, meas_err=meas_err_fake)
-    fm = MusesCrisForwardModel(rf_uip, obs)
+    obs, obs_tropomi = joint_tropomi_obs_step_12
+    fm = MusesCrisForwardModel(rf_uip, obs, include_bad_sample=True)
     print(pickle.loads(pickle.dumps(obs)))
     print(pickle.loads(pickle.dumps(fm)))
     s = fm.radiance(0)
@@ -32,7 +30,7 @@ def test_muses_cris_forward_model(joint_tropomi_uip_step_12):
         print(jac)
         print(rad.shape)
         print(jac.shape)
-    s = obs.radiance(0)
+    s = obs.radiance_all_with_bad_sample()
     rad = s.spectral_range.data
     uncer = s.spectral_range.uncertainty
     assert rad.shape[0] == 216
@@ -44,10 +42,12 @@ def test_muses_cris_forward_model(joint_tropomi_uip_step_12):
         print(uncer.shape)
 
 @require_muses_py
-def test_muses_tropomi_forward_model(joint_tropomi_uip_step_12, vlidort_cli):
+def test_muses_tropomi_forward_model(joint_tropomi_uip_step_12, joint_tropomi_obs_step_12,
+                                     vlidort_cli):
     rf_uip = joint_tropomi_uip_step_12
-    fm = MusesTropomiForwardModel(rf_uip, vlidort_cli=vlidort_cli)
-    obs = MusesTropomiObservation(fm)
+    obs_cris, obs = joint_tropomi_obs_step_12
+    fm = MusesTropomiForwardModel(rf_uip, obs, include_bad_sample=True,
+                                  vlidort_cli=vlidort_cli)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -61,7 +61,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_uip_step_12, vlidort_cli):
         print(jac)
         print(rad.shape)
         print(jac.shape)
-    s = obs.radiance(0)
+    s = obs.radiance_all_with_bad_sample()
     rad = s.spectral_range.data
     uncer = s.spectral_range.uncertainty
     assert rad.shape[0] == 53
@@ -81,13 +81,10 @@ def test_muses_tropomi_forward_model(joint_tropomi_uip_step_12, vlidort_cli):
     assert not fm.cache_valid_flag
         
 @require_muses_py
-def test_muses_airs_forward_model(joint_omi_uip_step_8):
+def test_muses_airs_forward_model(joint_omi_uip_step_8, joint_omi_obs_step_8):
     rf_uip = joint_omi_uip_step_8
-    obs_rad_fake = np.zeros((len(rf_uip.instrument_list),))
-    meas_err_fake = np.ones(obs_rad_fake.shape)
-    obs = MusesAirsObservation(rf_uip, obs_rad = obs_rad_fake,
-                               meas_err=meas_err_fake)
-    fm = MusesAirsForwardModel(rf_uip,obs)
+    obs, obs_omi = joint_omi_obs_step_8
+    fm = MusesAirsForwardModel(rf_uip,obs, include_bad_sample=True)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -101,7 +98,7 @@ def test_muses_airs_forward_model(joint_omi_uip_step_8):
         print(jac)
         print(rad.shape)
         print(jac.shape)
-    s = obs.radiance(0)
+    s = obs.radiance_all_with_bad_sample()
     rad = s.spectral_range.data
     uncer = s.spectral_range.uncertainty
     assert rad.shape[0] == 150
@@ -113,11 +110,11 @@ def test_muses_airs_forward_model(joint_omi_uip_step_8):
         print(uncer.shape)
 
 @require_muses_py
-def test_muses_omi_forward_model(joint_omi_uip_step_8, vlidort_cli):
+def test_muses_omi_forward_model(joint_omi_uip_step_8, joint_omi_obs_step_8, vlidort_cli):
     rf_uip = joint_omi_uip_step_8
-    fm = MusesOmiForwardModel(rf_uip, vlidort_cli=vlidort_cli,
+    obs_airs, obs =joint_omi_obs_step_8
+    fm = MusesOmiForwardModel(rf_uip, obs, vlidort_cli=vlidort_cli,
                               include_bad_sample=True)
-    obs = MusesOmiObservation(fm, include_bad_sample=True)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -131,7 +128,7 @@ def test_muses_omi_forward_model(joint_omi_uip_step_8, vlidort_cli):
         print(jac)
         print(rad.shape)
         print(jac.shape)
-    s = obs.radiance(0)
+    s = obs.radiance_all_with_bad_sample()
     rad = s.spectral_range.data
     uncer = s.spectral_range.uncertainty
     assert rad.shape[0] == 219

@@ -63,15 +63,15 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         replacement for mpy.fm_wrapper but possibly using ReFRACtor objects
         and 2) make a more direct comparison between ReFRACtor and muses-py
         (e.g., for testing)'''
-        if(hasattr(i_uip, 'currentGuessListFM')):
+        if(hasattr(i_uip, 'currentGuessList')):
             p = i_uip.currentGuessListFM
         else:
-            p = i_uip["currentGuessListFM"]
+            p = i_uip["currentGuessList"]
         if(self.expected_parameter_size != len(p)):
             raise RuntimeError("We aren't expecting parameters the size of currentGuessListFM. Did you forget use_full_state_vector=True when creating the ForwardModels?")
         self.parameters = p
         radiance_fm = self.max_a_posteriori.model
-        jac_fm = self.max_a_posteriori.model_measure_diff_jacobian.transpose()
+        jac_fm = self.max_a_posteriori.jacobian_fm.transpose()
         bad_flag = 0
         freq_fm = np.concatenate([fm.spectral_domain_all().data
                                   for fm in self.max_a_posteriori.forward_model])

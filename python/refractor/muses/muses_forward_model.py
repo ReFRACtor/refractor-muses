@@ -97,8 +97,14 @@ class MusesForwardModelBase(rf.ForwardModel):
             bmask[:] = False
         # This is the full bad sample mask, for all the indices. But here we only
         # want the portion that fits in the spectral window
+
+        # short term, support older MusesObservationBase which has a different interface.
+        # bad samples already subsetted for that
+        if(isinstance(self.obs, MusesObservationBase)):
+           return bmask
         gindex = self.obs.spectral_window_with_bad_sample.grid_indexes(self.obs.spectral_domain_full(sensor_index), sensor_index)
         return bmask[list(gindex)]
+           
     
     def setup_grid(self):
         # Nothing that we need to do for this
@@ -108,7 +114,10 @@ class MusesForwardModelBase(rf.ForwardModel):
         return 1
 
     def spectral_domain(self, sensor_index):
-        return self.obs.spectral_domain(sensor_index)
+        if(sensor_index > 0):
+            raise RuntimeError("sensor_index out of range")
+        sd = np.concatenate([self.obs.spectral_domain(i).data for i in range(self.obs.num_channels)])
+        return rf.SpectralDomain(sd, rf.Unit("nm"))
 
 # Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
 # using something like --profile-svg in pytest
@@ -170,7 +179,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
 class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
                                         rf.CacheInvalidatedObserver):
     '''Common behavior for the omi/tropomi based forward models'''
-    def __init__(self, rf_uip : RefractorUip, instrument_name,
+    def __init__(self, rf_uip : RefractorUip, instrument_name, obs,
                  vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
                  vlidort_nstokes=2,
                  vlidort_nstreams=4,
@@ -184,17 +193,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         self.vlidort_nstokes = vlidort_nstokes
         self.vlidort_cli = vlidort_cli
         self.include_bad_sample = include_bad_sample
-        # For performance reasons, we get both the radiance and obs
-        # in one step - holding this in a cache.
-        self.obs_rad = None
-        self.rad_spec = None
-
-    def bad_sample_mask(self, sensor_index):
-        self._fill_in_cache()
-        bmask = self.obs_rad["measured_nesr"] < 0
-        if(self.include_bad_sample):
-            bmask[:] = False
-        return bmask
+        self.obs = obs
 
     def _fill_in_cache(self):
         if(self.cache_valid_flag):
@@ -203,16 +202,16 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
                            vlidort_nstokes=self.vlidort_nstokes,
                            vlidort_nstreams=self.vlidort_nstreams):
             if(self.instrument_name == "TROPOMI"):
-                jac, rad, self.obs_rad, success_flag = mpy.tropomi_fm(self.rf_uip.uip_all(self.instrument_name))
+                jac, rad, _, success_flag = mpy.tropomi_fm(self.rf_uip.uip_all(self.instrument_name))
             elif(self.instrument_name == "OMI"):
-                jac, rad, self.obs_rad, success_flag = mpy.omi_fm(self.rf_uip.uip_all(self.instrument_name))
+                jac, rad, _, success_flag = mpy.omi_fm(self.rf_uip.uip_all(self.instrument_name))
             else:
                 raise RuntimeError(f"Unrecognized instrument name {self.instrument_name}")
         # Haven't filled everything in yet, but mark as cache full.
         # otherwise bad_sample_mask and spectral_domain will enter an
         # infinite loop
         self.cache_valid_flag = True
-        gmask = self.bad_sample_mask(0) != True
+        gmask =  np.concatenate([self.bad_sample_mask(i) != True for i in range(self.obs.num_channels)])
         sd = self.spectral_domain(0)
         # jacobian is 1) on the forward model grid and
         # 2) transposed from the ReFRACtor convention of the
@@ -243,6 +242,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
 class MusesTropomiOrOmiObservation(rf.ObservationSvImpBase):
     def __init__(self, fm : MusesTropomiOrOmiForwardModelBase,
                  include_bad_sample=False, **kwargs):
+        breakpoint()
         super().__init__([])
         self.fm = fm
         self.include_bad_sample = include_bad_sample
@@ -255,14 +255,6 @@ class MusesTropomiOrOmiObservation(rf.ObservationSvImpBase):
         if(inc_bad_sample):
             gmask[:] = True
         return rf.SpectralDomain(self.fm.rf_uip.frequency_list(self.fm.instrument_name)[gmask], rf.Unit("nm"))
-
-    def bad_sample_mask(self, sensor_index):
-        self.fm._fill_in_cache()
-        uncer = self.fm.obs_rad["measured_nesr"]
-        bsamp = np.array(uncer < 0)
-        if(self.include_bad_sample):
-            bsamp[:] = False
-        return bsamp
 
     def radiance_all_with_bad_sample(self):
         return self.radiance(0, skip_jacobian=True, inc_bad_sample=True)
@@ -302,12 +294,12 @@ class MusesStateVectorObserverHandle(StateVectorHandle):
         return False
     
 class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
-    def __init__(self, rf_uip : RefractorUip, **kwargs):
-        super().__init__(rf_uip, "TROPOMI", **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "TROPOMI", obs, **kwargs)
 
 class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
-    def __init__(self, rf_uip : RefractorUip, **kwargs):
-        super().__init__(rf_uip, "OMI", **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "OMI", obs, **kwargs)
         
 class MusesCrisForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for CRiS instrument'''
@@ -403,13 +395,14 @@ class MusesTropomiInstrumentHandle(InstrumentHandle):
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "TROPOMI"):
             return (None, None)
-        fm = MusesTropomiForwardModel(rf_uip,use_full_state_vector=use_full_state_vector, **kwargs)
+        fm = MusesTropomiForwardModel(rf_uip, obs,
+                                      use_full_state_vector=use_full_state_vector, **kwargs)
         # We don't actually attach anything to the state vector, but
         # we want to make sure that the forward model gets attached
         # as a CacheInvalidatedObserver.
         svhandle.add_handle(MusesStateVectorObserverHandle(fm),
                             priority_order=1000)
-        return (fm, MusesTropomiObservation(fm, **kwargs))
+        return (fm, obs)
 
 class MusesOmiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
@@ -420,13 +413,14 @@ class MusesOmiInstrumentHandle(InstrumentHandle):
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "OMI"):
             return (None, None)
-        fm = MusesOmiForwardModel(rf_uip,use_full_state_vector=use_full_state_vector, **kwargs)
+        fm = MusesOmiForwardModel(rf_uip,obs,use_full_state_vector=use_full_state_vector,
+                                  **kwargs)
         # We don't actually attach anything to the state vector, but
         # we want to make sure that the forward model gets attached
         # as a CacheInvalidatedObserver.
         svhandle.add_handle(MusesStateVectorObserverHandle(fm),
                             priority_order=1000)
-        return (fm, MusesOmiObservation(fm, **kwargs))
+        return (fm, obs)
 
 # The Muses code is the fallback, so add with the lowest priority
 StateVectorHandleSet.add_default_handle(MusesStateVectorHandle(),

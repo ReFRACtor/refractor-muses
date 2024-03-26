@@ -415,6 +415,7 @@ class CostFunctionCreator:
                       rf_uip_func,
                       do_systematic=False,
                       jacobian_speciesIn=None,
+                      identity_basis_matrix=False,
                       **kwargs):
         '''Return cost function for the RetrievalStrategy.
 
@@ -445,6 +446,7 @@ class CostFunctionCreator:
         args = self._fm_and_obs_rs(
             instrument_name_list, current_state, spec_win, rf_uip_func,
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
+            identity_basis_matrix=identity_basis_matrix,
             **kwargs)
         if(self.rs is not None):
             self.radiance_step_in = self._create_radiance_step()
@@ -456,7 +458,8 @@ class CostFunctionCreator:
         rf_uip = rf_uip_func()
         if(rf_uip is not None and rf_uip.basis_matrix is not None):
             cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(rf_uip))
-        cfunc.parameters = rf_uip.current_state_x
+        if(not identity_basis_matrix):
+            cfunc.parameters = rf_uip.current_state_x
         return cfunc
 
     def _fm_and_obs_rs(self,
@@ -576,8 +579,12 @@ class CostFunctionCreator:
         else:
             bmatrix = rf_uip.basis_matrix
         if(fix_apriori_size):
-            sv_apriori = np.zeros((sv.observer_claimed_size,))
-            sv_sqrt_constraint=np.eye(sv.observer_claimed_size)
+            if(bmatrix is not None):
+                sv_apriori = np.zeros((bmatrix.shape[0],))
+                sv_sqrt_constraint=np.eye(bmatrix.shape[0])
+            else:
+                sv_apriori = np.zeros((sv.observer_claimed_size,))
+                sv_sqrt_constraint=np.eye(sv.observer_claimed_size)
         return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint,
                 bmatrix)
     
