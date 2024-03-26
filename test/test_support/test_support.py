@@ -5,8 +5,8 @@ import pickle
 import pytest
 import refractor.muses.muses_py as mpy
 from refractor.muses import (RefractorUip, osswrapper, StrategyTable,
-                             MusesTropomiObservationNew, MusesOmiObservationNew,
-                             MusesCrisObservationNew, MusesAirsObservationNew)
+                             MusesTropomiObservation, MusesOmiObservation,
+                             MusesCrisObservation, MusesAirsObservation)
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
 from refractor.old_py_retrieve_wrapper import MusesResidualFmJacobian, MusesRetrievalStep
@@ -159,7 +159,7 @@ def tropomi_obs_step_1(osp_dir):
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
                                      osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=1)
@@ -180,7 +180,7 @@ def tropomi_obs_sounding_2_band7(osp_dir):
     utc_time = "2022-06-28T18:07:51.984098Z"
     filter_list = ["BAND7",]
     stable = StrategyTable(f"{tropomi_test_in_dir2}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
                                      osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=0)
@@ -201,7 +201,7 @@ def tropomi_obs_step_2(osp_dir):
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
                                      osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=1)
@@ -222,7 +222,7 @@ def joint_tropomi_obs_step_12(osp_dir):
     utc_time = "2019-08-07T06:24:33.584090Z"
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
                                      osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=12+1)
@@ -235,7 +235,7 @@ def joint_tropomi_obs_step_12(osp_dir):
     atrack = 4
     pixel_index = 5
     fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
-    obscris = MusesCrisObservationNew(fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
+    obscris = MusesCrisObservation(fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
     swin = stable.spectral_window("CRIS", stp=12+1)
     swin.bad_sample_mask(obscris.bad_sample_mask(0), 0)
     obscris.spectral_window = swin
@@ -254,7 +254,7 @@ def joint_omi_obs_step_8(osp_dir):
     utc_time = "2016-04-01T23:07:33.676106Z"
     filter_list = ["UV1", "UV2"]
     stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
                                  utc_time, calibration_filename,
                                  filter_list,
                                  cld_filename=cld_filename,
@@ -270,7 +270,7 @@ def joint_omi_obs_step_8(osp_dir):
     xtrack = 29
     atrack = 49
     fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
-    obs_airs = MusesAirsObservationNew(fname, granule, xtrack, atrack, channel_list,
+    obs_airs = MusesAirsObservation(fname, granule, xtrack, atrack, channel_list,
                                   osp_dir=osp_dir)
     swin = stable.spectral_window("AIRS", stp=8+1)
     swin.bad_sample_mask(obs_airs.bad_sample_mask(0), 0)
@@ -318,7 +318,7 @@ def tropomi_obs_band7_swir_step(osp_dir):
     utc_time = "2022-06-28T19:33:47.130000Z"
     filter_list = ["BAND7",]
     stable = StrategyTable(f"{tropomi_band7_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
                                      osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=1)
@@ -362,7 +362,7 @@ def omi_obs_step_1(osp_dir):
     utc_time = "2016-04-14T23:59:46.000000Z"
     filter_list = ["UV1", "UV2"]
     stable = StrategyTable(f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
                                  utc_time, calibration_filename,
                                  filter_list,
                                  cld_filename=cld_filename,
@@ -386,7 +386,7 @@ def omi_obs_step_2(osp_dir):
     utc_time = "2016-04-14T23:59:46.000000Z"
     filter_list = ["UV1", "UV2"]
     stable = StrategyTable(f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
                                  utc_time, calibration_filename,
                                  filter_list,
                                  cld_filename=cld_filename,

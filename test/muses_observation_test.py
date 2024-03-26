@@ -1,9 +1,9 @@
-from refractor.muses import (MusesAirsObservationNew, MusesRunDir, MusesAirsObservation,
+from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              StrategyTable, RetrievalStrategy, ObservationHandleSet,
-                             StateVectorHandleSet, MusesCrisObservationNew,
-                             MusesCrisObservation,
-                             MusesTropomiObservationNew, MusesOmiObservationNew)
-from refractor.old_py_retrieve_wrapper import TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve
+                             StateVectorHandleSet, MusesCrisObservation,
+                             MusesTropomiObservation, MusesOmiObservation)
+from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
+                                               MusesCrisObservationOld, MusesAirsObservationOld)
 import refractor.framework as rf
 from test_support import *
 
@@ -14,8 +14,8 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     atrack = 49
     fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
     stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesAirsObservationNew(fname, granule, xtrack, atrack, channel_list,
-                                  osp_dir=osp_dir)
+    obs = MusesAirsObservation(fname, granule, xtrack, atrack, channel_list,
+                               osp_dir=osp_dir)
     step_number = 8
     iteration = 2
     rrefractor = muses_residual_fm_jac(joint_omi_test_in_dir,
@@ -27,8 +27,8 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
-    obs_old = MusesAirsObservation(rf_uip, rrefractor.params["ret_info"]["obs_rad"],
-                                   rrefractor.params["ret_info"]["meas_err"])
+    obs_old = MusesAirsObservationOld(rf_uip, rrefractor.params["ret_info"]["obs_rad"],
+                                      rrefractor.params["ret_info"]["meas_err"])
     # Note this is off by 1. The table numbering get redone after the BT step. It might
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
@@ -52,7 +52,7 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    obs = MusesAirsObservationNew.create_from_rs(rs)
+    obs = MusesAirsObservation.create_from_rs(rs)
     step_number = 8
     rs.strategy_table.table_step = step_number+1
     swin = rs.strategy_table.spectral_window("AIRS")
@@ -72,7 +72,7 @@ def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
     pixel_index = 5
     fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
     stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesCrisObservationNew(fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
+    obs = MusesCrisObservation(fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
     step_number = 12
     iteration = 2
     rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,
@@ -84,8 +84,8 @@ def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
-    obs_old = MusesCrisObservation(rf_uip, rrefractor.params["ret_info"]["obs_rad"],
-                                   rrefractor.params["ret_info"]["meas_err"])
+    obs_old = MusesCrisObservationOld(rf_uip, rrefractor.params["ret_info"]["obs_rad"],
+                                      rrefractor.params["ret_info"]["meas_err"])
     # Note this is off by 1. The table numbering get redone after the BT step. It might
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
@@ -109,7 +109,7 @@ def test_create_muses_cris_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
     r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    obs = MusesCrisObservationNew.create_from_rs(rs)
+    obs = MusesCrisObservation.create_from_rs(rs)
     step_number = 12
     rs.strategy_table.table_step = step_number+1
     swin = rs.strategy_table.spectral_window("CRIS")
@@ -131,7 +131,7 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     utc_time = "2019-08-07T06:24:33.584090Z"
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservationNew(filename_list, irr_filename, cld_filename,
+    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
                                      osp_dir=osp_dir)
     step_number = 12
@@ -202,7 +202,7 @@ def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
     with rs.chdir_run_dir():
         rs.state_info.init_state(rs.strategy_table, rs.cost_function_creator,
                                  ["CRIS", "TROPOMI"], rs.run_dir)
-    obs = MusesTropomiObservationNew.create_from_rs(rs)
+    obs = MusesTropomiObservation.create_from_rs(rs)
     swin = rs.strategy_table.spectral_window("TROPOMI")
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
@@ -222,7 +222,7 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     utc_time = "2016-04-01T23:07:33.676106Z"
     calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
     stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
                                  utc_time, calibration_filename,
                                  ["UV1", "UV2"],
                                  cld_filename=cld_filename,
@@ -307,7 +307,7 @@ def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
     with rs.chdir_run_dir():
         rs.state_info.init_state(rs.strategy_table, rs.cost_function_creator,
                                  ["AIRS", "OMI"], rs.run_dir)
-    obs = MusesOmiObservationNew.create_from_rs(rs)
+    obs = MusesOmiObservation.create_from_rs(rs)
     swin = rs.strategy_table.spectral_window("OMI")
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
@@ -328,7 +328,7 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     utc_time = "2016-04-01T23:07:33.676106Z"
     calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
     stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservationNew(filename, xtrack_uv1, xtrack_uv2, atrack,
+    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
                                  utc_time, calibration_filename,
                                  ["UV1", "UV2"],
                                  cld_filename=cld_filename,

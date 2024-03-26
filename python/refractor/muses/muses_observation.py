@@ -292,13 +292,7 @@ class MusesObservationHandle(ObservationHandle):
         self.obs.add_state_vector_handle(svhandle)
         return self.obs
         
-
-# muses_forward_model has an older observation class named MusesAirsObservation.
-# Short term we add a "New" here. We should sort that out -
-# we are somewhat rewriting MusesObservationBase to not use a UIP. This will
-# probably get married into one clases, but we aren't ready to do that yet.
-
-class MusesAirsObservationNew(MusesObservationImp):
+class MusesAirsObservation(MusesObservationImp):
     def __init__(self, filename, granule, xtrack, atrack, filter_list, osp_dir=None):
         i_fileid = {}
         i_fileid['preferences'] = {'AIRS_filename' : os.path.abspath(filename),
@@ -318,7 +312,7 @@ class MusesAirsObservationNew(MusesObservationImp):
         super().__init__(o_airs, sdesc)
 
     def desc(self):
-        return "MusesAirsObservationNew"
+        return "MusesAirsObservation"
 
     @classmethod
     def create_from_rs(cls, rs: 'RetrievalStategy'):
@@ -354,7 +348,7 @@ class MusesAirsObservationNew(MusesObservationImp):
         return self.muses_py_dict['radiance']['NESR']
 
 
-class MusesCrisObservationNew(MusesObservationImp):
+class MusesCrisObservation(MusesObservationImp):
     def __init__(self, filename, granule, xtrack, atrack, pixel_index, osp_dir=None):
         i_fileid = {'CRIS_filename' : os.path.abspath(filename),
                     'CRIS_XTrack_Index' : xtrack,
@@ -415,7 +409,7 @@ class MusesCrisObservationNew(MusesObservationImp):
             raise RuntimeError(f"Don't recognize CRIS file type from path/filename {self.filename}")
 
     def desc(self):
-        return "MusesCrisObservationNew"
+        return "MusesCrisObservation"
 
     @classmethod
     def create_from_rs(cls, rs: 'RetrievalStategy'):
@@ -667,7 +661,7 @@ class MusesObservationReflectance(MusesObservationImp):
         return rf.Spectrum(sd, sr)
     
 
-class MusesTropomiObservationNew(MusesObservationReflectance):
+class MusesTropomiObservation(MusesObservationReflectance):
     '''Observation for Tropomi'''
     def __init__(self, filename_list, irr_filename, cld_filename, xtrack_list, atrack,
                  utc_time, filter_list, calibration_filename=None, osp_dir=None):
@@ -706,7 +700,7 @@ class MusesTropomiObservationNew(MusesObservationReflectance):
         super().__init__(o_tropomi, sdesc, filter_list)
 
     def desc(self):
-        return "MusesTropomiObservationNew"
+        return "MusesTropomiObservation"
 
     @classmethod
     def create_from_rs(cls, rs: 'RetrievalStategy'):
@@ -740,7 +734,7 @@ class MusesTropomiObservationNew(MusesObservationReflectance):
             res.append(f"TROPOMIRADSQUEEZE{flt}")
         return res
 
-class MusesOmiObservationNew(MusesObservationReflectance):
+class MusesOmiObservation(MusesObservationReflectance):
     '''Observation for OMI'''
     def __init__(self, filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
                  filter_list, cld_filename=None, osp_dir=None):
@@ -761,7 +755,7 @@ class MusesOmiObservationNew(MusesObservationReflectance):
         super().__init__(o_omi, sdesc, filter_list)
 
     def desc(self):
-        return "MusesOmiObservationNew"
+        return "MusesOmiObservation"
 
     @classmethod
     def create_from_rs(cls, rs: 'RetrievalStategy'):
@@ -826,13 +820,13 @@ class Level1bTes:
         return rf.DoubleWithUnit(self.state_info.state_info_dict["current"]["boresightNadirRadians"], "rad")
 
 
-ObservationHandleSet.add_default_handle(MusesObservationHandle("AIRS", MusesAirsObservationNew))
-ObservationHandleSet.add_default_handle(MusesObservationHandle("CRIS", MusesCrisObservationNew))
+ObservationHandleSet.add_default_handle(MusesObservationHandle("AIRS", MusesAirsObservation))
+ObservationHandleSet.add_default_handle(MusesObservationHandle("CRIS", MusesCrisObservation))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("TROPOMI",
-                                                               MusesTropomiObservationNew))
+                                                               MusesTropomiObservation))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("OMI",
-                                                               MusesOmiObservationNew))
+                                                               MusesOmiObservation))
 
-__all__ = ["MusesAirsObservationNew", "MusesObservation", "MusesObservationHandle",
-           "MusesCrisObservationNew", "MusesObservationReflectance",
-           "MusesTropomiObservationNew", "MusesOmiObservationNew"]
+__all__ = ["MusesAirsObservation", "MusesObservation", "MusesObservationHandle",
+           "MusesCrisObservation", "MusesObservationReflectance",
+           "MusesTropomiObservation", "MusesOmiObservation"]
