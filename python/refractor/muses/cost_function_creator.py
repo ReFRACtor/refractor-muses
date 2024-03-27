@@ -86,12 +86,12 @@ class ForwardModelHandle(object, metaclass=abc.ABCMeta):
         pass
         
     @abc.abstractmethod
-    def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
+    def forward_model(self, instrument_name : str, rf_uip : RefractorUip,
                    obs : 'MusesObservation',
                    svhandle: StateVectorHandleSet,
                    obs_rad=None, meas_err=None, **kwargs):
-        '''Return ForwardModel and Observation if we can process the given
-        instrument_name, or (None, None) if we can't. Add any StateVectorHandle
+        '''Return ForwardModel if we can process the given
+        instrument_name, or None if we can't. Add any StateVectorHandle
         to the passed in set.
 
         The StateVectorHandleSet svhandle is modified by having any
@@ -111,12 +111,12 @@ class ForwardModelHandleSet(PriorityHandleSet):
             for h in self.handle_set[p]:
                 h.notify_update_target(measurement_id, filter_list)
         
-    def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
+    def forward_model(self, instrument_name : str, rf_uip : RefractorUip,
                    obs : 'MusesObservation',
                    svhandle : StateVectorHandleSet,
                    obs_rad=None, meas_err=None,
                    **kwargs):
-        '''Create a ForwardModel and Observation for the given instrument.
+        '''Create a ForwardModel for the given instrument.
         
         The StateVectorHandleSet svhandle is modified by having any
         StateVectorHandle added to it.'''
@@ -132,11 +132,11 @@ class ForwardModelHandleSet(PriorityHandleSet):
                  obs_rad=None, meas_err=None,
                  **kwargs):
         '''Process a registered function'''
-        fm, obs = h.fm_and_obs(instrument_name, rf_uip, obs, svhandle,
-                               obs_rad=obs_rad,meas_err=meas_err,**kwargs)
+        fm = h.forward_model(instrument_name, rf_uip, obs, svhandle,
+                             obs_rad=obs_rad,meas_err=meas_err,**kwargs)
         if(fm is None):
             return (False, None)
-        return (True, (fm, obs))
+        return (True, fm)
 
 class ObservationHandle(object, metaclass=abc.ABCMeta):
     '''Base class for ObservationHandle. Note we use duck typing, so you
@@ -227,7 +227,6 @@ class CostFunctionCreator:
         self.measurement_id = None
         self.filter_list = None
         self.rs = None
-        self._obslist_internal_uip = None
 
     def update_target(self, measurement_id : dict, filter_list : dict, rs : 'RetrievalStategy'):
         '''Set up for processing a target.
@@ -384,6 +383,11 @@ class CostFunctionCreator:
             raise RuntimeError('ERROR! radiance error NOT FINITE!')
         return radianceStepIn
 
+    def _rf_uip_func_wrap(self):
+        if(self._rf_uip is None):
+            self._rf_uip = self._rf_uip_func()
+        return self._rf_uip
+        
 
     def cost_function(self,
                       instrument_name_list : "list[str]",
@@ -392,6 +396,8 @@ class CostFunctionCreator:
                       rf_uip_func,
                       do_systematic=False,
                       jacobian_speciesIn=None,
+                      obs_list=None,
+                      fix_apriori_size=False,
                       **kwargs):
         '''Return cost function for the RetrievalStrategy.
 
@@ -416,12 +422,27 @@ class CostFunctionCreator:
         the old muses-py code - however for the near future we want to be able maintain the
         ability to run the old code to test against and diagnose any issues with ReFRACtor.
 
+        It can also be useful in some testing scenarios to have the Observation created by
+        some other method, so you can optionally pass in the obs_list to use in place of
+        what the class would normally create. This isn't something you would normally use
+        for "real", this is just to support testing.
+
+        Similarly, you may sometimes not have an easy way to create the apriori and
+        sqrt_constraint. In that case, you can pass in fix_apriori_size=True and we
+        create dummy data of the right size rather than getting this from current_state.
+        Again, this isn't something you would do for "real", this is more to support testing.
+
         This Also sets self.radiance_step_in
         - this is a bit awkward but I think we may replace radiance_steo_in. Right now this is
         only used in RetrievalStrategyStep.'''
-        args = self._fm_and_obs_rs(
-            instrument_name_list, current_state, spec_win, rf_uip_func,
+        # Keep track of this, in case we create one so we know to attach this to the state vector
+        self._rf_uip = None
+        self._rf_uip_func = rf_uip_func
+        args = self._forward_model(
+            instrument_name_list, current_state, spec_win,
+            self._rf_uip_func_wrap,
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
+            obs_list=obs_list, fix_apriori_size=fix_apriori_size,
             **kwargs)
         if(self.rs is not None):
             self.radiance_step_in = self._create_radiance_step()
@@ -430,17 +451,21 @@ class CostFunctionCreator:
         # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
         # have no parameters, for example for RetrievalStrategyStepBT. Any time we
         # have parameters, the basis_matrix shouldn't be None.
-        rf_uip = rf_uip_func()
-        if(rf_uip is not None and rf_uip.basis_matrix is not None):
-            cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(rf_uip))
-        cfunc.parameters = rf_uip.current_state_x
+        if(self._rf_uip is not None and self._rf_uip.basis_matrix is not None):
+            cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(self._rf_uip))
+        # TODO, we want to get the parameters from CurrentState object, but we
+        # don't have that in place yet. Fall back to the RefractorUip, which we should
+        # remove in the future
+        cfunc.parameters = self._rf_uip_func_wrap().current_state_x
         return cfunc
 
-    def _fm_and_obs_rs(self,
+    def _forward_model(self,
                        instrument_name_list : "list[str]",
                        current_state : 'CurrentState',
                        spec_win : "list[rf.SpectralWindowRange]",
                        rf_uip_func,
+                       obs_list=None,
+                       fix_apriori_size=False,
                        **kwargs):
         # TODO Right now always have rf_uip. We should extend our forward models to
         # just tell us if the uip was created. But for now, always have this
@@ -454,20 +479,49 @@ class CostFunctionCreator:
         # is set up for rf_uip to None, so we can start moving this out. Right now, if the
         # rf_uip is set, we make sure the rf_uip gets updated when the CostFunction.parameters
         # get updated. But this is only needed if we have a ForwardModel with a rf_uip.
-        self.obslist = []
+        self.obs_list = []
         self.state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
-        if(self._obslist_internal_uip is not None):
-            self.obslist = self._obslist_internal_uip
+        if(obs_list is not None):
+            self.obs_list = obs_list
         else:
             for instrument_name in rf_uip.instrument:
                 obs = self.observation_handle_set.observation(instrument_name, self.rs,
                                                               self.state_vector_handle_set,
                                                               **kwargs)
-                self.obslist.append(obs)
-        return self._fm_and_obs(rf_uip, ret_info, **kwargs)
+                self.obs_list.append(obs)
+                
+        self.fm_list = []
+        for i, instrument_name in enumerate(rf_uip.instrument):
+                
+            fm =  self.forward_model_handle_set.forward_model(instrument_name,
+                                  rf_uip, self.obs_list[i], self.state_vector_handle_set,
+                                  obs_rad=None, meas_err=None,**kwargs)
+            self.fm_list.append(fm)
+        sv = self.state_vector_handle_set.create_state_vector(rf_uip,
+                               **kwargs)
+        bmatrix = rf_uip.basis_matrix
+        if(not fix_apriori_size):
+            # Normally, we get the apriori and constraint for our current state
+            sv_apriori =  current_state.apriori
+            sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
+        else:
+            # This handles when we call with a RefractorUip but without a
+            # ret_info, or otherwise don't have a apriori and sqrt_constraint. We
+            # create dummy data of the right size.
+            # This isn't something we encounter in our normal processing,
+            # this is more to support old testing
+            if(bmatrix is not None):
+                sv_apriori = np.zeros((bmatrix.shape[0],))
+                sv_sqrt_constraint=np.eye(bmatrix.shape[0])
+            else:
+                sv_apriori = np.zeros((sv.observer_claimed_size,))
+                sv_sqrt_constraint=np.eye(sv.observer_claimed_size)
+
+        return (self.fm_list, self.obs_list, sv, sv_apriori, sv_sqrt_constraint,
+                bmatrix)
 
     def cost_function_from_uip(self, rf_uip : RefractorUip,
-                               obslist,
+                               obs_list,
                                ret_info : dict,
                                **kwargs):
         '''Create a cost function from a RefractorUip and a
@@ -508,53 +562,9 @@ class CostFunctionCreator:
             cstate.apriori = np.zeros((1,))
         # Todo, fill this in
         spec_win = None
-        try:
-            # Back door variable to skip creating the obslist, instead we use the passed
-            # in one.
-            self._obslist_internal_uip = obslist
-            return self.cost_function(rf_uip.instrument, cstate, spec_win, uip_func,
-                                      obslist=obslist,
-                                      fix_apriori_size=fix_apriori_size, **kwargs)
-        finally:
-            self._obslist_internal_uip = obslist
-    
-    def _fm_and_obs(self, rf_uip : RefractorUip,
-                   ret_info : dict,
-                   fix_apriori_size=False,
-                   **kwargs):
-
-        '''This returns a list of ForwardModel and Observation that goes
-        with the supplied rf_uip. We also return a StateVector that has
-        all the pieces of the ForwardModel and Observation objects
-        attached. We also return the apriori for the StateVector and what
-        muses-py calls the sqrt_constraint (note that despite the name,
-        sqrt_constraint *isn't* actually the sqrt of the constraint matrix - 
-        see the description of MaxAPosterioriSqrtConstraint in
-        refractor.framework for explanation of this), and the basis matrix.
-        '''
-        fm_list = []
-        obs_list = []
-        sv_apriori = ret_info["const_vec"]
-        sv_sqrt_constraint = ret_info["sqrt_constraint"].transpose()
-        for i, instrument_name in enumerate(rf_uip.instrument):
-                
-            fm, obs =  self.forward_model_handle_set.fm_and_obs(instrument_name,
-                                  rf_uip, self.obslist[i], self.state_vector_handle_set,
-                                  obs_rad=None, meas_err=None,**kwargs)
-            fm_list.append(fm)
-            obs_list.append(self.obslist[i])
-        sv = self.state_vector_handle_set.create_state_vector(rf_uip,
-                               **kwargs)
-        bmatrix = rf_uip.basis_matrix
-        if(fix_apriori_size):
-            if(bmatrix is not None):
-                sv_apriori = np.zeros((bmatrix.shape[0],))
-                sv_sqrt_constraint=np.eye(bmatrix.shape[0])
-            else:
-                sv_apriori = np.zeros((sv.observer_claimed_size,))
-                sv_sqrt_constraint=np.eye(sv.observer_claimed_size)
-        return (fm_list, obs_list, sv, sv_apriori, sv_sqrt_constraint,
-                bmatrix)
+        return self.cost_function(rf_uip.instrument, cstate, spec_win, uip_func,
+                                  obs_list=obs_list,
+                                  fix_apriori_size=fix_apriori_size, **kwargs)
     
 __all__ = ["StateVectorHandle", "StateVectorHandleSet",
            "ForwardModelHandle", "ForwardModelHandleSet",

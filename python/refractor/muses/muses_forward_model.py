@@ -237,62 +237,62 @@ class MusesCrisForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   obs_rad=None, meas_err=None, **kwargs):
+    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
+                      obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "CRIS"):
-            return (None, None)
+            return None
         # This has already been handled below, by adding to the
         # default handle list
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
-        return (MusesCrisForwardModel(rf_uip,obs, **kwargs), obs)
+        return MusesCrisForwardModel(rf_uip,obs, **kwargs)
 
 class MusesAirsForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   obs_rad=None, meas_err=None, **kwargs):
+    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
+                      obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "AIRS"):
-            return (None, None)
+            return None
         # This has already been handled below, by adding to the
         # default handle list
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
         #obs = MusesAirsObservation(rf_uip, obs_rad, meas_err, **kwargs)
-        return (MusesAirsForwardModel(rf_uip,obs, **kwargs), obs)
+        return MusesAirsForwardModel(rf_uip,obs, **kwargs)
 
 class MusesTropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   obs_rad=None, meas_err=None, **kwargs):
+    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
+                      obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "TROPOMI"):
-            return (None, None)
+            return None
         fm = MusesTropomiForwardModel(rf_uip, obs, **kwargs)
         # We don't actually attach anything to the state vector, but
         # we want to make sure that the forward model gets attached
         # as a CacheInvalidatedObserver.
         svhandle.add_handle(MusesStateVectorObserverHandle(fm),
                             priority_order=1000)
-        return (fm, obs)
+        return fm
 
 class MusesOmiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   obs_rad=None, meas_err=None, **kwargs):
+    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
+                      obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "OMI"):
-            return (None, None)
+            return None
         fm = MusesOmiForwardModel(rf_uip,obs, **kwargs)
         # We don't actually attach anything to the state vector, but
         # we want to make sure that the forward model gets attached
         # as a CacheInvalidatedObserver.
         svhandle.add_handle(MusesStateVectorObserverHandle(fm),
                             priority_order=1000)
-        return (fm, obs)
+        return fm
 
 # The Muses code is the fallback, so add with the lowest priority
 StateVectorHandleSet.add_default_handle(MusesStateVectorHandle(),

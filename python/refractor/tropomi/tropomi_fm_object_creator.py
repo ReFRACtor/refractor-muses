@@ -234,14 +234,14 @@ class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle, include_bad_sample=False,
-                   **kwargs):
+    def forward_model(self, instrument_name, rf_uip, obs, svhandle, include_bad_sample=False,
+                      **kwargs):
         if(instrument_name != "TROPOMI"):
-            return (None, None)
+            return None
         obj_creator = TropomiFmObjectCreator(rf_uip, obs, include_bad_sample=include_bad_sample,
                                              **self.creator_kwargs)
         svhandle.add_handle(TropomiStateVectorHandle(obj_creator),
                             priority_order=100)
-        return (obj_creator.forward_model, obj_creator.observation)
+        return obj_creator.forward_model
 
 __all__ = ["TropomiFmObjectCreator", "TropomiForwardModelHandle"]
