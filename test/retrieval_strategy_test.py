@@ -1,8 +1,8 @@
 from test_support import *
 from refractor.muses import (MusesRunDir, RetrievalStrategy, RetrievalStrategyCaptureObserver)
 from refractor.old_py_retrieve_wrapper import RefractorMusesIntegration
-from refractor.omi import OmiInstrumentHandle
-from refractor.tropomi import TropomiInstrumentHandle
+from refractor.omi import OmiForwardModelHandle
+from refractor.tropomi import TropomiForwardModelHandle
 import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
@@ -84,9 +84,9 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
         # Use refractor forward model. We default to not, because we are
         # mostly testing everything *other* than the forward model with this
         # test. But can be useful to run with this occasionally
-        ihandle = TropomiInstrumentHandle(use_pca=True, use_lrad=False,
+        ihandle = TropomiForwardModelHandle(use_pca=True, use_lrad=False,
                                           lrad_second_order=False)
-        rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
+        rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.retrieval_ms()
 
     diff_is_error = True
@@ -158,9 +158,9 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
         # Use refractor forward model. We default to not, because we are
         # mostly testing everything *other* than the forward model with this
         # test. But can be useful to run with this occasionally
-        ihandle = OmiInstrumentHandle(use_pca=True, use_lrad=False,
+        ihandle = OmiForwardModelHandle(use_pca=True, use_lrad=False,
                                       lrad_second_order=False, use_eof=False)
-        rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
+        rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.retrieval_ms()
 
     diff_is_error = True
@@ -193,7 +193,7 @@ def test_two_tropomi(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     
     rs = RetrievalStrategy(None, writeOutput=True, writePlots=True,
                            vlidort_cli=vlidort_cli)
-    rs.instrument_handle_set.add_handle(TropomiInstrumentHandle(use_pca=True,
+    rs.forward_model_handle_set.add_handle(TropomiForwardModelHandle(use_pca=True,
                                        use_lrad=False, lrad_second_order=False),
                                        priority_order=100)
     rs.script_retrieval_ms(f"{r.run_dir}/Table.asc")

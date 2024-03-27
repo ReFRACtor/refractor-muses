@@ -42,7 +42,7 @@ class StateVectorHandle(object, metaclass=abc.ABCMeta):
 
 class StateVectorHandleSet(PriorityHandleSet):
     '''This takes  the instrument name and RefractorUip, and
-    creates a FowardModel and Observation for that instrument.'''
+    creates a ForwardModel and Observation for that instrument.'''
     def create_state_vector(self, rf_uip : RefractorUip, **kwargs):
         '''Create the full StateVector for all the species in rf_uip.
         '''
@@ -69,13 +69,13 @@ class StateVectorHandleSet(PriorityHandleSet):
         handled = h.add_sv(sv, species_name, pstart, plen, **kwargs)
         return (handled, None)
 
-class InstrumentHandle(object, metaclass=abc.ABCMeta):
-    '''Base class for InstrumentHandle. Note we use duck typing, so you
+class ForwardModelHandle(object, metaclass=abc.ABCMeta):
+    '''Base class for ForwardModelHandle. Note we use duck typing, so you
     don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents
     that a class is intended for this.
 
-    Note InstrumentHandle can assume that they are called for the same target, until
+    Note ForwardModelHandle can assume that they are called for the same target, until
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
@@ -98,11 +98,11 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
         StateVectorHandle added to it.'''
         raise NotImplementedError()
     
-class InstrumentHandleSet(PriorityHandleSet):
+class ForwardModelHandleSet(PriorityHandleSet):
     '''This takes  the instrument name and RefractorUip, and
-    creates a FowardModel and Observation for that instrument.
+    creates a ForwardModel and Observation for that instrument.
 
-    Note InstrumentHandle can assume that they are called for the same target, until
+    Note ForwardModelHandle can assume that they are called for the same target, until
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
@@ -125,7 +125,7 @@ class InstrumentHandleSet(PriorityHandleSet):
                            obs_rad=obs_rad, meas_err=meas_err,
                            **kwargs)
     
-    def handle_h(self, h : InstrumentHandle, instrument_name : str,
+    def handle_h(self, h : ForwardModelHandle, instrument_name : str,
                  rf_uip : RefractorUip,
                  obs : 'MusesObservation',
                  svhandle : StateVectorHandleSet,
@@ -139,12 +139,12 @@ class InstrumentHandleSet(PriorityHandleSet):
         return (True, (fm, obs))
 
 class ObservationHandle(object, metaclass=abc.ABCMeta):
-    '''Base class for InstrumentHandle. Note we use duck typing, so you
+    '''Base class for ObservationHandle. Note we use duck typing, so you
     don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents
     that a class is intended for this.
 
-    Note InstrumentHandle can assume that they are called for the same target, until
+    Note ObservationHandle can assume that they are called for the same target, until
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
@@ -202,8 +202,8 @@ class CostFunctionCreator:
 
     The default ForwardModel that does the actual calculations wrap
     the existing py-retrieve forward model functions. But this object is
-    designed to be modified by updating the instrument_handle_set and
-    state_vector_handle_set.
+    designed to be modified by updating the forward_model_handle_set and
+    observation_handle_set.
 
     The design of the PriorityHandleSet is a bit overkill for this
     class, we could probably get away with a simple dictionary mapping
@@ -216,13 +216,13 @@ class CostFunctionCreator:
     written we make use of it.
 
     In practice you create a simple class that just creates the
-    ForwardModel and Observation, and register with the StateVectorHandleSet.
-    Take a look at the existing examples (e.g. the unit tests of
-    RefractorResidualFmJacobian) - the design seems complicated but is
-    actually pretty simple to use.
+    ForwardModel and Observation, and register with the ForwardModelHandleSet and
+    ObservationHandleSet.
+    Take a look at the existing examples (e.g. the unit tests) - the design
+    seems complicated but is actually pretty simple to use.
     '''
     def __init__(self, rs : 'Optional(RetrievalStategy)' = None):
-        self.instrument_handle_set = copy.deepcopy(InstrumentHandleSet.default_handle_set())
+        self.forward_model_handle_set = copy.deepcopy(ForwardModelHandleSet.default_handle_set())
         self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
         self.measurement_id = None
         self.filter_list = None
@@ -274,7 +274,7 @@ class CostFunctionCreator:
         self.o_oco2 = None
         self._created_o = False
         self._radiance = None
-        self.instrument_handle_set.notify_update_target(self.measurement_id, self.filter_list)
+        self.forward_model_handle_set.notify_update_target(self.measurement_id, self.filter_list)
         self.observation_handle_set.notify_update_target(self.measurement_id, self.filter_list)
 
     def create_o_obs(self):
@@ -538,7 +538,7 @@ class CostFunctionCreator:
         sv_sqrt_constraint = ret_info["sqrt_constraint"].transpose()
         for i, instrument_name in enumerate(rf_uip.instrument):
                 
-            fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
+            fm, obs =  self.forward_model_handle_set.fm_and_obs(instrument_name,
                                   rf_uip, self.obslist[i], self.state_vector_handle_set,
                                   obs_rad=None, meas_err=None,**kwargs)
             fm_list.append(fm)
@@ -557,7 +557,7 @@ class CostFunctionCreator:
                 bmatrix)
     
 __all__ = ["StateVectorHandle", "StateVectorHandleSet",
-           "InstrumentHandle", "InstrumentHandleSet",
+           "ForwardModelHandle", "ForwardModelHandleSet",
            "CostFunctionCreator", "ObservationHandleSet", "ObservationHandle"]
         
         

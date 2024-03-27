@@ -1,7 +1,7 @@
 from . import muses_py as mpy
 from .refractor_uip import RefractorUip
-from .cost_function_creator import (InstrumentHandle, StateVectorHandle,
-                                    InstrumentHandleSet, StateVectorHandleSet)
+from .cost_function_creator import (ForwardModelHandle, StateVectorHandle,
+                                    ForwardModelHandleSet, StateVectorHandleSet)
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
 import refractor.framework as rf
@@ -233,7 +233,7 @@ class MusesStateVectorHandle(StateVectorHandle):
         sv.add_observer_and_keep_reference(svh)
         return True
     
-class MusesCrisInstrumentHandle(InstrumentHandle):
+class MusesCrisForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
@@ -247,7 +247,7 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
         #                    priority_order=-1)
         return (MusesCrisForwardModel(rf_uip,obs, **kwargs), obs)
 
-class MusesAirsInstrumentHandle(InstrumentHandle):
+class MusesAirsForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
@@ -262,7 +262,7 @@ class MusesAirsInstrumentHandle(InstrumentHandle):
         #obs = MusesAirsObservation(rf_uip, obs_rad, meas_err, **kwargs)
         return (MusesAirsForwardModel(rf_uip,obs, **kwargs), obs)
 
-class MusesTropomiInstrumentHandle(InstrumentHandle):
+class MusesTropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
@@ -278,7 +278,7 @@ class MusesTropomiInstrumentHandle(InstrumentHandle):
                             priority_order=1000)
         return (fm, obs)
 
-class MusesOmiInstrumentHandle(InstrumentHandle):
+class MusesOmiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
@@ -297,13 +297,13 @@ class MusesOmiInstrumentHandle(InstrumentHandle):
 # The Muses code is the fallback, so add with the lowest priority
 StateVectorHandleSet.add_default_handle(MusesStateVectorHandle(),
                                         priority_order=-1)
-InstrumentHandleSet.add_default_handle(MusesCrisInstrumentHandle(),
+ForwardModelHandleSet.add_default_handle(MusesCrisForwardModelHandle(),
                                        priority_order=-1)
-InstrumentHandleSet.add_default_handle(MusesAirsInstrumentHandle(),
+ForwardModelHandleSet.add_default_handle(MusesAirsForwardModelHandle(),
                                        priority_order=-1)
-InstrumentHandleSet.add_default_handle(MusesTropomiInstrumentHandle(),
+ForwardModelHandleSet.add_default_handle(MusesTropomiForwardModelHandle(),
                                        priority_order=-1)
-InstrumentHandleSet.add_default_handle(MusesOmiInstrumentHandle(),
+ForwardModelHandleSet.add_default_handle(MusesOmiForwardModelHandle(),
                                        priority_order=-1)
 
 __all__ = [ "StateVectorPlaceHolder",

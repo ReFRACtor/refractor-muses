@@ -82,7 +82,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
         self.retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
         self.cost_function_creator = CostFunctionCreator(rs=self)
-        self.instrument_handle_set = self.cost_function_creator.instrument_handle_set
+        self.forward_model_handle_set = self.cost_function_creator.forward_model_handle_set
         self.observation_handle_set = self.cost_function_creator.observation_handle_set
         self.kwargs = kwargs
         self.kwargs["vlidort_cli"] = vlidort_cli

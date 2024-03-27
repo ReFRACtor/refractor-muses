@@ -30,7 +30,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     the creation - so anything that needs a Pressure object to create itself
     will use whatever the derived class supplies.
 
-    Note that this class is a convenience - for things like CostFuncCreator
+    Note that this class is a convenience - for things like CostFunctionCreator
     we just need *a* ForwardModel. There is no requirement that you use this
     particular class to create the ForwardModel. But because most of the
     time the steps are pretty similar this can be a useful class to start with.

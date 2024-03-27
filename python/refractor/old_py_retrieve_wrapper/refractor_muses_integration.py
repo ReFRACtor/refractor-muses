@@ -68,7 +68,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject if mpy.have_muses_py e
         particular step of the processing.
         '''
         self.cost_function_creator = CostFunctionCreator()
-        self.instrument_handle_set = self.cost_function_creator.instrument_handle_set
+        self.forward_model_handle_set = self.cost_function_creator.forward_model_handle_set
         self.save_debug_data = save_debug_data
         self.obslist = obslist
         self.kwargs = kwargs

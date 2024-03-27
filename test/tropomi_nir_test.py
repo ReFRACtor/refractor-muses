@@ -6,7 +6,7 @@ import numpy as np
 import numpy.testing as npt
 from test_support import *
 import refractor.framework as rf
-from refractor.tropomi import (TropomiFmObjectCreator, TropomiInstrumentHandle)
+from refractor.tropomi import (TropomiFmObjectCreator, TropomiForwardModelHandle)
 from refractor.muses import MusesRunDir
 from refractor.old_py_retrieve_wrapper import RefractorMusesIntegration
 
@@ -55,7 +55,7 @@ def test_nir_retrieval(isolated_dir, osp_dir, gmao_dir, vlidort_cli,
     # "/tb/sandbox17/laughner/OSP-mine/OSP"
     
     r = RefractorMusesIntegration()
-    r.instrument_handle_set.add_handle(TropomiInstrumentHandle(use_pca=True,
+    r.forward_model_handle_set.add_handle(TropomiForwardModelHandle(use_pca=True,
                                        use_raman=False,
                                        use_lrad=False, lrad_second_order=False),
                                        priority_order=100)

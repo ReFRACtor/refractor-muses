@@ -6,7 +6,7 @@ import refractor.framework as rf
 import glob
 from refractor.muses import (MusesRunDir, CostFunctionCreator, CostFunction, 
                              StateInfo, RefractorFmObjectCreatorNew)
-from refractor.omi import (OmiFmObjectCreator, OmiInstrumentHandle)
+from refractor.omi import (OmiFmObjectCreator, OmiForwardModelHandle)
 from refractor.old_py_retrieve_wrapper import (RefractorMusesIntegration,
                                                RefractorOmiFm,MusesForwardModelStep,)
 import subprocess
@@ -155,9 +155,9 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
     creator = CostFunctionCreator()
-    ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
+    ihandle = OmiForwardModelHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False)
-    creator.instrument_handle_set.add_handle(ihandle, priority_order=100)
+    creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     cfunc = creator.cost_function_from_uip(rf_uip, joint_omi_obs_step_8,
                                            rrefractor.params["ret_info"],
                                            vlidort_cli=vlidort_cli)
@@ -176,9 +176,9 @@ def test_omi_fm_object_creator_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     subprocess.run("rm -r omi_fm_object_creator_airs_omi", shell=True)
     rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
     rmi.register_with_muses_py()
-    ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
+    ihandle = OmiForwardModelHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False)
-    rmi.instrument_handle_set.add_handle(ihandle, priority_order=100)
+    rmi.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     r = MusesRunDir(joint_omi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="omi_fm_object_creator_airs_omi")
     r.run_retrieval(vlidort_cli=vlidort_cli)
@@ -243,9 +243,9 @@ def test_run_forward_model_joint_omi(call_num,
                 osp_dir=osp_dir, gmao_dir=gmao_dir, path="refractor",
                 change_to_dir=True)
     rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
-    ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
+    ihandle = OmiForwardModelHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False)
-    rmi.instrument_handle_set.add_handle(ihandle, priority_order=100)
+    rmi.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     (uip, o_radianceOut, o_jacobianOut) = rmi.run_forward_model(**rrefractor.params)
 
     # Compare against our older tropomi interface

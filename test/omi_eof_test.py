@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.testing as npt
-from refractor.omi import OmiInstrumentHandle
+from refractor.omi import OmiForwardModelHandle
 from test_support import *
 import refractor.framework as rf
 import glob
@@ -43,9 +43,9 @@ def test_eof_omi(osp_dir, gmao_dir, vlidort_cli,
     # Save data so we can work on getting output in isolation
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
     rs.add_observer(rscap)
-    ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
+    ihandle = OmiForwardModelHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False, use_eof=True)
-    rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
+    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV1", OmiEofStateElement, pass_state=False, name="OMIEOFUV1", number_eof=3))
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV2", OmiEofStateElement, pass_state=False, name="OMIEOFUV2", number_eof=3))
     if(False):
@@ -91,10 +91,10 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     # Watch memory usage.
     rsmem = RetrievalStrategyMemoryUse()
     rs.add_observer(rsmem)
-    ihandle = OmiInstrumentHandle(use_pca=False, use_lrad=False,
+    ihandle = OmiForwardModelHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False, use_eof=True,
                                   eof_dir = "/tb/sandbox21/lkuai/muses/output_py/airs_omi/plot/no_softCal_EOF/EOFout")
-    rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
+    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV1", OmiEofStateElement, pass_state=False, name="OMIEOFUV1", number_eof=3))
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV2", OmiEofStateElement, pass_state=False, name="OMIEOFUV2", number_eof=3))
     if(False):

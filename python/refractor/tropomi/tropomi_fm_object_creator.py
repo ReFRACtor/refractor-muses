@@ -6,7 +6,7 @@ from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, StateVectorHandle,
                              O3Absorber, SwirAbsorber,
                              StateVectorHandleSet,
-                             InstrumentHandle,
+                             ForwardModelHandle,
                              MusesRaman)
 import refractor.framework as rf
 import logging
@@ -144,7 +144,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def state_vector_for_testing(self):
         '''Create a state vector for just this forward model. This is really
-        meant more for unit tests, during normal runs CostFuncCreator handles
+        meant more for unit tests, during normal runs CostFunctionCreator handles
         this (including the state vector element for other instruments).'''
         svhandle = copy.deepcopy(StateVectorHandleSet.default_handle_set())
         svhandle.add_handle(TropomiStateVectorHandle(self))
@@ -230,7 +230,7 @@ class TropomiStateVectorHandle(StateVectorHandle):
             return False
         return True
     
-class TropomiInstrumentHandle(InstrumentHandle):
+class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
@@ -244,4 +244,4 @@ class TropomiInstrumentHandle(InstrumentHandle):
                             priority_order=100)
         return (obj_creator.forward_model, obj_creator.observation)
 
-__all__ = ["TropomiFmObjectCreator", "TropomiInstrumentHandle"]
+__all__ = ["TropomiFmObjectCreator", "TropomiForwardModelHandle"]

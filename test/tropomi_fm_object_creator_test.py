@@ -4,7 +4,7 @@ from test_support import *
 import refractor.framework as rf
 import glob
 from refractor.tropomi import (TropomiFmObjectCreator, 
-                               TropomiInstrumentHandle)
+                               TropomiForwardModelHandle)
 from refractor.muses import (MusesRunDir, CostFunctionCreator, CostFunction, 
                              StateInfo, RefractorFmObjectCreatorNew)
 from refractor.old_py_retrieve_wrapper import (RefractorTropOmiFm, RefractorMusesIntegration,
@@ -292,9 +292,9 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
     creator = CostFunctionCreator()
-    ihandle = TropomiInstrumentHandle(use_pca=False, use_lrad=False,
+    ihandle = TropomiForwardModelHandle(use_pca=False, use_lrad=False,
                                       lrad_second_order=False)
-    creator.instrument_handle_set.add_handle(ihandle, priority_order=100)
+    creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     obslist = joint_tropomi_obs_step_12
     cfunc = creator.cost_function_from_uip(rf_uip, obslist,
                                            rrefractor.params["ret_info"],
@@ -315,9 +315,9 @@ def test_tropomi_fm_object_creator_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     r = MusesRunDir(joint_tropomi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="tropomi_fm_object_creator_cris_tropomi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    ihandle = TropomiInstrumentHandle(use_pca=False, use_lrad=False,
+    ihandle = TropomiForwardModelHandle(use_pca=False, use_lrad=False,
                                       lrad_second_order=False)
-    rs.instrument_handle_set.add_handle(ihandle, priority_order=100)
+    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.retrieval_ms()
     
     # Temp, compare right after
