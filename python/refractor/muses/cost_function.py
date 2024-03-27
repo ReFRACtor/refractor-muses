@@ -68,7 +68,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         else:
             p = i_uip["currentGuessList"]
         if(self.expected_parameter_size != len(p)):
-            raise RuntimeError("We aren't expecting parameters the size of currentGuessListFM. Did you forget use_full_state_vector=True when creating the ForwardModels?")
+            raise RuntimeError("We aren't expecting parameters the size of currentGuessList.")
         self.parameters = p
         radiance_fm = self.max_a_posteriori.model
         jac_fm = self.max_a_posteriori.jacobian_fm.transpose()
@@ -131,7 +131,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         # Stub out the UIP, it isn't actually needed for anything. We can have this as None,
         # just because levmar_nllsq_elanor expects to pass in this argument
         if(self.expected_parameter_size != len(retrieval_vec)):
-            raise RuntimeError("We aren't expecting parameters the size of retrieval_vec. Did you forget use_full_state_vector=False when creating the ForwardModels?")
+            raise RuntimeError("We aren't expecting parameters the size of retrieval_vec.")
         self.parameters = retrieval_vec
         # obs_rad and meas_err includes bad samples, so we can't use
         # cfunc.max_a_posteriori.measurement here which filters out

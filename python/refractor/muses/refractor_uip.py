@@ -332,7 +332,7 @@ class RefractorUip:
                               gmao_dir=gmao_dir)
         return uip
 
-    def instrument_sub_basis_matrix(self, instrument_name, use_full_state_vector=False):
+    def instrument_sub_basis_matrix(self, instrument_name, use_full_state_vector=True):
         '''Return the portion of the basis matrix that includes jacobians
         for the given instrument. This is what the various muses-py forward
         models return - only the subset of jacobians actually relevant for
@@ -593,7 +593,7 @@ class RefractorUip:
         return self.uip['jacobians_all']
     
     def state_vector_species_index(self, species_name,
-                                   use_full_state_vector=False):
+                                   use_full_state_vector=True):
         '''Index and length for the location of the species_name in
         our state vector. We either do this for the retrieval state vector
         or the full state vector.'''

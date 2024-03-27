@@ -148,19 +148,10 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         this (including the state vector element for other instruments).'''
         svhandle = copy.deepcopy(StateVectorHandleSet.default_handle_set())
         svhandle.add_handle(TropomiStateVectorHandle(self))
-        sv = svhandle.create_state_vector(self.rf_uip,
-                                          self.use_full_state_vector)
-        if(not self.use_full_state_vector):
-            if sv.observer_claimed_size != len(self.rf_uip.current_state_x):
-                raise RuntimeError(f"Number of state vector elements {sv.observer_claimed_size} does not match number of expected MUSES jacobians parameters {len(self.rf_uip.current_state_x)}")
-        else:
-            if sv.observer_claimed_size != len(self.rf_uip.current_state_x_fm):
-                raise RuntimeError(f"Number of state vector elements {sv.observer_claimed_size} does not match number of expected MUSES jacobians parameters {len(self.rf_uip.current_state_x_fm)}")
-
-        if(not self.use_full_state_vector):
-            sv.update_state(self.rf_uip.current_state_x)
-        else:
-            sv.update_state(self.rf_uip.current_state_x_fm)
+        sv = svhandle.create_state_vector(self.rf_uip)
+        if sv.observer_claimed_size != len(self.rf_uip.current_state_x_fm):
+            raise RuntimeError(f"Number of state vector elements {sv.observer_claimed_size} does not match number of expected MUSES jacobians parameters {len(self.rf_uip.current_state_x_fm)}")
+        sv.update_state(self.rf_uip.current_state_x_fm)
         logger.info(f"Created ReFRACtor state vector:\n{sv}")
         return sv
 
@@ -243,11 +234,12 @@ class TropomiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   use_full_state_vector=False, include_bad_sample=False, **kwargs):
+    def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle, include_bad_sample=False,
+                   **kwargs):
         if(instrument_name != "TROPOMI"):
             return (None, None)
-        obj_creator = TropomiFmObjectCreator(rf_uip, obs, use_full_state_vector=use_full_state_vector, include_bad_sample=include_bad_sample, **self.creator_kwargs)
+        obj_creator = TropomiFmObjectCreator(rf_uip, obs, include_bad_sample=include_bad_sample,
+                                             **self.creator_kwargs)
         svhandle.add_handle(TropomiStateVectorHandle(obj_creator),
                             priority_order=100)
         return (obj_creator.forward_model, obj_creator.observation)

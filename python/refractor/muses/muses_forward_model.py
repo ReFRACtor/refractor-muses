@@ -25,12 +25,11 @@ class MusesForwardModelBase(rf.ForwardModel):
     # bad_sample_mask, either masking bad samples or having a empty mask that
     # lets everything pass through.
     def __init__(self, rf_uip : RefractorUip, instrument_name,
-                 obs, use_full_state_vector=True, include_bad_sample=False,
+                 obs, include_bad_sample=False,
                  **kwargs):
         super().__init__()
         self.instrument_name = instrument_name
         self.rf_uip = rf_uip
-        self.use_full_state_vector = use_full_state_vector
         self.obs = obs
         self.include_bad_sample = include_bad_sample
         self.kwargs = kwargs
@@ -99,7 +98,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             # column being the state vector variables. So
             # translate the oss jac to what we want from ReFRACtor
 
-            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name, use_full_state_vector=self.use_full_state_vector)
+            sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
             if(jac is not None and jac.ndim > 0):
                 if(self.rf_uip.is_bt_retrieval):
                     # Only one column has data, although oss returns a larger
@@ -161,7 +160,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         # it gives an extra row of zeros that then gets trimmed before leaving
         # fm_wrapper. But because we are calling the lower level function
         # ourselves we need to trim this.
-        sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name, use_full_state_vector=self.use_full_state_vector)
+        sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(self.instrument_name)
         if(jac is not None and jac.shape[0] > 0 and sub_basis_matrix.shape[1] > 0):
             jac = np.matmul(sub_basis_matrix, jac[:sub_basis_matrix.shape[1],:]).transpose()
             a = rf.ArrayAd_double_1(rad[gmask], jac[gmask,:])
@@ -199,17 +198,13 @@ class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
         
 class MusesCrisForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for CRiS instrument'''
-    def __init__(self, rf_uip : RefractorUip, obs, use_full_state_vector=True, **kwargs):
-        super().__init__(rf_uip, "CRIS", obs,
-                         use_full_state_vector=use_full_state_vector, **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "CRIS", obs, **kwargs)
 
 class MusesAirsForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for Airs instrument'''
-    def __init__(self, rf_uip : RefractorUip, obs, use_full_state_vector=True, **kwargs):
-        super().__init__(rf_uip, "AIRS",
-                         obs,
-                         use_full_state_vector=use_full_state_vector,
-                         **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "AIRS", obs, **kwargs)
         
 class StateVectorPlaceHolder(rf.StateVectorObserver):
     '''Place holder for parts of the StateVector that ReFRACtor objects
@@ -243,7 +238,6 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "CRIS"):
             return (None, None)
@@ -251,14 +245,13 @@ class MusesCrisInstrumentHandle(InstrumentHandle):
         # default handle list
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
-        return (MusesCrisForwardModel(rf_uip,obs, use_full_state_vector=use_full_state_vector, **kwargs), obs)
+        return (MusesCrisForwardModel(rf_uip,obs, **kwargs), obs)
 
 class MusesAirsInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "AIRS"):
             return (None, None)
@@ -267,19 +260,17 @@ class MusesAirsInstrumentHandle(InstrumentHandle):
         #svhandle.add_handle(MusesStateVectorHandle(),
         #                    priority_order=-1)
         #obs = MusesAirsObservation(rf_uip, obs_rad, meas_err, **kwargs)
-        return (MusesAirsForwardModel(rf_uip,obs,use_full_state_vector=use_full_state_vector, **kwargs), obs)
+        return (MusesAirsForwardModel(rf_uip,obs, **kwargs), obs)
 
 class MusesTropomiInstrumentHandle(InstrumentHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "TROPOMI"):
             return (None, None)
-        fm = MusesTropomiForwardModel(rf_uip, obs,
-                                      use_full_state_vector=use_full_state_vector, **kwargs)
+        fm = MusesTropomiForwardModel(rf_uip, obs, **kwargs)
         # We don't actually attach anything to the state vector, but
         # we want to make sure that the forward model gets attached
         # as a CacheInvalidatedObserver.
@@ -292,12 +283,10 @@ class MusesOmiInstrumentHandle(InstrumentHandle):
         self.creator_kwargs = creator_kwargs
         
     def fm_and_obs(self, instrument_name, rf_uip, obs, svhandle,
-                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         if(instrument_name != "OMI"):
             return (None, None)
-        fm = MusesOmiForwardModel(rf_uip,obs,use_full_state_vector=use_full_state_vector,
-                                  **kwargs)
+        fm = MusesOmiForwardModel(rf_uip,obs, **kwargs)
         # We don't actually attach anything to the state vector, but
         # we want to make sure that the forward model gets attached
         # as a CacheInvalidatedObserver.

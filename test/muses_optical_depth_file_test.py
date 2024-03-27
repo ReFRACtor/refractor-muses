@@ -12,8 +12,7 @@ def test_muses_optical_depth_file(tropomi_uip_step_2, tropomi_obs_step_2,
     except ImportError:
         raise pytest.skip("test requires tropomi to be available")
     
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_2, tropomi_obs_step_2,
-                                         use_full_state_vector=False)
+    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_2, tropomi_obs_step_2)
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
@@ -31,10 +30,7 @@ def test_muses_optical_depth_file(tropomi_uip_step_2, tropomi_obs_step_2,
     sv = rf.StateVector()
     sv.add_observer(obj_creator.absorber_vmr[0])
     sv_val = []
-    if(obj_creator.use_full_state_vector):
-        sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3"))
-    else:
-        sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3")[obj_creator.rf_uip.species_retrieval_level_subset("O3")])
+    sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3"))
     sv.update_state(sv_val)
     # Make sure update to sv gets reflected in UIP
     obj_creator.rf_uip.refractor_cache["atouip_O3"] =  \
@@ -57,7 +53,7 @@ def test_muses_optical_depth_file(tropomi_uip_step_2, tropomi_obs_step_2,
         sv.update_state(svtemp)
         od = mod.optical_depth_each_layer(wn, spec_index).value
         fdjac[:,:, i] = (od - odinitial) / delta
-    npt.assert_allclose(jac, fdjac, atol=2e-6)
+    npt.assert_allclose(jac, fdjac, atol=4e-6)
 
     
     

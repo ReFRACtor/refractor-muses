@@ -53,23 +53,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                  # Short term, so we can flip between pca vs lidort
                  use_pca=True, use_lrad=False, lrad_second_order=False,
                  use_raman=True,
-                 use_full_state_vector=True,
                  include_bad_sample=True,
                  ):
         '''Constructor. This takes a RefractorUip (so *not* the
         muses-py dictionary, but rather a RefractorUip created from
         that).
-
-        For most purposes, you want use_full_state_vector=True
-        This uses the "Full State Vector".
-        See "Tropospheric Emission Spectrometer: Retrieval Method and Error
-        Analysis" (IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING,
-        VOL. 44, NO. 5, MAY 2006) section III.A.1 for a discussion of this.
-        the CostFunction handles mapping the retrieval vector to
-        the full state vector. However for stand alone uses of the the
-        forward model, it can sometimes be useful to use the retrieval
-        vector in the StateVector, so you can specify
-        use_full_state_vector=False if desired.
         
         The input directory can be given, this is used to read the 
         solar model data (omisol_v003_avg_nshi_backup.h5). If not supplied,
@@ -83,7 +71,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.use_raman = use_raman
         self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
-        self.use_full_state_vector = use_full_state_vector
         self.include_bad_sample = include_bad_sample
         self.observation = observation
 
@@ -713,10 +700,6 @@ class O3Absorber(AbstractAbsorber):
         # and the UIP to determine which species are absorbers) is correct and more general,
         # then this should be modified to be consistent with that method. 
         mappings = []
-        if(not self._parent.use_full_state_vector):
-            basis_matrix = self._parent.rf_uip.species_basis_matrix("O3").transpose()
-            if(len(basis_matrix) > 0):
-                mappings.append(rf.StateMappingBasisMatrix(basis_matrix))
         mappings.append(rf.StateMappingLog())
 
         smap = rf.StateMappingComposite(mappings)
@@ -813,11 +796,6 @@ class SwirAbsorber(AbstractAbsorber):
         # (JLL: I take it the mappings are applied from the end of the vector to the front?)
         for specie in self._parent.rf_uip.atm_params(self._parent.instrument_name)['species']:
             mappings = []
-            if(not self._parent.use_full_state_vector):
-                basis_matrix = self._parent.rf_uip.species_basis_matrix(specie).transpose()
-                if(len(basis_matrix) > 0):
-                    mappings.append(rf.StateMappingBasisMatrix(basis_matrix))
-
             if specie in self._parent.rf_uip.uip['speciesListFM']:
                 map_type = self._parent.rf_uip.species_lin_log_mapping(specie).lower()
             else:

@@ -43,31 +43,13 @@ class StateVectorHandle(object, metaclass=abc.ABCMeta):
 class StateVectorHandleSet(PriorityHandleSet):
     '''This takes  the instrument name and RefractorUip, and
     creates a FowardModel and Observation for that instrument.'''
-    def create_state_vector(self, rf_uip : RefractorUip,
-                            use_full_state_vector=True, **kwargs):
+    def create_state_vector(self, rf_uip : RefractorUip, **kwargs):
         '''Create the full StateVector for all the species in rf_uip.
-
-        For the retrieval, we use the "Retrieval State Vector".
-        However, for testing it can be useful to use the "Full State Vector".
-        See "Tropospheric Emission Spectrometer: Retrieval Method and Error
-        Analysis" (IEEE TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING,
-        VOL. 44, NO. 5, MAY 2006) section III.A.1 for a discussion of this.
-        Lower level muses-py functions work with the "Full State Vector", so
-        it is useful to have the option of supporting this. Set
-        use_full_state_vector to True to use the full state vector.
-
-        If we have use_full_state_vector False, we also attach an observer
-        that calls update_uip when the state vector is updated. We can't do
-        that if use_full_state_vector is True, because muses-py only takes
-        the retrieval vector, not the full state vector.
         '''
         sv = rf.StateVector()
         for species_name in rf_uip.jacobian_all:
-            pstart, plen = rf_uip.state_vector_species_index(species_name,
-                          use_full_state_vector=use_full_state_vector)
+            pstart, plen = rf_uip.state_vector_species_index(species_name)
             self.add_sv(sv, species_name, pstart, plen, **kwargs)
-        if(not use_full_state_vector):
-            sv.add_observer_and_keep_reference(StateVectorUpdateUip(rf_uip))
         return sv
     
     def add_sv(self, sv: rf.StateVector, species_name : str, 
@@ -107,7 +89,6 @@ class InstrumentHandle(object, metaclass=abc.ABCMeta):
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
                    obs : 'MusesObservation',
                    svhandle: StateVectorHandleSet,
-                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None, **kwargs):
         '''Return ForwardModel and Observation if we can process the given
         instrument_name, or (None, None) if we can't. Add any StateVectorHandle
@@ -133,7 +114,6 @@ class InstrumentHandleSet(PriorityHandleSet):
     def fm_and_obs(self, instrument_name : str, rf_uip : RefractorUip,
                    obs : 'MusesObservation',
                    svhandle : StateVectorHandleSet,
-                   use_full_state_vector=True,
                    obs_rad=None, meas_err=None,
                    **kwargs):
         '''Create a ForwardModel and Observation for the given instrument.
@@ -142,7 +122,6 @@ class InstrumentHandleSet(PriorityHandleSet):
         StateVectorHandle added to it.'''
 
         return self.handle(instrument_name, rf_uip, obs, svhandle,
-                           use_full_state_vector=use_full_state_vector,
                            obs_rad=obs_rad, meas_err=meas_err,
                            **kwargs)
     
@@ -150,12 +129,10 @@ class InstrumentHandleSet(PriorityHandleSet):
                  rf_uip : RefractorUip,
                  obs : 'MusesObservation',
                  svhandle : StateVectorHandleSet,
-                 use_full_state_vector=True,
                  obs_rad=None, meas_err=None,
                  **kwargs):
         '''Process a registered function'''
         fm, obs = h.fm_and_obs(instrument_name, rf_uip, obs, svhandle,
-                               use_full_state_vector=use_full_state_vector,
                                obs_rad=obs_rad,meas_err=meas_err,**kwargs)
         if(fm is None):
             return (False, None)
@@ -415,7 +392,6 @@ class CostFunctionCreator:
                       rf_uip_func,
                       do_systematic=False,
                       jacobian_speciesIn=None,
-                      identity_basis_matrix=False,
                       **kwargs):
         '''Return cost function for the RetrievalStrategy.
 
@@ -446,7 +422,6 @@ class CostFunctionCreator:
         args = self._fm_and_obs_rs(
             instrument_name_list, current_state, spec_win, rf_uip_func,
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
-            identity_basis_matrix=identity_basis_matrix,
             **kwargs)
         if(self.rs is not None):
             self.radiance_step_in = self._create_radiance_step()
@@ -458,8 +433,7 @@ class CostFunctionCreator:
         rf_uip = rf_uip_func()
         if(rf_uip is not None and rf_uip.basis_matrix is not None):
             cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(rf_uip))
-        if(not identity_basis_matrix):
-            cfunc.parameters = rf_uip.current_state_x
+        cfunc.parameters = rf_uip.current_state_x
         return cfunc
 
     def _fm_and_obs_rs(self,
@@ -547,7 +521,6 @@ class CostFunctionCreator:
     def _fm_and_obs(self, rf_uip : RefractorUip,
                    ret_info : dict,
                    fix_apriori_size=False,
-                   identity_basis_matrix=False,
                    **kwargs):
 
         '''This returns a list of ForwardModel and Observation that goes
@@ -567,17 +540,12 @@ class CostFunctionCreator:
                 
             fm, obs =  self.instrument_handle_set.fm_and_obs(instrument_name,
                                   rf_uip, self.obslist[i], self.state_vector_handle_set,
-                                  use_full_state_vector=True,
                                   obs_rad=None, meas_err=None,**kwargs)
             fm_list.append(fm)
             obs_list.append(self.obslist[i])
         sv = self.state_vector_handle_set.create_state_vector(rf_uip,
-                               use_full_state_vector=True,
                                **kwargs)
-        if(identity_basis_matrix):
-            bmatrix = None
-        else:
-            bmatrix = rf_uip.basis_matrix
+        bmatrix = rf_uip.basis_matrix
         if(fix_apriori_size):
             if(bmatrix is not None):
                 sv_apriori = np.zeros((bmatrix.shape[0],))
