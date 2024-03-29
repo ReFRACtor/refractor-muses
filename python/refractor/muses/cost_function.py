@@ -17,22 +17,22 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     directly call.'''
     def __init__(self, fm_list: List[rf.ForwardModel],
                  obs_list: List[rf.Observation],
-                 sv: rf.StateVector,
-                 sv_apriori: np.array,
-                 sv_sqrt_constraint: np.array,
+                 fm_sv: rf.StateVector,
+                 retrieval_sv_apriori: np.array,
+                 retrieval_sv_sqrt_constraint: np.array,
                  basis_matrix):
         self.obs_list = obs_list
         self.fm_list = fm_list
-        self.sv = sv
-        self.sv_apriori = sv_apriori
-        self.sv_sqrt_constraint = sv_sqrt_constraint
+        self.fm_sv = fm_sv
+        self.retrieval_sv_apriori = retrieval_sv_apriori
+        self.retrieval_sv_sqrt_constraint = retrieval_sv_sqrt_constraint
         self.basis_matrix = basis_matrix
         if(self.basis_matrix is not None):
             mapping = rf.StateMappingBasisMatrix(self.basis_matrix.transpose())
         else:
             mapping = rf.StateMappingLinear()
-        mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, self.sv,
-                                  self.sv_apriori, self.sv_sqrt_constraint,
+        mstand = rf.MaxAPosterioriSqrtConstraint(fm_list, obs_list, self.fm_sv,
+                                  self.retrieval_sv_apriori, self.retrieval_sv_sqrt_constraint,
                                   mapping)
         super().__init__(mstand)
 

@@ -1,3 +1,5 @@
+import refractor.framework as rf
+
 class CurrentState:
     '''There are a number of "states" floating around
     py-retrieve/ReFRACtor, and it can be a little confusing if you
@@ -28,7 +30,7 @@ class CurrentState:
     includes a number of things held fixed in a particular retrieval
     step.
 
-    4. The "object state", which is the subset of the "forward model
+    4. The "object state" is the subset of the "forward model
     state vector" needed by a particular object in our ForwardModel or
     Observation, mapped to what the object needs. E.g., the forward
     model state vector is in log(vmr), but for the actual object we
@@ -41,17 +43,19 @@ class CurrentState:
     context - so it might have fewer levels in a retrieval state
     vector vs forward model state vector. Note that muses-py often but
     not always refers to these as "species". We use the more general
-    name "StateElement" because these are always gas species.
+    name "StateElement" because these aren't always gas species.
 
-    A few examples, one of the things that might be retrieved is
-    log(vmr) for O3. In the "retrieval state vector" this has 25
-    log(vmr) values (for the 25 levels). In the "forward model state
-    vector" this as 64 log(vmr) values (for the 64 levels the FM is
-    run on).  In the "object state" for the rf.AbsorberVmr part of the
-    FowardModel is 64 vmr values (so log(vmr) converted to vmr needed
-    for calculation).
+    A few examples, might illustrate this
 
-    For the tropomi ForwardModel, and component object is a
+    One of the things that might be retrieved is log(vmr) for O3. In
+    the "retrieval state vector" this has 25 log(vmr) values (for the
+    25 levels). In the "forward model state vector" this as 64
+    log(vmr) values (for the 64 levels the FM is run on).  In the
+    "object state" for the rf.AbsorberVmr part of the FowardModel is
+    64 vmr values (so log(vmr) converted to vmr needed for
+    calculation).
+
+    For the tropomi ForwardModel, a component object is a
     rf.GroundLambertian which has a polynomial with values
     "TROPOMISURFACEALBEDOBAND3", "TROPOMISURFACEALBEDOSLOPEBAND3",
     "TROPOMISURFACEALBEDOSLOPEORDER2BAND3". We might be retrieving
@@ -61,7 +65,7 @@ class CurrentState:
     the "forward model state vector" would also only have 2 entries
     (since there aren't any levels involved, there is no difference
     between the retrieval state and the forward model state).  The
-    "full state vector" would have 3 values, so we add in the part
+    "full state vector" would have 3 values, since we add in the part
     that is being held fixed.
 
     In all cases, we handle converting from one type of state vector
@@ -73,4 +77,35 @@ class CurrentState:
     state vector" to "full state vector", and the various objects
     handle mappings from "full state vector" to "object state".
     '''
-    pass
+    def __init__(self, rf_uip):
+        '''Temporarily use RefractorUip for getting some of this information.
+        We want to remove this completely, but for now leverage off this
+        old class.'''
+        # Determine location in forward model state vector for each state element name
+        self.sv_loc = {}
+        self.fm_state_vector_size = 0
+        for species_name in rf_uip.jacobian_all:
+            pstart, plen = rf_uip.state_vector_species_index(species_name)
+            self.sv_loc[species_name] = (pstart, plen)
+            self.fm_state_vector_size += plen
+    
+    def add_fm_state_vector_if_needed(self, fm_sv : rf.StateVector,
+                                      state_element_name_list : 'list[str]',
+                                      obj_list : 'list[rf.SubStateVectorObserver]'):
+        '''This takes an object and a list of the state element names that object
+        uses. This then adds the object to the forward model state vector if
+        some of the elements are being retrieved.  This is a noop if none of the
+        state elements are being retrieved. So objects don't need to try to figure
+        out if they are in the retrieved set or not, then can just add themselves.'''
+        pstart = None
+        for sname in state_element_name_list:
+            if sname in self.sv_loc:
+                ps, _ = self.sv_loc[sname]
+                if(pstart is None or ps < pstart):
+                    pstart = ps
+        if(pstart is not None):
+            fm_sv.observer_claimed_size = pstart
+            for obj in obj_list:
+                fm_sv.add_observer(obj)
+        
+

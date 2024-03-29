@@ -1,10 +1,9 @@
 from test_support import *
-from refractor.muses import (RefractorUip, StateVectorPlaceHolder,
+from refractor.muses import (RefractorUip,
                              MusesCrisForwardModel, MusesCrisObservation, 
                              MusesAirsForwardModel, MusesAirsObservation,
                              MusesTropomiForwardModel, 
                              MusesOmiForwardModel, 
-                             StateVectorHandleSet, MusesStateVectorObserverHandle
                              )
 import refractor.framework as rf
 import copy
@@ -71,15 +70,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_uip_step_12, joint_tropomi_ob
         print(uncer)
         print(rad.shape)
         print(uncer.shape)
-    # Check that cache properly gets invalidated with state vector changes
-    state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
-    state_vector_handle_set.add_handle(MusesStateVectorObserverHandle(fm),
-                                       priority_order=1000)
-    sv = state_vector_handle_set.create_state_vector(rf_uip)
-    assert fm.cache_valid_flag
-    sv.update_state(rf_uip.current_state_x)
-    assert not fm.cache_valid_flag
-        
+
 @require_muses_py
 def test_muses_airs_forward_model(joint_omi_uip_step_8, joint_omi_obs_step_8):
     rf_uip = joint_omi_uip_step_8
