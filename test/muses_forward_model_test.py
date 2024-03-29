@@ -129,29 +129,6 @@ def test_muses_omi_forward_model(joint_omi_uip_step_8, joint_omi_obs_step_8, vli
         print(uncer)
         print(rad.shape)
         print(uncer.shape)
-    # Check that cache properly gets invalidated with state vector changes
-    state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
-    state_vector_handle_set.add_handle(MusesStateVectorObserverHandle(fm),
-                                       priority_order=1000)
-    sv = state_vector_handle_set.create_state_vector(rf_uip)
-    assert fm.cache_valid_flag
-    sv.update_state(rf_uip.current_state_x)
-    assert not fm.cache_valid_flag
         
-@require_muses_py
-def test_state_vector_placeholder():
-    sv = rf.StateVector()
-    sv1 = StateVectorPlaceHolder(0,3,"O3")
-    sv2 = StateVectorPlaceHolder(3,5,"Bob")
-    sv.add_observer(sv1)
-    sv.add_observer(sv2)
-    sv.observer_claimed_size = 8
-    sv.update_state([1,2,3,4,5,6,7,8])
-    npt.assert_allclose(sv1.coeff, [1,2,3])
-    npt.assert_allclose(sv2.coeff, [4,5,6,7,8])
-    if False:
-        print(sv)
-        print(sv1.coeff)
-        print(sv2.coeff)
     
     

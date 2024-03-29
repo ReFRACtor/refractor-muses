@@ -150,9 +150,7 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
                     **kwargs):
         '''Return Observation if we can process the given instrument_name, or
         None if we can't. Add and StateVectorHandle needed to the passed in set.
-
-        The StateVectorHandleSet svhandle is modified by having any
-        StateVectorHandle added to it.'''
+        '''
         raise NotImplementedError()
 
 class ObservationHandleSet(PriorityHandleSet):
@@ -174,10 +172,7 @@ class ObservationHandleSet(PriorityHandleSet):
                     fm_sv: rf.StateVector,
                     include_bad_sample=False,
                     **kwargs):
-        '''Create an Observation for the given instrument.
-        
-        The StateVectorHandleSet svhandle is modified by having any
-        StateVectorHandle added to it.'''
+        '''Create an Observation for the given instrument.'''
         return self.handle(instrument_name, current_state, spec_win, fm_sv,
                            include_bad_sample=include_bad_sample, **kwargs)
     

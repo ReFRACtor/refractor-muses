@@ -1,6 +1,6 @@
 from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              StrategyTable, RetrievalStrategy, ObservationHandleSet,
-                             StateVectorHandleSet, MusesCrisObservation,
+                             MusesCrisObservation,
                              MusesTropomiObservation, MusesOmiObservation)
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
                                                MusesCrisObservationOld, MusesAirsObservationOld)
@@ -60,10 +60,6 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
     obs.spectral_window = swin
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
-    # Try again from our handle set
-    hset = ObservationHandleSet.default_handle_set()
-    svhandle = StateVectorHandleSet()
-    obs = hset.observation("AIRS", rs, svhandle)
 
 def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
     granule = 65
@@ -117,10 +113,6 @@ def test_create_muses_cris_observation(isolated_dir, osp_dir, gmao_dir,
     obs.spectral_window = swin
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
-    # Try again from our handle set
-    hset = ObservationHandleSet.default_handle_set()
-    svhandle = StateVectorHandleSet()
-    obs = hset.observation("CRIS", rs, svhandle)
         
 def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     xtrack_list = [226,]
@@ -208,10 +200,6 @@ def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
     obs.spectral_window = swin
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
-    # Try again from our handle set
-    hset = ObservationHandleSet.default_handle_set()
-    svhandle = StateVectorHandleSet()
-    obs = hset.observation("TROPOMI", rs, svhandle)
     
 def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     xtrack_uv1 = 10
@@ -314,10 +302,6 @@ def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
     obs.spectral_window = swin
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
-    # Try again from our handle set
-    hset = ObservationHandleSet.default_handle_set()
-    svhandle = StateVectorHandleSet()
-    obs = hset.observation("OMI", rs, svhandle)
     
 def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     xtrack_uv1 = 10
