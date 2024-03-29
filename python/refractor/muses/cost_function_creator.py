@@ -15,60 +15,6 @@ from typing import Optional
 
 logger = logging.getLogger("py-retrieve")
 
-class StateVectorHandle(object, metaclass=abc.ABCMeta):
-    '''Base class for StateVectorHandle. Note we use duck typing, so you
-    don't need to actually derive from this object. But it can be
-    useful because it 1) provides the interface and 2) documents
-    that a class is intended for this.'''
-
-    def add_sv_once(self, sv : rf.StateVector,
-                    obj : rf.SubStateVectorObserver):
-        '''Add the given object only once to the state vector.'''
-        # If needed we can come up with more complicated logic, but
-        # for now just check if the obj is already attached to a state
-        # vector. Could get some odd error where obj is attached to
-        # *a* state vector, but not sv - but we won't worry about that now,
-        if(obj.state_vector_start_index < 0):
-            sv.add_observer(obj)
-
-    @abc.abstractmethod
-    def add_sv(self, sv: rf.StateVector, species_name : str, 
-               pstart : int, plen : int, **kwargs):
-        '''Handle the given state vector species_name. Return True if
-        we processed this, False otherwise.
-
-        The StateVector sv is modified by adding any observers to it'''
-        raise NotImplementedError()
-
-class StateVectorHandleSet(PriorityHandleSet):
-    '''This takes  the instrument name and RefractorUip, and
-    creates a ForwardModel and Observation for that instrument.'''
-    def create_state_vector(self, rf_uip : RefractorUip, **kwargs):
-        '''Create the full StateVector for all the species in rf_uip.
-        '''
-        sv = rf.StateVector()
-        for species_name in rf_uip.jacobian_all:
-            pstart, plen = rf_uip.state_vector_species_index(species_name)
-            self.add_sv(sv, species_name, pstart, plen, **kwargs)
-        return sv
-    
-    def add_sv(self, sv: rf.StateVector, species_name : str, 
-               pstart : int, plen : int, **kwargs):
-        '''Attach whatever we need to the state vector for the given
-        species.
-
-        The StateVector sv is modified by adding any observers to it'''
-        sv.observer_claimed_size = pstart
-        res = self.handle(sv, species_name, pstart, plen, **kwargs)
-        sv.observer_claimed_size = pstart + plen
-        return res
-    
-    def handle_h(self, h : StateVectorHandle, sv: rf.StateVector,
-                 species_name : str, pstart : int, plen : int, **kwargs):
-        '''Process a registered function'''
-        handled = h.add_sv(sv, species_name, pstart, plen, **kwargs)
-        return (handled, None)
-
 class ForwardModelHandle(object, metaclass=abc.ABCMeta):
     '''Base class for ForwardModelHandle. Note we use duck typing, so you
     don't need to actually derive from this object. But it can be
@@ -78,7 +24,15 @@ class ForwardModelHandle(object, metaclass=abc.ABCMeta):
     Note ForwardModelHandle can assume that they are called for the same target, until
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
-    one call to the next.'''
+    one call to the next.
+
+    However, a "newish" object should be created. Specifically we want to be able to
+    attach each object to a separate StateVector and have different SpectralWindowRange set
+    - we want to be able to have more than one CostFunction active at one time and we don't
+    want updates in one CostFunction to affect the others. So this can be thought of as a shallow
+    copy, if that make sense for the object. Things that don't depend on the StateVector can
+    be shared (e.g., data read from a file), but state related parts should be independent.
+    '''
 
     def notify_update_target(self, measurement_id : dict, filter_list : dict):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
@@ -86,16 +40,28 @@ class ForwardModelHandle(object, metaclass=abc.ABCMeta):
         pass
         
     @abc.abstractmethod
-    def forward_model(self, instrument_name : str, rf_uip : RefractorUip,
-                   obs : 'MusesObservation',
-                   svhandle: StateVectorHandleSet,
-                   obs_rad=None, meas_err=None, **kwargs):
+    def forward_model(self, instrument_name : str,
+                      current_state : 'CurrentState',
+                      spec_win : rf.SpectralWindowRange,
+                      obs : 'MusesObservation',
+                      fm_sv: rf.StateVector,
+                      rf_uip_func,
+                      **kwargs):
         '''Return ForwardModel if we can process the given
-        instrument_name, or None if we can't. Add any StateVectorHandle
-        to the passed in set.
+        instrument_name, or None if we can't.
 
-        The StateVectorHandleSet svhandle is modified by having any
-        StateVectorHandle added to it.'''
+        The forward model state vector is passed in, in case we want to
+        attach anything to it as an observer (so object state gets updated as
+        we update for forward model state vector).
+
+        Because we sometimes need the metadata we also pass in the MusesObservation
+        that goes with the given instrument name.
+
+        The wrapped py-retrieve ForwardModel need the UIP structure. We don't normally
+        create this, but pass in a function that can be used to get the UIP if needed.
+        This should only be used for py-retrieve code, the UIP doesn't have all the
+        information in our CurrentState object - only what was in py-retrieve.
+        '''
         raise NotImplementedError()
     
 class ForwardModelHandleSet(PriorityHandleSet):
@@ -111,29 +77,43 @@ class ForwardModelHandleSet(PriorityHandleSet):
             for h in self.handle_set[p]:
                 h.notify_update_target(measurement_id, filter_list)
         
-    def forward_model(self, instrument_name : str, rf_uip : RefractorUip,
-                   obs : 'MusesObservation',
-                   svhandle : StateVectorHandleSet,
-                   obs_rad=None, meas_err=None,
-                   **kwargs):
+    def forward_model(self, instrument_name : str,
+                      current_state : 'CurrentState',
+                      spec_win : rf.SpectralWindowRange,
+                      obs : 'MusesObservation',
+                      fm_sv: rf.StateVector,
+                      rf_uip_func,
+                      include_bad_sample=False,
+                      **kwargs):
         '''Create a ForwardModel for the given instrument.
         
-        The StateVectorHandleSet svhandle is modified by having any
-        StateVectorHandle added to it.'''
+        The forward model state vector is passed in, in case we want to
+        attach anything to it as an observer (so object state gets updated as
+        we update for forward model state vector).
 
-        return self.handle(instrument_name, rf_uip, obs, svhandle,
-                           obs_rad=obs_rad, meas_err=meas_err,
-                           **kwargs)
+        Because we sometimes need the metadata we also pass in the MusesObservation
+        that goes with the given instrument name.
+
+        The wrapped py-retrieve ForwardModel need the UIP structure. We don't normally
+        create this, but pass in a function that can be used to get the UIP if needed.
+        This should only be used for py-retrieve code, the UIP doesn't have all the
+        information in our CurrentState object - only what was in py-retrieve.
+        '''
+        
+        return self.handle(instrument_name, current_state, spec_win, obs, fm_sv,
+                           rf_uip_func, include_bad_sample=include_bad_sample, **kwargs)
     
     def handle_h(self, h : ForwardModelHandle, instrument_name : str,
-                 rf_uip : RefractorUip,
+                 current_state : 'CurrentState',
+                 spec_win : rf.SpectralWindowRange,
                  obs : 'MusesObservation',
-                 svhandle : StateVectorHandleSet,
-                 obs_rad=None, meas_err=None,
+                 fm_sv: rf.StateVector,
+                 rf_uip_func,
+                 include_bad_sample=False,
                  **kwargs):
         '''Process a registered function'''
-        fm = h.forward_model(instrument_name, rf_uip, obs, svhandle,
-                             obs_rad=obs_rad,meas_err=meas_err,**kwargs)
+        fm = h.forward_model(instrument_name, current_state, spec_win, obs, fm_sv, rf_uip_func,
+                             include_bad_sample=include_bad_sample, **kwargs)
         if(fm is None):
             return (False, None)
         return (True, fm)
@@ -147,15 +127,27 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
     Note ObservationHandle can assume that they are called for the same target, until
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
-    one call to the next.'''
+    one call to the next.
+
+    However, a "newish" object should be created. Specifically we want to be able to
+    attach each object to a separate StateVector and have different SpectralWindowRange set
+    - we want to be able to have more than one CostFunction active at one time and we don't
+    want updates in one CostFunction to affect the others. So this can be thought of as a shallow
+    copy, if that make sense for the object. Things that don't depend on the StateVector can
+    be shared (e.g., data read from a file), but state related parts should be independent.
+    '''
     def notify_update_target(self, measurement_id : dict, filter_list : dict):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # Default is to do nothing
         pass
 
     @abc.abstractmethod
-    def observation(self, instrument_name : str, rs: 'RetrievalStategy',
-                    svhandle: 'StateVectorHandleSet', **kwargs):
+    def observation(self, instrument_name : str,
+                    current_state : 'CurrentState',
+                    spec_win : rf.SpectralWindowRange,
+                    fm_sv: rf.StateVector,
+                    include_bad_sample=False,
+                    **kwargs):
         '''Return Observation if we can process the given instrument_name, or
         None if we can't. Add and StateVectorHandle needed to the passed in set.
 
@@ -176,22 +168,29 @@ class ObservationHandleSet(PriorityHandleSet):
             for h in self.handle_set[p]:
                 h.notify_update_target(measurement_id, filter_list)
         
-    def observation(self, instrument_name : str, rs: 'RetrievalStategy',
-                    svhandle : StateVectorHandleSet,
+    def observation(self, instrument_name : str,
+                    current_state : 'CurrentState',
+                    spec_win : rf.SpectralWindowRange,
+                    fm_sv: rf.StateVector,
+                    include_bad_sample=False,
                     **kwargs):
         '''Create an Observation for the given instrument.
         
         The StateVectorHandleSet svhandle is modified by having any
         StateVectorHandle added to it.'''
-        return self.handle(instrument_name, rs, svhandle,
-                           **kwargs)
+        return self.handle(instrument_name, current_state, spec_win, fm_sv,
+                           include_bad_sample=include_bad_sample, **kwargs)
     
     def handle_h(self, h : ObservationHandle, instrument_name : str,
-                 rs: 'RetrievalStategy',
-                 svhandle : StateVectorHandleSet,
+                 current_state : 'CurrentState',
+                 spec_win : rf.SpectralWindowRange,
+                 fm_sv: rf.StateVector,
+                 include_bad_sample=False,
                  **kwargs):
         '''Process a registered function'''
-        obs = h.observation(instrument_name, rs, svhandle,**kwargs)
+        obs = h.observation(instrument_name, current_state, spec_win, fm_sv,
+                            include_bad_sample=include_bad_sample,
+                            **kwargs)
         if(obs is None):
             return (False, None)
         return (True, obs)
@@ -394,6 +393,7 @@ class CostFunctionCreator:
                       current_state : 'CurrentState',
                       spec_win : "list[rf.SpectralWindowRange]",
                       rf_uip_func,
+                      include_bad_sample=False,
                       do_systematic=False,
                       jacobian_speciesIn=None,
                       obs_list=None,
@@ -440,7 +440,7 @@ class CostFunctionCreator:
         self._rf_uip_func = rf_uip_func
         args = self._forward_model(
             instrument_name_list, current_state, spec_win,
-            self._rf_uip_func_wrap,
+            self._rf_uip_func_wrap, include_bad_sample=include_bad_sample,
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
             obs_list=obs_list, fix_apriori_size=fix_apriori_size,
             **kwargs)
@@ -462,8 +462,9 @@ class CostFunctionCreator:
     def _forward_model(self,
                        instrument_name_list : "list[str]",
                        current_state : 'CurrentState',
-                       spec_win : "list[rf.SpectralWindowRange]",
+                       spec_win_dict : "dict[str, rf.SpectralWindowRange]",
                        rf_uip_func,
+                       include_bad_sample=False,
                        obs_list=None,
                        fix_apriori_size=False,
                        **kwargs):
@@ -480,30 +481,30 @@ class CostFunctionCreator:
         # rf_uip is set, we make sure the rf_uip gets updated when the CostFunction.parameters
         # get updated. But this is only needed if we have a ForwardModel with a rf_uip.
         self.obs_list = []
-        self.state_vector_handle_set = copy.deepcopy(StateVectorHandleSet.default_handle_set())
+        fm_sv = rf.StateVector()
         if(obs_list is not None):
             self.obs_list = obs_list
         else:
-            for instrument_name in rf_uip.instrument:
-                obs = self.observation_handle_set.observation(instrument_name, self.rs,
-                                                              self.state_vector_handle_set,
-                                                              **kwargs)
+            for instrument_name in instrument_name_list:
+                obs = self.observation_handle_set.observation(
+                    instrument_name, current_state, spec_win_dict[instrument_name], fm_sv,
+                    include_bad_sample=include_bad_sample,
+                    rs=self.rs, # Short term, we use RetrievalStrategy
+                    **kwargs)
                 self.obs_list.append(obs)
                 
         self.fm_list = []
-        for i, instrument_name in enumerate(rf_uip.instrument):
-                
-            fm =  self.forward_model_handle_set.forward_model(instrument_name,
-                                  rf_uip, self.obs_list[i], self.state_vector_handle_set,
-                                  obs_rad=None, meas_err=None,**kwargs)
+        for i, instrument_name in enumerate(instrument_name_list):
+            fm =  self.forward_model_handle_set.forward_model(
+                instrument_name, current_state, spec_win_dict[instrument_name], self.obs_list[i],
+                fm_sv, rf_uip_func, include_bad_sample=include_bad_sample, **kwargs)
             self.fm_list.append(fm)
-        sv = self.state_vector_handle_set.create_state_vector(rf_uip,
-                               **kwargs)
+        fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         bmatrix = rf_uip.basis_matrix
         if(not fix_apriori_size):
-            # Normally, we get the apriori and constraint for our current state
-            sv_apriori =  current_state.apriori
-            sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
+            # Normally, we get the apriori and constraint from our current state
+            retrieval_sv_apriori =  current_state.apriori
+            retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
         else:
             # This handles when we call with a RefractorUip but without a
             # ret_info, or otherwise don't have a apriori and sqrt_constraint. We
@@ -511,18 +512,20 @@ class CostFunctionCreator:
             # This isn't something we encounter in our normal processing,
             # this is more to support old testing
             if(bmatrix is not None):
-                sv_apriori = np.zeros((bmatrix.shape[0],))
-                sv_sqrt_constraint=np.eye(bmatrix.shape[0])
+                retrieval_sv_apriori = np.zeros((bmatrix.shape[0],))
+                retrieval_sv_sqrt_constraint=np.eye(bmatrix.shape[0])
             else:
-                sv_apriori = np.zeros((sv.observer_claimed_size,))
-                sv_sqrt_constraint=np.eye(sv.observer_claimed_size)
+                # No bmatrix then retrieval_sv and fm_sv are the same
+                retrieval_sv_apriori = np.zeros((fm_sv.observer_claimed_size,))
+                retrieval_sv_sqrt_constraint=np.eye(fm_sv.observer_claimed_size)
 
-        return (self.fm_list, self.obs_list, sv, sv_apriori, sv_sqrt_constraint,
-                bmatrix)
+        return (self.fm_list, self.obs_list, fm_sv, retrieval_sv_apriori,
+                retrieval_sv_sqrt_constraint, bmatrix)
 
     def cost_function_from_uip(self, rf_uip : RefractorUip,
                                obs_list,
                                ret_info : dict,
+                               include_bad_sample=False,
                                **kwargs):
         '''Create a cost function from a RefractorUip and a
         ret_info. Note that this is really just for backwards testing,
@@ -551,7 +554,8 @@ class CostFunctionCreator:
         # Fake the input for the normal cost_function function
         def uip_func():
             return rf_uip
-        cstate = CurrentState()
+        # TODO Remove rf_uip
+        cstate = CurrentState(rf_uip)
         if(ret_info):
             fix_apriori_size=False
             cstate.sqrt_constraint = ret_info["sqrt_constraint"]
@@ -560,14 +564,14 @@ class CostFunctionCreator:
             fix_apriori_size=True
             cstate.sqrt_constraint = np.eye(1)
             cstate.apriori = np.zeros((1,))
-        # Todo, fill this in
-        spec_win = None
-        return self.cost_function(rf_uip.instrument, cstate, spec_win, uip_func,
-                                  obs_list=obs_list,
+        spec_win_dict = {}
+        for i, iname in enumerate(rf_uip.instrument):
+            spec_win_dict[iname] = obs_list[i].spectral_window_with_bad_sample
+        return self.cost_function(rf_uip.instrument, cstate, spec_win_dict, uip_func,
+                                  obs_list=obs_list,include_bad_sample=include_bad_sample,
                                   fix_apriori_size=fix_apriori_size, **kwargs)
     
-__all__ = ["StateVectorHandle", "StateVectorHandleSet",
-           "ForwardModelHandle", "ForwardModelHandleSet",
+__all__ = ["ForwardModelHandle", "ForwardModelHandleSet",
            "CostFunctionCreator", "ObservationHandleSet", "ObservationHandle"]
         
         

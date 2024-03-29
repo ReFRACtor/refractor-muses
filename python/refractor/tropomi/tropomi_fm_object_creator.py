@@ -3,9 +3,8 @@ try:
 except ImportError:
     from backports.cached_property import cached_property
 from refractor.muses import (RefractorFmObjectCreator,
-                             RefractorUip, StateVectorHandle,
+                             RefractorUip, 
                              O3Absorber, SwirAbsorber,
-                             StateVectorHandleSet,
                              ForwardModelHandle,
                              MusesRaman)
 import refractor.framework as rf
@@ -195,7 +194,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         return res
 
 
-class TropomiStateVectorHandle(StateVectorHandle):
+#class TropomiStateVectorHandle(StateVectorHandle):
+class TropomiStateVectorHandle:
     def __init__(self, obj_creator):
         self.obj_creator = obj_creator
 

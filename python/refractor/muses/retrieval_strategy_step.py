@@ -53,8 +53,6 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
-    def __init__(self):
-        self._old_cfunc = None
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
@@ -125,30 +123,13 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         cstate.apriori_cov = rs.retrievalInfo.apriori_cov
         cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
         cstate.apriori = rs.retrievalInfo.apriori
-        # Clear out any attachment to the old StateVector, so we can potentially
-        # reuse objects in the cost function create. The objects generally can't
-        # be attached to move than one StateVector, so we get an error if we try to
-        # attach again without clearing out the old attachements. The "True" here
-        # tells the observers to not to update their state, but just to detach so they
-        # can be reattached.
-        if(self._old_cfunc is not None):
-            logger.info("============================== Look here ==========================")
-            logger.info("Observation state")
-            for obs in self._old_cfunc.obs_list:
-                logger.info(obs.mapped_state.value)
-            self._old_cfunc.fm_sv.clear_observers(True)
-            logger.info("Observation state after clear")
-            for obs in self._old_cfunc.obs_list:
-                logger.info(obs.mapped_state.value)
-            breakpoint()
-        self._old_cfunc = rs.cost_function_creator.cost_function(
+        return rs.cost_function_creator.cost_function(
             rs.strategy_table.instrument_name(),
             cstate,
             rs.strategy_table.spectral_window_all(),
             partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample,
             fix_apriori_size=fix_apriori_size, **rs.kwargs)
-        return self._old_cfunc
         
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     '''There seems to be a few retrieval types that aren't implemented in
@@ -166,7 +147,6 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
 class RetrievalStrategyStepBT(RetrievalStrategyStep):
     '''Brightness Temperature strategy step.'''
     def __init__(self):
-        super().__init__()
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
@@ -230,7 +210,6 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
 class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     '''Strategy step that does a retrieval (e.g., the default strategy step).'''
     def __init__(self):
-        super().__init__()
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):

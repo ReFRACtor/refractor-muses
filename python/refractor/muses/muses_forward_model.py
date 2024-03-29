@@ -1,7 +1,6 @@
 from . import muses_py as mpy
 from .refractor_uip import RefractorUip
-from .cost_function_creator import (ForwardModelHandle, StateVectorHandle,
-                                    ForwardModelHandleSet, StateVectorHandleSet)
+from .cost_function_creator import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
 import refractor.framework as rf
@@ -53,7 +52,10 @@ class MusesForwardModelBase(rf.ForwardModel):
     def spectral_domain(self, sensor_index):
         if(sensor_index > 0):
             raise RuntimeError("sensor_index out of range")
-        sd = np.concatenate([self.obs.spectral_domain(i).data for i in range(self.obs.num_channels)])
+        if(self.include_bad_sample):
+            sd = np.concatenate([self.obs.spectral_domain_with_bad_sample(i).data for i in range(self.obs.num_channels)])
+        else:
+            sd = np.concatenate([self.obs.spectral_domain(i).data for i in range(self.obs.num_channels)])
         return rf.SpectralDomain(sd, rf.Unit("nm"))
 
 # Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
@@ -111,10 +113,11 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             else:
                 a = rf.ArrayAd_double_1(rad[gmask])
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
+        if(sd.data.shape[0] != sr.data.shape[0]):
+            breakpoint()
         return rf.Spectrum(sd, sr)
 
-class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
-                                        rf.CacheInvalidatedObserver):
+class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
     '''Common behavior for the omi/tropomi based forward models'''
     def __init__(self, rf_uip : RefractorUip, instrument_name, obs,
                  vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
@@ -124,17 +127,15 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
                  **kwargs):
         MusesForwardModelBase.__init__(self, rf_uip, instrument_name, obs=None,
                                        **kwargs)
-        rf.CacheInvalidatedObserver.__init__(self)
-        
         self.vlidort_nstreams = vlidort_nstreams
         self.vlidort_nstokes = vlidort_nstokes
         self.vlidort_cli = vlidort_cli
         self.include_bad_sample = include_bad_sample
         self.obs = obs
 
-    def _fill_in_cache(self):
-        if(self.cache_valid_flag):
-            return
+    def radiance(self, sensor_index, skip_jacobian = False):
+        if(sensor_index !=0):
+            raise ValueError("sensor_index must be 0")
         with muses_py_call(self.rf_uip.run_dir, vlidort_cli=self.vlidort_cli,
                            vlidort_nstokes=self.vlidort_nstokes,
                            vlidort_nstreams=self.vlidort_nstreams):
@@ -148,7 +149,8 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         # otherwise bad_sample_mask and spectral_domain will enter an
         # infinite loop
         self.cache_valid_flag = True
-        gmask =  np.concatenate([self.bad_sample_mask(i) != True for i in range(self.obs.num_channels)])
+        gmask =  np.concatenate([self.bad_sample_mask(i) != True
+                                 for i in range(self.obs.num_channels)])
         sd = self.spectral_domain(0)
         # jacobian is 1) on the forward model grid and
         # 2) transposed from the ReFRACtor convention of the
@@ -167,26 +169,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase,
         else:
             a = rf.ArrayAd_double_1(rad[gmask])
         sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
-        self.rad_spec = rf.Spectrum(sd, sr)
-        self.cache_valid_flag = True
-        
-    def radiance(self, sensor_index, skip_jacobian = False):
-        if(sensor_index !=0):
-            raise ValueError("sensor_index must be 0")
-        self._fill_in_cache()
-        return self.rad_spec
-
-class MusesStateVectorObserverHandle(StateVectorHandle):
-    def __init__(self, fm : MusesTropomiOrOmiForwardModelBase):
-        super().__init__()
-        self.fm = fm
-        
-    def add_sv(self, sv, species_name, pstart, plen, **kwargs):
-        # Always pass the handling of this on, but for the start of
-        # the state vector add fm as a cache observer
-        if(pstart == 0):
-            sv.add_cache_invalidated_observer(self.fm)
-        return False
+        return rf.Spectrum(sd, sr)
     
 class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
     def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
@@ -227,90 +210,36 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
         self.sv_name = svnm
         super().state_vector_name(sv,sv_namev)
 
-class MusesStateVectorHandle(StateVectorHandle):
-    def add_sv(self, sv, species_name, pstart, plen, **kwargs):
-        svh = StateVectorPlaceHolder(pstart, plen, species_name)
-        sv.add_observer_and_keep_reference(svh)
-        return True
-    
-class MusesCrisForwardModelHandle(ForwardModelHandle):
-    def __init__(self, **creator_kwargs):
+class MusesForwardModelHandle(ForwardModelHandle):
+    def __init__(self, instrument_name, cls, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
+        self.instrument_name = instrument_name
+        self.cls = cls
         
-    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
-                      obs_rad=None, meas_err=None, **kwargs):
-        if(instrument_name != "CRIS"):
+    def forward_model(self, instrument_name : str,
+                      current_state : 'CurrentState',
+                      spec_win : rf.SpectralWindowRange,
+                      obs : 'MusesObservation',
+                      fm_sv: rf.StateVector,
+                      rf_uip_func,
+                      **kwargs):
+        if(instrument_name != self.instrument_name):
             return None
-        # This has already been handled below, by adding to the
-        # default handle list
-        #svhandle.add_handle(MusesStateVectorHandle(),
-        #                    priority_order=-1)
-        return MusesCrisForwardModel(rf_uip,obs, **kwargs)
-
-class MusesAirsForwardModelHandle(ForwardModelHandle):
-    def __init__(self, **creator_kwargs):
-        self.creator_kwargs = creator_kwargs
-        
-    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
-                      obs_rad=None, meas_err=None, **kwargs):
-        if(instrument_name != "AIRS"):
-            return None
-        # This has already been handled below, by adding to the
-        # default handle list
-        #svhandle.add_handle(MusesStateVectorHandle(),
-        #                    priority_order=-1)
-        #obs = MusesAirsObservation(rf_uip, obs_rad, meas_err, **kwargs)
-        return MusesAirsForwardModel(rf_uip,obs, **kwargs)
-
-class MusesTropomiForwardModelHandle(ForwardModelHandle):
-    def __init__(self, **creator_kwargs):
-        self.creator_kwargs = creator_kwargs
-        
-    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
-                      obs_rad=None, meas_err=None, **kwargs):
-        if(instrument_name != "TROPOMI"):
-            return None
-        fm = MusesTropomiForwardModel(rf_uip, obs, **kwargs)
-        # We don't actually attach anything to the state vector, but
-        # we want to make sure that the forward model gets attached
-        # as a CacheInvalidatedObserver.
-        svhandle.add_handle(MusesStateVectorObserverHandle(fm),
-                            priority_order=1000)
-        return fm
-
-class MusesOmiForwardModelHandle(ForwardModelHandle):
-    def __init__(self, **creator_kwargs):
-        self.creator_kwargs = creator_kwargs
-        
-    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
-                      obs_rad=None, meas_err=None, **kwargs):
-        if(instrument_name != "OMI"):
-            return None
-        fm = MusesOmiForwardModel(rf_uip,obs, **kwargs)
-        # We don't actually attach anything to the state vector, but
-        # we want to make sure that the forward model gets attached
-        # as a CacheInvalidatedObserver.
-        svhandle.add_handle(MusesStateVectorObserverHandle(fm),
-                            priority_order=1000)
-        return fm
+        return self.cls(rf_uip_func(), obs, **kwargs)
 
 # The Muses code is the fallback, so add with the lowest priority
-StateVectorHandleSet.add_default_handle(MusesStateVectorHandle(),
-                                        priority_order=-1)
-ForwardModelHandleSet.add_default_handle(MusesCrisForwardModelHandle(),
-                                       priority_order=-1)
-ForwardModelHandleSet.add_default_handle(MusesAirsForwardModelHandle(),
-                                       priority_order=-1)
-ForwardModelHandleSet.add_default_handle(MusesTropomiForwardModelHandle(),
-                                       priority_order=-1)
-ForwardModelHandleSet.add_default_handle(MusesOmiForwardModelHandle(),
-                                       priority_order=-1)
+ForwardModelHandleSet.add_default_handle(
+    MusesForwardModelHandle("CRIS", MusesCrisForwardModel), priority_order=-1)
+ForwardModelHandleSet.add_default_handle(
+    MusesForwardModelHandle("AIRS", MusesAirsForwardModel), priority_order=-1)
+ForwardModelHandleSet.add_default_handle(
+    MusesForwardModelHandle("TROPOMI", MusesTropomiForwardModel), priority_order=-1)
+ForwardModelHandleSet.add_default_handle(
+    MusesForwardModelHandle("OMI", MusesOmiForwardModel), priority_order=-1)
 
-__all__ = [ "StateVectorPlaceHolder",
-            "MusesCrisForwardModel", 
+__all__ = [ "MusesCrisForwardModel", 
             "MusesAirsForwardModel", 
             "MusesTropomiForwardModel", 
             "MusesOmiForwardModel", 
-            "MusesStateVectorObserverHandle",
            ]
 

@@ -3,9 +3,7 @@ try:
 except ImportError:
     from backports.cached_property import cached_property
 from refractor.muses import (RefractorFmObjectCreator,
-                             RefractorUip, StateVectorHandle,
-                             StateVectorHandleSet,
-                             ForwardModelHandle,
+                             RefractorUip, ForwardModelHandle,
                              MusesRaman)
 import refractor.framework as rf
 import os
@@ -219,7 +217,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 rf.StateMappingLinear()))
         return res
     
-class OmiStateVectorHandle(StateVectorHandle):
+#class OmiStateVectorHandle(StateVectorHandle):
+class OmiStateVectorHandle:
     def __init__(self, obj_creator):
         self.obj_creator = obj_creator
 

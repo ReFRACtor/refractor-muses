@@ -1,11 +1,11 @@
 from .misc import osp_setup
-from .priority_handle_set import PriorityHandleSet
-from .cost_function_creator import ObservationHandle, ObservationHandleSet, StateVectorHandle
+from .cost_function_creator import ObservationHandle, ObservationHandleSet
 import refractor.muses.muses_py as mpy
 import os
 import numpy as np
 import refractor.framework as rf
 import abc
+import copy
 
 def _new_from_init(cls, *args):
     '''For use with pickle, covers common case where we just store the
@@ -13,23 +13,6 @@ def _new_from_init(cls, *args):
     inst = cls.__new__(cls)
     inst.__init__(*args)
     return inst
-
-class StateVectorHandleName(StateVectorHandle):
-    '''I think most of the StateVector attachment will be pretty similar. Not
-    exactly sure of the interface, but we'll start with this and see if we need
-    to change over time.'''
-    def __init__(self, obj_to_add, state_element_name_list):
-        self.obj_to_add = obj_to_add
-        self.state_element_name_list = state_element_name_list
-        
-    def add_sv(self, sv: rf.StateVector, state_element_name : str, 
-               pstart : int, plen : int, **kwargs):
-        if(state_element_name in self.state_element_name_list):
-            self.add_sv_once(sv, self.obj_to_add)
-        else:
-            # Didn't recognize the state_element_name, so we didn't handle this
-            return False
-        return True
 
 class MusesObservation(rf.ObservationSvImpBase):
     '''The Observation for MUSES is a standard ReFRACtor Observation, with a few
@@ -95,6 +78,14 @@ class MusesObservation(rf.ObservationSvImpBase):
         then updated to another set.'''
         raise NotImplementedError()
 
+    def state_element_name_list(self):
+        '''List of state element names for this observation'''
+        return []
+
+    def spectral_domain_with_bad_sample(self, sensor_index):
+        '''The spectral domain for the sensor index,  but including bad samples also'''
+        raise NotImplementedError()
+    
     def radiance_all_with_bad_sample(self):
         '''The radiance for all the sensor indexes, but including bad samples also.'''
         raise NotImplementedError()
@@ -160,6 +151,10 @@ class MusesObservationImp(MusesObservation):
         else:
             return self.spectral_window.apply(sd, sensor_index)
 
+    def spectral_domain_with_bad_sample(self, sensor_index):
+        sd = self.spectral_domain_full(sensor_index)
+        return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
+        
     def radiance_all_with_bad_sample(self):
         try:
             # "Trick" to leverage radiance_all we already have in StackedRadianceMixin.
@@ -228,16 +223,6 @@ class MusesObservationImp(MusesObservation):
         '''Do anything needed when we are on a new retrieval step. Default is to do nothing.'''
         pass
 
-    def state_element_name_list(self):
-        '''List of state element names for this observation'''
-        return []
-    
-    def add_state_vector_handle(self, svhandle : StateVectorHandle):
-        '''Add a handle for attaching to the state vector.'''
-        slist = self.state_element_name_list()
-        if(len(slist) > 0):
-            svhandle.add_handle(StateVectorHandleName(self, slist))
-        
 
 class MusesObservationHandle(ObservationHandle):
     '''A lot of our observation classes just map a name to
@@ -263,15 +248,25 @@ class MusesObservationHandle(ObservationHandle):
         # Need to read new data when the target changes
         self.obs = None
 
-    def observation(self, instrument_name : str, rs: 'RetrievalStategy',
-                    svhandle: 'StateVectorHandleSet', include_bad_sample=False,
+    def observation(self, instrument_name : str,
+                    current_state : 'CurrentState',
+                    spec_win : rf.SpectralWindowRange,
+                    fm_sv: rf.StateVector,
+                    include_bad_sample=False,
+                    rs=None,    # Short term, we pass in RetrievalStategy. This will go
+                                # away, but we use this as a transition
                     **kwargs):
         if(instrument_name != self.instrument_name):
             return None
+        
+        # Short term, create a completely new object. We'll want to update this
+        # to handle intelligent cloning because we don't want to read the files each
+        # time. But short term set that aside so we can work on other pieces before getting
+        # to this.
+        self.obs = None
+        
         if(self.obs is None):
             self.obs = self.obs_cls.create_from_rs(rs)
-        # Nothing done with svhandle - most of our observations don't have
-        # state elements in them.
 
         # Update the spectral window
         
@@ -279,17 +274,18 @@ class MusesObservationHandle(ObservationHandle):
         # sure how much sense this makes, but py-retrieve has various output that include
         # bad samples. We might want to remove this in the future, but for now keep the
         # option of handling this
-        swin = rs.strategy_table.spectral_window(self.instrument_name)
-        self.obs.spectral_window_with_bad_sample = swin
-        swin = rs.strategy_table.spectral_window(self.instrument_name)
+        self.obs.spectral_window_with_bad_sample = spec_win
+        swin = copy.deepcopy(spec_win)
         if(not include_bad_sample):
-            # Unless we are told otherwise, also give a spectral window that removes
-            # bad samples
             for i in range(self.obs.num_channels):
                 swin.bad_sample_mask(self.obs.bad_sample_mask(i), i)
         self.obs.spectral_window = swin
+        # Short term
         self.obs.notify_update_rs(rs)
-        self.obs.add_state_vector_handle(svhandle)
+
+        # Add to state vector
+        current_state.add_fm_state_vector_if_needed(fm_sv, self.obs.state_element_name_list(),
+                                                    [self.obs,])
         return self.obs
         
 class MusesAirsObservation(MusesObservationImp):
