@@ -6,7 +6,7 @@ from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, 
                              O3Absorber, SwirAbsorber,
                              ForwardModelHandle,
-                             MusesRaman)
+                             MusesRaman, CurrentState)
 import refractor.framework as rf
 import logging
 import numpy as np
@@ -140,19 +140,38 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # so force conversion to a double
         return rf.CloudFractionFromState(float(self.rf_uip.tropomi_cloud_fraction))
 
+    def add_to_sv(self, current_state: CurrentState, fm_sv : rf.StateVector):
+        # TODO We have this hardcoded now. We'll rework this, adding to the state
+        # vector should get moved into the object creation. But we'll have this in
+        # place for now.
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, ["TROPOMICLOUDFRACTION",], [self.cloud_fraction,])
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, [f"TROPOMICLOUDSURFACEALBEDO",], [self.ground_cloud,])
+        for b in (3,):
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, [f"TROPOMISURFACEALBEDOBAND{b}",
+                        f"TROPOMISURFACEALBEDOSLOPEBAND{b}",
+                        f"TROPOMISURFACEALBEDOSLOPEORDER2BAND{b}"], [self.ground_clear,])
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, [f"TROPOMIRINGSFBAND{b}",], [self.raman_effect[0],])
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, [f"TROPOMIRESSCALEO0BAND{b}",
+                        f"TROPOMIRESSCALEO1BAND{b}",
+                        f"TROPOMIRESSCALEO2BAND{b}"], self.radiance_scaling[0])
+
     @cached_property
     def state_vector_for_testing(self):
         '''Create a state vector for just this forward model. This is really
         meant more for unit tests, during normal runs CostFunctionCreator handles
         this (including the state vector element for other instruments).'''
-        svhandle = copy.deepcopy(StateVectorHandleSet.default_handle_set())
-        svhandle.add_handle(TropomiStateVectorHandle(self))
-        sv = svhandle.create_state_vector(self.rf_uip)
-        if sv.observer_claimed_size != len(self.rf_uip.current_state_x_fm):
-            raise RuntimeError(f"Number of state vector elements {sv.observer_claimed_size} does not match number of expected MUSES jacobians parameters {len(self.rf_uip.current_state_x_fm)}")
-        sv.update_state(self.rf_uip.current_state_x_fm)
-        logger.info(f"Created ReFRACtor state vector:\n{sv}")
-        return sv
+        current_state = CurrentState(self.rf_uip)
+        fm_sv = rf.StateVector()
+        self.add_to_sv(current_state, fm_sv)
+        fm_sv.observer_claimed_size = current_state.fm_state_vector_size
+        return fm_sv
 
     @cached_property
     def raman_effect(self):
@@ -194,54 +213,25 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         return res
 
 
-#class TropomiStateVectorHandle(StateVectorHandle):
-class TropomiStateVectorHandle:
-    def __init__(self, obj_creator):
-        self.obj_creator = obj_creator
-
-    def add_sv(self, sv, species_name, ptart, plen, **kwargs):
-        if(species_name == "TROPOMICLOUDFRACTION"):
-            sv.add_observer(self.obj_creator.cloud_fraction)
-        elif(species_name in ("O3", "CO", "CH4", "H2O", "HDO")):
-            # MMS, Right now we only deal with O3. Silently ignore the other
-            # species, we'll presumably get those in place in the future
-            if(species_name == "O3"):
-                sv.add_observer(self.obj_creator.absorber.absorber_vmr(species_name))
-        elif(species_name.startswith(("TROPOMISURFACEALBEDOBAND", "TROPOMISURFACEALBEDOSLOPEBAND", "TROPOMISURFACEALBEDOSLOPEORDER2BAND"))):
-            # JLL: this should match any band's albedo variables.
-            self.add_sv_once(sv, self.obj_creator.ground_clear)
-        elif(species_name.startswith(("TROPOMISOLARSHIFTBAND", "TROPOMIRADIANCESHIFTBAND", "TROPOMIRADSQUEEZEBAND"))):
-            # JLL: this should match any band's radiance/irradiance shift/squeeze variables.
-            #self.add_sv_once(sv, self.obj_creator.observation)
-            pass
-        elif(species_name.startswith("TROPOMIRINGSFBAND")):
-            # JLL: this should match any band's ring scale factor
-            sv.add_observer(self.obj_creator.raman_effect[0])
-        elif(species_name.startswith("TROPOMITEMPSHIFTBAND")):
-            # JLL: this should match any band's temperature shift
-            sv.add_observer(self.obj_creator.temperature)
-        elif(species_name == "TROPOMICLOUDSURFACEALBEDO"):
-            sv.add_observer(self.obj_creator.ground_cloud)
-        elif(species_name.startswith(("TROPOMIRESSCALEO0BAND", "TROPOMIRESSCALEO1BAND", "TROPOMIRESSCALEO2BAND"))):
-            # JLL: this should match any band's radiance scaling
-            self.add_sv_once(sv, self.obj_creator.radiance_scaling[0])
-        else:
-            # Didn't recognize the species_name, so we didn't handle this
-            return False
-        return True
-    
 class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def forward_model(self, instrument_name, rf_uip, obs, svhandle, include_bad_sample=False,
+    def forward_model(self, instrument_name : str,
+                      current_state : 'CurrentState',
+                      spec_win : rf.SpectralWindowRange,
+                      obs : 'MusesObservation',
+                      fm_sv: rf.StateVector,
+                      rf_uip_func,
+                      include_bad_sample=False,
                       **kwargs):
         if(instrument_name != "TROPOMI"):
             return None
-        obj_creator = TropomiFmObjectCreator(rf_uip, obs, include_bad_sample=include_bad_sample,
+        obj_creator = TropomiFmObjectCreator(rf_uip_func(), obs,
+                                             include_bad_sample=include_bad_sample,
                                              **self.creator_kwargs)
-        svhandle.add_handle(TropomiStateVectorHandle(obj_creator),
-                            priority_order=100)
-        return obj_creator.forward_model
+        fm = obj_creator.forward_model
+        obj_creator.add_to_sv(current_state, fm_sv)
+        return fm
 
 __all__ = ["TropomiFmObjectCreator", "TropomiForwardModelHandle"]

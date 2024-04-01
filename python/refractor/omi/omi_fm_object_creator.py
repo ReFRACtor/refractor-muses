@@ -4,7 +4,7 @@ except ImportError:
     from backports.cached_property import cached_property
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, ForwardModelHandle,
-                             MusesRaman)
+                             MusesRaman, CurrentState)
 import refractor.framework as rf
 import os
 import logging
@@ -175,20 +175,38 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         else:
             return rf.CloudFractionFromState(self.rf_uip.omi_cloud_fraction)
 
+    def add_to_sv(self, current_state: CurrentState, fm_sv : rf.StateVector):
+        # TODO We have this hardcoded now. We'll rework this, adding to the state
+        # vector should get moved into the object creation. But we'll have this in
+        # place for now.
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, ["OMICLOUDFRACTION",], [self.cloud_fraction,])
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, ["OMISURFACEALBEDOUV1",
+                    "OMISURFACEALBEDOUV2",
+                    "OMISURFACEALBEDOSLOPEUV2"], [self.ground_clear,])
+        # Temp, the EOF required state_info. Just allow this to fail, we
+        # are planning on reworking this anyways.
+        try:
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, ["OMIEOFUV1",], self.eof["UV1"])
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, ["OMIEOFUV2",], self.eof["UV2"])
+        except AttributeError:
+            pass
+        
     @cached_property
     def state_vector_for_testing(self):
         '''Create a state vector for just this forward model. This is really
         meant more for unit tests, during normal runs CostFunctionCreator handles
         this (including the state vector element for other instruments).'''
-        svhandle = copy.deepcopy(StateVectorHandleSet.default_handle_set())
-        svhandle.add_handle(OmiStateVectorHandle(self))
-        sv = svhandle.create_state_vector(self.rf_uip)
-        if sv.observer_claimed_size != len(self.rf_uip.current_state_x_fm):
-            raise RuntimeError(f"Number of state vector elements {sv.observer_claimed_size} does not match number of expected MUSES jacobians parameters {len(self.rf_uip.current_state_x_fm)}")
-
-        sv.update_state(self.rf_uip.current_state_x_fm)
-        logger.info(f"Created ReFRACtor state vector:\n{sv}")
-        return sv
+        current_state = CurrentState(self.rf_uip)
+        fm_sv = rf.StateVector()
+        self.add_to_sv(current_state, fm_sv)
+        fm_sv.observer_claimed_size = current_state.fm_state_vector_size
+        return fm_sv
 
     @cached_property
     def raman_effect(self):
@@ -256,16 +274,22 @@ class OmiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         
-    def forward_model(self, instrument_name, rf_uip, obs, svhandle,
+    def forward_model(self, instrument_name : str,
+                      current_state : 'CurrentState',
+                      spec_win : rf.SpectralWindowRange,
+                      obs : 'MusesObservation',
+                      fm_sv: rf.StateVector,
+                      rf_uip_func,
                       include_bad_sample=False,
                       **kwargs):
         if(instrument_name != "OMI"):
             return None
-        obj_creator = OmiFmObjectCreator(rf_uip, obs, include_bad_sample=include_bad_sample,
+        obj_creator = OmiFmObjectCreator(rf_uip_func(), obs,
+                                         include_bad_sample=include_bad_sample,
                                          **self.creator_kwargs)
-        svhandle.add_handle(OmiStateVectorHandle(obj_creator),
-                            priority_order=100)
-        return obj_creator.forward_model
+        fm = obj_creator.forward_model
+        obj_creator.add_to_sv(current_state, fm_sv)
+        return fm
 
 __all__ = ["OmiFmObjectCreator", "OmiForwardModelHandle"]
     
