@@ -822,10 +822,14 @@ class RefractorUip:
         if(self.omi_obs_table):
             cindex = np.where(np.asarray(self.omi_obs_table["Filter_Band_Name"])
                             == filter_name)[0]
+            if(len(cindex) == 0):
+                raise RuntimeError(f"Bad filter name {filter_name}")
             return np.mean(np.asarray(self.omi_obs_table[nm])[cindex])
         if(self.tropomi_obs_table):
             cindex = np.where(np.asarray(self.tropomi_obs_table["Filter_Band_Name"])
                             == filter_name)[0]
+            if(len(cindex) == 0):
+                raise RuntimeError(f"Bad filter name {filter_name}")
             return np.mean(np.asarray(self.tropomi_obs_table[nm])[cindex])
         raise RuntimeError("Don't know how to find observation table")
       
@@ -902,10 +906,14 @@ class RefractorUip:
         if(instrument_name == "OMI"):
             cindex = np.where(np.asarray(self.omi_obs_table["Filter_Band_Name"])
                             == filter_name)[0]
+            if(len(cindex) == 0):
+                raise RuntimeError(f"Bad filter name {filter_name}")
             return np.asarray(self.omi_obs_table["XTRACK"])[cindex]
         if(instrument_name == "TROPOMI"):
             cindex = np.where(np.asarray(self.tropomi_obs_table["Filter_Band_Name"])
                             == filter_name)[0]
+            if(len(cindex) == 0):
+                raise RuntimeError(f"Bad filter name {filter_name}")
             return np.asarray(self.tropomi_obs_table["XTRACK"])[cindex]
         raise RuntimeError("Don't know how to find observation table")
 

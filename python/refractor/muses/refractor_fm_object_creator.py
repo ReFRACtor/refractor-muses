@@ -378,7 +378,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             #     self.rf_uip.surface_height_with_unit(i))
 
             chan_alt = MusesAltitude(self.rf_uip, self.instrument_name,
-                        self.pressure, self.rf_uip.latitude_with_unit(i))
+                        self.pressure, self.rf_uip.latitude_with_unit(self.filter_list[i]))
             res.append(chan_alt)
         return res
 
