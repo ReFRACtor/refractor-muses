@@ -21,7 +21,7 @@ def test_muses_optical_depth_file(tropomi_uip_step_2, tropomi_obs_step_2,
                                  obj_creator.pressure,
                                  obj_creator.temperature, obj_creator.altitude,
                                  obj_creator.absorber_vmr,
-                                 obj_creator.num_channel)
+                                 obj_creator.num_channels)
     # TODO Note this is currently printing the wrong thing, this
     # is "Absorber" rather than "MusesOpticalDepthFile". Not super urgent,
     # but should fix this.

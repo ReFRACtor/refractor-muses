@@ -834,8 +834,9 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
     def geometry(self, do_cloud):
         '''Return solar zenith angle, observation zenith, and
         relative azimuth, clear or cloudy'''
-        return (self.rf_uip.solar_zenith(0), self.rf_uip.observation_zenith(0),
-                self.rf_uip.relative_azimuth(0))
+        return (self.rf_uip.solar_zenith(self.rf_uip.filter_name(0)),
+                self.rf_uip.observation_zenith(self.rf_uip.filter_name(0)),
+                self.rf_uip.relative_azimuth(self.rf_uip.filter_name(0)))
 
     def pressure_grid(self, do_cloud):
         '''Return pressure grid for each level, clear or cloudy'''
