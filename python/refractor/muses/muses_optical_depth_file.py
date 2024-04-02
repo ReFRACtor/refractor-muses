@@ -3,7 +3,11 @@ import os
 import math
 import refractor.framework as rf
 
-class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
+# Multiple inheritance works fine with swig, however our serialization currently
+# doesn't handle this. We should fix this at some point, but meanwhile we can
+# easily work around this by using composition instead of inheritance.
+#class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
+class MusesOpticalDepthFile(rf.AbsorberXSec):
     """
     Returns the precomputed MUSES optical depth files in the misleadingly
     named O3Xsec_MW???.asc files. Simply opens the files then returns
@@ -22,7 +26,8 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
 
         # Register base director class
         rf.AbsorberXSec.__init__(self, absorber_vmr, pressure, temperature, altitude, xsec_tables)
-        rf.CacheInvalidatedObserver.__init__(self)
+        #rf.CacheInvalidatedObserver.__init__(self)
+        self.cache_observer = rf.CacheInvalidatedObserver()
 
         self.rf_uip = rf_uip
         self.num_channel = num_channel
@@ -48,7 +53,8 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         # Invalidate cache when absorber_vmr changes. This changes
         # self.cache_valid_flag to False
         for a in self._absorber_vmr:
-            a.add_cache_invalidated_observer(self)
+            #a.add_cache_invalidated_observer(self)
+            a.add_cache_invalidated_observer(self.cache_observer)
 
     # Target the renamed funciton due to use of %python_attribute
     def _v_number_species(self):
@@ -125,14 +131,14 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         nlay = self._pressure.number_layer
 
         # Recompute if value is undefined or if number of layers in pressure grid has changed
-        if self.cache_valid_flag and self.gas_density_lay is not None and self.gas_density_lay.shape[0] == nlay:
+        if self.cache_observer.cache_valid_flag and self.gas_density_lay is not None and self.gas_density_lay.shape[0] == nlay:
             return
 
         o3_ind = np.where(np.asarray(self.rf_uip.ray_info(self.instrument_name)['level_params']['species']) == 'O3')[0]
 
         # Reverse from MUSES increasing altitude to internal increasing pressure order
         self.gas_density_lay = self.rf_uip.ray_info(self.instrument_name)['column_species'][o3_ind, ::-1].squeeze()[:nlay]
-        self.cache_valid_flag = True
+        self.cache_observer.cache_valid_flag = True
 
     def gas_number_density_layer(self, spec_index):
         self.cache_xsect_data()
@@ -226,10 +232,11 @@ class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
         return MusesOpticalDepthFile(self.rf_uip, self._pressure, self._temperature, self._altitude,
                                      self._absorber_vmr, self.num_channel)
 
-    def print_desc(self, ostream):
-        # A bit clumsy, we should perhaps put a better interface in
-        # here.
-        ostream.write("MusesOpticalDepthFile", len("MusesOpticalDepthFile"))
+    def desc(self):
+        s = "MusesOpticalDepthFile"
+        # TODO Come back to this
+        #s += rf.AbsorberXSec.__str__(self)
+        return s
 
 
 __all__ = ["MusesOpticalDepthFile", ]

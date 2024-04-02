@@ -71,9 +71,7 @@ class MusesAltitude(rf.Altitude):
 
         return MusesAltitude(self.rf_uip, self._pressure)
 
-    def print_desc(self, ostream):
-        # A bit clumsy, we should perhaps put a better interface in
-        # here.
-        ostream.write("MusesAltitude", len("MusesAltitude"))
+    def desc(self):
+        return "MusesAltitude"
 
 __all__ = ["MusesAltitude",]
