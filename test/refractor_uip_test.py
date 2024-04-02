@@ -9,22 +9,21 @@ def test_refractor_omi_uip(isolated_dir):
                               change_to_dir=False)
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
-    ii_mw = 0
+    filter_name = "UV2"
     print(m.atmosphere_column("O3"))
     print(m.omi_params)
-    print(m.channel_indexes(ii_mw))
-    print(m.observation_zenith_with_unit(ii_mw))
-    print(m.observation_azimuth_with_unit(ii_mw))
-    print(m.solar_azimuth_with_unit(ii_mw))
-    print(m.solar_zenith_with_unit(ii_mw))
-    print(m.relative_azimuth_with_unit(ii_mw))
-    print(m.latitude(ii_mw))
-    print(m.longitude(ii_mw))
-    print(m.surface_height(ii_mw))
-    print(m.across_track_indexes(ii_mw, "OMI"))
+    print(m.observation_zenith_with_unit(filter_name))
+    print(m.observation_azimuth_with_unit(filter_name))
+    print(m.solar_azimuth_with_unit(filter_name))
+    print(m.solar_zenith_with_unit(filter_name))
+    print(m.relative_azimuth_with_unit(filter_name))
+    print(m.latitude(filter_name))
+    print(m.longitude(filter_name))
+    print(m.surface_height(filter_name))
+    print(m.across_track_indexes(filter_name, "OMI"))
     print(m.atm_params("OMI"))
     print(m.ray_info("OMI"))
-    print(m.solar_irradiance(ii_mw, "OMI"))
+    print(m.solar_irradiance(0, "OMI"))
 
 @require_muses_py
 def test_refractor_joint_uip(isolated_dir):
@@ -33,19 +32,18 @@ def test_refractor_joint_uip(isolated_dir):
                               change_to_dir=False)
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
-    ii_mw = 10 # First index that is OMI
+    filter_name = "UV1"
     print(m.atmosphere_column("O3"))
     print(m.omi_params)
-    print(m.channel_indexes(ii_mw))
-    print(m.observation_zenith_with_unit(ii_mw))
-    print(m.observation_azimuth_with_unit(ii_mw))
-    print(m.solar_azimuth_with_unit(ii_mw))
-    print(m.solar_zenith_with_unit(ii_mw))
-    print(m.relative_azimuth_with_unit(ii_mw))
-    print(m.latitude(ii_mw))
-    print(m.longitude(ii_mw))
-    print(m.surface_height(ii_mw))
-    print(m.across_track_indexes(ii_mw, "OMI"))
+    print(m.observation_zenith_with_unit(filter_name))
+    print(m.observation_azimuth_with_unit(filter_name))
+    print(m.solar_azimuth_with_unit(filter_name))
+    print(m.solar_zenith_with_unit(filter_name))
+    print(m.relative_azimuth_with_unit(filter_name))
+    print(m.latitude(filter_name))
+    print(m.longitude(filter_name))
+    print(m.surface_height(filter_name))
+    print(m.across_track_indexes(filter_name, "OMI"))
     print(m.atm_params("OMI"))
     print(m.ray_info("OMI"))
     
@@ -55,22 +53,21 @@ def test_refractor_tropomi_uip(isolated_dir):
                               change_to_dir=False)
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
-    ii_mw = 0
+    filter_name = "BAND3"
     print(m.atmosphere_column("O3"))
     print(m.tropomi_params)
-    print(m.channel_indexes(ii_mw))
-    print(m.observation_zenith_with_unit(ii_mw))
+    print(m.observation_zenith_with_unit(filter_name))
     # For some reason, not actually in the tropomi UIP. Really
     # isn't there, not an error in our processing. I don't think
     # this actually matters though
-    # print(m.observation_azimuth_with_unit(ii_mw))
-    print(m.solar_azimuth_with_unit(ii_mw))
-    print(m.solar_zenith_with_unit(ii_mw))
-    print(m.relative_azimuth_with_unit(ii_mw))
-    print(m.latitude(ii_mw))
-    print(m.longitude(ii_mw))
-    print(m.surface_height(ii_mw))
-    print(m.across_track_indexes(ii_mw, "TROPOMI"))
+    # print(m.observation_azimuth_with_unit(filter_name))
+    print(m.solar_azimuth_with_unit(filter_name))
+    print(m.solar_zenith_with_unit(filter_name))
+    print(m.relative_azimuth_with_unit(filter_name))
+    print(m.latitude(filter_name))
+    print(m.longitude(filter_name))
+    print(m.surface_height(filter_name))
+    print(m.across_track_indexes(filter_name, "TROPOMI"))
     print(m.atm_params("TROPOMI"))
     print(m.ray_info("TROPOMI"))
 

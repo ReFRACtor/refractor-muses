@@ -28,10 +28,10 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def instrument_correction(self):
         res = rf.vector_vector_instrument_correction()
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
+        for i in range(self.num_channels):
             v = rf.vector_instrument_correction()
             if(self.use_eof):
-                for e in self.eof[self.rf_uip.filter_name(ii_mw)]:
+                for e in self.eof[self.observation.filter_list[i]]:
                     v.push_back(e)
             res.push_back(v)
         return res
@@ -139,9 +139,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     
     @cached_property
     def ground_clear(self):
-        albedo = np.zeros((self.num_channel, 3))
-        which_retrieved = np.full((self.num_channel, 3), False, dtype=bool)
-        band_reference = np.zeros(self.num_channel)
+        albedo = np.zeros((self.num_channels, 3))
+        which_retrieved = np.full((self.num_channels, 3), False, dtype=bool)
+        band_reference = np.zeros(self.num_channels)
 
         for fm_idx, ii_mw in enumerate(self.channel_list()):
             if(self.filter_name[fm_idx] == "UV1"):

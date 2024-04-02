@@ -87,28 +87,28 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         if(self.input_dir is None):
             self.input_dir = os.path.realpath(os.path.join(rf_uip.uip_all(self.instrument_name)['L2_OSP_PATH'], "OMI"))
 
-        self.num_channel = len(self.channel_list())
+        self.filter_list = self.observation.filter_list
+        self.num_channels = self.observation.num_channels
 
-        self.sza = np.array([float(self.rf_uip.solar_zenith(i))
-                             for i in self.channel_list() ])
-        self.oza = np.array([float(self.rf_uip.observation_zenith(i))
-                             for i in self.channel_list() ])
+        self.sza = np.array([float(self.rf_uip.solar_zenith(filter_name))
+                             for filter_name in self.filter_list ])
+        self.oza = np.array([float(self.rf_uip.observation_zenith(filter_name))
+                             for filter_name in self.filter_list ])
         # For TROPOMI view azimuth angle isn't available. Not sure if
         # that matters, I don't think this gets used for anything (only
         # relative azimuth is used). But go ahead and fill this in if
         # we aren't working with TROPOMI.
         if self.instrument_name != "TROPOMI":
-            self.oaz = np.array([float(self.rf_uip.observation_azimuth(i))
-                                 for i in self.channel_list() ])
-        self.raz = np.array([float(self.rf_uip.relative_azimuth(i))
-                             for i in self.channel_list() ])
+            self.oaz = np.array([float(self.rf_uip.observation_azimuth(filter_name))
+                                 for filter_name in self.filter_list ])
+        self.raz = np.array([float(self.rf_uip.relative_azimuth(filter_name))
+                             for filter_name in self.filter_list ])
 
         self.sza_with_unit = rf.ArrayWithUnit(self.sza, "deg")
         self.oza_with_unit = rf.ArrayWithUnit(self.oza, "deg")
         if False:
             self.oaz_with_unit = rf.ArrayWithUnit(self.oaz, "deg")
         self.raz_with_unit = rf.ArrayWithUnit(self.raz, "deg")
-        self.filter_name = [self.rf_uip.filter_name(i) for i in self.channel_list()]
 
         # This is what OMI currently uses, and TROPOMI band 3. We may put all this
         # together, but right now tropomi_fm_object_creator may replace this.
@@ -142,15 +142,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rf.SolarReferenceSpectrum(self.rf_uip.solar_irradiance(mw_index,
                                             self.instrument_name), None)
 
-    @cached_property
+    @property
     def spec_win(self):
-        t = np.vstack([np.array([self.rf_uip.micro_windows(i).value])
-                       for i in self.channel_list()])
-        swin= rf.SpectralWindowRange(rf.ArrayWithUnit(t, "nm"))
         if(not self.include_bad_sample):
-            for i in range(swin.number_spectrometer):
-                swin.bad_sample_mask(self.observation.bad_sample_mask(i), i)
-        return swin
+            return self.observation.spectral_window
+        else:
+            return self.observation.spectral_window_with_bad_sample
 
     @cached_property
     def spectrum_sampling(self):
@@ -183,7 +180,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def instrument_correction(self):
         res = []
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
+        for i in range(self.num_channels):
             v = []
             res.append(v)
         return res
@@ -197,13 +194,13 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def instrument(self):
         ils_vec = []
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-            sg = rf.SampleGridSpectralDomain(self.rf_uip.sample_grid(fm_idx, ii_mw),
-                                             self.filter_name[fm_idx])
+        for i in range(self.num_channels):
+            sg = rf.SampleGridSpectralDomain(self.observation.spectral_domain_full(i),
+                                             self.observation.filter_list[i])
 
-            ils_method = self.rf_uip.ils_method(fm_idx, self.rf_uip.instrument_name(ii_mw))
+            ils_method = self.rf_uip.ils_method(i, self.instrument_name)
             if ils_method == "FASTCONV":
-                ils_params = self.rf_uip.ils_params(fm_idx, self.rf_uip.instrument_name(ii_mw))
+                ils_params = self.rf_uip.ils_params(i, self.instrument_name)
 
                 # High res extensions unused by IlsFastApply
                 high_res_ext = rf.DoubleWithUnit(0, rf.Unit("nm"))
@@ -214,9 +211,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                           ils_params["where_extract"],
                                           sg,
                                           high_res_ext,
-                                          self.filter_name[fm_idx], self.filter_name[fm_idx])
+                                          self.filter_list[i], self.filter_list[i])
             elif ils_method == "POSTCONV":
-                ils_params = self.rf_uip.ils_params(fm_idx, self.rf_uip.instrument_name(ii_mw))
+                ils_params = self.rf_uip.ils_params(i, self.instrument_name)
                 # Calculate the wavelength grid first - deltas in wavelength don't translate to wavenumber deltas
                 # JLL: I *think* that "central_wavelength" from the UIP ILS parameters will be the wavelengths that the 
                 #  ISRF is defined on. Not sure what "central_wavelength_fm" is; in testing, it was identical to central_wavelength.
@@ -232,7 +229,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
                 # Build a table of ILSs at the sampled wavelengths/frequencies
                 interp_wavenumber = True
-                band_name = self.rf_uip.filter_name(ii_mw)
+                band_name = self.filter_list[i]
                 ils_func = rf.IlsTableLinear(center_wn, delta_wn, response, band_name, band_name, interp_wavenumber)
                 
                 # That defines the ILS function, but now we need to get the actual grating object.
@@ -246,17 +243,18 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 # HWHM input to the IlsGrating should just set how wide a window around the central wavelength that component
                 # does its calculations over, so a wider window should always produce a more accurate result. Converting
                 # HWHM to wavenumber seems to fix that issue; once I did that the 0.2 and 0.25 nm HWHM gave similar results.
-                hwhm = self.instrument_hwhm(ii_mw)
+                hwhm = self.instrument_hwhm(i)
                 if hwhm.units.name != 'cm^-1':
                     # Don't try to convert non-wavenumber values - remember, this is a delta, and delta wavelengths
                     # can't be simply converted to delta wavenumbers without knowing what wavelength we're working at.
                     raise ValueError('Half width at half max values for POSTCONV ILSes must be given in wavenumbers')
-                
-                model_wavenumbers = self.rf_uip.sample_grid(fm_idx, ii_mw).convert_wave('cm^-1')
-                spec_domain = rf.SpectralDomain(model_wavenumbers)
-                sample_grid = rf.SampleGridSpectralDomain(spec_domain, band_name)
 
-                ils_obj = rf.IlsGrating(sample_grid, ils_func, hwhm)
+                # Needs to be in wavenumbers.
+                sg2 = rf.SampleGridSpectralDomain(
+                    rf.SpectralDomain(self.observation.spectral_domain_full(i).convert_wave("cm^-1"),
+                                   rf.Unit("cm^-1")),
+                    self.observation.filter_list[i])
+                ils_obj = rf.IlsGrating(sg2, ils_func, hwhm)
             else:
                 ils_obj = rf.IdentityIls(sg)
 
@@ -349,16 +347,16 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def ground_cloud(self):
-        albedo = np.zeros((self.num_channel, 1))
-        which_retrieved = np.full((self.num_channel, 1), False, dtype=bool)
-        band_reference = np.zeros(self.num_channel)
+        albedo = np.zeros((self.num_channels, 1))
+        which_retrieved = np.full((self.num_channels, 1), False, dtype=bool)
+        band_reference = np.zeros(self.num_channels)
         band_reference[:] = 1000
 
         albedo[:,0] = self.uip_params['cloud_Surface_Albedo']
 
         return rf.GroundLambertian(albedo,
                       rf.ArrayWithUnit(band_reference, "nm"),
-                      ["Cloud",] * self.num_channel,
+                      ["Cloud",] * self.num_channels,
                       rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
     
 
@@ -374,7 +372,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def altitude(self):
         res = []
-        for i in self.channel_list():
+        for i in range(self.num_channels):
             # chan_alt = rf.AltitudeHydrostatic(self.pressure,
             #     self.temperature, self.rf_uip.latitude_with_unit(i),
             #     self.rf_uip.surface_height_with_unit(i))
@@ -413,7 +411,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # number of stokes from 4 to 1. Should actually be the same
         # value calculated
         # a = np.zeros((self.num_channel, 4))
-        a = np.zeros((self.num_channel, 1))
+        a = np.zeros((self.num_channels, 1))
         a[:, 0] = 1
         stokes = rf.StokesCoefficientConstant(a)
         primary_absorber = self._inner_absorber.primary_absorber_name
@@ -481,7 +479,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # number of stokes from 4 to 1. Should actually be the same
         # value calculated
         # a = np.zeros((self.num_channel, 4))
-        a = np.zeros((self.num_channel, 1))
+        a = np.zeros((self.num_channels, 1))
         a[:, 0] = 1
         stokes = rf.StokesCoefficientConstant(a)
 
@@ -519,10 +517,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def spectrum_effect(self):
         res = []
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
+        for i in range(self.num_channels):
             per_channel_eff = []
             if(self.use_raman):
-                per_channel_eff.append(self.raman_effect[fm_idx])
+                per_channel_eff.append(self.raman_effect[i])
             res.append(per_channel_eff)
         return res
 
@@ -654,7 +652,7 @@ class O3Absorber(AbstractAbsorber):
         res = MusesOpticalDepthFile(self._parent.rf_uip, self._parent.instrument_name,
                                     self._parent.pressure,
                                     self._parent.temperature, self._parent.altitude,
-                                    self.absorber_vmr, self._parent.num_channel)
+                                    self.absorber_vmr, self._parent.num_channels)
         return res
 
     @cached_property

@@ -20,7 +20,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def __init__(self, rf_uip : RefractorUip,
                  observation : 'MusesObservation', **kwargs):
         super().__init__(rf_uip, "TROPOMI", observation, **kwargs)
-        unique_filters = set(self.filter_name)
+        unique_filters = set(self.filter_list)
         if len(unique_filters) != 1:
             raise NotImplementedError('Cannot handle multiple bands yet (requires different absorbers per band)')
         unique_filters = unique_filters.pop()
@@ -35,14 +35,14 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def instrument_correction(self):
         res = rf.vector_vector_instrument_correction()
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
+        for i in range(self.num_channels):
             v = rf.vector_instrument_correction()
-            v.push_back(self.radiance_scaling[fm_idx])
+            v.push_back(self.radiance_scaling[i])
             res.push_back(v)
         return res
     
     def instrument_hwhm(self, ii_mw: int) -> rf.DoubleWithUnit:
-        band_name = self.rf_uip.filter_name(ii_mw)
+        band_name = self.filter_list[ii_mw]
         if band_name == 'BAND7':
             # JLL: testing different values of HWHM with the IlsGrating component,
             # this value (= a 0.2 nm difference at 2330 nm) gave output spectra that
@@ -60,9 +60,9 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # By convention, the reference band is the middle of the full
         # frequency (see rev_and_fm_map
         res = []
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-            band_name = self.rf_uip.filter_name(ii_mw)
-            t = self.rf_uip.full_band_frequency(self.instrument_name)[self.rf_uip.mw_fm_slice(fm_idx, self.instrument_name)]
+        for i in range(self.num_channels):
+            band_name = self.filter_list[i]
+            t = self.rf_uip.full_band_frequency(self.instrument_name)[self.rf_uip.mw_fm_slice(i, self.instrument_name)]
             ref_wav = (t[0] + t[-1])/2
             coeff = [self.rf_uip.tropomi_params[f"resscale_O0_{band_name}"],
                      self.rf_uip.tropomi_params[f"resscale_O1_{band_name}"],
@@ -87,42 +87,42 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
     @cached_property
     def ground_clear(self):
-        albedo = np.zeros((self.num_channel, 3))
-        which_retrieved = np.full((self.num_channel, 3), False, dtype=bool)
-        band_reference = np.zeros(self.num_channel)
+        albedo = np.zeros((self.num_channels, 3))
+        which_retrieved = np.full((self.num_channels, 3), False, dtype=bool)
+        band_reference = np.zeros(self.num_channels)
 
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-            filt_name = self.filter_name[fm_idx]
+        for i in range(self.num_channels):
+            filt_name = self.filter_list[i]
             if re.match(r'BAND\d$', filt_name) is not None:
                 # This duplicates the calculation in
                 # print_tropomi_surface_albedo.py in py_retrieve
-                slc = self.rf_uip.mw_fm_slice(fm_idx, self.instrument_name)
+                slc = self.rf_uip.mw_fm_slice(i, self.instrument_name)
                 wave_arr = self.rf_uip.full_band_frequency(self.instrument_name)[slc]
-                band_reference[fm_idx] = (wave_arr[-1] + wave_arr[0]) / 2
-                albedo[fm_idx, 0] = self.uip_params[f'surface_albedo_{filt_name}']
-                albedo[fm_idx, 1] = self.uip_params[f'surface_albedo_slope_{filt_name}']
-                albedo[fm_idx, 2] = self.uip_params[f'surface_albedo_slope_order2_{filt_name}']
+                band_reference[i] = (wave_arr[-1] + wave_arr[0]) / 2
+                albedo[i, 0] = self.uip_params[f'surface_albedo_{filt_name}']
+                albedo[i, 1] = self.uip_params[f'surface_albedo_slope_{filt_name}']
+                albedo[i, 2] = self.uip_params[f'surface_albedo_slope_order2_{filt_name}']
 
                 if(f'TROPOMISURFACEALBEDO{filt_name}' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[fm_idx, 0] = True
+                    which_retrieved[i, 0] = True
                 if(f'TROPOMISURFACEALBEDOSLOPE{filt_name}' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[fm_idx, 1] = True
+                    which_retrieved[i, 1] = True
                 if(f'TROPOMISURFACEALBEDOSLOPEORDER2{filt_name}' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[fm_idx, 2] = True
+                    which_retrieved[i, 2] = True
             else:
                 raise RuntimeError("Don't recognize filter name")
 
         return rf.GroundLambertian(albedo,
                       rf.ArrayWithUnit(band_reference, "nm"),
                       rf.Unit("nm"),
-                      self.filter_name,
+                      self.filter_list,
                       rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
         
     @cached_property
     def ground_cloud(self):
-        albedo = np.zeros((self.num_channel, 1))
-        which_retrieved = np.full((self.num_channel, 1), False, dtype=bool)
-        band_reference = np.zeros(self.num_channel)
+        albedo = np.zeros((self.num_channels, 1))
+        which_retrieved = np.full((self.num_channels, 1), False, dtype=bool)
+        band_reference = np.zeros(self.num_channels)
         band_reference[:] = 1000
 
         albedo[:,0] = self.uip_params['cloud_Surface_Albedo']
@@ -131,7 +131,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
         return rf.GroundLambertian(albedo,
                       rf.ArrayWithUnit(band_reference, "nm"),
-                      ["Cloud",] * self.num_channel,
+                      ["Cloud",] * self.num_channels,
                       rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
 
     @cached_property
@@ -182,15 +182,15 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # on the muses_fm_spectral_domain. But this is what muses-py
         # does, so we'll match that for now.
         res = []
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-            if(self.filter_name[fm_idx] in ("BAND1", "BAND2", "BAND3")):
-                scale_factor = self.uip_params[f"ring_sf_{self.filter_name[fm_idx]}"]
-            elif(self.filter_name[fm_idx] in ("BAND7", "BAND8")):
+        for i in range(self.num_channels):
+            if(self.filter_list[i] in ("BAND1", "BAND2", "BAND3")):
+                scale_factor = self.uip_params[f"ring_sf_{self.filter_list[i]}"]
+            elif(self.filter_list[i] in ("BAND7", "BAND8")):
                 # JLL: The SWIR bands should not need to account for Raman scattering -
                 # Vijay has never seen Raman scattering accounted for in the CO band.
                 scale_factor = None
             else:
-                raise RuntimeError("Unrecognized filter_name")
+                raise RuntimeError("Unrecognized filter_list")
             if scale_factor is None:
                 # JLL: As of 2023-11-02, it's important that there be an entry for each channel
                 # in res, otherwise the indexing in the `spectrum_effect` method of `RefractorFmObjectCreator`
@@ -200,15 +200,15 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                 res.append(None)
             else:
                 res.append(MusesRaman(self.rf_uip, self.instrument_name,
-                    self.rf_uip.rad_wavelength(fm_idx, self.instrument_name),
+                    self.rf_uip.rad_wavelength(i, self.instrument_name),
                     float(scale_factor),
-                    fm_idx,
-                    ii_mw,
-                    self.sza_with_unit[fm_idx],
-                    self.oza_with_unit[fm_idx],
-                    self.raz_with_unit[fm_idx],
+                    i,
+                    self.filter_list[i],
+                    self.sza_with_unit[i],
+                    self.oza_with_unit[i],
+                    self.raz_with_unit[i],
                     self.atmosphere,
-                    self.solar_model(fm_idx),
+                    self.solar_model(i),
                     rf.StateMappingLinear()))
         return res
 

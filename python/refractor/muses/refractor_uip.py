@@ -812,7 +812,7 @@ class RefractorUip:
         else:
             raise RuntimeError("Don't know how to find observation table")
 
-    def _avg_obs(self, nm, ii_mw):
+    def _avg_obs(self, nm, filter_name):
         '''Average values that match the self.channel_indexes. 
 
         Not sure if this makes sense or not, but it is what py_retrieve 
@@ -820,85 +820,93 @@ class RefractorUip:
 
         Right now this is omi specific'''
         if(self.omi_obs_table):
-            return np.mean(np.asarray(self.omi_obs_table[nm])[self.channel_indexes(ii_mw)])
+            cindex = np.where(np.asarray(self.omi_obs_table["Filter_Band_Name"])
+                            == filter_name)[0]
+            return np.mean(np.asarray(self.omi_obs_table[nm])[cindex])
         if(self.tropomi_obs_table):
-            return np.mean(np.asarray(self.tropomi_obs_table[nm])[self.channel_indexes(ii_mw)])
+            cindex = np.where(np.asarray(self.tropomi_obs_table["Filter_Band_Name"])
+                            == filter_name)[0]
+            return np.mean(np.asarray(self.tropomi_obs_table[nm])[cindex])
         raise RuntimeError("Don't know how to find observation table")
       
-    def observation_zenith(self, ii_mw):
-        '''Observation zenith angle for the microwindow index ii_mw'''
-        return self._avg_obs("ViewingZenithAngle", ii_mw)
+    def observation_zenith(self, filter_name):
+        '''Observation zenith angle for the microwindow index filter_name'''
+        return self._avg_obs("ViewingZenithAngle", filter_name)
 
-    def observation_zenith_with_unit(self, ii_mw):
-        '''Observation zenith angle for the microwindow index ii_mw'''
-        return rf.DoubleWithUnit(float(self.observation_zenith(ii_mw)), "deg")
+    def observation_zenith_with_unit(self, filter_name):
+        '''Observation zenith angle for the microwindow index filter_name'''
+        return rf.DoubleWithUnit(float(self.observation_zenith(filter_name)), "deg")
 
-    def observation_azimuth(self, ii_mw):
-        '''Observation azimuth angle for the microwindow index ii_mw'''
-        return self._avg_obs("ViewingAzimuthAngle", ii_mw)
+    def observation_azimuth(self, filter_name):
+        '''Observation azimuth angle for the microwindow index filter_name'''
+        return self._avg_obs("ViewingAzimuthAngle", filter_name)
 
-    def observation_azimuth_with_unit(self, ii_mw):
-        '''Observation azimuth angle for the microwindow index ii_mw'''
-        return rf.DoubleWithUnit(float(self.observation_azimuth(ii_mw)), "deg")
+    def observation_azimuth_with_unit(self, filter_name):
+        '''Observation azimuth angle for the microwindow index filter_name'''
+        return rf.DoubleWithUnit(float(self.observation_azimuth(filter_name)), "deg")
 
-    def solar_azimuth(self, ii_mw):
-        '''Solar azimuth angle for the microwindow index ii_mw'''
-        return self._avg_obs("SolarAzimuthAngle", ii_mw)
+    def solar_azimuth(self, filter_name):
+        '''Solar azimuth angle for the microwindow index filter_name'''
+        return self._avg_obs("SolarAzimuthAngle", filter_name)
 
-    def solar_azimuth_with_unit(self, ii_mw):
-        '''Solar azimuth angle for the microwindow index ii_mw'''
-        return rf.DoubleWithUnit(float(self.solar_azimuth(ii_mw)), "deg")
+    def solar_azimuth_with_unit(self, filter_name):
+        '''Solar azimuth angle for the microwindow index filter_name'''
+        return rf.DoubleWithUnit(float(self.solar_azimuth(filter_name)), "deg")
 
-    def solar_zenith(self, ii_mw):
-        '''Solar zenith angle for the microwindow index ii_mw'''
-        return self._avg_obs("SolarZenithAngle", ii_mw)
+    def solar_zenith(self, filter_name):
+        '''Solar zenith angle for the microwindow index filter_name'''
+        return self._avg_obs("SolarZenithAngle", filter_name)
 
-    def solar_zenith_with_unit(self, ii_mw):
-        '''Solar zenith angle for the microwindow index ii_mw'''
-        return rf.DoubleWithUnit(float(self.solar_zenith(ii_mw)), "deg")
+    def solar_zenith_with_unit(self, filter_name):
+        '''Solar zenith angle for the microwindow index filter_name'''
+        return rf.DoubleWithUnit(float(self.solar_zenith(filter_name)), "deg")
 
-    def relative_azimuth(self, ii_mw):
-        '''Relative azimuth angle for the microwindow index ii_mw'''
-        return self._avg_obs("RelativeAzimuthAngle", ii_mw)
+    def relative_azimuth(self, filter_name):
+        '''Relative azimuth angle for the microwindow index filter_name'''
+        return self._avg_obs("RelativeAzimuthAngle", filter_name)
 
-    def relative_azimuth_with_unit(self, ii_mw):
-        '''Relative azimuth angle for the microwindow index ii_mw'''
-        return rf.DoubleWithUnit(float(self.relative_azimuth(ii_mw)), "deg")
+    def relative_azimuth_with_unit(self, filter_name):
+        '''Relative azimuth angle for the microwindow index filter_name'''
+        return rf.DoubleWithUnit(float(self.relative_azimuth(filter_name)), "deg")
     
-    def latitude(self, ii_mw):
-        '''Latitude for the microwindow index ii_mw'''
-        return self._avg_obs("Latitude", ii_mw)
+    def latitude(self, filter_name):
+        '''Latitude for the microwindow index filter_name'''
+        return self._avg_obs("Latitude", filter_name)
 
-    def latitude_with_unit(self, ii_mw):
-        '''Latitude for the microwindow index ii_mw'''
-        return rf.DoubleWithUnit(float(self.latitude(ii_mw)), "deg")
+    def latitude_with_unit(self, filter_name):
+        '''Latitude for the microwindow index filter_name'''
+        return rf.DoubleWithUnit(float(self.latitude(filter_name)), "deg")
     
-    def longitude(self, ii_mw):
-        '''Longitude for the microwindow index ii_mw'''
-        return self._avg_obs("Longitude", ii_mw)
+    def longitude(self, filter_name):
+        '''Longitude for the microwindow index filter_name'''
+        return self._avg_obs("Longitude", filter_name)
 
-    def longitude_with_unit(self, ii_mw):
-        '''Longitude for the microwindow index ii_mw'''
-        return rf.DoubleWithUnit(float(self.longitude(ii_mw)), "deg")
+    def longitude_with_unit(self, filter_name):
+        '''Longitude for the microwindow index filter_name'''
+        return rf.DoubleWithUnit(float(self.longitude(filter_name)), "deg")
 
-    def surface_height(self, ii_mw):
-        '''Surface height for the microwindow index ii_mw'''
-        return self._avg_obs("TerrainHeight", ii_mw)
+    def surface_height(self, filter_name):
+        '''Surface height for the microwindow index filter_name'''
+        return self._avg_obs("TerrainHeight", filter_name)
 
-    def surface_height_with_unit(self, ii_mw):
-        '''Surface height for the microwindow index ii_mw'''
-        return rf.DoubleWithUnit(float(self.surface_height(ii_mw)), "m")
+    def surface_height_with_unit(self, filter_name):
+        '''Surface height for the microwindow index filter_name'''
+        return rf.DoubleWithUnit(float(self.surface_height(filter_name)), "m")
     
-    def across_track_indexes(self, ii_mw, instrument_name):
+    def across_track_indexes(self, filter_name, instrument_name):
         '''Across track indexes for the microwindow index ii_mw.
 
         Right now this is omi specific'''
         # Can't really average these to have anything that makes sense.
         # So for now we just pick the first one that matches
         if(instrument_name == "OMI"):
-            return np.asarray(self.omi_obs_table["XTRACK"])[self.channel_indexes(ii_mw)]
+            cindex = np.where(np.asarray(self.omi_obs_table["Filter_Band_Name"])
+                            == filter_name)[0]
+            return np.asarray(self.omi_obs_table["XTRACK"])[cindex]
         if(instrument_name == "TROPOMI"):
-            return np.asarray(self.tropomi_obs_table["XTRACK"])[self.channel_indexes(ii_mw)]
+            cindex = np.where(np.asarray(self.tropomi_obs_table["Filter_Band_Name"])
+                            == filter_name)[0]
+            return np.asarray(self.tropomi_obs_table["XTRACK"])[cindex]
         raise RuntimeError("Don't know how to find observation table")
 
     def update_uip(self, i_retrieval_vec):

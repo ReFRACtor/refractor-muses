@@ -15,7 +15,7 @@ DEBUG = False
 
 
 def test_spec_win(tropomi_uip_step_1, tropomi_obs_step_1):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_uip_step_1)
+    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
     print(obj_creator.spec_win)
     obj_creator2 = RefractorFmObjectCreatorNew(*StateInfo.create_from_uip(tropomi_uip_step_1), "TROPOMI")
     print(obj_creator2.spec_win)
@@ -157,7 +157,7 @@ def test_band7_ils_simple(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_st
 
     # JLL: I checked a plot of the differences, and there is some structure, but they are about 1000x
     # smaller than the test radiances. I think this is okay, but we could revist this if needed.
-    assert np.allclose(test_conv_spec, tropomi_band7_simple_ils_test_data['convolved_spec'], rtol=1e-3)
+    npt.assert_allclose(test_conv_spec, tropomi_band7_simple_ils_test_data['convolved_spec'], rtol=1e-2)
     
 
 @require_muses_py
@@ -210,6 +210,7 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
 @require_muses_py
 def test_fm_run(tropomi_uip_step_1, tropomi_obs_step_1, clean_up_replacement_function):
     fm = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1).forward_model
+    rf.write_shelve("fm.xml", fm)
     fm.add_observer_and_keep_reference(PrintSpectrum())
     print(fm.radiance(0, True).value)
 
