@@ -162,10 +162,10 @@ def tropomi_obs_step_1(osp_dir):
     obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
                                      osp_dir=osp_dir)
-    swin = stable.spectral_window("TROPOMI", stp=1)
+    swin = stable.spectral_window("TROPOMI", stp=0)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
-    swin2 = stable.spectral_window("TROPOMI", stp=1)
+    swin2 = stable.spectral_window("TROPOMI", stp=0)
     obs.spectral_window_with_bad_sample = swin2
     return obs
 
@@ -321,10 +321,10 @@ def tropomi_obs_band7_swir_step(osp_dir):
     obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
                                      xtrack_list, atrack, utc_time, filter_list,
                                      osp_dir=osp_dir)
-    swin = stable.spectral_window("TROPOMI", stp=1)
+    swin = stable.spectral_window("TROPOMI", stp=0)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
-    swin2 = stable.spectral_window("TROPOMI", stp=1)
+    swin2 = stable.spectral_window("TROPOMI", stp=0)
     obs.spectral_window_with_bad_sample = swin2
     return obs
 
@@ -367,10 +367,10 @@ def omi_obs_step_1(osp_dir):
                                  filter_list,
                                  cld_filename=cld_filename,
                                  osp_dir=osp_dir)
-    swin = stable.spectral_window("OMI", stp=1)
+    swin = stable.spectral_window("OMI", stp=0)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
-    swin2 = stable.spectral_window("OMI", stp=1)
+    swin2 = stable.spectral_window("OMI", stp=0)
     obs.spectral_window_with_bad_sample = swin2
     return obs
 
