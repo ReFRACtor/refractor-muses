@@ -225,6 +225,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
                                              **self.creator_kwargs)
         fm = obj_creator.forward_model
         obj_creator.add_to_sv(current_state, fm_sv)
+        logger.info(f"Tropomi Forward model\n{fm}")
         return fm
 
 __all__ = ["TropomiFmObjectCreator", "TropomiForwardModelHandle"]

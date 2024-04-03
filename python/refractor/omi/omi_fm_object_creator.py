@@ -254,6 +254,7 @@ class OmiForwardModelHandle(ForwardModelHandle):
                                          **self.creator_kwargs)
         fm = obj_creator.forward_model
         obj_creator.add_to_sv(current_state, fm_sv)
+        logger.info(f"OMI Forward model\n{fm}")
         return fm
 
 __all__ = ["OmiFmObjectCreator", "OmiForwardModelHandle"]
