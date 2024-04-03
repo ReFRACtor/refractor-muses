@@ -50,7 +50,7 @@ def test_refractor_fm_muses_py(isolated_dir, step_number, osp_dir, gmao_dir,
 @pytest.mark.parametrize("step_number", [1, 2])
 @require_muses_py
 def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
-                                vlidort_cli, omi_obs_step_1):
+                                vlidort_cli, omi_obs_step_1, omi_obs_step_2):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
     iteration=2
@@ -59,7 +59,11 @@ def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
     vlidort_nstokes=1
     pfile = f"{omi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
-    r = RefractorOmiFm(omi_obs_step_1, use_pca=False, use_lrad=False,
+    if(step_number == 1):
+        obs = omi_obs_step_1
+    elif(step_number == 2):
+        obs = omi_obs_step_2
+    r = RefractorOmiFm(obs, use_pca=False, use_lrad=False,
                        lrad_second_order=False)
     (o_jacobian, o_radiance,
      o_measured_radiance_omi, o_success_flag) = r.run_pickle_file(pfile,osp_dir=osp_dir,gmao_dir=gmao_dir,path="fm_muses_ref/", vlidort_cli=vlidort_cli)

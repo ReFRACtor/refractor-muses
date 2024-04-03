@@ -87,7 +87,7 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
 def test_fm_run(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
     fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1).forward_model
     fm.add_observer_and_keep_reference(PrintSpectrum())
-    print(fm.radiance(0, True).value)
+    print(fm.radiance(1, True).value)
 
 
 def test_state_vector(omi_uip_step_1, omi_obs_step_1):

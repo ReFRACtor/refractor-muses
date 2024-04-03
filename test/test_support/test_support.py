@@ -35,11 +35,13 @@ tropomi_band7_expected_results_dir = f"{test_base_path}/tropomi_band7/expected/"
 tropomi_band7_swir_step_test_in_dir = f"{test_base_path}/tropomi_band7/in/sounding_one_step"
 joint_tropomi_test_in_dir = f"{test_base_path}/cris_tropomi/in/sounding_1"
 joint_tropomi_test_expected_dir = f"{test_base_path}/cris_tropomi/expected/sounding_1"
+joint_tropomi_test_refractor_expected_dir = f"{test_base_path}/cris_tropomi/expected/sounding_1_refractor"
 joint_tropomi_test_in_dir2 = f"{test_base_path}/cris_tropomi/in/sounding_2"
 omi_test_in_dir = f"{test_base_path}/omi/in/sounding_1"
 omi_test_expected_results_dir = f"{test_base_path}/omi/expected"
 joint_omi_test_in_dir = f"{test_base_path}/airs_omi/in/sounding_1"
 joint_omi_test_expected_dir = f"{test_base_path}/airs_omi/expected/sounding_1"
+joint_omi_test_refractor_expected_dir = f"{test_base_path}/airs_omi/expected/sounding_1_refractor"
 if not os.path.exists(tropomi_test_in_dir):
     raise RuntimeError(f"ERROR: unit test data not found at {test_base_path}. Please clone the test data repo there.")
 

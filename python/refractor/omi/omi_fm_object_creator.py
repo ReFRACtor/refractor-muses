@@ -1,7 +1,4 @@
-try:
-    from functools import cached_property
-except ImportError:
-    from backports.cached_property import cached_property
+from functools import cached_property, lru_cache
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, ForwardModelHandle,
                              MusesRaman, CurrentState)
@@ -114,10 +111,11 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         file that solar_model uses.'''
         f = h5py.File(self.solar_reference_filename, "r")
         res = []
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-            ind = self.rf_uip.across_track_indexes(ii_mw, self.instrument_name)[0]
-            wav_vals = f[f"WAV_{self.filter_name[fm_idx]}"][:, ind]
-            irad_vals = f[f"SOL_{self.filter_name[fm_idx]}"][:, ind]
+        for i in range(self.num_channels):
+            ind = self.rf_uip.across_track_indexes(self.filter_list[i],
+                                                   self.instrument_name)[0]
+            wav_vals = f[f"WAV_{self.filter_list[i]}"][:, ind]
+            irad_vals = f[f"SOL_{self.filter_list[i]}"][:, ind]
             one_au = 149597870691
             irad_vals *= (one_au / self.rf_uip.earth_sun_distance(self.instrument_name)) ** 2
             # File does not have units contained within it
@@ -130,7 +128,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return res
 
     def instrument_hwhm(self, ii_mw: int) -> rf.DoubleWithUnit:
-        band_name = self.rf_uip.filter_name(ii_mw)
+        band_name = self.rf_uip.filter_list(ii_mw)
         raise NotImplementedError(f'HWHM for band {band_name} not defined')
         
     @property
@@ -143,28 +141,28 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         which_retrieved = np.full((self.num_channels, 3), False, dtype=bool)
         band_reference = np.zeros(self.num_channels)
 
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-            if(self.filter_name[fm_idx] == "UV1"):
-                band_reference[fm_idx] = (315 + 262) / 2.0
-                albedo[fm_idx, 0] = self.uip_params['surface_albedo_uv1']
+        for i in range(self.num_channels):
+            if(self.filter_list[i] == "UV1"):
+                band_reference[i] = (315 + 262) / 2.0
+                albedo[i, 0] = self.uip_params['surface_albedo_uv1']
                 if('OMISURFACEALBEDOUV1' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[fm_idx, 0] = True
-            elif(self.filter_name[fm_idx] == "UV2"):
+                    which_retrieved[i, 0] = True
+            elif(self.filter_list[i] == "UV2"):
                 # Note this value is hardcoded in print_omi_surface_albedo
-                band_reference[fm_idx] = 320.0
-                albedo[fm_idx, 0] = self.uip_params['surface_albedo_uv2']
-                albedo[fm_idx, 1] = self.uip_params['surface_albedo_slope_uv2']
+                band_reference[i] = 320.0
+                albedo[i, 0] = self.uip_params['surface_albedo_uv2']
+                albedo[i, 1] = self.uip_params['surface_albedo_slope_uv2']
                 if('OMISURFACEALBEDOUV2' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[fm_idx, 0] = True
+                    which_retrieved[i, 0] = True
                 if('OMISURFACEALBEDOSLOPEUV2' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[fm_idx, 1] = True
+                    which_retrieved[i, 1] = True
             else:
                 raise RuntimeError("Don't recognize filter name")
 
         return rf.GroundLambertian(albedo,
                       rf.ArrayWithUnit(band_reference, "nm"),
                       rf.Unit("nm"),
-                      self.filter_name,
+                      self.filter_list,
                       rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
                     
     @cached_property
@@ -208,67 +206,34 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         return fm_sv
 
-    @cached_property
-    def raman_effect(self):
+    @lru_cache(maxsize=None)
+    def raman_effect(self, i):
         # Note we should probably look at this sample grid, and
         # make sure it goes RamanSioris.ramam_edge_wavenumber past
         # the edges of our spec_win. Also there isn't any particular
         # reason that the solar data/optical depth should be calculated
         # on the muses_fm_spectral_domain. But this is what muses-py
         # does, so we'll match that for now.
-        res = []
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-            if(self.filter_name[fm_idx] in ("UV1", "UV2")):
-                scale_factor = self.uip_params[f"ring_sf_{str.lower(self.filter_name[fm_idx])}"]
-            else:
-                raise RuntimeError("Unrecognized filter_name")
-            res.append(MusesRaman(self.rf_uip, self.instrument_name,
-                self.rf_uip.rad_wavelength(fm_idx, self.instrument_name),
-                float(scale_factor),
-                fm_idx,
-                ii_mw,
-                self.sza_with_unit[fm_idx],
-                self.oza_with_unit[fm_idx],
-                self.raz_with_unit[fm_idx],
-                self.atmosphere,
-                self.solar_model(fm_idx),
-                rf.StateMappingLinear()))
-        return res
-    
-#class OmiStateVectorHandle(StateVectorHandle):
-class OmiStateVectorHandle:
-    def __init__(self, obj_creator):
-        self.obj_creator = obj_creator
-
-    def add_sv(self, sv, species_name, ptart, plen, **kwargs):
-        if(species_name == "OMICLOUDFRACTION"):
-            sv.add_observer(self.obj_creator.cloud_fraction)
-        elif(species_name == "O3"):
-            sv.add_observer(self.obj_creator.absorber.absorber_vmr("O3"))
-        elif(species_name in ("OMISURFACEALBEDOUV1",
-                              "OMISURFACEALBEDOUV2",
-                              "OMISURFACEALBEDOSLOPEUV2"
-                              )):
-            self.add_sv_once(sv, self.obj_creator.ground_clear)
-        elif(species_name in ("OMINRADWAVUV1",
-                              "OMINRADWAVUV2",
-                              "OMIODWAVUV1",
-                              'OMIODWAVUV2',
-                              "OMIODWAVSLOPEUV1",
-                              "OMIODWAVSLOPEUV2",
-                              )):
-            #self.add_sv_once(sv, self.obj_creator.observation)
-            pass
-        elif(species_name == "OMIEOFUV1"):
-            for eof in self.obj_creator.eof["UV1"]:
-                sv.add_observer(eof)
-        elif(species_name == "OMIEOFUV2"):
-            for eof in self.obj_creator.eof["UV2"]:
-                sv.add_observer(eof)
+        if(self.filter_list[i] in ("UV1", "UV2")):
+            scale_factor = self.uip_params[f"ring_sf_{str.lower(self.filter_list[i])}"]
         else:
-            # Didn't recognize the species_name, so we didn't handle this
-            return False
-        return True
+            raise RuntimeError("Unrecognized filter name")
+        wlen = self.rf_uip.rad_wavelength(self.filter_list[i], self.instrument_name)
+        # This is short if we aren't actually running this filter
+        if(wlen.data.shape[0] < 2):
+            return None
+        return MusesRaman(self.rf_uip, self.instrument_name,
+                wlen,
+                float(scale_factor),
+                i,
+                self.filter_list[i],
+                self.sza_with_unit[i],
+                self.oza_with_unit[i],
+                self.raz_with_unit[i],
+                self.atmosphere,
+                self.solar_model(self.filter_list[i]),
+                rf.StateMappingLinear())
+    
 
 class OmiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):

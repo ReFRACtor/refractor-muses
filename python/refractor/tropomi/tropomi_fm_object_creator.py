@@ -1,7 +1,4 @@
-try:
-    from functools import cached_property
-except ImportError:
-    from backports.cached_property import cached_property
+from functools import cached_property, lru_cache
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, 
                              O3Absorber, SwirAbsorber,
@@ -61,12 +58,12 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # frequency (see rev_and_fm_map
         res = []
         for i in range(self.num_channels):
-            band_name = self.filter_list[i]
-            t = self.rf_uip.full_band_frequency(self.instrument_name)[self.rf_uip.mw_fm_slice(i, self.instrument_name)]
+            filter_name = self.filter_list[i]
+            t = self.rf_uip.full_band_frequency(self.instrument_name)[self.rf_uip.mw_fm_slice(filter_name, self.instrument_name)]
             ref_wav = (t[0] + t[-1])/2
-            coeff = [self.rf_uip.tropomi_params[f"resscale_O0_{band_name}"],
-                     self.rf_uip.tropomi_params[f"resscale_O1_{band_name}"],
-                     self.rf_uip.tropomi_params[f"resscale_O2_{band_name}"]]
+            coeff = [self.rf_uip.tropomi_params[f"resscale_O0_{filter_name}"],
+                     self.rf_uip.tropomi_params[f"resscale_O1_{filter_name}"],
+                     self.rf_uip.tropomi_params[f"resscale_O2_{filter_name}"]]
             rscale = rf.RadianceScalingSvMusesFit(coeff, rf.DoubleWithUnit(ref_wav,"nm"), "BAND3")
             res.append(rscale)
         return res
@@ -96,7 +93,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             if re.match(r'BAND\d$', filt_name) is not None:
                 # This duplicates the calculation in
                 # print_tropomi_surface_albedo.py in py_retrieve
-                slc = self.rf_uip.mw_fm_slice(i, self.instrument_name)
+                slc = self.rf_uip.mw_fm_slice(filt_name, self.instrument_name)
                 wave_arr = self.rf_uip.full_band_frequency(self.instrument_name)[slc]
                 band_reference[i] = (wave_arr[-1] + wave_arr[0]) / 2
                 albedo[i, 0] = self.uip_params[f'surface_albedo_{filt_name}']
@@ -156,7 +153,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                         f"TROPOMISURFACEALBEDOSLOPEBAND{b}",
                         f"TROPOMISURFACEALBEDOSLOPEORDER2BAND{b}"], [self.ground_clear,])
             current_state.add_fm_state_vector_if_needed(
-                fm_sv, [f"TROPOMIRINGSFBAND{b}",], [self.raman_effect[0],])
+                fm_sv, [f"TROPOMIRINGSFBAND{b}",], [self.raman_effect(0),])
             current_state.add_fm_state_vector_if_needed(
                 fm_sv, [f"TROPOMIRESSCALEO0BAND{b}",
                         f"TROPOMIRESSCALEO1BAND{b}",
@@ -173,34 +170,31 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         return fm_sv
 
-    @cached_property
-    def raman_effect(self):
+    @lru_cache(maxsize=None)
+    def raman_effect(self, i):
         # Note we should probably look at this sample grid, and
         # make sure it goes RamanSioris.ramam_edge_wavenumber past
         # the edges of our spec_win. Also there isn't any particular
         # reason that the solar data/optical depth should be calculated
         # on the muses_fm_spectral_domain. But this is what muses-py
         # does, so we'll match that for now.
-        res = []
-        for i in range(self.num_channels):
-            if(self.filter_list[i] in ("BAND1", "BAND2", "BAND3")):
-                scale_factor = self.uip_params[f"ring_sf_{self.filter_list[i]}"]
-            elif(self.filter_list[i] in ("BAND7", "BAND8")):
-                # JLL: The SWIR bands should not need to account for Raman scattering -
-                # Vijay has never seen Raman scattering accounted for in the CO band.
-                scale_factor = None
-            else:
-                raise RuntimeError("Unrecognized filter_list")
-            if scale_factor is None:
-                # JLL: As of 2023-11-02, it's important that there be an entry for each channel
-                # in res, otherwise the indexing in the `spectrum_effect` method of `RefractorFmObjectCreator`
-                # won't match. It might be better long term to store these in a dictionary with
-                # the microwindows as keys, but need to make sure that this method isn't called anywhere
-                # else first.
-                res.append(None)
-            else:
-                res.append(MusesRaman(self.rf_uip, self.instrument_name,
-                    self.rf_uip.rad_wavelength(i, self.instrument_name),
+        if(self.filter_list[i] in ("BAND1", "BAND2", "BAND3")):
+            scale_factor = self.uip_params[f"ring_sf_{self.filter_list[i]}"]
+        elif(self.filter_list[i] in ("BAND7", "BAND8")):
+            # JLL: The SWIR bands should not need to account for Raman scattering -
+            # Vijay has never seen Raman scattering accounted for in the CO band.
+            scale_factor = None
+        else:
+            raise RuntimeError("Unrecognized filter_list")
+        if scale_factor is None:
+            return None
+        else:
+            wlen = self.rf_uip.rad_wavelength(self.filter_list[i], self.instrument_name)
+            # This is short if we aren't actually running this filter
+            if(wlen.data.shape[0] < 2):
+                return None
+            return MusesRaman(self.rf_uip, self.instrument_name,
+                    wlen,
                     float(scale_factor),
                     i,
                     self.filter_list[i],
@@ -208,9 +202,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                     self.oza_with_unit[i],
                     self.raz_with_unit[i],
                     self.atmosphere,
-                    self.solar_model(i),
-                    rf.StateMappingLinear()))
-        return res
+                    self.solar_model(self.filter_list[i]),
+                    rf.StateMappingLinear())
 
 
 class TropomiForwardModelHandle(ForwardModelHandle):

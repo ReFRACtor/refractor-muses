@@ -817,9 +817,9 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
         # Units don't matter here, but lets just assign something reasonable
         sr = rf.SpectralRange([1] * sd.rows, rf.Unit("ph / s / m^2 / micron W / (cm^-1) / (ph / (s) / (micron)) sr^-1"))
         s = rf.Spectrum(sd, sr)
-        self.obj_creator.raman_effect[0].apply_effect(s, self.fm.underlying_forward_model.spectral_grid)
+        self.obj_creator.raman_effect(0).apply_effect(s, self.fm.underlying_forward_model.spectral_grid)
         sr = rf.SpectralRange((s.spectral_range.data -1) /
-                  self.obj_creator.raman_effect[0].coefficient[0].value,
+                  self.obj_creator.raman_effect(0).coefficient[0].value,
                   s.spectral_range.units)
         s = rf.Spectrum(sd, sr)
         return s

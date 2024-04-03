@@ -1,7 +1,4 @@
-try:
-    from functools import cached_property
-except ImportError:
-    from backports.cached_property import cached_property
+from functools import cached_property, lru_cache
 from .muses_optical_depth_file import MusesOpticalDepthFile
 from .muses_altitude import MusesAltitude
 from .muses_spectrum_sampling import MusesSpectrumSampling
@@ -138,8 +135,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
         return chan_list
 
-    def solar_model(self, mw_index):
-        return rf.SolarReferenceSpectrum(self.rf_uip.solar_irradiance(mw_index,
+    def solar_model(self, filter_name):
+        return rf.SolarReferenceSpectrum(self.rf_uip.solar_irradiance(filter_name,
                                             self.instrument_name), None)
 
     @property
@@ -520,7 +517,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         for i in range(self.num_channels):
             per_channel_eff = []
             if(self.use_raman):
-                per_channel_eff.append(self.raman_effect[i])
+                reffect = self.raman_effect(i)
+                if(reffect is not None):
+                    per_channel_eff.append(reffect)
             res.append(per_channel_eff)
         return res
 
@@ -549,9 +548,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         #logger.debug("Forward Model: %s", res)
         return res
 
-    @abc.abstractproperty
-    @cached_property
-    def raman_effect(self):
+    @lru_cache(maxsize=None)
+    def raman_effect(self, i):
         raise NotImplementedError
 
 

@@ -85,8 +85,13 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # Note these files are generated once per strategy step
         file_data = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001.asc", skiprows=1)
         for mw_num in range(2, self.num_channel + 1):  # 1-based indexing
-            mw_file_data = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}.asc", skiprows=1)
-            file_data = np.concatenate([file_data, mw_file_data])
+            # We may have more channels than we actually are running the forward model for
+            # (e.g., channels with zero width spectral domain). In that case, just skip files
+            try:
+                mw_file_data = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}.asc", skiprows=1)
+                file_data = np.concatenate([file_data, mw_file_data])
+            except FileNotFoundError:
+                pass
 
         # Data needs to be sorted by wavelength. This is a little
         # cryptic, but this sorts all the data by column 1
@@ -101,8 +106,13 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
            "TROPOMITEMPSHIFTBAND3" in self.rf_uip.state_vector_params(self.instrument_name)):
             file_data_temp = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW001_TEMP.asc", skiprows=1)
             for mw_num in range(2, self.num_channel + 1):  # 1-based indexing
-                mw_file_data = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}_TEMP.asc", skiprows=1)
-                file_data_temp = np.concatenate([file_data_temp, mw_file_data])
+                # We may have more channels than we actually are running the forward model for
+                # (e.g., channels with zero width spectral domain). In that case, just skip files
+                try:
+                    mw_file_data = np.loadtxt(f"{self.rf_uip.run_dir}/{self.rf_uip.vlidort_input}/O3Xsec_MW{mw_num:03}_TEMP.asc", skiprows=1)
+                    file_data_temp = np.concatenate([file_data_temp, mw_file_data])
+                except FileNotFoundError:
+                    pass
             file_data_temp = file_data_temp[file_data_temp[:, 1].argsort()]
 
         self.xsect_grid = file_data[:, 1]

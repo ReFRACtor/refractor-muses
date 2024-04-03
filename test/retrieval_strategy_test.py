@@ -7,6 +7,13 @@ import subprocess
 import pprint
 import glob
 
+# Use refractor forward model. We default to not, because we are
+# mostly testing everything *other* than the forward model with this
+# test. But can be useful to run with this occasionally.
+# Note that there is a separate set of expected results for a refractor run.
+#run_refractor = False
+run_refractor = True
+
 def compare_run(expected_dir, run_dir, diff_is_error=True):
     '''Compare products from two runs.'''
     for f in glob.glob(f"{expected_dir}/*/Products/Products_L2*.nc"):
@@ -79,17 +86,20 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     # Grab each step so we can separately test output
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
     rs.add_observer(rscap)
-    if True:
+    compare_dir = joint_tropomi_test_expected_dir
+    if run_refractor:
         # Use refractor forward model. We default to not, because we are
         # mostly testing everything *other* than the forward model with this
         # test. But can be useful to run with this occasionally
         ihandle = TropomiForwardModelHandle(use_pca=True, use_lrad=False,
                                           lrad_second_order=False)
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+        # Different expected results. Close, but not identical to VLIDORT version
+        compare_dir = joint_tropomi_test_refractor_expected_dir
     rs.retrieval_ms()
 
     diff_is_error = True
-    compare_run(joint_tropomi_test_expected_dir, "retrieval_strategy_cris_tropomi",
+    compare_run(compare_dir, "retrieval_strategy_cris_tropomi",
                 diff_is_error=diff_is_error)
 
 @long_test
@@ -102,7 +112,10 @@ def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     # just report differences
     #diff_is_error = True
     diff_is_error = False
-    compare_run(joint_tropomi_test_expected_dir, "retrieval_strategy_cris_tropomi",
+    compare_dir = joint_tropomi_test_expected_dir
+    if run_refractor:
+        compare_dir = joint_tropomi_test_refractor_expected_dir
+    compare_run(compare_dir, "retrieval_strategy_cris_tropomi",
                 diff_is_error=diff_is_error)
 
 # This test was used to generate the original test data using py-retrieve. We have
@@ -153,17 +166,21 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     # Grab each step so we can separately test output
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
     rs.add_observer(rscap)
-    if True:
+    compare_dir = joint_omi_test_expected_dir
+    if run_refractor:
         # Use refractor forward model. We default to not, because we are
         # mostly testing everything *other* than the forward model with this
         # test. But can be useful to run with this occasionally
         ihandle = OmiForwardModelHandle(use_pca=True, use_lrad=False,
                                       lrad_second_order=False, use_eof=False)
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+        # Different expected results. Close, but not identical to VLIDORT version
+        compare_dir = joint_omi_test_refractor_expected_dir
+        
     rs.retrieval_ms()
 
     diff_is_error = True
-    compare_run(joint_omi_test_expected_dir, "retrieval_strategy_airs_omi",
+    compare_run(compare_dir, "retrieval_strategy_airs_omi",
                 diff_is_error=diff_is_error)
     
 @long_test
@@ -176,7 +193,10 @@ def test_compare_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli):
     # just report differences
     #diff_is_error = True
     diff_is_error = False
-    compare_run(joint_omi_test_expected_dir, "retrieval_strategy_airs_omi",
+    compare_dir = joint_omi_test_expected_dir
+    if run_refractor:
+        compare_dir = joint_omi_test_refractor_expected_dir
+    compare_run(compare_dir, "retrieval_strategy_airs_omi",
                 diff_is_error=diff_is_error)
 
 @long_test
