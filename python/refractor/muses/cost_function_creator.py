@@ -2,7 +2,7 @@ from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .priority_handle_set import PriorityHandleSet
 from .uip_updater import (StateVectorUpdateUip, MaxAPosterioriSqrtConstraintUpdateUip)
-from .current_state import CurrentState
+from .current_state import CurrentState, CurrentStateUip
 import refractor.framework as rf
 import abc
 import copy
@@ -549,8 +549,7 @@ class CostFunctionCreator:
         # Fake the input for the normal cost_function function
         def uip_func():
             return rf_uip
-        # TODO Remove rf_uip
-        cstate = CurrentState(rf_uip)
+        cstate = CurrentStateUip(rf_uip)
         if(ret_info):
             fix_apriori_size=False
             cstate.sqrt_constraint = ret_info["sqrt_constraint"]

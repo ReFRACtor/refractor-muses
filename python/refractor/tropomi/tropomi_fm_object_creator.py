@@ -3,7 +3,7 @@ from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, 
                              O3Absorber, SwirAbsorber,
                              ForwardModelHandle,
-                             MusesRaman, CurrentState)
+                             MusesRaman, CurrentState, CurrentStateUip)
 import refractor.framework as rf
 import logging
 import numpy as np
@@ -17,6 +17,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def __init__(self, rf_uip : RefractorUip,
                  observation : 'MusesObservation', **kwargs):
         super().__init__(rf_uip, "TROPOMI", observation, **kwargs)
+        # TODO, I think we will want to pass in the CurrentState
+        self.current_state = CurrentStateUip(self.rf_uip)
         unique_filters = set(self.filter_list)
         if len(unique_filters) != 1:
             raise NotImplementedError('Cannot handle multiple bands yet (requires different absorbers per band)')
@@ -164,10 +166,9 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         '''Create a state vector for just this forward model. This is really
         meant more for unit tests, during normal runs CostFunctionCreator handles
         this (including the state vector element for other instruments).'''
-        current_state = CurrentState(self.rf_uip)
         fm_sv = rf.StateVector()
-        self.add_to_sv(current_state, fm_sv)
-        fm_sv.observer_claimed_size = current_state.fm_state_vector_size
+        self.add_to_sv(self.current_state, fm_sv)
+        fm_sv.observer_claimed_size = self.current_state.fm_state_vector_size
         return fm_sv
 
     @lru_cache(maxsize=None)

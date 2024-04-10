@@ -1,6 +1,7 @@
 import refractor.framework as rf
+import abc
 
-class CurrentState:
+class CurrentState(object, metaclass=abc.ABCMeta):
     '''There are a number of "states" floating around
     py-retrieve/ReFRACtor, and it can be a little confusing if you
     don't know what you are looking at.
@@ -76,18 +77,29 @@ class CurrentState:
     ForwardModel and Observation have mapping from "forward model
     state vector" to "full state vector", and the various objects
     handle mappings from "full state vector" to "object state".
+
+    For a normal retrieval, we get all the information needed from
+    our StateInfo. But for testing it can be useful to have other implementations,
+    include a hard coded set of values (for small unit tests) or a RefractorUip
+    (to compare against old py-retrieve runs where we captured the UIP).
+    This class gives the interface needed by the other classes, as well as implementing
+    some stuff that doesn't really depend on where we are getting the information.
     '''
-    def __init__(self, rf_uip):
-        '''Temporarily use RefractorUip for getting some of this information.
-        We want to remove this completely, but for now leverage off this
-        old class.'''
-        # Determine location in forward model state vector for each state element name
-        self.sv_loc = {}
-        self.fm_state_vector_size = 0
-        for species_name in rf_uip.jacobian_all:
-            pstart, plen = rf_uip.state_vector_species_index(species_name)
-            self.sv_loc[species_name] = (pstart, plen)
-            self.fm_state_vector_size += plen
+    @abc.abstractproperty
+    def fm_sv_loc(self):
+        '''Dict that gives the starting location in the forward model state vector for a
+        particular state element name (state elements not being retrieved don't
+        get listed here)'''
+        raise NotImplementedError
+
+    @abc.abstractproperty
+    def fm_state_vector_size(self):
+        '''Full size of the forward model state vector.'''
+
+    @property
+    def retrieval_state_element(self):
+        '''Return list of state elements we are retrieving.'''
+        return list(self.fm_sv_loc.keys())
     
     def add_fm_state_vector_if_needed(self, fm_sv : rf.StateVector,
                                       state_element_name_list : 'list[str]',
@@ -96,16 +108,46 @@ class CurrentState:
         uses. This then adds the object to the forward model state vector if
         some of the elements are being retrieved.  This is a noop if none of the
         state elements are being retrieved. So objects don't need to try to figure
-        out if they are in the retrieved set or not, then can just add themselves.'''
+        out if they are in the retrieved set or not, then can just call this function
+        to try adding themselves.'''
         pstart = None
         for sname in state_element_name_list:
-            if sname in self.sv_loc:
-                ps, _ = self.sv_loc[sname]
+            if sname in self.fm_sv_loc:
+                ps, _ = self.fm_sv_loc[sname]
                 if(pstart is None or ps < pstart):
                     pstart = ps
         if(pstart is not None):
             fm_sv.observer_claimed_size = pstart
             for obj in obj_list:
                 fm_sv.add_observer(obj)
+
+class CurrentStateUip(CurrentState):
+    '''Implementation of CurrentState that uses a RefractorUip'''
+    def __init__(self, rf_uip: 'RefractorUip'):
+        super().__init__()
+        self.rf_uip = rf_uip
+        self._fm_sv_loc = None
+        self._fm_state_vector_size = None
+
+    @property
+    def fm_sv_loc(self):
+        if(self._fm_sv_loc is None):
+            self._fm_sv_loc = {}
+            self._fm_state_vector_size = 0
+            for species_name in self.rf_uip.jacobian_all:
+                pstart, plen = self.rf_uip.state_vector_species_index(species_name)
+                self._fm_sv_loc[species_name] = (pstart, plen)
+                self._fm_state_vector_size += plen
+        return self._fm_sv_loc
+
+    @property
+    def fm_state_vector_size(self):
+        if(self._fm_state_vector_size is None):
+            # Side effect of fm_sv_loc is filling in _fm_state_vector_size
+            _ = self.fm_sv_loc
+        return self._fm_state_vector_size
+
+__all__ = ["CurrentState", "CurrentStateUip"]    
+        
         
 

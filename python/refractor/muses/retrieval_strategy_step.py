@@ -8,7 +8,7 @@ from pprint import pprint, pformat
 from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
-from .current_state import CurrentState
+from .current_state import CurrentState, CurrentStateUip
 from functools import partial
 import numpy as np
 
@@ -118,7 +118,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         but at least for now duplicate what muses-py does.'''
         self._uip = None
         # Temp, we use the uip here until we can duplicate this functionality
-        cstate = CurrentState(self.uip_func(rs, do_systematic, jacobian_speciesIn))
+        cstate = CurrentStateUip(self.uip_func(rs, do_systematic, jacobian_speciesIn))
         # Temp, until we get this sorted out
         cstate.apriori_cov = rs.retrievalInfo.apriori_cov
         cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()

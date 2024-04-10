@@ -1,7 +1,7 @@
 from functools import cached_property, lru_cache
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, ForwardModelHandle,
-                             MusesRaman, CurrentState)
+                             MusesRaman, CurrentState, CurrentStateUip)
 import refractor.framework as rf
 import os
 import logging
@@ -19,6 +19,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                  use_eof=False, eof_dir=None,
                  **kwargs):
         super().__init__(rf_uip, "OMI", observation, **kwargs)
+        # TODO, I think we will want to pass in the CurrentState
+        self.current_state = CurrentStateUip(self.rf_uip)
         self.use_eof = use_eof
         self.eof_dir = eof_dir
         
@@ -200,10 +202,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         '''Create a state vector for just this forward model. This is really
         meant more for unit tests, during normal runs CostFunctionCreator handles
         this (including the state vector element for other instruments).'''
-        current_state = CurrentState(self.rf_uip)
         fm_sv = rf.StateVector()
-        self.add_to_sv(current_state, fm_sv)
-        fm_sv.observer_claimed_size = current_state.fm_state_vector_size
+        self.add_to_sv(self.current_state, fm_sv)
+        fm_sv.observer_claimed_size = self.current_state.fm_state_vector_size
         return fm_sv
 
     @lru_cache(maxsize=None)
