@@ -1,4 +1,6 @@
+from . import muses_py as mpy
 import refractor.framework as rf
+import numpy as np
 import abc
 
 class CurrentState(object, metaclass=abc.ABCMeta):
@@ -86,20 +88,42 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     some stuff that doesn't really depend on where we are getting the information.
     '''
     @abc.abstractproperty
-    def fm_sv_loc(self):
+    def fm_sv_loc(self) -> 'dict[str,int]':
         '''Dict that gives the starting location in the forward model state vector for a
         particular state element name (state elements not being retrieved don't
         get listed here)'''
         raise NotImplementedError
 
     @abc.abstractproperty
-    def fm_state_vector_size(self):
+    def fm_state_vector_size(self) -> int:
         '''Full size of the forward model state vector.'''
 
     @property
-    def retrieval_state_element(self):
+    def retrieval_state_element(self) -> 'list[str]':
         '''Return list of state elements we are retrieving.'''
         return list(self.fm_sv_loc.keys())
+
+    def object_state(self, state_element_name_list : 'list[str]') -> (np.array, rf.StateMapping):
+        '''Return a set of coefficients and a rf.StateMapping to get the full state values
+        used by an object. The object passes in the list of state element names it uses.
+        In general only a (possibly empty) subset of the state elements are actually retrieved.
+        This gets handled by the StateMapping, which might have a component like
+        rf.StateMappingAtIndexes to handle the subset that is in the fm_state_vector.'''
+        # TODO put in handling of log/linear
+        coeff = np.concatenate([self.full_state_value(nm) for nm in state_element_name_list])
+        rlist = self.retrieval_state_element
+        rflag = np.concatenate(
+            [np.full((len(self.full_state_value(nm)),), nm in rlist, dtype=bool)
+             for nm in state_element_name_list])
+        mp = rf.StateMappingAtIndexes(rflag)
+        return (coeff, mp)
+    
+    @abc.abstractmethod
+    def full_state_value(self, state_element_name) -> np.array:
+        '''Return the full state value for the given state element name.
+        Just as a convention we always return a np.array, so if there is only one value
+        put that in a length 1 np.array.'''
+        raise NotImplementedError
     
     def add_fm_state_vector_if_needed(self, fm_sv : rf.StateVector,
                                       state_element_name_list : 'list[str]',
@@ -147,7 +171,176 @@ class CurrentStateUip(CurrentState):
             _ = self.fm_sv_loc
         return self._fm_state_vector_size
 
-__all__ = ["CurrentState", "CurrentStateUip"]    
+    def full_state_value(self, state_element_name) -> np.array:
+        '''Return the full state value for the given state element name.
+        Just as a convention we always return a np.array, so if there is only one value
+        put that in a length 1 np.array.'''
+        # We've extracted this logic out from update_uip
+        o_uip = mpy.ObjectView(self.rf_uip.uip)
+        if state_element_name == 'TSUR':
+            return np.array([o_uip.surface_temperature,])
+        elif state_element_name == 'EMIS':
+            return np.array(o_uip.emissivity['value'])
+        elif state_element_name == 'PTGANG': 
+            return np.array([o_uip.obs_table['pointing_angle']])
+        elif state_element_name == 'RESSCALE':
+            return np.array([o_uip.res_scale])
+        elif state_element_name == 'CLOUDEXT':
+            return np.array(o_uip.cloud['extinction'])
+        elif state_element_name == 'PCLOUD':
+            return np.array([o_uip.cloud['pressure']])
+        elif state_element_name == 'OMICLOUDFRACTION':
+            return np.array([o_uip.omiPars['cloud_fraction']])
+        elif state_element_name == 'OMISURFACEALBEDOUV1':
+            return np.array([o_uip.omiPars['surface_albedo_uv1']])
+        elif state_element_name == 'OMISURFACEALBEDOUV2':
+            return np.array([o_uip.omiPars['surface_albedo_uv2']])
+        elif state_element_name == 'OMISURFACEALBEDOSLOPEUV2':
+            return np.array([o_uip.omiPars['surface_albedo_slope_uv2']])
+        elif state_element_name == 'OMINRADWAVUV1':
+            return np.array([o_uip.omiPars['nradwav_uv1']])
+        elif state_element_name == 'OMINRADWAVUV2':
+            return np.array([o_uip.omiPars['nradwav_uv2']])
+        elif state_element_name == 'OMIODWAVUV1':
+            return np.array([o_uip.omiPars['odwav_uv1']])
+        elif state_element_name == 'OMIODWAVUV2':
+            return np.array([o_uip.omiPars['odwav_uv2']])
+        elif state_element_name == 'OMIODWAVSLOPEUV1':
+            return np.array([o_uip.omiPars['odwav_slope_uv1']])
+        elif state_element_name == 'OMIODWAVSLOPEUV2':
+            return np.array([o_uip.omiPars['odwav_slope_uv2']])
+        elif state_element_name == 'OMIRINGSFUV1':
+            return np.array([o_uip.omiPars['ring_sf_uv1']])
+        elif state_element_name == 'OMIRINGSFUV2':
+            return np.array([o_uip.omiPars['ring_sf_uv2']])
+        elif state_element_name == 'TROPOMICLOUDFRACTION':
+            return np.array([o_uip.tropomiPars['cloud_fraction']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOBAND1':
+            return np.array([o_uip.tropomiPars['surface_albedo_BAND1']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOBAND2':
+            return np.array([o_uip.tropomiPars['surface_albedo_BAND2']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOBAND3':
+            return np.array([o_uip.tropomiPars['surface_albedo_BAND3']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOBAND7':
+            return np.array([o_uip.tropomiPars['surface_albedo_BAND7']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOBAND3TIGHT':
+            return np.array([o_uip.tropomiPars['surface_albedo_BAND3']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOSLOPEBAND2':
+            return np.array([o_uip.tropomiPars['surface_albedo_slope_BAND2']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOSLOPEBAND3':
+            return np.array([o_uip.tropomiPars['surface_albedo_slope_BAND3']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOSLOPEBAND7':
+            return np.array([o_uip.tropomiPars['surface_albedo_slope_BAND7']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOSLOPEBAND3TIGHT':
+            return np.array([o_uip.tropomiPars['surface_albedo_slope_BAND3']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOSLOPEORDER2BAND2':
+            return np.array([o_uip.tropomiPars['surface_albedo_slope_order2_BAND2']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOSLOPEORDER2BAND3':
+            return np.array([o_uip.tropomiPars['surface_albedo_slope_order2_BAND3']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOSLOPEORDER2BAND7':
+            return np.array([o_uip.tropomiPars['surface_albedo_slope_order2_BAND7']])
+        elif state_element_name == 'TROPOMISURFACEALBEDOSLOPEORDER2BAND3TIGHT':
+            return np.array([o_uip.tropomiPars['surface_albedo_slope_order2_BAND3']])
+        elif state_element_name == 'TROPOMISOLARSHIFTBAND1':
+            return np.array([o_uip.tropomiPars['solarshift_BAND1']])
+        elif state_element_name == 'TROPOMISOLARSHIFTBAND2':
+            return np.array([o_uip.tropomiPars['solarshift_BAND2']])
+        elif state_element_name == 'TROPOMISOLARSHIFTBAND3':
+            return np.array([o_uip.tropomiPars['solarshift_BAND3']])
+        elif state_element_name == 'TROPOMISOLARSHIFTBAND7':
+            return np.array([o_uip.tropomiPars['solarshift_BAND7']])
+        elif state_element_name == 'TROPOMIRADIANCESHIFTBAND1':
+            return np.array([o_uip.tropomiPars['radianceshift_BAND1']])
+        elif state_element_name == 'TROPOMIRADIANCESHIFTBAND2':
+            return np.array([o_uip.tropomiPars['radianceshift_BAND2']])
+        elif state_element_name == 'TROPOMIRADIANCESHIFTBAND3':
+            return np.array([o_uip.tropomiPars['radianceshift_BAND3']])
+        elif state_element_name == 'TROPOMIRADIANCESHIFTBAND7':
+            return np.array([o_uip.tropomiPars['radianceshift_BAND7']])
+        elif state_element_name == 'TROPOMIRADSQUEEZEBAND1':
+            return np.array([o_uip.tropomiPars['radsqueeze_BAND1']])
+        elif state_element_name == 'TROPOMIRADSQUEEZEBAND2':
+            return np.array([o_uip.tropomiPars['radsqueeze_BAND2']])
+        elif state_element_name == 'TROPOMIRADSQUEEZEBAND3':
+            return np.array([o_uip.tropomiPars['radsqueeze_BAND3']])
+        elif state_element_name == 'TROPOMIRADSQUEEZEBAND7':
+            return np.array([o_uip.tropomiPars['radsqueeze_BAND7']])
+        elif state_element_name == 'TROPOMIRINGSFBAND1':
+            return np.array([o_uip.tropomiPars['ring_sf_BAND1']])
+        elif state_element_name == 'TROPOMIRINGSFBAND2':
+            return np.array([o_uip.tropomiPars['ring_sf_BAND2']])
+        elif state_element_name == 'TROPOMIRINGSFBAND3':
+            return np.array([o_uip.tropomiPars['ring_sf_BAND3']])
+        elif state_element_name == 'TROPOMIRINGSFBAND7':
+            return np.array([o_uip.tropomiPars['ring_sf_BAND7']])
+        elif state_element_name == 'TROPOMIRESSCALEO0BAND2':
+            return np.array([o_uip.tropomiPars['resscale_O0_BAND2']])
+        elif state_element_name == 'TROPOMIRESSCALEO1BAND2':
+            return np.array([o_uip.tropomiPars['resscale_O1_BAND2']])
+        elif state_element_name == 'TROPOMIRESSCALEO2BAND2':
+            return np.array([o_uip.tropomiPars['resscale_O2_BAND2']])
+        elif state_element_name == 'TROPOMIRESSCALEO0BAND3':
+            return np.array([o_uip.tropomiPars['resscale_O0_BAND3']])
+        elif state_element_name == 'TROPOMIRESSCALEO1BAND3':
+            return np.array([o_uip.tropomiPars['resscale_O1_BAND3']])
+        elif state_element_name == 'TROPOMIRESSCALEO2BAND3':
+            return np.array([o_uip.tropomiPars['resscale_O2_BAND3']])
+        elif state_element_name == 'TROPOMITEMPSHIFTBAND3':
+            return np.array([o_uip.tropomiPars['temp_shift_BAND3']])
+        elif state_element_name == 'TROPOMIRESSCALEO0BAND7':
+            return np.array([o_uip.tropomiPars['resscale_O0_BAND7']])
+        elif state_element_name == 'TROPOMIRESSCALEO1BAND7':
+            return np.array([o_uip.tropomiPars['resscale_O1_BAND7']])
+        elif state_element_name == 'TROPOMIRESSCALEO2BAND7':
+            return np.array([o_uip.tropomiPars['resscale_O2_BAND7']])
+        elif state_element_name == 'TROPOMITEMPSHIFTBAND7':
+            return np.array([o_uip.tropomiPars['temp_shift_BAND7']])
+        elif state_element_name == 'TROPOMITEMPSHIFTBAND3TIGHT':
+            return np.array([o_uip.tropomiPars['temp_shift_BAND3']])
+        elif state_element_name == 'TROPOMICLOUDSURFACEALBEDO':
+            return np.array([o_uip.tropomiPars['cloud_Surface_Albedo']])
+        else:
+            raise RuntimeError(f"Don't recognize {state_element_name}")
+        
+class CurrentStateDict(CurrentState):
+    '''Implementation of CurrentState that just takes a dictionary of state elements
+    and list of retrieval elements.'''
+    def __init__(self, state_element_dict : dict, retrieval_element : list):
+        '''This takes a dictionary from state element name to value, and a list of
+        retrieval elements. This is useful for creating unit tests that don't depend
+        on other objects.
+
+        Note both self.state_element_dict and self.retrieval_element can be updated
+        if desired, if for whatever reason we want to add/tweak the data.'''
+        self.state_element_dict = state_element_dict
+        self.retrieval_element = retrieval_element
+
+    @property
+    def fm_sv_loc(self):
+        res = {}
+        pstart = 0
+        for state_element_name in self.retrieval_element:
+            plen = len(self.full_state_value(state_element_name))
+            res[state_element_name] = (pstart, plen)
+            pstart += plen
+        return res
+
+    @property
+    def fm_state_vector_size(self):
+        return sum(len(self.full_state_value(nm)) for nm in self.retrieval_element)
+
+    def full_state_value(self, state_element_name) -> np.array:
+        '''Return the full state value for the given state element name.
+        Just as a convention we always return a np.array, so if there is only one value
+        put that in a length 1 np.array.'''
+        v = self.state_element_dict[state_element_name]
+        if(isinstance(v, np.ndarray)):
+            return v
+        elif(isinstance(v, list)):
+            return np.array(v)
+        return np.array([v,])
+    
+__all__ = ["CurrentState", "CurrentStateUip", "CurrentStateDict"]    
         
         
 
