@@ -84,7 +84,8 @@ def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
     pixel_index = 5
     fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
     stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesCrisObservation(fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
+    obs = MusesCrisObservation.create_from_filename(fname, granule, xtrack, atrack,
+                                                    pixel_index, osp_dir=osp_dir)
     step_number = 12
     iteration = 2
     rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,

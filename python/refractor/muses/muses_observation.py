@@ -404,6 +404,12 @@ class MusesAirsObservation(MusesObservationImp):
     @classmethod
     def create_from_filename(cls, filename, granule, xtrack, atrack, filter_list,
                              osp_dir=None):
+        '''Create from just the filenames. Note that spectral window doesn't get
+        set here, but this can be useful if you just want access to the underlying
+        data.
+
+        You might also want to use create_from_id, which sets up everything
+        (spectral window, coefficients, attaching to a fm_sv).'''
         o_airs, sdesc = cls._read_data(filename, granule, xtrack, atrack, filter_list,
                                        osp_dir=osp_dir)
         return cls(o_airs, sdesc)
@@ -431,7 +437,6 @@ class MusesAirsObservation(MusesObservationImp):
             o_airs, sdesc = cls._read_data(filename, granule, xtrack, atrack, filter_list,
                                            osp_dir=osp_dir)
             obs = cls(o_airs, sdesc)
-        # May move this into constructor, but have here now
         obs.spectral_window_with_bad_sample = spec_win
         swin = copy.deepcopy(spec_win)
         if(not include_bad_sample):
@@ -465,15 +470,21 @@ class MusesAirsObservation(MusesObservationImp):
 
 
 class MusesCrisObservation(MusesObservationImp):
-    def __init__(self, filename, granule, xtrack, atrack, pixel_index, osp_dir=None):
+    def __init__(self, o_cris, sdesc, num_channels=1, coeff=None,mp=None):
+        '''Note you don't normally create an object of this class with the
+        __init__. Instead, call one of the create_xxx class methods.'''
+        super().__init__(o_cris, sdesc)
+
+    @classmethod
+    def _read_data(cls, filename, granule, xtrack, atrack, pixel_index, osp_dir=None):
         i_fileid = {'CRIS_filename' : os.path.abspath(filename),
                     'CRIS_XTrack_Index' : xtrack,
                     'CRIS_ATrack_Index' : atrack,
                     'CRIS_Pixel_Index' : pixel_index,
                     }
-        self.filename = os.path.abspath(filename)
+        filename = os.path.abspath(filename)
         with(osp_setup(osp_dir)):
-            if(self.l1b_type in ('snpp_fsr', 'noaa_fsr')):
+            if(cls.l1b_type_from_filename(filename) in ('snpp_fsr', 'noaa_fsr')):
                o_cris = read_noaa_cris_fsr(i_fileid)
             else:
                o_cris = mpy.read_nasa_cris_fsr(i_fileid)
@@ -483,37 +494,36 @@ class MusesCrisObservation(MusesObservationImp):
         # We can perhaps clean this up, but for now there is some metadata  written
         # in the output file that depends on getting the l1b_type through o_cris,
         # so set that up
-        o_cris['l1bType'] = self.l1b_type
+        o_cris['l1bType'] = cls.l1b_type_from_filename(filename)
         sdesc = {
             "CRIS_GRANULE" : np.int16(granule),
             "CRIS_ATRACK_INDEX" : np.int16(atrack),
             "CRIS_XTRACK_INDEX" : np.int16(xtrack),
             "CRIS_PIXEL_INDEX" : np.int16(pixel_index),
             "POINTINGANGLE_CRIS" : abs(o_cris['SCANANG']),
-            "CRIS_L1B_TYPE" : np.int16(self.l1b_type_int)
+            "CRIS_L1B_TYPE" : np.int16(cls.l1b_type_int_from_filename(filename))
         }
-        
-        super().__init__(o_cris, sdesc)
+        return(o_cris, sdesc)
 
 
-    @property
-    def l1b_type_int(self):
+    @classmethod
+    def l1b_type_int_from_filename(cls, filename):
         '''Enumeration used in output metadata for the l1b_type'''
         return ['suomi_nasa_nsr', 'suomi_nasa_fsr', 'suomi_nasa_nomw',
                 'jpss1_nasa_fsr', 'suomi_cspp_fsr','jpss1_cspp_fsr',
-                'jpss2_cspp_fsr'].index(self.l1b_type)
-        
-    @property
-    def l1b_type(self):
+                'jpss2_cspp_fsr'].index(cls.l1b_type_from_filename(filename))
+
+    @classmethod
+    def l1b_type_from_filename(cls, filename):
         '''There are a number of sources for the CRIS data, and two different file format
         types. This determines the l1b_type by looking at the path/filename. This isn't
         particularly robust, it depends on the specific directory structure. However it
         isn't clear what a better way to handle this would be - this is really needed
         metadata that isn't included in the Measurement_ID file but inferred by where the
         CRIS data comes from.'''
-        if 'nasa_nsr' in self.filename:
+        if 'nasa_nsr' in filename:
             return 'suomi_nasa_nsr'
-        elif 'nasa_fsr' in self.filename:
+        elif 'nasa_fsr' in filename:
             return 'suomi_nasa_fsr'
         elif 'jpss_1_fsr' in filename:
             return 'jpss1_nasa_fsr'
@@ -524,9 +534,31 @@ class MusesCrisObservation(MusesObservationImp):
         else:
             raise RuntimeError(f"Don't recognize CRIS file type from path/filename {self.filename}")
 
+    @property
+    def l1b_type_int(self):
+        return self.l1b_type_int_from_filename(self.filename)
+        
+    @property
+    def l1b_type(self):
+        return self.l1b_type_from_filename(self.filename)
+    
     def desc(self):
         return "MusesCrisObservation"
 
+    @classmethod
+    def create_from_filename(cls, filename, granule, xtrack, atrack, pixel_index,
+                             osp_dir=None):
+        '''Create from just the filenames. Note that spectral window doesn't get
+        set here, but this can be useful if you just want access to the underlying
+        data.
+
+        You might also want to use create_from_id, which sets up everything
+        (spectral window, coefficients, attaching to a fm_sv).'''
+        o_cris, sdesc = cls._read_data(filename, granule, xtrack, atrack, pixel_index,
+                                       osp_dir=osp_dir)
+        return cls(o_cris, sdesc)
+        
+    
     @classmethod
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
@@ -535,14 +567,20 @@ class MusesCrisObservation(MusesObservationImp):
                        fm_sv: rf.StateVector,
                        include_bad_sample=False,
                        osp_dir=None):
-        filter_list = mid.filter_list["CRIS"]
-        filename = mid.filename('CRIS_filename')
-        granule = mid.value("CRIS_Granule")
-        xtrack = mid.value_int('CRIS_XTrack_Index')
-        atrack = mid.value_int('CRIS_ATrack_Index')
-        pixel_index = mid.value_int('CRIS_Pixel_Index')
-        obs = cls(filename, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
-        # May move this into constructor, but have here now
+        if(existing_obs is not None):
+            # Take data from existing observation
+            obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
+                      num_channels=existing_obs.num_channels)
+        else:
+            filter_list = mid.filter_list["CRIS"]
+            filename = mid.filename('CRIS_filename')
+            granule = mid.value("CRIS_Granule")
+            xtrack = mid.value_int('CRIS_XTrack_Index')
+            atrack = mid.value_int('CRIS_ATrack_Index')
+            pixel_index = mid.value_int('CRIS_Pixel_Index')
+            o_cris, sdesc = cls._read_data(filename, granule, xtrack, atrack,
+                                           pixel_index, osp_dir=osp_dir)
+            obs = cls(o_cris, sdesc)
         obs.spectral_window_with_bad_sample = spec_win
         swin = copy.deepcopy(spec_win)
         if(not include_bad_sample):

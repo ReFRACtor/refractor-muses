@@ -237,7 +237,8 @@ def joint_tropomi_obs_step_12(osp_dir):
     atrack = 4
     pixel_index = 5
     fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
-    obscris = MusesCrisObservation(fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
+    obscris = MusesCrisObservation.create_from_filename(
+        fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
     swin = stable.spectral_window("CRIS", stp=12+1)
     swin.bad_sample_mask(obscris.bad_sample_mask(0), 0)
     obscris.spectral_window = swin
