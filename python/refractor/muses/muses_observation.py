@@ -198,11 +198,11 @@ class MusesObservation(rf.ObservationSvImpBase):
     
 class MusesObservationImp(MusesObservation):
     '''Common behavior for each of the MusesObservation classes we have'''
-    def __init__(self, muses_py_dict, sdesc, num_channels=1, coeff=None,which_retrieved=None):
+    def __init__(self, muses_py_dict, sdesc, num_channels=1, coeff=None,mp=None):
         if(coeff is None):
             super().__init__([])
         else:
-            super().__init__(coeff, rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
+            super().__init__(coeff, mp)
         self.muses_py_dict = muses_py_dict
         self._spectral_window = None
         self._spectral_window_with_bad_sample = None
@@ -334,22 +334,22 @@ class MusesObservationHandle(ObservationHandle):
         self.obs_cls = obs_cls
         # Keep the same observation around as long as the target doesn't
         # change - we just update the spectral windows.
-        self.obs = None
+        self.existing_obs = None
         self.measurement_id = None
 
     def __getstate__(self):
         # If we pickle, don't include the stashed obs
         attributes = self.__dict__.copy()
-        del attributes['obs']
+        del attributes['existing_obs']
         return attributes
 
     def __setstate__(self, state):
         self.__dict__ = state
-        self.obs = None
+        self.existing_obs = None
 
     def notify_update_target(self, measurement_id : MeasurementId):
         # Need to read new data when the target changes
-        self.obs = None
+        self.existing_obs = None
         self.measurement_id = measurement_id
         
     def observation(self, instrument_name : str,
@@ -358,28 +358,29 @@ class MusesObservationHandle(ObservationHandle):
                     fm_sv: rf.StateVector,
                     include_bad_sample=False,
                     osp_dir=None,
-                    rs=None,    # Short term, we pass in RetrievalStategy. This will go
-                                # away, but we use this as a transition
                     **kwargs):
         if(instrument_name != self.instrument_name):
             return None
         
-        # Short term, create a completely new object. We'll want to update this
-        # to handle intelligent cloning because we don't want to read the files each
-        # time. But short term set that aside so we can work on other pieces before getting
-        # to this.
-        self.obs = None
-        
-        if(self.obs is None):
-            self.obs = self.obs_cls.create_from_id(self.measurement_id,
-                                                   self.obs,
-                                                   current_state, spec_win, fm_sv,
-                                                   include_bad_sample=include_bad_sample,
-                                                   osp_dir=osp_dir)
-        return self.obs
+        obs = self.obs_cls.create_from_id(self.measurement_id,
+                                          self.existing_obs,
+                                          current_state, spec_win, fm_sv,
+                                          include_bad_sample=include_bad_sample,
+                                          osp_dir=osp_dir)
+        if(self.existing_obs is None):
+            self.existing_obs = obs
+        return obs
         
 class MusesAirsObservation(MusesObservationImp):
-    def __init__(self, filename, granule, xtrack, atrack, filter_list, osp_dir=None):
+    def __init__(self, o_airs, sdesc, num_channels=1, coeff=None,mp=None):
+        '''Note you don't normally create an object of this class with the
+        __init__. Instead, call one of the create_xxx class methods.'''
+        super().__init__(o_airs, sdesc)
+
+
+    @classmethod
+    def _read_data(cls, filename, granule, xtrack, atrack, filter_list,
+                   osp_dir=None):
         i_fileid = {}
         i_fileid['preferences'] = {'AIRS_filename' : os.path.abspath(filename),
                                    'AIRS_XTrack_Index' : xtrack,
@@ -395,10 +396,18 @@ class MusesAirsObservation(MusesObservationImp):
             "AIRS_XTRACK_INDEX" : np.int16(xtrack),
             "POINTINGANGLE_AIRS" : abs(o_airs['scanAng'])
         }
-        super().__init__(o_airs, sdesc)
+        return (o_airs, sdesc)
 
     def desc(self):
         return "MusesAirsObservation"
+
+    @classmethod
+    def create_from_filename(cls, filename, granule, xtrack, atrack, filter_list,
+                             osp_dir=None):
+        o_airs, sdesc = cls._read_data(filename, granule, xtrack, atrack, filter_list,
+                                       osp_dir=osp_dir)
+        return cls(o_airs, sdesc)
+        
 
     @classmethod
     def create_from_id(cls, mid : MeasurementId,
@@ -408,12 +417,20 @@ class MusesAirsObservation(MusesObservationImp):
                        fm_sv: rf.StateVector,
                        include_bad_sample=False,
                        osp_dir=None):
-        filter_list = mid.filter_list["AIRS"]
-        filename = mid.filename('AIRS_filename')
-        granule = mid.value('AIRS_Granule')
-        xtrack = mid.value_int('AIRS_XTrack_Index')
-        atrack = mid.value_int('AIRS_ATrack_Index')
-        obs = cls(filename, granule, xtrack, atrack, filter_list, osp_dir=osp_dir)
+        if(existing_obs is not None):
+            # Take data from existing observation
+            obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
+                      num_channels=existing_obs.num_channels)
+        else:
+            # Read the data from disk, because it doesn't already exist.
+            filter_list = mid.filter_list["AIRS"]
+            filename = mid.filename('AIRS_filename')
+            granule = mid.value('AIRS_Granule')
+            xtrack = mid.value_int('AIRS_XTrack_Index')
+            atrack = mid.value_int('AIRS_ATrack_Index')
+            o_airs, sdesc = cls._read_data(filename, granule, xtrack, atrack, filter_list,
+                                           osp_dir=osp_dir)
+            obs = cls(o_airs, sdesc)
         # May move this into constructor, but have here now
         obs.spectral_window_with_bad_sample = spec_win
         swin = copy.deepcopy(spec_win)
@@ -642,9 +659,9 @@ class MusesObservationReflectance(MusesObservationImp):
     def __init__(self, muses_py_dict, sdesc, filter_list):
         self.filter_list = filter_list
         coeff = np.zeros((len(self.filter_list)*3))
-        which_retrieved = [True,]*(len(self.filter_list)*3)
+        mp = rf.StateMappingLinear()
         super().__init__(muses_py_dict, sdesc, num_channels=len(self.filter_list),
-                         coeff=coeff, which_retrieved=which_retrieved)
+                         coeff=coeff, mp=mp)
 
         # Stash some values we use in later calculations. Note that the radiance data
         # is all smooshed together, so we separate this.

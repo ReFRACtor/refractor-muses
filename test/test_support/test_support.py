@@ -272,8 +272,8 @@ def joint_omi_obs_step_8(osp_dir):
     xtrack = 29
     atrack = 49
     fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
-    obs_airs = MusesAirsObservation(fname, granule, xtrack, atrack, channel_list,
-                                  osp_dir=osp_dir)
+    obs_airs = MusesAirsObservation.create_from_filename(
+        fname, granule, xtrack, atrack, channel_list, osp_dir=osp_dir)
     swin = stable.spectral_window("AIRS", stp=8+1)
     swin.bad_sample_mask(obs_airs.bad_sample_mask(0), 0)
     obs_airs.spectral_window = swin
