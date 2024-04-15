@@ -202,6 +202,8 @@ class MusesObservationImp(MusesObservation):
         if(coeff is None):
             super().__init__([])
         else:
+            if(mp is None):
+                raise RuntimeError("Both coeff and mp need to be None or not None")
             super().__init__(coeff, mp)
         self.muses_py_dict = muses_py_dict
         self._spectral_window = None
@@ -694,49 +696,67 @@ class MusesObservationReflectance(MusesObservationImp):
 
     This object captures the common behavior between the two.
     '''
-    def __init__(self, muses_py_dict, sdesc, filter_list):
+    def __init__(self, muses_py_dict, sdesc, filter_list,
+                 existing_obs=None, coeff=None, mp=None):
         self.filter_list = filter_list
-        coeff = np.zeros((len(self.filter_list)*3))
-        mp = rf.StateMappingLinear()
+        # Placeholder values if not passed in
+        if(coeff is None):
+            coeff = np.zeros((len(self.filter_list)*3))
+            mp = rf.StateMappingLinear()
         super().__init__(muses_py_dict, sdesc, num_channels=len(self.filter_list),
                          coeff=coeff, mp=mp)
 
-        # Stash some values we use in later calculations. Note that the radiance data
-        # is all smooshed together, so we separate this.
-        #
-        # It isn't clear here if the best indexing is the full instrument (so 8 bands) with
-        # only some of the bands filled in, or instead the index number into the passed
-        # in filter_list. For now, we are using the index into the filter_list. We can possibly
-        # reevaluate this - it wouldn't be huge change in the code we have here.
-        self._freq_data = []
-        self._nesr_data = []
-        self._bsamp = []
+        # Grab values from existing_obs if available
+        if(existing_obs is not None):
+            self._freq_data = existing_obs._freq_data
+            self._nesr_data = existing_obs._nesr_data
+            self._bsamp = existing_obs._bsamp
+            self._solar_interp = existing_obs._solar_interp
+            self._earth_rad = existing_obs._earth_rad
+            self._nesr = existing_obs._nesr
+        else:
+            # Stash some values we use in later calculations. Note that the radiance data
+            # is all smooshed together, so we separate this.
+            #
+            # It isn't clear here if the best indexing is the full
+            # instrument (so 8 bands) with only some of the bands filled in, or
+            # instead the index number into the passed in filter_list. For now, we
+            # are using the index into the filter_list. We can possibly
+            # reevaluate this - it wouldn't be huge change in the code we have here.
+            self._freq_data = []
+            self._nesr_data = []
+            self._bsamp = []
+            self._solar_interp = []
+            self._earth_rad = []
+            self._nesr = []
+            erad = muses_py_dict['Earth_Radiance']
+            srad = muses_py_dict['Solar_Radiance']
+            for i,flt in enumerate(filter_list):
+                flt_sub = (erad['EarthWavelength_Filter'] == flt)
+                self._freq_data.append(erad['Wavelength'][flt_sub])
+                self._nesr_data.append(erad['EarthRadianceNESR'][flt_sub])
+                self._bsamp.append(
+                    (erad['EarthRadianceNESR'][flt_sub] <= 0.0)  |
+                    (srad['AdjustedSolarRadiance'][flt_sub]<=0.0))
+                self._earth_rad.append(erad['CalibratedEarthRadiance'][flt_sub])
+                self._nesr.append(erad['EarthRadianceNESR'][flt_sub])
+                # Create a interpolator for the solar model, only using good data.
+                solar_data = srad['AdjustedSolarRadiance'][flt_sub]
+                orgwav_good = self._freq_data[i][self.bad_sample_mask(i) != True]
+                solar_good = solar_data[self.bad_sample_mask(i) != True]
+                self._solar_interp.append(LinearInterpolate(orgwav_good, solar_good))
+
+        # Always create a new _solar_wav and _norm_rad_wav because the dispersion
+        # will have independent values
         self._solar_wav = []
         self._norm_rad_wav = []
-        self._solar_interp = []
-        self._earth_rad = []
-        self._nesr = []
         for i,flt in enumerate(filter_list):
-            flt_sub = (muses_py_dict['Earth_Radiance']['EarthWavelength_Filter'] == flt)
-            self._freq_data.append(muses_py_dict['Earth_Radiance']['Wavelength'][flt_sub])
-            self._nesr_data.append(muses_py_dict['Earth_Radiance']['EarthRadianceNESR'][flt_sub])
-            self._bsamp.append(
-                (muses_py_dict['Earth_Radiance']['EarthRadianceNESR'][flt_sub] <= 0.0)  |
-                 (muses_py_dict['Solar_Radiance']['AdjustedSolarRadiance'][flt_sub]<=0.0))
-            self._earth_rad.append(muses_py_dict['Earth_Radiance']['CalibratedEarthRadiance'][flt_sub])
-            self._nesr.append(muses_py_dict['Earth_Radiance']['EarthRadianceNESR'][flt_sub])
-            self._solar_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
-                                                   self, 0*len(self.filter_list)+i, None,
-                                                   order=1))
-            self._norm_rad_wav.append(MusesDispersion(self._freq_data[i], self.bad_sample_mask(i),
-                                                      self, 1*len(self.filter_list)+i,
-                                                      2*len(self.filter_list)+i,
-                                                      order=2))
-            # Create a interpolator for the solar model, only using good data.
-            solar_data = muses_py_dict['Solar_Radiance']['AdjustedSolarRadiance'][flt_sub]
-            orgwav_good = self._freq_data[i][self.bad_sample_mask(i) != True]
-            solar_good = solar_data[self.bad_sample_mask(i) != True]
-            self._solar_interp.append(LinearInterpolate(orgwav_good, solar_good))
+            self._solar_wav.append(MusesDispersion(
+                self._freq_data[i], self.bad_sample_mask(i), self,
+                0*len(self.filter_list)+i, None, order=1))
+            self._norm_rad_wav.append(MusesDispersion(
+                self._freq_data[i], self.bad_sample_mask(i), self,
+                1*len(self.filter_list)+i, 2*len(self.filter_list)+i, order=2))
 
     def desc(self):
         return "MusesObservationReflectance"
@@ -819,7 +839,15 @@ class MusesObservationReflectance(MusesObservationImp):
 
 class MusesTropomiObservation(MusesObservationReflectance):
     '''Observation for Tropomi'''
-    def __init__(self, filename_list, irr_filename, cld_filename, xtrack_list, atrack,
+    def __init__(self, muses_py_dict, sdesc, filter_list,
+                 existing_obs=None, coeff=None, mp=None):
+        '''Note you don't normally create an object of this class with the
+        __init__. Instead, call one of the create_xxx class methods.'''
+        super().__init__(muses_py_dict, sdesc, filter_list, existing_obs=existing_obs,
+                         coeff=coeff, mp=mp)
+
+    @classmethod
+    def _read_data(cls, filename_list, irr_filename, cld_filename, xtrack_list, atrack,
                  utc_time, filter_list, calibration_filename=None, osp_dir=None):
         # Filter list should be in the same order as filename_list, and should be
         # things like "BAND3"
@@ -853,11 +881,21 @@ class MusesTropomiObservation(MusesObservationReflectance):
             sdesc[f'TROPOMI_XTRACK_INDEX_{flt}'] = np.int16(xtrack_list[i])
             # Think this is right
             sdesc[f'POINTINGANGLE_TROPOMI_{flt}'] = o_tropomi["Earth_Radiance"]["ObservationTable"]["ViewingZenithAngle"][i]
-        super().__init__(o_tropomi, sdesc, filter_list)
+        return (o_tropomi, sdesc)
 
     def desc(self):
         return "MusesTropomiObservation"
 
+    @classmethod
+    def create_from_filename(cls, filename_list, irr_filename, cld_filename, xtrack_list,
+                             atrack, utc_time, filter_list, calibration_filename=None,
+                             osp_dir=None):
+        o_tropomi, sdesc = cls._read_data(
+            filename_list, irr_filename, cld_filename, xtrack_list,
+            atrack, utc_time, filter_list, calibration_filename=calibration_filename,
+            osp_dir=osp_dir)
+        return cls(o_tropomi, sdesc, filter_list)
+    
     @classmethod
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
@@ -866,28 +904,36 @@ class MusesTropomiObservation(MusesObservationReflectance):
                        fm_sv: rf.StateVector,
                        include_bad_sample=False,
                        osp_dir=None):
-        filter_list = mid.filter_list["TROPOMI"]
-        if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
-            raise RuntimeError("Don't support calibration files yet")
-        irr_filename = mid.filename('TROPOMI_IRR_filename')
-        cld_filename = mid.filename('TROPOMI_Cloud_filename')
-        atrack = mid.value_int('TROPOMI_ATrack_Index')
-        utc_time = mid.value('TROPOMI_utcTime')
-        filename_list = [mid.filename(f"TROPOMI_filename_{flt}")
-                         for flt in filter_list]
-        xtrack_list = [mid.value_int(f"TROPOMI_XTrack_Index_{flt}")
-                       for flt in filter_list]
-        obs = cls(filename_list, irr_filename, cld_filename, xtrack_list, atrack,
-                  utc_time, filter_list, osp_dir=osp_dir)
-        # May move this into constructor, but have here now
+        if(existing_obs is not None):
+            # Take data from existing observation
+            coeff, mp = current_state.object_state(existing_obs.state_element_name_list())
+            obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
+                      existing_obs.filter_list, existing_obs=existing_obs,
+                      coeff=coeff, mp=mp)
+        else:
+            filter_list = mid.filter_list["TROPOMI"]
+            coeff,mp=current_state.object_state(cls.state_element_name_list_from_filter(filter_list))
+            if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
+                raise RuntimeError("Don't support calibration files yet")
+            irr_filename = mid.filename('TROPOMI_IRR_filename')
+            cld_filename = mid.filename('TROPOMI_Cloud_filename')
+            atrack = mid.value_int('TROPOMI_ATrack_Index')
+            utc_time = mid.value('TROPOMI_utcTime')
+            filename_list = [mid.filename(f"TROPOMI_filename_{flt}")
+                             for flt in filter_list]
+            xtrack_list = [mid.value_int(f"TROPOMI_XTrack_Index_{flt}")
+                           for flt in filter_list]
+            o_tropomi, sdesc = cls._read_data(
+                filename_list, irr_filename, cld_filename, xtrack_list, atrack,
+                utc_time, filter_list, osp_dir=osp_dir)
+            obs = cls(o_tropomi, sdesc,filter_list, coeff=coeff, mp=mp)
+
         obs.spectral_window_with_bad_sample = spec_win
         swin = copy.deepcopy(spec_win)
         if(not include_bad_sample):
             for i in range(obs.num_channels):
                 swin.bad_sample_mask(obs.bad_sample_mask(i), i)
         obs.spectral_window = swin
-        coeff, mp = current_state.object_state(obs.state_element_name_list())
-        obs.init(coeff, mp)
         current_state.add_fm_state_vector_if_needed(
             fm_sv, obs.state_element_name_list(), [obs,])
         return obs
@@ -895,18 +941,24 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def snr_uplimit(self, sensor_index):
         '''Upper limit for SNR, we adjust uncertainty is we are greater than this.'''
         return 500.0
+
+    @classmethod
+    def state_element_name_list_from_filter(cls, filter_list):
+        '''List of state element names for this observation'''
+        res = []
+        for flt in filter_list:
+            res.append(f"TROPOMISOLARSHIFT{flt}")
+        for flt in filter_list:
+            res.append(f"TROPOMIRADIANCESHIFT{flt}")
+        for flt in filter_list:
+            res.append(f"TROPOMIRADSQUEEZE{flt}")
+        return res
+        
     
     def state_element_name_list(self):
         '''List of state element names for this observation'''
-        res = []
-        for flt in self.filter_list:
-            res.append(f"TROPOMISOLARSHIFT{flt}")
-        for flt in self.filter_list:
-            res.append(f"TROPOMIRADIANCESHIFT{flt}")
-        for flt in self.filter_list:
-            res.append(f"TROPOMIRADSQUEEZE{flt}")
-        return res
-
+        return self.state_element_name_list_from_filter(self.filter_list)
+    
 class MusesOmiObservation(MusesObservationReflectance):
     '''Observation for OMI'''
     def __init__(self, filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,

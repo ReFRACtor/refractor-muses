@@ -141,9 +141,9 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     utc_time = "2019-08-07T06:24:33.584090Z"
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
-                                  xtrack_list, atrack, utc_time, filter_list,
-                                  osp_dir=osp_dir)
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
+        filter_list, osp_dir=osp_dir)
     step_number = 12
     iteration = 2
     rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,

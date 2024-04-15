@@ -161,9 +161,9 @@ def tropomi_obs_step_1(osp_dir):
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
-                                     xtrack_list, atrack, utc_time, filter_list,
-                                     osp_dir=osp_dir)
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
+        filter_list, osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=0)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
@@ -182,9 +182,9 @@ def tropomi_obs_sounding_2_band7(osp_dir):
     utc_time = "2022-06-28T18:07:51.984098Z"
     filter_list = ["BAND7",]
     stable = StrategyTable(f"{tropomi_test_in_dir2}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
-                                     xtrack_list, atrack, utc_time, filter_list,
-                                     osp_dir=osp_dir)
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
+        filter_list, osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=0)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
@@ -203,9 +203,9 @@ def tropomi_obs_step_2(osp_dir):
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
-                                     xtrack_list, atrack, utc_time, filter_list,
-                                     osp_dir=osp_dir)
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
+        filter_list, osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=1)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
@@ -224,9 +224,9 @@ def joint_tropomi_obs_step_12(osp_dir):
     utc_time = "2019-08-07T06:24:33.584090Z"
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
-                                     xtrack_list, atrack, utc_time, filter_list,
-                                     osp_dir=osp_dir)
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
+        filter_list, osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=12+1)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
@@ -321,9 +321,9 @@ def tropomi_obs_band7_swir_step(osp_dir):
     utc_time = "2022-06-28T19:33:47.130000Z"
     filter_list = ["BAND7",]
     stable = StrategyTable(f"{tropomi_band7_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
-                                     xtrack_list, atrack, utc_time, filter_list,
-                                     osp_dir=osp_dir)
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
+        filter_list, osp_dir=osp_dir)
     swin = stable.spectral_window("TROPOMI", stp=0)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
