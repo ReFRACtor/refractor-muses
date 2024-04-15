@@ -2,7 +2,8 @@ from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              StrategyTable, RetrievalStrategy, ObservationHandleSet,
                              MusesCrisObservation,
                              MusesTropomiObservation, MusesOmiObservation,
-                             MeasurementIdFile)
+                             MeasurementIdFile,
+                             CurrentStateDict)
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
                                                MusesCrisObservationOld, MusesAirsObservationOld)
 import refractor.framework as rf
@@ -64,10 +65,13 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    obs = MusesAirsObservation.create_from_rs(rs)
     step_number = 8
     rs.strategy_table.table_step = step_number+1
     swin = rs.strategy_table.spectral_window("AIRS")
+    fm_sv = rf.StateVector()
+    cs = CurrentStateDict(dict(), ["fake",])
+    obs = MusesAirsObservation.create_from_id(rs.measurement_id, None,
+                                              cs, swin, fm_sv, osp_dir=osp_dir)
     swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
     obs.spectral_window = swin
     print(obs.spectral_domain(0).data)
@@ -117,12 +121,13 @@ def test_create_muses_cris_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
     r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    obs = MusesCrisObservation.create_from_rs(rs)
     step_number = 12
     rs.strategy_table.table_step = step_number+1
     swin = rs.strategy_table.spectral_window("CRIS")
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
+    fm_sv = rf.StateVector()
+    cs = CurrentStateDict(dict(), ["fake",])
+    obs = MusesCrisObservation.create_from_id(rs.measurement_id, None,
+                                              cs, swin, fm_sv, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
         
@@ -203,13 +208,14 @@ def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 12
     rs.strategy_table.table_step = step_number+1
-    with rs.chdir_run_dir():
-        rs.state_info.init_state(rs.strategy_table, rs.cost_function_creator,
-                                 ["CRIS", "TROPOMI"], rs.run_dir)
-    obs = MusesTropomiObservation.create_from_rs(rs)
     swin = rs.strategy_table.spectral_window("TROPOMI")
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
+    fm_sv = rf.StateVector()
+    cs = CurrentStateDict({"TROPOMISOLARSHIFTBAND3" : 0.1,
+                           "TROPOMIRADIANCESHIFTBAND3" : 0.2,
+                           "TROPOMIRADSQUEEZEBAND3" : 0.3,}
+                           , ["TROPOMISOLARSHIFTBAND3",])
+    obs = MusesTropomiObservation.create_from_id(rs.measurement_id, None,
+                                              cs, swin, fm_sv, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
     
@@ -304,14 +310,17 @@ def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 8
     rs.strategy_table.table_step = step_number+1
-    with rs.chdir_run_dir():
-        rs.state_info.init_state(rs.strategy_table, rs.cost_function_creator,
-                                 ["AIRS", "OMI"], rs.run_dir)
-    obs = MusesOmiObservation.create_from_rs(rs)
     swin = rs.strategy_table.spectral_window("OMI")
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
-    obs.spectral_window = swin
+    fm_sv = rf.StateVector()
+    cs = CurrentStateDict({"OMINRADWAVUV1" : 0.1,
+                           "OMINRADWAVUV2" : 0.11,
+                           "OMIODWAVUV1" : 0.2,
+                           "OMIODWAVUV2" : 0.21,
+                           "OMIODWAVSLOPEUV1" : 0.3,
+                           "OMIODWAVSLOPEUV2" : 0.31,}
+                           , ["OMINRADWAVUV1",])
+    obs = MusesOmiObservation.create_from_id(rs.measurement_id, None,
+                                              cs, swin, fm_sv, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
     

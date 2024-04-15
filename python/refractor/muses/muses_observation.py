@@ -325,10 +325,6 @@ class MusesObservationImp(MusesObservation):
         # for negative values).
         return np.array(self.nesr_full(sensor_index) < 0)
 
-    def notify_update_rs(self, rs: 'RetrievalStategy'):
-        '''Do anything needed when we are on a new retrieval step. Default is to do nothing.'''
-        pass
-
 
 class MusesObservationHandle(ObservationHandle):
     '''A lot of our observation classes just map a name to
@@ -339,6 +335,7 @@ class MusesObservationHandle(ObservationHandle):
         # Keep the same observation around as long as the target doesn't
         # change - we just update the spectral windows.
         self.obs = None
+        self.measurement_id = None
 
     def __getstate__(self):
         # If we pickle, don't include the stashed obs
@@ -353,12 +350,14 @@ class MusesObservationHandle(ObservationHandle):
     def notify_update_target(self, measurement_id : MeasurementId):
         # Need to read new data when the target changes
         self.obs = None
-
+        self.measurement_id = measurement_id
+        
     def observation(self, instrument_name : str,
                     current_state : 'CurrentState',
                     spec_win : rf.SpectralWindowRange,
                     fm_sv: rf.StateVector,
                     include_bad_sample=False,
+                    osp_dir=None,
                     rs=None,    # Short term, we pass in RetrievalStategy. This will go
                                 # away, but we use this as a transition
                     **kwargs):
@@ -372,26 +371,11 @@ class MusesObservationHandle(ObservationHandle):
         self.obs = None
         
         if(self.obs is None):
-            self.obs = self.obs_cls.create_from_rs(rs)
-
-        # Update the spectral window
-        
-        # Always include a spectral window which doesn't remove bad samples. I'm not
-        # sure how much sense this makes, but py-retrieve has various output that include
-        # bad samples. We might want to remove this in the future, but for now keep the
-        # option of handling this
-        self.obs.spectral_window_with_bad_sample = spec_win
-        swin = copy.deepcopy(spec_win)
-        if(not include_bad_sample):
-            for i in range(self.obs.num_channels):
-                swin.bad_sample_mask(self.obs.bad_sample_mask(i), i)
-        self.obs.spectral_window = swin
-        # Short term
-        self.obs.notify_update_rs(rs)
-
-        # Add to state vector
-        current_state.add_fm_state_vector_if_needed(fm_sv, self.obs.state_element_name_list(),
-                                                    [self.obs,])
+            self.obs = self.obs_cls.create_from_id(self.measurement_id,
+                                                   self.obs,
+                                                   current_state, spec_win, fm_sv,
+                                                   include_bad_sample=include_bad_sample,
+                                                   osp_dir=osp_dir)
         return self.obs
         
 class MusesAirsObservation(MusesObservationImp):
@@ -417,16 +401,29 @@ class MusesAirsObservation(MusesObservationImp):
         return "MusesAirsObservation"
 
     @classmethod
-    def create_from_rs(cls, rs: 'RetrievalStategy'):
-        # Measurement ID may have relative paths, so go ahead and run in that directory
-        with rs.chdir_run_dir():
-            mid = rs.measurement_id
-            filter_list = mid.filter_list["AIRS"]
-            filename = mid.filename('AIRS_filename')
-            granule = mid.value('AIRS_Granule')
-            xtrack = mid.value_int('AIRS_XTrack_Index')
-            atrack = mid.value_int('AIRS_ATrack_Index')
-            return cls(filename, granule, xtrack, atrack, filter_list)
+    def create_from_id(cls, mid : MeasurementId,
+                       existing_obs : 'cls',
+                       current_state: 'CurrentState',
+                       spec_win: rf.SpectralWindowRange,
+                       fm_sv: rf.StateVector,
+                       include_bad_sample=False,
+                       osp_dir=None):
+        filter_list = mid.filter_list["AIRS"]
+        filename = mid.filename('AIRS_filename')
+        granule = mid.value('AIRS_Granule')
+        xtrack = mid.value_int('AIRS_XTrack_Index')
+        atrack = mid.value_int('AIRS_ATrack_Index')
+        obs = cls(filename, granule, xtrack, atrack, filter_list, osp_dir=osp_dir)
+        # May move this into constructor, but have here now
+        obs.spectral_window_with_bad_sample = spec_win
+        swin = copy.deepcopy(spec_win)
+        if(not include_bad_sample):
+            for i in range(obs.num_channels):
+                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
+        obs.spectral_window = swin
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, obs.state_element_name_list(), [obs,])
+        return obs
     
     def radiance_full(self, sensor_index, skip_jacobian=False):
         '''The full list of radiance, before we have removed bad samples or applied the
@@ -514,17 +511,30 @@ class MusesCrisObservation(MusesObservationImp):
         return "MusesCrisObservation"
 
     @classmethod
-    def create_from_rs(cls, rs: 'RetrievalStategy'):
-        # Measurement ID may have relative paths, so go ahead and run in that directory
-        with rs.chdir_run_dir():
-            mid = rs.measurement_id
-            filter_list = mid.filter_list["CRIS"]
-            filename = mid.filename('CRIS_filename')
-            granule = mid.value("CRIS_Granule")
-            xtrack = mid.value_int('CRIS_XTrack_Index')
-            atrack = mid.value_int('CRIS_ATrack_Index')
-            pixel_index = mid.value_int('CRIS_Pixel_Index')
-            return cls(filename, granule, xtrack, atrack, pixel_index)
+    def create_from_id(cls, mid : MeasurementId,
+                       existing_obs : 'cls',
+                       current_state: 'CurrentState',
+                       spec_win: rf.SpectralWindowRange,
+                       fm_sv: rf.StateVector,
+                       include_bad_sample=False,
+                       osp_dir=None):
+        filter_list = mid.filter_list["CRIS"]
+        filename = mid.filename('CRIS_filename')
+        granule = mid.value("CRIS_Granule")
+        xtrack = mid.value_int('CRIS_XTrack_Index')
+        atrack = mid.value_int('CRIS_ATrack_Index')
+        pixel_index = mid.value_int('CRIS_Pixel_Index')
+        obs = cls(filename, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
+        # May move this into constructor, but have here now
+        obs.spectral_window_with_bad_sample = spec_win
+        swin = copy.deepcopy(spec_win)
+        if(not include_bad_sample):
+            for i in range(obs.num_channels):
+                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
+        obs.spectral_window = swin
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, obs.state_element_name_list(), [obs,])
+        return obs
     
     def radiance_full(self, sensor_index, skip_jacobian=False):
         '''The full list of radiance, before we have removed bad samples or applied the
@@ -676,18 +686,6 @@ class MusesObservationReflectance(MusesObservationImp):
     def desc(self):
         return "MusesObservationReflectance"
     
-    def notify_update_rs(self, rs: 'RetrievalStategy'):
-        # Grab all the coefficients from the StateInfo (since some of them might not
-        # be in the state vector), and determine which set will be retrieved.
-        coeff = []
-        which_retrieved = []
-        for nm in self.state_element_name_list():
-            coeff.extend(rs.state_info.state_element(nm).value)
-            which_retrieved.append(nm in rs.strategy_table.retrieval_elements())
-        # Update the coefficients and mapping for this object
-        self.init(np.array(coeff), rf.StateMappingAtIndexes(np.ravel(np.array(which_retrieved))))
-        self._spec = [None,] * self.num_channels
-        
     def frequency_full(self, sensor_index):
         '''The full list of frequency, before we have removed bad samples or applied the
         microwindows.'''
@@ -806,24 +804,39 @@ class MusesTropomiObservation(MusesObservationReflectance):
         return "MusesTropomiObservation"
 
     @classmethod
-    def create_from_rs(cls, rs: 'RetrievalStategy'):
-        # Measurement ID may have relative paths, so go ahead and run in that directory
-        with rs.chdir_run_dir():
-            mid = rs.measurement_id
-            filter_list = mid.filter_list["TROPOMI"]
-            if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
-                raise RuntimeError("Don't support calibration files yet")
-            irr_filename = mid.filename('TROPOMI_IRR_filename')
-            cld_filename = mid.filename('TROPOMI_Cloud_filename')
-            atrack = mid.value_int('TROPOMI_ATrack_Index')
-            utc_time = mid.value('TROPOMI_utcTime')
-            filename_list = [mid.filename(f"TROPOMI_filename_{flt}")
-                             for flt in filter_list]
-            xtrack_list = [mid.value_int(f"TROPOMI_XTrack_Index_{flt}")
-                           for flt in filter_list]
-            return cls(filename_list, irr_filename, cld_filename, xtrack_list, atrack,
-                       utc_time, filter_list)
-
+    def create_from_id(cls, mid : MeasurementId,
+                       existing_obs : 'cls',
+                       current_state: 'CurrentState',
+                       spec_win: rf.SpectralWindowRange,
+                       fm_sv: rf.StateVector,
+                       include_bad_sample=False,
+                       osp_dir=None):
+        filter_list = mid.filter_list["TROPOMI"]
+        if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
+            raise RuntimeError("Don't support calibration files yet")
+        irr_filename = mid.filename('TROPOMI_IRR_filename')
+        cld_filename = mid.filename('TROPOMI_Cloud_filename')
+        atrack = mid.value_int('TROPOMI_ATrack_Index')
+        utc_time = mid.value('TROPOMI_utcTime')
+        filename_list = [mid.filename(f"TROPOMI_filename_{flt}")
+                         for flt in filter_list]
+        xtrack_list = [mid.value_int(f"TROPOMI_XTrack_Index_{flt}")
+                       for flt in filter_list]
+        obs = cls(filename_list, irr_filename, cld_filename, xtrack_list, atrack,
+                  utc_time, filter_list, osp_dir=osp_dir)
+        # May move this into constructor, but have here now
+        obs.spectral_window_with_bad_sample = spec_win
+        swin = copy.deepcopy(spec_win)
+        if(not include_bad_sample):
+            for i in range(obs.num_channels):
+                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
+        obs.spectral_window = swin
+        coeff, mp = current_state.object_state(obs.state_element_name_list())
+        obs.init(coeff, mp)
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, obs.state_element_name_list(), [obs,])
+        return obs
+    
     def snr_uplimit(self, sensor_index):
         '''Upper limit for SNR, we adjust uncertainty is we are greater than this.'''
         return 500.0
@@ -863,20 +876,37 @@ class MusesOmiObservation(MusesObservationReflectance):
         return "MusesOmiObservation"
 
     @classmethod
-    def create_from_rs(cls, rs: 'RetrievalStategy'):
-        # Measurement ID may have relative paths, so go ahead and run in that directory
-        with rs.chdir_run_dir():
-            mid = rs.measurement_id
-            filter_list = mid.filter_list["OMI"]
-            xtrack_uv1 = mid.value_int("OMI_XTrack_UV1_Index")
-            xtrack_uv2 = mid.value_int("OMI_XTrack_UV2_Index")
-            atrack = mid.value_int('OMI_ATrack_Index')
-            filename = mid.filename("OMI_filename")
-            cld_filename = mid.filename('OMI_Cloud_filename')
-            utc_time = mid.value('OMI_utcTime')
-            calibration_filename = mid.filename("omi_calibrationFilename")
-            return cls(filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
-                       calibration_filename, filter_list, cld_filename=cld_filename)
+    def create_from_id(cls, mid : MeasurementId,
+                       existing_obs : 'cls',
+                       current_state: 'CurrentState',
+                       spec_win: rf.SpectralWindowRange,
+                       fm_sv: rf.StateVector,
+                       include_bad_sample=False,
+                       osp_dir=None):
+        filter_list = mid.filter_list["OMI"]
+        xtrack_uv1 = mid.value_int("OMI_XTrack_UV1_Index")
+        xtrack_uv2 = mid.value_int("OMI_XTrack_UV2_Index")
+        atrack = mid.value_int('OMI_ATrack_Index')
+        filename = mid.filename("OMI_filename")
+        cld_filename = mid.filename('OMI_Cloud_filename')
+        utc_time = mid.value('OMI_utcTime')
+        calibration_filename = mid.filename("omi_calibrationFilename")
+        obs = cls(filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
+                  calibration_filename, filter_list, cld_filename=cld_filename,
+                  osp_dir=osp_dir)
+        # May move this into constructor, but have here now
+        obs.spectral_window_with_bad_sample = spec_win
+        swin = copy.deepcopy(spec_win)
+        if(not include_bad_sample):
+            for i in range(obs.num_channels):
+                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
+        obs.spectral_window = swin
+        coeff, mp = current_state.object_state(obs.state_element_name_list())
+        obs.init(coeff, mp)
+        current_state.add_fm_state_vector_if_needed(
+            fm_sv, obs.state_element_name_list(), [obs,])
+        return obs
+        
 
     def snr_uplimit(self, sensor_index):
         '''Upper limit for SNR, we adjust uncertainty is we are greater than this.'''
