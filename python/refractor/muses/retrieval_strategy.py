@@ -8,6 +8,7 @@ from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .strategy_table import StrategyTable
 from .cost_function_creator import CostFunctionCreator
+from .muses_observation import MeasurementIdFile
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .error_analysis import ErrorAnalysis
@@ -129,13 +130,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         when this changes in case they need to clear out any caching.'''
         self.filename = os.path.abspath(filename)
         self.run_dir = os.path.dirname(self.filename)
-        self.measurement_id_file = mpy.tes_file_get_struct(
-            mpy.read_all_tes(f"{self.run_dir}/Measurement_ID.asc")[1])
         self.strategy_table = StrategyTable(self.filename)
-        # TODO Remove passing "self" here, when we get CostFunctionCreator fully cleaned up.
-        self.cost_function_creator.update_target(self.measurement_id_file["preferences"],
-                                                 self.strategy_table.filter_list_all(),
-                                                 self)
+        self.measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
+                                                self.strategy_table)
+        # TODO Remove passing "self" here, when we get CostFunctionCreator fully
+        # cleaned up.
+        self.cost_function_creator.update_target(self.measurement_id, self)
         self.retrieval_strategy_step_set.notify_update_target(self)
         self.state_info.notify_update_target(self)
         self.notify_update("update target")

@@ -14,6 +14,112 @@ def _new_from_init(cls, *args):
     inst.__init__(*args)
     return inst
 
+class MeasurementId(object, metaclass=abc.ABCMeta):
+    '''py-retrieve uses a file called Measurement_ID.asc. This files contains
+    information about the soundings we use. This is mostly just a standard
+    keyword/value set, however there are a few complications:
+
+    1. The names may be relative to the directory that the Measurement_ID.asc file
+       is in, so we need to handle translating this to a full path since we aren't
+       in general in the Measurement_ID.asc directory.
+    2. There may be "associated" files that really logically should live in the
+       Measurement_ID.asc file but don't because it is convenient to store
+       them elsewhere - for example the omi_calibration_filename which comes
+       from the strategy file.
+    3. When reading the data, we often need to know the specific filters we will
+       be working with, e.g., so we only read that data out of the sounding files.
+
+    This class brings this stuff together. It is mostly just a dict mapping
+    keyword to file, but with these extra handling included.
+
+    This class is an abstract interface, it is useful for testing to have a simple
+    implementation that doesn't depend on the Measurement_ID.asc and strategy tables
+    files (e.g., a hardcoded dict with the values).
+    '''
+
+    @abc.abstractproperty
+    def filter_list(self) -> 'list[str]':
+        '''The complete list of filters we will be processing (so for all retrieval steps)
+        '''
+        raise NotImplementedError
+
+    def value_float(self, keyword: str) -> float:
+        '''Value, converted from string to float'''
+        return float(self.value(keyword))
+
+    def value_int(self, keyword: str) -> int:
+        '''Value, converted from string to int'''
+        return int(self.value(keyword))
+
+    @abc.abstractmethod
+    def value(self, keyword: str) -> str:
+        '''Return a value found in the Measurement_ID file, or if not there
+        in the strategy table file.'''
+        raise NotImplementedError
+    
+    @abc.abstractmethod
+    def filename(self, keyword:str) -> str:
+        '''Return a filename found in the Measurement_ID file (handling
+        relative paths), or if not there then in the strategy table file.
+        '''
+
+class MeasurementIdDict(MeasurementId):
+    '''Implementation of MeasurementId that uses a dict'''
+    def __init__(self, measurement_dict : dict, filter_list: list):
+        self.measurement_dict = measurement_dict
+        self._filter_list = filter_list
+
+    @property
+    def filter_list(self) -> 'list[str]':
+        '''The complete list of filters we will be processing (so for all retrieval steps)
+        '''
+        return self._filter_list
+
+    def value(self, keyword: str) -> str:
+        return self.measurement_dict[value]
+
+    def filename(self, keyword:str) -> str:
+        # Assume we've already handled any relative paths when filling in measurement_dict
+        return self.value(keyword)
+        
+class MeasurementIdFile(MeasurementId):
+    '''Implementation of MeasurementId that uses the Measurement_ID.asc file.'''
+    def __init__(self, fname, strategy_table: 'StrategyTable'):
+        self.fname = fname
+        self._dir_relative_to = os.path.abspath(os.path.dirname(self.fname))
+        self._p = mpy.tes_file_get_struct(mpy.read_all_tes(self.fname)[1])["preferences"]
+        self._filter_list = strategy_table.filter_list_all()
+        self._strategy_table = strategy_table
+    
+    @property
+    def filter_list(self) -> 'list[str]':
+        '''The complete list of filters we will be processing (so for all retrieval steps)
+        '''
+        return self._filter_list
+
+    def value(self, keyword: str) -> str:
+        '''Return a value found in the Measurement_ID file, or if not there
+        in the strategy table file.'''
+        if(keyword in self._p):
+            return self._p[keyword]
+        if(keyword in self._strategy_table.preferences):
+            return self._strategy_table.preferences[keyword]
+        raise KeyError(keyword)
+
+    def filename(self, keyword:str) -> str:
+        '''Return a filename found in the Measurement_ID file (handling
+        relative paths), or if not there then in the strategy table file.
+        '''
+        if(keyword in self._p):
+            fname = self._p[keyword]
+            if(os.path.isabs(fname)):
+                return fname
+            return os.path.normpath(os.path.join(self._dir_relative_to, fname))
+        if(keyword in self._strategy_table.preferences):
+            return self._strategy_table.abs_filename(self._strategy_table.preferences[keyword])
+        raise KeyError(keyword)
+    
+    
 class MusesObservation(rf.ObservationSvImpBase):
     '''The Observation for MUSES is a standard ReFRACtor Observation, with a few
     extra pieces needed by the MUSES code.
@@ -244,7 +350,7 @@ class MusesObservationHandle(ObservationHandle):
         self.__dict__ = state
         self.obs = None
 
-    def notify_update_target(self, measurement_id : dict, filter_list : dict):
+    def notify_update_target(self, measurement_id : MeasurementId):
         # Need to read new data when the target changes
         self.obs = None
 
@@ -314,12 +420,12 @@ class MusesAirsObservation(MusesObservationImp):
     def create_from_rs(cls, rs: 'RetrievalStategy'):
         # Measurement ID may have relative paths, so go ahead and run in that directory
         with rs.chdir_run_dir():
-            filter_list = rs.strategy_table.filter_list("AIRS")
-            p = rs.measurement_id_file['preferences']
-            filename = p['AIRS_filename']
-            granule = p['AIRS_Granule']
-            xtrack = p['AIRS_XTrack_Index']
-            atrack = p['AIRS_ATrack_Index']
+            mid = rs.measurement_id
+            filter_list = mid.filter_list["AIRS"]
+            filename = mid.filename('AIRS_filename')
+            granule = mid.value('AIRS_Granule')
+            xtrack = mid.value_int('AIRS_XTrack_Index')
+            atrack = mid.value_int('AIRS_ATrack_Index')
             return cls(filename, granule, xtrack, atrack, filter_list)
     
     def radiance_full(self, sensor_index, skip_jacobian=False):
@@ -411,12 +517,13 @@ class MusesCrisObservation(MusesObservationImp):
     def create_from_rs(cls, rs: 'RetrievalStategy'):
         # Measurement ID may have relative paths, so go ahead and run in that directory
         with rs.chdir_run_dir():
-            p = rs.measurement_id_file['preferences']
-            filename = p['CRIS_filename']
-            granule = p['CRIS_Granule']
-            xtrack = p['CRIS_XTrack_Index']
-            atrack = p['CRIS_ATrack_Index']
-            pixel_index = p['CRIS_Pixel_Index']
+            mid = rs.measurement_id
+            filter_list = mid.filter_list["CRIS"]
+            filename = mid.filename('CRIS_filename')
+            granule = mid.value("CRIS_Granule")
+            xtrack = mid.value_int('CRIS_XTrack_Index')
+            atrack = mid.value_int('CRIS_ATrack_Index')
+            pixel_index = mid.value_int('CRIS_Pixel_Index')
             return cls(filename, granule, xtrack, atrack, pixel_index)
     
     def radiance_full(self, sensor_index, skip_jacobian=False):
@@ -702,16 +809,18 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def create_from_rs(cls, rs: 'RetrievalStategy'):
         # Measurement ID may have relative paths, so go ahead and run in that directory
         with rs.chdir_run_dir():
-            p = rs.measurement_id_file['preferences']
-            if(int(p['TROPOMI_Rad_calRun_flag']) != 1):
+            mid = rs.measurement_id
+            filter_list = mid.filter_list["TROPOMI"]
+            if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
                 raise RuntimeError("Don't support calibration files yet")
-            filter_list = rs.strategy_table.filter_list("TROPOMI")
-            irr_filename = p['TROPOMI_IRR_filename']
-            cld_filename = p['TROPOMI_Cloud_filename']
-            atrack = int(p['TROPOMI_ATrack_Index'])
-            utc_time = p['TROPOMI_utcTime']
-            filename_list = [p[f"TROPOMI_filename_{flt}"] for flt in filter_list]
-            xtrack_list = [int(p[f"TROPOMI_XTrack_Index_{flt}"]) for flt in filter_list]
+            irr_filename = mid.filename('TROPOMI_IRR_filename')
+            cld_filename = mid.filename('TROPOMI_Cloud_filename')
+            atrack = mid.value_int('TROPOMI_ATrack_Index')
+            utc_time = mid.value('TROPOMI_utcTime')
+            filename_list = [mid.filename(f"TROPOMI_filename_{flt}")
+                             for flt in filter_list]
+            xtrack_list = [mid.value_int(f"TROPOMI_XTrack_Index_{flt}")
+                           for flt in filter_list]
             return cls(filename_list, irr_filename, cld_filename, xtrack_list, atrack,
                        utc_time, filter_list)
 
@@ -757,15 +866,15 @@ class MusesOmiObservation(MusesObservationReflectance):
     def create_from_rs(cls, rs: 'RetrievalStategy'):
         # Measurement ID may have relative paths, so go ahead and run in that directory
         with rs.chdir_run_dir():
-            p = rs.measurement_id_file['preferences']
-            filter_list = rs.strategy_table.filter_list("OMI")
-            xtrack_uv1 = int(p["OMI_XTrack_UV1_Index"])
-            xtrack_uv2 = int(p["OMI_XTrack_UV2_Index"])
-            atrack = int(p['OMI_ATrack_Index'])
-            filename = p["OMI_filename"]
-            cld_filename = p['OMI_Cloud_filename']
-            utc_time = p['OMI_utcTime']
-            calibration_filename = rs.strategy_table.preferences["omi_calibrationFilename"]
+            mid = rs.measurement_id
+            filter_list = mid.filter_list["OMI"]
+            xtrack_uv1 = mid.value_int("OMI_XTrack_UV1_Index")
+            xtrack_uv2 = mid.value_int("OMI_XTrack_UV2_Index")
+            atrack = mid.value_int('OMI_ATrack_Index')
+            filename = mid.filename("OMI_filename")
+            cld_filename = mid.filename('OMI_Cloud_filename')
+            utc_time = mid.value('OMI_utcTime')
+            calibration_filename = mid.filename("omi_calibrationFilename")
             return cls(filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
                        calibration_filename, filter_list, cld_filename=cld_filename)
 
@@ -825,4 +934,5 @@ ObservationHandleSet.add_default_handle(MusesObservationHandle("OMI",
 
 __all__ = ["MusesAirsObservation", "MusesObservation", "MusesObservationHandle",
            "MusesCrisObservation", "MusesObservationReflectance",
-           "MusesTropomiObservation", "MusesOmiObservation"]
+           "MusesTropomiObservation", "MusesOmiObservation", "MeasurementId",
+           "MeasurementIdDict", "MeasurementIdFile"]

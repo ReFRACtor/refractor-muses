@@ -57,7 +57,7 @@ class StrategyTable:
     @property
     def spectral_filename(self):
         with self.chdir_run_dir():
-            return os.path.abspath(mpy.table_get_spectral_filename(self.strategy_table_dict, self.table_step))
+            return self.abs_filename(mpy.table_get_spectral_filename(self.strategy_table_dict, self.table_step))
 
     def ils_method(self, instrument_name):
         if(instrument_name == "OMI"):
@@ -75,11 +75,16 @@ class StrategyTable:
     def cloud_parameters_filename(self):
         return self.abs_filename(self.preferences['CloudParameterFilename'])
     
-    def abs_filename(self, rel_filename):
+    def abs_filename(self, filename):
         '''Translate a relative path found in the StrategyTable to a
         absolute path.'''
-        with self.chdir_run_dir():
-            return os.path.abspath(rel_filename)
+        if(os.path.isabs(filename)):
+            return filename
+        if(self.osp_dir is not None):
+            reldir = self.osp_dir
+        else:
+            reldir = os.path.dirname(self.filename)
+        return os.path.normpath(os.path.join(reldir, filename))
     
     @contextmanager
     def chdir_run_dir(self):
@@ -88,7 +93,11 @@ class StrategyTable:
         that is the case. Uses this as a context manager
         '''
         # If we have an osp_dir, then set up a temporary directory with the OSP
-        # set up
+        # set up.
+        # TODO Would be nice to remove this. I think we'll need to look into
+        # py-retrieval to do this, but this temporary directory is really an
+        # kludge - it would be nice to handle relative paths in the strategy
+        # table directly.
         if(self.osp_dir is not None):
             with osp_setup(osp_dir=self.osp_dir):
                 yield

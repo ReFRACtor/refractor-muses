@@ -1,11 +1,23 @@
 from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              StrategyTable, RetrievalStrategy, ObservationHandleSet,
                              MusesCrisObservation,
-                             MusesTropomiObservation, MusesOmiObservation)
+                             MusesTropomiObservation, MusesOmiObservation,
+                             MeasurementIdFile)
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
                                                MusesCrisObservationOld, MusesAirsObservationOld)
 import refractor.framework as rf
 from test_support import *
+
+def test_measurement_id(isolated_dir, osp_dir, gmao_dir):
+    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
+    print(osp_dir)
+    s = StrategyTable(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
+    mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", s)
+    assert mid.filter_list == {'OMI': ['UV1', 'UV2'], 'AIRS': ['2B1', '1B2', '2A1', '1A1']}
+    assert mid.value_float("OMI_Longitude") == pytest.approx(-154.7512664794922)
+    assert mid.value_int("OMI_XTrack_UV1_Index") == 10
+    assert os.path.basename(mid.filename("OMI_Cloud_filename")) == "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
+    assert mid.filename("omi_calibrationFilename") == f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
 
 def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     channel_list = ['1A1', '2A1', '1B2', '2B1']
@@ -124,8 +136,8 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     filter_list = ["BAND3",]
     stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
     obs = MusesTropomiObservation(filename_list, irr_filename, cld_filename,
-                                     xtrack_list, atrack, utc_time, filter_list,
-                                     osp_dir=osp_dir)
+                                  xtrack_list, atrack, utc_time, filter_list,
+                                  osp_dir=osp_dir)
     step_number = 12
     iteration = 2
     rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,

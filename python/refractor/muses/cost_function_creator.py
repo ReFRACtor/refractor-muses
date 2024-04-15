@@ -26,15 +26,24 @@ class ForwardModelHandle(object, metaclass=abc.ABCMeta):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.
 
-    However, a "newish" object should be created. Specifically we want to be able to
-    attach each object to a separate StateVector and have different SpectralWindowRange set
-    - we want to be able to have more than one CostFunction active at one time and we don't
-    want updates in one CostFunction to affect the others. So this can be thought of as a shallow
-    copy, if that make sense for the object. Things that don't depend on the StateVector can
-    be shared (e.g., data read from a file), but state related parts should be independent.
+    notify_update_target will also be called before the first time the
+    objects are created - basically it makes sense to separate the
+    arguments for notify_update_target and forward_model because they
+    have different scopes (notify_update_target for the full
+    retrieval, forward_model for a retrieval step).
+
+    However, when forward_model is called a "newish" object should be
+    created. Specifically we want to be able to attach each object to
+    a separate StateVector and have different SpectralWindowRange set
+    - we want to be able to have more than one CostFunction active at
+    one time and we don't want updates in one CostFunction to affect
+    the others. So this can be thought of as a shallow copy, if that
+    make sense for the object. Things that don't depend on the
+    StateVector can be shared (e.g., data read from a file), but state
+    related parts should be independent.
     '''
 
-    def notify_update_target(self, measurement_id : dict, filter_list : dict):
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # Default is to do nothing
         pass
@@ -68,14 +77,33 @@ class ForwardModelHandleSet(PriorityHandleSet):
     '''This takes  the instrument name and RefractorUip, and
     creates a ForwardModel and Observation for that instrument.
 
-    Note ForwardModelHandle can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next.'''
-    def notify_update_target(self, measurement_id : dict, filter_list : dict):
+    Note ForwardModelHandle can assume that they are called for the
+    same target, until notify_update_target is called. So if it makes
+    sense, these objects can do internal caching for things that don't
+    change when the target being retrieved is the same from one call
+    to the next.
+
+    notify_update_target will also be called before the first time the
+    objects are created - basically it makes sense to separate the
+    arguments for notify_update_target and forward_model because they
+    have different scopes (notify_update_target for the full
+    retrieval, forward_model for a retrieval step).
+
+    However, when forward_model is called a "newish" object should be
+    created. Specifically we want to be able to attach each object to
+    a separate StateVector and have different SpectralWindowRange set
+    - we want to be able to have more than one CostFunction active at
+    one time and we don't want updates in one CostFunction to affect
+    the others. So this can be thought of as a shallow copy, if that
+    make sense for the object. Things that don't depend on the
+    StateVector can be shared (e.g., data read from a file), but state
+    related parts should be independent.
+
+    '''
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(measurement_id, filter_list)
+                h.notify_update_target(measurement_id)
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
@@ -129,14 +157,23 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.
 
-    However, a "newish" object should be created. Specifically we want to be able to
-    attach each object to a separate StateVector and have different SpectralWindowRange set
-    - we want to be able to have more than one CostFunction active at one time and we don't
-    want updates in one CostFunction to affect the others. So this can be thought of as a shallow
-    copy, if that make sense for the object. Things that don't depend on the StateVector can
-    be shared (e.g., data read from a file), but state related parts should be independent.
+    notify_update_target will also be called before the first time the
+    objects are created - basically it makes sense to separate the
+    arguments for notify_update_target and observation because they
+    have different scopes (notify_update_target for the full
+    retrieval, observation for a retrieval step).
+
+    However, when observation is called a "newish" object should be
+    created. Specifically we want to be able to attach each object to
+    a separate StateVector and have different SpectralWindowRange set
+    - we want to be able to have more than one CostFunction active at
+    one time and we don't want updates in one CostFunction to affect
+    the others. So this can be thought of as a shallow copy, if that
+    make sense for the object. Things that don't depend on the
+    StateVector can be shared (e.g., data read from a file), but state
+    related parts should be independent.
     '''
-    def notify_update_target(self, measurement_id : dict, filter_list : dict):
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # Default is to do nothing
         pass
@@ -160,11 +197,28 @@ class ObservationHandleSet(PriorityHandleSet):
     Note ObservationHandle can assume that they are called for the same target, until
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
-    one call to the next.'''
-    def notify_update_target(self, measurement_id : dict, filter_list : dict):
+    one call to the next.
+
+    notify_update_target will also be called before the first time the
+    objects are created - basically it makes sense to separate the
+    arguments for notify_update_target and observation because they
+    have different scopes (notify_update_target for the full
+    retrieval, observation for a retrieval step).
+
+    However, when observation is called a "newish" object should be
+    created. Specifically we want to be able to attach each object to
+    a separate StateVector and have different SpectralWindowRange set
+    - we want to be able to have more than one CostFunction active at
+    one time and we don't want updates in one CostFunction to affect
+    the others. So this can be thought of as a shallow copy, if that
+    make sense for the object. Things that don't depend on the
+    StateVector can be shared (e.g., data read from a file), but state
+    related parts should be independent.
+    '''
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(measurement_id, filter_list)
+                h.notify_update_target(measurement_id)
         
     def observation(self, instrument_name : str,
                     current_state : 'CurrentState',
@@ -219,41 +273,20 @@ class CostFunctionCreator:
         self.forward_model_handle_set = copy.deepcopy(ForwardModelHandleSet.default_handle_set())
         self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
         self.measurement_id = None
-        self.filter_list = None
         self.rs = None
 
-    def update_target(self, measurement_id : dict, filter_list : dict, rs : 'RetrievalStategy'):
+    def update_target(self, measurement_id : 'MeasurementId', rs : 'RetrievalStategy'):
         '''Set up for processing a target.
 
         Note we separate this out from the cost_function creator
         because we want to allow internal caching based on the
         sounding - e.g., read the input file only once. Ignoring
-        performance, functionally this is just like two extra arguments
+        performance, functionally this is just like an extra argument
         passed to cost_function.
 
-        We take measure_id, which should act like a dict to give us
-        the various sounding id information we need. The canonical
-        version of this is the "preferences" part of a MeasurementID
-        file, but we purposely just take a generic dict like structure
-        so you can run this with requiring a MeasurementID file,
-        e.g. for running stand alone tests.
-
-        Similarly, we take filter_list, which acts like dict. The keys
-        are the instruments we have for this target. These should be in
-        the order desired for the cost function residual (note as of python
-        3.6 the standard dict maintains insertion order - so the ordering
-        should be automatic). This then returns a list of filters for that
-        instrument.
-
-        The filter_list should be the *complete* set of filters
-        needed, so the union of the filter for all the retrieval
-        steps. The canonical way to get that is the
-        StrategyTable.filter_list_all(), but we purposely just take a
-        generic dict like structure so you can run this without requiring
-        a StrategyTable, e.g. for running stand alone tests.
+        We take measure_id, which is a MeasurementId.
         '''
         self.measurement_id = measurement_id
-        self.filter_list = filter_list
         # TODO We want this to go away. But short term leave this here so we can
         # get the code cleaned up in pieces.
         self.rs = rs
@@ -267,8 +300,8 @@ class CostFunctionCreator:
         self.o_oco2 = None
         self._created_o = False
         self._radiance = None
-        self.forward_model_handle_set.notify_update_target(self.measurement_id, self.filter_list)
-        self.observation_handle_set.notify_update_target(self.measurement_id, self.filter_list)
+        self.forward_model_handle_set.notify_update_target(self.measurement_id)
+        self.observation_handle_set.notify_update_target(self.measurement_id)
 
     def create_o_obs(self):
         if(self._created_o):
