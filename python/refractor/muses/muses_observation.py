@@ -6,6 +6,9 @@ import numpy as np
 import refractor.framework as rf
 import abc
 import copy
+import logging
+
+logger = logging.getLogger("py-retrieve")
 
 def _new_from_init(cls, *args):
     '''For use with pickle, covers common case where we just store the
@@ -852,6 +855,8 @@ class MusesTropomiObservation(MusesObservationReflectance):
         # Filter list should be in the same order as filename_list, and should be
         # things like "BAND3"
         if(calibration_filename is not None):
+            # The existing py-retrieve code doesn't actually work with the
+            # calibration_filename. This needs to get added before we can use this
             raise RuntimeError("We don't support TROPOMI calibration yet")
         i_windows = [{'instrument' : 'TROPOMI', 'filter' : flt} for flt in filter_list]
         with(osp_setup(osp_dir)):
@@ -914,7 +919,10 @@ class MusesTropomiObservation(MusesObservationReflectance):
             filter_list = mid.filter_list["TROPOMI"]
             coeff,mp=current_state.object_state(cls.state_element_name_list_from_filter(filter_list))
             if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
-                raise RuntimeError("Don't support calibration files yet")
+                # The current py-retrieve code just silently ignores calibration,
+                # see about line 614 of script_retrieval_setup_ms. We duplicate
+                # this behavior, but go ahead and warn that we are doing that.
+                logger.warning("Don't support calibration files yet. Ignoring TROPOMI_Rad_calRun_flag")
             irr_filename = mid.filename('TROPOMI_IRR_filename')
             cld_filename = mid.filename('TROPOMI_Cloud_filename')
             atrack = mid.value_int('TROPOMI_ATrack_Index')
