@@ -81,7 +81,9 @@ def sounding_dir(instrument, sounding, output_dir="./output"):
     elif(instrument == "tropomi_band7"):
         res += "/tropomi/2022-06-28/setup-targets/Global_Survey/"
     elif(instrument == "cris_tropomi"):
-        res += "/cris_tropomi/2019-08-07/setup-targets/Global_Survey/"
+        #res += "/cris_tropomi/2019-08-07/setup-targets/Global_Survey/"
+        # Second set from Fabiano testing, which we just manually use
+        res += "/cris_tropomi/2020-07-01/setup-targets/Global_Survey_Grid_4.0/"
     elif(instrument == "airs_omi"):
         res += "/airs_omi/2016-04-01/setup-targets/Global_Survey/"
     else:
@@ -136,6 +138,7 @@ def base_command(instrument,output_dir="./output"):
                     ])
         sounding1 = "20160414_23_394_11_23"
         step_list = [1,2]
+        sounding_offset = 0
     elif(instrument == "airs_omi"):
         cmd.extend(["--sensor-set", "AIRS_OMI",
                     "--profile", "Global_Survey",
@@ -147,6 +150,7 @@ def base_command(instrument,output_dir="./output"):
         # Temp, grab the joint step. We'll get the rest also,
         # but that will take a chunk of time to run
         step_list = [8,]
+        sounding_offset = 0
     elif(instrument == "tropomi"):
         cmd.extend(["--sensor-set", "TROPOMI",
                     "--tropomi-band", "3",
@@ -155,6 +159,7 @@ def base_command(instrument,output_dir="./output"):
                     ])
         sounding1="20190807_9401_359_226"
         step_list = [1,2]
+        sounding_offset = 0
     elif(instrument == "tropomi_band7"):
         cmd.extend(["--sensor-set", "TROPOMI",
                     "--tropomi-band", "7",
@@ -164,17 +169,24 @@ def base_command(instrument,output_dir="./output"):
                     ])
         sounding1="20220628_24394_1008_108"
         step_list = [1,2]
+        sounding_offset = 0
     elif(instrument == "cris_tropomi"):
         cmd.extend(["--sensor-set", "CrIS_TROPOMI",
                     "--profile", "Global_Survey",
                     "--date", "2019-08-07",
                     ])
-        sounding1="20190807_065_04_08_5"
+        #sounding1="20190807_065_04_08_5"
         # Grab just the one joint step, so we can test against that
-        step_list = [12,]
+        #step_list = [12,]
+        #sounding_offset = 0
+        # Extra sounding that Fabiano found an issue with
+        sounding1="20200701_014_21_17_3"
+        # Grab just the one joint step, so we can test against that
+        step_list = [10,]
+        sounding_offset = 2
     else:
         logger.error(f"Unrecognized instrument type {instrument}, should be one of 'omi', 'airs_omi', 'tropomi', or 'cris_tropomi'")
-    return cmd, [sounding1,], step_list
+    return cmd, [sounding1,], step_list, sounding_offset
         
 @click.group()
 def cli():
@@ -203,7 +215,7 @@ def setup_targets(instrument, output_dir="./output"):
     if(instrument == "all"):
         ilist = ("omi", "tropomi", "tropomi_band7", "airs_omi", "cris_tropomi")
     for inst in ilist:
-        cmd, _, _ = base_command(inst,output_dir=output_dir)
+        cmd, _, _, _ = base_command(inst,output_dir=output_dir)
         cmd.extend(["--start-step", "geolocate",
                     "--end-step", "setup_targets"])
         logger.info(f'Running: {" ".join(cmd)}')
@@ -232,9 +244,9 @@ def capture_run(instrument,output_dir="./output",
     if(instrument == "all"):
         ilist = ("omi", "tropomi", "tropomi_band7", "airs_omi", "cris_tropomi")
     for inst in ilist:
-        _, sounding_list, step_list = base_command(inst,output_dir=output_dir)
+        _, sounding_list, step_list, sounding_offset = base_command(inst,output_dir=output_dir)
         for i, sounding in enumerate(sounding_list):
-            capoutdir = f"{os.path.abspath(test_data_dir)}/{inst}/in/sounding_{i+1}"
+            capoutdir = f"{os.path.abspath(test_data_dir)}/{inst}/in/sounding_{i+1+sounding_offset}"
             logger.info(f"Writing output to {capoutdir}")
             sdir = sounding_dir(inst, sounding,output_dir=output_dir)
             MusesRunDir.save_run_directory(sdir, capoutdir)
@@ -263,7 +275,7 @@ def run_retrieval(instrument, refractor_config = None,
                   output_dir="./output"):
     '''Run the retrieval on a single sounding. '''
     logger.info("In run-retrival")
-    cmd, soundings, _ = base_command(instrument, output_dir=output_dir)
+    cmd, soundings, _, _ = base_command(instrument, output_dir=output_dir)
     if(refractor_config is not None):
         cmd.extend(["--refractor", "--refractor-config", refractor_config])
     cmd.extend(["--start-step", "retrieve_one",
