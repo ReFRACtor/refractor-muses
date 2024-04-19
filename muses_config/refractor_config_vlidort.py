@@ -5,19 +5,15 @@ from refractor.tropomi import TropomiForwardModelHandle
 from refractor.omi import OmiForwardModelHandle
 import refractor.framework as rf
 
-# Configuration to use our own TROPOMI and OMI forward models.
+# Configuration to use our wrapper around the py-retrieve vlidort code. Should be
+# close to running py-retrieve without refractor, but tests our RetrievalStrategy
+# class
 
 # Turn on logging for refractor. This is independent of python logger, although we
 # could probably integrate this together if it is important
 rf.Logger.set_implementation(rf.FpLogger())
 
 rs = RetrievalStrategy(None)
-rs.forward_model_handle_set.add_handle(TropomiForwardModelHandle(use_pca=True,
-                                       use_lrad=False, lrad_second_order=False),
-                                       priority_order=100)
-rs.forward_model_handle_set.add_handle(OmiForwardModelHandle(use_pca=True,
-                                       use_lrad=False, lrad_second_order=False),
-                                       priority_order=100)
 if False:
     # If desired, capture each step so we can rerun this for debugging
     rscap = RetrievalStrategyCaptureObserver("retrieval_step",

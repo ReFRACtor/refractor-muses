@@ -87,7 +87,7 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", writeOutput=True, writePlots=True,
                            vlidort_cli=vlidort_cli)
     # Grab each step so we can separately test output
-    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
+    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "start retrieval_ms_body_step")
     rs.add_observer(rscap)
     compare_dir = joint_tropomi_test_expected_dir
     if run_refractor:
@@ -167,7 +167,7 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_airs_omi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     # Grab each step so we can separately test output
-    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
+    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "start retrieval_ms_body_step")
     rs.add_observer(rscap)
     compare_dir = joint_omi_test_expected_dir
     if run_refractor:

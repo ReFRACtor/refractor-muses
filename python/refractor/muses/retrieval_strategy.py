@@ -231,23 +231,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         stp = -1
         while stp < self.number_table_step - 1:
             stp += 1
-            self.table_step = stp
-            self.state_info.copy_current_initial()
-            self.notify_update("done copy_current_initial")
-            logger.info(f'\n---')
-            logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
-            logger.info(f'\n---')
-            self.get_initial_guess()
-            self.notify_update("done get_initial_guess")
-            self.create_windows(all_step=False)
-            self.notify_update("done create_windows")
-            logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
-            self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
-            self.notify_update("done retrieval_step")
-            self.state_info.next_state_to_current()
-            self.notify_update("done next_state_to_current")
-            logger.info(f"Done with step {self.table_step}")
-
+            self.retrieval_ms_body_step(stp)
+            
         stop_date = time.strftime("%c")
         stop_time = time.time()
         elapsed_time = stop_time - start_time
@@ -267,6 +252,31 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         logger.info('\n---')    
         logger.info('\n---')    
         return exitcode
+
+    def retrieval_ms_body_step(self, stp):
+        '''This is the body of the step loop in retrieval_ms_body. We pull this
+        out as a separate function because it is nice to be able to call this
+        in isolation when debugging - e.g., use RetrievalStrategyCaptureObserver to
+        capture each step, then load it back and rerun the step in a debugging
+        session.'''
+        self.table_step = stp
+        self.notify_update("start retrieval_ms_body_step")
+        self.state_info.copy_current_initial()
+        self.notify_update("done copy_current_initial")
+        logger.info(f'\n---')
+        logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
+        logger.info(f'\n---')
+        self.get_initial_guess()
+        self.notify_update("done get_initial_guess")
+        self.create_windows(all_step=False)
+        self.notify_update("done create_windows")
+        logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
+        self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
+        self.notify_update("done retrieval_step")
+        self.state_info.next_state_to_current()
+        self.notify_update("done next_state_to_current")
+        logger.info(f"Done with step {self.table_step}")
+        
         
     @property
     def press_list(self):
