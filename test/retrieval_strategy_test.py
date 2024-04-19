@@ -1,11 +1,14 @@
 from test_support import *
-from refractor.muses import (MusesRunDir, RetrievalStrategy, RetrievalStrategyCaptureObserver)
+from refractor.muses import (MusesRunDir, RetrievalStrategy, RetrievalStrategyCaptureObserver,
+                             CurrentStateUip)
 from refractor.omi import OmiForwardModelHandle
 from refractor.tropomi import TropomiForwardModelHandle
 import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
 import glob
+import shutil
+import copy
 
 # Use refractor forward model. We default to not, because we are
 # mostly testing everything *other* than the forward model with this
@@ -217,3 +220,63 @@ def test_two_tropomi(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
                                        priority_order=100)
     rs.script_retrieval_ms(f"{r.run_dir}/Table.asc")
     rs.script_retrieval_ms(f"{r2.run_dir}/Table.asc")
+
+@require_muses_py
+def test_tropomi_issue(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+    # This looks at a sounding that has different behavior between
+    # py-retrieve and refractor. See if we can figure out what is going
+    # on.
+
+    # This is a bit convoluted, but we don't have access to sqrt_constraint and apriori with
+    # what we have saved. Grab the retrieval step stuff, which has what we need to calculate
+    # this. We then throw all the rest away
+    rstep = load_muses_retrieval_step(joint_tropomi_test_in_dir3, step_number=10,
+                                      osp_dir=osp_dir, gmao_dir=gmao_dir, change_to_dir=False)
+    i_retrievalInfo = rstep.params['i_retrievalInfo']
+    sqrt_constraint = mpy.sqrt_matrix(i_retrievalInfo.Constraint)
+    const_vec = i_retrievalInfo.constraintVector
+    r = MusesRunDir(joint_tropomi_test_in_dir3, osp_dir, gmao_dir, skip_sym_link=True)
+    os.unlink("./OSP")
+    shutil.rmtree("./OSP_not_used")
+    os.unlink("./GMAO")
+    uip1 = load_uip(joint_tropomi_test_in_dir3, step_number=10,
+                    osp_dir=osp_dir, gmao_dir=gmao_dir)
+    uip2 = copy.deepcopy(uip1)
+    rs1 = RetrievalStrategy("Table.asc", vlidort_cli=vlidort_cli)
+    rs2 = RetrievalStrategy("Table.asc", vlidort_cli=vlidort_cli)
+    ihandle = TropomiForwardModelHandle(use_pca=True, use_lrad=False,
+                                        lrad_second_order=False)
+    rs2.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    cstate1 = CurrentStateUip(uip1)
+    cstate1.sqrt_constraint = sqrt_constraint
+    cstate1.apriori = const_vec
+    cstate2 = CurrentStateUip(uip2)
+    cstate2.sqrt_constraint = sqrt_constraint
+    cstate2.apriori = const_vec
+    rs1.strategy_table.table_step = 10
+    rs2.strategy_table.table_step = 10
+    # Would be good for this muck to go away, but right now this is tangled up with creating a
+    # cost function.
+    rs1.cost_function_creator.create_o_obs()
+    rs1.o_cris = rs1.cost_function_creator.o_cris
+    rs1.create_windows(all_step=True)
+    rs1.instrument_name_all = rs1.strategy_table.instrument_name(all_step=True)
+    rs1.state_info.state_info_dict = rstep.params['i_stateInfo'].__dict__
+    rs2.cost_function_creator.create_o_obs()
+    rs2.o_cris = rs2.cost_function_creator.o_cris
+    rs2.create_windows(all_step=True)
+    rs2.instrument_name_all = rs2.strategy_table.instrument_name(all_step=True)
+    rs2.state_info.state_info_dict = rstep.params['i_stateInfo'].__dict__
+    def uip_func1():
+        return uip1
+    def uip_func2():
+        return uip2
+    cf1 = rs1.cost_function_creator.cost_function(rs1.strategy_table.instrument_name(),
+                                                  cstate1,
+                                                  rs1.strategy_table.spectral_window_all(),
+                                                  uip_func1)
+    cf2 = rs1.cost_function_creator.cost_function(rs2.strategy_table.instrument_name(),
+                                                  cstate2,
+                                                  rs2.strategy_table.spectral_window_all(),
+                                                  uip_func2)
+    

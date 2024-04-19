@@ -43,7 +43,8 @@ def muses_py_call(rundir,
         os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(rundir)
         os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
         os.chdir(rundir)
-        mpy.cli_options.vlidort_cli=vlidort_cli
+        if(vlidort_cli is not None):
+            mpy.cli_options.vlidort_cli=vlidort_cli
         mpy.cli_options.debug=debug
         mpy.cli_options.vlidort.nstokes = vlidort_nstokes
         mpy.cli_options.vlidort.nstreams = vlidort_nstreams

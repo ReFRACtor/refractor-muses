@@ -132,6 +132,9 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         # just because levmar_nllsq_elanor expects to pass in this argument
         if(self.expected_parameter_size != len(retrieval_vec)):
             raise RuntimeError("We aren't expecting parameters the size of retrieval_vec.")
+        if False:
+            logger.info("Setting parameters in cost function")
+            logger.info(f"{retrieval_vec}")
         self.parameters = retrieval_vec
         # obs_rad and meas_err includes bad samples, so we can't use
         # cfunc.max_a_posteriori.measurement here which filters out
