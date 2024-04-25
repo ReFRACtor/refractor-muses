@@ -30,8 +30,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         for i in range(self.num_channels):
             v = rf.vector_instrument_correction()
             if(self.use_eof):
-                for e in self.eof[self.observation.filter_list[i]]:
-                    v.push_back(e)
+                if self.observation.filter_list[i] in self.eof:
+                    for e in self.eof[self.observation.filter_list[i]]:
+                        v.push_back(e)
             res.push_back(v)
         return res
 
@@ -69,12 +70,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                     res["UV2"] = []
                     continue
 
-                # Enabling the code below leads to Out of range error in FullPhysics::NLLSMaxAPosteriori::residual()
-                # startmw = self.rf_uip.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
-                # endmw = self.rf_uip.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
-                # wave_arr =self.rf_uip.uip_omi["fullbandfrequency"][startmw:endmw+1]
-                # npixel = len(wave_arr)
-
                 eof_path = "/eign_vector"
                 eof_index_path = "/Index"
                 with Dataset(eof_fname) as eof_ds:
@@ -82,12 +77,23 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                     pixel_indexes = eof_ds[eof_index_path][:]
             
                 for basis_index in range(selem.number_eof):
-                    wform_data = np.zeros(npixel)
-                    for eof_index, pixel_index in enumerate(pixel_indexes):
-                        wform_data[pixel_index] = eofs[basis_index,eof_index]
+                    offset = 0
+                    findex = self.rf_uip.freq_index("OMI")
+                    for fm_idx, ii_mw in enumerate(self.channel_list()):
+                        sg = self.rf_uip.sample_grid(fm_idx, ii_mw)
+                        full_instrument_size = len(sg.data)
+                        if (mw_index == ii_mw):
+                            eof_full = np.zeros((full_instrument_size,))
+                            nonzero_eof_index = findex[np.logical_and(findex >= offset,
+                                                        findex < offset+full_instrument_size)] - offset
+                            eof_channel = np.zeros((len(nonzero_eof_index),))
+                            eof_channel[pixel_indexes] = eofs[basis_index, :]
+                            eof_full[nonzero_eof_index] = eof_channel
+                        offset += full_instrument_size
+
                     # Not sure about the units, but this is what we assigned to our
                     # forward model, and the EOF needs to match
-                    wform = rf.ArrayWithUnit(wform_data, rf.Unit("sr^-1"))
+                    wform = rf.ArrayWithUnit(eof_full, rf.Unit("sr^-1"))
                     r.append(rf.EmpiricalOrthogonalFunction(selem.value[basis_index], wform, basis_index+1, band))
                 res[band] = r
             else:
@@ -194,7 +200,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 fm_sv, ["OMIEOFUV1",], self.eof["UV1"])
             current_state.add_fm_state_vector_if_needed(
                 fm_sv, ["OMIEOFUV2",], self.eof["UV2"])
-        except AttributeError:
+        except (AttributeError, KeyError):
             pass
         
     @cached_property
