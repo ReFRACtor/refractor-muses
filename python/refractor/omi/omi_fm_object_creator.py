@@ -52,8 +52,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             # Muses uses fullbandfrequency subset by microwindow info (shown below) instead
 
             if(self.eof_dir is not None):
-                uv1_index = 0
-                uv2_index = 0
+                uv1_index, uv2_index, _uv2_pair_index = self.rf_uip.omi_obs_table['XTRACK']
                 uv_basename = "EOF_xtrack_{0}-{1:02d}_window_{0}.nc"
                 uv1_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv1', uv1_index))}"
                 uv2_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv2', uv2_index))}"
