@@ -210,7 +210,7 @@ class StrategyTable:
         return order_species(list(res))
         
 
-    def spectral_window(self, instrument_name, stp=None):
+    def spectral_window(self, instrument_name, stp=None, all_step=False):
         '''This creates a rf.SpectralWindowRange for the given instrument and
         step (defaults to self.table_step). Note that a SpectralWindow has a number of
         microwindows associated with it - RefRACtor doesn't really distinguish this and
@@ -230,7 +230,8 @@ class StrategyTable:
         filter_list = self.filter_list(instrument_name)
         if(not different_filter_different_sensor_index):
             filter_list = [None,]
-        mwall = [mw for mw in self.microwindows(stp=stp) if mw['instrument'] == instrument_name]
+        mwall = [mw for mw in self.microwindows(stp=stp, all_step=all_step)
+                 if mw['instrument'] == instrument_name]
         nmw = []
         for flt in filter_list:
             mwlist = [mw for mw in mwall if mw['filter'] == flt or flt is None]
@@ -262,7 +263,7 @@ class StrategyTable:
         (self.table_step if not supplied), or all steps if all_step is True'''
         swin = {}
         for iname in self.instrument_name(stp=stp,all_step=all_step):
-            swin[iname] = self.spectral_window(iname)
+            swin[iname] = self.spectral_window(iname, stp=stp, all_step=all_step)
         return swin
     
     def instrument_name(self, stp=None, all_step=False):

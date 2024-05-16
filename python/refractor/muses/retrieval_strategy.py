@@ -197,18 +197,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         start_date = time.strftime("%c")
         start_time = time.time()
 
-        # This is a bit convoluted. We are trying to get away from having the various
-        # items like o_cris here, pushing that down to the Observation classes. But
-        # we don't have this untangled yet. So get the radiance data from CostFunctionCreator,
-        # which as the side effect of creating a o_cris. We grab this. This is
-        # clumsy, and we should replace this. But right now we need o_cris for our
-        # create_windows function.
         self.instrument_name_all = self.strategy_table.instrument_name(all_step=True)
-        self.cost_function_creator.create_o_obs()
-        self.o_cris = self.cost_function_creator.o_cris
-        
         self.create_windows(all_step=True)
-        self.state_info.init_state(self.strategy_table, self.cost_function_creator,
+        self.state_info.init_state(self.strategy_table,
+                                   self.cost_function_creator.observation_handle_set,
                                    self.instrument_name_all, self.run_dir)
 
         self.error_analysis = ErrorAnalysis(self.strategy_table, self.state_info)
@@ -311,19 +303,28 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         else:
             self.windows = mpy.table_new_mw_from_step(self.strategy_table.strategy_table_dict, self.table_step)
             
+        # This is a bit convoluted. We are trying to get away from having the various
+        # items like o_cris here, pushing that down to the Observation classes. But
+        # we don't have this untangled yet. So get the radiance data from CostFunctionCreator,
+        # which as the side effect of creating a o_cris. We grab this. This is
+        # clumsy, and we should replace this. But right now we need o_cris for our
+        # create_windows function.
+        self.cost_function_creator.create_o_obs()
+        o_cris = self.cost_function_creator.o_cris
+        
         self.instruments = mpy.mw_instruments(self.windows)
 
         # This magic adjustment should go somewhere else
         if 'CRIS' in self.instruments:
             for tempind, win in enumerate(self.windows):
                 if win['instrument'] == 'CRIS': # EM - Necessary for joint retrievals
-                    con1 = self.o_cris['FREQUENCY'] >= win['start']
-                    con2 = self.o_cris['FREQUENCY'] <= win['endd']
+                    con1 = o_cris['FREQUENCY'] >= win['start']
+                    con2 = o_cris['FREQUENCY'] <= win['endd']
 
                     tempind = np.where(np.logical_and(con1 == True, con2 == True))[0]
         
-                    MAXOPD = np.unique(self.o_cris['MAXOPD'][tempind])
-                    SPACING = np.unique(self.o_cris['SPACING'][tempind])
+                    MAXOPD = np.unique(o_cris['MAXOPD'][tempind])
+                    SPACING = np.unique(o_cris['SPACING'][tempind])
 
                     if len(MAXOPD) > 1 or len(SPACING) > 1:
                         raise Running('ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!')

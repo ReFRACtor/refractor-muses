@@ -2,6 +2,7 @@ from __future__ import annotations # We can remove this when we upgrade to pytho
 import abc
 from .priority_handle_set import PriorityHandleSet
 from .strategy_table import FakeStrategyTable
+from .current_state import CurrentStateDict
 import refractor.muses.muses_py as mpy
 import copy
 import refractor.framework as rf
@@ -325,12 +326,37 @@ class StateInfo:
         return (res, strategy_table, i_windows)
     
     def init_state(self, strategy_table : 'StrategyTable',
-                 cost_function_creator : 'CostFunctionCreator', instrument_name_all, run_dir : str):
+                   observation_handle_set : 'ObservationHandleSet', instrument_name_all,
+                   run_dir : str):
         (_, _, _, _, _, _,
          self.state_info_dict) = mpy.script_retrieval_setup_ms(strategy_table.strategy_table_dict, False)
+        # state_initial_update needs radiance for some of the instruments. It used this
+        # in the function calls like supplier_nh3_type_cris. We only need this for CRIS,
+        # AIRS, and TES
+        rad = { 'frequency' : None, 'radiance' : None, 'NESR' : None }
+        spec_win_dict = strategy_table.spectral_window_all(all_step=True)
+        for ins in ('CRIS', 'AIRS', 'TES'):
+            if ins in instrument_name_all:
+                # Little bit of a chicken an egg problem here. The observation needs the
+                # state (so for example doing the shift we do with omi and tropomi data),
+                # but we don't yet have a state since the while point of this function is
+                # to set this up. We make use of CRIS, AIRS and TES not actually needing
+                # the state info and just pass a dummy one in. If we need more state info
+                # for future state_initial_update function or new observation class we
+                # may need to rework this and figure this out
+                cs = CurrentStateDict({},{})
+                # Don't actually do anything with the StateVector, but our observation
+                # interface wants to set this up so pass in a StateVector that we then
+                # just don't use.
+                sv = rf.StateVector()
+                obs = observation_handle_set.observation(ins, cs, spec_win_dict[ins], sv)
+                s = obs.radiance_all()
+                rad["frequency"] = s.spectral_domain.data
+                rad["radiance"] = s.spectral_range.data
+                rad["NESR"] = s.spectral_range.uncertainty
+                
         self.state_info_dict = mpy.states_initial_update(
-            self.state_info_dict, strategy_table.strategy_table_dict,
-            cost_function_creator.radiance(self, instrument_name_all), instrument_name_all)
+            self.state_info_dict, strategy_table.strategy_table_dict, rad, instrument_name_all)
 
         # Read some metadata that isn't already available
         tai_time = mpy.tes_file_get_preference(
