@@ -2,7 +2,7 @@ from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .priority_handle_set import PriorityHandleSet
 from .uip_updater import (StateVectorUpdateUip, MaxAPosterioriSqrtConstraintUpdateUip)
-from .current_state import CurrentState, CurrentStateUip
+from .current_state import CurrentState, CurrentStateUip, CurrentStateDict
 import refractor.framework as rf
 import abc
 import copy
@@ -194,10 +194,11 @@ class ObservationHandleSet(PriorityHandleSet):
     '''This takes  the instrument name and a RetrievalStategy, and
     creates an Observation for that instrument.
 
-    Note ObservationHandle can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next.
+    Note ObservationHandle can assume that they are called for the
+    same target, until notify_update_target is called. So if it makes
+    sense, these objects can do internal caching for things that don't
+    change when the target being retrieved is the same from one call
+    to the next.
 
     notify_update_target will also be called before the first time the
     objects are created - basically it makes sense to separate the
@@ -214,11 +215,78 @@ class ObservationHandleSet(PriorityHandleSet):
     make sense for the object. Things that don't depend on the
     StateVector can be shared (e.g., data read from a file), but state
     related parts should be independent.
+
     '''
     def notify_update_target(self, measurement_id : 'MeasurementId'):
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
                 h.notify_update_target(measurement_id)
+
+    def mpy_radiance(self, current_state : 'Optional[CurrentState]',
+                     strategy_table: 'StrategyTable'):
+        '''There are a few places where the old py-retrieve 'radiance' structure
+        is needed. This includes all the instruments in strategy_table.instrument_name_all,
+        smooshed together into a dict structure. This function handles this. Note
+        we have a chicken and the egg problem with one of the places where we need the
+        radiance. The creation of the initial StateInfo needs the radiance data (it uses
+        for example in the call to supplier_nh3_type_cris). So the current state is optional,
+        if this is passed in as None we use initial values for the various state elements
+        needed by the Observation classes.'''
+        cs = current_state
+        if(cs is None):
+            cs = CurrentStateDict({ "TROPOMISOLARSHIFTBAND1" : 0,
+                                    "TROPOMIRADIANCESHIFTBAND1" : 0,
+                                    "TROPOMIRADSQUEEZEBAND1" : 0,
+                                    "TROPOMISOLARSHIFTBAND2" : 0,
+                                    "TROPOMIRADIANCESHIFTBAND2" : 0,
+                                    "TROPOMIRADSQUEEZEBAND2" : 0,
+                                    "TROPOMISOLARSHIFTBAND3" : 0,
+                                    "TROPOMIRADIANCESHIFTBAND3" : 0,
+                                    "TROPOMIRADSQUEEZEBAND3" : 0,                                
+                                    "TROPOMISOLARSHIFTBAND4" : 0,
+                                    "TROPOMIRADIANCESHIFTBAND4" : 0,
+                                    "TROPOMIRADSQUEEZEBAND4" : 0,
+                                    "TROPOMISOLARSHIFTBAND5" : 0,
+                                    "TROPOMIRADIANCESHIFTBAND5" : 0,
+                                    "TROPOMIRADSQUEEZEBAND5" : 0,
+                                    "TROPOMISOLARSHIFTBAND6" : 0,
+                                    "TROPOMIRADIANCESHIFTBAND6" : 0,
+                                    "TROPOMIRADSQUEEZEBAND6" : 0,
+                                    "TROPOMISOLARSHIFTBAND7" : 0,
+                                    "TROPOMIRADIANCESHIFTBAND7" : 0,
+                                    "TROPOMIRADSQUEEZEBAND7" : 0,
+                                    "TROPOMISOLARSHIFTBAND8" : 0,
+                                    "TROPOMIRADIANCESHIFTBAND8" : 0,
+                                    "TROPOMIRADSQUEEZEBAND8" : 0,
+                                    "OMINRADWAVUV1" : 0,
+                                    "OMIODWAVUV1" : 0,
+                                    "OMIODWAVSLOPEUV1" : 0,
+                                    "OMINRADWAVUV2" : 0,
+                                    "OMIODWAVUV2" : 0,
+                                    "OMIODWAVSLOPEUV2" : 0,
+                                   },{})
+        spec_win_dict = strategy_table.spectral_window_all(all_step=True)
+        res = { "instrumentNames" : [],
+                "frequency" : [],
+                "radiance" : [],
+                "NESR" : [],
+                "instrumentSizes" : [] }
+        f = []
+        r = []
+        u = []
+        for inst in strategy_table.instrument_name(all_step=True):
+            sv = rf.StateVector()
+            obs = self.observation(inst, cs, spec_win_dict[inst], sv)
+            s = obs.radiance_all()
+            res["instrumentNames"].append(inst)
+            f.append(s.spectral_domain.data)
+            r.append(s.spectral_range.data)
+            u.append(s.spectral_range.uncertainty)
+            res["instrumentSizes"].append(s.spectral_domain.data.shape[0])
+        res["frequency"] = np.concatenate(f)
+        res["radiance"] = np.concatenate(r)
+        res["NESR"] = np.concatenate(u)
+        return res
         
     def observation(self, instrument_name : str,
                     current_state : 'CurrentState',

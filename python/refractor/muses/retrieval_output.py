@@ -1,3 +1,5 @@
+from .current_state import CurrentStateDict
+import refractor.framework as rf
 from glob import glob
 import logging
 import refractor.muses.muses_py as mpy
@@ -86,7 +88,9 @@ class RetrievalOutput:
 
     @property
     def radiance_full(self):
-        return self.retrieval_strategy.cost_function_creator.radiance(self.retrieval_strategy.state_info, self.retrieval_strategy.instrument_name_all)
+        res = self.retrieval_strategy.observation_handle_set.mpy_radiance(None, self.retrieval_strategy.strategy_table)
+        t = self.retrieval_strategy.cost_function_creator.radiance(self.retrieval_strategy.state_info, self.retrieval_strategy.instrument_name_all)
+        return t
 
     @property
     def obs_list(self):
