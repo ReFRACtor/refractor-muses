@@ -88,9 +88,7 @@ class RetrievalOutput:
 
     @property
     def radiance_full(self):
-        res = self.retrieval_strategy.observation_handle_set.mpy_radiance(None, self.retrieval_strategy.strategy_table)
-        t = self.retrieval_strategy.cost_function_creator.radiance(self.retrieval_strategy.state_info, self.retrieval_strategy.instrument_name_all)
-        # TODO Should fail
+        res = self.retrieval_strategy.observation_handle_set.mpy_radiance_full_band(None, self.retrieval_strategy.strategy_table)
         return res
 
     @property

@@ -216,6 +216,7 @@ class MusesObservationImp(MusesObservation):
         self._spec = [None,] * self.num_channels
         self._sounding_desc = sdesc
         self._force_no_bad_sample = False
+        self._full_band = False
 
     @property
     def sounding_desc(self):
@@ -257,7 +258,9 @@ class MusesObservationImp(MusesObservation):
 
     def spectral_domain(self, sensor_index):
         sd = self.spectral_domain_full(sensor_index)
-        if(self._force_no_bad_sample):
+        if(self._full_band):
+            return sd
+        elif(self._force_no_bad_sample):
             return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
         else:
             return self.spectral_window.apply(sd, sensor_index)
@@ -266,15 +269,17 @@ class MusesObservationImp(MusesObservation):
         sd = self.spectral_domain_full(sensor_index)
         return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
         
-    def radiance_all_with_bad_sample(self):
+    def radiance_all_with_bad_sample(self, full_band=False):
         try:
             # "Trick" to leverage radiance_all we already have in StackedRadianceMixin.
             # We could implement this functionality again, but it is nice just to use
             # the already tested and implemented StackedRadianceMixin
             self._force_no_bad_sample = True
+            self._full_band=full_band
             return self.radiance_all()
         finally:
             self._force_no_bad_sample = False
+            self._full_band = False
 
     def radiance(self, sensor_index, skip_jacobian=False):
         # "Trick" to get radiance_all_with_bad_sample for free. We use the normal
@@ -287,6 +292,8 @@ class MusesObservationImp(MusesObservation):
         return self._spec[sensor_index]
 
     def radiance_with_bad_sample(self, sensor_index):
+        if(self._full_band):
+            return self.spectrum_full(sensor_index)
         return self.spectral_window_with_bad_sample.apply(self.spectrum_full(sensor_index),
                                                           sensor_index)
 

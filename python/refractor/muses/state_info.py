@@ -333,7 +333,7 @@ class StateInfo:
         # state_initial_update needs radiance for some of the instruments. It used this
         # in the function calls like supplier_nh3_type_cris. We only need this for CRIS,
         # AIRS, and TES
-        rad = observation_handle_set.mpy_radiance(None, strategy_table)
+        rad = observation_handle_set.mpy_radiance_full_band(None, strategy_table)
                 
         self.state_info_dict = mpy.states_initial_update(
             self.state_info_dict, strategy_table.strategy_table_dict, rad, instrument_name_all)

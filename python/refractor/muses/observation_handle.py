@@ -83,11 +83,12 @@ class ObservationHandleSet(PriorityHandleSet):
             for h in self.handle_set[p]:
                 h.notify_update_target(measurement_id)
 
-    def mpy_radiance(self, current_state : 'Optional[CurrentState]',
-                     strategy_table: 'StrategyTable'):
+    def mpy_radiance_full_band(self, current_state : 'Optional[CurrentState]',
+                               strategy_table: 'StrategyTable'):
         '''There are a few places where the old py-retrieve 'radiance' structure
         is needed. This includes all the instruments in strategy_table.instrument_name_all,
-        smooshed together into a dict structure. This function handles this. Note
+        smooshed together into a dict structure, without bad samples or windowing applied.
+        This function handles this. Note
         we have a chicken and the egg problem with one of the places where we need the
         radiance. The creation of the initial StateInfo needs the radiance data (it uses
         for example in the call to supplier_nh3_type_cris). So the current state is optional,
@@ -139,7 +140,7 @@ class ObservationHandleSet(PriorityHandleSet):
             sv = rf.StateVector()
             obs = self.observation(inst, cs, spec_win_dict[inst], sv)
             if(hasattr(obs, "radiance_all_with_bad_sample")):
-                s = obs.radiance_all_with_bad_sample()
+                s = obs.radiance_all_with_bad_sample(full_band=True)
             else:
                 # True skips the jacobian calculation, which we don't
                 # need here
