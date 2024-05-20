@@ -90,7 +90,8 @@ class RetrievalOutput:
     def radiance_full(self):
         res = self.retrieval_strategy.observation_handle_set.mpy_radiance(None, self.retrieval_strategy.strategy_table)
         t = self.retrieval_strategy.cost_function_creator.radiance(self.retrieval_strategy.state_info, self.retrieval_strategy.instrument_name_all)
-        return t
+        # TODO Should fail
+        return res
 
     @property
     def obs_list(self):

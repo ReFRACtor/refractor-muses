@@ -1,5 +1,5 @@
 from .misc import osp_setup
-from .cost_function_creator import ObservationHandle, ObservationHandleSet
+from .observation_handle import ObservationHandle, ObservationHandleSet
 import refractor.muses.muses_py as mpy
 import os
 import numpy as np

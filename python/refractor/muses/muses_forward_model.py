@@ -1,6 +1,6 @@
 from . import muses_py as mpy
 from .refractor_uip import RefractorUip
-from .cost_function_creator import ForwardModelHandle, ForwardModelHandleSet
+from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
 import refractor.framework as rf
