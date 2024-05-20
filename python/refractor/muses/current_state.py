@@ -87,22 +87,33 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     This class gives the interface needed by the other classes, as well as implementing
     some stuff that doesn't really depend on where we are getting the information.
     '''
-    @abc.abstractproperty
+    def __init__(self):
+        # Cache these values, they don't normally change.
+        self._fm_sv_loc = None
+        self._fm_state_vector_size = None
+
+    @property
     def fm_sv_loc(self) -> 'dict[str,int]':
         '''Dict that gives the starting location in the forward model state vector for a
         particular state element name (state elements not being retrieved don't
         get listed here)'''
-        raise NotImplementedError
-
-    @abc.abstractproperty
-    def fm_state_vector_size(self) -> int:
-        '''Full size of the forward model state vector.'''
+        if(self._fm_sv_loc is None):
+            self._fm_sv_loc = {}
+            self._fm_state_vector_size = 0
+            for state_element_name in self.retrieval_state_element:
+                plen = len(self.full_state_value(state_element_name))
+                self._fm_sv_loc[state_element_name] = (self._fm_state_vector_size, plen)
+                self._fm_state_vector_size += plen
+        return self._fm_sv_loc
 
     @property
-    def retrieval_state_element(self) -> 'list[str]':
-        '''Return list of state elements we are retrieving.'''
-        return list(self.fm_sv_loc.keys())
-
+    def fm_state_vector_size(self) -> int:
+        '''Full size of the forward model state vector.'''
+        if(self._fm_state_vector_size is None):
+            # Side effect of fm_sv_loc is filling in fm_state_vector_size
+            _ = self.fm_sv_loc
+        return self._fm_state_vector_size
+    
     def object_state(self, state_element_name_list : 'list[str]') -> (np.array, rf.StateMapping):
         '''Return a set of coefficients and a rf.StateMapping to get the full state values
         used by an object. The object passes in the list of state element names it uses.
@@ -117,13 +128,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
              for nm in state_element_name_list])
         mp = rf.StateMappingAtIndexes(rflag)
         return (coeff, mp)
-    
-    @abc.abstractmethod
-    def full_state_value(self, state_element_name) -> np.array:
-        '''Return the full state value for the given state element name.
-        Just as a convention we always return a np.array, so if there is only one value
-        put that in a length 1 np.array.'''
-        raise NotImplementedError
     
     def add_fm_state_vector_if_needed(self, fm_sv : rf.StateVector,
                                       state_element_name_list : 'list[str]',
@@ -145,31 +149,41 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             for obj in obj_list:
                 fm_sv.add_observer(obj)
 
+    @abc.abstractproperty
+    def retrieval_state_element(self) -> 'list[str]':
+        '''Return list of state elements we are retrieving.'''
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def full_state_value(self, state_element_name) -> np.array:
+        '''Return the full state value for the given state element name.
+        Just as a convention we always return a np.array, so if there is only one value
+        put that in a length 1 np.array.'''
+        raise NotImplementedError
+    
+                
 class CurrentStateUip(CurrentState):
     '''Implementation of CurrentState that uses a RefractorUip'''
     def __init__(self, rf_uip: 'RefractorUip'):
         super().__init__()
         self.rf_uip = rf_uip
-        self._fm_sv_loc = None
-        self._fm_state_vector_size = None
 
+    # We don't have the other gas species working yet. Short term, just have a
+    # different implementation of fm_sv_loc. We should sort this out at some point.
     @property
     def fm_sv_loc(self):
         if(self._fm_sv_loc is None):
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            for species_name in self.rf_uip.jacobian_all:
+            for species_name in self.retrieval_state_element:
                 pstart, plen = self.rf_uip.state_vector_species_index(species_name)
                 self._fm_sv_loc[species_name] = (pstart, plen)
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
 
     @property
-    def fm_state_vector_size(self):
-        if(self._fm_state_vector_size is None):
-            # Side effect of fm_sv_loc is filling in _fm_state_vector_size
-            _ = self.fm_sv_loc
-        return self._fm_state_vector_size
+    def retrieval_state_element(self):
+        return self.rf_uip.jacobian_all
 
     def full_state_value(self, state_element_name) -> np.array:
         '''Return the full state value for the given state element name.
@@ -312,22 +326,13 @@ class CurrentStateDict(CurrentState):
 
         Note both self.state_element_dict and self.retrieval_element can be updated
         if desired, if for whatever reason we want to add/tweak the data.'''
+        super().__init__()
         self.state_element_dict = state_element_dict
-        self.retrieval_element = retrieval_element
+        self._retrieval_element = retrieval_element
 
     @property
-    def fm_sv_loc(self):
-        res = {}
-        pstart = 0
-        for state_element_name in self.retrieval_element:
-            plen = len(self.full_state_value(state_element_name))
-            res[state_element_name] = (pstart, plen)
-            pstart += plen
-        return res
-
-    @property
-    def fm_state_vector_size(self):
-        return sum(len(self.full_state_value(nm)) for nm in self.retrieval_element)
+    def retrieval_state_element(self):
+        return self._retrieval_element
 
     def full_state_value(self, state_element_name) -> np.array:
         '''Return the full state value for the given state element name.

@@ -12,7 +12,7 @@ def test_current_state_dict():
                                  "TROPOMIRADSQUEEZEBAND3"])
     npt.assert_allclose(coeff, [1.0,2.0,3.0])
     npt.assert_allclose(mp.retrieval_indexes, [0,1])
-    cs.retrieval_element = ["TROPOMISOLARSHIFTBAND3", "TROPOMIRADSQUEEZEBAND3"]
+    cs = CurrentStateDict(d, ["TROPOMISOLARSHIFTBAND3", "TROPOMIRADSQUEEZEBAND3"])
     coeff, mp = cs.object_state(["TROPOMISOLARSHIFTBAND3", "TROPOMIRADIANCESHIFTBAND3",
                                  "TROPOMIRADSQUEEZEBAND3"])
     npt.assert_allclose(coeff, [1.0,2.0,3.0])
