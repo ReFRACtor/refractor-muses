@@ -92,6 +92,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self._fm_sv_loc = None
         self._fm_state_vector_size = None
 
+    def clear_cache(self):
+        '''Clear cache, if an update has occurred'''
+        self._fm_sv_loc = None
+        self._fm_state_vector_size = None
+
     @property
     def fm_sv_loc(self) -> 'dict[str,int]':
         '''Dict that gives the starting location in the forward model state vector for a
@@ -112,6 +117,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if(self._fm_state_vector_size is None):
             # Side effect of fm_sv_loc is filling in fm_state_vector_size
             _ = self.fm_sv_loc
+        # As a convention, py-retrieve uses a dummy state vector of length 1 if
+        # we aren't actually retrieving anything. This should probably get cleaned up
+        # at some point, there isn't actually anything wrong with a zero size state
+        # vector. But for now, support this convention
+        if(self._fm_state_vector_size == 0):
+            return 1
         return self._fm_state_vector_size
     
     def object_state(self, state_element_name_list : 'list[str]') -> (np.array, rf.StateMapping):
@@ -182,7 +193,7 @@ class CurrentStateUip(CurrentState):
         return self._fm_sv_loc
 
     @property
-    def retrieval_state_element(self):
+    def retrieval_state_element(self) -> 'list[str]':
         return self.rf_uip.jacobian_all
 
     def full_state_value(self, state_element_name) -> np.array:
@@ -327,12 +338,28 @@ class CurrentStateDict(CurrentState):
         Note both self.state_element_dict and self.retrieval_element can be updated
         if desired, if for whatever reason we want to add/tweak the data.'''
         super().__init__()
-        self.state_element_dict = state_element_dict
+        self._state_element_dict = state_element_dict
         self._retrieval_element = retrieval_element
 
     @property
-    def retrieval_state_element(self):
+    def state_element_dict(self) -> dict:
+        return self._state_element_dict
+
+    @state_element_dict.setter
+    def state_element_dict(self, val : dict):
+        self._state_element_dict = val
+        # Clear cache, we need to regenerate these after update
+        self.clear_cache()
+
+    @property
+    def retrieval_state_element(self)  -> 'list[str]':
         return self._retrieval_element
+
+    @retrieval_state_element.setter
+    def retrieval_state_element(self, val : 'list[str]'):
+        self._retrieval_element = val
+        # Clear cache, we need to regenerate these after update
+        self.clear_cache()
 
     def full_state_value(self, state_element_name) -> np.array:
         '''Return the full state value for the given state element name.
@@ -344,8 +371,63 @@ class CurrentStateDict(CurrentState):
         elif(isinstance(v, list)):
             return np.array(v)
         return np.array([v,])
+
+class CurrentStateStateInfo(CurrentState):
+    '''Implementation of CurrentState that uses our StateInfo. This is the way
+    the actual full retrieval works.'''
+    def __init__(self, state_info : 'StateInfo', retrieval_info : 'RetrievalInfo'):
+        '''I think we'll want to get some of the logic in RetrievalInfo into this class,
+        I'm not sure that we want this as separate. But for now, include this.'''
+        super().__init__()
+        self._state_info = state_info
+        self._retrieval_info = retrieval_info
+        
+    @property
+    def state_info(self) -> 'StateInfo':
+        return self._state_info
+
+    @state_info.setter
+    def state_info(self, val : 'StateInfo'):
+        self._state_info = val
+        # Clear cache, we need to regenerate these after update
+        self.clear_cache()
+
+    @property
+    def retrieval_info(self) -> 'RetrievalInfo':
+        return self._retrieval_info
+
+    @retrieval_info.setter
+    def retrieval_info(self, val : 'RetrievalInfo'):
+        self._retrieval_info = val
+        # Clear cache, we need to regenerate these after update
+        self.clear_cache()
+        
+    @property
+    def retrieval_state_element(self)  -> 'list[str]':
+        return self.retrieval_info.species_names
+
+    @property
+    def fm_sv_loc(self) -> 'dict[str,int]':
+        '''Dict that gives the starting location in the forward model state vector for a
+        particular state element name (state elements not being retrieved don't
+        get listed here)'''
+        if(self._fm_sv_loc is None):
+            self._fm_sv_loc = {}
+            self._fm_state_vector_size = 0
+            for state_element_name in self.retrieval_state_element:
+                plen = self.retrieval_info.species_list_fm.count(state_element_name)
+                self._fm_sv_loc[state_element_name] = (self._fm_state_vector_size, plen)
+                self._fm_state_vector_size += plen
+        return self._fm_sv_loc
+
+    def full_state_value(self, state_element_name) -> np.array:
+        '''Return the full state value for the given state element name.
+        Just as a convention we always return a np.array, so if there is only one value
+        put that in a length 1 np.array.'''
+        selem = self.state_info.state_element(state_element_name)
+        return selem.value
     
-__all__ = ["CurrentState", "CurrentStateUip", "CurrentStateDict"]    
+__all__ = ["CurrentState", "CurrentStateUip", "CurrentStateDict", "CurrentStateStateInfo"]    
         
         
 

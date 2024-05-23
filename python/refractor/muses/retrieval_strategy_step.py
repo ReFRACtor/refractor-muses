@@ -8,7 +8,7 @@ from pprint import pprint, pformat
 from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
-from .current_state import CurrentState, CurrentStateUip
+from .current_state import CurrentState, CurrentStateUip, CurrentStateStateInfo
 from functools import partial
 import numpy as np
 
@@ -54,6 +54,9 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
 
+    def __init__(self):
+        self._uip = None
+        
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # Default is to do nothing
@@ -118,7 +121,8 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         but at least for now duplicate what muses-py does.'''
         self._uip = None
         # Temp, we use the uip here until we can duplicate this functionality
-        cstate = CurrentStateUip(self.uip_func(rs, do_systematic, jacobian_speciesIn))
+        cstateold = CurrentStateUip(self.uip_func(rs, do_systematic, jacobian_speciesIn))
+        cstate = CurrentStateStateInfo(rs.state_info, rs.retrievalInfo)
         # Temp, until we get this sorted out
         cstate.apriori_cov = rs.retrievalInfo.apriori_cov
         cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
@@ -147,6 +151,7 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
 class RetrievalStrategyStepBT(RetrievalStrategyStep):
     '''Brightness Temperature strategy step.'''
     def __init__(self):
+        super().__init__()
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
@@ -210,6 +215,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
 class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     '''Strategy step that does a retrieval (e.g., the default strategy step).'''
     def __init__(self):
+        super().__init__()
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
