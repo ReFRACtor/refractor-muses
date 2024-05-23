@@ -116,13 +116,13 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         forward model run, but it has all the pieces needed so no reason not to
         just generate everything).
 
-        If do_systematic is True, then we use the systematic species list. Not
-        exactly sure how this is different then just subsetting the full retrieval,
-        but at least for now duplicate what muses-py does.'''
+        If do_systematic is True, then we use the systematic species list. '''
         self._uip = None
         # Temp, we use the uip here until we can duplicate this functionality
         cstateold = CurrentStateUip(self.uip_func(rs, do_systematic, jacobian_speciesIn))
-        cstate = CurrentStateStateInfo(rs.state_info, rs.retrievalInfo)
+        cstate = CurrentStateStateInfo(rs.state_info, rs.retrievalInfo,
+                                       do_systematic=do_systematic,
+                                       retrieval_state_element_override=jacobian_speciesIn)
         # Temp, until we get this sorted out
         cstate.apriori_cov = rs.retrievalInfo.apriori_cov
         cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()

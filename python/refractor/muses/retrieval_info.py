@@ -82,12 +82,20 @@ class RetrievalInfo:
         return self.retrieval_dict["species"][0:self.retrieval_dict["n_species"]]
 
     @property
+    def species_names_sys(self):
+        return self.retrieval_dict["speciesSys"][0:self.retrieval_dict["n_speciesSys"]]
+    
+    @property
     def species_list(self):
         return np.array(self.retrieval_dict["speciesList"][0:self.n_totalParameters])
 
     @property
+    def species_list_sys(self):
+        return list(self.retrieval_dict["speciesListSys"][0:self.n_totalParametersSys])
+    
+    @property
     def species_list_fm(self):
-        return np.array(self.retrieval_dict["speciesListFM"][0:self.n_totalParametersFM])
+        return self.retrieval_dict["speciesListFM"][0:self.n_totalParametersFM]
 
     @property
     def pressure_list_fm(self):
@@ -125,10 +133,6 @@ class RetrievalInfo:
     @property
     def maximumChangeList(self):
         return self.retrieval_dict["maximumChangeList"][0:self.n_totalParameters]
-    
-    @property
-    def species_list_fm(self):
-        return self.retrieval_dict["speciesListFM"][0:self.retrieval_dict["n_totalParametersFM"]]
     
     @property
     def n_totalParameters(self):

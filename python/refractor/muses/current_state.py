@@ -375,12 +375,30 @@ class CurrentStateDict(CurrentState):
 class CurrentStateStateInfo(CurrentState):
     '''Implementation of CurrentState that uses our StateInfo. This is the way
     the actual full retrieval works.'''
-    def __init__(self, state_info : 'StateInfo', retrieval_info : 'RetrievalInfo'):
-        '''I think we'll want to get some of the logic in RetrievalInfo into this class,
-        I'm not sure that we want this as separate. But for now, include this.'''
+    def __init__(self, state_info : 'StateInfo', retrieval_info : 'RetrievalInfo',
+                 retrieval_state_element_override=None, do_systematic=False):
+        '''I think we'll want to get some of the logic in
+        RetrievalInfo into this class, I'm not sure that we want this
+        as separate. But for now, include this as an argument.
+
+        The retrieval_state_element_override is an odd argument, it
+        overrides the retrieval_state_element in RetrievalInfo with a
+        different set. It isn't clear why this is handled this way -
+        why doesn't RetrievalInfo just figure out the right retrieval_state_element list?
+        But for now, do it the same way as py-retrieve. This seems to only be used in the
+        RetrievalStrategyStepBT - I'm guessing this was a kludge put in to support
+        this retrieval step.
+
+        In addition, the CurrentState can also we used when we are calculating the
+        "systematic" jacobian. This create a StateVector with a different set of state elements.
+        This isn't used to do a retrieval, but rather to just calculate a jacobian.
+        If do_systematic is set to True, we use this values instead.
+        '''
         super().__init__()
         self._state_info = state_info
         self._retrieval_info = retrieval_info
+        self.retrieval_state_element_override = retrieval_state_element_override
+        self.do_systematic = do_systematic
         
     @property
     def state_info(self) -> 'StateInfo':
@@ -404,6 +422,10 @@ class CurrentStateStateInfo(CurrentState):
         
     @property
     def retrieval_state_element(self)  -> 'list[str]':
+        if(self.retrieval_state_element_override is not None):
+            return self.retrieval_state_element_override
+        if(self.do_systematic):
+            return self.retrieval_info.species_names_sys
         return self.retrieval_info.species_names
 
     @property
@@ -415,7 +437,21 @@ class CurrentStateStateInfo(CurrentState):
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
             for state_element_name in self.retrieval_state_element:
-                plen = self.retrieval_info.species_list_fm.count(state_element_name)
+                if(self.do_systematic):
+                    plen = self.retrieval_info.species_list_sys.count(state_element_name)
+                else:
+                    plen = self.retrieval_info.species_list_fm.count(state_element_name)
+                    
+                # As a convention, if plen is 0 py-retrieve pads this to 1, although
+                # the state vector isn't actually used - it does get set. I think this
+                # is to avoid having a 0 size state vector. We should perhaps clean this
+                # up as some point, there isn't anything wrong with a zero size state
+                # vector (although this might have been a problem with IDL). But for
+                # now, use the py-retrieve convention. This can generally
+                # only happen if we have retrieval_state_element_override set, i.e., we
+                # are doing RetrievalStrategyStepBT.
+                if(plen == 0):
+                    plen = 1
                 self._fm_sv_loc[state_element_name] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc

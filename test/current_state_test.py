@@ -64,12 +64,47 @@ def test_current_state_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
             rstep = RetrievalStrategyStepRetrieve()
             rf_uip = rstep.uip_func(rs, do_systematic=False, jacobian_speciesIn=None)
             csuip = CurrentStateUip(rf_uip)
-    
+            # If the step as systematic jacobians, include that.
+            if(rs.retrievalInfo.n_speciesSys > 0):
+                rstepsys = RetrievalStrategyStepRetrieve()
+                rf_uipsys = rstepsys.uip_func(rs, do_systematic=True, jacobian_speciesIn=None)
+                csuipsys = CurrentStateUip(rf_uipsys)
+            else:
+                csuipsys = None
+            
         cs = CurrentStateStateInfo(rs.state_info, rs.retrievalInfo)
+        if(rs.retrievalInfo.n_speciesSys > 0):
+            cssys = CurrentStateStateInfo(rs.state_info, rs.retrievalInfo, do_systematic=True)
+        else:
+            cssys = None
+            
         assert cs.fm_state_vector_size == csuip.fm_state_vector_size
         assert cs.fm_sv_loc == csuip.fm_sv_loc
-    # TODO
-    # We need to add in the full_state_value testing, but we don't have that in place
-    # yet for CurrentStateStateInfo
+        if(cssys is not None):
+            assert cssys.fm_state_vector_size == csuipsys.fm_state_vector_size
+            assert cssys.fm_sv_loc == csuipsys.fm_sv_loc
+            
+        # TODO
+        # We need to add in the full_state_value testing, but we don't have that in place
+        # yet for CurrentStateStateInfo
+
+    # For the BT step, we use the jacobian_speciesIn argument. Check that this work with
+    # the new CurrentStateStateInfo
+    rs.table_step = 0
+    with rs.chdir_run_dir():
+        rs.retrievalInfo.stepNumber = rs.table_step
+        rs.retrievalInfo.stepName = rs.step_name
+        rs.get_initial_guess()
+        rs.create_windows(all_step=False)
+
+        # Create UIP one, so we can compare
+        rstep = RetrievalStrategyStepRetrieve()
+        rf_uip = rstep.uip_func(rs, do_systematic=False, jacobian_speciesIn=["H2O",])
+        csuip = CurrentStateUip(rf_uip)
+    
+    cs = CurrentStateStateInfo(rs.state_info, rs.retrievalInfo,
+                               retrieval_state_element_override=["H2O"])
+    assert cs.fm_state_vector_size == csuip.fm_state_vector_size
+    assert cs.fm_sv_loc == csuip.fm_sv_loc
     
     
