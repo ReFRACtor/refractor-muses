@@ -173,8 +173,28 @@ class CostFunctionCreator:
         # along with an Observation class
         self._read_rad(self.rs.state_info, self.rs.instrument_name_all)
         radianceStepIn = self._radiance
-        radianceStepIn = mpy.radiance_set_windows(radianceStepIn, self.rs.windows)
+        mw = self.rs.strategy_table.microwindows()
+        # Bit if a kludge here, but we adjust the windows for the CRIS instrument
+        if(self.o_cris is not None):
+            for win in mw:
+                if win['instrument'] == 'CRIS': # EM - Necessary for joint retrievals
+                    con1 = self.o_cris['FREQUENCY'] >= win['start']
+                    con2 = self.o_cris['FREQUENCY'] <= win['endd']
 
+                    tempind = np.where(np.logical_and(con1 == True, con2 == True))[0]
+        
+                    MAXOPD = np.unique(self.o_cris['MAXOPD'][tempind])
+                    SPACING = np.unique(self.o_cris['SPACING'][tempind])
+
+                    if len(MAXOPD) > 1 or len(SPACING) > 1:
+                        raise Running('ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!')
+
+                    win['maxopd'] = np.float32(MAXOPD[0])
+                    win['spacing'] = np.float32(SPACING[0])
+                    win['monoextend'] = np.float32(SPACING[0]) * 4.0
+            
+        radianceStepIn = mpy.radiance_set_windows(radianceStepIn,mw)
+        
         if np.all(np.isfinite(radianceStepIn['radiance'])) == False:
             raise RuntimeError('ERROR! radiance NOT FINITE!')
 
@@ -319,7 +339,8 @@ class CostFunctionCreator:
                 retrieval_sv_apriori = np.zeros((fm_sv.observer_claimed_size,))
                 retrieval_sv_sqrt_constraint=np.eye(fm_sv.observer_claimed_size)
 
-        return (self.fm_list, self.obs_list, fm_sv, retrieval_sv_apriori,
+        return (instrument_name_list,
+                self.fm_list, self.obs_list, fm_sv, retrieval_sv_apriori,
                 retrieval_sv_sqrt_constraint, bmatrix)
 
     def cost_function_from_uip(self, rf_uip : RefractorUip,

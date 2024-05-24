@@ -1344,6 +1344,25 @@ class RefractorUip:
                    i_oco2, jacobian_speciesIn=None):
         '''We duplicate what mpy.run_retrieval does to make the uip.'''
         i_windows = copy.deepcopy(i_windows)
+        # Bit if a kludge here, but we adjust the windows for the CRIS instrument
+        if(i_cris is not None):
+            for win in i_windows:
+                if win['instrument'] == 'CRIS': # EM - Necessary for joint retrievals
+                    con1 = i_cris['FREQUENCY'] >= win['start']
+                    con2 = i_cris['FREQUENCY'] <= win['endd']
+
+                    tempind = np.where(np.logical_and(con1 == True, con2 == True))[0]
+        
+                    MAXOPD = np.unique(i_cris['MAXOPD'][tempind])
+                    SPACING = np.unique(i_cris['SPACING'][tempind])
+
+                    if len(MAXOPD) > 1 or len(SPACING) > 1:
+                        raise Running('ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!')
+
+                    win['maxopd'] = np.float32(MAXOPD[0])
+                    win['spacing'] = np.float32(SPACING[0])
+                    win['monoextend'] = np.float32(SPACING[0]) * 4.0
+                
         # Temp, we are sorting out the interface of i_retrievalInfo
         if(hasattr(i_retrievalInfo, "retrieval_info_obj")):
             retrieval_info = copy.deepcopy(i_retrievalInfo.retrieval_info_obj)

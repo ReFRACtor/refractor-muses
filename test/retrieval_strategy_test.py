@@ -259,12 +259,10 @@ def test_tropomi_issue(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # cost function.
     rs1.cost_function_creator.create_o_obs()
     rs1.o_cris = rs1.cost_function_creator.o_cris
-    rs1.create_windows(all_step=True)
     rs1.instrument_name_all = rs1.strategy_table.instrument_name(all_step=True)
     rs1.state_info.state_info_dict = rstep.params['i_stateInfo'].__dict__
     rs2.cost_function_creator.create_o_obs()
     rs2.o_cris = rs2.cost_function_creator.o_cris
-    rs2.create_windows(all_step=True)
     rs2.instrument_name_all = rs2.strategy_table.instrument_name(all_step=True)
     rs2.state_info.state_info_dict = rstep.params['i_stateInfo'].__dict__
     def uip_func1():

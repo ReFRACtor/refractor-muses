@@ -43,7 +43,7 @@ class RetrievalOutput:
     
     @property
     def windows(self):
-        return self.retrieval_strategy.windows
+        return self.retrieval_strategy.strategy_table.microwindows()
 
     @property
     def errorCurrent(self):
@@ -101,7 +101,7 @@ class RetrievalOutput:
 
     @property
     def retrievalInfo(self):
-        return self.retrieval_strategy.retrievalInfo
+        return self.retrieval_strategy.retrieval_info
     
     @property
     def instruments(self):

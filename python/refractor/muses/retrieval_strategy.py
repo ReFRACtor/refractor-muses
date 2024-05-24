@@ -50,7 +50,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     1. Simplifies the core code, the script_retrieval_ms is really
         pretty long and is a sequence of "do one thing, then another,
-        then aother). We do this by:
+        then aother". We do this by:
 
     2. Moving output out of this class, and having separate classes
        handle this. We use the standard ReFRACtor approach of having
@@ -122,7 +122,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     def update_target(self, filename):
         '''Set up to process a target, given the filename for the strategy table.
-
         
         A number of objects related to this one might do caching based on the
         target, e.g., read the input files once. py-retrieve can call script_retrieval_ms
@@ -198,13 +197,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         start_time = time.time()
 
         self.instrument_name_all = self.strategy_table.instrument_name(all_step=True)
-        self.create_windows(all_step=True)
         self.state_info.init_state(self.strategy_table,
                                    self.cost_function_creator.observation_handle_set,
                                    self.instrument_name_all, self.run_dir)
 
         self.error_analysis = ErrorAnalysis(self.strategy_table, self.state_info)
-        self.retrievalInfo = None
+        self.retrieval_info = None
         self.notify_update("initial set up done")
         
         # Go through all the steps once, to make sure we can get all the information
@@ -258,10 +256,9 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         logger.info(f'\n---')
         logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
         logger.info(f'\n---')
+        self.instruments = self.strategy_table.instrument_name()
         self.get_initial_guess()
         self.notify_update("done get_initial_guess")
-        self.create_windows(all_step=False)
-        self.notify_update("done create_windows")
         logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
         self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
         self.notify_update("done retrieval_step")
@@ -294,86 +291,21 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             if not os.path.isfile(res):
                 raise RuntimeError(f"Quality flag filename not found: {res}")
         return res
-    
-    def create_windows(self, all_step=False):
-        # We should rework this a bit, it is just a string of magic code. Perhaps
-        # we should have each instrument have a function for this?
-        if(all_step):
-            self.windows = mpy.table_new_mw_from_all_steps(self.strategy_table.strategy_table_dict)
-        else:
-            self.windows = mpy.table_new_mw_from_step(self.strategy_table.strategy_table_dict, self.table_step)
-            
-        # This is a bit convoluted. We are trying to get away from having the various
-        # items like o_cris here, pushing that down to the Observation classes. But
-        # we don't have this untangled yet. So get the radiance data from CostFunctionCreator,
-        # which as the side effect of creating a o_cris. We grab this. This is
-        # clumsy, and we should replace this. But right now we need o_cris for our
-        # create_windows function.
-        self.cost_function_creator.create_o_obs()
-        o_cris = self.cost_function_creator.o_cris
-        
-        self.instruments = mpy.mw_instruments(self.windows)
-
-        # This magic adjustment should go somewhere else
-        if 'CRIS' in self.instruments:
-            for tempind, win in enumerate(self.windows):
-                if win['instrument'] == 'CRIS': # EM - Necessary for joint retrievals
-                    con1 = o_cris['FREQUENCY'] >= win['start']
-                    con2 = o_cris['FREQUENCY'] <= win['endd']
-
-                    tempind = np.where(np.logical_and(con1 == True, con2 == True))[0]
-        
-                    MAXOPD = np.unique(o_cris['MAXOPD'][tempind])
-                    SPACING = np.unique(o_cris['SPACING'][tempind])
-
-                    if len(MAXOPD) > 1 or len(SPACING) > 1:
-                        raise Running('ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!')
-
-                    win['maxopd'] = np.float32(MAXOPD[0])
-                    win['spacing'] = np.float32(SPACING[0])
-                    win['monoextend'] = np.float32(SPACING[0]) * 4.0
-
-        if(all_step):
-            # muses-py does this only for the first all_step=True. I'm
-            # not sure if that matters, or is even correct. But well
-            # have that for now
-            self.windows = mpy.mw_combine_overlapping(self.windows,
-                                                      self.threshold)
 
     def get_initial_guess(self):
-        '''Set retrievalInfo, errorInitial and errorCurrent for the current step.'''
-        # Temporary, leave old code in place as we sort out the new code. This
-        # can go away in a bit.
-        if True:
-            self.retrievalInfo = RetrievalInfo(
-                self.error_analysis, self.strategy_table, self.state_info)
-        else:
-            from refractor.old_py_retrieve_wrapper import RetrievalInfoOld
-            self.retrievalInfo = RetrievalInfoOld(
-                self.strategy_table, self.state_info)
-
-        # Similarly if we need to compare stuff - again this can go away in a
-        # bit when we have stuff sorted out.
-        if False:
-            r2 = RetrievalInfoOld(self.strategy_table, self.state_info)
-            struct_compare(self.retrievalInfo.retrieval_dict,
-                           r2.retrieval_dict)
-            
+        '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
+        self.retrieval_info = RetrievalInfo(self.error_analysis, self.strategy_table,
+                                            self.state_info)
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
-        nn = self.retrievalInfo.n_totalParameters
-        logger.info(f"Step: {self.table_step}, Total Parameters: {nn}")
+        nparm = self.retrieval_info.n_totalParameters
+        logger.info(f"Step: {self.table_step}, Total Parameters: {nparm}")
 
-        if nn > 0:
-            xig = self.retrievalInfo.initialGuessList[0:nn]
-            self.state_info.update_state(self.retrievalInfo, xig, [],
+        if nparm > 0:
+            xig = self.retrieval_info.initialGuessList[0:nparm]
+            self.state_info.update_state(self.retrieval_info, xig, [],
                                          self.cloud_prefs, self.table_step)
-
-    @property
-    def threshold(self):
-        res = self.strategy_table.preferences["apodizationWindowCombineThreshold"]
-        return int(res.split()[0])
 
     @property
     def cloud_prefs(self):
@@ -399,7 +331,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     @property
     def retrieval_type(self):
-        return self.retrievalInfo.type.lower()
+        return self.retrieval_info.type.lower()
 
     @contextmanager
     def chdir_run_dir(self):
@@ -425,9 +357,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     # Note this is not used at all. Leave the code here for a bit, because we want to be
     # able to pull various pieces out of this into other places
     def retrieval_setup_not_used(self):
-        # Not sure we actually want this here, but short term we'll place this here
-        # and ideally clean up and separate.
-
         o_airs = None
         o_cris = None
         o_omi = None

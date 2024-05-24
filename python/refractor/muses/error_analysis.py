@@ -84,11 +84,11 @@ class ErrorAnalysis:
             rs.strategy_table.analysis_directory,
             rs.radianceStep,
             radianceNoise,
-            rs.retrievalInfo.retrieval_info_obj,
+            rs.retrieval_info.retrieval_info_obj,
             rs.state_info.state_info_obj,
             self.error_initial,
             self.error_current,
-            rs.windows,
+            None,
             results
             )
         return results

@@ -15,12 +15,14 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     We allow this to replace the functions fm_wrapper and/or
     refractor_residual_fm_jac, as well as just having the functions to
     directly call.'''
-    def __init__(self, fm_list: List[rf.ForwardModel],
+    def __init__(self, instrument_name_list : "list[str]",
+                 fm_list: List[rf.ForwardModel],
                  obs_list: List[rf.Observation],
                  fm_sv: rf.StateVector,
                  retrieval_sv_apriori: np.array,
                  retrieval_sv_sqrt_constraint: np.array,
                  basis_matrix):
+        self.instrument_name_list = instrument_name_list
         self.obs_list = obs_list
         self.fm_list = fm_list
         self.fm_sv = fm_sv
@@ -192,6 +194,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         f = []
         d = []
         u = []
+        isize = []
         for obs in self.obs_list:
             if(hasattr(obs, "radiance_all_with_bad_sample")):
                 s = obs.radiance_all_with_bad_sample()
@@ -202,12 +205,13 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             f.append(s.spectral_domain.data)
             d.append(s.spectral_range.data)
             u.append(s.spectral_range.uncertainty)
+            isize.append(s.spectral_range.data.shape[0])
         return {"radiance" : np.concatenate(d),
          "NESR" : np.concatenate(u),
          "frequency" : np.concatenate(f),
          "filterNames" : i_radianceInfo["filterNames"],
          "filterSizes" : i_radianceInfo["filterSizes"],
-         "instrumentNames" : i_radianceInfo["instrumentNames"],
-         "instrumentSizes" : i_radianceInfo["instrumentSizes"],
+         "instrumentNames" : self.instrument_name_list,
+         "instrumentSizes" : isize,
          }        
         

@@ -277,13 +277,24 @@ class StrategyTable:
         If all_step is True, then we return table_new_mw_from_all_steps instead.'''
         with self.chdir_run_dir():
             if(all_step):
-                return mpy.table_new_mw_from_all_steps(self.strategy_table_dict)
-            return mpy.table_new_mw_from_step(self.strategy_table_dict,
-                                              stp if stp is not None else self.table_step)
+                res = mpy.table_new_mw_from_all_steps(self.strategy_table_dict)
+            else:
+                res = mpy.table_new_mw_from_step(self.strategy_table_dict,
+                                                 stp if stp is not None else self.table_step)
+        # This doesn't seem to actually be called in py-retrieve. Not sure if this is
+        # important or not, we'll comment this out to make a note that we aren't doing this.
+        #res = mpy.mw_combine_overlapping(res, self.apodization_threshold)
+        return res
     
     def table_entry(self, nm, stp=None):
         return mpy.table_get_entry(self.strategy_table_dict,
                                    stp if stp is not None else self.table_step, nm)
+
+    @property
+    def apodization_threshold(self):
+        res = self.preferences["apodizationWindowCombineThreshold"]
+        return int(res.split()[0])
+        
 
 class FakeStrategyTable:
     '''For testing purposes, it is useful to create a StrategyTable from a UIP, see
