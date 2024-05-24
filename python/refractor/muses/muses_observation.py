@@ -133,7 +133,9 @@ class MusesObservation(rf.ObservationSvImpBase):
     to know that the interface is.
 
     The things added are:
-    
+
+    instrument_name - the name of the instrument the observation is for
+    filter_data - metadata about the filter covered the observations
     sounding_desc - this is a dictionary with the instrument specific way of describing
         what sounding we are using. This is used in the product output files (so stuff
         in RetrievalOutput)
@@ -149,14 +151,38 @@ class MusesObservation(rf.ObservationSvImpBase):
         output files actually include bad sample data. I think this is actually a bad idea,
         but none the less is how the current py-retrieve works. So we have a separate version
         of the spectral_window that does not include removing bad samples.
+    state_element_name_list - List of state elements if any that are used to deterimine
+        radiance
     radiance_all_with_bad_sample - variation of the normal rf.Observation.radiance_all,
         but includes bad samples
-    muses_py_dict - not sure how much longer we will need this, but currently have code
-        that depends on the older python dict in muses_py (e.g. o_tropomi). This provides
-        access to that.
     
     We have all the normal rf.Observation stuff, plus what is found in this class.
     '''
+
+    @property
+    def instrument_name(self) -> str:
+        '''Name of instrument observation is for.'''
+        raise NotImplementedError()
+    
+    @property
+    def filter_data(self) -> "list[list[str,int]]":
+        '''This returns a list of filter names and sizes. This is used as metadata in the
+        py-retrieve structure called "radianceStep".
+
+        Note this is similar but distinct from the filter_list used in MeasurementId. That
+        list corresponds to specific data read from a file. Often this is the same as the
+        filter data used in "radianceStep", but in some cases py-retrieve wants to think
+        of data as different filters even if it is read from one structure - so for
+        example CrIS data gets separated into 'CrIS-fsr-lw', 'CrIS-fsr-mw', 'CrIS-fsr-sw'
+        even though the data is read from one array in read_noaa_cris_fsr. Individual
+        classes can handle generating this filter_data however they like, there is
+        no requirement that the number of filters is the same as the number of channels.
+        
+        This should return a list of pairs as a filter name and length of data. The length
+        of the data should include bad pixels - the place where this is used returns radiance
+        data subsetted by the spectral windows but with bad pixels included.
+        '''
+        raise NotImplementedError()
 
     @property
     def sounding_desc(self):
@@ -413,6 +439,10 @@ class MusesAirsObservation(MusesObservationImp):
     def desc(self):
         return "MusesAirsObservation"
 
+    @property
+    def instrument_name(self):
+        return "AIRS"
+    
     @classmethod
     def create_from_filename(cls, filename, granule, xtrack, atrack, filter_list,
                              osp_dir=None):
@@ -497,7 +527,7 @@ class MusesCrisObservation(MusesObservationImp):
         filename = os.path.abspath(filename)
         with(osp_setup(osp_dir)):
             if(cls.l1b_type_from_filename(filename) in ('snpp_fsr', 'noaa_fsr')):
-               o_cris = read_noaa_cris_fsr(i_fileid)
+               o_cris = mpy.read_noaa_cris_fsr(i_fileid)
             else:
                o_cris = mpy.read_nasa_cris_fsr(i_fileid)
         # Leaving RADIANCESTRUCT out of o_cris, I don't think this is actually
@@ -557,6 +587,10 @@ class MusesCrisObservation(MusesObservationImp):
     def desc(self):
         return "MusesCrisObservation"
 
+    @property
+    def instrument_name(self):
+        return "CRIS"
+    
     @classmethod
     def create_from_filename(cls, filename, granule, xtrack, atrack, pixel_index,
                              osp_dir=None):
@@ -898,6 +932,10 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def desc(self):
         return "MusesTropomiObservation"
 
+    @property
+    def instrument_name(self):
+        return "TROPOMI"
+    
     @classmethod
     def create_from_filename(cls, filename_list, irr_filename, cld_filename, xtrack_list,
                              atrack, utc_time, filter_list, calibration_filename=None,
@@ -997,6 +1035,10 @@ class MusesOmiObservation(MusesObservationReflectance):
     def desc(self):
         return "MusesOmiObservation"
 
+    @property
+    def instrument_name(self):
+        return "OMI"
+    
     @classmethod
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',

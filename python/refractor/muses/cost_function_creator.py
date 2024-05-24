@@ -172,7 +172,6 @@ class CostFunctionCreator:
         # Note, I think we might replace this just with our SpectralWindow stuff,
         # along with an Observation class
         self._read_rad(self.rs.state_info, self.rs.instrument_name_all)
-        radianceStepIn = self._radiance
         mw = self.rs.strategy_table.microwindows()
         # Bit if a kludge here, but we adjust the windows for the CRIS instrument
         if(self.o_cris is not None):
@@ -193,7 +192,7 @@ class CostFunctionCreator:
                     win['spacing'] = np.float32(SPACING[0])
                     win['monoextend'] = np.float32(SPACING[0]) * 4.0
             
-        radianceStepIn = mpy.radiance_set_windows(radianceStepIn,mw)
+        radianceStepIn = mpy.radiance_set_windows(self._radiance,mw)
         
         if np.all(np.isfinite(radianceStepIn['radiance'])) == False:
             raise RuntimeError('ERROR! radiance NOT FINITE!')

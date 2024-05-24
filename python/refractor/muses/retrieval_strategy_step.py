@@ -177,7 +177,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
                         "frequency" : freq_fm }
         (rs.strategy_table.strategy_table_dict, rs.state_info.state_info_dict) = mpy.modify_from_bt(
             mpy.ObjectView(rs.strategy_table.strategy_table_dict), rs.table_step,
-            rs.cost_function_creator.radiance_step_in,
+            self.cfunc.radianceStep(rs.cost_function_creator.radiance_step_in),
             radiance_res,
             {},
             rs.state_info.state_info_dict,
@@ -202,12 +202,13 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         mytiming = None
         uip=tes = cris = omi = tropomi = None 
         logger.info("Running run_irk ...")
+        self.cfunc = self.create_cost_function(rs)
         (resultsIRK, jacobianOut) = mpy.run_irk(
             rs.strategy_table.strategy_table_dict,
             rs.state_info, rs.strategy_table.microwindows(), rs.retrieval_info,
             jacobian_speciesNames, 
             jacobian_specieslist, 
-            rs.cost_function_creator.radiance_step_in,
+            self.cfunc.radianceStep(rs.cost_function_creator.radiance_step_in),
             uip, 
             rs.o_airs, tes, cris, omi, tropomi,
             mytiming, 
@@ -337,7 +338,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         ConvTolerance_CostThresh = float(rs.strategy_table.preferences["ConvTolerance_CostThresh"])
         ConvTolerance_pThresh = float(rs.strategy_table.preferences["ConvTolerance_pThresh"])
         ConvTolerance_JacThresh = float(rs.strategy_table.preferences["ConvTolerance_JacThresh"])
-        Chi2Tolerance = 2.0 / len(rs.cost_function_creator.radiance_step_in["NESR"]) # theoretical value for tolerance
+        r = self.cfunc.radianceStep(rs.cost_function_creator.radiance_step_in)["NESR"]
+        Chi2Tolerance = 2.0 / len(r) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
             ConvTolerance_CostThresh = 0.00001
             ConvTolerance_pThresh = 0.00001

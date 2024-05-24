@@ -194,6 +194,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         f = []
         d = []
         u = []
+        iname = []
         isize = []
         for obs in self.obs_list:
             if(hasattr(obs, "radiance_all_with_bad_sample")):
@@ -205,13 +206,14 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             f.append(s.spectral_domain.data)
             d.append(s.spectral_range.data)
             u.append(s.spectral_range.uncertainty)
+            iname.append(obs.instrument_name)
             isize.append(s.spectral_range.data.shape[0])
         return {"radiance" : np.concatenate(d),
          "NESR" : np.concatenate(u),
          "frequency" : np.concatenate(f),
          "filterNames" : i_radianceInfo["filterNames"],
          "filterSizes" : i_radianceInfo["filterSizes"],
-         "instrumentNames" : self.instrument_name_list,
+         "instrumentNames" : iname,
          "instrumentSizes" : isize,
          }        
         
