@@ -66,13 +66,12 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 8
     rs.strategy_table.table_step = step_number+1
-    swin = rs.strategy_table.spectral_window("CRIS")
-    fm_sv = rf.StateVector()
-    cs = CurrentStateDict(dict(), ["fake",])
+    swin = rs.strategy_table.spectral_window("AIRS")
     obs = MusesAirsObservation.create_from_id(rs.measurement_id, None,
-                                              cs, swin, fm_sv, osp_dir=osp_dir)
+                                              None, swin, None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
+    print(obs.filter_data)
 
 def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
     granule = 65
@@ -121,12 +120,11 @@ def test_create_muses_cris_observation(isolated_dir, osp_dir, gmao_dir,
     step_number = 12
     rs.strategy_table.table_step = step_number+1
     swin = rs.strategy_table.spectral_window("CRIS")
-    fm_sv = rf.StateVector()
-    cs = CurrentStateDict(dict(), ["fake",])
     obs = MusesCrisObservation.create_from_id(rs.measurement_id, None,
-                                              cs, swin, fm_sv, osp_dir=osp_dir)
+                                              None, swin, None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
+    print(obs.filter_data)
         
 def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     xtrack_list = [226,]
@@ -202,15 +200,15 @@ def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
     step_number = 12
     rs.strategy_table.table_step = step_number+1
     swin = rs.strategy_table.spectral_window("TROPOMI")
-    fm_sv = rf.StateVector()
     cs = CurrentStateDict({"TROPOMISOLARSHIFTBAND3" : 0.1,
                            "TROPOMIRADIANCESHIFTBAND3" : 0.2,
                            "TROPOMIRADSQUEEZEBAND3" : 0.3,}
                            , ["TROPOMISOLARSHIFTBAND3",])
     obs = MusesTropomiObservation.create_from_id(rs.measurement_id, None,
-                                              cs, swin, fm_sv, osp_dir=osp_dir)
+                                              cs, swin, None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
+    print(obs.filter_data)
     
 def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     xtrack_uv1 = 10
@@ -221,11 +219,9 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     utc_time = "2016-04-01T23:07:33.676106Z"
     calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
     stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
-                                 utc_time, calibration_filename,
-                                 ["UV1", "UV2"],
-                                 cld_filename=cld_filename,
-                                 osp_dir=osp_dir)
+    obs = MusesOmiObservation.create_from_filename(
+        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+        ["UV1", "UV2"], cld_filename=cld_filename, osp_dir=osp_dir)
     step_number = 8
     iteration = 2
     rrefractor = muses_residual_fm_jac(joint_omi_test_in_dir,
@@ -299,7 +295,6 @@ def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
     step_number = 8
     rs.strategy_table.table_step = step_number+1
     swin = rs.strategy_table.spectral_window("OMI")
-    fm_sv = rf.StateVector()
     cs = CurrentStateDict({"OMINRADWAVUV1" : 0.1,
                            "OMINRADWAVUV2" : 0.11,
                            "OMIODWAVUV1" : 0.2,
@@ -308,9 +303,10 @@ def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
                            "OMIODWAVSLOPEUV2" : 0.31,}
                            , ["OMINRADWAVUV1",])
     obs = MusesOmiObservation.create_from_id(rs.measurement_id, None,
-                                              cs, swin, fm_sv, osp_dir=osp_dir)
+                                              cs, swin, None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
+    print(obs.filter_data)
     
 def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     xtrack_uv1 = 10
@@ -321,11 +317,9 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     utc_time = "2016-04-01T23:07:33.676106Z"
     calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
     stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
-                                 utc_time, calibration_filename,
-                                 ["UV1", "UV2"],
-                                 cld_filename=cld_filename,
-                                 osp_dir=osp_dir)
+    obs = MusesOmiObservation.create_from_filename(
+        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+        ["UV1", "UV2"], cld_filename=cld_filename, osp_dir=osp_dir)
     step_number = 3
     sv = rf.StateVector()
     sv.add_observer(obs)

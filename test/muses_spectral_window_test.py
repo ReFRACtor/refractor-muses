@@ -12,11 +12,9 @@ def test_muses_spectral_window(osp_dir):
     utc_time = "2016-04-01T23:07:33.676106Z"
     calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
     stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
-                              utc_time, calibration_filename,
-                              ["UV1", "UV2"],
-                              cld_filename=cld_filename,
-                              osp_dir=osp_dir)
+    obs = MusesOmiObservation.create_from_filename(
+        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+        ["UV1", "UV2"], cld_filename=cld_filename, osp_dir=osp_dir)
     step_number = 3
     # Note this is off by 1. The table numbering get redone after the BT step. It might
     # be nice to straighten this out - this is actually kind of confusing. Might be better to

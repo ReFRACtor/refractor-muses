@@ -243,11 +243,9 @@ def joint_omi_obs_step_8(osp_dir):
     utc_time = "2016-04-01T23:07:33.676106Z"
     filter_list = ["UV1", "UV2"]
     stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
-                                 utc_time, calibration_filename,
-                                 filter_list,
-                                 cld_filename=cld_filename,
-                                 osp_dir=osp_dir)
+    obs = MusesOmiObservation.create_from_filename(
+        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+        filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
     obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=8+1),
                                               obs)
     channel_list = ['1A1', '2A1', '1B2', '2B1']
@@ -341,11 +339,9 @@ def omi_obs_step_1(osp_dir):
     utc_time = "2016-04-14T23:59:46.000000Z"
     filter_list = ["UV1", "UV2"]
     stable = StrategyTable(f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
-                                 utc_time, calibration_filename,
-                                 filter_list,
-                                 cld_filename=cld_filename,
-                                 osp_dir=osp_dir)
+    obs = MusesOmiObservation.create_from_filename(
+        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+        filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
     obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=0),
                                               obs)
     return obs
@@ -362,11 +358,9 @@ def omi_obs_step_2(osp_dir):
     utc_time = "2016-04-14T23:59:46.000000Z"
     filter_list = ["UV1", "UV2"]
     stable = StrategyTable(f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesOmiObservation(filename, xtrack_uv1, xtrack_uv2, atrack,
-                                 utc_time, calibration_filename,
-                                 filter_list,
-                                 cld_filename=cld_filename,
-                                 osp_dir=osp_dir)
+    obs = MusesOmiObservation.create_from_filename(
+        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+        filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
     obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=1),
                                               obs)
     return obs

@@ -241,8 +241,6 @@ class MusesObservationImp(MusesObservation):
         self.muses_py_dict = muses_py_dict
         self._spectral_window = MusesSpectralWindow(None, None)
         self._num_channels = num_channels
-        self._sd = [None,] * self.num_channels
-        self._spec = [None,] * self.num_channels
         self._sounding_desc = sdesc
 
     # TODO Short Term
@@ -274,8 +272,6 @@ class MusesObservationImp(MusesObservation):
         e.g., a MusesObservationBase used for one strategy step with a set of microwindows and
         then updated to another set.'''
         self._spectral_window = val
-        self._sd = [None,] * self.num_channels
-        self._spec = [None,] * self.num_channels
 
     def spectral_domain(self, sensor_index):
         sd = self.spectral_domain_full(sensor_index)
@@ -352,9 +348,9 @@ class MusesObservationHandle(ObservationHandle):
         self.measurement_id = measurement_id
         
     def observation(self, instrument_name : str,
-                    current_state : 'CurrentState',
+                    current_state : 'Optional(CurrentState)',
                     spec_win : rf.SpectralWindowRange,
-                    fm_sv: rf.StateVector,
+                    fm_sv: "Optional(rf.StateVector)",
                     osp_dir=None,
                     **kwargs):
         if(instrument_name != self.instrument_name):
@@ -419,9 +415,9 @@ class MusesAirsObservation(MusesObservationImp):
     @classmethod
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
-                       current_state: 'CurrentState',
+                       current_state: 'Optional(CurrentState)',
                        spec_win: rf.SpectralWindowRange,
-                       fm_sv: rf.StateVector,
+                       fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         if(existing_obs is not None):
             # Take data from existing observation
@@ -438,8 +434,11 @@ class MusesAirsObservation(MusesObservationImp):
                                            osp_dir=osp_dir)
             obs = cls(o_airs, sdesc)
         obs.spectral_window = MusesSpectralWindow(spec_win, obs)
-        current_state.add_fm_state_vector_if_needed(
-            fm_sv, obs.state_element_name_list(), [obs,])
+        if(fm_sv is not None):
+            if(current_state is None):
+                raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, obs.state_element_name_list(), [obs,])
         return obs
     
     def radiance_full(self, sensor_index, skip_jacobian=False):
@@ -561,9 +560,9 @@ class MusesCrisObservation(MusesObservationImp):
     @classmethod
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
-                       current_state: 'CurrentState',
+                       current_state: 'Optional(CurrentState)',
                        spec_win: rf.SpectralWindowRange,
-                       fm_sv: rf.StateVector,
+                       fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         if(existing_obs is not None):
             # Take data from existing observation
@@ -580,8 +579,11 @@ class MusesCrisObservation(MusesObservationImp):
                                            pixel_index, osp_dir=osp_dir)
             obs = cls(o_cris, sdesc)
         obs.spectral_window = MusesSpectralWindow(spec_win, obs)
-        current_state.add_fm_state_vector_if_needed(
-            fm_sv, obs.state_element_name_list(), [obs,])
+        if(fm_sv is not None):
+            if(current_state is None):
+                raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, obs.state_element_name_list(), [obs,])
         return obs
     
     def radiance_full(self, sensor_index, skip_jacobian=False):
@@ -905,19 +907,23 @@ class MusesTropomiObservation(MusesObservationReflectance):
     @classmethod
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
-                       current_state: 'CurrentState',
+                       current_state: 'Optional(CurrentState)',
                        spec_win: rf.SpectralWindowRange,
-                       fm_sv: rf.StateVector,
+                       fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
+        coeff = None
+        mp = None
         if(existing_obs is not None):
             # Take data from existing observation
-            coeff, mp = current_state.object_state(existing_obs.state_element_name_list())
+            if(current_state is not None):
+                coeff, mp = current_state.object_state(existing_obs.state_element_name_list())
             obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
                       existing_obs.filter_list, existing_obs=existing_obs,
                       coeff=coeff, mp=mp)
         else:
             filter_list = mid.filter_list["TROPOMI"]
-            coeff,mp=current_state.object_state(cls.state_element_name_list_from_filter(filter_list))
+            if(current_state is not None):
+                coeff,mp=current_state.object_state(cls.state_element_name_list_from_filter(filter_list))
             if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
                 # The current py-retrieve code just silently ignores calibration,
                 # see about line 614 of script_retrieval_setup_ms. We duplicate
@@ -937,8 +943,11 @@ class MusesTropomiObservation(MusesObservationReflectance):
             obs = cls(o_tropomi, sdesc,filter_list, coeff=coeff, mp=mp)
 
         obs.spectral_window = MusesSpectralWindow(spec_win, obs)
-        current_state.add_fm_state_vector_if_needed(
-            fm_sv, obs.state_element_name_list(), [obs,])
+        if(fm_sv is not None):
+            if(current_state is None):
+                raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, obs.state_element_name_list(), [obs,])
         return obs
     
     def snr_uplimit(self, sensor_index):
@@ -964,8 +973,16 @@ class MusesTropomiObservation(MusesObservationReflectance):
     
 class MusesOmiObservation(MusesObservationReflectance):
     '''Observation for OMI'''
-    def __init__(self, filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
-                 filter_list, cld_filename=None, osp_dir=None):
+    def __init__(self, muses_py_dict, sdesc, filter_list,
+                 existing_obs=None, coeff=None, mp=None):
+        '''Note you don't normally create an object of this class with the
+        __init__. Instead, call one of the create_xxx class methods.'''
+        super().__init__(muses_py_dict, sdesc, filter_list, existing_obs=existing_obs,
+                         coeff=coeff, mp=mp)
+
+    @classmethod
+    def _read_data(cls, filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
+                   calibration_filename, cld_filename=None, osp_dir=None):
         with(osp_setup(osp_dir)):
             o_omi = mpy.read_omi(filename, xtrack_uv2, atrack, utc_time, calibration_filename,
                                  cldFilename=cld_filename)
@@ -980,7 +997,7 @@ class MusesOmiObservation(MusesObservationReflectance):
         # but this is in the muses-py code so we duplicate this here.
         if(dstruct['utctime'].year >= 2010):
             o_omi['Earth_Radiance']['EarthRadianceNESR'][o_omi['Earth_Radiance']['EarthRadianceNESR'] > 0] *= 2
-        super().__init__(o_omi, sdesc, filter_list)
+        return (o_omi, sdesc)
 
     def desc(self):
         return "MusesOmiObservation"
@@ -990,28 +1007,50 @@ class MusesOmiObservation(MusesObservationReflectance):
         return "OMI"
     
     @classmethod
+    def create_from_filename(cls, filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
+                             calibration_filename, filter_list, cld_filename=None, osp_dir=None):
+        o_omi, sdesc = cls._read_data(
+            filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+            cld_filename=cld_filename, osp_dir=osp_dir)
+        return cls(o_omi, sdesc, filter_list)
+    
+    @classmethod
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
-                       current_state: 'CurrentState',
+                       current_state: 'Optional(CurrentState)',
                        spec_win: rf.SpectralWindowRange,
-                       fm_sv: rf.StateVector,
+                       fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
-        filter_list = mid.filter_list["OMI"]
-        xtrack_uv1 = mid.value_int("OMI_XTrack_UV1_Index")
-        xtrack_uv2 = mid.value_int("OMI_XTrack_UV2_Index")
-        atrack = mid.value_int('OMI_ATrack_Index')
-        filename = mid.filename("OMI_filename")
-        cld_filename = mid.filename('OMI_Cloud_filename')
-        utc_time = mid.value('OMI_utcTime')
-        calibration_filename = mid.filename("omi_calibrationFilename")
-        obs = cls(filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
-                  calibration_filename, filter_list, cld_filename=cld_filename,
-                  osp_dir=osp_dir)
+        coeff = None
+        mp = None
+        if(existing_obs is not None):
+            if(current_state is not None):
+                coeff, mp = current_state.object_state(existing_obs.state_element_name_list())
+            obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
+                      existing_obs.filter_list, existing_obs=existing_obs,
+                      coeff=coeff, mp=mp)
+        else:
+            filter_list = mid.filter_list["OMI"]
+            if(current_state is not None):
+                coeff,mp=current_state.object_state(
+                    cls.state_element_name_list_from_filter(filter_list))
+            xtrack_uv1 = mid.value_int("OMI_XTrack_UV1_Index")
+            xtrack_uv2 = mid.value_int("OMI_XTrack_UV2_Index")
+            atrack = mid.value_int('OMI_ATrack_Index')
+            filename = mid.filename("OMI_filename")
+            cld_filename = mid.filename('OMI_Cloud_filename')
+            utc_time = mid.value('OMI_utcTime')
+            calibration_filename = mid.filename("omi_calibrationFilename")
+            o_omi, sdesc = cls._read_data(
+                filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+                cld_filename=cld_filename, osp_dir=osp_dir)
+            obs = cls(o_omi, sdesc,filter_list, coeff=coeff, mp=mp)
         obs.spectral_window = MusesSpectralWindow(spec_win, obs)
-        coeff, mp = current_state.object_state(obs.state_element_name_list())
-        obs.init(coeff, mp)
-        current_state.add_fm_state_vector_if_needed(
-            fm_sv, obs.state_element_name_list(), [obs,])
+        if(fm_sv is not None):
+            if(current_state is None):
+                raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, obs.state_element_name_list(), [obs,])
         return obs
         
 
@@ -1021,17 +1060,21 @@ class MusesOmiObservation(MusesObservationReflectance):
             return 800.0
         return 500.0
         
-    def state_element_name_list(self):
+    @classmethod
+    def state_element_name_list_from_filter(cls, filter_list):
         '''List of state element names for this observation'''
         res = []
-        for flt in self.filter_list:
+        for flt in filter_list:
             res.append(f"OMINRADWAV{flt}")
-        for flt in self.filter_list:
+        for flt in filter_list:
             res.append(f"OMIODWAV{flt}")
-        for flt in self.filter_list:
+        for flt in filter_list:
             res.append(f"OMIODWAVSLOPE{flt}")
         return res
     
+    def state_element_name_list(self):
+        '''List of state element names for this observation'''
+        return self.state_element_name_list_from_filter(self.filter_list)
 
 # We have old code with the TES sounding_desc. This isn't used anywhere, and should
 # go into a TES observation class when we get around to incorporating this. But

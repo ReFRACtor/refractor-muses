@@ -41,12 +41,17 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def observation(self, instrument_name : str,
-                    current_state : CurrentState,
+                    current_state : "Optional(CurrentState)",
                     spec_win : rf.SpectralWindowRange,
-                    fm_sv: rf.StateVector,
+                    fm_sv: "Optional(rf.StateVector)",
                     **kwargs):
         '''Return Observation if we can process the given instrument_name, or
-        None if we can't. Add and StateVectorHandle needed to the passed in set.
+        None if we can't. Add to fm_sv. If you don't need a StateVector (e.g., you are
+        just accessing the data, not doing a retrieval), you can pass this as None and
+        adding the state vector is skipped.
+
+        If you don't need fm_sv, you can also optional set current_state to None, in which
+        case default values are used for any coefficients the Observation depends on.
         '''
         raise NotImplementedError()
 
@@ -94,38 +99,6 @@ class ObservationHandleSet(PriorityHandleSet):
         if this is passed in as None we use initial values for the various state elements
         needed by the Observation classes.'''
         cs = current_state
-        if(cs is None):
-            cs = CurrentStateDict({ "TROPOMISOLARSHIFTBAND1" : 0,
-                                    "TROPOMIRADIANCESHIFTBAND1" : 0,
-                                    "TROPOMIRADSQUEEZEBAND1" : 0,
-                                    "TROPOMISOLARSHIFTBAND2" : 0,
-                                    "TROPOMIRADIANCESHIFTBAND2" : 0,
-                                    "TROPOMIRADSQUEEZEBAND2" : 0,
-                                    "TROPOMISOLARSHIFTBAND3" : 0,
-                                    "TROPOMIRADIANCESHIFTBAND3" : 0,
-                                    "TROPOMIRADSQUEEZEBAND3" : 0,                                
-                                    "TROPOMISOLARSHIFTBAND4" : 0,
-                                    "TROPOMIRADIANCESHIFTBAND4" : 0,
-                                    "TROPOMIRADSQUEEZEBAND4" : 0,
-                                    "TROPOMISOLARSHIFTBAND5" : 0,
-                                    "TROPOMIRADIANCESHIFTBAND5" : 0,
-                                    "TROPOMIRADSQUEEZEBAND5" : 0,
-                                    "TROPOMISOLARSHIFTBAND6" : 0,
-                                    "TROPOMIRADIANCESHIFTBAND6" : 0,
-                                    "TROPOMIRADSQUEEZEBAND6" : 0,
-                                    "TROPOMISOLARSHIFTBAND7" : 0,
-                                    "TROPOMIRADIANCESHIFTBAND7" : 0,
-                                    "TROPOMIRADSQUEEZEBAND7" : 0,
-                                    "TROPOMISOLARSHIFTBAND8" : 0,
-                                    "TROPOMIRADIANCESHIFTBAND8" : 0,
-                                    "TROPOMIRADSQUEEZEBAND8" : 0,
-                                    "OMINRADWAVUV1" : 0,
-                                    "OMIODWAVUV1" : 0,
-                                    "OMIODWAVSLOPEUV1" : 0,
-                                    "OMINRADWAVUV2" : 0,
-                                    "OMIODWAVUV2" : 0,
-                                    "OMIODWAVSLOPEUV2" : 0,
-                                   },{})
         spec_win_dict = strategy_table.spectral_window_all(all_step=True)
         res = { "instrumentNames" : [],
                 "frequency" : [],
@@ -136,8 +109,7 @@ class ObservationHandleSet(PriorityHandleSet):
         r = []
         u = []
         for inst in strategy_table.instrument_name(all_step=True):
-            sv = rf.StateVector()
-            obs = self.observation(inst, cs, spec_win_dict[inst], sv)
+            obs = self.observation(inst, cs, spec_win_dict[inst], None)
             s = obs.radiance_all_extended(full_band=True)
             res["instrumentNames"].append(inst)
             f.append(s.spectral_domain.data)
@@ -150,17 +122,17 @@ class ObservationHandleSet(PriorityHandleSet):
         return res
         
     def observation(self, instrument_name : str,
-                    current_state : CurrentState,
+                    current_state : "Optional(CurrentState)",
                     spec_win : rf.SpectralWindowRange,
-                    fm_sv: rf.StateVector,
+                    fm_sv: "Optional(rf.StateVector)",
                     **kwargs):
         '''Create an Observation for the given instrument.'''
         return self.handle(instrument_name, current_state, spec_win, fm_sv, **kwargs)
     
     def handle_h(self, h : ObservationHandle, instrument_name : str,
-                 current_state : CurrentState,
+                 current_state : "Optional(CurrentState)",
                  spec_win : rf.SpectralWindowRange,
-                 fm_sv: rf.StateVector,
+                 fm_sv: "Optional(rf.StateVector)",
                  **kwargs):
         '''Process a registered function'''
         obs = h.observation(instrument_name, current_state, spec_win, fm_sv,
