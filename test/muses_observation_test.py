@@ -69,9 +69,6 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
     swin = rs.strategy_table.spectral_window("AIRS")
     obs = MusesAirsObservation.create_from_id(rs.measurement_id, None,
                                               None, swin, None, osp_dir=osp_dir)
-    print(obs.spectral_domain(0).data)
-    print(obs.radiance(0).spectral_range.data)
-    print(obs.filter_data)
 
 def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
     granule = 65

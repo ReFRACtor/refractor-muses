@@ -242,11 +242,18 @@ class MusesObservationImp(MusesObservation):
         self._spectral_window = MusesSpectralWindow(None, None)
         self._num_channels = num_channels
         self._sounding_desc = sdesc
+        self._filter_data_name = []
+        self._filter_data_swin = None
 
-    # TODO Short Term
     @property
     def filter_data(self) -> "list[list[str,int]]":
-        return []
+        res = []
+        sd = self.spectral_domain_all()
+        for i, fltname in enumerate(self._filter_data_name):
+            sz = self._filter_data_swin.apply(sd,i).data.shape[0]
+            if(sz > 0):
+                res.append([fltname,sz])
+        return res
     
     @property
     def sounding_desc(self):
@@ -369,7 +376,16 @@ class MusesAirsObservation(MusesObservationImp):
         '''Note you don't normally create an object of this class with the
         __init__. Instead, call one of the create_xxx class methods.'''
         super().__init__(o_airs, sdesc)
-
+        self._filter_data_name = o_airs["radiance"]["filterNames"]
+        mw_range = np.zeros((len(self._filter_data_name),1,2))
+        sindex = 0
+        for i in range(mw_range.shape[0]):
+            eindex = o_airs["radiance"]["filterSizes"][i] + sindex
+            freq = o_airs["radiance"]["frequency"][sindex:eindex]
+            mw_range[i,0,:] = min(freq),max(freq)
+            sindex = eindex
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
     def _read_data(cls, filename, granule, xtrack, atrack, filter_list,
@@ -468,6 +484,15 @@ class MusesCrisObservation(MusesObservationImp):
         '''Note you don't normally create an object of this class with the
         __init__. Instead, call one of the create_xxx class methods.'''
         super().__init__(o_cris, sdesc)
+        # This is just hardcoded in py-retrieve, see about line 395 in
+        # script_retrieval_setup_ms.py
+        self._filter_data_name = ["CrIS-fsr-lw", "CrIS-fsr-mw", "CrIS-fsr-sw"]
+        mw_range = np.zeros((3,1,2))
+        mw_range[0,0,:] = 0.0,1200.00
+        mw_range[1,0,:] = 1200.01,2145.00
+        mw_range[2,0,:] = 2145.01,9999.00
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
     def _read_data(cls, filename, granule, xtrack, atrack, pixel_index, osp_dir=None):
@@ -756,12 +781,9 @@ class MusesObservationReflectance(MusesObservationImp):
 
     @property
     def filter_data(self) -> "list[list[str,int]]":
-        res = []
-        for i, flt in enumerate(self.filter_list):
-            sz = self.spectral_domain(i).data.shape[0]
-            if(sz > 0):
-                res.append([flt,sz])
-        return res
+        self._filter_data_name = self.filter_list
+        self._filter_data_swin = self._spectral_window
+        return super().filter_data
     
     def frequency_full(self, sensor_index):
         '''The full list of frequency, before we have removed bad samples or applied the
@@ -815,7 +837,7 @@ class MusesObservationReflectance(MusesObservationImp):
         return LinearInterpolate2(orgwav_good, norm_rad_good)
 
     def snr_uplimit(self,sensor_index):
-        '''Upper limit for SNR, we adjust uncertainty is we are greater than this.'''
+        '''Upper limit for SNR, we adjust uncertainty if we are greater than this.'''
         raise NotImplementedError()
 
     def spectrum_full(self, sensor_index, skip_jacobian=False):

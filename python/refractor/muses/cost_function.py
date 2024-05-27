@@ -203,8 +203,8 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         return {"radiance" : np.concatenate(d),
          "NESR" : np.concatenate(u),
          "frequency" : np.concatenate(f),
-         "filterNames" : i_radianceInfo["filterNames"],
-         "filterSizes" : i_radianceInfo["filterSizes"],
+         "filterNames" : fname,
+         "filterSizes" : fsize,
          "instrumentNames" : iname,
          "instrumentSizes" : isize,
          }        
