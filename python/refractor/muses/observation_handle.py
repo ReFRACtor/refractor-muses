@@ -44,7 +44,6 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
                     current_state : CurrentState,
                     spec_win : rf.SpectralWindowRange,
                     fm_sv: rf.StateVector,
-                    include_bad_sample=False,
                     **kwargs):
         '''Return Observation if we can process the given instrument_name, or
         None if we can't. Add and StateVectorHandle needed to the passed in set.
@@ -139,17 +138,16 @@ class ObservationHandleSet(PriorityHandleSet):
         for inst in strategy_table.instrument_name(all_step=True):
             sv = rf.StateVector()
             obs = self.observation(inst, cs, spec_win_dict[inst], sv)
-            if(hasattr(obs, "radiance_all_with_bad_sample")):
-                s = obs.radiance_all_with_bad_sample(full_band=True)
-            else:
-                # True skips the jacobian calculation, which we don't
-                # need here
+            try:
+                obs.spectral_window.full_band = True
                 s = obs.radiance_all(True)
-            res["instrumentNames"].append(inst)
-            f.append(s.spectral_domain.data)
-            r.append(s.spectral_range.data)
-            u.append(s.spectral_range.uncertainty)
-            res["instrumentSizes"].append(s.spectral_domain.data.shape[0])
+                res["instrumentNames"].append(inst)
+                f.append(s.spectral_domain.data)
+                r.append(s.spectral_range.data)
+                u.append(s.spectral_range.uncertainty)
+                res["instrumentSizes"].append(s.spectral_domain.data.shape[0])
+            finally:
+                obs.spectral_window.full_band = False
         res["frequency"] = np.concatenate(f)
         res["radiance"] = np.concatenate(r)
         res["NESR"] = np.concatenate(u)
@@ -159,21 +157,17 @@ class ObservationHandleSet(PriorityHandleSet):
                     current_state : CurrentState,
                     spec_win : rf.SpectralWindowRange,
                     fm_sv: rf.StateVector,
-                    include_bad_sample=False,
                     **kwargs):
         '''Create an Observation for the given instrument.'''
-        return self.handle(instrument_name, current_state, spec_win, fm_sv,
-                           include_bad_sample=include_bad_sample, **kwargs)
+        return self.handle(instrument_name, current_state, spec_win, fm_sv, **kwargs)
     
     def handle_h(self, h : ObservationHandle, instrument_name : str,
                  current_state : CurrentState,
                  spec_win : rf.SpectralWindowRange,
                  fm_sv: rf.StateVector,
-                 include_bad_sample=False,
                  **kwargs):
         '''Process a registered function'''
         obs = h.observation(instrument_name, current_state, spec_win, fm_sv,
-                            include_bad_sample=include_bad_sample,
                             **kwargs)
         if(obs is None):
             return (False, None)

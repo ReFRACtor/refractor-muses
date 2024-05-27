@@ -281,7 +281,7 @@ class CostFunctionCreator:
     def _forward_model(self,
                        instrument_name_list : "list[str]",
                        current_state : CurrentState,
-                       spec_win_dict : "dict[str, rf.SpectralWindowRange]",
+                       spec_win_dict : "Optional(dict[str, rf.SpectralWindowRange])",
                        rf_uip_func,
                        include_bad_sample=False,
                        obs_list=None,
@@ -307,16 +307,22 @@ class CostFunctionCreator:
             for instrument_name in instrument_name_list:
                 obs = self.observation_handle_set.observation(
                     instrument_name, current_state, spec_win_dict[instrument_name], fm_sv,
-                    include_bad_sample=include_bad_sample,
                     rs=self.rs, # Short term, we use RetrievalStrategy
                     **kwargs)
+                # TODO Would probably be good to remove
+                # include_bad_sample, it isn't clear that we ever want
+                # to run the forward model for bad samples. But right
+                # now the existing py-retrieve code requires this is a
+                # few places.a
+                if(include_bad_sample):
+                    obs.spectral_window.include_bad_sample=include_bad_sample
                 self.obs_list.append(obs)
                 
         self.fm_list = []
         for i, instrument_name in enumerate(instrument_name_list):
             fm =  self.forward_model_handle_set.forward_model(
-                instrument_name, current_state, spec_win_dict[instrument_name], self.obs_list[i],
-                fm_sv, rf_uip_func, include_bad_sample=include_bad_sample, **kwargs)
+                instrument_name, current_state, self.obs_list[i].spectral_window, self.obs_list[i],
+                fm_sv, rf_uip_func, **kwargs)
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         bmatrix = rf_uip.basis_matrix
@@ -345,7 +351,6 @@ class CostFunctionCreator:
     def cost_function_from_uip(self, rf_uip : RefractorUip,
                                obs_list,
                                ret_info : dict,
-                               include_bad_sample=False,
                                **kwargs):
         '''Create a cost function from a RefractorUip and a
         ret_info. Note that this is really just for backwards testing,
@@ -383,11 +388,8 @@ class CostFunctionCreator:
             fix_apriori_size=True
             cstate.sqrt_constraint = np.eye(1)
             cstate.apriori = np.zeros((1,))
-        spec_win_dict = {}
-        for i, iname in enumerate(rf_uip.instrument):
-            spec_win_dict[iname] = obs_list[i].spectral_window_with_bad_sample
-        return self.cost_function(rf_uip.instrument, cstate, spec_win_dict, uip_func,
-                                  obs_list=obs_list,include_bad_sample=include_bad_sample,
+        return self.cost_function(rf_uip.instrument, cstate, None, uip_func,
+                                  obs_list=obs_list,
                                   fix_apriori_size=fix_apriori_size, **kwargs)
     
 __all__ = ["CostFunctionCreator"]

@@ -1,5 +1,6 @@
 from .misc import osp_setup
 from .observation_handle import ObservationHandle, ObservationHandleSet
+from .muses_spectral_window import MusesSpectralWindow
 import refractor.muses.muses_py as mpy
 import os
 import numpy as np
@@ -147,14 +148,8 @@ class MusesObservation(rf.ObservationSvImpBase):
         always use a SpectralWindow. Further, the SpectralWindow can be updated, which is
         common from one retrieval step to the other. This spectral_window should also
         filter out all the bad samples.
-    spectral_window_with_bad_sample - a peculiarity of py-retrieve is that some of the
-        output files actually include bad sample data. I think this is actually a bad idea,
-        but none the less is how the current py-retrieve works. So we have a separate version
-        of the spectral_window that does not include removing bad samples.
     state_element_name_list - List of state elements if any that are used to deterimine
         radiance
-    radiance_all_with_bad_sample - variation of the normal rf.Observation.radiance_all,
-        but includes bad samples
     
     We have all the normal rf.Observation stuff, plus what is found in this class.
     '''
@@ -191,23 +186,12 @@ class MusesObservation(rf.ObservationSvImpBase):
         raise NotImplementedError()
 
     @property
-    def spectral_window_with_bad_sample(self):
-        '''SpectralWindow to apply to the observation data, which include bad samples. I'm not
-        sure how much sense it makes, but some of the output includes bad sample data. This
-        applies the spectral window, but not the bad sample removal'''
-        raise NotImplementedError()
-
-    @spectral_window_with_bad_sample.setter
-    def spectral_window_with_bad_sample(self, val):
-        raise NotImplementedError()
-
-    @property
-    def spectral_window(self):
+    def spectral_window(self) -> MusesSpectralWindow:
         '''SpectralWindow to apply to the observation data.'''
         raise NotImplementedError()
 
     @spectral_window.setter
-    def spectral_window(self, val):
+    def spectral_window(self, val : MusesSpectralWindow):
         '''Set the SpectralWindow to apply to the observation data. Note this can be updated,
         e.g., a MusesObservationBase used for one strategy step with a set of microwindows and
         then updated to another set.'''
@@ -216,14 +200,6 @@ class MusesObservation(rf.ObservationSvImpBase):
     def state_element_name_list(self):
         '''List of state element names for this observation'''
         return []
-
-    def spectral_domain_with_bad_sample(self, sensor_index):
-        '''The spectral domain for the sensor index,  but including bad samples also'''
-        raise NotImplementedError()
-    
-    def radiance_all_with_bad_sample(self):
-        '''The radiance for all the sensor indexes, but including bad samples also.'''
-        raise NotImplementedError()
     
 class MusesObservationImp(MusesObservation):
     '''Common behavior for each of the MusesObservation classes we have'''
@@ -235,15 +211,17 @@ class MusesObservationImp(MusesObservation):
                 raise RuntimeError("Both coeff and mp need to be None or not None")
             super().__init__(coeff, mp)
         self.muses_py_dict = muses_py_dict
-        self._spectral_window = None
-        self._spectral_window_with_bad_sample = None
+        self._spectral_window = MusesSpectralWindow(None, None)
         self._num_channels = num_channels
         self._sd = [None,] * self.num_channels
         self._spec = [None,] * self.num_channels
         self._sounding_desc = sdesc
-        self._force_no_bad_sample = False
-        self._full_band = False
 
+    # TODO Short Term
+    @property
+    def filter_data(self) -> "list[list[str,int]]":
+        return []
+    
     @property
     def sounding_desc(self):
         '''Different types of instruments have different description of the
@@ -256,17 +234,6 @@ class MusesObservationImp(MusesObservation):
     def notify_update(self, sv):
         super().notify_update(sv)
         self._spec = [None,] * self.num_channels
-        
-    @property
-    def spectral_window_with_bad_sample(self):
-        '''SpectralWindow to apply to the observation data, which include bad samples. I'm not
-        sure how much sense it makes, but some of the output includes bad sample data. This
-        applies the spectral window, but not the bad sample removal'''
-        return self._spectral_window_with_bad_sample
-
-    @spectral_window_with_bad_sample.setter
-    def spectral_window_with_bad_sample(self, val):
-        self._spectral_window_with_bad_sample = val
         
     @property
     def spectral_window(self):
@@ -284,44 +251,10 @@ class MusesObservationImp(MusesObservation):
 
     def spectral_domain(self, sensor_index):
         sd = self.spectral_domain_full(sensor_index)
-        if(self._full_band):
-            return sd
-        elif(self._force_no_bad_sample):
-            return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
-        else:
-            return self.spectral_window.apply(sd, sensor_index)
-
-    def spectral_domain_with_bad_sample(self, sensor_index):
-        sd = self.spectral_domain_full(sensor_index)
-        return self.spectral_window_with_bad_sample.apply(sd, sensor_index)
-        
-    def radiance_all_with_bad_sample(self, full_band=False):
-        try:
-            # "Trick" to leverage radiance_all we already have in StackedRadianceMixin.
-            # We could implement this functionality again, but it is nice just to use
-            # the already tested and implemented StackedRadianceMixin
-            self._force_no_bad_sample = True
-            self._full_band=full_band
-            return self.radiance_all()
-        finally:
-            self._force_no_bad_sample = False
-            self._full_band = False
+        return self.spectral_window.apply(sd, sensor_index)
 
     def radiance(self, sensor_index, skip_jacobian=False):
-        # "Trick" to get radiance_all_with_bad_sample for free. We use the normal
-        # StackedRadianceMixin support, and call radiance_with_bad_sample instead.
-        if(self._force_no_bad_sample):
-            return self.radiance_with_bad_sample(sensor_index)
-        if(self._spec[sensor_index] is None):
-            self._spec[sensor_index] = self.spectral_window.apply(self.spectrum_full(sensor_index),
-                                                                  sensor_index)
-        return self._spec[sensor_index]
-
-    def radiance_with_bad_sample(self, sensor_index):
-        if(self._full_band):
-            return self.spectrum_full(sensor_index)
-        return self.spectral_window_with_bad_sample.apply(self.spectrum_full(sensor_index),
-                                                          sensor_index)
+        return self.spectral_window.apply(self.spectrum_full(sensor_index), sensor_index)
 
     def spectrum_full(self, sensor_index, skip_jacobian=False):
         '''The full list of radiance, before we have removed bad samples or applied the
@@ -394,7 +327,6 @@ class MusesObservationHandle(ObservationHandle):
                     current_state : 'CurrentState',
                     spec_win : rf.SpectralWindowRange,
                     fm_sv: rf.StateVector,
-                    include_bad_sample=False,
                     osp_dir=None,
                     **kwargs):
         if(instrument_name != self.instrument_name):
@@ -403,7 +335,6 @@ class MusesObservationHandle(ObservationHandle):
         obs = self.obs_cls.create_from_id(self.measurement_id,
                                           self.existing_obs,
                                           current_state, spec_win, fm_sv,
-                                          include_bad_sample=include_bad_sample,
                                           osp_dir=osp_dir)
         if(self.existing_obs is None):
             self.existing_obs = obs
@@ -463,7 +394,6 @@ class MusesAirsObservation(MusesObservationImp):
                        current_state: 'CurrentState',
                        spec_win: rf.SpectralWindowRange,
                        fm_sv: rf.StateVector,
-                       include_bad_sample=False,
                        osp_dir=None):
         if(existing_obs is not None):
             # Take data from existing observation
@@ -479,12 +409,7 @@ class MusesAirsObservation(MusesObservationImp):
             o_airs, sdesc = cls._read_data(filename, granule, xtrack, atrack, filter_list,
                                            osp_dir=osp_dir)
             obs = cls(o_airs, sdesc)
-        obs.spectral_window_with_bad_sample = spec_win
-        swin = copy.deepcopy(spec_win)
-        if(not include_bad_sample):
-            for i in range(obs.num_channels):
-                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
-        obs.spectral_window = swin
+        obs.spectral_window = MusesSpectralWindow(spec_win, obs)
         current_state.add_fm_state_vector_if_needed(
             fm_sv, obs.state_element_name_list(), [obs,])
         return obs
@@ -611,7 +536,6 @@ class MusesCrisObservation(MusesObservationImp):
                        current_state: 'CurrentState',
                        spec_win: rf.SpectralWindowRange,
                        fm_sv: rf.StateVector,
-                       include_bad_sample=False,
                        osp_dir=None):
         if(existing_obs is not None):
             # Take data from existing observation
@@ -627,12 +551,7 @@ class MusesCrisObservation(MusesObservationImp):
             o_cris, sdesc = cls._read_data(filename, granule, xtrack, atrack,
                                            pixel_index, osp_dir=osp_dir)
             obs = cls(o_cris, sdesc)
-        obs.spectral_window_with_bad_sample = spec_win
-        swin = copy.deepcopy(spec_win)
-        if(not include_bad_sample):
-            for i in range(obs.num_channels):
-                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
-        obs.spectral_window = swin
+        obs.spectral_window = MusesSpectralWindow(spec_win, obs)
         current_state.add_fm_state_vector_if_needed(
             fm_sv, obs.state_element_name_list(), [obs,])
         return obs
@@ -804,6 +723,15 @@ class MusesObservationReflectance(MusesObservationImp):
 
     def desc(self):
         return "MusesObservationReflectance"
+
+    @property
+    def filter_data(self) -> "list[list[str,int]]":
+        res = []
+        for i, flt in enumerate(self.filter_list):
+            sz = self.spectral_domain(i).data.shape[0]
+            if(sz > 0):
+                res.append([flt,sz])
+        return res
     
     def frequency_full(self, sensor_index):
         '''The full list of frequency, before we have removed bad samples or applied the
@@ -952,7 +880,6 @@ class MusesTropomiObservation(MusesObservationReflectance):
                        current_state: 'CurrentState',
                        spec_win: rf.SpectralWindowRange,
                        fm_sv: rf.StateVector,
-                       include_bad_sample=False,
                        osp_dir=None):
         if(existing_obs is not None):
             # Take data from existing observation
@@ -981,12 +908,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
                 utc_time, filter_list, osp_dir=osp_dir)
             obs = cls(o_tropomi, sdesc,filter_list, coeff=coeff, mp=mp)
 
-        obs.spectral_window_with_bad_sample = spec_win
-        swin = copy.deepcopy(spec_win)
-        if(not include_bad_sample):
-            for i in range(obs.num_channels):
-                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
-        obs.spectral_window = swin
+        obs.spectral_window = MusesSpectralWindow(spec_win, obs)
         current_state.add_fm_state_vector_if_needed(
             fm_sv, obs.state_element_name_list(), [obs,])
         return obs
@@ -1045,7 +967,6 @@ class MusesOmiObservation(MusesObservationReflectance):
                        current_state: 'CurrentState',
                        spec_win: rf.SpectralWindowRange,
                        fm_sv: rf.StateVector,
-                       include_bad_sample=False,
                        osp_dir=None):
         filter_list = mid.filter_list["OMI"]
         xtrack_uv1 = mid.value_int("OMI_XTrack_UV1_Index")
@@ -1058,13 +979,7 @@ class MusesOmiObservation(MusesObservationReflectance):
         obs = cls(filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
                   calibration_filename, filter_list, cld_filename=cld_filename,
                   osp_dir=osp_dir)
-        # May move this into constructor, but have here now
-        obs.spectral_window_with_bad_sample = spec_win
-        swin = copy.deepcopy(spec_win)
-        if(not include_bad_sample):
-            for i in range(obs.num_channels):
-                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
-        obs.spectral_window = swin
+        obs.spectral_window = MusesSpectralWindow(spec_win, obs)
         coeff, mp = current_state.object_state(obs.state_element_name_list())
         obs.init(coeff, mp)
         current_state.add_fm_state_vector_if_needed(

@@ -22,7 +22,6 @@ def test_muses_spectral_window(osp_dir):
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
     # code mpy.modify_from_bt changes the number of steps
-    swin2 = stable.spectral_window("OMI", stp=step_number+1)
     swin = MusesSpectralWindow(stable.spectral_window("OMI", stp=step_number+1),
                                obs)
     spec = obs.spectrum_full(1)

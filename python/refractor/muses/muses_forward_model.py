@@ -15,31 +15,26 @@ import numpy as np
 
 class MusesForwardModelBase(rf.ForwardModel):
     '''Common behavior for the different MUSES forward models'''
-    # Note the handling of include_bad_sample is important here. muses-py
-    # expects to get all the samples in the forward model run in the routine
-    # run_forward_model/fm_wrapper. I'm not sure what it does with the bad
-    # data, but we need to have the ability to include it.
-    # run_retrieval/residual_fm_jacobian on the other hand does the normal
-    # filtering of bad samples. We handle this by toggling the behavior of
-    # bad_sample_mask, either masking bad samples or having a empty mask that
-    # lets everything pass through.
     def __init__(self, rf_uip : RefractorUip, instrument_name,
-                 obs, include_bad_sample=False,
-                 **kwargs):
+                 obs, **kwargs):
         super().__init__()
         self.instrument_name = instrument_name
         self.rf_uip = rf_uip
         self.obs = obs
-        self.include_bad_sample = include_bad_sample
         self.kwargs = kwargs
 
     def bad_sample_mask(self, sensor_index):
         bmask = self.obs.bad_sample_mask(sensor_index)
-        if(self.include_bad_sample):
+        if(self.obs.spectral_window.include_bad_sample):
             bmask[:] = False
         # This is the full bad sample mask, for all the indices. But here we only
         # want the portion that fits in the spectral window
-        gindex = self.obs.spectral_window_with_bad_sample.grid_indexes(self.obs.spectral_domain_full(sensor_index), sensor_index)
+        t = self.obs.spectral_window.include_bad_sample
+        try:
+            self.obs.spectral_window.include_bad_sample = True
+            gindex = self.obs.spectral_window.grid_indexes(self.obs.spectral_domain_full(sensor_index), sensor_index)
+        finally:
+            self.obs.spectral_window.include_bad_sample = t
         return bmask[list(gindex)]
     
     def setup_grid(self):
@@ -52,10 +47,9 @@ class MusesForwardModelBase(rf.ForwardModel):
     def spectral_domain(self, sensor_index):
         if(sensor_index > 0):
             raise RuntimeError("sensor_index out of range")
-        if(self.include_bad_sample):
-            sd = np.concatenate([self.obs.spectral_domain_with_bad_sample(i).data for i in range(self.obs.num_channels)])
-        else:
-            sd = np.concatenate([self.obs.spectral_domain(i).data for i in range(self.obs.num_channels)])
+        sdlist = []
+        sd = np.concatenate([self.obs.spectral_domain(i).data
+                             for i in range(self.obs.num_channels)])
         return rf.SpectralDomain(sd, rf.Unit("nm"))
 
 # Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
@@ -123,14 +117,12 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
                  vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
                  vlidort_nstokes=2,
                  vlidort_nstreams=4,
-                 include_bad_sample=False,
                  **kwargs):
         MusesForwardModelBase.__init__(self, rf_uip, instrument_name, obs=None,
                                        **kwargs)
         self.vlidort_nstreams = vlidort_nstreams
         self.vlidort_nstokes = vlidort_nstokes
         self.vlidort_cli = vlidort_cli
-        self.include_bad_sample = include_bad_sample
         self.obs = obs
 
     def radiance(self, sensor_index, skip_jacobian = False):

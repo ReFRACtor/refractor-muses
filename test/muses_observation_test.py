@@ -46,9 +46,8 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
     # code mpy.modify_from_bt changes the number of steps
-    swin = stable.spectral_window("AIRS", stp=step_number+1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("AIRS", stp=step_number+1),
+                                              obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
@@ -67,13 +66,11 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 8
     rs.strategy_table.table_step = step_number+1
-    swin = rs.strategy_table.spectral_window("AIRS")
+    swin = rs.strategy_table.spectral_window("CRIS")
     fm_sv = rf.StateVector()
     cs = CurrentStateDict(dict(), ["fake",])
     obs = MusesAirsObservation.create_from_id(rs.measurement_id, None,
                                               cs, swin, fm_sv, osp_dir=osp_dir)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
 
@@ -103,9 +100,8 @@ def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
     # code mpy.modify_from_bt changes the number of steps
-    swin = stable.spectral_window("CRIS", stp=step_number+1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("CRIS", step_number+1),
+                                              obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
@@ -176,11 +172,8 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
     # code mpy.modify_from_bt changes the number of steps
-    swin = stable.spectral_window("TROPOMI", stp=step_number+1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("TROPOMI", stp=step_number+1)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", step_number+1),
+                                              obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
@@ -189,7 +182,6 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     print(obs.radiance(0).spectral_range.data-obs_old.radiance(0).spectral_range.data)
     npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data, atol=1e-6)
     print(obs.radiance_all())
-    print(obs.radiance_all_with_bad_sample())
     print(obs.radiance_all().spectral_range.uncertainty)
     print(obs_old.radiance_all().spectral_range.uncertainty)
     npt.assert_allclose(obs.radiance_all().spectral_range.uncertainty,
@@ -263,12 +255,8 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
     # code mpy.modify_from_bt changes the number of steps
-    swin = stable.spectral_window("OMI", stp=step_number+1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("OMI", stp=step_number+1)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", step_number+1),
+                                              obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     print(obs.spectral_domain(1).data)
@@ -291,7 +279,6 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     npt.assert_allclose(obs.radiance(1).spectral_range.data,
                         obs_old.radiance(1).spectral_range.data)
     print(obs.radiance_all())
-    print(obs.radiance_all_with_bad_sample())
     print(obs.radiance_all().spectral_range.uncertainty)
     print(obs_old.radiance_all().spectral_range.uncertainty)
     npt.assert_allclose(obs.radiance_all().spectral_range.uncertainty,
@@ -348,14 +335,9 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
     # code mpy.modify_from_bt changes the number of steps
-    swin = stable.spectral_window("OMI", stp=step_number+1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("OMI", stp=step_number+1)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", step_number+1),
+                                              obs)
     print(obs.spectral_domain(1).data)
     print(obs.spectral_domain(1).sample_index)
     # Check handling of data with bad samples. Should get set to -999
     print(obs.radiance(1).spectral_range.data)
-    print(obs.radiance_with_bad_sample(1).spectral_range.data)

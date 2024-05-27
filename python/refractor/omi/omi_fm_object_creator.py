@@ -251,13 +251,10 @@ class OmiForwardModelHandle(ForwardModelHandle):
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
                       rf_uip_func,
-                      include_bad_sample=False,
                       **kwargs):
         if(instrument_name != "OMI"):
             return None
-        obj_creator = OmiFmObjectCreator(rf_uip_func(), obs,
-                                         include_bad_sample=include_bad_sample,
-                                         **self.creator_kwargs)
+        obj_creator = OmiFmObjectCreator(rf_uip_func(), obs, **self.creator_kwargs)
         fm = obj_creator.forward_model
         obj_creator.add_to_sv(current_state, fm_sv)
         logger.info(f"OMI Forward model\n{fm}")

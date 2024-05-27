@@ -9,9 +9,11 @@ def test_fm_wrapper_tropomi(joint_tropomi_uip_step_12, joint_tropomi_obs_step_12
     mpy.fm_wrapper.'''
     rf_uip = joint_tropomi_uip_step_12
     creator = CostFunctionCreator()
+    obs_cris, obs_tropomi = joint_tropomi_obs_step_12
+    obs_cris.spectral_window.include_bad_sample = True
+    obs_tropomi.spectral_window.include_bad_sample = True    
     cfunc = creator.cost_function_from_uip(rf_uip, joint_tropomi_obs_step_12,
-                                           None, vlidort_cli=vlidort_cli,
-                                           include_bad_sample=True)
+                                           None, vlidort_cli=vlidort_cli)
     (o_radiance, jac_fm, bad_flag,
      o_measured_radiance_omi, o_measured_radiance_tropomi) = \
          cfunc.fm_wrapper(rf_uip.uip, None, {})
@@ -39,16 +41,12 @@ def test_fm_wrapper_tropomi(joint_tropomi_uip_step_12, joint_tropomi_obs_step_12
 @require_muses_py
 def test_fm_wrapper_omi(joint_omi_uip_step_8, joint_omi_obs_step_8, vlidort_cli):
     rf_uip = joint_omi_uip_step_8
-    # Little bit of a kludge, I think this is just needed to test against the old
-    # fm_wrapper code that includes bad samples. We can worry about this if
-    # it is a real issue.
     obs_airs, obs_omi = joint_omi_obs_step_8
-    obs_airs.spectral_window = obs_airs.spectral_window_with_bad_sample
-    obs_omi.spectral_window = obs_omi.spectral_window_with_bad_sample
     creator = CostFunctionCreator()
+    obs_airs.spectral_window.include_bad_sample = True
+    obs_omi.spectral_window.include_bad_sample = True
     cfunc = creator.cost_function_from_uip(rf_uip, [obs_airs, obs_omi], None,
-                                           vlidort_cli=vlidort_cli,
-                                           include_bad_sample=True)
+                                           vlidort_cli=vlidort_cli)
     (o_radiance, jac_fm, bad_flag,
      o_measured_radiance_omi, o_measured_radiance_tropomi) = \
          cfunc.fm_wrapper(rf_uip.uip, None, {})

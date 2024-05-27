@@ -10,7 +10,8 @@ class MusesSpectralWindow(rf.SpectralWindow):
     This class adds support for this. It wraps around and existing SpectralWindow and
     adds flags that can be set to "include_bad_data" or "full_band".
     '''
-    def __init__(self, spec_win : rf.SpectralWindowRange, obs : 'MusesObservation'):
+    def __init__(self, spec_win : "Optional(rf.SpectralWindowRange)",
+                 obs : 'Optional(MusesObservation)'):
         '''Create a MusesSpectralWindow. The passed in spec_win should *not* have
         bad samples removed. We get the bad sample for the obs passed in and
         add it to spec_win.
@@ -20,17 +21,25 @@ class MusesSpectralWindow(rf.SpectralWindow):
         just need a SpectralWindow that we can create two versions - a
         with and without bad sample. But for right now, restrict ourselves to
         SpectralWindowRange.
+
+        As a convenience spec_win and obs can be passed in as None - this is like
+        always having a full_band. This is the same as having no SpectralWindow, but
+        it is convenient to just always have a SpectralWindow so code doesn't need to have
+        a special case.
         '''
         super().__init__()
         self.include_bad_sample = False
         self.full_band = False
         # Let bad samples pass through
         self._spec_win_with_bad_sample = spec_win
-        swin = copy.deepcopy(spec_win)
-        for i in range(obs.num_channels):
-            swin.bad_sample_mask(obs.bad_sample_mask(i), i)
-        # Remove bad samples
-        self._spec_win = swin
+        if(spec_win is not None):
+            swin = copy.deepcopy(spec_win)
+            for i in range(obs.num_channels):
+                swin.bad_sample_mask(obs.bad_sample_mask(i), i)
+            # Remove bad samples
+            self._spec_win = swin
+        else:
+            self._spec_win = None
 
     def _v_number_spectrometer(self):
         return self._spec_win.number_spectrometer
@@ -42,7 +51,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         return "MusesSpectralWindow"
 
     def grid_indexes(self, grid, spec_index):
-        if(self.full_band):
+        if(self._spec_win is None or self.full_band):
             return list(range(grid.data.shape[0]))
         if(self.include_bad_sample):
             return self._spec_win_with_bad_sample.grid_indexes(grid, spec_index)

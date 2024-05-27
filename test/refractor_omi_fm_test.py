@@ -4,7 +4,6 @@ import pandas as pd
 import numpy.testing as npt
 import os
 import refractor.muses.muses_py as mpy
-from refractor.omi import OmiFmObjectCreator
 from refractor.old_py_retrieve_wrapper import (RefractorOmiFmMusesPy, RefractorOmiFm,
                                                RefractorTropOrOmiFmPyRetrieve)
 import refractor.framework as rf
@@ -63,6 +62,7 @@ def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
         obs = omi_obs_step_1
     elif(step_number == 2):
         obs = omi_obs_step_2
+    obs.spectral_window.include_bad_sample=True
     r = RefractorOmiFm(obs, use_pca=False, use_lrad=False,
                        lrad_second_order=False)
     (o_jacobian, o_radiance,
@@ -93,6 +93,7 @@ def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
     vlidort_nstokes=1
     pfile = f"{omi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
+    omi_obs_step_2.spectral_window.include_bad_sample=True
     r = RefractorOmiFm(omi_obs_step_2, use_pca=False, use_lrad=False,
                        lrad_second_order=False)
     (o_jacobian, o_radiance,

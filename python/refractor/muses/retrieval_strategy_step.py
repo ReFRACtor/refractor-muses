@@ -118,8 +118,6 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
         If do_systematic is True, then we use the systematic species list. '''
         self._uip = None
-        # Temp, we use the uip here until we can duplicate this functionality
-        cstateold = CurrentStateUip(self.uip_func(rs, do_systematic, jacobian_speciesIn))
         cstate = CurrentStateStateInfo(rs.state_info, rs.retrieval_info,
                                        do_systematic=do_systematic,
                                        retrieval_state_element_override=jacobian_speciesIn)
@@ -127,6 +125,9 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         cstate.apriori_cov = rs.retrieval_info.apriori_cov
         cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
         cstate.apriori = rs.retrieval_info.apriori
+        # TODO Would probably be good to remove include_bad_sample, it isn't clear that
+        # we ever want to run the forward model for bad samples. But right now the existing
+        # py-retrieve code requires this is a few places.a
         return rs.cost_function_creator.cost_function(
             rs.strategy_table.instrument_name(),
             cstate,

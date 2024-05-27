@@ -109,13 +109,15 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         False means bad.'''
         gpt = []
         for obs in self.obs_list:
-            if(hasattr(obs, "radiance_all_with_bad_sample")):
-                s = obs.radiance_all_with_bad_sample()
-            else:
+            try:
+                obs.spectral_window.include_bad_sample = True
                 # True skips the jacobian calculation, which we don't
                 # need here
                 s = obs.radiance_all(True)
-            gpt.append(s.spectral_range.uncertainty >= 0)
+                gpt.append(s.spectral_range.uncertainty >= 0)
+            finally:
+                obs.spectral_window.include_bad_sample = False
+                
         return np.concatenate(gpt)
 
     def residual_fm_jacobian(self, uip, ret_info, retrieval_vec, iterNum,
@@ -145,14 +147,15 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         d = []
         u = []
         for obs in self.obs_list:
-            if(hasattr(obs, "radiance_all_with_bad_sample")):
-                s = obs.radiance_all_with_bad_sample()
-            else:
+            try:
+                obs.spectral_window.include_bad_sample=True
                 # True skips the jacobian calculation, which we don't
                 # need here
                 s = obs.radiance_all(True)
-            d.append(s.spectral_range.data)
-            u.append(s.spectral_range.uncertainty)
+                d.append(s.spectral_range.data)
+                u.append(s.spectral_range.uncertainty)
+            finally:
+                obs.spectral_window.include_bad_sample=False
         ret_info["obs_rad"] = np.concatenate(d)
         ret_info["meas_err"] = np.concatenate(u)
         residual = self.residual
@@ -194,20 +197,27 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         f = []
         d = []
         u = []
+        fname = []
+        fsize = []
         iname = []
         isize = []
         for obs in self.obs_list:
-            if(hasattr(obs, "radiance_all_with_bad_sample")):
-                s = obs.radiance_all_with_bad_sample()
-            else:
+            try:
+                obs.spectral_window.include_bad_sample = True
                 # True skips the jacobian calculation, which we don't
                 # need here
                 s = obs.radiance_all(True)
-            f.append(s.spectral_domain.data)
-            d.append(s.spectral_range.data)
-            u.append(s.spectral_range.uncertainty)
-            iname.append(obs.instrument_name)
-            isize.append(s.spectral_range.data.shape[0])
+                f.append(s.spectral_domain.data)
+                d.append(s.spectral_range.data)
+                u.append(s.spectral_range.uncertainty)
+                iname.append(obs.instrument_name)
+                isize.append(s.spectral_range.data.shape[0])
+                for fn, fs in obs.filter_data:
+                    fname.append(fn)
+                    fsize.append(fs)
+            finally:
+                obs.spectral_window.include_bad_sample = False
+                
         return {"radiance" : np.concatenate(d),
          "NESR" : np.concatenate(u),
          "frequency" : np.concatenate(f),

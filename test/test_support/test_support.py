@@ -6,7 +6,7 @@ import pytest
 import refractor.muses.muses_py as mpy
 from refractor.muses import (RefractorUip, osswrapper, StrategyTable,
                              MusesTropomiObservation, MusesOmiObservation,
-                             MusesCrisObservation, MusesAirsObservation)
+                             MusesCrisObservation, MusesAirsObservation, MusesSpectralWindow)
 from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config, creator
 from refractor.old_py_retrieve_wrapper import MusesResidualFmJacobian, MusesRetrievalStep
@@ -165,11 +165,8 @@ def tropomi_obs_step_1(osp_dir):
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    swin = stable.spectral_window("TROPOMI", stp=0)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("TROPOMI", stp=0)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=0),
+                                              obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -186,11 +183,8 @@ def tropomi_obs_sounding_2_band7(osp_dir):
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    swin = stable.spectral_window("TROPOMI", stp=0)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("TROPOMI", stp=0)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=0),
+                                              obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -207,11 +201,8 @@ def tropomi_obs_step_2(osp_dir):
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    swin = stable.spectral_window("TROPOMI", stp=1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("TROPOMI", stp=1)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=1),
+                                              obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -228,11 +219,8 @@ def joint_tropomi_obs_step_12(osp_dir):
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    swin = stable.spectral_window("TROPOMI", stp=12+1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("TROPOMI", stp=12+1)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=12+1),
+                                              obs)
     granule = 65
     xtrack = 8
     atrack = 4
@@ -240,11 +228,8 @@ def joint_tropomi_obs_step_12(osp_dir):
     fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
     obscris = MusesCrisObservation.create_from_filename(
         fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
-    swin = stable.spectral_window("CRIS", stp=12+1)
-    swin.bad_sample_mask(obscris.bad_sample_mask(0), 0)
-    obscris.spectral_window = swin
-    swin2 = stable.spectral_window("CRIS", stp=12+1)
-    obscris.spectral_window_with_bad_sample = swin2
+    obscris.spectral_window = MusesSpectralWindow(stable.spectral_window("CRIS", stp=12+1),
+                                                  obscris)
     return [obscris, obs]
 
 @pytest.fixture(scope="function")
@@ -263,12 +248,8 @@ def joint_omi_obs_step_8(osp_dir):
                                  filter_list,
                                  cld_filename=cld_filename,
                                  osp_dir=osp_dir)
-    swin = stable.spectral_window("OMI", stp=8+1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    swin.bad_sample_mask(obs.bad_sample_mask(1), 1)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("OMI", stp=8+1)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=8+1),
+                                              obs)
     channel_list = ['1A1', '2A1', '1B2', '2B1']
     granule = 231
     xtrack = 29
@@ -276,11 +257,8 @@ def joint_omi_obs_step_8(osp_dir):
     fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
     obs_airs = MusesAirsObservation.create_from_filename(
         fname, granule, xtrack, atrack, channel_list, osp_dir=osp_dir)
-    swin = stable.spectral_window("AIRS", stp=8+1)
-    swin.bad_sample_mask(obs_airs.bad_sample_mask(0), 0)
-    obs_airs.spectral_window = swin
-    swin2 = stable.spectral_window("AIRS", stp=8+1)
-    obs_airs.spectral_window_with_bad_sample = swin2
+    obs_airs.spectral_window = MusesSpectralWindow(stable.spectral_window("AIRS", stp=8+1),
+                                                   obs_airs)
     return [obs_airs, obs]
     
 
@@ -325,11 +303,8 @@ def tropomi_obs_band7_swir_step(osp_dir):
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    swin = stable.spectral_window("TROPOMI", stp=0)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("TROPOMI", stp=0)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=0),
+                                              obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -371,11 +346,8 @@ def omi_obs_step_1(osp_dir):
                                  filter_list,
                                  cld_filename=cld_filename,
                                  osp_dir=osp_dir)
-    swin = stable.spectral_window("OMI", stp=0)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("OMI", stp=0)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=0),
+                                              obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -395,11 +367,8 @@ def omi_obs_step_2(osp_dir):
                                  filter_list,
                                  cld_filename=cld_filename,
                                  osp_dir=osp_dir)
-    swin = stable.spectral_window("OMI", stp=1)
-    swin.bad_sample_mask(obs.bad_sample_mask(0), 0)
-    obs.spectral_window = swin
-    swin2 = stable.spectral_window("OMI", stp=1)
-    obs.spectral_window_with_bad_sample = swin2
+    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=1),
+                                              obs)
     return obs
 
 @pytest.fixture(scope="function")

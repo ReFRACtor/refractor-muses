@@ -217,13 +217,10 @@ class TropomiForwardModelHandle(ForwardModelHandle):
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
                       rf_uip_func,
-                      include_bad_sample=False,
                       **kwargs):
         if(instrument_name != "TROPOMI"):
             return None
-        obj_creator = TropomiFmObjectCreator(rf_uip_func(), obs,
-                                             include_bad_sample=include_bad_sample,
-                                             **self.creator_kwargs)
+        obj_creator = TropomiFmObjectCreator(rf_uip_func(), obs, **self.creator_kwargs)
         fm = obj_creator.forward_model
         obj_creator.add_to_sv(current_state, fm_sv)
         logger.info(f"Tropomi Forward model\n{fm}")

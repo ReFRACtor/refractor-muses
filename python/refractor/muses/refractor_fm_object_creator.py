@@ -12,6 +12,7 @@ import logging
 import numpy as np
 import glob
 import abc
+import copy
 
 from typing import Sequence
 
@@ -49,8 +50,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                  input_dir=None,
                  # Short term, so we can flip between pca vs lidort
                  use_pca=True, use_lrad=False, lrad_second_order=False,
-                 use_raman=True,
-                 include_bad_sample=True,
+                 use_raman=True
                  ):
         '''Constructor. This takes a RefractorUip (so *not* the
         muses-py dictionary, but rather a RefractorUip created from
@@ -68,7 +68,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.use_raman = use_raman
         self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
-        self.include_bad_sample = include_bad_sample
         self.observation = observation
 
         self.rf_uip = rf_uip
@@ -141,10 +140,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @property
     def spec_win(self):
-        if(not self.include_bad_sample):
-            return self.observation.spectral_window
-        else:
-            return self.observation.spectral_window_with_bad_sample
+        return self.observation.spectral_window
 
     @cached_property
     def spectrum_sampling(self):
