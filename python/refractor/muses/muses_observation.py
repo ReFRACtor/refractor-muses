@@ -1,6 +1,7 @@
 from .misc import osp_setup
 from .observation_handle import ObservationHandle, ObservationHandleSet
 from .muses_spectral_window import MusesSpectralWindow
+from contextlib import contextmanager
 import refractor.muses.muses_py as mpy
 import os
 import numpy as np
@@ -200,6 +201,33 @@ class MusesObservation(rf.ObservationSvImpBase):
     def state_element_name_list(self):
         '''List of state element names for this observation'''
         return []
+
+    def radiance_all_extended(self, skip_jacobian=True,
+                              include_bad_sample=False, full_band=False):
+        '''Convenience function that changes the spectral_window (e.g., turn
+        on bad samples), calls radiance_all, and then changes back.
+
+        Normally we want just the radiance data, so the default is to skip the
+        jacobian part. You can select that if you like by passing skip_jacobian=False'''
+        with self.modify_spectral_window(include_bad_sample=include_bad_sample,
+                                         full_band=full_band):
+            return self.radiance_all(skip_jacobian)
+
+    @contextmanager
+    def modify_spectral_window(self, include_bad_sample=False, full_band=False):
+        '''Convenience context that changes the spectral_window (e.g., turn
+        on bad samples), does something, and then changes back.'''
+        t1 = self.spectral_window.include_bad_sample
+        t2 = self.spectral_window.full_band
+        try:
+            self.spectral_window.include_bad_sample=include_bad_sample
+            self.spectral_window.full_band=full_band
+            yield
+        finally:
+            self.spectral_window.include_bad_sample=t1
+            self.spectral_window.full_band=t2
+
+    
     
 class MusesObservationImp(MusesObservation):
     '''Common behavior for each of the MusesObservation classes we have'''

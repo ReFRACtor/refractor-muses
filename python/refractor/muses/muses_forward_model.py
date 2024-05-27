@@ -29,12 +29,9 @@ class MusesForwardModelBase(rf.ForwardModel):
             bmask[:] = False
         # This is the full bad sample mask, for all the indices. But here we only
         # want the portion that fits in the spectral window
-        t = self.obs.spectral_window.include_bad_sample
-        try:
-            self.obs.spectral_window.include_bad_sample = True
-            gindex = self.obs.spectral_window.grid_indexes(self.obs.spectral_domain_full(sensor_index), sensor_index)
-        finally:
-            self.obs.spectral_window.include_bad_sample = t
+        with self.obs.modify_spectral_window(include_bad_sample=True):
+            sd = self.obs.spectral_domain_full(sensor_index)
+            gindex = self.obs.spectral_window.grid_indexes(sd, sensor_index)
         return bmask[list(gindex)]
     
     def setup_grid(self):

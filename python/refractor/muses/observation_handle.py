@@ -138,16 +138,12 @@ class ObservationHandleSet(PriorityHandleSet):
         for inst in strategy_table.instrument_name(all_step=True):
             sv = rf.StateVector()
             obs = self.observation(inst, cs, spec_win_dict[inst], sv)
-            try:
-                obs.spectral_window.full_band = True
-                s = obs.radiance_all(True)
-                res["instrumentNames"].append(inst)
-                f.append(s.spectral_domain.data)
-                r.append(s.spectral_range.data)
-                u.append(s.spectral_range.uncertainty)
-                res["instrumentSizes"].append(s.spectral_domain.data.shape[0])
-            finally:
-                obs.spectral_window.full_band = False
+            s = obs.radiance_all_extended(full_band=True)
+            res["instrumentNames"].append(inst)
+            f.append(s.spectral_domain.data)
+            r.append(s.spectral_range.data)
+            u.append(s.spectral_range.uncertainty)
+            res["instrumentSizes"].append(s.spectral_domain.data.shape[0])
         res["frequency"] = np.concatenate(f)
         res["radiance"] = np.concatenate(r)
         res["NESR"] = np.concatenate(u)

@@ -101,7 +101,6 @@ class ForwardModelHandleSet(PriorityHandleSet):
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
                       rf_uip_func,
-                      include_bad_sample=False,
                       **kwargs):
         '''Create a ForwardModel for the given instrument.
         
@@ -119,7 +118,7 @@ class ForwardModelHandleSet(PriorityHandleSet):
         '''
         
         return self.handle(instrument_name, current_state, spec_win, obs, fm_sv,
-                           rf_uip_func, include_bad_sample=include_bad_sample, **kwargs)
+                           rf_uip_func, **kwargs)
     
     def handle_h(self, h : ForwardModelHandle, instrument_name : str,
                  current_state : 'CurrentState',
@@ -127,11 +126,10 @@ class ForwardModelHandleSet(PriorityHandleSet):
                  obs : 'MusesObservation',
                  fm_sv: rf.StateVector,
                  rf_uip_func,
-                 include_bad_sample=False,
                  **kwargs):
         '''Process a registered function'''
         fm = h.forward_model(instrument_name, current_state, spec_win, obs, fm_sv, rf_uip_func,
-                             include_bad_sample=include_bad_sample, **kwargs)
+                             **kwargs)
         if(fm is None):
             return (False, None)
         return (True, fm)
