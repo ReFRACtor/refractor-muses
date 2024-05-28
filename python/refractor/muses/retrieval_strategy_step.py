@@ -9,6 +9,7 @@ from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
 from .current_state import CurrentState, CurrentStateUip, CurrentStateStateInfo
+from .observation_handle import mpy_radiance_from_observation_list
 from functools import partial
 import numpy as np
 
@@ -142,6 +143,13 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
             partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample,
             fix_apriori_size=fix_apriori_size, **rs.kwargs)
+
+    def radiance_step(self):
+        '''We have a few places that need the old py-retrieve dict version of our
+        observation data. This function calculates that - it is just a reformatting
+        of our observation data.'''
+        return mpy_radiance_from_observation_list(self.cfunc.obs_list, include_bad_sample=True)
+        
         
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     '''There seems to be a few retrieval types that aren't implemented in
@@ -185,7 +193,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
                         "frequency" : freq_fm }
         (rs.strategy_table.strategy_table_dict, rs.state_info.state_info_dict) = mpy.modify_from_bt(
             mpy.ObjectView(rs.strategy_table.strategy_table_dict), rs.table_step,
-            self.cfunc.radianceStep(),
+            self.radiance_step(),
             radiance_res,
             {},
             rs.state_info.state_info_dict,
@@ -216,7 +224,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             rs.state_info, rs.strategy_table.microwindows(), rs.retrieval_info,
             jacobian_speciesNames, 
             jacobian_specieslist, 
-            self.cfunc.radianceStep(),
+            self.radiance_step(),
             uip, 
             rs.o_airs, tes, cris, omi, tropomi,
             mytiming, 
@@ -346,7 +354,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         ConvTolerance_CostThresh = float(rs.strategy_table.preferences["ConvTolerance_CostThresh"])
         ConvTolerance_pThresh = float(rs.strategy_table.preferences["ConvTolerance_pThresh"])
         ConvTolerance_JacThresh = float(rs.strategy_table.preferences["ConvTolerance_JacThresh"])
-        r = self.cfunc.radianceStep()["NESR"]
+        r = self.radiance_step()["NESR"]
         Chi2Tolerance = 2.0 / len(r) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
             ConvTolerance_CostThresh = 0.00001
@@ -364,7 +372,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                      Chi2Tolerance)
         if(maxIter > 0):
             self.slv.solve()
-        rs.radiance_step = self.cfunc.radianceStep()
+        rs.radiance_step = self.radiance_step()
         return self.slv.retrieval_results()
     
 

@@ -38,6 +38,12 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                                   mapping)
         super().__init__(mstand)
 
+    # ----------------------------------------------------------------------------------
+    # All the functions past this point are just for testing with old py-retrieve code,
+    # ReFRACtor retrieval doesn't need any of this.
+    # ----------------------------------------------------------------------------------
+
+    
     def parameters_fm(self):
         '''Parameters on the full forward model grid.'''
         return self.max_a_posteriori.mapping.mapped_state(rf.ArrayAd_double_1(self.parameters)).value
@@ -178,34 +184,4 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                 logger.debug(f"Forward model: {fm}")
         return (uip, residual, jac_residual, radiance_fm,
                 jac_fm, stop_flag)
-
-    def radianceStep(self):
-        '''Create the structure called "radianceStep" from our observation data'''
-        f = []
-        d = []
-        u = []
-        fname = []
-        fsize = []
-        iname = []
-        isize = []
-        for obs in self.obs_list:
-            with obs.modify_spectral_window(include_bad_sample=True):
-                s = obs.radiance_all(True)
-                f.append(s.spectral_domain.data)
-                d.append(s.spectral_range.data)
-                u.append(s.spectral_range.uncertainty)
-                iname.append(obs.instrument_name)
-                isize.append(s.spectral_range.data.shape[0])
-                for fn, fs in obs.filter_data:
-                    fname.append(fn)
-                    fsize.append(fs)
-                
-        return {"radiance" : np.concatenate(d),
-         "NESR" : np.concatenate(u),
-         "frequency" : np.concatenate(f),
-         "filterNames" : fname,
-         "filterSizes" : fsize,
-         "instrumentNames" : iname,
-         "instrumentSizes" : isize,
-         }        
         
