@@ -7,6 +7,49 @@ import numpy as np
 
 logger = logging.getLogger("py-retrieve")
 
+def mpy_radiance_from_observation_list(obs_list : 'list(MusesObservation)',
+                                       include_bad_sample=False, full_band=False):
+    '''There are various places where py-retrieve needs the radiance data in
+    a particular structure (e.g., its 'radianceStep' calculations.
+
+    This takes a list of MusesObservation and creates this structure.
+
+    Note that in some cases we want to be able to include bad samples or
+    do a full band. Right now, we restrict ourselves to MusesObservation. We
+    could probably extend this to a general Observation if that proves necessary -
+    we just need a way to specify in we are including bad samples or full band.
+    Right now we depend on the observation having the function 'modify_spectral_window',
+    but if we can do the same functionality in another way.
+    '''
+    f = []
+    d = []
+    u = []
+    fname = []
+    fsize = []
+    iname = []
+    isize = []
+    for obs in obs_list:
+        with obs.modify_spectral_window(include_bad_sample=include_bad_sample,
+                                        full_band=full_band):
+            s = obs.radiance_all(True)
+            f.append(s.spectral_domain.data)
+            d.append(s.spectral_range.data)
+            u.append(s.spectral_range.uncertainty)
+            iname.append(obs.instrument_name)
+            isize.append(s.spectral_range.data.shape[0])
+            for fn, fs in obs.filter_data:
+                fname.append(fn)
+                fsize.append(fs)
+                
+        return {"radiance" : np.concatenate(d),
+                "NESR" : np.concatenate(u),
+                "frequency" : np.concatenate(f),
+                "filterNames" : fname,
+                "filterSizes" : fsize,
+                "instrumentNames" : iname,
+                "instrumentSizes" : isize,
+                }        
+    
 class ObservationHandle(object, metaclass=abc.ABCMeta):
     '''Base class for ObservationHandle. Note we use duck typing, so you
     don't need to actually derive from this object. But it can be
@@ -141,4 +184,4 @@ class ObservationHandleSet(PriorityHandleSet):
             return (False, None)
         return (True, obs)
                  
-__all__ = ["ObservationHandleSet", "ObservationHandle"]
+__all__ = ["ObservationHandleSet", "ObservationHandle", "mpy_radiance_from_observation_list"]

@@ -136,8 +136,8 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     The things added are:
 
-    instrument_name - the name of the instrument the observation is for
-    filter_data - metadata about the filter covered the observations
+    instrument_name - the name of the instrument the MusesObservation is for
+    filter_data - metadata about the filters covered the MusesObservation
     sounding_desc - this is a dictionary with the instrument specific way of describing
         what sounding we are using. This is used in the product output files (so stuff
         in RetrievalOutput)
@@ -146,11 +146,16 @@ class MusesObservation(rf.ObservationSvImpBase):
         data (e.g., removing bad samples, applying microwindows). The rf.Observation class
         doesn't specify how this is done. The input data might have just already been subsetted,
         or we might apply a SpectralWindow to a larger set of data. For MusesObservation we
-        always use a SpectralWindow. Further, the SpectralWindow can be updated, which is
-        common from one retrieval step to the other. This spectral_window should also
-        filter out all the bad samples.
+        always use a SpectralWindow. 
     state_element_name_list - List of state elements if any that are used to deterimine
         radiance
+
+    Right now, we require the spectral_window to be the more specific MusesSpectralWindow.
+    This is so we have handling for including bad samples, extending for RamanSioris, or
+    doing a full band. If needed we can probably relax this requirement - we just need a
+    way to handle these different cases. MusesSpectralWindow is a pretty general adapter
+    around another SpectralWindow, so this probably isn't too much of a constraint requiring
+    this.
     
     We have all the normal rf.Observation stuff, plus what is found in this class.
     '''
@@ -170,13 +175,12 @@ class MusesObservation(rf.ObservationSvImpBase):
         filter data used in "radianceStep", but in some cases py-retrieve wants to think
         of data as different filters even if it is read from one structure - so for
         example CrIS data gets separated into 'CrIS-fsr-lw', 'CrIS-fsr-mw', 'CrIS-fsr-sw'
-        even though the data is read from one array in read_noaa_cris_fsr. Individual
+        even though the data is read into one array in read_noaa_cris_fsr. Individual
         classes can handle generating this filter_data however they like, there is
         no requirement that the number of filters is the same as the number of channels.
         
-        This should return a list of pairs as a filter name and length of data. The length
-        of the data should include bad pixels - the place where this is used returns radiance
-        data subsetted by the spectral windows but with bad pixels included.
+        This should return a list of pairs as a filter name and length of data (using
+        the spectral_window).
         '''
         raise NotImplementedError()
 
@@ -193,9 +197,7 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     @spectral_window.setter
     def spectral_window(self, val : MusesSpectralWindow):
-        '''Set the SpectralWindow to apply to the observation data. Note this can be updated,
-        e.g., a MusesObservationBase used for one strategy step with a set of microwindows and
-        then updated to another set.'''
+        '''Set the SpectralWindow to apply to the observation data.'''
         raise NotImplementedError()
 
     def state_element_name_list(self):
@@ -232,7 +234,6 @@ class MusesObservation(rf.ObservationSvImpBase):
             self.spectral_window.full_band=t2
             self.spectral_window.do_raman_ext=t3
 
-    
     
 class MusesObservationImp(MusesObservation):
     '''Common behavior for each of the MusesObservation classes we have'''
@@ -275,14 +276,10 @@ class MusesObservationImp(MusesObservation):
         
     @property
     def spectral_window(self):
-        '''SpectralWindow to apply to the observation data.'''
         return self._spectral_window
 
     @spectral_window.setter
     def spectral_window(self, val):
-        '''Set the SpectralWindow to apply to the observation data. Note this can be updated,
-        e.g., a MusesObservationBase used for one strategy step with a set of microwindows and
-        then updated to another set.'''
         self._spectral_window = val
 
     def spectral_domain(self, sensor_index):
@@ -381,6 +378,7 @@ class MusesAirsObservation(MusesObservationImp):
         '''Note you don't normally create an object of this class with the
         __init__. Instead, call one of the create_xxx class methods.'''
         super().__init__(o_airs, sdesc)
+        # Set up stuff for the filter_data metadata
         self._filter_data_name = o_airs["radiance"]["filterNames"]
         mw_range = np.zeros((len(self._filter_data_name),1,2))
         sindex = 0
@@ -440,6 +438,10 @@ class MusesAirsObservation(MusesObservationImp):
                        spec_win: rf.SpectralWindowRange,
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
+        '''Create from a MeasurementId. If this depends on any state information, you can
+        pass in the CurrentState. This can be given as None if you just want to use default
+        values, e.g. you aren't doing a retrieval. If the CurrentState is supplied, you can
+        also pass a StateVector to add this class to as needed.'''
         if(existing_obs is not None):
             # Take data from existing observation
             obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
@@ -601,6 +603,10 @@ class MusesCrisObservation(MusesObservationImp):
                        spec_win: rf.SpectralWindowRange,
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
+        '''Create from a MeasurementId. If this depends on any state information, you can
+        pass in the CurrentState. This can be given as None if you just want to use default
+        values, e.g. you aren't doing a retrieval. If the CurrentState is supplied, you can
+        also pass a StateVector to add this class to as needed.'''
         if(existing_obs is not None):
             # Take data from existing observation
             obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
@@ -720,7 +726,7 @@ class LinearInterpolate2(rf.LinearInterpolateAutoDerivative):
         super().__init__(x_ad, y_ad)
     
 class MusesObservationReflectance(MusesObservationImp):
-    '''Both omi and tropomi actually use reflectance rather than radiance. In additon,
+    '''Both omi and tropomi actually use reflectance rather than radiance. In addition,
     both the solar model and the radiance data have state elements that control the
     Dispersion for the data.
 
@@ -763,12 +769,6 @@ class MusesObservationReflectance(MusesObservationImp):
             self._solar_spectrum = []
             erad = muses_py_dict['Earth_Radiance']
             srad = muses_py_dict['Solar_Radiance']
-            # Note this looks wrong (why not use Solar_Radiance Wavelength here?),
-            # but is actually correct. The solar data has already been interpolated
-            # to the same wavelengths as  the Earth_Radiance, this happens in
-            # daily_tropomi_irad for TROPOMI, and similarly for OMI. Not sure
-            # why the original wavelengths are left in rad_info['Solar_Radiance'],
-            # that is actually misleading.
             for i,flt in enumerate(filter_list):
                 flt_sub = (erad['EarthWavelength_Filter'] == flt)
                 self._freq_data.append(erad['Wavelength'][flt_sub])
@@ -778,6 +778,14 @@ class MusesObservationReflectance(MusesObservationImp):
                     (srad['AdjustedSolarRadiance'][flt_sub]<=0.0))
                 self._earth_rad.append(erad['CalibratedEarthRadiance'][flt_sub])
                 self._nesr.append(erad['EarthRadianceNESR'][flt_sub])
+                
+                # Note this looks wrong (why not use Solar_Radiance Wavelength here?),
+                # but is actually correct. The solar data has already been interpolated
+                # to the same wavelengths as  the Earth_Radiance, this happens in
+                # daily_tropomi_irad for TROPOMI, and similarly for OMI. Not sure
+                # why the original wavelengths are left in rad_info['Solar_Radiance'],
+                # that is actually misleading.
+                
                 sol_domain = rf.SpectralDomain(erad['Wavelength'][flt_sub], rf.Unit("nm"))
                 sol_range = rf.SpectralRange(srad["AdjustedSolarRadiance"][flt_sub],
                                              rf.Unit("ph / nm / s"))
@@ -835,7 +843,9 @@ class MusesObservationReflectance(MusesObservationImp):
         makes sense, because we already need the solar model.  It
         seems like this should be a separate thing, and perhaps at
         some point we will pull this out. But for now make this
-        available here. Note this is the original, unaltered solar model - so without
+        available here.
+
+        Note this is the original, unaltered solar model - so without
         the TROPOMISOLARSHIFT or OMINRADWAV.
         '''
         return self.spectral_window.apply(self._solar_spectrum[sensor_index], sensor_index)
@@ -956,6 +966,12 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def create_from_filename(cls, filename_list, irr_filename, cld_filename, xtrack_list,
                              atrack, utc_time, filter_list, calibration_filename=None,
                              osp_dir=None):
+        '''Create from just the filenames. Note that spectral window doesn't get
+        set here, but this can be useful if you just want access to the underlying
+        data.
+
+        You might also want to use create_from_id, which sets up everything
+        (spectral window, coefficients, attaching to a fm_sv).'''
         o_tropomi, sdesc = cls._read_data(
             filename_list, irr_filename, cld_filename, xtrack_list,
             atrack, utc_time, filter_list, calibration_filename=calibration_filename,
@@ -969,6 +985,10 @@ class MusesTropomiObservation(MusesObservationReflectance):
                        spec_win: rf.SpectralWindowRange,
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
+        '''Create from a MeasurementId. If this depends on any state information, you can
+        pass in the CurrentState. This can be given as None if you just want to use default
+        values, e.g. you aren't doing a retrieval. If the CurrentState is supplied, you can
+        also pass a StateVector to add this class to as needed.'''
         coeff = None
         mp = None
         if(existing_obs is not None):
@@ -1067,6 +1087,12 @@ class MusesOmiObservation(MusesObservationReflectance):
     @classmethod
     def create_from_filename(cls, filename, xtrack_uv1, xtrack_uv2, atrack, utc_time,
                              calibration_filename, filter_list, cld_filename=None, osp_dir=None):
+        '''Create from just the filenames. Note that spectral window doesn't get
+        set here, but this can be useful if you just want access to the underlying
+        data.
+
+        You might also want to use create_from_id, which sets up everything
+        (spectral window, coefficients, attaching to a fm_sv).'''
         o_omi, sdesc = cls._read_data(
             filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
             cld_filename=cld_filename, osp_dir=osp_dir)
@@ -1079,6 +1105,10 @@ class MusesOmiObservation(MusesObservationReflectance):
                        spec_win: rf.SpectralWindowRange,
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
+        '''Create from a MeasurementId. If this depends on any state information, you can
+        pass in the CurrentState. This can be given as None if you just want to use default
+        values, e.g. you aren't doing a retrieval. If the CurrentState is supplied, you can
+        also pass a StateVector to add this class to as needed.'''
         coeff = None
         mp = None
         if(existing_obs is not None):
