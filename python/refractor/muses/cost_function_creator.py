@@ -45,9 +45,8 @@ class CostFunctionCreator:
         self.forward_model_handle_set = copy.deepcopy(ForwardModelHandleSet.default_handle_set())
         self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
         self.measurement_id = None
-        self.rs = None
 
-    def update_target(self, measurement_id : 'MeasurementId', rs : 'RetrievalStategy'):
+    def update_target(self, measurement_id : 'MeasurementId'):
         '''Set up for processing a target.
 
         Note we separate this out from the cost_function creator
@@ -59,9 +58,6 @@ class CostFunctionCreator:
         We take measure_id, which is a MeasurementId.
         '''
         self.measurement_id = measurement_id
-        # TODO We want this to go away. But short term leave this here so we can
-        # get the code cleaned up in pieces.
-        self.rs = rs
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
 
@@ -157,7 +153,6 @@ class CostFunctionCreator:
             for instrument_name in instrument_name_list:
                 obs = self.observation_handle_set.observation(
                     instrument_name, current_state, spec_win_dict[instrument_name], fm_sv,
-                    rs=self.rs, # Short term, we use RetrievalStrategy
                     **kwargs)
                 # TODO Would probably be good to remove
                 # include_bad_sample, it isn't clear that we ever want
@@ -225,8 +220,8 @@ class CostFunctionCreator:
         this. But for now this seems like the easiest thing thing to do. We
         can revisit this decision in the future if needed - it is never
         great to have fake data but in this case seemed the easiest path
-        forward.
-
+        forward. Since this function is only used for backwards testing, the slightly
+        klunky design doesn't seem like much of a problem.
         '''
         # Fake the input for the normal cost_function function
         def uip_func():

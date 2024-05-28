@@ -132,9 +132,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.strategy_table = StrategyTable(self.filename)
         self.measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
                                                 self.strategy_table)
-        # TODO Remove passing "self" here, when we get CostFunctionCreator fully
-        # cleaned up.
-        self.cost_function_creator.update_target(self.measurement_id, self)
+        self.cost_function_creator.update_target(self.measurement_id)
         self.retrieval_strategy_step_set.notify_update_target(self)
         self.state_info.notify_update_target(self)
         self.notify_update("update target")
