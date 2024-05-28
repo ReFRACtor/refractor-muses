@@ -190,7 +190,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         if scale_factor is None:
             return None
         else:
-            wlen = self.rf_uip.rad_wavelength(self.filter_list[i], self.instrument_name)
+            with self.observation.modify_spectral_window(full_band=True):
+                wlen = self.observation.spectral_domain(i)
             # This is short if we aren't actually running this filter
             if(wlen.data.shape[0] < 2):
                 return None
@@ -203,7 +204,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                     self.oza_with_unit[i],
                     self.raz_with_unit[i],
                     self.atmosphere,
-                    self.solar_model(self.filter_list[i]),
+                    self.solar_model(i),
                     rf.StateMappingLinear())
 
 
