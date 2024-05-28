@@ -62,151 +62,14 @@ class CostFunctionCreator:
         # TODO We want this to go away. But short term leave this here so we can
         # get the code cleaned up in pieces.
         self.rs = rs
-        
-        # Hopefully these will go away
-        self.o_airs = None
-        self.o_cris = None
-        self.o_omi = None
-        self.o_tropomi = None
-        self.o_tes = None
-        self.o_oco2 = None
-        self._created_o = False
-        self._radiance = None
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
-
-    def create_o_obs(self):
-        if(self._created_o):
-            return
-        (self.o_airs, self.o_cris, self.o_omi, self.o_tropomi, self.o_tes, self.o_oco2,
-         _) = mpy.script_retrieval_setup_ms(self.rs.strategy_table.strategy_table_dict, False)
-        self._created_o = True
-        
-    def _read_rad(self, state_info, instrument_name_all):
-
-        '''This is a placeholder, we want to get this stuff pushed down into
-        the handle for each instrument, probably into the various Observable classes.
-        But for now we have this centralized so we can call the existing muses-py code.
-        '''
-        if(self._radiance is not None):
-            return
-        with self.rs.chdir_run_dir():
-            self.create_o_obs()
-            self._create_radiance(state_info, instrument_name_all)
-
-    def _create_radiance(self, state_info, instrument_name_all):
-        '''Read the radiance data. We can  perhaps move this into a Observation class
-        by instrument.
-
-        Note that this also creates the magic files Radiance_OMI_.pkl and
-        Radiance_TROPOMI_.pkl. It would be nice if can rework that.
-        '''
-        logger.info(f"Instruments: {len(instrument_name_all)} {instrument_name_all}")
-        obsrad = None
-        for instrument_name in instrument_name_all:
-            logger.info(f"Reading radiance: {instrument_name}")
-            if instrument_name == 'OMI':
-                result = mpy.get_omi_radiance(state_info.state_info_dict['current']['omi'], copy.deepcopy(self.o_omi))
-                radiance = result['normalized_rad']
-                nesr = result['nesr']
-                my_filter = result['filter']
-                frequency = result['wavelength']
-                fname = f'{self.rs.run_dir}/Input/Radiance_OMI_.pkl'
-                os.makedirs(os.path.dirname(fname), exist_ok=True)
-                pickle.dump(self.o_omi, open(fname, "wb"))
-            if instrument_name == 'TROPOMI':
-                result = mpy.get_tropomi_radiance(state_info.state_info_dict['current']['tropomi'], copy.deepcopy(self.o_tropomi))
-
-                radiance = result['normalized_rad']
-                nesr = result['nesr']
-                my_filter = result['filter']
-                frequency = result['wavelength']
-                fname = f'{self.rs.run_dir}/Input/Radiance_TROPOMI_.pkl'
-                os.makedirs(os.path.dirname(fname), exist_ok=True)
-                pickle.dump(self.o_tropomi, open(fname, "wb"))
-
-            if instrument_name == 'AIRS':
-                radiance = self.o_airs['radiance']['radiance']
-                frequency = self.o_airs['radiance']['frequency']
-                nesr = self.o_airs['radiance']['NESR']
-                my_filter = mpy.radiance_get_filter_array(self.o_airs['radiance'])
-            if instrument_name == 'CRIS':
-                # The o_cris dictionary uses all uppercase keys.
-                radiance = self.o_cris['radiance'.upper()]
-                frequency = self.o_cris['frequency'.upper()]
-                nesr = self.o_cris['nesr'.upper()]
-                my_filter = mpy.radiance_get_filter_array(self.o_cris['radianceStruct'.upper()])
-            if instrument_name == 'OCO2':
-                radiance = self.o_oco2['radianceStruct']['radiance']
-                frequency = self.o_oco2['radianceStruct']['frequency']
-                nesr = self.o_oco2['radianceStruct']['NESR']
-                my_filter = mpy.radiance_get_filter_array(self.o_oco2['radianceStruct'])
-
-            if instrument_name == 'TES':
-                radiance = self.o_tes['radianceStruct']['radiance']
-                frequency = self.o_tes['radianceStruct']['frequency']
-                nesr = self.o_tes['radianceStruct']['NESR']
-                my_filter = mpy.radiance_get_filter_array(self.o_tes['radianceStruct'])
-
-            # Add the first radiance if this is the first time in the loop.
-            if(obsrad is None):
-                obsrad = mpy.radiance_data(radiance, nesr, [-1], frequency, my_filter, instrument_name, None)
-            else:
-                filtersIn = np.asarray(['' for ii in range(0, len(frequency))])
-                obsrad = mpy.radiance_add_filter(obsrad, radiance, nesr, [-1], frequency, my_filter, instrument_name)
-        self._radiance = obsrad
-
-    def radiance(self, state_info, instrument_name_all):
-        '''I'm not 100% sure if this can go way or not, but state_initial_update
-        depends on the radiance. For now, allow access to this.
-
-        We may want to pull the ForwardModel and Observation apart, it might make
-        sense to have the instrument Observation for such things as the radiance
-        used in creating our RetrievalState. For now, just allow access this so
-        we can push this out of RetrievalStrategy even if we shuffle around where
-        this comes from.'''
-        self._read_rad(state_info, instrument_name_all)
-        return self._radiance
-
-    def _create_radiance_step(self):
-        # Note, I think we might replace this just with our SpectralWindow stuff,
-        # along with an Observation class
-        self._read_rad(self.rs.state_info, self.rs.instrument_name_all)
-        mw = self.rs.strategy_table.microwindows()
-        # Bit if a kludge here, but we adjust the windows for the CRIS instrument
-        if(self.o_cris is not None):
-            for win in mw:
-                if win['instrument'] == 'CRIS': # EM - Necessary for joint retrievals
-                    con1 = self.o_cris['FREQUENCY'] >= win['start']
-                    con2 = self.o_cris['FREQUENCY'] <= win['endd']
-
-                    tempind = np.where(np.logical_and(con1 == True, con2 == True))[0]
-        
-                    MAXOPD = np.unique(self.o_cris['MAXOPD'][tempind])
-                    SPACING = np.unique(self.o_cris['SPACING'][tempind])
-
-                    if len(MAXOPD) > 1 or len(SPACING) > 1:
-                        raise Running('ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!')
-
-                    win['maxopd'] = np.float32(MAXOPD[0])
-                    win['spacing'] = np.float32(SPACING[0])
-                    win['monoextend'] = np.float32(SPACING[0]) * 4.0
-            
-        radianceStepIn = mpy.radiance_set_windows(self._radiance,mw)
-        
-        if np.all(np.isfinite(radianceStepIn['radiance'])) == False:
-            raise RuntimeError('ERROR! radiance NOT FINITE!')
-
-        if np.all(np.isfinite(radianceStepIn['NESR'])) == False:
-            raise RuntimeError('ERROR! radiance error NOT FINITE!')
-        return radianceStepIn
 
     def _rf_uip_func_wrap(self):
         if(self._rf_uip is None):
             self._rf_uip = self._rf_uip_func()
         return self._rf_uip
         
-
     def cost_function(self,
                       instrument_name_list : "list[str]",
                       current_state : CurrentState,
@@ -250,10 +113,7 @@ class CostFunctionCreator:
         sqrt_constraint. In that case, you can pass in fix_apriori_size=True and we
         create dummy data of the right size rather than getting this from current_state.
         Again, this isn't something you would do for "real", this is more to support testing.
-
-        This Also sets self.radiance_step_in
-        - this is a bit awkward but I think we may replace radiance_steo_in. Right now this is
-        only used in RetrievalStrategyStep.'''
+        '''
         # Keep track of this, in case we create one so we know to attach this to the state vector
         self._rf_uip = None
         self._rf_uip_func = rf_uip_func
@@ -263,8 +123,6 @@ class CostFunctionCreator:
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
             obs_list=obs_list, fix_apriori_size=fix_apriori_size,
             **kwargs)
-        if(self.rs is not None):
-            self.radiance_step_in = self._create_radiance_step()
         cfunc = CostFunction(*args)
         # If we have an UIP, then update this when the parameters get updated.
         # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
@@ -287,18 +145,10 @@ class CostFunctionCreator:
                        obs_list=None,
                        fix_apriori_size=False,
                        **kwargs):
-        # TODO Right now always have rf_uip. We should extend our forward models to
-        # just tell us if the uip was created. But for now, always have this
-        rf_uip = rf_uip_func()
         ret_info = { 
             'sqrt_constraint': current_state.sqrt_constraint,
             'const_vec': current_state.apriori,
         }
-        # Note, we are trying to decouple the rf_uip from everywhere. Right now this
-        # function is only called by RetrievalStrategyStep.create_cost_function which
-        # is set up for rf_uip to None, so we can start moving this out. Right now, if the
-        # rf_uip is set, we make sure the rf_uip gets updated when the CostFunction.parameters
-        # get updated. But this is only needed if we have a ForwardModel with a rf_uip.
         self.obs_list = []
         fm_sv = rf.StateVector()
         if(obs_list is not None):
@@ -325,6 +175,8 @@ class CostFunctionCreator:
                 fm_sv, rf_uip_func, **kwargs)
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
+        # TODO Get a way to have the basis_matrix that doesn't requier a UIP
+        rf_uip = rf_uip_func()
         bmatrix = rf_uip.basis_matrix
         if(not fix_apriori_size):
             # Normally, we get the apriori and constraint from our current state

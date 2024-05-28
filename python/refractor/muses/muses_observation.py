@@ -507,9 +507,16 @@ class MusesCrisObservation(MusesObservationImp):
                o_cris = mpy.read_noaa_cris_fsr(i_fileid)
             else:
                o_cris = mpy.read_nasa_cris_fsr(i_fileid)
-        # Leaving RADIANCESTRUCT out of o_cris, I don't think this is actually
-        # used anywhere
-        #
+
+        # Add in RADIANCESTRUCT. Not sure if this is used, but easy enough to put in
+        radiance = o_cris["RADIANCE"]
+        frequency = o_cris["FREQUENCY"]
+        nesr = o_cris["NESR"]
+        filters = np.full((len(nesr),), 'CrIS-fsr-lw')
+        filters[frequency > 1200] = 'CrIS-fsr-mw'
+        filters[frequency > 2145] = 'CrIS-fsr-sw'
+        o_cris["RADIANCESTRUCT"] = mpy.radiance_data(radiance, nesr, [0], frequency, filters,
+                                                     'CRIS')
         # We can perhaps clean this up, but for now there is some metadata  written
         # in the output file that depends on getting the l1b_type through o_cris,
         # so set that up

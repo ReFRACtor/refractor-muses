@@ -75,9 +75,6 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         by the old muses-py code, we shouldn't use this for ReFRACtor ForwardModel.
         '''
         if(self._uip is None):
-            # Would be good to get rid of this part, I'm not sure if we can. Could
-            # possibly also have this passed in to the uip_func? 
-            rs.cost_function_creator.create_o_obs()
             if(do_systematic):
                 retrieval_info = rs.retrieval_info.retrieval_info_obj
                 rinfo = mpy.ObjectView({
@@ -95,14 +92,24 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
                 })
             else:
                 rinfo = rs.retrieval_info
+            o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
+                     "TROPOMI" : None, "OCO2" : None}
+            o_airs = None
+            o_tes = None
+            o_cris = None
+            o_omi = None
+            o_tropomi = None
+            o_oco2 = None
+            for iname in rs.strategy_table.instrument_name():
+                if iname in o_xxx:
+                    obs = rs.observation_handle_set.observation(iname, None,
+                                  rs.strategy_table.spectral_window(iname), None)
+                    if hasattr(obs, "muses_py_dict"):
+                        o_xxx[iname] = obs.muses_py_dict
             self._uip = RefractorUip.create_uip(rs.state_info, rs.strategy_table,
                                                 rs.strategy_table.microwindows(), rinfo,
-                                                rs.cost_function_creator.o_airs,
-                                                rs.cost_function_creator.o_tes,
-                                                rs.cost_function_creator.o_cris,
-                                                rs.cost_function_creator.o_omi,
-                                                rs.cost_function_creator.o_tropomi,
-                                                rs.cost_function_creator.o_oco2,
+                                                o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
+                                                o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
                                                 jacobian_speciesIn=jacobian_speciesIn)
         return self._uip
 

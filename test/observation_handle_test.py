@@ -24,11 +24,5 @@ def test_radiance(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
         pass
     oset = rs.observation_handle_set
     rad = oset.mpy_radiance_full_band(None, rs.strategy_table)
-    cfunc = CostFunctionCreator()
-    cfunc.update_target(rs.measurement_id, rs)
-    rad2 = cfunc.radiance(rs.state_info, rs.strategy_table.instrument_name(all_step=True))
-    npt.assert_allclose(rad["frequency"], rad2["frequency"])
-    npt.assert_allclose(rad["radiance"], rad2["radiance"])
-    npt.assert_allclose(rad["NESR"], rad2["NESR"])
     
     
