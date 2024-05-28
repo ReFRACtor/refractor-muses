@@ -1,6 +1,7 @@
 from test_support import *
 from refractor.muses import (StateInfo, RetrievalStrategy, MusesRunDir,
-                             ObservationHandleSet, CostFunctionCreator)
+                             ObservationHandleSet, CostFunctionCreator,
+                             mpy_radiance_from_observation_list)
 
 class RetrievalStrategyStop:
     def notify_update(self, retrieval_strategy, location, **kwargs):
@@ -23,6 +24,9 @@ def test_radiance(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     oset = rs.observation_handle_set
-    rad = oset.mpy_radiance_full_band(None, rs.strategy_table)
+    olist = [oset.observation(iname, None, None,None)
+             for iname in rs.instrument_name_all]
+    rad = mpy_radiance_from_observation_list(olist,full_band=True)
+    print(rad)
     
     

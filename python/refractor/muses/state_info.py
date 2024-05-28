@@ -3,6 +3,7 @@ import abc
 from .priority_handle_set import PriorityHandleSet
 from .strategy_table import FakeStrategyTable
 from .current_state import CurrentStateDict
+from .observation_handle import mpy_radiance_from_observation_list
 import refractor.muses.muses_py as mpy
 import copy
 import refractor.framework as rf
@@ -332,8 +333,10 @@ class StateInfo:
          self.state_info_dict) = mpy.script_retrieval_setup_ms(strategy_table.strategy_table_dict, False)
         # state_initial_update needs radiance for some of the instruments. It used this
         # in the function calls like supplier_nh3_type_cris. We only need this for CRIS,
-        # AIRS, and TES
-        rad = observation_handle_set.mpy_radiance_full_band(None, strategy_table)
+        # AIRS, and TES, but we just collect it for everything
+        olist = [observation_handle_set.observation(iname, None, None,None)
+                 for iname in instrument_name_all]
+        rad = mpy_radiance_from_observation_list(olist, full_band=True)
                 
         self.state_info_dict = mpy.states_initial_update(
             self.state_info_dict, strategy_table.strategy_table_dict, rad, instrument_name_all)

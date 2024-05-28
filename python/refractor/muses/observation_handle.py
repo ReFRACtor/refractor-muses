@@ -41,14 +41,14 @@ def mpy_radiance_from_observation_list(obs_list : 'list(MusesObservation)',
                 fname.append(fn)
                 fsize.append(fs)
                 
-        return {"radiance" : np.concatenate(d),
-                "NESR" : np.concatenate(u),
-                "frequency" : np.concatenate(f),
-                "filterNames" : fname,
-                "filterSizes" : fsize,
-                "instrumentNames" : iname,
-                "instrumentSizes" : isize,
-                }        
+    return {"radiance" : np.concatenate(d),
+            "NESR" : np.concatenate(u),
+            "frequency" : np.concatenate(f),
+            "filterNames" : fname,
+            "filterSizes" : fsize,
+            "instrumentNames" : iname,
+            "instrumentSizes" : isize,
+            }        
     
 class ObservationHandle(object, metaclass=abc.ABCMeta):
     '''Base class for ObservationHandle. Note we use duck typing, so you
@@ -85,7 +85,7 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def observation(self, instrument_name : str,
                     current_state : "Optional(CurrentState)",
-                    spec_win : rf.SpectralWindowRange,
+                    spec_win : "Optional(rf.SpectralWindowRange)",
                     fm_sv: "Optional(rf.StateVector)",
                     **kwargs):
         '''Return Observation if we can process the given instrument_name, or
@@ -95,6 +95,9 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
 
         If you don't need fm_sv, you can also optional set current_state to None, in which
         case default values are used for any coefficients the Observation depends on.
+
+        You can also leave spec_win off if you just want access to the full data, i.e.,
+        doing a full_band.
         '''
         raise NotImplementedError()
 
@@ -130,43 +133,9 @@ class ObservationHandleSet(PriorityHandleSet):
             for h in self.handle_set[p]:
                 h.notify_update_target(measurement_id)
 
-    def mpy_radiance_full_band(self, current_state : 'Optional[CurrentState]',
-                               strategy_table: 'StrategyTable'):
-        '''There are a few places where the old py-retrieve 'radiance' structure
-        is needed. This includes all the instruments in strategy_table.instrument_name_all,
-        smooshed together into a dict structure, without bad samples or windowing applied.
-        This function handles this. Note
-        we have a chicken and the egg problem with one of the places where we need the
-        radiance. The creation of the initial StateInfo needs the radiance data (it uses
-        for example in the call to supplier_nh3_type_cris). So the current state is optional,
-        if this is passed in as None we use initial values for the various state elements
-        needed by the Observation classes.'''
-        cs = current_state
-        spec_win_dict = strategy_table.spectral_window_all(all_step=True)
-        res = { "instrumentNames" : [],
-                "frequency" : [],
-                "radiance" : [],
-                "NESR" : [],
-                "instrumentSizes" : [] }
-        f = []
-        r = []
-        u = []
-        for inst in strategy_table.instrument_name(all_step=True):
-            obs = self.observation(inst, cs, spec_win_dict[inst], None)
-            s = obs.radiance_all_extended(full_band=True)
-            res["instrumentNames"].append(inst)
-            f.append(s.spectral_domain.data)
-            r.append(s.spectral_range.data)
-            u.append(s.spectral_range.uncertainty)
-            res["instrumentSizes"].append(s.spectral_domain.data.shape[0])
-        res["frequency"] = np.concatenate(f)
-        res["radiance"] = np.concatenate(r)
-        res["NESR"] = np.concatenate(u)
-        return res
-        
     def observation(self, instrument_name : str,
                     current_state : "Optional(CurrentState)",
-                    spec_win : rf.SpectralWindowRange,
+                    spec_win : "Optional(rf.SpectralWindowRange)",
                     fm_sv: "Optional(rf.StateVector)",
                     **kwargs):
         '''Create an Observation for the given instrument.'''
@@ -174,7 +143,7 @@ class ObservationHandleSet(PriorityHandleSet):
     
     def handle_h(self, h : ObservationHandle, instrument_name : str,
                  current_state : "Optional(CurrentState)",
-                 spec_win : rf.SpectralWindowRange,
+                 spec_win : "Optional(rf.SpectralWindowRange)",
                  fm_sv: "Optional(rf.StateVector)",
                  **kwargs):
         '''Process a registered function'''

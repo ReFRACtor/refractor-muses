@@ -358,7 +358,7 @@ class MusesObservationHandle(ObservationHandle):
         
     def observation(self, instrument_name : str,
                     current_state : 'Optional(CurrentState)',
-                    spec_win : rf.SpectralWindowRange,
+                    spec_win : "Optional(rf.SpectralWindowRange)",
                     fm_sv: "Optional(rf.StateVector)",
                     osp_dir=None,
                     **kwargs):
@@ -435,7 +435,7 @@ class MusesAirsObservation(MusesObservationImp):
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
                        current_state: 'Optional(CurrentState)',
-                       spec_win: rf.SpectralWindowRange,
+                       spec_win: "Optional(rf.SpectralWindowRange)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         '''Create from a MeasurementId. If this depends on any state information, you can
@@ -600,7 +600,7 @@ class MusesCrisObservation(MusesObservationImp):
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
                        current_state: 'Optional(CurrentState)',
-                       spec_win: rf.SpectralWindowRange,
+                       spec_win: "Optional(rf.SpectralWindowRange)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         '''Create from a MeasurementId. If this depends on any state information, you can
@@ -982,7 +982,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
                        current_state: 'Optional(CurrentState)',
-                       spec_win: rf.SpectralWindowRange,
+                       spec_win: "Optional(rf.SpectralWindowRange)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         '''Create from a MeasurementId. If this depends on any state information, you can
@@ -1102,7 +1102,7 @@ class MusesOmiObservation(MusesObservationReflectance):
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
                        current_state: 'Optional(CurrentState)',
-                       spec_win: rf.SpectralWindowRange,
+                       spec_win: "Optional(rf.SpectralWindowRange)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         '''Create from a MeasurementId. If this depends on any state information, you can

@@ -1,4 +1,5 @@
 from .current_state import CurrentStateDict
+from .observation_handle import mpy_radiance_from_observation_list
 import refractor.framework as rf
 from glob import glob
 import logging
@@ -88,8 +89,9 @@ class RetrievalOutput:
 
     @property
     def radiance_full(self):
-        res = self.retrieval_strategy.observation_handle_set.mpy_radiance_full_band(None, self.retrieval_strategy.strategy_table)
-        return res
+        olist = [self.retrieval_strategy.observation_handle_set.observation(iname, None, None,None)
+                 for iname in self.retrieval_strategy.instrument_name_all]
+        return mpy_radiance_from_observation_list(olist, full_band=True)
 
     @property
     def obs_list(self):
