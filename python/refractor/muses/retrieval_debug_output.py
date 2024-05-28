@@ -60,7 +60,7 @@ class RetrievalPlotRadiance(RetrievalOutput):
             return
         os.makedirs(self.analysis_directory, exist_ok=True)
         mpy.plot_radiance(self.analysis_directory, self.results,
-                          self.radianceStep.__dict__, self.windows)
+                          self.radiance_step.__dict__, self.windows)
         
         
 __all__ = ["RetrievalInputOutput", "RetrievalPickleResult", "RetrievalPlotResult",

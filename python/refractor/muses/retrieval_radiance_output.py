@@ -45,15 +45,15 @@ class RetrievalRadianceOutput(RetrievalOutput):
             if(self.myobsrad is None):
                 self.myobsrad = self.radiance_full
             for inst in ("OMI", "TROPOMI"):
-                if(inst in self.radianceStep.instrumentNames):
-                    i = self.radianceStep.instrumentNames.index(inst)
-                    istart = sum(self.radianceStep.instrumentSizes[:i])
-                    iend = istart + self.radianceStep.instrumentSizes[i]
+                if(inst in self.radiance_step.instrumentNames):
+                    i = self.radiance_step.instrumentNames.index(inst)
+                    istart = sum(self.radiance_step.instrumentSizes[:i])
+                    iend = istart + self.radiance_step.instrumentSizes[i]
                     r = range(istart, iend)
                     self.myobsrad = {"instrumentNames" : [inst],
-                                "frequency" : self.radianceStep.frequency[r],
-                                "radiance" : self.radianceStep.radiance[r],
-                                "NESR" : self.radianceStep.NESR[r]}
+                                "frequency" : self.radiance_step.frequency[r],
+                                "radiance" : self.radiance_step.radiance[r],
+                                "NESR" : self.radiance_step.NESR[r]}
 
                     
             self.write_radiance()
@@ -116,8 +116,8 @@ class RetrievalRadianceOutput(RetrievalOutput):
 
         my_data.radianceFit = self.results.radiance[0, :].astype(np.float32)
         my_data.radianceFitInitial = self.results.radianceInitial[0, :].astype(np.float32)
-        my_data.radianceObserved = self.radianceStep.radiance.astype(np.float32)
-        my_data.nesr = self.radianceStep.NESR.astype(np.float32)
+        my_data.radianceObserved = self.radiance_step.radiance.astype(np.float32)
+        my_data.nesr = self.radiance_step.NESR.astype(np.float32)
         my_data.frequency = self.results.frequency.astype(np.float32)
 
         smeta = self.state_info.sounding_metadata()

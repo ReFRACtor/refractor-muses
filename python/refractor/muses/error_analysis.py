@@ -78,11 +78,11 @@ class ErrorAnalysis:
         '''Update results and error_current'''
         # Doesn't seem to be used for anything, but we need to pass in. I think
         # this might have been something that was used in the past?
-        radianceNoise = {"radiance" : np.zeros_like(rs.radianceStep["radiance"]) }
+        radianceNoise = {"radiance" : np.zeros_like(rs.radiance_step["radiance"]) }
         (results, self.error_current) = mpy.error_analysis_wrapper(
             rs.table_step,
             rs.strategy_table.analysis_directory,
-            rs.radianceStep,
+            rs.radiance_step,
             radianceNoise,
             rs.retrieval_info.retrieval_info_obj,
             rs.state_info.state_info_obj,

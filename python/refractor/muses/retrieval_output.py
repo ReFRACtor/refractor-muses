@@ -96,8 +96,8 @@ class RetrievalOutput:
         return self.retrieval_strategy_step.cfunc.obs_list
     
     @property
-    def radianceStep(self):
-        return mpy.ObjectView(self.retrieval_strategy.radianceStep)
+    def radiance_step(self):
+        return mpy.ObjectView(self.retrieval_strategy.radiance_step)
 
     @property
     def retrievalInfo(self):

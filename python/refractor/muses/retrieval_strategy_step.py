@@ -178,7 +178,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
                         "frequency" : freq_fm }
         (rs.strategy_table.strategy_table_dict, rs.state_info.state_info_dict) = mpy.modify_from_bt(
             mpy.ObjectView(rs.strategy_table.strategy_table_dict), rs.table_step,
-            self.cfunc.radianceStep(rs.cost_function_creator.radiance_step_in),
+            self.cfunc.radianceStep(),
             radiance_res,
             {},
             rs.state_info.state_info_dict,
@@ -209,7 +209,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             rs.state_info, rs.strategy_table.microwindows(), rs.retrieval_info,
             jacobian_speciesNames, 
             jacobian_specieslist, 
-            self.cfunc.radianceStep(rs.cost_function_creator.radiance_step_in),
+            self.cfunc.radianceStep(),
             uip, 
             rs.o_airs, tes, cris, omi, tropomi,
             mytiming, 
@@ -252,14 +252,14 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             rs.strategy_table.strategy_table_dict,
             {},
             retrievalResults,
-            rs.retrieval_info, rs.radianceStep, rs.state_info.state_info_obj,
+            rs.retrieval_info, rs.radiance_step, rs.state_info.state_info_obj,
             {"currentGuessListFM" : retrievalResults["xretFM"]})
         logger.info('\n---')
         logger.info(f"Step: {rs.table_step}, Step Name: {rs.step_name}")
         logger.info(f"Best iteration {self.results.bestIteration} out of {retrievalResults['num_iterations']}")
         logger.info('---\n')
         self.results = mpy.set_retrieval_results_derived(self.results,
-                      rs.radianceStep, self.propagatedTATMQA,
+                      rs.radiance_step, self.propagatedTATMQA,
                       self.propagatedO3QA, self.propagatedH2OQA)
         
         do_not_update = rs.strategy_table.table_entry("donotupdate").lower()
@@ -289,7 +289,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
-        mpy.set_retrieval_results_derived(self.results, rs.radianceStep,
+        mpy.set_retrieval_results_derived(self.results, rs.radiance_step,
                                           self.propagatedTATMQA, self.propagatedO3QA,
                                           self.propagatedH2OQA)
         self.results = rs.error_analysis.error_analysis(rs, self.results)
@@ -339,7 +339,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         ConvTolerance_CostThresh = float(rs.strategy_table.preferences["ConvTolerance_CostThresh"])
         ConvTolerance_pThresh = float(rs.strategy_table.preferences["ConvTolerance_pThresh"])
         ConvTolerance_JacThresh = float(rs.strategy_table.preferences["ConvTolerance_JacThresh"])
-        r = self.cfunc.radianceStep(rs.cost_function_creator.radiance_step_in)["NESR"]
+        r = self.cfunc.radianceStep()["NESR"]
         Chi2Tolerance = 2.0 / len(r) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
             ConvTolerance_CostThresh = 0.00001
@@ -357,8 +357,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                      Chi2Tolerance)
         if(maxIter > 0):
             self.slv.solve()
-        # TODO Hopefully this can go away
-        rs.radianceStep = self.cfunc.radianceStep(rs.cost_function_creator.radiance_step_in)
+        rs.radiance_step = self.cfunc.radianceStep()
         return self.slv.retrieval_results()
     
 

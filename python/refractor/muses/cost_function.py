@@ -179,7 +179,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         return (uip, residual, jac_residual, radiance_fm,
                 jac_fm, stop_flag)
 
-    def radianceStep(self, i_radianceInfo):
+    def radianceStep(self):
         '''Create the structure called "radianceStep" from our observation data'''
         f = []
         d = []
