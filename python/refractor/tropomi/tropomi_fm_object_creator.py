@@ -190,7 +190,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         if scale_factor is None:
             return None
         else:
-            with self.observation.modify_spectral_window(full_band=True):
+            with self.observation.modify_spectral_window(do_raman_ext=True):
                 wlen = self.observation.spectral_domain(i)
             # This is short if we aren't actually running this filter
             if(wlen.data.shape[0] < 2):

@@ -135,13 +135,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return chan_list
 
     def solar_model(self, sensor_index):
-        # TODO Put this into observation
-        sol_rad = rf.Spectrum(
-            rf.SpectralDomain([t.value for t in
-                               self.observation._solar_wav[sensor_index].pixel_grid()],
-                               rf.Unit("nm")),
-            rf.SpectralRange([t.value for t in self.observation.solar_radiance(sensor_index)],
-                             rf.Unit("ph / nm / s")))
+        with self.observation.modify_spectral_window(do_raman_ext=True):
+            sol_rad = self.observation.solar_spectrum(sensor_index)
         return rf.SolarReferenceSpectrum(sol_rad, None)
 
     @property

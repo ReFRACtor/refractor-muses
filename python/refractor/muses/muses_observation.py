@@ -203,29 +203,34 @@ class MusesObservation(rf.ObservationSvImpBase):
         return []
 
     def radiance_all_extended(self, skip_jacobian=True,
-                              include_bad_sample=False, full_band=False):
+                              include_bad_sample=False, full_band=False,
+                              do_raman_ext=False):
         '''Convenience function that changes the spectral_window (e.g., turn
         on bad samples), calls radiance_all, and then changes back.
 
         Normally we want just the radiance data, so the default is to skip the
         jacobian part. You can select that if you like by passing skip_jacobian=False'''
         with self.modify_spectral_window(include_bad_sample=include_bad_sample,
-                                         full_band=full_band):
+                                         full_band=full_band, do_raman_ext=do_raman_ext):
             return self.radiance_all(skip_jacobian)
 
     @contextmanager
-    def modify_spectral_window(self, include_bad_sample=False, full_band=False):
+    def modify_spectral_window(self, include_bad_sample=False, full_band=False,
+                               do_raman_ext=False):
         '''Convenience context that changes the spectral_window (e.g., turn
         on bad samples), does something, and then changes back.'''
         t1 = self.spectral_window.include_bad_sample
         t2 = self.spectral_window.full_band
+        t3 = self.spectral_window.do_raman_ext
         try:
             self.spectral_window.include_bad_sample=include_bad_sample
             self.spectral_window.full_band=full_band
+            self.spectral_window.do_raman_ext=do_raman_ext
             yield
         finally:
             self.spectral_window.include_bad_sample=t1
             self.spectral_window.full_band=t2
+            self.spectral_window.do_raman_ext=t3
 
     
     
@@ -739,6 +744,7 @@ class MusesObservationReflectance(MusesObservationImp):
             self._solar_interp = existing_obs._solar_interp
             self._earth_rad = existing_obs._earth_rad
             self._nesr = existing_obs._nesr
+            self._solar_spectrum = existing_obs._solar_spectrum
         else:
             # Stash some values we use in later calculations. Note that the radiance data
             # is all smooshed together, so we separate this.
@@ -754,8 +760,15 @@ class MusesObservationReflectance(MusesObservationImp):
             self._solar_interp = []
             self._earth_rad = []
             self._nesr = []
+            self._solar_spectrum = []
             erad = muses_py_dict['Earth_Radiance']
             srad = muses_py_dict['Solar_Radiance']
+            # Note this looks wrong (why not use Solar_Radiance Wavelength here?),
+            # but is actually correct. The solar data has already been interpolated
+            # to the same wavelengths as  the Earth_Radiance, this happens in
+            # daily_tropomi_irad for TROPOMI, and similarly for OMI. Not sure
+            # why the original wavelengths are left in rad_info['Solar_Radiance'],
+            # that is actually misleading.
             for i,flt in enumerate(filter_list):
                 flt_sub = (erad['EarthWavelength_Filter'] == flt)
                 self._freq_data.append(erad['Wavelength'][flt_sub])
@@ -765,6 +778,11 @@ class MusesObservationReflectance(MusesObservationImp):
                     (srad['AdjustedSolarRadiance'][flt_sub]<=0.0))
                 self._earth_rad.append(erad['CalibratedEarthRadiance'][flt_sub])
                 self._nesr.append(erad['EarthRadianceNESR'][flt_sub])
+                sol_domain = rf.SpectralDomain(erad['Wavelength'][flt_sub], rf.Unit("nm"))
+                sol_range = rf.SpectralRange(srad["AdjustedSolarRadiance"][flt_sub],
+                                             rf.Unit("ph / nm / s"))
+                self._solar_spectrum.append(rf.Spectrum(sol_domain, sol_range))
+                
                 # Create a interpolator for the solar model, only using good data.
                 solar_data = srad['AdjustedSolarRadiance'][flt_sub]
                 orgwav_good = self._freq_data[i][self.bad_sample_mask(i) != True]
@@ -810,6 +828,17 @@ class MusesObservationReflectance(MusesObservationImp):
         if(sensor_index < 0 or sensor_index >= self.num_channels):
             raise RuntimeError("sensor_index out of range")
         return self._bsamp[sensor_index]
+
+    def solar_spectrum(self, sensor_index):
+        '''Not sure how much sense it makes, but the RamanSioris gets
+        it solar model from the observation. I suppose this sort of
+        makes sense, because we already need the solar model.  It
+        seems like this should be a separate thing, and perhaps at
+        some point we will pull this out. But for now make this
+        available here. Note this is the original, unaltered solar model - so without
+        the TROPOMISOLARSHIFT or OMINRADWAV.
+        '''
+        return self.spectral_window.apply(self._solar_spectrum[sensor_index], sensor_index)
 
     def solar_radiance(self, sensor_index):
         '''Use our interpolator to get the solar model at the

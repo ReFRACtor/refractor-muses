@@ -30,6 +30,11 @@ def test_muses_spectral_window(osp_dir):
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 4+3
     swin.include_bad_sample = False
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 4
+    # Use raman extended
+    swin.do_raman_ext=True
+    assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 50
+    swin.do_raman_ext=False
+    assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 4
     # Check number of full band
     swin.full_band = True
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == spec.spectral_domain.data.shape[0]

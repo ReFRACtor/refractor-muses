@@ -224,7 +224,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             scale_factor = self.uip_params[f"ring_sf_{str.lower(self.filter_list[i])}"]
         else:
             raise RuntimeError("Unrecognized filter name")
-        with self.observation.modify_spectral_window(full_band=True):
+        with self.observation.modify_spectral_window(do_raman_ext=True):
             wlen = self.observation.spectral_domain(i)
         # This is short if we aren't actually running this filter
         if(wlen.data.shape[0] < 2):
