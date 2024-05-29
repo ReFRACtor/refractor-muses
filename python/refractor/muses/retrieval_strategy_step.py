@@ -10,6 +10,7 @@ from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
 from .current_state import CurrentState, CurrentStateUip, CurrentStateStateInfo
 from .observation_handle import mpy_radiance_from_observation_list
+from .retrieval_result import PropagatedQA, RetrievalResult
 from functools import partial
 import numpy as np
 
@@ -126,19 +127,19 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
         If do_systematic is True, then we use the systematic species list. '''
         self._uip = None
-        cstate = CurrentStateStateInfo(rs.state_info, rs.retrieval_info,
-                                       do_systematic=do_systematic,
-                                       retrieval_state_element_override=jacobian_speciesIn)
+        self.cstate = CurrentStateStateInfo(rs.state_info, rs.retrieval_info,
+                                            do_systematic=do_systematic,
+                                            retrieval_state_element_override=jacobian_speciesIn)
         # Temp, until we get this sorted out
-        cstate.apriori_cov = rs.retrieval_info.apriori_cov
-        cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
-        cstate.apriori = rs.retrieval_info.apriori
+        self.cstate.apriori_cov = rs.retrieval_info.apriori_cov
+        self.cstate.sqrt_constraint = (mpy.sqrt_matrix(self.cstate.apriori_cov)).transpose()
+        self.cstate.apriori = rs.retrieval_info.apriori
         # TODO Would probably be good to remove include_bad_sample, it isn't clear that
         # we ever want to run the forward model for bad samples. But right now the existing
         # py-retrieve code requires this is a few places.a
         return rs.cost_function_creator.cost_function(
             rs.strategy_table.instrument_name(),
-            cstate,
+            self.cstate,
             rs.strategy_table.spectral_window_all(),
             partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample,
@@ -238,9 +239,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
-        self.propagatedTATMQA = 1
-        self.propagatedH2OQA = 1
-        self.propagatedO3QA = 1
+        self.propagated_qa = PropagatedQA()
         
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
@@ -274,8 +273,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         logger.info(f"Best iteration {self.results.bestIteration} out of {retrievalResults['num_iterations']}")
         logger.info('---\n')
         self.results = mpy.set_retrieval_results_derived(self.results,
-                      rs.radiance_step, self.propagatedTATMQA,
-                      self.propagatedO3QA, self.propagatedH2OQA)
+                      rs.radiance_step, self.propagated_qa.tatm_qa,
+                      self.propagated_qa.o3_qa, self.propagated_qa.h2o_qa)
         
         do_not_update = rs.strategy_table.table_entry("donotupdate").lower()
         if do_not_update != '-':
@@ -304,9 +303,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
-        mpy.set_retrieval_results_derived(self.results, rs.radiance_step,
-                                          self.propagatedTATMQA, self.propagatedO3QA,
-                                          self.propagatedH2OQA)
         self.results = rs.error_analysis.error_analysis(rs, self.results)
         self.update_retrieval_summary(rs)
         # The solver can't be pickled, because a few pieces of the cost function
@@ -337,13 +333,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             writeOutputFlag=False, 
             errorInitial=rs.error_analysis.error_initial
         )
-        if 'TATM' in rs.retrieval_info.species_names:
-            self.propagatedTATMQA = self.results.masterQuality
-        if 'O3' in rs.retrieval_info.species_names:
-            self.propagatedO3QA = self.results.masterQuality
-        if 'H2O' in rs.retrieval_info.species_names:
-            self.propagatedH2OQA = self.results.masterQuality
-        
+        self.propagated_qa.update(rs.strategy_table.retrieval_elements(),
+                                  self.results.masterQuality)
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
