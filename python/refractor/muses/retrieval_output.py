@@ -81,7 +81,7 @@ class RetrievalOutput:
 
     @property
     def results(self):
-        return self.retrieval_strategy_step.results
+        return self.retrieval_strategy_step.results.retrieval_result_obj
 
     @property
     def state_info(self):

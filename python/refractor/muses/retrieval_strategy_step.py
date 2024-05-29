@@ -260,21 +260,15 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         
         Path(f"{rs.run_dir}/-run_token.asc").touch()
 
-        retrievalResults = self.run_retrieval(rs)
+        ret_res = self.run_retrieval(rs)
 
-        self.results = mpy.set_retrieval_results(
-            rs.strategy_table.strategy_table_dict,
-            {},
-            retrievalResults,
-            rs.retrieval_info, rs.radiance_step, rs.state_info.state_info_obj,
-            {"currentGuessListFM" : retrievalResults["xretFM"]})
+        self.results = RetrievalResult(ret_res, rs.strategy_table, rs.retrieval_info,
+                                       rs.state_info, self.cfunc.obs_list,
+                                       self.propagated_qa)
         logger.info('\n---')
         logger.info(f"Step: {rs.table_step}, Step Name: {rs.step_name}")
-        logger.info(f"Best iteration {self.results.bestIteration} out of {retrievalResults['num_iterations']}")
+        logger.info(f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}")
         logger.info('---\n')
-        self.results = mpy.set_retrieval_results_derived(self.results,
-                      rs.radiance_step, self.propagated_qa.tatm_qa,
-                      self.propagated_qa.o3_qa, self.propagated_qa.h2o_qa)
         
         do_not_update = rs.strategy_table.table_entry("donotupdate").lower()
         if do_not_update != '-':
@@ -282,7 +276,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         else:
             do_not_update = []
 
-        rs.state_info.update_state(rs.retrieval_info, self.results.resultsList,
+        rs.state_info.update_state(rs.retrieval_info, self.results.results_list,
                                    do_not_update, rs.cloud_prefs, rs.table_step)
         if 'OCO2' in rs.instruments:
             # set table.pressurefm to stateConstraint.pressure because OCO-2
@@ -296,14 +290,15 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # TODO jacobianSys is only used in error_analysis_wrapper and error_analysis.
         # I think we can leave bad sample out, although I'm not positive. Would be
         # nice not to have special handling to add bad samples if we turn around and
-        # weed them out.
+        # weed them out. For right now, these are required, we would need to update
+        # the error analysis to work without bad samples
         if(rs.retrieval_info.n_speciesSys > 0):
             cfunc_sys = self.create_cost_function(rs, do_systematic=True,
                                      include_bad_sample=True, fix_apriori_size=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
-            self.results.jacobianSys = cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
+            self.results.update_jacobian_sys(cfunc_sys)
 
-        self.results = rs.error_analysis.error_analysis(rs, self.results)
+        self.results.update_error_analysis(rs.error_analysis)
         self.update_retrieval_summary(rs)
         # The solver can't be pickled, because a few pieces of the cost function
         # can't be pickled. We could sort that out if it becomes an issue, but for
@@ -319,12 +314,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def update_retrieval_summary(self, rs):
         '''Calculate various summary statistics for retrieval'''
-        self.results = mpy.write_retrieval_summary(
+        self.results.retrieval_result_obj = mpy.write_retrieval_summary(
             rs.strategy_table.analysis_directory,
             rs.retrieval_info.retrieval_info_obj,
             rs.state_info.state_info_obj,
             None,
-            self.results,
+            self.results.retrieval_result_obj,
             {},
             rs.press_list,
             rs.quality_name, 
@@ -334,7 +329,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             errorInitial=rs.error_analysis.error_initial
         )
         self.propagated_qa.update(rs.strategy_table.retrieval_elements(),
-                                  self.results.masterQuality)
+                                  self.results.master_quality)
 
     def run_retrieval(self, rs):
         '''run_retrieval'''

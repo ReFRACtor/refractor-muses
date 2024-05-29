@@ -74,22 +74,25 @@ class ErrorAnalysis:
 
         
 
-    def error_analysis(self, rs: "RetrievalStrategy", results):
+    def error_analysis(self, radiance_step: dict,
+                       retrieval_info : 'RetrievalInfo',
+                       state_info : 'StateInfo',
+                       retrieval_results : 'RetrievalResult'):
         '''Update results and error_current'''
         # Doesn't seem to be used for anything, but we need to pass in. I think
         # this might have been something that was used in the past?
-        radianceNoise = {"radiance" : np.zeros_like(rs.radiance_step["radiance"]) }
+        radiance_noise = {"radiance" : np.zeros_like(radiance_step["radiance"]) }
         (results, self.error_current) = mpy.error_analysis_wrapper(
-            rs.table_step,
-            rs.strategy_table.analysis_directory,
-            rs.radiance_step,
-            radianceNoise,
-            rs.retrieval_info.retrieval_info_obj,
-            rs.state_info.state_info_obj,
+            None,
+            None,
+            radiance_step,
+            radiance_noise,
+            retrieval_info.retrieval_info_obj,
+            state_info.state_info_obj,
             self.error_initial,
             self.error_current,
             None,
-            results
+            retrieval_results.retrieval_result_obj
             )
         return results
 
