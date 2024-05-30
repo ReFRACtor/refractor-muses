@@ -130,6 +130,10 @@ class StrategyTable:
                                    self.table_step, "stepName")
 
     @property
+    def max_num_iterations(self):
+        return mpy.table_get_entry(self.strategy_table_dict, self.table_step, "maxNumIterations")
+
+    @property
     def output_directory(self):
         return self.abs_filename(self.strategy_table_dict["outputDirectory"])
 
