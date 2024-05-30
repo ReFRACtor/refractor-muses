@@ -81,7 +81,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                     for fm_idx, ii_mw in enumerate(self.channel_list()):
                         sg = self.rf_uip.sample_grid(fm_idx, ii_mw)
                         full_instrument_size = len(sg.data)
-                        if (mw_index == ii_mw):
+                        # mod 10 is for joint retrievals where we come back with channel_list() == [10, 11]
+                        if (mw_index == (ii_mw % 10)):
                             eof_full = np.zeros((full_instrument_size,))
                             nonzero_eof_index = findex[np.logical_and(findex >= offset,
                                                         findex < offset+full_instrument_size)] - offset
