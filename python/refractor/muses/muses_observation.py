@@ -1128,7 +1128,11 @@ class MusesOmiObservation(MusesObservationReflectance):
             filename = mid.filename("OMI_filename")
             cld_filename = mid.filename('OMI_Cloud_filename')
             utc_time = mid.value('OMI_utcTime')
-            calibration_filename = mid.filename("omi_calibrationFilename")
+            if(mid.value_int('OMI_Rad_calRun_flag') != 1):
+                calibration_filename = mid.filename("omi_calibrationFilename")
+            else:
+                logger.info("Calibration run. Disabling EOF application.")
+                calibration_filename = None
             o_omi, sdesc = cls._read_data(
                 filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
                 cld_filename=cld_filename, osp_dir=osp_dir)
