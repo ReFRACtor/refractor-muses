@@ -1,6 +1,9 @@
 import refractor.muses.muses_py as mpy
 from .observation_handle import mpy_radiance_from_observation_list
 import numpy as np
+import os
+import logging
+logger = logging.getLogger("py-retrieve")
 
 class PropagatedQA:
     '''There are a few parameters that get propagated from one step to the next. Not
@@ -45,6 +48,7 @@ class RetrievalResult:
         self.rstep = mpy_radiance_from_observation_list(obs_list, include_bad_sample=True)
         self.retrieval_info = retrieval_info
         self.state_info = state_info
+        self.strategy_table = strategy_table
         self.retrieval_result_dict = mpy.set_retrieval_results(
             strategy_table.strategy_table_dict, {}, ret_res, retrieval_info,
             self.rstep, state_info.state_info_obj,
@@ -60,8 +64,23 @@ class RetrievalResult:
             cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
     def update_error_analysis(self, error_analysis : 'ErrorAnalysis'):
+        '''Run the error analysis and calculate various summary statistics for retrieval'''
         res = error_analysis.error_analysis(self.rstep, self.retrieval_info, self.state_info,
                                             self)
+        res = mpy.write_retrieval_summary(
+            self.strategy_table.analysis_directory,
+            self.retrieval_info.retrieval_info_obj,
+            self.state_info.state_info_obj,
+            None,
+            res,
+            {},
+            None,
+            self.quality_name, 
+            None,
+            error_analysis.error_current, 
+            writeOutputFlag=False, 
+            errorInitial=error_analysis.error_initial
+        )
         self.retrieval_result_dict = res.__dict__
                               
     @property
@@ -91,6 +110,32 @@ class RetrievalResult:
     @property
     def jacobian_sys(self):
         return self.retrieval_result_dict['jacobianSys']
+
+    @property
+    def press_list(self):
+        return [float(self.strategy_table.preferences["plotMaximumPressure"]),
+                float(self.strategy_table.preferences["plotMinimumPressure"])]
+
+    @property
+    def quality_name(self):
+        with self.strategy_table.chdir_run_dir():
+            res = os.path.basename(self.strategy_table.spectral_filename)
+            res = res.replace("Microwindows_", "QualityFlag_Spec_")
+            res = res.replace("Windows_", "QualityFlag_Spec_")
+            res = self.strategy_table.preferences["QualityFlagDirectory"] + res
+            
+            # if this does not exist use generic nadir / limb quality flag
+            if not os.path.isfile(res):
+                logger.warning(f'Could not find quality flag file: {res}')
+                viewingMode = self.strategy_table.preferences["viewingMode"]
+                viewMode = viewingMode.lower().capitalize()
+
+                res = f"{os.path.dirname(res)}/QualityFlag_Spec_{viewMode}.asc"
+                logger.warning(f"Using generic quality flag file: {res}")
+                # One last check.
+                if not os.path.isfile(res):
+                    raise RuntimeError(f"Quality flag filename not found: {res}")
+            return os.path.abspath(res)
 
 
 __all__ = ["PropagatedQA", "RetrievalResult"]    

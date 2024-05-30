@@ -69,7 +69,7 @@ class RetrievalOutput:
 
     @property
     def quality_name(self):
-        return self.retrieval_strategy.quality_name
+        return self.retrieval_strategy_step.results.quality_name
     
     @property
     def table_step(self):

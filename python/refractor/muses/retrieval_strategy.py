@@ -264,32 +264,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.notify_update("done next_state_to_current")
         logger.info(f"Done with step {self.table_step}")
         
-        
-    @property
-    def press_list(self):
-        return [float(self.strategy_table.preferences["plotMaximumPressure"]),
-                float(self.strategy_table.preferences["plotMinimumPressure"])]
-
-    @property
-    def quality_name(self):
-        res = os.path.basename(self.strategy_table.spectral_filename)
-        res = res.replace("Microwindows_", "QualityFlag_Spec_")
-        res = res.replace("Windows_", "QualityFlag_Spec_")
-        res = self.strategy_table.preferences["QualityFlagDirectory"] + res
-            
-        # if this does not exist use generic nadir / limb quality flag
-        if not os.path.isfile(res):
-            logger.warning(f'Could not find quality flag file: {res}')
-            viewingMode = self.strategy_table.preferences["viewingMode"]
-            viewMode = viewingMode.lower().capitalize()
-
-            res = f"{os.path.dirname(res)}/QualityFlag_Spec_{viewMode}.asc"
-            logger.warning(f"Using generic quality flag file: {res}")
-            # One last check.
-            if not os.path.isfile(res):
-                raise RuntimeError(f"Quality flag filename not found: {res}")
-        return res
-
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
         self.retrieval_info = RetrievalInfo(self.error_analysis, self.strategy_table,

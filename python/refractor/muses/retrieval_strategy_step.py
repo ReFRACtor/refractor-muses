@@ -285,9 +285,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
 
-        # Systematic jacobians. Not sure how this is different then just a
-        # subset of the full jacobian, but for now duplicate what muses-py does.
-        # TODO jacobianSys is only used in error_analysis_wrapper and error_analysis.
+        # TODO jacobian_sys is only used in error_analysis_wrapper and error_analysis.
         # I think we can leave bad sample out, although I'm not positive. Would be
         # nice not to have special handling to add bad samples if we turn around and
         # weed them out. For right now, these are required, we would need to update
@@ -299,7 +297,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             self.results.update_jacobian_sys(cfunc_sys)
 
         self.results.update_error_analysis(rs.error_analysis)
-        self.update_retrieval_summary(rs)
+        self.propagated_qa.update(rs.strategy_table.retrieval_elements(),
+                                  self.results.master_quality)
+        
         # The solver can't be pickled, because a few pieces of the cost function
         # can't be pickled. We could sort that out if it becomes an issue, but for
         # now just delete the slv before we call notify_update. Note that it isn't
@@ -311,25 +311,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs.notify_update("retrieval step", retrieval_strategy_step=self)
         
         return (True, None)
-
-    def update_retrieval_summary(self, rs):
-        '''Calculate various summary statistics for retrieval'''
-        self.results.retrieval_result_obj = mpy.write_retrieval_summary(
-            rs.strategy_table.analysis_directory,
-            rs.retrieval_info.retrieval_info_obj,
-            rs.state_info.state_info_obj,
-            None,
-            self.results.retrieval_result_obj,
-            {},
-            rs.press_list,
-            rs.quality_name, 
-            rs.table_step, 
-            rs.error_analysis.error_current, 
-            writeOutputFlag=False, 
-            errorInitial=rs.error_analysis.error_initial
-        )
-        self.propagated_qa.update(rs.strategy_table.retrieval_elements(),
-                                  self.results.master_quality)
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
