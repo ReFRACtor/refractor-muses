@@ -92,7 +92,4 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
             else:
                 del os.environ["strategy_table_dir"]
         
-        
-        
-    
- 
+__all__ = ["RetrievalConfiguration",]

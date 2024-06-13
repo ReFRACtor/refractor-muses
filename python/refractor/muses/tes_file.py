@@ -68,4 +68,4 @@ class TesFile(collections.abc.Mapping):
     def __iter__(self):
         return self._d.__iter__()
 
-    
+__all__ = ["TesFile", ]

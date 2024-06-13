@@ -2,7 +2,7 @@ from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              StrategyTable, RetrievalStrategy, ObservationHandleSet,
                              MusesCrisObservation,
                              MusesTropomiObservation, MusesOmiObservation,
-                             MeasurementIdFile,
+                             MeasurementIdFile, RetrievalConfiguration,
                              CurrentStateDict)
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
                                                MusesCrisObservationOld, MusesAirsObservationOld)
@@ -11,10 +11,11 @@ from test_support import *
 
 def test_measurement_id(isolated_dir, osp_dir, gmao_dir):
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
-    print(osp_dir)
-    s = StrategyTable(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
-    mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", s)
-    assert mid.filter_list == {'OMI': ['UV1', 'UV2'], 'AIRS': ['2B1', '1B2', '2A1', '1A1']}
+    rconfig = RetrievalConfiguration.create_from_strategy_file(f"{r.run_dir}/Table.asc",
+                                                               osp_dir=osp_dir)
+    flist = {'OMI': ['UV1', 'UV2'], 'AIRS': ['2B1', '1B2', '2A1', '1A1']}
+    mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
+    assert mid.filter_list == flist
     assert mid.value_float("OMI_Longitude") == pytest.approx(-154.7512664794922)
     assert mid.value_int("OMI_XTrack_UV1_Index") == 10
     assert os.path.basename(mid.filename("OMI_Cloud_filename")) == "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"

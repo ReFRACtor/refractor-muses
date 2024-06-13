@@ -7,6 +7,7 @@ from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult
                                      RetrievalPlotRadiance, RetrievalPlotResult)
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .strategy_table import StrategyTable
+from .retrieval_configuration import RetrievalConfiguration
 from .cost_function_creator import CostFunctionCreator
 from .muses_observation import MeasurementIdFile
 from .replace_function_helper import (suppress_replacement,
@@ -130,8 +131,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.filename = os.path.abspath(filename)
         self.run_dir = os.path.dirname(self.filename)
         self.strategy_table = StrategyTable(self.filename)
+        self.retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.filename)
         self.measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
-                                                self.strategy_table)
+                                                self.retrieval_config,
+                                                self.strategy_table.filter_list_all())
         self.cost_function_creator.update_target(self.measurement_id)
         self.retrieval_strategy_step_set.notify_update_target(self)
         self.state_info.notify_update_target(self)

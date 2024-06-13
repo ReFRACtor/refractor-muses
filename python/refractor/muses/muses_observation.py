@@ -1,6 +1,7 @@
 from .misc import osp_setup
 from .observation_handle import ObservationHandle, ObservationHandleSet
 from .muses_spectral_window import MusesSpectralWindow
+from .retrieval_configuration import RetrievalConfiguration
 from contextlib import contextmanager
 import refractor.muses.muses_py as mpy
 import os
@@ -89,12 +90,13 @@ class MeasurementIdDict(MeasurementId):
         
 class MeasurementIdFile(MeasurementId):
     '''Implementation of MeasurementId that uses the Measurement_ID.asc file.'''
-    def __init__(self, fname, strategy_table: 'StrategyTable'):
+    def __init__(self, fname, retrieval_config: RetrievalConfiguration,
+                 filter_list : 'dict(str, list(str))'):
         self.fname = fname
         self._dir_relative_to = os.path.abspath(os.path.dirname(self.fname))
         self._p = mpy.tes_file_get_struct(mpy.read_all_tes(self.fname)[1])["preferences"]
-        self._filter_list = strategy_table.filter_list_all()
-        self._strategy_table = strategy_table
+        self._filter_list = filter_list
+        self._retrieval_config = retrieval_config
     
     @property
     def filter_list(self) -> 'list[str]':
@@ -107,8 +109,8 @@ class MeasurementIdFile(MeasurementId):
         in the strategy table file.'''
         if(keyword in self._p):
             return self._p[keyword]
-        if(keyword in self._strategy_table.preferences):
-            return self._strategy_table.preferences[keyword]
+        if(keyword in self._retrieval_config):
+            return self._retrieval_config[keyword]
         raise KeyError(keyword)
 
     def filename(self, keyword:str) -> str:
@@ -120,8 +122,8 @@ class MeasurementIdFile(MeasurementId):
             if(os.path.isabs(fname)):
                 return fname
             return os.path.normpath(os.path.join(self._dir_relative_to, fname))
-        if(keyword in self._strategy_table.preferences):
-            return self._strategy_table.abs_filename(self._strategy_table.preferences[keyword])
+        if(keyword in self._retrieval_config):
+            return os.path.normpath(self._retrieval_config[keyword])
         raise KeyError(keyword)
     
     
