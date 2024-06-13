@@ -79,16 +79,14 @@ class RetrievalL2Output(RetrievalOutput):
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
             # Not sure about the logic here, but this is what script_retrieval_ms does
             if(not os.path.exists(self.out_fname) or self.spcname in ('TATM', 'H2O', 'N2O')):
-                # Code assumes we are in rundir
-                with self.retrieval_strategy.chdir_run_dir():
-                    dataInfo = self.write_l2()
-                    if(self.spcname == "TATM"):
-                        self.dataTATM = dataInfo
-                    elif(self.spcname == "H2O"):
-                        self.dataH2O = dataInfo
-                    elif(self.spcname == "N2O"):
-                        self.dataN2O = dataInfo
-                    self.lite_file(dataInfo)
+                dataInfo = self.write_l2()
+                if(self.spcname == "TATM"):
+                    self.dataTATM = dataInfo
+                elif(self.spcname == "H2O"):
+                    self.dataH2O = dataInfo
+                elif(self.spcname == "N2O"):
+                    self.dataN2O = dataInfo
+                self.lite_file(dataInfo)
 
     def lite_file(self, dataInfo):
         '''Create lite file.'''
@@ -115,30 +113,27 @@ class RetrievalL2Output(RetrievalOutput):
         if(self.spcname == "H2O" and self.dataTATM is not None):
             self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Lite_Products_L2-RH-{self.species_count[self.spcname]}.nc"
             if("OCO2" not in self.instruments):
-                liteDirectory = '../OSP/Lite/'
+                liteDirectory = f"{self.retrieval_strategy.run_dir}/../OSP/Lite/"
                 # Code assumes we are in rundir
-                with self.retrieval_strategy.chdir_run_dir():
-                    t = CdfWriteTes()
-                    t.write_lite(
-                        self.table_step,
-                        self.out_fname, self.quality_name, self.instruments,
-                        liteDirectory, dataInfo, self.dataTATM, "RH",
-                        step=self.species_count[self.spcname],
-                        times_species_retrieved=self.species_count[self.spcname],
-                        state_element_out=state_element_out)
-                
-        self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
-        if 'OCO2' not in self.instruments:
-            liteDirectory = '../OSP/Lite/'
-            # Code assumes we are in rundir
-            with self.retrieval_strategy.chdir_run_dir():
                 t = CdfWriteTes()
-                data2 = t.write_lite(
-                    self.table_step, self.out_fname, self.quality_name,
-                    self.instruments, liteDirectory, dataInfo, data2, self.spcname,
+                t.write_lite(
+                    self.table_step,
+                    self.out_fname, self.quality_name, self.instruments,
+                    liteDirectory, dataInfo, self.dataTATM, "RH",
                     step=self.species_count[self.spcname],
                     times_species_retrieved=self.species_count[self.spcname],
                     state_element_out=state_element_out)
+                
+        self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
+        if 'OCO2' not in self.instruments:
+            liteDirectory = f"{self.retrieval_strategy.run_dir}/../OSP/Lite/"
+            t = CdfWriteTes()
+            data2 = t.write_lite(
+                self.table_step, self.out_fname, self.quality_name,
+                self.instruments, liteDirectory, dataInfo, data2, self.spcname,
+                step=self.species_count[self.spcname],
+                times_species_retrieved=self.species_count[self.spcname],
+                state_element_out=state_element_out)
 
     def generate_geo_data(self, species_data):
         '''Generate the geo_data, pulled out just to keep write_l2 from getting

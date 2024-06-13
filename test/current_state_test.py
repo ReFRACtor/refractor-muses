@@ -51,25 +51,25 @@ def test_current_state_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
             rs.retrieval_ms()
     except StopIteration:
         pass
+    os.chdir(r.run_dir)
     # Sets up retrieval_info
     for i in range(rs.number_table_step):
         rs.table_step = i
-        with rs.chdir_run_dir():
-            rs.retrieval_info.stepNumber = rs.table_step
-            rs.retrieval_info.stepName = rs.step_name
-            rs.get_initial_guess()
+        rs.retrieval_info.stepNumber = rs.table_step
+        rs.retrieval_info.stepName = rs.step_name
+        rs.get_initial_guess()
 
-            # Create UIP one, so we can compare
-            rstep = RetrievalStrategyStepRetrieve()
-            rf_uip = rstep.uip_func(rs, do_systematic=False, jacobian_speciesIn=None)
-            csuip = CurrentStateUip(rf_uip)
-            # If the step as systematic jacobians, include that.
-            if(rs.retrieval_info.n_speciesSys > 0):
-                rstepsys = RetrievalStrategyStepRetrieve()
-                rf_uipsys = rstepsys.uip_func(rs, do_systematic=True, jacobian_speciesIn=None)
-                csuipsys = CurrentStateUip(rf_uipsys)
-            else:
-                csuipsys = None
+        # Create UIP one, so we can compare
+        rstep = RetrievalStrategyStepRetrieve()
+        rf_uip = rstep.uip_func(rs, do_systematic=False, jacobian_speciesIn=None)
+        csuip = CurrentStateUip(rf_uip)
+        # If the step as systematic jacobians, include that.
+        if(rs.retrieval_info.n_speciesSys > 0):
+            rstepsys = RetrievalStrategyStepRetrieve()
+            rf_uipsys = rstepsys.uip_func(rs, do_systematic=True, jacobian_speciesIn=None)
+            csuipsys = CurrentStateUip(rf_uipsys)
+        else:
+            csuipsys = None
             
         cs = CurrentStateStateInfo(rs.state_info, rs.retrieval_info)
         if(rs.retrieval_info.n_speciesSys > 0):
@@ -90,15 +90,14 @@ def test_current_state_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # For the BT step, we use the jacobian_speciesIn argument. Check that this work with
     # the new CurrentStateStateInfo
     rs.table_step = 0
-    with rs.chdir_run_dir():
-        rs.retrieval_info.stepNumber = rs.table_step
-        rs.retrieval_info.stepName = rs.step_name
-        rs.get_initial_guess()
+    rs.retrieval_info.stepNumber = rs.table_step
+    rs.retrieval_info.stepName = rs.step_name
+    rs.get_initial_guess()
 
-        # Create UIP one, so we can compare
-        rstep = RetrievalStrategyStepRetrieve()
-        rf_uip = rstep.uip_func(rs, do_systematic=False, jacobian_speciesIn=["H2O",])
-        csuip = CurrentStateUip(rf_uip)
+    # Create UIP one, so we can compare
+    rstep = RetrievalStrategyStepRetrieve()
+    rf_uip = rstep.uip_func(rs, do_systematic=False, jacobian_speciesIn=["H2O",])
+    csuip = CurrentStateUip(rf_uip)
     
     cs = CurrentStateStateInfo(rs.state_info, rs.retrieval_info,
                                retrieval_state_element_override=["H2O"])
