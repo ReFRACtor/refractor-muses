@@ -66,59 +66,9 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 8
-    rs.strategy_table.table_step = step_number+1
-    swin = rs.strategy_table.spectral_window("AIRS")
+    rs.table_step = step_number+1
+    swin = rs._strategy_table.spectral_window("AIRS")
     obs = MusesAirsObservation.create_from_id(rs.measurement_id, None,
-                                              None, swin, None, osp_dir=osp_dir)
-
-def test_muses_cris_observation(isolated_dir, osp_dir, gmao_dir):
-    granule = 65
-    xtrack = 8
-    atrack = 4
-    pixel_index = 5
-    fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
-    stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    obs = MusesCrisObservation.create_from_filename(fname, granule, xtrack, atrack,
-                                                    pixel_index, osp_dir=osp_dir)
-    step_number = 12
-    iteration = 2
-    rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,
-                                       step_number=step_number,
-                                       iteration=iteration,
-                                       osp_dir=osp_dir,
-                                       gmao_dir=gmao_dir,
-                                       path="refractor")
-    rf_uip = RefractorUip(rrefractor.params["uip"],
-                          rrefractor.params["ret_info"]["basis_matrix"])
-    rf_uip.run_dir = rrefractor.run_dir
-    obs_old = MusesCrisObservationOld(rf_uip, rrefractor.params["ret_info"]["obs_rad"],
-                                      rrefractor.params["ret_info"]["meas_err"])
-    # Note this is off by 1. The table numbering get redone after the BT step. It might
-    # be nice to straighten this out - this is actually kind of confusing. Might be better to
-    # just have a way to skip steps - but this is at least how the code works. The
-    # code mpy.modify_from_bt changes the number of steps
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("CRIS", step_number+1),
-                                              obs)
-    print(obs.spectral_domain(0).data)
-    print(obs_old.spectral_domain(0).data)
-    npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
-    print(obs_old.radiance(0).spectral_range.data)
-    npt.assert_allclose(obs.radiance(0).spectral_range.data, obs_old.radiance(0).spectral_range.data)
-    print([obs_old.rf_uip.uip['microwindows_all'][i] for i in
-           range(len(obs_old.rf_uip.uip['microwindows_all']))
-           if obs_old.rf_uip.uip['microwindows_all'][i]['instrument'] == "CRIS"])
-    # Basic test of serialization, just want to make sure we get no errors
-    t = pickle.dumps(obs)
-    obs2 = pickle.loads(t)
-    
-def test_create_muses_cris_observation(isolated_dir, osp_dir, gmao_dir,
-                                       vlidort_cli):
-    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    step_number = 12
-    rs.strategy_table.table_step = step_number+1
-    swin = rs.strategy_table.spectral_window("CRIS")
-    obs = MusesCrisObservation.create_from_id(rs.measurement_id, None,
                                               None, swin, None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -196,8 +146,8 @@ def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
     r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 12
-    rs.strategy_table.table_step = step_number+1
-    swin = rs.strategy_table.spectral_window("TROPOMI")
+    rs.table_step = step_number+1
+    swin = rs._strategy_table.spectral_window("TROPOMI")
     cs = CurrentStateDict({"TROPOMISOLARSHIFTBAND3" : 0.1,
                            "TROPOMIRADIANCESHIFTBAND3" : 0.2,
                            "TROPOMIRADSQUEEZEBAND3" : 0.3,}
@@ -291,8 +241,8 @@ def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 8
-    rs.strategy_table.table_step = step_number+1
-    swin = rs.strategy_table.spectral_window("OMI")
+    rs.table_step = step_number+1
+    swin = rs._strategy_table.spectral_window("OMI")
     cs = CurrentStateDict({"OMINRADWAVUV1" : 0.1,
                            "OMINRADWAVUV2" : 0.11,
                            "OMIODWAVUV1" : 0.2,

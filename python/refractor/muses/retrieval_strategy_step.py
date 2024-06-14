@@ -16,6 +16,9 @@ import numpy as np
 
 logger = logging.getLogger("py-retrieve")
 
+# TODO clean up the usage for various internal objects of RetrievalStrategy, we want to rework
+# this anyways as we introduce the StrategyExecutor.
+
 def struct_compare(s1, s2):
     for k in s1.keys():
         print(k)
@@ -78,7 +81,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         '''
         if(self._uip is None):
             if(do_systematic):
-                retrieval_info = rs.retrieval_info.retrieval_info_obj
+                retrieval_info = rs._retrieval_info.retrieval_info_obj
                 rinfo = mpy.ObjectView({
                     'parameterStartFM': retrieval_info.parameterStartSys,
                     'parameterEndFM' : retrieval_info.parameterEndSys,
@@ -86,14 +89,14 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
                     'n_species': retrieval_info.n_speciesSys,
                     'speciesList': retrieval_info.speciesListSys,
                     'speciesListFM': retrieval_info.speciesListSys,
-                    'mapTypeListFM': mpy.constraint_get_maptype(rs.error_analysis.error_current, retrieval_info.speciesListSys),
+                    'mapTypeListFM': mpy.constraint_get_maptype(rs._error_analysis.error_current, retrieval_info.speciesListSys),
                     'initialGuessListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
                     'constraintVectorListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
                     'initialGuessList': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
                     'n_totalParametersFM': retrieval_info.n_totalParametersSys
                 })
             else:
-                rinfo = rs.retrieval_info
+                rinfo = rs._retrieval_info
             o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
                      "TROPOMI" : None, "OCO2" : None}
             o_airs = None
@@ -102,14 +105,14 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
             o_omi = None
             o_tropomi = None
             o_oco2 = None
-            for iname in rs.strategy_table.instrument_name():
+            for iname in rs._strategy_table.instrument_name():
                 if iname in o_xxx:
                     obs = rs.observation_handle_set.observation(iname, None,
-                                  rs.strategy_table.spectral_window(iname), None)
+                                  rs._strategy_table.spectral_window(iname), None)
                     if hasattr(obs, "muses_py_dict"):
                         o_xxx[iname] = obs.muses_py_dict
-            self._uip = RefractorUip.create_uip(rs.state_info, rs.strategy_table,
-                                                rs.strategy_table.microwindows(), rinfo,
+            self._uip = RefractorUip.create_uip(rs._state_info, rs._strategy_table,
+                                                rs._strategy_table.microwindows(), rinfo,
                                                 o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
                                                 o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
                                                 jacobian_speciesIn=jacobian_speciesIn)
@@ -127,23 +130,23 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
         If do_systematic is True, then we use the systematic species list. '''
         self._uip = None
-        self.cstate = CurrentStateStateInfo(rs.state_info, rs.retrieval_info,
+        self.cstate = CurrentStateStateInfo(rs._state_info, rs._retrieval_info,
                                             do_systematic=do_systematic,
                                             retrieval_state_element_override=jacobian_speciesIn)
         # Temp, until we get this sorted out
-        self.cstate.apriori_cov = rs.retrieval_info.apriori_cov
+        self.cstate.apriori_cov = rs._retrieval_info.apriori_cov
         self.cstate.sqrt_constraint = (mpy.sqrt_matrix(self.cstate.apriori_cov)).transpose()
-        self.cstate.apriori = rs.retrieval_info.apriori
+        self.cstate.apriori = rs._retrieval_info.apriori
         # TODO Would probably be good to remove include_bad_sample, it isn't clear that
         # we ever want to run the forward model for bad samples. But right now the existing
         # py-retrieve code requires this is a few places.a
-        return rs.cost_function_creator.cost_function(
-            rs.strategy_table.instrument_name(),
+        return rs._cost_function_creator.cost_function(
+            rs._strategy_table.instrument_name(),
             self.cstate,
-            rs.strategy_table.spectral_window_all(),
+            rs._strategy_table.spectral_window_all(),
             partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample,
-            fix_apriori_size=fix_apriori_size, **rs.kwargs)
+            fix_apriori_size=fix_apriori_size, **rs._kwargs)
 
     def radiance_step(self):
         '''We have a few places that need the old py-retrieve dict version of our
@@ -192,17 +195,17 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         # Put into structure expected by modify_from_bt
         radiance_res = {"radiance" : radiance_fm,
                         "frequency" : freq_fm }
-        (rs.strategy_table.strategy_table_dict, rs.state_info.state_info_dict) = mpy.modify_from_bt(
-            mpy.ObjectView(rs.strategy_table.strategy_table_dict), rs.table_step,
+        (rs._strategy_table.strategy_table_dict, rs._state_info.state_info_dict) = mpy.modify_from_bt(
+            mpy.ObjectView(rs._strategy_table.strategy_table_dict), rs.table_step,
             self.radiance_step(),
             radiance_res,
             {},
-            rs.state_info.state_info_dict,
+            rs._state_info.state_info_dict,
             self.BTstruct,
             writeOutputFlag=False)
-        rs.strategy_table.strategy_table_dict = rs.strategy_table.strategy_table_dict.__dict__
+        rs._strategy_table.strategy_table_dict = rs._strategy_table.strategy_table_dict.__dict__
         logger.info(f"Step: {rs.table_step},  Total Steps (after modify_from_bt): {rs.number_table_step}")
-        rs.state_info.next_state_dict = copy.deepcopy(rs.state_info.state_info_dict["current"])
+        rs._state_info.next_state_dict = copy.deepcopy(rs._state_info.state_info_dict["current"])
         return (True, None)
 
 class RetrievalStrategyStepIRK(RetrievalStrategyStep):
@@ -213,16 +216,16 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "irk":
             return (False,  None)
-        jacobian_speciesNames = rs.retrieval_info.species[0:rs.retrieval_info.n_species]
-        jacobian_specieslist = rs.retrieval_info.speciesListFM[0:rs.retrieval_info.n_totalParametersFM]
+        jacobian_speciesNames = rs._retrieval_info.species[0:rs._retrieval_info.n_species]
+        jacobian_specieslist = rs._retrieval_info.speciesListFM[0:rs._retrieval_info.n_totalParametersFM]
         jacobianOut = None
         mytiming = None
         uip=tes = cris = omi = tropomi = None 
         logger.info("Running run_irk ...")
         self.cfunc = self.create_cost_function(rs)
         (resultsIRK, jacobianOut) = mpy.run_irk(
-            rs.strategy_table.strategy_table_dict,
-            rs.state_info, rs.strategy_table.microwindows(), rs.retrieval_info,
+            rs._strategy_table.strategy_table_dict,
+            rs._state_info, rs._strategy_table.microwindows(), rs._retrieval_info,
             jacobian_speciesNames, 
             jacobian_specieslist, 
             self.radiance_step(),
@@ -244,8 +247,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
         rs.notify_update("retrieval input")
-        rs.retrieval_info.stepNumber = rs.table_step
-        rs.retrieval_info.stepName = rs.step_name
+        rs._retrieval_info.stepNumber = rs.table_step
+        rs._retrieval_info.stepName = rs.step_name
         logger.info("Running run_retrieval ...")
         
         # SSK 2023.  I find I get failures from glitches like reading
@@ -262,26 +265,26 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         ret_res = self.run_retrieval(rs)
 
-        self.results = RetrievalResult(ret_res, rs.strategy_table, rs.retrieval_info,
-                                       rs.state_info, self.cfunc.obs_list,
+        self.results = RetrievalResult(ret_res, rs._strategy_table, rs._retrieval_info,
+                                       rs._state_info, self.cfunc.obs_list,
                                        self.propagated_qa)
         logger.info('\n---')
         logger.info(f"Step: {rs.table_step}, Step Name: {rs.step_name}")
         logger.info(f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}")
         logger.info('---\n')
         
-        do_not_update = rs.strategy_table.table_entry("donotupdate").lower()
+        do_not_update = rs._strategy_table.table_entry("donotupdate").lower()
         if do_not_update != '-':
             do_not_update = [x.upper() for x in do_not_update.split(',')]
         else:
             do_not_update = []
 
-        rs.state_info.update_state(rs.retrieval_info, self.results.results_list,
-                                   do_not_update, rs.cloud_prefs, rs.table_step)
-        if 'OCO2' in rs.instruments:
+        rs._state_info.update_state(rs._retrieval_info, self.results.results_list,
+                                   do_not_update, rs._cloud_prefs, rs.table_step)
+        if 'OCO2' in rs._instruments:
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels
-            rs.strategy_table.strategy_table_dict['pressureFM'] = rs.state_info.next_state_dict.pressure
+            rs._strategy_table.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
 
@@ -290,14 +293,14 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # nice not to have special handling to add bad samples if we turn around and
         # weed them out. For right now, these are required, we would need to update
         # the error analysis to work without bad samples
-        if(rs.retrieval_info.n_speciesSys > 0):
+        if(rs._retrieval_info.n_speciesSys > 0):
             cfunc_sys = self.create_cost_function(rs, do_systematic=True,
                                      include_bad_sample=True, fix_apriori_size=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.update_jacobian_sys(cfunc_sys)
 
-        self.results.update_error_analysis(rs.error_analysis)
-        self.propagated_qa.update(rs.strategy_table.retrieval_elements(),
+        self.results.update_error_analysis(rs._error_analysis)
+        self.propagated_qa.update(rs._strategy_table.retrieval_elements(),
                                   self.results.master_quality)
         
         # The solver can't be pickled, because a few pieces of the cost function
@@ -315,12 +318,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def run_retrieval(self, rs):
         '''run_retrieval'''
         self.cfunc = self.create_cost_function(rs)
-        maxIter = int(rs.strategy_table.table_entry("maxNumIterations"))
+        maxIter = int(rs._strategy_table.table_entry("maxNumIterations"))
         
         # Various thresholds from the input table
-        ConvTolerance_CostThresh = float(rs.strategy_table.preferences["ConvTolerance_CostThresh"])
-        ConvTolerance_pThresh = float(rs.strategy_table.preferences["ConvTolerance_pThresh"])
-        ConvTolerance_JacThresh = float(rs.strategy_table.preferences["ConvTolerance_JacThresh"])
+        ConvTolerance_CostThresh = float(rs._strategy_table.preferences["ConvTolerance_CostThresh"])
+        ConvTolerance_pThresh = float(rs._strategy_table.preferences["ConvTolerance_pThresh"])
+        ConvTolerance_JacThresh = float(rs._strategy_table.preferences["ConvTolerance_JacThresh"])
         r = self.radiance_step()["NESR"]
         Chi2Tolerance = 2.0 / len(r) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
@@ -329,7 +332,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             ConvTolerance_JacThresh = 0.00001
             Chi2Tolerance = 0.00001
         ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
-        delta_str = rs.strategy_table.preferences['LMDelta'] # 100 // original LM step size
+        delta_str = rs._strategy_table.preferences['LMDelta'] # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
 
         self.slv = MusesLevmarSolver(self.cfunc,
@@ -359,8 +362,8 @@ class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
         return super().retrieval_step(retrieval_type, rs)
 
     def extra_after_run_retrieval_step(self, rs):
-        rs.state_info.state_info_dict["constraint"]['omi']['cloud_fraction'] = \
-            rs.state_info.state_info_dict["current"]['omi']['cloud_fraction']
+        rs._state_info.state_info_dict["constraint"]['omi']['cloud_fraction'] = \
+            rs._state_info.state_info_dict["current"]['omi']['cloud_fraction']
         
 
 class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve):
@@ -373,8 +376,8 @@ class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve
         return super().retrieval_step(retrieval_type, rs)
 
     def extra_after_run_retrieval_step(self, rs):
-        rs.state_info.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = \
-            rs.state_info.state_info_dict["current"]['tropomi']['cloud_fraction']
+        rs._state_info.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = \
+            rs._state_info.state_info_dict["current"]['tropomi']['cloud_fraction']
     
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepNotImplemented())
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())

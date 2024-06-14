@@ -357,7 +357,7 @@ len(o_results.LMResults_costThresh): {len(o_results.LMResults_costThresh)}
         # get retrieval vector result (for all species) for best iteration
         ii = o_results.bestIteration
         if ii == 0:
-            result = self.retrieval_info.initialGuessList[0:self.retrieval_info.n_totalParameters]
+            result = self.retrieval_info.initial_guess_list[0:self.retrieval_info.n_totalParameters]
         else:
             result = self.ret_res.xretIterations[o_results.bestIteration, :]
 
@@ -368,7 +368,7 @@ len(o_results.LMResults_costThresh): {len(o_results.LMResults_costThresh)}
 
         for iq in range(self.ret_res.num_iterations+1):
             if iq == 0:
-                o_results.LMResults_iterList[iq, :] = self.retrieval_info.initialGuessList[0:self.retrieval_info.n_totalParameters]
+                o_results.LMResults_iterList[iq, :] = self.retrieval_info.initial_guess_list[0:self.retrieval_info.n_totalParameters]
             else:
                 o_results.LMResults_iterList[iq, :] = self.ret_res.xretIterations[iq, :]
 

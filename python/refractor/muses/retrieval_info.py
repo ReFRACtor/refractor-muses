@@ -39,12 +39,12 @@ class RetrievalInfo:
         return mpy.ObjectView(self.retrieval_dict)
 
     @property
-    def initialGuessList(self):
+    def initial_guess_list(self):
         '''This is the initial guess for the state vector (not the full state)'''
         return self.retrieval_dict["initialGuessList"]
 
     @property
-    def constraintVector(self):
+    def constraint_vector(self):
         '''This is the initial guess for the state vector (not the full state)'''
         return self.retrieval_dict["constraintVector"]
 
@@ -53,11 +53,11 @@ class RetrievalInfo:
                               FM_Flag, INITIAL_Flag)
 
     def species_initial(self, spcname, FM_Flag=True):
-        return mpy.get_vector(self.initialGuessList, self.retrieval_info_obj,
+        return mpy.get_vector(self.initial_guess_list, self.retrieval_info_obj,
                               spcname, FM_Flag, True)
 
     def species_constraint(self, spcname, FM_Flag=True):
-        return mpy.get_vector(self.constraintVector, self.retrieval_info_obj,
+        return mpy.get_vector(self.constraint_vector, self.retrieval_info_obj,
                               spcname, FM_Flag, True)
 
     @property
@@ -138,7 +138,7 @@ class RetrievalInfo:
     def n_totalParameters(self):
         # Might be a better place to get this, but start by getting from
         # initial guess
-        return self.initialGuessList.shape[0]
+        return self.initial_guess_list.shape[0]
 
     @property
     def n_totalParametersSys(self):

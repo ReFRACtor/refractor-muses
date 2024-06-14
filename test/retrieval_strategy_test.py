@@ -253,24 +253,24 @@ def test_tropomi_issue(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     cstate2 = CurrentStateUip(uip2)
     cstate2.sqrt_constraint = sqrt_constraint
     cstate2.apriori = const_vec
-    rs1.strategy_table.table_step = 10
-    rs2.strategy_table.table_step = 10
+    rs1.table_step = 10
+    rs2.table_step = 10
     # Would be good for this muck to go away, but right now this is tangled up with creating a
     # cost function.
-    rs1.instrument_name_all = rs1.strategy_table.instrument_name(all_step=True)
+    rs1._instrument_name_all = rs1._strategy_table.instrument_name(all_step=True)
     rs1.state_info.state_info_dict = rstep.params['i_stateInfo'].__dict__
-    rs2.instrument_name_all = rs2.strategy_table.instrument_name(all_step=True)
+    rs2._instrument_name_all = rs2._strategy_table.instrument_name(all_step=True)
     rs2.state_info.state_info_dict = rstep.params['i_stateInfo'].__dict__
     def uip_func1():
         return uip1
     def uip_func2():
         return uip2
-    cf1 = rs1.cost_function_creator.cost_function(rs1.strategy_table.instrument_name(),
+    cf1 = rs1._cost_function_creator.cost_function(rs1._strategy_table.instrument_name(),
                                                   cstate1,
-                                                  rs1.strategy_table.spectral_window_all(),
+                                                  rs1._strategy_table.spectral_window_all(),
                                                   uip_func1)
-    cf2 = rs1.cost_function_creator.cost_function(rs2.strategy_table.instrument_name(),
+    cf2 = rs1._cost_function_creator.cost_function(rs2._strategy_table.instrument_name(),
                                                   cstate2,
-                                                  rs2.strategy_table.spectral_window_all(),
+                                                  rs2._strategy_table.spectral_window_all(),
                                                   uip_func2)
     

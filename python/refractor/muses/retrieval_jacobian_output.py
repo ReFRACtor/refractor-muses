@@ -42,11 +42,11 @@ class RetrievalJacobianOutput(RetrievalOutput):
         # this section is to make all pressure grids have a standard size, 
         # like 65 levels
 
-        speciesAll = self.retrievalInfo.species_list_fm
+        speciesAll = self.retrieval_strategy.species_list_fm
         # Python idiom for getting a unique list
         species = list(dict.fromkeys(speciesAll))
 
-        pressureAll = self.retrievalInfo.pressure_list_fm
+        pressureAll = self.retrieval_strategy.pressure_list_fm
         jacobianAll = self.results.jacobian[0, :, :]
         nf = jacobianAll.shape[1]
 

@@ -10,6 +10,9 @@ from .strategy_table import StrategyTable
 from .retrieval_configuration import RetrievalConfiguration
 from .cost_function_creator import CostFunctionCreator
 from .muses_observation import MeasurementIdFile
+from .forward_model_handle import ForwardModelHandleSet
+from .observation_handle import ObservationHandleSet
+from .state_info import StateElementHandleSet
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .error_analysis import ErrorAnalysis
@@ -31,10 +34,7 @@ logger = logging.getLogger("py-retrieve")
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
 class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
-    '''This is an attempt to make the muses-py script_retrieval_ms
-    more like our JointRetrieval stuff (pretty dated, but
-    https://github.jpl.nasa.gov/refractor/joint_retrieval)
-
+    '''
     This is a replacement for script_retrieval_ms, that tries to do a
     few things:
 
@@ -60,26 +60,49 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     require updating the OSP directories with new covariance stuff,
     for example.
 
+    Note that there is a lot of overlap between this class and the
+    StrategyExecutor class. It isn't clear that long term there will
+    actually be two separate classes. However for right now this is a
+    useful division of responsibilities:
+
+    1. RetrievalStrategy worries about the interface with external classes.
+       What does this look like to the muses-py driver? What is exposed to
+       the output classes? How does configuration modify things?
+    2. StrategyExecutor worries about actually running the strategy. How
+       do we determine the retrieval steps? How do we run the retrieval
+       steps?
+
+    This may well merge once we have the external interface sorted out.
+
+    Note that is class has a number of internal variables, with the normal
+    python "private" suggestion of using a leading "_", e.g. "_capture_directory".
+    It is a normal python convention that external classes not use this private
+    variables. But this should be even stronger for this class - one of the primary
+    things we are trying to figure out is what should be visible as the external
+    interface. So classes should only access things through the public properties
+    of this class. If something is missing, that is a finding about the needed interface
+    and this class should be updated rather than working around the issue by "knowing" how to
+    get what we want from the internal variables.
     '''
     # TODO Add handling of writeOutput, writePlots, debug. I think we
     # can probably do that by just adding Observers
     def __init__(self, filename, vlidort_cli=None, writeOutput=False, writePlots=False,
                  **kwargs):
         logger.info(f"Strategy table filename {filename}")
-        self.capture_directory = RefractorCaptureDirectory()
+        self._capture_directory = RefractorCaptureDirectory()
         self._observers = set()
-        self.vlidort_cli = vlidort_cli
+        self._vlidort_cli = vlidort_cli
         self._table_step = -1
 
-        self.retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
-        self.cost_function_creator = CostFunctionCreator(rs=self)
-        self.forward_model_handle_set = self.cost_function_creator.forward_model_handle_set
-        self.observation_handle_set = self.cost_function_creator.observation_handle_set
-        self.kwargs = kwargs
-        self.kwargs["vlidort_cli"] = vlidort_cli
-
-        self.state_info = StateInfo()
-        self.state_element_handle_set = self.state_info.state_element_handle_set
+        self._retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
+        self._cost_function_creator = CostFunctionCreator(rs=self)
+        self._forward_model_handle_set = self._cost_function_creator.forward_model_handle_set
+        self._observation_handle_set = self._cost_function_creator.observation_handle_set
+        self._kwargs = kwargs
+        self._kwargs["vlidort_cli"] = vlidort_cli
+        
+        self._state_info = StateInfo()
+        self._state_element_handle_set = self._state_info.state_element_handle_set
 
         # Right now, we hardcode the output observers. Probably want to
         # rework this
@@ -88,10 +111,13 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.add_observer(RetrievalL2Output())
         # Similarly logic here is hardcoded
         if(writeOutput):
-            self.add_observer(RetrievalInputOutput())
+            # Depends on internal objects like strategy_table_dict. For now,
+            # skip this
+            #self.add_observer(RetrievalInputOutput())
             self.add_observer(RetrievalPickleResult())
             if(writePlots):
-                self.add_observer(RetrievalPlotResult())
+                # Same here
+                #self.add_observer(RetrievalPlotResult())
                 self.add_observer(RetrievalPlotRadiance())
                 
         # For calling from py-retrieve, it is useful to delay the filename. See
@@ -117,16 +143,16 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         target, e.g., read the input files once. py-retrieve can call script_retrieval_ms
         multiple times with different targets, so we need to notify all the objects
         when this changes in case they need to clear out any caching.'''
-        self.filename = os.path.abspath(filename)
-        self.run_dir = os.path.dirname(self.filename)
-        self.strategy_table = StrategyTable(self.filename)
-        self.retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.filename)
-        self.measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
+        self._filename = os.path.abspath(filename)
+        self._capture_directory.rundir = os.path.dirname(self.strategy_table_filename)
+        self._strategy_table = StrategyTable(self.strategy_table_filename)
+        self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.strategy_table_filename)
+        self._measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
                                                 self.retrieval_config,
-                                                self.strategy_table.filter_list_all())
-        self.cost_function_creator.update_target(self.measurement_id)
-        self.retrieval_strategy_step_set.notify_update_target(self)
-        self.state_info.notify_update_target(self)
+                                                self._strategy_table.filter_list_all())
+        self._cost_function_creator.update_target(self.measurement_id)
+        self._retrieval_strategy_step_set.notify_update_target(self)
+        self._state_info.notify_update_target(self)
         self.notify_update("update target")
         
 
@@ -138,14 +164,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.update_target(filename)
         return self.retrieval_ms()
     
-    @property
-    def run_dir(self):
-        return self.capture_directory.rundir
-
-    @run_dir.setter
-    def run_dir(self, v):
-        self.capture_directory.rundir = v
-        
     def add_observer(self, obs):
         # Often we want weakref, so we don't prevent objects from
         # being deleted just because they are observing this. But in
@@ -179,20 +197,20 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # Wrapper around calling mpy. We can perhaps pull some this out, but
         # for now we'll do that.
         with muses_py_call(self.run_dir,
-                           vlidort_cli=self.vlidort_cli):
+                           vlidort_cli=self._vlidort_cli):
             return self.retrieval_ms_body()
 
     def retrieval_ms_body(self):
         start_date = time.strftime("%c")
         start_time = time.time()
 
-        self.instrument_name_all = self.strategy_table.instrument_name(all_step=True)
-        self.state_info.init_state(self.strategy_table,
-                                   self.cost_function_creator.observation_handle_set,
-                                   self.instrument_name_all, self.run_dir)
+        self._instrument_name_all = self._strategy_table.instrument_name(all_step=True)
+        self._state_info.init_state(self._strategy_table,
+                                   self._cost_function_creator.observation_handle_set,
+                                   self._instrument_name_all, self.run_dir)
 
-        self.error_analysis = ErrorAnalysis(self.strategy_table, self.state_info)
-        self.retrieval_info = None
+        self._error_analysis = ErrorAnalysis(self._strategy_table, self._state_info)
+        self._retrieval_info = None
         self.notify_update("initial set up done")
         
         # Go through all the steps once, to make sure we can get all the information
@@ -201,7 +219,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         for stp in range(self.number_table_step):
             self.table_step = stp
             self.get_initial_guess()
-        self.state_info.copy_current_initialInitial()
+        self._state_info.copy_current_initialInitial()
         self.notify_update("starting retrieval steps")
         # Now go back through and actually do retrievals.
         # Note that a BT step might change the number of steps we have, it
@@ -241,70 +259,162 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         session.'''
         self.table_step = stp
         self.notify_update("start retrieval_ms_body_step")
-        self.state_info.copy_current_initial()
+        self._state_info.copy_current_initial()
         self.notify_update("done copy_current_initial")
         logger.info(f'\n---')
         logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
         logger.info(f'\n---')
-        self.instruments = self.strategy_table.instrument_name()
+        self._instruments = self._strategy_table.instrument_name()
         self.get_initial_guess()
         self.notify_update("done get_initial_guess")
         logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
-        self.retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
+        self._retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
         self.notify_update("done retrieval_step")
-        self.state_info.next_state_to_current()
+        self._state_info.next_state_to_current()
         self.notify_update("done next_state_to_current")
         logger.info(f"Done with step {self.table_step}")
         
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
-        self.retrieval_info = RetrievalInfo(self.error_analysis, self.strategy_table,
-                                            self.state_info)
+        self._retrieval_info = RetrievalInfo(self._error_analysis, self._strategy_table,
+                                             self._state_info)
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
-        nparm = self.retrieval_info.n_totalParameters
+        nparm = self._retrieval_info.n_totalParameters
         logger.info(f"Step: {self.table_step}, Total Parameters: {nparm}")
 
         if nparm > 0:
-            xig = self.retrieval_info.initialGuessList[0:nparm]
-            self.state_info.update_state(self.retrieval_info, xig, [],
-                                         self.cloud_prefs, self.table_step)
+            xig = self._retrieval_info.initial_guess_list[0:nparm]
+            self._state_info.update_state(self._retrieval_info, xig, [],
+                                         self._cloud_prefs, self.table_step)
 
     @property
-    def cloud_prefs(self):
-        (_, fileID) = mpy.read_all_tes_cache(self.strategy_table.cloud_parameters_filename)
+    def run_dir(self) -> str:
+        '''Directory we are running in (e.g. where the strategy table and measurement id files
+        are)'''
+        return self._capture_directory.rundir
+
+    @property
+    def strategy_table_filename(self) -> str:
+        '''Name of the strategy table we are using.'''
+        return self._filename
+
+    @property
+    def retrieval_config(self) -> RetrievalConfiguration:
+        '''Configuration parameters for the retrieval.'''
+        return self._retrieval_config
+
+    @property
+    def measurement_id(self) -> MeasurementIdFile:
+        '''Measurement ID for the current target.'''
+        return self._measurement_id
+
+    @property
+    def forward_model_handle_set(self) -> ForwardModelHandleSet:
+        '''The set of handles we use for mapping instrument name to a ForwardModel'''
+        return self._forward_model_handle_set
+
+    @property
+    def observation_handle_set(self) -> ObservationHandleSet:
+        '''The set of handles we use for mapping instrument name to a MusesObservation'''
+        return self._observation_handle_set
+
+    @property
+    def state_element_handle_set(self) -> StateElementHandleSet:
+        '''The set of handles we use for each state element.'''
+        return self._state_element_handle_set
+    
+    @property
+    def _cloud_prefs(self):
+        (_, fileID) = mpy.read_all_tes_cache(self._strategy_table.cloud_parameters_filename)
         cloudPrefs = fileID['preferences']
         return cloudPrefs
         
     @property
-    def table_step(self):
-        return self.strategy_table.table_step
+    def table_step(self) -> int:
+        return self._strategy_table.table_step
 
     @table_step.setter
-    def table_step(self, v):
-        self.strategy_table.table_step = v
+    def table_step(self, v : int):
+        self._strategy_table.table_step = v
 
     @property
-    def number_table_step(self):
-        return self.strategy_table.number_table_step
+    def number_table_step(self) -> int:
+        return self._strategy_table.number_table_step
 
     @property
-    def step_name(self):
-        return self.strategy_table.step_name
+    def step_name(self) -> str:
+        return self._strategy_table.step_name
 
     @property
-    def retrieval_type(self):
-        return self.retrieval_info.type.lower()
+    def step_directory(self) -> str:
+        return self._strategy_table.step_directory
 
     @property
-    def output_directory(self):
-        return self.strategy_table.output_directory
+    def retrieval_type(self) -> str:
+        return self._retrieval_info.type.lower()
+
+    @property
+    def retrieval_info(self) -> RetrievalInfo:
+        '''RetrievalInfo for current retrieval step. Note it might be good to remove this
+        if possible, right now this is just used by RetrievalL2Output. But at least for now
+        we need this to get the required information for the output.'''
+        return self._retrieval_info
+
+    # Perhaps we can get rid of a number of these following properties. But for now
+    # capture what is here.
+    
+    @property
+    def species_list_fm(self) -> 'list(str)':
+        return self._retrieval_info.species_list_fm
+
+    @property
+    def pressure_list_fm(self) -> 'list(float)':
+        return self._retrieval_info.pressure_list_fm
+    
+    def retrieval_elements(self, step_num: int) -> 'list(str)':
+        # This is just used in RetrievalL2Output to figure out the output name.
+        # We can perhaps clean up this interface
+        return self._strategy_table.table_entry('retrievalElements', step_num).split(",")
+
+    @property
+    def microwindows(self):
+        return self._strategy_table.microwindows()
+    
+    @property
+    def output_directory(self) -> str:
+        return self._strategy_table.output_directory
+
+    @property
+    def input_directory(self):
+        return self._strategy_table.input_directory
+
+    @property
+    def analysis_directory(self):
+        return self._strategy_table.analysis_directory
+
+    @property
+    def elanor_directory(self):
+        return self._strategy_table.elanor_directory
+
+    @property
+    def instrument_name_all(self):
+        return self._instrument_name_all
+
+    @property
+    def instruments(self):
+        return self._instruments
+
+    @property
+    def state_info(self):
+        # Can hopefully replace this with CurrentState
+        return self._state_info
 
     def save_pickle(self, save_pickle_file, **kwargs):
         '''Dump a pickled version of this object, along with the working
         directory. Pairs with load_retrieval_strategy.'''
-        self.capture_directory.save_directory(self.run_dir, vlidort_input=None)
+        self._capture_directory.save_directory(self.run_dir, vlidort_input=None)
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
     @classmethod
@@ -320,7 +430,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                               change_to_dir=change_to_dir, osp_dir=osp_dir,
                               gmao_dir=gmao_dir)
         if(vlidort_cli is not None):
-            res.vlidort_cli = vlidort_cli
+            res._vlidort_cli = vlidort_cli
         return res, kwargs
 
 class RetrievalStrategyCaptureObserver:

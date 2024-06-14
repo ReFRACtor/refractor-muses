@@ -58,7 +58,7 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs.strategy_table
+    stable = rs._strategy_table
     stable.table_step = 0
     selement = sinfo.state_element("OMICLOUDFRACTION")
     selement.update_initial_guess(stable)
@@ -83,10 +83,10 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
 
     # Update results, and make sure element gets updated
-    rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
+    rinfo = RetrievalInfo(rs._error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
-    sinfo.update_state(rinfo, results_list, [], rs.cloud_prefs,
+    sinfo.update_state(rinfo, results_list, [], rs._cloud_prefs,
                        stable.table_step)
     
     assert selement.mapType == "linear"
@@ -152,7 +152,7 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs.strategy_table
+    stable = rs._strategy_table
     stable.table_step = 0
     selement = sinfo.state_element("OMICLOUDFRACTION")
     selement.update_initial_guess(stable)
@@ -177,10 +177,10 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
 
     # Update results, and make sure element gets updated
-    rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
+    rinfo = RetrievalInfo(rs._error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
-    sinfo.update_state(rinfo, results_list, ["OMICLOUDFRACTION"], rs.cloud_prefs,
+    sinfo.update_state(rinfo, results_list, ["OMICLOUDFRACTION"], rs._cloud_prefs,
                        stable.table_step)
     
     assert selement.mapType == "linear"
@@ -258,7 +258,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs.strategy_table
+    stable = rs._strategy_table
     stable.table_step = 0
     selement = sinfo.state_element("OMIEOFUV1")
     selement.update_initial_guess(stable)
@@ -284,10 +284,10 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
 
     # Update results, and make sure element gets updated
-    rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
+    rinfo = RetrievalInfo(rs._error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
-    sinfo.update_state(rinfo, results_list, [], rs.cloud_prefs,
+    sinfo.update_state(rinfo, results_list, [], rs._cloud_prefs,
                        stable.table_step)
     
     assert selement.mapType == "linear"
@@ -358,7 +358,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs.strategy_table
+    stable = rs._strategy_table
     stable.table_step = 0
     selement = sinfo.state_element("OMIEOFUV1")
     selement.update_initial_guess(stable)
@@ -384,10 +384,10 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
 
     # Update results, and make sure element gets updated
-    rinfo = RetrievalInfo(rs.error_analysis, stable, sinfo)
+    rinfo = RetrievalInfo(rs._error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
-    sinfo.update_state(rinfo, results_list, ["OMIEOFUV1"], rs.cloud_prefs,
+    sinfo.update_state(rinfo, results_list, ["OMIEOFUV1"], rs._cloud_prefs,
                        stable.table_step)
     
     assert selement.mapType == "linear"

@@ -23,6 +23,10 @@ class RetrievalL2Output(RetrievalOutput):
         return (_new_from_init, (self.__class__,))
     
     @property
+    def retrieval_info(self):
+        return self.retrieval_strategy.retrieval_info
+    
+    @property
     def species_count(self):
         '''Dictionary that gives the index we should use for product file names.
         This is 0 if the species doesn't get retrieved in a following step, and
@@ -33,7 +37,7 @@ class RetrievalL2Output(RetrievalOutput):
             self._species_count = defaultdict(lambda: 0)
             tstep = self.table_step
             for i in range(self.table_step+1, self.number_table_step):
-                for spc in self.strategy_table.table_entry('retrievalElements', i).split(","):
+                for spc in self.retrieval_strategy.retrieval_elements(i):
                     self._species_count[spc] += 1
         return self._species_count
 
@@ -46,7 +50,7 @@ class RetrievalL2Output(RetrievalOutput):
         of CH4, HDO and H2O lite files, so we need to data from these before we get
         to the lite files.'''
         if(self._species_list is None):
-            self._species_list = self.retrievalInfo.species_names
+            self._species_list = self.retrieval_info.species_names
             for spc in ('N2O', 'H2O', 'TATM'):
                 if(spc in self._species_list):
                     self._species_list.remove(spc)
@@ -70,7 +74,7 @@ class RetrievalL2Output(RetrievalOutput):
         self._species_count = None
         self._species_list = None
         for self.spcname in self.species_list:
-            if(self.retrievalInfo.species_list_fm.count(self.spcname) <= 1 or
+            if(self.retrieval_info.species_list_fm.count(self.spcname) <= 1 or
                self.spcname in ('CLOUDEXT', 'EMIS') or 
                self.spcname.startswith('OMI') or
                self.spcname.startswith('NIR')):
@@ -162,7 +166,7 @@ class RetrievalL2Output(RetrievalOutput):
             geo_data.__dict__.update(self.obs_list[i].sounding_desc)
         
         # get surface type using hres database
-        if self.retrievalInfo.is_ocean:
+        if self.retrieval_info.is_ocean:
             geo_data.LANDFLAG = np.int32(0)
             geo_data.SURFACETYPEFOOTPRINT = np.int32(2)
 
@@ -469,14 +473,14 @@ class RetrievalL2Output(RetrievalOutput):
 
 
         #species_data.TROPOMI_EOF1 = 1.0
-        species_data.SPECIES[pslice] = self.retrievalInfo.species_results(self.results, self.spcname)
-        species_data.INITIAL[pslice] = self.retrievalInfo.species_initial(self.spcname)
-        species_data.CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint(self.spcname)
+        species_data.SPECIES[pslice] = self.retrieval_info.species_results(self.results, self.spcname)
+        species_data.INITIAL[pslice] = self.retrieval_info.species_initial(self.spcname)
+        species_data.CONSTRAINTVECTOR[pslice] = self.retrieval_info.species_constraint(self.spcname)
         species_data.PRESSURE[pslice] = self.state_info.pressure
         species_data.CLOUDTOPPRESSURE = self.state_info.state_element("PCLOUD").value[0]
         
         utilList = mpy.UtilList()
-        indx = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'PCLOUD')
+        indx = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'PCLOUD')
         if len(indx) > 0:
             indx = indx[0]
             species_data.CLOUDTOPPRESSUREDOF = self.results.A[indx, indx]
@@ -497,38 +501,38 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 300 write_products_one.pro
         species_data.SURFACETEMPERATURE = self.state_info.state_info_obj.current['TSUR']
-        unique_speciesListFM = utilList.GetUniqueValues(self.retrievalInfo.retrieval_info_obj.speciesListFM)
+        unique_speciesListFM = utilList.GetUniqueValues(self.retrieval_info.species_list_fm)
 
         indx = utilList.WhereEqualIndices(unique_speciesListFM, 'TSUR')
         if len(indx) > 0:
             indx = indx[0]
 
-            indxRet = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesList, 'TSUR')[0]
-            species_data.SURFACETEMPCONSTRAINT = self.retrievalInfo.retrieval_info_obj.constraintVector[indxRet]
+            indxRet = utilList.WhereEqualIndices(self.retrieval_info.species_list, 'TSUR')[0]
+            species_data.SURFACETEMPCONSTRAINT = self.retrieval_info.constraint_vector[indxRet]
 
             # AT_LINE 306 src_ms-2018-12-10/write_products_one.pro
-            indy = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.species, 'TSUR')[0]
+            indy = utilList.WhereEqualIndices(self.retrieval_info.species_names, 'TSUR')[0]
             species_data.SURFACETEMPDEGREESOFFREEDOM = self.results.degreesOfFreedomForSignal[indy]
 
             species_data.SURFACETEMPERROR = self.results.errorFM[indx]
-            species_data.SURFACETEMPINITIAL = self.retrievalInfo.retrieval_info_obj.initialGuessList[indxRet]
+            species_data.SURFACETEMPINITIAL = self.retrieval_info.initial_guess_list[indxRet]
 
         # AT_LINE 324 write_products_one.pro
-        ispecie = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.species, self.spcname)
+        ispecie = utilList.WhereEqualIndices(self.retrieval_info.species_names, self.spcname)
         ispecie = ispecie[0]  # We just need one from the list so we can index into various variables.
 
         species_data.DEVIATION_QA = self.results.deviation_QA[ispecie]
         species_data.NUM_DEVIATIONS_QA = self.results.num_deviations_QA[ispecie]
         species_data.DEVIATIONBAD_QA = self.results.DeviationBad_QA[ispecie]
 
-        ind1 = self.retrievalInfo.retrieval_info_obj.parameterStart[ispecie]
-        ind2 = self.retrievalInfo.retrieval_info_obj.parameterEnd[ispecie]
-        ind1FM = self.retrievalInfo.retrieval_info_obj.parameterStartFM[ispecie]
-        ind2FM = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecie]
+        ind1 = self.retrieval_info.retrieval_info_obj.parameterStart[ispecie]
+        ind2 = self.retrieval_info.retrieval_info_obj.parameterEnd[ispecie]
+        ind1FM = self.retrieval_info.retrieval_info_obj.parameterStartFM[ispecie]
+        ind2FM = self.retrieval_info.retrieval_info_obj.parameterEndFM[ispecie]
 
-        if self.retrievalInfo.retrieval_info_obj.mapType[ispecie].lower() == 'linear':
+        if self.retrieval_info.retrieval_info_obj.mapType[ispecie].lower() == 'linear':
             species_data.RETRIEVEINLOG = np.int32(0)
-        elif self.retrievalInfo.retrieval_info_obj.mapType[ispecie].lower() == 'linearpca':
+        elif self.retrieval_info.retrieval_info_obj.mapType[ispecie].lower() == 'linearpca':
             species_data.RETRIEVEINLOG = np.int32(0)
         else:
             species_data.RETRIEVEINLOG = np.int32(1)
@@ -585,7 +589,7 @@ class RetrievalL2Output(RetrievalOutput):
             # AT_LINE 374 src_ms-2018-12-10/write_products_one.pro
             species_data.CLOUDEFFECTIVEOPTICALDEPTH = self.state_info.state_info_obj.current['cloudEffExt'][0, 0:self.state_info.state_info_obj.cloudPars['num_frequencies']] * self.state_info.state_info_obj.current['convertToOD']
 
-            indf = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'CLOUDEXT')
+            indf = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'CLOUDEXT')
             if len(indf) > 0:
                 species_data.CLOUDEFFECTIVEOPTICALDEPTHERROR = self.results.errorFM[indf] * self.state_info.state_info_obj.current['convertToOD']
         # end if self.state_info.state_info_obj.cloudPars['num_frequencies'] > 0:
@@ -593,8 +597,8 @@ class RetrievalL2Output(RetrievalOutput):
         # add special fields for HDO
         # AT_LINE 383 src_ms-2018-12-10/write_products_one.pro
         if self.spcname == 'HDO':
-            indfh = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'H2O')
-            indfd = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'HDO')
+            indfh = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'H2O')
+            indfd = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'HDO')
 
             indp = np.where(species_data.SPECIES > 0)[0]
 
@@ -652,10 +656,10 @@ class RetrievalL2Output(RetrievalOutput):
 
             # add H2O constraint and result
             species_data.H2O_CONSTRAINTVECTOR = copy.deepcopy(vector_of_fills)
-            species_data.H2O_CONSTRAINTVECTOR[indp] = self.retrievalInfo.species_constraint("H2O")
+            species_data.H2O_CONSTRAINTVECTOR[indp] = self.retrieval_info.species_constraint("H2O")
 
             species_data.H2O_SPECIES = copy.deepcopy(vector_of_fills)
-            species_data.H2O_SPECIES[indp] = self.retrievalInfo.species_results(self.results, "H2O")
+            species_data.H2O_SPECIES[indp] = self.retrieval_info.species_results(self.results, "H2O")
 
             species_data.H2O_INITIAL = copy.deepcopy(vector_of_fills)
 
@@ -664,11 +668,11 @@ class RetrievalL2Output(RetrievalOutput):
             # this from the results. It is possible this is correct, perhaps this
             # the value used for the HDO? We should double check this. But this
             # is what the current muses-py code does
-            species_data.H2O_INITIAL[indp] = self.retrievalInfo.species_results(self.results, "H2O", INITIAL_Flag=True)
+            species_data.H2O_INITIAL[indp] = self.retrieval_info.species_results(self.results, "H2O", INITIAL_Flag=True)
         # end if self.spcname == 'HDO':
 
 
-        ind = utilList.WhereEqualIndices(self.retrievalInfo.retrieval_info_obj.speciesListFM, 'EMIS')
+        ind = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'EMIS')
         if len(ind) > 0:
             # Create an array of indices so we can access i_results.Sx matrix.
             array_2d_indices = np.ix_(ind, ind)  # (64, 64)
@@ -693,7 +697,7 @@ class RetrievalL2Output(RetrievalOutput):
         # AT_LINE 631 write_products_one.pro
         # for CH4 add in N2O results, constraint vector, calculate
         # n2o-corrected, save original_species
-        if self.spcname == 'CH4' and 'CH4' in self.retrievalInfo.retrieval_info_obj.species:
+        if self.spcname == 'CH4' and 'CH4' in self.retrieval_info.species_names:
             species_data.N2O_SPECIES = np.zeros(shape=(num_pressures), dtype=np.float32)
             species_data.N2O_CONSTRAINTVECTOR = np.zeros(shape=(num_pressures), dtype=np.float32)
 
@@ -701,10 +705,10 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.N2O_DOFS = 0.0
 
             ispecieN2O = -1
-            if 'N2O' in self.retrievalInfo.retrieval_info_obj.species:
-                ispecieN2O = self.retrievalInfo.retrieval_info_obj.species.index('N2O')
-                ind1FMN2O = self.retrievalInfo.retrieval_info_obj.parameterStartFM[ispecieN2O]
-                ind2FMN2O = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecieN2O]
+            if 'N2O' in self.retrieval_info.species_names:
+                ispecieN2O = self.retrieval_info.species_names.index('N2O')
+                ind1FMN2O = self.retrieval_info.retrieval_info_obj.parameterStartFM[ispecieN2O]
+                ind2FMN2O = self.retrieval_info.retrieval_info_obj.parameterEndFM[ispecieN2O]
 
             # AT_LINE 683 write_products_one.pro
             if ispecieN2O >= 0:
@@ -712,8 +716,8 @@ class RetrievalL2Output(RetrievalOutput):
                 species_data.N2O_DOFS = 0.0
                 species_data.N2O_DOFS = np.sum(mpy.get_diagonal(self.results.A[ind1FMN2O:ind2FMN2O+1, ind1FMN2O:ind2FMN2O+1]))
 
-                species_data.N2O_SPECIES[pslice] = self.retrievalInfo.species_results(self.results, 'N2O')
-                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint('N2O')
+                species_data.N2O_SPECIES[pslice] = self.retrieval_info.species_results(self.results, 'N2O')
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.retrieval_info.species_constraint('N2O')
             else:
                 # N2O not retrieved... use values from initial guess
                 logger.warning("code has not been tested for N2O not retrieved.")
@@ -737,20 +741,20 @@ class RetrievalL2Output(RetrievalOutput):
             # AT_LINE 657 write_products_one.pro
             species_data.CH4_EVS = np.zeros(shape=(10), dtype=np.float32)
             species_data.CH4_EVS[:] = self.results.ch4_evs[:]
-        # end if self.spcname == 'CH4' and 'CH4' in self.retrievalInfo.retrieval_info_obj.species:
+        # end if self.spcname == 'CH4' and 'CH4' in self.retrieval_info.retrieval_info_obj.species:
 
         # for CH4 if jointly retrieved with TATM add TATM
-        if self.spcname == 'CH4' and 'TATM' in self.retrievalInfo.retrieval_info_obj.species:
+        if self.spcname == 'CH4' and 'TATM' in self.retrieval_info.species_names:
             species_data.TATM_SPECIES = np.zeros(shape=(num_pressures), dtype=np.float32)
             species_data.TATM_CONSTRAINTVECTOR = np.zeros(shape=(num_pressures), dtype=np.float32)
             species_data.TATM_DEVIATION = 0.0
 
-            ispecieTATM = self.retrievalInfo.retrieval_info_obj.species.index('TATM')
-            ind1FMTATM = self.retrievalInfo.retrieval_info_obj.parameterStartFM[ispecieTATM]
-            ind2FMTATM = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecieTATM]
+            ispecieTATM = self.retrieval_info.species_names.index('TATM')
+            ind1FMTATM = self.retrieval_info.retrieval_info_obj.parameterStartFM[ispecieTATM]
+            ind2FMTATM = self.retrieval_info.retrieval_info_obj.parameterEndFM[ispecieTATM]
 
-            species_data.TATM_SPECIES[pslice] = self.retrievalInfo.species_results(self.results, "TATM")
-            species_data.TATM_CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint("TATM")
+            species_data.TATM_SPECIES[pslice] = self.retrieval_info.species_results(self.results, "TATM")
+            species_data.TATM_CONSTRAINTVECTOR[pslice] = self.retrieval_info.species_constraint("TATM")
 
             # AT_LINE 725 src_ms-2018-12-10/write_products_one.pro
 
@@ -758,17 +762,17 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.H2O_SPECIES = np.zeros(shape=(num_pressures), dtype=np.float32)
             species_data.H2O_CONSTRAINTVECTOR = np.zeros(shape=(num_pressures), dtype=np.float32)
 
-            ispecieH2O = self.retrievalInfo.retrieval_info_obj.species.index('H2O')
-            ind1FMH2O = self.retrievalInfo.retrieval_info_obj.parameterStartFM[ispecieH2O]
-            ind2FMH2O = self.retrievalInfo.retrieval_info_obj.parameterEndFM[ispecieH2O]
+            ispecieH2O = self.retrieval_info.species_names.index('H2O')
+            ind1FMH2O = self.retrieval_info.retrieval_info_obj.parameterStartFM[ispecieH2O]
+            ind2FMH2O = self.retrieval_info.retrieval_info_obj.parameterEndFM[ispecieH2O]
 
-            species_data.H2O_SPECIES[pslice] = self.retrievalInfo.species_results(self.results, "H2O")
-            species_data.H2O_CONSTRAINTVECTOR[pslice] = self.retrievalInfo.species_constraint("H2O")
+            species_data.H2O_SPECIES[pslice] = self.retrieval_info.species_results(self.results, "H2O")
+            species_data.H2O_CONSTRAINTVECTOR[pslice] = self.retrieval_info.species_constraint("H2O")
 
             indp = np.where(species_data.TATM_SPECIES > 0)[0]
             maxx = np.amax(np.abs(species_data.TATM_SPECIES[indp] - species_data.TATM_CONSTRAINTVECTOR[indp]))
             species_data.TATM_DEVIATION = maxx # maximum deviation from prior
-        # end if species_name == 'CH4' and 'TATM' in self.retrievalInfo.retrieval_info_obj.species:
+        # end if species_name == 'CH4' and 'TATM' in self.retrieval_info.retrieval_info_obj.species:
 
         species_data = species_data.__dict__
         for k, v in species_data.items():

@@ -23,28 +23,28 @@ class RetrievalOutput:
         self.retrieval_strategy_step = retrieval_strategy_step
 
     @property
-    def strategy_table(self):
-        return self.retrieval_strategy.strategy_table
-
+    def retrieval_config(self):
+        return self.retrieval_strategy.retrieval_config
+    
     @property
     def step_directory(self):
-        return self.strategy_table.step_directory
+        return self.retrieval_strategy.step_directory
 
     @property
     def input_directory(self):
-        return self.strategy_table.input_directory
+        return self.retrieval_strategy.input_directory
 
     @property
     def analysis_directory(self):
-        return self.strategy_table.analysis_directory
+        return self.retrieval_strategy.analysis_directory
 
     @property
     def elanor_directory(self):
-        return self.strategy_table.elanor_directory
+        return self.retrieval_strategy.elanor_directory
     
     @property
     def windows(self):
-        return self.retrieval_strategy.strategy_table.microwindows()
+        return self.retrieval_strategy.microwindows
 
     @property
     def errorCurrent(self):
@@ -101,10 +101,6 @@ class RetrievalOutput:
     def radiance_step(self):
         return mpy.ObjectView(self.retrieval_strategy.radiance_step)
 
-    @property
-    def retrievalInfo(self):
-        return self.retrieval_strategy.retrieval_info
-    
     @property
     def instruments(self):
         return self.retrieval_strategy.instruments
