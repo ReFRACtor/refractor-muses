@@ -43,9 +43,12 @@ class RetrievalResult:
     def __init__(self, ret_res : dict, strategy_table : 'StrategyTable',
                  retrieval_info : 'RetrievalInfo', state_info : 'StateInfo',
                  obs_list : 'list(MusesObservation)',
+                 radiance_full : 'dict',
                  propagated_qa : PropagatedQA):
         '''ret_res is what we get returned from MusesLevmarSolver'''
         self.rstep = mpy.ObjectView(mpy_radiance_from_observation_list(obs_list, include_bad_sample=True))
+        self.radiance_full = radiance_full
+        self.obs_list = obs_list
         self.retrieval_info = retrieval_info
         self.state_info = state_info
         self.strategy_table = strategy_table

@@ -92,17 +92,15 @@ class RetrievalOutput:
 
     @property
     def radiance_full(self):
-        olist = [self.retrieval_strategy.observation_handle_set.observation(iname, None, None,None)
-                 for iname in self.retrieval_strategy.instrument_name_all]
-        return mpy_radiance_from_observation_list(olist, full_band=True)
+        return self.retrieval_strategy_step.results.radiance_full
 
     @property
     def obs_list(self):
-        return self.retrieval_strategy_step.cfunc.obs_list
+        return self.retrieval_strategy_step.results.obs_list
     
     @property
     def radiance_step(self):
-        return mpy.ObjectView(self.retrieval_strategy.radiance_step)
+        return self.retrieval_strategy_step.results.rstep
 
     @property
     def instruments(self):

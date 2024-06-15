@@ -153,7 +153,12 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         observation data. This function calculates that - it is just a reformatting
         of our observation data.'''
         return mpy_radiance_from_observation_list(self.cfunc.obs_list, include_bad_sample=True)
-        
+
+    def radiance_full(self, rs):
+        '''The full set of radiance, for all instruments and full band.'''
+        olist = [rs.observation_handle_set.observation(iname, None, None,None)
+                 for iname in rs.instrument_name_all]
+        return mpy_radiance_from_observation_list(olist, full_band=True)
         
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     '''There seems to be a few retrieval types that aren't implemented in
@@ -267,6 +272,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         self.results = RetrievalResult(ret_res, rs._strategy_table, rs._retrieval_info,
                                        rs._state_info, self.cfunc.obs_list,
+                                       self.radiance_full(rs),
                                        self.propagated_qa)
         logger.info('\n---')
         logger.info(f"Step: {rs.table_step}, Step Name: {rs.step_name}")
@@ -342,7 +348,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                      Chi2Tolerance)
         if(maxIter > 0):
             self.slv.solve()
-        rs.radiance_step = self.radiance_step()
         return self.slv.retrieval_results()
     
 
