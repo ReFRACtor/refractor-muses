@@ -204,10 +204,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         start_date = time.strftime("%c")
         start_time = time.time()
 
-        self._instrument_name_all = self._strategy_table.instrument_name(all_step=True)
         self._state_info.init_state(self._strategy_table,
-                                   self._cost_function_creator.observation_handle_set,
-                                   self._instrument_name_all, self.run_dir)
+                                    self._cost_function_creator.observation_handle_set,
+                                    self._strategy_table.instrument_name(all_step=True),
+                                    self.run_dir)
 
         self._error_analysis = ErrorAnalysis(self._strategy_table, self._state_info)
         self._retrieval_info = None
@@ -264,7 +264,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         logger.info(f'\n---')
         logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
         logger.info(f'\n---')
-        self._instruments = self._strategy_table.instrument_name()
         self.get_initial_guess()
         self.notify_update("done get_initial_guess")
         logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
@@ -362,33 +361,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         we need this to get the required information for the output.'''
         return self._retrieval_info
 
-    # Perhaps we can get rid of a number of these following properties. But for now
-    # capture what is here.
-    
-    @property
-    def species_list_fm(self) -> 'list(str)':
-        return self._retrieval_info.species_list_fm
-
-    @property
-    def pressure_list_fm(self) -> 'list(float)':
-        return self._retrieval_info.pressure_list_fm
-    
     def retrieval_elements(self, step_num: int) -> 'list(str)':
         # This is just used in RetrievalL2Output to figure out the output name.
         # We can perhaps clean up this interface
         return self._strategy_table.table_entry('retrievalElements', step_num).split(",")
-
-    @property
-    def microwindows(self):
-        return self._strategy_table.microwindows()
-    
-    @property
-    def instrument_name_all(self):
-        return self._instrument_name_all
-
-    @property
-    def instruments(self):
-        return self._instruments
 
     @property
     def state_info(self):

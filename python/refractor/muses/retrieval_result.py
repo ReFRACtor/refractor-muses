@@ -49,8 +49,10 @@ class RetrievalResult:
         self.rstep = mpy.ObjectView(mpy_radiance_from_observation_list(obs_list, include_bad_sample=True))
         self.radiance_full = radiance_full
         self.obs_list = obs_list
+        self.instruments = [obs.instrument_name for obs in self.obs_list]
         self.retrieval_info = retrieval_info
         self.state_info = state_info
+        self.sounding_metadata = state_info.sounding_metadata()
         self.strategy_table = strategy_table
         self.ret_res = mpy.ObjectView(ret_res)
         self.retrieval_result_dict = self.set_retrieval_results()
@@ -92,6 +94,14 @@ class RetrievalResult:
     def retrieval_result_obj(self, v):
         self.retrieval_result_dict = v.__dict__
         
+    @property
+    def species_list_fm(self) -> 'list(str)':
+        return self.retrieval_info.species_list_fm
+
+    @property
+    def pressure_list_fm(self) -> 'list(float)':
+        return self.retrieval_info.pressure_list_fm
+    
     @property
     def best_iteration(self):
         return self.retrieval_result_dict['bestIteration']

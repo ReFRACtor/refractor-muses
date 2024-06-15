@@ -24,8 +24,7 @@ def test_radiance(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     oset = rs.observation_handle_set
-    olist = [oset.observation(iname, None, None,None)
-             for iname in rs.instrument_name_all]
+    olist = [oset.observation(iname, None, None,None) for iname in ["AIRS", "OMI"]]
     rad = mpy_radiance_from_observation_list(olist,full_band=True)
     print(rad)
     

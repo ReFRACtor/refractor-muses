@@ -104,7 +104,19 @@ class RetrievalOutput:
 
     @property
     def instruments(self):
-        return self.retrieval_strategy.instruments
+        return self.retrieval_strategy_step.results.instruments
+
+    @property
+    def species_list_fm(self):
+        return self.retrieval_strategy_step.results.species_list_fm
+
+    @property
+    def pressure_list_fm(self):
+        return self.retrieval_strategy_step.results.pressure_list_fm
+
+    @property
+    def sounding_metadata(self):
+        return self.retrieval_strategy_step.results.sounding_metadata
 
 
 class CdfWriteTes:

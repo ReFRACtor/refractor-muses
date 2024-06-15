@@ -120,7 +120,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
         my_data.nesr = self.radiance_step.NESR.astype(np.float32)
         my_data.frequency = self.results.frequency.astype(np.float32)
 
-        smeta = self.state_info.sounding_metadata()
+        smeta = self.sounding_metadata
         my_data.time = np.float64(smeta.tai_time)
         my_data.soundingID = np.frombuffer(smeta.sounding_id.encode('utf8'), dtype=np.dtype('b'))[np.newaxis,:]
         my_data.latitude = np.float32(smeta.latitude.convert("deg").value)

@@ -157,7 +157,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
     def radiance_full(self, rs):
         '''The full set of radiance, for all instruments and full band.'''
         olist = [rs.observation_handle_set.observation(iname, None, None,None)
-                 for iname in rs.instrument_name_all]
+                 for iname in rs._strategy_table.instrument_name(all_step=True)]
         return mpy_radiance_from_observation_list(olist, full_band=True)
         
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
@@ -287,7 +287,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         rs._state_info.update_state(rs._retrieval_info, self.results.results_list,
                                    do_not_update, rs._cloud_prefs, rs.table_step)
-        if 'OCO2' in rs._instruments:
+        if 'OCO2' in rs._strategy_table.instrument_name():
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels
             rs._strategy_table.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure

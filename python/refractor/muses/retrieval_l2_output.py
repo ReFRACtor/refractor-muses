@@ -74,7 +74,7 @@ class RetrievalL2Output(RetrievalOutput):
         self._species_count = None
         self._species_list = None
         for self.spcname in self.species_list:
-            if(self.retrieval_info.species_list_fm.count(self.spcname) <= 1 or
+            if(self.species_list_fm.count(self.spcname) <= 1 or
                self.spcname in ('CLOUDEXT', 'EMIS') or 
                self.spcname.startswith('OMI') or
                self.spcname.startswith('NIR')):
@@ -151,7 +151,7 @@ class RetrievalL2Output(RetrievalOutput):
         }
 
         geo_data = mpy.ObjectView(geo_data)
-        smeta = self.state_info.sounding_metadata()
+        smeta = self.sounding_metadata
         geo_data.TIME = np.int32(smeta.wrong_tai_time)
         geo_data.LATITUDE = smeta.latitude.convert("deg").value
         geo_data.LONGITUDE = smeta.longitude.convert("deg").value
@@ -317,7 +317,7 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.RESIDUALNORMFINAL = self.results.residualNormFinal
         species_data.RESIDUALNORMINITIAL = self.results.residualNormInitial
 
-        smeta = self.state_info.sounding_metadata()
+        smeta = self.sounding_metadata
 
         # Determine subset of the max num_pressures that we actually have
         # data for
@@ -477,7 +477,7 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.CLOUDTOPPRESSURE = self.state_info.state_element("PCLOUD").value[0]
         
         utilList = mpy.UtilList()
-        indx = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'PCLOUD')
+        indx = utilList.WhereEqualIndices(self.species_list_fm, 'PCLOUD')
         if len(indx) > 0:
             indx = indx[0]
             species_data.CLOUDTOPPRESSUREDOF = self.results.A[indx, indx]
@@ -498,7 +498,7 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 300 write_products_one.pro
         species_data.SURFACETEMPERATURE = self.state_info.state_info_obj.current['TSUR']
-        unique_speciesListFM = utilList.GetUniqueValues(self.retrieval_info.species_list_fm)
+        unique_speciesListFM = utilList.GetUniqueValues(self.species_list_fm)
 
         indx = utilList.WhereEqualIndices(unique_speciesListFM, 'TSUR')
         if len(indx) > 0:
@@ -586,7 +586,7 @@ class RetrievalL2Output(RetrievalOutput):
             # AT_LINE 374 src_ms-2018-12-10/write_products_one.pro
             species_data.CLOUDEFFECTIVEOPTICALDEPTH = self.state_info.state_info_obj.current['cloudEffExt'][0, 0:self.state_info.state_info_obj.cloudPars['num_frequencies']] * self.state_info.state_info_obj.current['convertToOD']
 
-            indf = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'CLOUDEXT')
+            indf = utilList.WhereEqualIndices(self.species_list_fm, 'CLOUDEXT')
             if len(indf) > 0:
                 species_data.CLOUDEFFECTIVEOPTICALDEPTHERROR = self.results.errorFM[indf] * self.state_info.state_info_obj.current['convertToOD']
         # end if self.state_info.state_info_obj.cloudPars['num_frequencies'] > 0:
@@ -594,8 +594,8 @@ class RetrievalL2Output(RetrievalOutput):
         # add special fields for HDO
         # AT_LINE 383 src_ms-2018-12-10/write_products_one.pro
         if self.spcname == 'HDO':
-            indfh = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'H2O')
-            indfd = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'HDO')
+            indfh = utilList.WhereEqualIndices(self.species_list_fm, 'H2O')
+            indfd = utilList.WhereEqualIndices(self.species_list_fm, 'HDO')
 
             indp = np.where(species_data.SPECIES > 0)[0]
 
@@ -669,7 +669,7 @@ class RetrievalL2Output(RetrievalOutput):
         # end if self.spcname == 'HDO':
 
 
-        ind = utilList.WhereEqualIndices(self.retrieval_info.species_list_fm, 'EMIS')
+        ind = utilList.WhereEqualIndices(self.species_list_fm, 'EMIS')
         if len(ind) > 0:
             # Create an array of indices so we can access i_results.Sx matrix.
             array_2d_indices = np.ix_(ind, ind)  # (64, 64)

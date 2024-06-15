@@ -42,11 +42,9 @@ class RetrievalJacobianOutput(RetrievalOutput):
         # this section is to make all pressure grids have a standard size, 
         # like 65 levels
 
-        speciesAll = self.retrieval_strategy.species_list_fm
         # Python idiom for getting a unique list
-        species = list(dict.fromkeys(speciesAll))
+        species = list(dict.fromkeys(self.species_list_fm))
 
-        pressureAll = self.retrieval_strategy.pressure_list_fm
         jacobianAll = self.results.jacobian[0, :, :]
         nf = jacobianAll.shape[1]
 
@@ -54,7 +52,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
         myspecies = []
         myjacobian = []
         for spc in species:
-            ind = [s == spc for s in speciesAll]
+            ind = [s == spc for s in self.species_list_fm]
             nn = np.count_nonzero(ind)
             species_type = mpy.specie_type(spc)
 
@@ -64,11 +62,11 @@ class RetrievalJacobianOutput(RetrievalOutput):
                 my_list[nlevel-nn:] = [spc,] * nn
                 pressure = np.zeros(shape=(nlevel), dtype=np.float32)
                 jacobian = np.zeros(shape=(nlevel, nf), dtype=np.float64)
-                pressure[nlevel-nn:] = pressureAll[ind]
+                pressure[nlevel-nn:] = self.pressure_list_fm[ind]
                 jacobian[nlevel-nn:, :] = jacobianAll[ind, :]
             else:
                 my_list = [spc,] * nn
-                pressure = pressureAll[ind]
+                pressure = self.pressure_list_fm[ind]
                 jacobian = jacobianAll[ind, :]
             mypressure.append(pressure)
             myspecies.append(my_list)
@@ -100,7 +98,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
 
         my_data.frequency = self.results.frequency.astype(np.float32)
 
-        smeta = self.state_info.sounding_metadata()
+        smeta = self.sounding_metadata
         my_data.soundingID = smeta.sounding_id
         my_data.latitude = np.float32(smeta.latitude.convert("deg").value)
         my_data.longitude = np.float32(smeta.longitude.convert("deg").value)
