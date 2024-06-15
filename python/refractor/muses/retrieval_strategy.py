@@ -383,22 +383,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         return self._strategy_table.microwindows()
     
     @property
-    def output_directory(self) -> str:
-        return self._strategy_table.output_directory
-
-    @property
-    def input_directory(self):
-        return self._strategy_table.input_directory
-
-    @property
-    def analysis_directory(self):
-        return self._strategy_table.analysis_directory
-
-    @property
-    def elanor_directory(self):
-        return self._strategy_table.elanor_directory
-
-    @property
     def instrument_name_all(self):
         return self._instrument_name_all
 

@@ -56,6 +56,14 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         d = dict(f)
         d.update(res)
         res._data = d
+        # There really should be a liteDirectory included here, but for some reason
+        # muses-py treats this differently as a hard coded value - probably the general
+        # problem of always solving problems locally rather than the best way.
+        #
+        # Go ahead and put into the data if it isn't there so we can treat this the
+        # same everywhere.
+        if('liteDirectory' not in res._data):
+            res._data['liteDirectory'] = "../OSP/Lite/"
         res._abs_dir(strategy_table_dir, osp_dir)
 
         # There is a table included in the strategy table file that lists the required

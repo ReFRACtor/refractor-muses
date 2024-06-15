@@ -7,8 +7,19 @@ import pickle
 # We don't have all this in place yet, but put a few samples in place for output
 # triggered by having "writeOutput" which is controlled by the --debug flag set
 
+# TODO Clean this up, it has too tight a dependency on retrieval_strategy
 class RetrievalInputOutput(RetrievalOutput):
     '''Write out the retrieval inputs'''
+
+    @property
+    def errorCurrent(self):
+        return self.retrieval_strategy.error_analysis.error_current
+    
+    @property
+    def windows(self):
+        return self.retrieval_strategy.microwindows
+
+    
     def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
                       **kwargs):
         self.retrieval_strategy = retrieval_strategy
@@ -60,7 +71,7 @@ class RetrievalPlotRadiance(RetrievalOutput):
             return
         os.makedirs(self.analysis_directory, exist_ok=True)
         mpy.plot_radiance(self.analysis_directory, self.results,
-                          self.radiance_step.__dict__, self.windows)
+                          self.radiance_step.__dict__, None)
         
         
 __all__ = ["RetrievalInputOutput", "RetrievalPickleResult", "RetrievalPlotResult",

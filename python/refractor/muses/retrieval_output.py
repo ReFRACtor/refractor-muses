@@ -32,23 +32,26 @@ class RetrievalOutput:
 
     @property
     def input_directory(self):
-        return self.retrieval_strategy.input_directory
+        return self.step_directory + "/ELANORInput/"
 
     @property
     def analysis_directory(self):
-        return self.retrieval_strategy.analysis_directory
+        return self.step_directory + "/StepAnalysis/"
 
     @property
     def elanor_directory(self):
-        return self.retrieval_strategy.elanor_directory
-    
-    @property
-    def windows(self):
-        return self.retrieval_strategy.microwindows
+        return self.step_directory + "/Diagnostics/"
 
     @property
-    def errorCurrent(self):
-        return self.retrieval_strategy.error_analysis.error_current
+    def output_directory(self):
+        # This is usually the same as the self.retrieval_strategy.run_dir, but
+        # could in principle be different. So we calculate this the same way
+        # muses-py does
+        return f"{self.retrieval_config['outputDirectory']}/{self.retrieval_config['sessionID']}/"
+
+    @property
+    def lite_directory(self):
+        return self.retrieval_config['liteDirectory'] + "/"
     
     @property
     def special_tag(self):

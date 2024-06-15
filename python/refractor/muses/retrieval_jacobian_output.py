@@ -35,7 +35,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
 
     @property
     def out_fname(self):
-        return f"{self.retrieval_strategy.output_directory}/Products/Products_Jacobian-{self.species_tag}{self.special_tag}.nc"
+        return f"{self.output_directory}/Products/Products_Jacobian-{self.species_tag}{self.special_tag}.nc"
 
     def write_jacobian(self):
 

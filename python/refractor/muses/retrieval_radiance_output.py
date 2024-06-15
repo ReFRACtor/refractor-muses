@@ -62,7 +62,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
 
     @property
     def out_fname(self):
-        return f"{self.retrieval_strategy.output_directory}/Products/Products_Radiance-{self.species_tag}{self.special_tag}.nc"
+        return f"{self.output_directory}/Products/Products_Radiance-{self.species_tag}{self.special_tag}.nc"
 
     def write_radiance(self):
         if len(self.myobsrad['instrumentNames']) == 1 or self.myobsrad['instrumentNames'][0] == self.myobsrad['instrumentNames'][1]:

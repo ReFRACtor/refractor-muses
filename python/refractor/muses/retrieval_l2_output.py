@@ -79,7 +79,7 @@ class RetrievalL2Output(RetrievalOutput):
                self.spcname.startswith('OMI') or
                self.spcname.startswith('NIR')):
                 continue
-            self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
+            self.out_fname = f"{self.output_directory}/Products/Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
             # Not sure about the logic here, but this is what script_retrieval_ms does
             if(not os.path.exists(self.out_fname) or self.spcname in ('TATM', 'H2O', 'N2O')):
@@ -115,26 +115,23 @@ class RetrievalL2Output(RetrievalOutput):
         state_element_out = [t for t in self.state_info.state_element_list() if t.should_write_to_l2_product(self.instruments)]
             
         if(self.spcname == "H2O" and self.dataTATM is not None):
-            self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Lite_Products_L2-RH-{self.species_count[self.spcname]}.nc"
+            self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-RH-{self.species_count[self.spcname]}.nc"
             if("OCO2" not in self.instruments):
-                liteDirectory = f"{self.retrieval_strategy.run_dir}/../OSP/Lite/"
-                # Code assumes we are in rundir
                 t = CdfWriteTes()
                 t.write_lite(
                     self.table_step,
                     self.out_fname, self.quality_name, self.instruments,
-                    liteDirectory, dataInfo, self.dataTATM, "RH",
+                    self.lite_directory, dataInfo, self.dataTATM, "RH",
                     step=self.species_count[self.spcname],
                     times_species_retrieved=self.species_count[self.spcname],
                     state_element_out=state_element_out)
                 
-        self.out_fname = f"{self.retrieval_strategy.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
+        self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
         if 'OCO2' not in self.instruments:
-            liteDirectory = f"{self.retrieval_strategy.run_dir}/../OSP/Lite/"
             t = CdfWriteTes()
             data2 = t.write_lite(
                 self.table_step, self.out_fname, self.quality_name,
-                self.instruments, liteDirectory, dataInfo, data2, self.spcname,
+                self.instruments, self.lite_directory, dataInfo, data2, self.spcname,
                 step=self.species_count[self.spcname],
                 times_species_retrieved=self.species_count[self.spcname],
                 state_element_out=state_element_out)
