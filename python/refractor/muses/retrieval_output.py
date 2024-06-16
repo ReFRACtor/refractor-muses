@@ -84,7 +84,7 @@ class RetrievalOutput:
 
     @property
     def results(self):
-        return self.retrieval_strategy_step.results.retrieval_result_obj
+        return self.retrieval_strategy_step.results
 
     @property
     def state_info(self):
@@ -92,31 +92,31 @@ class RetrievalOutput:
 
     @property
     def radiance_full(self):
-        return self.retrieval_strategy_step.results.radiance_full
+        return self.results.radiance_full
 
     @property
     def obs_list(self):
-        return self.retrieval_strategy_step.results.obs_list
+        return self.results.obs_list
     
     @property
     def radiance_step(self):
-        return self.retrieval_strategy_step.results.rstep
+        return self.results.rstep
 
     @property
     def instruments(self):
-        return self.retrieval_strategy_step.results.instruments
+        return self.results.instruments
 
     @property
     def species_list_fm(self):
-        return self.retrieval_strategy_step.results.species_list_fm
+        return self.results.species_list_fm
 
     @property
     def pressure_list_fm(self):
-        return self.retrieval_strategy_step.results.pressure_list_fm
+        return self.results.pressure_list_fm
 
     @property
     def sounding_metadata(self):
-        return self.retrieval_strategy_step.results.sounding_metadata
+        return self.results.sounding_metadata
 
 
 class CdfWriteTes:

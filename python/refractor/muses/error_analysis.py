@@ -92,7 +92,7 @@ class ErrorAnalysis:
             self.error_initial,
             self.error_current,
             None,
-            retrieval_results.retrieval_result_obj
+            retrieval_results
             )
         return results
 

@@ -55,15 +55,16 @@ class RetrievalResult:
         self.sounding_metadata = state_info.sounding_metadata()
         self.strategy_table = strategy_table
         self.ret_res = mpy.ObjectView(ret_res)
-        self.retrieval_result_dict = self.set_retrieval_results()
-        self.retrieval_result_dict = mpy.set_retrieval_results_derived(
-            self.retrieval_result_dict, self.rstep, propagated_qa.tatm_qa,
+        # Get old retrieval results structure, and merge in with this object
+        d = self.set_retrieval_results()
+        d = mpy.set_retrieval_results_derived(
+            d, self.rstep, propagated_qa.tatm_qa,
             propagated_qa.o3_qa, propagated_qa.h2o_qa)
-        self.retrieval_result_dict = self.retrieval_result_dict.__dict__
+        self.__dict__.update(d.__dict__)
 
     def update_jacobian_sys(self, cfunc_sys : 'CostFunction'):
         '''Run the forward model in cfunc to get the jacobian_sys set.'''
-        self.retrieval_result_dict['jacobianSys'] = \
+        self.jacobianSys = \
             cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
     def update_error_analysis(self, error_analysis : 'ErrorAnalysis'):
@@ -84,16 +85,9 @@ class RetrievalResult:
             writeOutputFlag=False, 
             errorInitial=error_analysis.error_initial
         )
-        self.retrieval_result_dict = res.__dict__
+        # This is already done in place
+        #self.__dict__.update(res)
                               
-    @property
-    def retrieval_result_obj(self):
-        return mpy.ObjectView(self.retrieval_result_dict)
-
-    @retrieval_result_obj.setter
-    def retrieval_result_obj(self, v):
-        self.retrieval_result_dict = v.__dict__
-        
     @property
     def species_list_fm(self) -> 'list(str)':
         return self.retrieval_info.species_list_fm
@@ -104,23 +98,19 @@ class RetrievalResult:
     
     @property
     def best_iteration(self):
-        return self.retrieval_result_dict['bestIteration']
+        return self.bestIteration
 
     @property
-    def num_iterations(self):
-        return self.retrieval_result_dict['num_iterations']
-    
-    @property
     def results_list(self):
-        return self.retrieval_result_dict['resultsList']
+        return self.resultsList
 
     @property
     def master_quality(self):
-        return self.retrieval_result_dict['masterQuality']
+        return self.masterQuality
 
     @property
     def jacobian_sys(self):
-        return self.retrieval_result_dict['jacobianSys']
+        return self.jacobianSys
 
     @property
     def press_list(self):
