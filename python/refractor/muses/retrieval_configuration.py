@@ -1,6 +1,7 @@
 import collections.abc
 import os
 import re
+import copy
 from .tes_file import TesFile
 
 class RetrievalConfiguration(collections.abc.MutableMapping):
@@ -24,11 +25,16 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
     is located. We translate these to absolute paths so you don't need to assume that you
     are in the same directory as the strategy table file.
     '''
-    def __init__(self):
+    def __init__(self, base_dir=".", osp_dir=None):
         self._data = {}
+        # These can be updated after the object is created, e.g. after have
+        # a pickle file loaded. The relative paths in the our data get converted
+        # based on these values.
+        self.base_dir = base_dir
+        self.osp_dir = osp_dir
 
     def __getitem__(self, key):
-        return self._data[key]
+        return self._abs_dir(self._data[key])
 
     def __setitem__(self, key, val):
         self._data[key] = val
@@ -44,17 +50,16 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
 
     @classmethod
     def create_from_strategy_file(cls, fname, osp_dir=None):
-        res = cls()
         strategy_table_dir = os.path.abspath(os.path.dirname(fname))
         strategy_table_fname = os.path.abspath(fname)
+        res = cls(base_dir=strategy_table_dir, osp_dir=osp_dir)
         f = TesFile(strategy_table_fname)
         res._data = dict(f)
-        res._abs_dir(strategy_table_dir, osp_dir)
-
+        
         # Start with default values, and then add anything we find in the table
         f = TesFile(f"{res['defaultStrategyTableDirectory']}/{res['defaultStrategyTableFilename']}")
         d = dict(f)
-        d.update(res)
+        d.update(res._data)
         res._data = d
         # There really should be a liteDirectory included here, but for some reason
         # muses-py treats this differently as a hard coded value - probably the general
@@ -64,7 +69,6 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # same everywhere.
         if('liteDirectory' not in res._data):
             res._data['liteDirectory'] = "../OSP/Lite/"
-        res._abs_dir(strategy_table_dir, osp_dir)
 
         # There is a table included in the strategy table file that lists the required
         # options. Note sure if this is complete, but if we are missing one of these
@@ -78,22 +82,20 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # least try that for now.
         return res
     
-    def _abs_dir(self, base_dir, osp_dir):
+    def _abs_dir(self, v):
         '''Convert values like ../OSP to the osp_dir passed in. Expand user ~ and
         environment variables. Convert relative paths to absolute paths.'''
         t = os.environ.get("strategy_table_dir")
+        v = copy.copy(v)
         try:
-            os.environ["strategy_table_dir"] = base_dir
-            klist = self.keys() # Collect at beginning, since we update the dict
-            for k in klist:
-                v = self[k]
-                v = os.path.expandvars(os.path.expanduser(v))
-                m = re.match(r'^\.\./OSP/(.*)', v)
-                if(m and osp_dir):
-                    v = f"{osp_dir}/{m[1]}"
-                if(re.match(r'^\.\./', v) or re.match(r'^\./', v)):
-                    v = os.path.normpath(f"{base_dir}/{v}")
-                self[k] = v
+            os.environ["strategy_table_dir"] = self.base_dir
+            v = os.path.expandvars(os.path.expanduser(v))
+            m = re.match(r'^\.\./OSP/(.*)', v)
+            if(m and self.osp_dir):
+                v = f"{self.osp_dir}/{m[1]}"
+            if(re.match(r'^\.\./', v) or re.match(r'^\./', v)):
+                v = os.path.normpath(f"{self.base_dir}/{v}")
+            return v
         finally:
             if(t is not None):
                 os.environ["strategy_table_dir"] = t

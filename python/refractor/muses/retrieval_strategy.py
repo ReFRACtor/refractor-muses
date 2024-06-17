@@ -384,9 +384,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                                 vlidort_cli=None):
         '''This pairs with save_pickle.'''
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
-        res.run_dir = f"{os.path.abspath(path)}/{res.capture_directory.runbase}"
-        res.strategy_table.filename = f"{res.run_dir}/{os.path.basename(res.strategy_table.filename)}"
-        res.capture_directory.extract_directory(path=path,
+        res._capture_directory.rundir = f"{os.path.abspath(path)}/{res._capture_directory.runbase}"
+        res._strategy_table.filename = f"{res.run_dir}/{os.path.basename(res._strategy_table.filename)}"
+        res._filename = res._strategy_table.filename
+        res._retrieval_config.osp_dir = osp_dir
+        res._retrieval_config.base_dir = res.run_dir
+        res._capture_directory.extract_directory(path=path,
                               change_to_dir=change_to_dir, osp_dir=osp_dir,
                               gmao_dir=gmao_dir)
         if(vlidort_cli is not None):
