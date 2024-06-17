@@ -50,7 +50,7 @@ class RetrievalL2Output(RetrievalOutput):
         of CH4, HDO and H2O lite files, so we need to data from these before we get
         to the lite files.'''
         if(self._species_list is None):
-            self._species_list = self.retrieval_info.species_names
+            self._species_list = list(np.unique(self.species_list_fm))
             for spc in ('N2O', 'H2O', 'TATM'):
                 if(spc in self._species_list):
                     self._species_list.remove(spc)
@@ -163,7 +163,7 @@ class RetrievalL2Output(RetrievalOutput):
             geo_data.__dict__.update(self.obs_list[i].sounding_desc)
         
         # get surface type using hres database
-        if self.retrieval_info.is_ocean:
+        if self.results.is_ocean:
             geo_data.LANDFLAG = np.int32(0)
             geo_data.SURFACETYPEFOOTPRINT = np.int32(2)
 

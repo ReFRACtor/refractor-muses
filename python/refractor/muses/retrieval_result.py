@@ -90,8 +90,16 @@ class RetrievalResult:
                               
     @property
     def species_list_fm(self) -> 'list(str)':
+        '''This is the length of the forward model state vector, with a
+        retrieval_element name for each location.'''
         return self.retrieval_info.species_list_fm
 
+    @property
+    def species_list_retrieval(self) -> 'list(str)':
+        '''This is the length of the retrieval state vector, with a
+        retrieval_element name for each location.'''
+        return self.retrieval_info.species_list
+    
     @property
     def pressure_list_fm(self) -> 'list(float)':
         return self.retrieval_info.pressure_list_fm
@@ -195,6 +203,7 @@ class RetrievalResult:
 
         o_results = {
             'retrieval': '',
+            'is_ocean': self.retrieval_info.is_ocean,
             'badRetrieval': -999,                               
             'retIteration': self.ret_res.xretIterations,    
             'bestIteration': self.ret_res.bestIteration,     
