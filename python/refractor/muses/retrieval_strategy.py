@@ -116,8 +116,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             #self.add_observer(RetrievalInputOutput())
             self.add_observer(RetrievalPickleResult())
             if(writePlots):
-                # Same here
-                #self.add_observer(RetrievalPlotResult())
+                self.add_observer(RetrievalPlotResult())
                 self.add_observer(RetrievalPlotRadiance())
                 
         # For calling from py-retrieve, it is useful to delay the filename. See

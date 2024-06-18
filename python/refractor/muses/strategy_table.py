@@ -31,19 +31,19 @@ class StrategyTable:
                     
     @property
     def analysis_directory(self):
-        return self.strategy_table_dict["dirAnalysis"]
+        return self.abs_filename(self.strategy_table_dict["dirAnalysis"])
 
     @property
     def elanor_directory(self):
-        return self.strategy_table_dict["dirELANOR"]
+        return self.abs_filename(self.strategy_table_dict["dirELANOR"])
     
     @property
     def step_directory(self):
-        return self.strategy_table_dict["stepDirectory"]
+        return self.abs_filename(self.strategy_table_dict["stepDirectory"])
 
     @property
     def input_directory(self):
-        return self.strategy_table_dict["dirInput"]
+        return self.abs_filename(self.strategy_table_dict["dirInput"])
 
     @property
     def pressure_fm(self):

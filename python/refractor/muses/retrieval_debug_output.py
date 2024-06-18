@@ -51,6 +51,10 @@ class RetrievalPickleResult(RetrievalOutput):
             pickle.dump(self.results.__dict__, fh)
 
 class RetrievalPlotResult(RetrievalOutput):
+    @property
+    def retrieval_info(self):
+        return self.retrieval_strategy.retrieval_info
+    
     def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
                       **kwargs):
         self.retrieval_strategy = retrieval_strategy
@@ -59,7 +63,7 @@ class RetrievalPlotResult(RetrievalOutput):
             return
         os.makedirs(self.step_directory, exist_ok=True)
         mpy.plot_results(f"{self.step_directory}/", self.results,
-                         self.retrievalInfo.retrieval_info_obj,
+                         self.retrieval_info.retrieval_info_obj,
                          self.state_info.state_info_obj)
 
 class RetrievalPlotRadiance(RetrievalOutput):
