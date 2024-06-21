@@ -38,7 +38,7 @@ def muses_py_call(rundir,
     old_vlidort_nstreams = mpy.cli_options.vlidort.get("nstreams")
     if('CONDA_PREFIX' in os.environ):
         old_ld_library_path = os.environ.get("LD_LIBRARY_PATH")
-        os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{os.environ['LD_LIBRARY_PATH']}"
+        os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib:{old_ld_library_path}"
     try:
         os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(rundir)
         os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
