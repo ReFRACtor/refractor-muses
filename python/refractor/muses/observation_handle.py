@@ -1,10 +1,9 @@
-from .priority_handle_set import PriorityHandleSet
+from .creator_handle import CreatorHandleSet, CreatorHandle
 from .current_state import CurrentState, CurrentStateUip, CurrentStateDict
 import refractor.framework as rf
 import abc
 import logging
 import numpy as np
-
 logger = logging.getLogger("py-retrieve")
 
 def mpy_radiance_from_observation_list(obs_list : 'list(MusesObservation)',
@@ -17,7 +16,7 @@ def mpy_radiance_from_observation_list(obs_list : 'list(MusesObservation)',
     Note that in some cases we want to be able to include bad samples or
     do a full band. Right now, we restrict ourselves to MusesObservation. We
     could probably extend this to a general Observation if that proves necessary -
-    we just need a way to specify in we are including bad samples or full band.
+    we just need a way to specify if we are including bad samples or full band.
     Right now we depend on the observation having the function 'modify_spectral_window',
     but if we can do the same functionality in another way.
     '''
@@ -50,22 +49,14 @@ def mpy_radiance_from_observation_list(obs_list : 'list(MusesObservation)',
             "instrumentSizes" : isize,
             }        
     
-class ObservationHandle(object, metaclass=abc.ABCMeta):
+class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
     '''Base class for ObservationHandle. Note we use duck typing, so you
     don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents
     that a class is intended for this.
 
-    Note ObservationHandle can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next.
-
-    notify_update_target will also be called before the first time the
-    objects are created - basically it makes sense to separate the
-    arguments for notify_update_target and observation because they
-    have different scopes (notify_update_target for the full
-    retrieval, observation for a retrieval step).
+    This can do caching based on assuming the target is the same between
+    calls, see CreatorHandle for a discussion of this.
 
     However, when observation is called a "newish" object should be
     created. Specifically we want to be able to attach each object to
@@ -101,38 +92,13 @@ class ObservationHandle(object, metaclass=abc.ABCMeta):
         '''
         raise NotImplementedError()
 
-class ObservationHandleSet(PriorityHandleSet):
+class ObservationHandleSet(CreatorHandleSet):
     '''This takes  the instrument name and a RetrievalStategy, and
     creates an Observation for that instrument.
-
-    Note ObservationHandle can assume that they are called for the
-    same target, until notify_update_target is called. So if it makes
-    sense, these objects can do internal caching for things that don't
-    change when the target being retrieved is the same from one call
-    to the next.
-
-    notify_update_target will also be called before the first time the
-    objects are created - basically it makes sense to separate the
-    arguments for notify_update_target and observation because they
-    have different scopes (notify_update_target for the full
-    retrieval, observation for a retrieval step).
-
-    However, when observation is called a "newish" object should be
-    created. Specifically we want to be able to attach each object to
-    a separate StateVector and have different SpectralWindowRange set
-    - we want to be able to have more than one CostFunction active at
-    one time and we don't want updates in one CostFunction to affect
-    the others. So this can be thought of as a shallow copy, if that
-    make sense for the object. Things that don't depend on the
-    StateVector can be shared (e.g., data read from a file), but state
-    related parts should be independent.
-
     '''
-    def notify_update_target(self, measurement_id : 'MeasurementId'):
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                h.notify_update_target(measurement_id)
-
+    def __init__(self):
+        super().__init__("observation")
+        
     def observation(self, instrument_name : str,
                     current_state : "Optional(CurrentState)",
                     spec_win : "Optional(rf.SpectralWindowRange)",
@@ -140,17 +106,5 @@ class ObservationHandleSet(PriorityHandleSet):
                     **kwargs):
         '''Create an Observation for the given instrument.'''
         return self.handle(instrument_name, current_state, spec_win, fm_sv, **kwargs)
-    
-    def handle_h(self, h : ObservationHandle, instrument_name : str,
-                 current_state : "Optional(CurrentState)",
-                 spec_win : "Optional(rf.SpectralWindowRange)",
-                 fm_sv: "Optional(rf.StateVector)",
-                 **kwargs):
-        '''Process a registered function'''
-        obs = h.observation(instrument_name, current_state, spec_win, fm_sv,
-                            **kwargs)
-        if(obs is None):
-            return (False, None)
-        return (True, obs)
                  
 __all__ = ["ObservationHandleSet", "ObservationHandle", "mpy_radiance_from_observation_list"]

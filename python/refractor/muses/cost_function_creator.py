@@ -20,26 +20,8 @@ class CostFunctionCreator:
     '''This creates the set of ForwardModel and Observation and then uses those to
     create the CostFunction.
 
-    The default ForwardModel that does the actual calculations wrap
-    the existing py-retrieve forward model functions. But this object is
-    designed to be modified by updating the forward_model_handle_set and
-    observation_handle_set.
-
-    The design of the PriorityHandleSet is a bit overkill for this
-    class, we could probably get away with a simple dictionary mapping
-    instrument name to functions that handle it. However the
-    PriorityHandleSet was already available from another library with
-    a much more complicated set of handlers where a dictionary isn't
-    sufficient (see https://github.jpl.nasa.gov/Cartography/pynitf and
-    https://cartography-jpl.github.io/pynitf/design.html#priority-handle-set).
-    The added flexibility can be nice here, and since the code was already
-    written we make use of it.
-
-    In practice you create a simple class that just creates the
-    ForwardModel and Observation, and register with the ForwardModelHandleSet and
-    ObservationHandleSet.
-    Take a look at the existing examples (e.g. the unit tests) - the design
-    seems complicated but is actually pretty simple to use.
+    This uses CreatorHandleSet for creating the ForwardModel and Observation, see
+    that class for a discussion on using this.
     '''
     def __init__(self, rs : 'Optional(RetrievalStategy)' = None):
         self.forward_model_handle_set = copy.deepcopy(ForwardModelHandleSet.default_handle_set())

@@ -1,26 +1,18 @@
-from .priority_handle_set import PriorityHandleSet
+from .creator_handle import CreatorHandleSet, CreatorHandle
 import refractor.framework as rf
 import abc
 import logging
 
 logger = logging.getLogger("py-retrieve")
 
-class ForwardModelHandle(object, metaclass=abc.ABCMeta):
+class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
     '''Base class for ForwardModelHandle. Note we use duck typing, so you
     don't need to actually derive from this object. But it can be
     useful because it 1) provides the interface and 2) documents
     that a class is intended for this.
 
-    Note ForwardModelHandle can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next.
-
-    notify_update_target will also be called before the first time the
-    objects are created - basically it makes sense to separate the
-    arguments for notify_update_target and forward_model because they
-    have different scopes (notify_update_target for the full
-    retrieval, forward_model for a retrieval step).
+    This can do caching based on assuming the target is the same between
+    calls, see CreatorHandle for a discussion of this.
 
     However, when forward_model is called a "newish" object should be
     created. Specifically we want to be able to attach each object to
@@ -63,37 +55,13 @@ class ForwardModelHandle(object, metaclass=abc.ABCMeta):
         '''
         raise NotImplementedError()
     
-class ForwardModelHandleSet(PriorityHandleSet):
+class ForwardModelHandleSet(CreatorHandleSet):
     '''This takes  the instrument name and RefractorUip, and
     creates a ForwardModel and Observation for that instrument.
 
-    Note ForwardModelHandle can assume that they are called for the
-    same target, until notify_update_target is called. So if it makes
-    sense, these objects can do internal caching for things that don't
-    change when the target being retrieved is the same from one call
-    to the next.
-
-    notify_update_target will also be called before the first time the
-    objects are created - basically it makes sense to separate the
-    arguments for notify_update_target and forward_model because they
-    have different scopes (notify_update_target for the full
-    retrieval, forward_model for a retrieval step).
-
-    However, when forward_model is called a "newish" object should be
-    created. Specifically we want to be able to attach each object to
-    a separate StateVector and have different SpectralWindowRange set
-    - we want to be able to have more than one CostFunction active at
-    one time and we don't want updates in one CostFunction to affect
-    the others. So this can be thought of as a shallow copy, if that
-    make sense for the object. Things that don't depend on the
-    StateVector can be shared (e.g., data read from a file), but state
-    related parts should be independent.
-
     '''
-    def notify_update_target(self, measurement_id : 'MeasurementId'):
-        for p in sorted(self.handle_set.keys(), reverse=True):
-            for h in self.handle_set[p]:
-                h.notify_update_target(measurement_id)
+    def __init__(self):
+        super().__init__("forward_model")
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
