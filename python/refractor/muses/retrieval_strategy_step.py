@@ -17,7 +17,7 @@ import numpy as np
 logger = logging.getLogger("py-retrieve")
 
 # TODO clean up the usage for various internal objects of RetrievalStrategy, we want to rework
-# this anyways as we introduce the StrategyExecutor.
+# this anyways as we introduce the MusesStrategyExecutor.
 
 def struct_compare(s1, s2):
     for k in s1.keys():

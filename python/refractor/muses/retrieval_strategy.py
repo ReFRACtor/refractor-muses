@@ -61,14 +61,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     for example.
 
     Note that there is a lot of overlap between this class and the
-    StrategyExecutor class. It isn't clear that long term there will
+    MusesStrategyExecutor class. It isn't clear that long term there will
     actually be two separate classes. However for right now this is a
     useful division of responsibilities:
 
     1. RetrievalStrategy worries about the interface with external classes.
        What does this look like to the muses-py driver? What is exposed to
        the output classes? How does configuration modify things?
-    2. StrategyExecutor worries about actually running the strategy. How
+    2. MusesStrategyExecutor worries about actually running the strategy. How
        do we determine the retrieval steps? How do we run the retrieval
        steps?
 
