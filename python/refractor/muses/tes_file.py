@@ -55,9 +55,19 @@ class TesFile(collections.abc.Mapping):
                 self._d[m[1]] = re.sub(r'"', '', m[2]).strip()
 
         if(tbl is not None and re.search(r'\S', tbl)):
-            self.table = pd.read_table(io.StringIO(tbl),sep=r'\s+', header=[0,1])
+            # Determine number of rows. The file may have extra lines at the bottom,
+            # so we make sure to only read the number of rows that the file claims
+            # is there.
+            self.table = pd.read_table(io.StringIO(tbl),sep=r'\s+', header=[0,1],
+                                       nrows=self.shape[0])
         else:
             self.table = None
+
+    @property
+    def shape(self):
+        '''Return the shape of the table. Note this comes from the metadata 'Data_Size',
+        not the actual table.'''
+        return [int(i) for i in self["Data_Size"].split('x')]
             
     def __getitem__(self, ky):
         return self._d[ky]

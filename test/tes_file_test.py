@@ -32,4 +32,9 @@ def test_tes_file(osp_dir):
     assert(tfile.table is None)
     assert(tfile2.table is None)
     
-    
+    # Test handling of extra stuff at the end of the file
+    fname = f"{osp_dir}/Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
+    tfile = TesFile(fname)
+    tfile2 = TesFile(fname, use_mpy=True)
+    assert(dict(tfile) == dict(tfile2))
+    assert tfile.table.equals(tfile2.table)
