@@ -254,7 +254,7 @@ class MusesObservationImp(MusesObservation):
         self._filter_data_swin = None
 
     @property
-    def filter_data(self) -> "list[list[str,int]]":
+    def filter_data(self) -> "list[str,int]":
         res = []
         sd = self.spectral_domain_all()
         for i, fltname in enumerate(self._filter_data_name):

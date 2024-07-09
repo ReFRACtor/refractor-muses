@@ -23,8 +23,8 @@ class TesFile(collections.abc.Mapping):
             self.mpy_d = d
             self._d = d['preferences']
             if(d['numRows'] > 0):
-                tbl = f"{d['labels1']}\n{d['labels2']}\n" + "\n".join(d['data'])
-                self.table = pd.read_table(io.StringIO(tbl),sep=r'\s+', header=[0,1])
+                tbl = f"{d['labels1']}\n" + "\n".join(d['data'])
+                self.table = pd.read_table(io.StringIO(tbl),sep=r'\s+', header=0)
             else:
                 self.table = None
             return
@@ -55,10 +55,18 @@ class TesFile(collections.abc.Mapping):
                 self._d[m[1]] = re.sub(r'"', '', m[2]).strip()
 
         if(tbl is not None and re.search(r'\S', tbl)):
+            # The table has 2 header lines, the actual header and the units.
+            # pandas can actually create a table like this, using a multindex.
+            # But this is more complicate they we want, so just split out the
+            # second header and treat it separately
+            t = tbl.lstrip().splitlines()
+            hdr = t[0]
+            self.table_units = t[1].split()
+            body = "\n".join(t[2:])
             # Determine number of rows. The file may have extra lines at the bottom,
             # so we make sure to only read the number of rows that the file claims
             # is there.
-            self.table = pd.read_table(io.StringIO(tbl),sep=r'\s+', header=[0,1],
+            self.table = pd.read_table(io.StringIO(f"{hdr}\n{body}"),sep=r'\s+', header=0,
                                        nrows=self.shape[0])
         else:
             self.table = None

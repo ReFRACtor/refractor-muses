@@ -1,7 +1,29 @@
-from refractor.muses import (MusesSpectralWindow, StrategyTable, MusesOmiObservation)
+from refractor.muses import (MusesSpectralWindow, StrategyTable, MusesOmiObservation,
+                             MusesPySpectralWindowHandle, FileFilterMetadata)
 import refractor.framework as rf
 from test_support import *
 
+def struct_compare(s1, s2):
+    for k in s1.keys():
+        if(k == "THROW_AWAY_WINDOW_INDEX"):
+            continue
+        if(isinstance(s1[k], np.ndarray) and
+           np.can_cast(s1[k], np.float64)):
+           npt.assert_allclose(s1[k], s2[k])
+        elif(isinstance(s1[k], np.ndarray)):
+            assert np.all(s1[k] == s2[k])
+        elif(isinstance(s1[k], float) or isinstance(s2[k], float)):
+            assert float(s1[k]) == float(s2[k])
+        else:
+            assert s1[k] == s2[k]
+
+def mw_compare(mw1, mw2):
+    assert len(mw1) == len(mw2)
+    mw1_s = sorted(mw1, key=lambda t: t['start'])
+    mw2_s = sorted(mw2, key=lambda t: t['start'])
+    for t1, t2 in zip(mw1_s, mw2_s):
+        struct_compare(t1, t2)
+        
 def test_muses_spectral_window(osp_dir):
     # This is an observation that has some bad samples in it.
     xtrack_uv1 = 10
@@ -40,3 +62,29 @@ def test_muses_spectral_window(osp_dir):
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == spec.spectral_domain.data.shape[0]
     swin.full_band = False
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 4
+
+def test_muses_spectral_window_microwindows(osp_dir):
+    '''Test creating a spectral window dictionary and then creating the
+    microwindows struct. Compare to using the old muses-py code.'''
+    # This is just a set of microwindows, sufficient for testing all the functionality.
+    default_fname = f"{osp_dir}/Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
+    viewing_mode = "nadir"
+    spectral_dir = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
+    retrieval_elements = ["H2O","O3","CLOUDEXT","PCLOUD","TSUR","EMIS","TROPOMIRINGSFBAND3","TROPOMISOLARSHIFTBAND3","TROPOMIRADIANCESHIFTBAND3","TROPOMISURFACEALBEDOBAND3","TROPOMISURFACEALBEDOSLOPEBAND3","TROPOMISURFACEALBEDOSLOPEORDER2BAND3"]
+    step_name = "H2O,O3,EMIS_TROPOMI"
+    retrieval_type = "joint"
+    # This is the file muses-py ends up with. We need to get that functionality in place,
+    # but at a higher level. At this level, we just read "a given file"
+    spec_fname = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    fmeta = FileFilterMetadata(default_fname)
+    swin = MusesSpectralWindow.create_from_file(spec_fname, "TROPOMI", fmeta,
+                                                different_filter_different_sensor_index=True)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(spec_fname, fmeta)
+    assert spec_fname == MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode, spectral_dir, retrieval_elements, step_name, retrieval_type,
+        spec_file=None)
+    mw = MusesSpectralWindow.muses_microwindows_from_muses_py(default_fname,
+                viewing_mode, spectral_dir, retrieval_elements, step_name, retrieval_type,
+                spec_file=None)
+    mw2 = MusesSpectralWindow.muses_microwindows_from_dict(swin_dict)
+    mw_compare(mw,mw2)
