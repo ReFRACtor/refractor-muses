@@ -11,6 +11,7 @@ from .muses_levmar_solver import MusesLevmarSolver
 from .current_state import CurrentState, CurrentStateUip, CurrentStateStateInfo
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import PropagatedQA, RetrievalResult
+from .muses_spectral_window import MusesSpectralWindow
 from functools import partial
 import numpy as np
 
@@ -108,7 +109,8 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
             for iname in rs._strategy_table.instrument_name():
                 if iname in o_xxx:
                     obs = rs.observation_handle_set.observation(iname, None,
-                                  rs._strategy_table.spectral_window(iname), None)
+                       MusesSpectralWindow(rs._strategy_table.spectral_window(iname), None),
+                       None)
                     if hasattr(obs, "muses_py_dict"):
                         o_xxx[iname] = obs.muses_py_dict
             self._uip = RefractorUip.create_uip(rs._state_info, rs._strategy_table,

@@ -76,7 +76,7 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def observation(self, instrument_name : str,
                     current_state : "Optional(CurrentState)",
-                    spec_win : "Optional(rf.SpectralWindowRange)",
+                    spec_win : "Optional(MusesSpectralWindow)",
                     fm_sv: "Optional(rf.StateVector)",
                     **kwargs):
         '''Return Observation if we can process the given instrument_name, or
@@ -89,6 +89,9 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
         You can also leave spec_win off if you just want access to the full data, i.e.,
         doing a full_band.
+
+        The MusesSpectralWindow does not need to have the bad samples set, we add that
+        in when we create the Observation.
         '''
         raise NotImplementedError()
 
@@ -101,7 +104,7 @@ class ObservationHandleSet(CreatorHandleSet):
         
     def observation(self, instrument_name : str,
                     current_state : "Optional(CurrentState)",
-                    spec_win : "Optional(rf.SpectralWindowRange)",
+                    spec_win : "Optional(MusesSpectralWindow)",
                     fm_sv: "Optional(rf.StateVector)",
                     **kwargs):
         '''Create an Observation for the given instrument.'''

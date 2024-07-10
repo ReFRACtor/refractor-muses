@@ -360,7 +360,7 @@ class MusesObservationHandle(ObservationHandle):
         
     def observation(self, instrument_name : str,
                     current_state : 'Optional(CurrentState)',
-                    spec_win : "Optional(rf.SpectralWindowRange)",
+                    spec_win : "Optional(MusesSpectralWindow)",
                     fm_sv: "Optional(rf.StateVector)",
                     osp_dir=None,
                     **kwargs):
@@ -437,7 +437,7 @@ class MusesAirsObservation(MusesObservationImp):
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
                        current_state: 'Optional(CurrentState)',
-                       spec_win: "Optional(rf.SpectralWindowRange)",
+                       spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         '''Create from a MeasurementId. If this depends on any state information, you can
@@ -458,7 +458,9 @@ class MusesAirsObservation(MusesObservationImp):
             o_airs, sdesc = cls._read_data(filename, granule, xtrack, atrack, filter_list,
                                            osp_dir=osp_dir)
             obs = cls(o_airs, sdesc)
-        obs.spectral_window = MusesSpectralWindow(spec_win, obs)
+        obs.spectral_window = \
+            spec_win if spec_win is not None else MusesSpectralWindow(None,None)
+        obs.spectral_window.add_bad_sample_mask(obs)
         if(fm_sv is not None):
             if(current_state is None):
                 raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")
@@ -602,7 +604,7 @@ class MusesCrisObservation(MusesObservationImp):
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
                        current_state: 'Optional(CurrentState)',
-                       spec_win: "Optional(rf.SpectralWindowRange)",
+                       spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         '''Create from a MeasurementId. If this depends on any state information, you can
@@ -623,7 +625,9 @@ class MusesCrisObservation(MusesObservationImp):
             o_cris, sdesc = cls._read_data(filename, granule, xtrack, atrack,
                                            pixel_index, osp_dir=osp_dir)
             obs = cls(o_cris, sdesc)
-        obs.spectral_window = MusesSpectralWindow(spec_win, obs)
+        obs.spectral_window = \
+            spec_win if spec_win is not None else MusesSpectralWindow(None,None)
+        obs.spectral_window.add_bad_sample_mask(obs)
         if(fm_sv is not None):
             if(current_state is None):
                 raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")
@@ -984,7 +988,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
                        current_state: 'Optional(CurrentState)',
-                       spec_win: "Optional(rf.SpectralWindowRange)",
+                       spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         '''Create from a MeasurementId. If this depends on any state information, you can
@@ -1022,7 +1026,9 @@ class MusesTropomiObservation(MusesObservationReflectance):
                 utc_time, filter_list, osp_dir=osp_dir)
             obs = cls(o_tropomi, sdesc,filter_list, coeff=coeff, mp=mp)
 
-        obs.spectral_window = MusesSpectralWindow(spec_win, obs)
+        obs.spectral_window = \
+            spec_win if spec_win is not None else MusesSpectralWindow(None,None)
+        obs.spectral_window.add_bad_sample_mask(obs)
         if(fm_sv is not None):
             if(current_state is None):
                 raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")
@@ -1104,7 +1110,7 @@ class MusesOmiObservation(MusesObservationReflectance):
     def create_from_id(cls, mid : MeasurementId,
                        existing_obs : 'cls',
                        current_state: 'Optional(CurrentState)',
-                       spec_win: "Optional(rf.SpectralWindowRange)",
+                       spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None):
         '''Create from a MeasurementId. If this depends on any state information, you can
@@ -1139,7 +1145,9 @@ class MusesOmiObservation(MusesObservationReflectance):
                 filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
                 cld_filename=cld_filename, osp_dir=osp_dir)
             obs = cls(o_omi, sdesc,filter_list, coeff=coeff, mp=mp)
-        obs.spectral_window = MusesSpectralWindow(spec_win, obs)
+        obs.spectral_window = \
+            spec_win if spec_win is not None else MusesSpectralWindow(None,None)
+        obs.spectral_window.add_bad_sample_mask(obs)
         if(fm_sv is not None):
             if(current_state is None):
                 raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")

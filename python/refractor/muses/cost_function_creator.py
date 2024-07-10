@@ -4,6 +4,7 @@ from .uip_updater import (StateVectorUpdateUip, MaxAPosterioriSqrtConstraintUpda
 from .current_state import CurrentState, CurrentStateUip, CurrentStateDict
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
+from .muses_spectral_window import MusesSpectralWindow
 import refractor.framework as rf
 import abc
 import copy
@@ -134,7 +135,8 @@ class CostFunctionCreator:
         else:
             for instrument_name in instrument_name_list:
                 obs = self.observation_handle_set.observation(
-                    instrument_name, current_state, spec_win_dict[instrument_name], fm_sv,
+                    instrument_name, current_state,
+                    MusesSpectralWindow(spec_win_dict[instrument_name], obs=None), fm_sv,
                     **kwargs)
                 # TODO Would probably be good to remove
                 # include_bad_sample, it isn't clear that we ever want

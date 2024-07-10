@@ -140,6 +140,15 @@ class MusesSpectralWindow(rf.SpectralWindow):
     def _v_spectral_bound(self):
         return self._spec_win.spectral_bound
 
+    def add_bad_sample_mask(self, obs : 'MusesObservation'):
+        '''We have a bit of a chicken and an egg problem. We need the MusesSpectralWindow
+        before we create the MusesObservation, but we need the MusesObservation to
+        add the bad samples in. So we do this after the creation, when the obs is
+        created.'''
+        if(self._spec_win):
+            for i in range(obs.num_channels):
+                self._spec_win.bad_sample_mask(obs.bad_sample_mask(i), i)
+        
     def desc(self):
         return "MusesSpectralWindow"
 

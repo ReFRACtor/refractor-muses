@@ -3,7 +3,7 @@ from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              MusesCrisObservation,
                              MusesTropomiObservation, MusesOmiObservation,
                              MeasurementIdFile, RetrievalConfiguration,
-                             CurrentStateDict)
+                             CurrentStateDict, MusesSpectralWindow)
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
                                                MusesCrisObservationOld, MusesAirsObservationOld)
 import refractor.framework as rf
@@ -67,7 +67,7 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 8
     rs.table_step = step_number+1
-    swin = rs._strategy_table.spectral_window("AIRS")
+    swin = MusesSpectralWindow(rs._strategy_table.spectral_window("AIRS"), None)
     obs = MusesAirsObservation.create_from_id(rs.measurement_id, None,
                                               None, swin, None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
@@ -147,7 +147,7 @@ def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 12
     rs.table_step = step_number+1
-    swin = rs._strategy_table.spectral_window("TROPOMI")
+    swin = MusesSpectralWindow(rs._strategy_table.spectral_window("TROPOMI"), None)
     cs = CurrentStateDict({"TROPOMISOLARSHIFTBAND3" : 0.1,
                            "TROPOMIRADIANCESHIFTBAND3" : 0.2,
                            "TROPOMIRADSQUEEZEBAND3" : 0.3,}
@@ -242,7 +242,7 @@ def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     step_number = 8
     rs.table_step = step_number+1
-    swin = rs._strategy_table.spectral_window("OMI")
+    swin = MusesSpectralWindow(rs._strategy_table.spectral_window("OMI"), None)
     cs = CurrentStateDict({"OMINRADWAVUV1" : 0.1,
                            "OMINRADWAVUV2" : 0.11,
                            "OMIODWAVUV1" : 0.2,
