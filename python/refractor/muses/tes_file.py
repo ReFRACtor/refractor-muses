@@ -3,6 +3,7 @@ import collections.abc
 import re
 import pandas as pd
 import io
+from functools import lru_cache
 
 class TesFile(collections.abc.Mapping):
     '''There are a number of files that are in the "TES File" format. This is made
@@ -16,7 +17,18 @@ class TesFile(collections.abc.Mapping):
 
     The attribute table is either None or a pandas data frame with the table content
     '''
-    def __init__(self, fname, use_mpy=False):
+    def __init__(self, fname : str, use_mpy=False):
+        '''Open the given file, and read the keyword/value pairs plus the
+        (possibly empty) table.
+
+        Note that you generally shouldn't call this initializer, rather use
+        TesFile.create which adds caching, so opening the same file twice returns
+        the same object.
+
+        As a convenience for testing, you can specify use_mpy as True to use the
+        old mpy code. This may go away at some point, but for now it is useful to
+        test that we implement the reading correctly.
+        '''
         self.file_name = fname
         if(use_mpy):
             _, d = mpy.read_all_tes(fname)
@@ -85,5 +97,14 @@ class TesFile(collections.abc.Mapping):
 
     def __iter__(self):
         return self._d.__iter__()
+
+    @classmethod
+    @lru_cache(maxsize=50)
+    def create(cls, fname : str):
+        '''This creates a TesFile that reads the given file. Because we often
+        open the same file multiple times in different contexts, this adds caching so
+        open the same file a second time just returns the existing TesFile object.
+        '''
+        return cls(fname)
 
 __all__ = ["TesFile", ]

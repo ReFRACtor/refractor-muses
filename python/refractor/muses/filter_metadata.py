@@ -43,7 +43,7 @@ class FileFilterMetadata(FilterMetadata):
     spectral_filename file.'''
     def __init__(self, filename : str):
         self.filename = filename
-        f = TesFile(filename)
+        f = TesFile.create(filename)
         self.metadata = {}
         for row in f.table.iloc:
             res = {}

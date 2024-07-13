@@ -3,7 +3,12 @@ from refractor.muses import (TesFile,)
 
 def test_tes_file(osp_dir):
     fname = f"{test_base_path}/omi/in/sounding_1/Table.asc"
-    tfile = TesFile(fname)
+    tfile = TesFile.create(fname)
+    # Check that second call returns same object
+    tfile_second = TesFile.create(fname)
+    tfile_third = TesFile.create(fname)
+    assert tfile is tfile_second
+    assert tfile is tfile_third
     # Verify against the mpy version
     tfile2 = TesFile(fname, use_mpy=True)
     assert(dict(tfile) == dict(tfile2))
@@ -11,7 +16,7 @@ def test_tes_file(osp_dir):
 
     # Try another file that has no table
     fname = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/Species-66/OMICLOUDFRACTION.asc"
-    tfile = TesFile(fname)
+    tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert(dict(tfile) == dict(tfile2))
     assert(tfile.table is None)
@@ -19,14 +24,14 @@ def test_tes_file(osp_dir):
 
     # Check comment handling for end of line
     fname = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/Cloud/CloudParameters.asc"
-    tfile = TesFile(fname)
+    tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert(dict(tfile) == dict(tfile2))
     assert tfile.table.equals(tfile2.table)
 
     # Check comment handling for whole line
     fname = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/Species-66/CO2_stepco2_1.asc"
-    tfile = TesFile(fname)
+    tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert(dict(tfile) == dict(tfile2))
     assert(tfile.table is None)
@@ -34,7 +39,7 @@ def test_tes_file(osp_dir):
     
     # Test handling of extra stuff at the end of the file
     fname = f"{osp_dir}/Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
-    tfile = TesFile(fname)
+    tfile = TesFile.create(fname)
     tfile2 = TesFile(fname, use_mpy=True)
     assert(dict(tfile) == dict(tfile2))
     assert tfile.table.equals(tfile2.table)

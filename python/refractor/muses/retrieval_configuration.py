@@ -53,11 +53,11 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         strategy_table_dir = os.path.abspath(os.path.dirname(fname))
         strategy_table_fname = os.path.abspath(fname)
         res = cls(base_dir=strategy_table_dir, osp_dir=osp_dir)
-        f = TesFile(strategy_table_fname)
+        f = TesFile.create(strategy_table_fname)
         res._data = dict(f)
         
         # Start with default values, and then add anything we find in the table
-        f = TesFile(f"{res['defaultStrategyTableDirectory']}/{res['defaultStrategyTableFilename']}")
+        f = TesFile.create(f"{res['defaultStrategyTableDirectory']}/{res['defaultStrategyTableFilename']}")
         d = dict(f)
         d.update(res._data)
         res._data = d
@@ -73,7 +73,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # There is a table included in the strategy table file that lists the required
         # options. Note sure if this is complete, but if we are missing one of these
         # then muses-py marks this as a failure
-        f = TesFile(res["tableOptionsFilename"])
+        f = TesFile.create(res["tableOptionsFilename"])
         for k in f.keys():
             if k not in res:
                 raise RuntimeError(f"Required option {k} is not found in the file {fname}")

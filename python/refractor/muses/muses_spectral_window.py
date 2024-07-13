@@ -199,7 +199,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
     def filter_list_dict_from_file(cls, spec_fname : str) -> 'dict(str,list(str))':
         '''Return a dictionary going from instrument name to the list of filters for that
         given instrument.'''
-        fspec = TesFile(spec_fname)
+        fspec = TesFile.create(spec_fname)
         res = {}
         for iname in list(dict.fromkeys(fspec.table["Instrument"].to_list())):
             res[iname] = list(dict.fromkeys(fspec.table[fspec.table["Instrument"] == iname]["Filter"].to_list()))
@@ -228,7 +228,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         For some instruments we consider different filters as different sensor_index
         and for others we don't. The argument different_filter_different_sensor_index
         is used to control this.'''
-        fspec = TesFile(spec_fname)
+        fspec = TesFile.create(spec_fname)
         rowlist = fspec.table[fspec.table["Instrument"] == instrument_name]
         
         flist = list(dict.fromkeys(rowlist["Filter"].to_list()))
