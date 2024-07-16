@@ -46,10 +46,10 @@ class CreatorHandleSet(PriorityHandleSet):
         super().__init__()
         self.creator_func_name = creator_func_name
 
-    def notify_update_target(self, *args):
+    def notify_update_target(self, *args, **kwargs):
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(*args)
+                h.notify_update_target(*args, **kwargs)
                 
     def handle_h(self, h : 'CreatorHandle', *args, **kwargs):
         '''Process a registered function'''
@@ -77,6 +77,17 @@ class CreatorHandle:
     CreatorHandle doesn't care about the target, it can just ignore
     this function call.
     '''
+    def _dispatch(self, func_name, *args, **kwargs):
+        '''It can be useful sometimes to have a handle with multiple functions that we can
+        call. This support function just takes the name of the function to call and then
+        calls that function with the arguments.
+        
+        See for example SpectralWindowHandleSet, where we have both filter_name_dict and
+        spectral_window_dict.
+        '''
+        return getattr(self, func_name)(*args, **kwargs)
+        
+
     def notify_update_target(self, *args):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # Default is to do nothing
