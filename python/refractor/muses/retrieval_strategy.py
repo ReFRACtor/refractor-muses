@@ -199,78 +199,15 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         # for now we'll do that.
         with muses_py_call(self.run_dir,
                            vlidort_cli=self._vlidort_cli):
-            return self.retrieval_ms_body()
+            self._strategy_executor.execute_retrieval()
+            exitcode = 37
+            logger.info(f"Done")
+            logger.info('\n---')    
+            logger.info(f"signaling successful completion w/ exit code {exitcode}")
+            logger.info('\n---')    
+            logger.info('\n---')    
+            return exitcode
 
-    def retrieval_ms_body(self):
-        start_date = time.strftime("%c")
-        start_time = time.time()
-
-        self._state_info.init_state(self._strategy_table,
-                                    self._cost_function_creator.observation_handle_set,
-                                    self._strategy_table.instrument_name(all_step=True),
-                                    self.run_dir)
-
-        self._error_analysis = ErrorAnalysis(self._strategy_table, self._state_info)
-        self._retrieval_info = None
-        self.notify_update("initial set up done")
-        
-        # Go through all the steps once, to make sure we can get all the information
-        # we need. This way we fail up front, rather than after multiple retrieval
-        # steps.
-        # Skip this, I don't think it is worth the time - so what if we fail later?
-        # Actually, the output changes based on running this. Probably not good, we
-        # should track down why that is the case when we start working through the
-        # initial guess. But for now leave this in place until we understand why it
-        # matters.
-        if True:
-            for stp in range(self.number_table_step):
-                self.table_step = stp
-                self.get_initial_guess()
-        self._state_info.copy_current_initialInitial()
-        self.notify_update("starting retrieval steps")
-        self._strategy_executor.execute_retrieval()
-        stop_date = time.strftime("%c")
-        stop_time = time.time()
-        elapsed_time = stop_time - start_time
-        elapsed_time_seconds = stop_time - start_time
-        elapsed_time_minutes = elapsed_time_seconds / 60.0
-        logger.info('\n---')    
-        logger.info(f"start_date {start_date}")
-        logger.info(f"stop_date {stop_date}")
-        logger.info(f"elapsed_time {elapsed_time}")
-        logger.info(f"elapsed_time_seconds {elapsed_time_seconds}")
-        logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
-        logger.info(f"Done")
-        
-        exitcode = 37
-        logger.info('\n---')    
-        logger.info(f"signaling successful completion w/ exit code {exitcode}")
-        logger.info('\n---')    
-        logger.info('\n---')    
-        return exitcode
-
-    def retrieval_ms_body_step(self, stp):
-        '''This is the body of the step loop in retrieval_ms_body. We pull this
-        out as a separate function because it is nice to be able to call this
-        in isolation when debugging - e.g., use RetrievalStrategyCaptureObserver to
-        capture each step, then load it back and rerun the step in a debugging
-        session.'''
-        self.table_step = stp
-        self.notify_update("start retrieval_ms_body_step")
-        self._state_info.copy_current_initial()
-        self.notify_update("done copy_current_initial")
-        logger.info(f'\n---')
-        logger.info(f"Step: {self.table_step}, Step Name: {self.step_name}, Total Steps: {self.number_table_step}")
-        logger.info(f'\n---')
-        self.get_initial_guess()
-        self.notify_update("done get_initial_guess")
-        logger.info(f"Step: {self.table_step}, Retrieval Type {self.retrieval_type}")
-        self._retrieval_strategy_step_set.retrieval_step(self.retrieval_type, self)
-        self.notify_update("done retrieval_step")
-        self._state_info.next_state_to_current()
-        self.notify_update("done next_state_to_current")
-        logger.info(f"Done with step {self.table_step}")
-        
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
         self._retrieval_info = RetrievalInfo(self._error_analysis, self._strategy_table,

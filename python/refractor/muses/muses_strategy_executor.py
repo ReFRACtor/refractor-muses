@@ -1,11 +1,35 @@
 from .retrieval_strategy_step_new import RetrievalStrategyStepSetNew
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .strategy_table import StrategyTable
+from .error_analysis import ErrorAnalysis
 
 import abc
 import copy
 import logging
+import time
+import functools
 logger = logging.getLogger("py-retrieve")
+
+def log_timing(f):
+    '''Decorator to log the timing of a function.'''
+    @functools.wraps(f)
+    def log_tm(*args, **kwargs):
+        start_date = time.strftime("%c")
+        start_time = time.time()
+        res = f(*args, **kwargs)
+        stop_date = time.strftime("%c")
+        stop_time = time.time()
+        elapsed_time = stop_time - start_time
+        elapsed_time_seconds = stop_time - start_time
+        elapsed_time_minutes = elapsed_time_seconds / 60.0
+        logger.info('\n---')    
+        logger.info(f"start_date {start_date}")
+        logger.info(f"stop_date {stop_date}")
+        logger.info(f"elapsed_time {elapsed_time}")
+        logger.info(f"elapsed_time_seconds {elapsed_time_seconds}")
+        logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
+        return res
+    return log_tm
 
 class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
     '''This is the base class for executing a strategy.
@@ -176,14 +200,39 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.rs.notify_update("done next_state_to_current")
         logger.info(f"Done with step {self.current_strategy_step.step_number}")
 
+    @log_timing
     def execute_retrieval(self):
         '''Run through all the steps, i.e., do a full retrieval.'''
+        self.state_info = self.rs._state_info
+        with self.stable.chdir_run_dir():
+            self.state_info.init_state(self.stable,
+                                       self.rs.observation_handle_set,
+                                       self.stable.instrument_name(all_step=True),
+                                       self.rs.run_dir)
+        self.error_analysis = ErrorAnalysis(self.stable, self.state_info)
+        self.rs._error_analysis = self.error_analysis
+        
+        # Note the original muses-py ran through all the initial guess steps at
+        # the beginning to make sure there weren't any issues. I think we can remove
+        # this, it isn't particularly important to fail early and it seems a waste
+        # of time to go through this twice.
+        #
+        # Have, the output actually changes if we don't run this. This is bad, our
+        # initial guess shouldn't modify future running. We should track this down
+        # when we start working on the initial guess/state info portion. But for now,
+        # leave this in place until we understand this
+        self.restart()
+        while(not self.is_done()):
+            self.rs.get_initial_guess()
+            self.next_step()
+        # Not sure that this is needed or used anywhere, but for now go ahead and this
+        # this until we know for sure it doesn't matter.
+        self.rs._state_info.copy_current_initialInitial()
+    
         self.restart()
         while(not self.is_done()):
             self.run_step()
             self.next_step()
-        
-    
         
 __all__ = ["MusesStrategyExecutor", "CurrentStrategyStep", "CurrentStrategyStepDict",
            "MusesStrategyExecutorRetrievalStrategyStep",
