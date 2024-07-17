@@ -16,6 +16,7 @@ from .state_info import StateElementHandleSet
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .error_analysis import ErrorAnalysis
+from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
 import logging
 import refractor.muses.muses_py as mpy
 import os
@@ -144,7 +145,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         when this changes in case they need to clear out any caching.'''
         self._filename = os.path.abspath(filename)
         self._capture_directory.rundir = os.path.dirname(self.strategy_table_filename)
-        self._strategy_table = StrategyTable(self.strategy_table_filename)
+        self._strategy_executor = MusesStrategyExecutorOldStrategyTable(self.strategy_table_filename, self)
+        self._strategy_table = self._strategy_executor.stable
         self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.strategy_table_filename)
         self._measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
                                                 self.retrieval_config,
@@ -214,12 +216,19 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         
         # Go through all the steps once, to make sure we can get all the information
         # we need. This way we fail up front, rather than after multiple retrieval
-        # steps
-        for stp in range(self.number_table_step):
-            self.table_step = stp
-            self.get_initial_guess()
+        # steps.
+        # Skip this, I don't think it is worth the time - so what if we fail later?
+        # Actually, the output changes based on running this. Probably not good, we
+        # should track down why that is the case when we start working through the
+        # initial guess. But for now leave this in place until we understand why it
+        # matters.
+        if True:
+            for stp in range(self.number_table_step):
+                self.table_step = stp
+                self.get_initial_guess()
         self._state_info.copy_current_initialInitial()
         self.notify_update("starting retrieval steps")
+        
         # Now go back through and actually do retrievals.
         # Note that a BT step might change the number of steps we have, it
         # modifies the strategy table. So we can't use a normal for
@@ -229,7 +238,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         while stp < self.number_table_step - 1:
             stp += 1
             self.retrieval_ms_body_step(stp)
-            
         stop_date = time.strftime("%c")
         stop_time = time.time()
         elapsed_time = stop_time - start_time

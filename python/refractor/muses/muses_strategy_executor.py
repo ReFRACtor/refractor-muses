@@ -1,6 +1,11 @@
 from .retrieval_strategy_step_new import RetrievalStrategyStepSetNew
+from .retrieval_strategy_step import RetrievalStrategyStepSet
+from .strategy_table import StrategyTable
+
 import abc
 import copy
+import logging
+logger = logging.getLogger("py-retrieve")
 
 class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
     '''This is the base class for executing a strategy.
@@ -109,7 +114,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self._retrieval_strategy_step_set = retrieval_strategy_step_set
 
     @property
-    def current_strategy_step(self):
+    def current_strategy_step(self) -> CurrentStrategyStep:
         '''Return the CurrentStrategyStep for the current step.'''
         raise NotImplementedError()
     
@@ -118,6 +123,67 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         '''The RetrievalStrategyStepSet to use for getting RetrievalStrategyStep.'''
         return self._retrieval_strategy_step_set
 
+class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrategyStep):
+    '''Placeholder that wraps the muses-py strategy table up, so we can get the
+    infrastructure in place before all the pieces are ready'''
+
+    def __init__(self, filename : str, rs : 'RetrievalStrategy', osp_dir=None):
+        super().__init__(retrieval_strategy_step_set = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set()))
+        self.stable = StrategyTable(filename, osp_dir=osp_dir)
+        self.rs = rs
+
+    def filter_list_all(self):
+        return self.stable.filter_list_all()
+
+    @property
+    def current_strategy_step(self) -> CurrentStrategyStep:
+        '''Return the CurrentStrategyStep for the current step.'''
+        return CurrentStrategyStepDict(
+            {'retrieval_elements' : self.stable.retrieval_elements(),
+             'step_name' : self.stable.step_name,
+             'step_number' : self.stable.table_step,
+             'max_num_iterations' : self.stable.max_num_iterations,
+             'retrieval_type' : self.stable.retrieval_type
+             })
+
+    def restart(self):
+        '''Set step to the first one.'''
+        self.stable.table_step = 0
+
+    def next_step(self):
+        '''Advance to the next step'''
+        self.stable.table_step = self.stable.table_step+1
+
+    def is_done(self):
+        '''Return true if we are done, otherwise false.'''
+        return self.stable.table_step >= self.stable.number_table_step
+    
+    def run_step(self):
+        '''Run a the current step.'''
+        self.rs._state_info.copy_current_initial()
+        self.rs._strategy_table = self.stable
+        logger.info(f'\n---')
+        logger.info(f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.stable.number_table_step}")
+        logger.info(f'\n---')
+        self.rs.get_initial_guess()
+        logger.info(f"Step: {self.current_strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}")
+        self.rs._retrieval_strategy_step_set.retrieval_step(self.current_strategy_step.retrieval_type, self.rs)
+        self.rs.notify_update("done retrieval_step")
+        self.rs._state_info.next_state_to_current()
+        self.rs.notify_update("done next_state_to_current")
+        logger.info(f"Done with step {self.current_strategy_step.step_number}")
+
+
+    def execute_retrieval(self):
+        '''Run through all the steps, i.e., do a full retrieval.'''
+        self.restart()
+        while(not self.is_done()):
+            self.run_step()
+            self.next_step()
+        
+    
+        
 __all__ = ["MusesStrategyExecutor", "CurrentStrategyStep", "CurrentStrategyStepDict",
-           "MusesStrategyExecutorRetrievalStrategyStep"]
+           "MusesStrategyExecutorRetrievalStrategyStep",
+           "MusesStrategyExecutorOldStrategyTable"]
     

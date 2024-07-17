@@ -20,4 +20,3 @@ def test_muses_py_spectral_window_handle(osp_dir, isolated_dir, gmao_dir):
                                                      'max_num_iterations' : stable.max_num_iterations,
                                                      'retrieval_type' : stable.retrieval_type})
     swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
-    breakpoint()
