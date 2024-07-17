@@ -143,7 +143,9 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
              'step_name' : self.stable.step_name,
              'step_number' : self.stable.table_step,
              'max_num_iterations' : self.stable.max_num_iterations,
-             'retrieval_type' : self.stable.retrieval_type
+             # Note the lower() here is important, the table might have things
+             # in all caps, but we handle the retrieval type with lower case.
+             'retrieval_type' : self.stable.retrieval_type.lower()
              })
 
     def restart(self):
@@ -167,27 +169,12 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         logger.info(f'\n---')
         self.rs.get_initial_guess()
         self.rs.notify_update("done get_initial_guess")
-        logger.info(f"Step: {self.rs.table_step}, Retrieval Type {self.rs.retrieval_type}")
-        self.rs._retrieval_strategy_step_set.retrieval_step(self.rs.retrieval_type, self.rs)
-        self.rs.notify_update("done retrieval_step")
-        self.rs._state_info.next_state_to_current()
-        self.rs.notify_update("done next_state_to_current")
-        logger.info(f"Done with step {self.rs.table_step}")
-        return
-    
-        self.rs._state_info.copy_current_initial()
-        self.rs._strategy_table = self.stable
-        logger.info(f'\n---')
-        logger.info(f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.stable.number_table_step}")
-        logger.info(f'\n---')
-        self.rs.get_initial_guess()
         logger.info(f"Step: {self.current_strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}")
         self.rs._retrieval_strategy_step_set.retrieval_step(self.current_strategy_step.retrieval_type, self.rs)
         self.rs.notify_update("done retrieval_step")
         self.rs._state_info.next_state_to_current()
         self.rs.notify_update("done next_state_to_current")
         logger.info(f"Done with step {self.current_strategy_step.step_number}")
-
 
     def execute_retrieval(self):
         '''Run through all the steps, i.e., do a full retrieval.'''
