@@ -228,16 +228,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                 self.get_initial_guess()
         self._state_info.copy_current_initialInitial()
         self.notify_update("starting retrieval steps")
-        
-        # Now go back through and actually do retrievals.
-        # Note that a BT step might change the number of steps we have, it
-        # modifies the strategy table. So we can't use a normal for
-        # loop here, we need to recalculate self.number_table_step each time.
-        # So we use a while loop
-        stp = -1
-        while stp < self.number_table_step - 1:
-            stp += 1
-            self.retrieval_ms_body_step(stp)
+        self._strategy_executor.execute_retrieval()
         stop_date = time.strftime("%c")
         stop_time = time.time()
         elapsed_time = stop_time - start_time

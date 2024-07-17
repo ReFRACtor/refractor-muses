@@ -160,6 +160,22 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     
     def run_step(self):
         '''Run a the current step.'''
+        self.rs.notify_update("start retrieval_ms_body_step")
+        self.rs._state_info.copy_current_initial()
+        self.rs.notify_update("done copy_current_initial")
+        logger.info(f'\n---')
+        logger.info(f"Step: {self.rs.table_step}, Step Name: {self.rs.step_name}, Total Steps: {self.rs.number_table_step}")
+        logger.info(f'\n---')
+        self.rs.get_initial_guess()
+        self.rs.notify_update("done get_initial_guess")
+        logger.info(f"Step: {self.rs.table_step}, Retrieval Type {self.rs.retrieval_type}")
+        self.rs._retrieval_strategy_step_set.retrieval_step(self.rs.retrieval_type, self.rs)
+        self.rs.notify_update("done retrieval_step")
+        self.rs._state_info.next_state_to_current()
+        self.rs.notify_update("done next_state_to_current")
+        logger.info(f"Done with step {self.rs.table_step}")
+        return
+    
         self.rs._state_info.copy_current_initial()
         self.rs._strategy_table = self.stable
         logger.info(f'\n---')
