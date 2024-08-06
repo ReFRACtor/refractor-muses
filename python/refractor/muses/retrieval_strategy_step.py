@@ -40,7 +40,7 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.'''
     def retrieval_step(self, retrieval_type : str, rs : 'RetrievalStrategy') -> None:
-        self.handle(retrieval_type, rs)
+        self.handle(retrieval_type.lower(), rs)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
@@ -145,7 +145,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         return rs._cost_function_creator.cost_function(
             rs._strategy_table.instrument_name(),
             self.cstate,
-            rs._strategy_table.spectral_window_all(),
+            rs._swin_dict,
             partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample,
             fix_apriori_size=fix_apriori_size, **rs._kwargs)

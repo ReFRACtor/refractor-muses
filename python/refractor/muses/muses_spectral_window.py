@@ -207,6 +207,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
 
     @classmethod
     def create_dict_from_file(cls, spec_fname,
+                              filter_list_dict : 'Optional(dict(str,list[str]))' = None,
                               filter_metadata : 'Optional(FilterMetadata)' = None):
         '''Create a dict from instrument name to MusesSpectralWindow from the
         given microwindows file name. We also take an optional FilterMetadata which is used
@@ -214,11 +215,24 @@ class MusesSpectralWindow(rf.SpectralWindow):
         '''
         res = {}
         for iname in cls.filter_list_dict_from_file(spec_fname).keys():
-            res[iname] = cls.create_from_file(spec_fname, iname, filter_metadata)
+            # TODO - Remove this. we should have AIRS and CRIS changed
+            # to act like our other observation classes and have a different
+            # sensor index for each filter, so we don't need
+            # special handling here.
+            # Temp, until we get this to work for AIRS and CRIS
+            different_filter_different_sensor_index=True
+            if(iname in ('AIRS', 'CRIS')):
+                different_filter_different_sensor_index = False
+            res[iname] = cls.create_from_file(
+                spec_fname, iname,
+                filter_list_all=filter_list_dict[iname] if filter_list_dict is not None else None,
+                filter_metadata=filter_metadata,
+                different_filter_different_sensor_index=different_filter_different_sensor_index)
         return res
     
     @classmethod
     def create_from_file(cls, spec_fname, instrument_name,
+                         filter_list_all : 'Optional(list[str])' = None, 
                          filter_metadata : 'Optional(FilterMetadata)' = None,
                          different_filter_different_sensor_index=True):
         '''Create a MusesSpectralWindow for the given instrument name from the given
@@ -227,7 +241,14 @@ class MusesSpectralWindow(rf.SpectralWindow):
 
         For some instruments we consider different filters as different sensor_index
         and for others we don't. The argument different_filter_different_sensor_index
-        is used to control this.'''
+        is used to control this.
+
+        Note that while we in general don't require that spectral channels have a
+        filter name, the file only works with filter names (that is how it identifies
+        the microwindows). We need to know the full list of filter names that the 
+        MusesObservation has, so that we can properly create  SpectralWindowRange with
+        the right number of spectral channels include possibly empty ones. The
+        filter_list_all generally comes from the MeasurementId.'''
         fspec = TesFile.create(spec_fname)
         rowlist = fspec.table[fspec.table["Instrument"] == instrument_name]
         
@@ -239,21 +260,29 @@ class MusesSpectralWindow(rf.SpectralWindow):
             nmw = [len(rowlist)]
         else:
             nmw = [len(rowlist[rowlist["Filter"] == flt]) for flt in flist]
-        mw_range = np.zeros((len(flist), max(nmw), 2))
-        filter_name = np.full((len(flist), max(nmw)), None, dtype=np.dtype(object))
-        rt = np.full((len(flist), max(nmw)), None, dtype=np.dtype(object))
-        species_list = np.full((len(flist), max(nmw)), None, dtype=np.dtype(object))
+        mw_range = np.zeros((len(filter_list_all) if filter_list_all is not None and
+                             different_filter_different_sensor_index
+                             else len(flist), max(nmw), 2))
+        filter_name = np.full((mw_range.shape[0], mw_range.shape[1]),
+                              None, dtype=np.dtype(object))
+        rt = np.full(filter_name.shape, None, dtype=np.dtype(object))
+        species_list = np.full(filter_name.shape, None, dtype=np.dtype(object))
         for i,flt in enumerate(flist):
+            if(filter_list_all is not None and
+               flt is not None):
+                ind = filter_list_all.index(flt)
+            else:
+                ind = i
             if(flt is None):
                 mwlist = rowlist
             else:
                 mwlist = rowlist[rowlist["Filter"] == flt]
             for j, mw in enumerate(mwlist.iloc):
-                mw_range[i,j,0] = mw['WindowStart']
-                mw_range[i,j,1] = mw['WindowEnd']
-                filter_name[i,j] = mw["Filter"]
-                rt[i,j] = mw["RT"]
-                species_list[i,j] = mw["Species"]
+                mw_range[ind,j,0] = mw['WindowStart']
+                mw_range[ind,j,1] = mw['WindowEnd']
+                filter_name[ind,j] = mw["Filter"]
+                rt[ind,j] = mw["RT"]
+                species_list[ind,j] = mw["Species"]
         mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
         return cls(spec_win=rf.SpectralWindowRange(mw_range), obs=None,
                    instrument_name=instrument_name,
@@ -288,7 +317,8 @@ class MusesSpectralWindow(rf.SpectralWindow):
         stable["preferences"] = \
             {"viewingMode" : viewing_mode,
              "spectralWindowDirectory" : spectral_window_directory}
-        t1 = [",".join(retrieval_elements), step_name, retrieval_type]
+        t1 = [",".join(retrieval_elements) if len(retrieval_elements) > 0 else '-',
+              step_name, retrieval_type]
         t2 = ["retrievalElements", "stepName", "retrievalType"]
         if(spec_file is not None):
             t1.append(spec_file)

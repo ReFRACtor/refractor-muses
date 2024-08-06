@@ -151,7 +151,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
                                                 self.retrieval_config,
                                                 self._strategy_table.filter_list_all())
-        self._cost_function_creator.update_target(self.measurement_id)
+        self._cost_function_creator.notify_update_target(self.measurement_id)
+        self._strategy_executor.spectral_window_handle_set.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
         self._state_info.notify_update_target(self)
         self.notify_update("update target")

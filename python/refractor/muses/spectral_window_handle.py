@@ -92,6 +92,7 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         self.spectral_window_directory = measurement_id.filename("spectralWindowDirectory")
         self.viewing_mode = measurement_id.value("viewingMode")
         self.filter_metadata = FileFilterMetadata(measurement_id.filename("defaultSpectralWindowsDefinitionFilename"))
+        self.filter_list_dict = measurement_id.filter_list_dict
 
     def spectral_window_dict(self,
              current_strategy_step : 'CurrentStrategyStep') -> "dict(str, MusesSpectralWindow)":
@@ -105,7 +106,8 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
             current_strategy_step.step_name,
             current_strategy_step.retrieval_type,
             current_strategy_step.microwindow_file_name_override)
-        return MusesSpectralWindow.create_dict_from_file(fname, self.filter_metadata)
+        return MusesSpectralWindow.create_dict_from_file(fname, self.filter_list_dict,
+                                                         self.filter_metadata)
 
 # For now, just fall back to the old muses-py code.    
 SpectralWindowHandleSet.add_default_handle(MusesPySpectralWindowHandle())

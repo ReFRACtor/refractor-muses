@@ -29,7 +29,7 @@ class CostFunctionCreator:
         self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
         self.measurement_id = None
 
-    def update_target(self, measurement_id : 'MeasurementId'):
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Set up for processing a target.
 
         Note we separate this out from the cost_function creator
@@ -52,7 +52,7 @@ class CostFunctionCreator:
     def cost_function(self,
                       instrument_name_list : "list[str]",
                       current_state : CurrentState,
-                      spec_win : "list[rf.SpectralWindowRange]",
+                      spec_win_dict : "Optional(dict(str, MusesSpectralWindow))",
                       rf_uip_func,
                       include_bad_sample=False,
                       do_systematic=False,
@@ -64,10 +64,12 @@ class CostFunctionCreator:
 
         This takes the list of instrument names that make up this particular retrieval
         step, the current state information (see CurrentState class for description), and
-        a list (one per instrument) of SpectralWindowRanges to apply the microwindows.
-        Note that the SpectralWindows should *not* exclude bad pixels at this point. We
+        a dict going from the instrument name to the MusesSpectralWindow. Note that the the
+        MusesSpectralWindow should *not* exclude bad pixels at this point. We
         generally need the Observation that we create as part of this function to determine
-        bad pixels, so we add that to the passed in SpectralWindows.
+        bad pixels, so we add that to the passed in MusesSpectralWindow. As a convenience,
+        None can be passed in which uses the full band. Normally you don't want this, but it
+        can be convenient for testing.
 
         The muses-py versions of the ForwardModel depend on a RefractorUip structure. To
         support these older ForwardModel, and function is passed in that can be called to
@@ -97,7 +99,7 @@ class CostFunctionCreator:
         self._rf_uip = None
         self._rf_uip_func = rf_uip_func
         args = self._forward_model(
-            instrument_name_list, current_state, spec_win,
+            instrument_name_list, current_state, spec_win_dict,
             self._rf_uip_func_wrap, include_bad_sample=include_bad_sample,
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
             obs_list=obs_list, fix_apriori_size=fix_apriori_size,
@@ -118,7 +120,7 @@ class CostFunctionCreator:
     def _forward_model(self,
                        instrument_name_list : "list[str]",
                        current_state : CurrentState,
-                       spec_win_dict : "Optional(dict[str, rf.SpectralWindowRange])",
+                       spec_win_dict : "Optional(dict[str, MusesSpectralWindow])",
                        rf_uip_func,
                        include_bad_sample=False,
                        obs_list=None,
@@ -136,13 +138,13 @@ class CostFunctionCreator:
             for instrument_name in instrument_name_list:
                 obs = self.observation_handle_set.observation(
                     instrument_name, current_state,
-                    MusesSpectralWindow(spec_win_dict[instrument_name], obs=None), fm_sv,
-                    **kwargs)
+                    spec_win_dict[instrument_name] if spec_win_dict is not None else None,
+                    fm_sv, **kwargs)
                 # TODO Would probably be good to remove
                 # include_bad_sample, it isn't clear that we ever want
                 # to run the forward model for bad samples. But right
                 # now the existing py-retrieve code requires this is a
-                # few places.a
+                # few places.
                 if(include_bad_sample):
                     obs.spectral_window.include_bad_sample=include_bad_sample
                 self.obs_list.append(obs)

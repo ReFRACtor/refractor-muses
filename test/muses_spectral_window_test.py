@@ -77,9 +77,10 @@ def test_muses_spectral_window_microwindows(osp_dir):
     # but at a higher level. At this level, we just read "a given file"
     spec_fname = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     fmeta = FileFilterMetadata(default_fname)
-    swin = MusesSpectralWindow.create_from_file(spec_fname, "TROPOMI", fmeta,
+    swin = MusesSpectralWindow.create_from_file(spec_fname, "TROPOMI",
+                                                filter_metadata=fmeta,
                                                 different_filter_different_sensor_index=True)
-    swin_dict = MusesSpectralWindow.create_dict_from_file(spec_fname, fmeta)
+    swin_dict = MusesSpectralWindow.create_dict_from_file(spec_fname, filter_metadata=fmeta)
     assert spec_fname == MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
         viewing_mode, spectral_dir, retrieval_elements, step_name, retrieval_type,
         spec_file=None)

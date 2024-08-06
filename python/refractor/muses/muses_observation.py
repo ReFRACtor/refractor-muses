@@ -44,7 +44,7 @@ class MeasurementId(object, metaclass=abc.ABCMeta):
     '''
 
     @abc.abstractproperty
-    def filter_list(self) -> 'list[str]':
+    def filter_list_dict(self) -> 'dict(str,list[str])':
         '''The complete list of filters we will be processing (so for all retrieval steps)
         '''
         raise NotImplementedError
@@ -71,15 +71,15 @@ class MeasurementId(object, metaclass=abc.ABCMeta):
 
 class MeasurementIdDict(MeasurementId):
     '''Implementation of MeasurementId that uses a dict'''
-    def __init__(self, measurement_dict : dict, filter_list: list):
+    def __init__(self, measurement_dict : dict, filter_list_dict: dict):
         self.measurement_dict = measurement_dict
-        self._filter_list = filter_list
+        self._filter_list_dict = filter_list_dict
 
     @property
-    def filter_list(self) -> 'list[str]':
+    def filter_list_dict(self) -> 'dict(str,list[str])':
         '''The complete list of filters we will be processing (so for all retrieval steps)
         '''
-        return self._filter_list
+        return self._filter_list_dict
 
     def value(self, keyword: str) -> str:
         return self.measurement_dict[value]
@@ -91,18 +91,18 @@ class MeasurementIdDict(MeasurementId):
 class MeasurementIdFile(MeasurementId):
     '''Implementation of MeasurementId that uses the Measurement_ID.asc file.'''
     def __init__(self, fname, retrieval_config: RetrievalConfiguration,
-                 filter_list : 'dict(str, list(str))'):
+                 filter_list_dict : 'dict(str, list(str))'):
         self.fname = fname
         self._dir_relative_to = os.path.abspath(os.path.dirname(self.fname))
         self._p = mpy.tes_file_get_struct(mpy.read_all_tes(self.fname)[1])["preferences"]
-        self._filter_list = filter_list
+        self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
     
     @property
-    def filter_list(self) -> 'list[str]':
+    def filter_list_dict(self) -> 'list[str]':
         '''The complete list of filters we will be processing (so for all retrieval steps)
         '''
-        return self._filter_list
+        return self._filter_list_dict
 
     def value(self, keyword: str) -> str:
         '''Return a value found in the Measurement_ID file, or if not there
@@ -169,20 +169,25 @@ class MusesObservation(rf.ObservationSvImpBase):
     
     @property
     def filter_data(self) -> "list[list[str,int]]":
-        '''This returns a list of filter names and sizes. This is used as metadata in the
-        py-retrieve structure called "radianceStep".
+        '''This returns a list of filter names and sizes. This is used
+        as metadata in the py-retrieve structure called
+        "radianceStep".
 
-        Note this is similar but distinct from the filter_list used in MeasurementId. That
-        list corresponds to specific data read from a file. Often this is the same as the
-        filter data used in "radianceStep", but in some cases py-retrieve wants to think
-        of data as different filters even if it is read from one structure - so for
-        example CrIS data gets separated into 'CrIS-fsr-lw', 'CrIS-fsr-mw', 'CrIS-fsr-sw'
-        even though the data is read into one array in read_noaa_cris_fsr. Individual
-        classes can handle generating this filter_data however they like, there is
-        no requirement that the number of filters is the same as the number of channels.
+        Note this is similar but distinct from the filter_list_dict
+        used in MeasurementId. That list corresponds to specific data
+        read from a file. Often this is the same as the filter data
+        used in "radianceStep", but in some cases py-retrieve wants to
+        think of data as different filters even if it is read from one
+        structure - so for example CrIS data gets separated into
+        'CrIS-fsr-lw', 'CrIS-fsr-mw', 'CrIS-fsr-sw' even though the
+        data is read into one array in read_noaa_cris_fsr. Individual
+        classes can handle generating this filter_data however they
+        like, there is no requirement that the number of filters is
+        the same as the number of channels.
         
-        This should return a list of pairs as a filter name and length of data (using
-        the spectral_window).
+        This should return a list of pairs as a filter name and length
+        of data (using the spectral_window).
+
         '''
         raise NotImplementedError()
 
@@ -450,7 +455,7 @@ class MusesAirsObservation(MusesObservationImp):
                       num_channels=existing_obs.num_channels)
         else:
             # Read the data from disk, because it doesn't already exist.
-            filter_list = mid.filter_list["AIRS"]
+            filter_list = mid.filter_list_dict["AIRS"]
             filename = mid.filename('AIRS_filename')
             granule = mid.value('AIRS_Granule')
             xtrack = mid.value_int('AIRS_XTrack_Index')
@@ -616,7 +621,7 @@ class MusesCrisObservation(MusesObservationImp):
             obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
                       num_channels=existing_obs.num_channels)
         else:
-            filter_list = mid.filter_list["CRIS"]
+            filter_list = mid.filter_list_dict["CRIS"]
             filename = mid.filename('CRIS_filename')
             granule = mid.value("CRIS_Granule")
             xtrack = mid.value_int('CRIS_XTrack_Index')
@@ -1005,7 +1010,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
                       existing_obs.filter_list, existing_obs=existing_obs,
                       coeff=coeff, mp=mp)
         else:
-            filter_list = mid.filter_list["TROPOMI"]
+            filter_list = mid.filter_list_dict["TROPOMI"]
             if(current_state is not None):
                 coeff,mp=current_state.object_state(cls.state_element_name_list_from_filter(filter_list))
             if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
@@ -1126,7 +1131,7 @@ class MusesOmiObservation(MusesObservationReflectance):
                       existing_obs.filter_list, existing_obs=existing_obs,
                       coeff=coeff, mp=mp)
         else:
-            filter_list = mid.filter_list["OMI"]
+            filter_list = mid.filter_list_dict["OMI"]
             if(current_state is not None):
                 coeff,mp=current_state.object_state(
                     cls.state_element_name_list_from_filter(filter_list))

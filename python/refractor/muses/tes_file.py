@@ -50,10 +50,17 @@ class TesFile(collections.abc.Mapping):
         # Split into header and table part. Note not all files have table part, but
         # should have a header part
         t2 = re.split(r'^\s*end_of_header.*$', t, flags=re.MULTILINE | re.IGNORECASE)
-        if(len(t2) not in (1,2)):
+        # Turns out there was a sample
+        # (Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_TATM_H2O_N2O_CH4_HDO_BAR_LAND.asc)
+        # where there is a copy of the file from a previous version at the end
+        # - so we actually have multiple end_of_header markers. Seems kind of
+        # hokey, we should perhaps have commented out this old data. But for
+        # backwards compatibility, just ignore this.
+        #if(len(t2) not in (1,2)):
+        if(len(t2) < 1):
             raise RuntimeError(f"Trouble parsing file {self.file_name}")
         hdr = t2[0]
-        tbl = t2[1] if len(t2) == 2 else None
+        tbl = t2[1] if len(t2) >= 2 else None
         
         # Strip comments out
         hdr = re.sub(r'//(.*)$', '', hdr, flags=re.MULTILINE)
@@ -69,7 +76,7 @@ class TesFile(collections.abc.Mapping):
         if(tbl is not None and re.search(r'\S', tbl)):
             # The table has 2 header lines, the actual header and the units.
             # pandas can actually create a table like this, using a multindex.
-            # But this is more complicate they we want, so just split out the
+            # But this is more complicated than we want, so just split out the
             # second header and treat it separately
             t = tbl.lstrip().splitlines()
             hdr = t[0]

@@ -43,3 +43,11 @@ def test_tes_file(osp_dir):
     tfile2 = TesFile(fname, use_mpy=True)
     assert(dict(tfile) == dict(tfile2))
     assert tfile.table.equals(tfile2.table)
+
+    # Another example with stuff as the end of the file
+    fname = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_TATM_H2O_N2O_CH4_HDO_BAR_LAND.asc"
+    tfile = TesFile.create(fname)
+    tfile2 = TesFile(fname, use_mpy=True)
+    assert(dict(tfile) == dict(tfile2))
+    assert tfile.table.equals(tfile2.table)
+    
