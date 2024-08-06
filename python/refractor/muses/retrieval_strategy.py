@@ -17,6 +17,7 @@ from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 from .error_analysis import ErrorAnalysis
 from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
+from .spectral_window_handle import SpectralWindowHandleSet
 import logging
 import refractor.muses.muses_py as mpy
 import os
@@ -96,6 +97,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._table_step = -1
 
         self._retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
+        self._spectral_window_handle_set = copy.deepcopy(SpectralWindowHandleSet.default_handle_set())
         self._cost_function_creator = CostFunctionCreator(rs=self)
         self._forward_model_handle_set = self._cost_function_creator.forward_model_handle_set
         self._observation_handle_set = self._cost_function_creator.observation_handle_set
@@ -145,7 +147,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         when this changes in case they need to clear out any caching.'''
         self._filename = os.path.abspath(filename)
         self._capture_directory.rundir = os.path.dirname(self.strategy_table_filename)
-        self._strategy_executor = MusesStrategyExecutorOldStrategyTable(self.strategy_table_filename, self)
+        self._strategy_executor = MusesStrategyExecutorOldStrategyTable(
+            self.strategy_table_filename, self,
+            retrieval_strategy_step_set=self._retrieval_strategy_step_set,
+            spectral_window_handle_set=self._spectral_window_handle_set)
         self._strategy_table = self._strategy_executor.stable
         self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.strategy_table_filename)
         self._measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
@@ -259,6 +264,16 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     def state_element_handle_set(self) -> StateElementHandleSet:
         '''The set of handles we use for each state element.'''
         return self._state_element_handle_set
+
+    @property
+    def retrieval_strategy_step_set(self) -> RetrievalStrategyStepSet:
+        '''The set of handles for determining the RetrievalStrategyStep.'''
+        return self._retrieval_strategy_step_set
+
+    @property
+    def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
+        '''The set of handles for determining the MusesSpectralWindow.'''
+        return self._spectral_window_handle_set
     
     @property
     def _cloud_prefs(self):

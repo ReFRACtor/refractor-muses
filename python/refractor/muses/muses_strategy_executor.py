@@ -162,8 +162,11 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     '''Placeholder that wraps the muses-py strategy table up, so we can get the
     infrastructure in place before all the pieces are ready'''
 
-    def __init__(self, filename : str, rs : 'RetrievalStrategy', osp_dir=None):
-        super().__init__(retrieval_strategy_step_set = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set()))
+    def __init__(self, filename : str, rs : 'RetrievalStrategy', osp_dir=None,
+                 retrieval_strategy_step_set=None,
+                 spectral_window_handle_set=None):
+        super().__init__(retrieval_strategy_step_set = retrieval_strategy_step_set,
+                         spectral_window_handle_set = spectral_window_handle_set)
         self.stable = StrategyTable(filename, osp_dir=osp_dir)
         self.rs = rs
 
