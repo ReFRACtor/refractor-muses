@@ -13,7 +13,11 @@ import refractor.framework as rf
 # could probably integrate this together if it is important
 rf.Logger.set_implementation(rf.FpLogger())
 
-rs = RetrievalStrategy(None)
+# Note that the VLIDORT code depends on MusesCrisObservation writing a pickle
+# file that it then reads elsewhere. This is a bad design - we really are using
+# the file as a hidden variable. But to support the old py-retrieve code, we need
+# to do this.
+rs = RetrievalStrategy(None, write_tropomi_radiance_pickle=True)
 if False:
     # If desired, capture each step so we can rerun this for debugging
     rscap = RetrievalStrategyCaptureObserver("retrieval_step",

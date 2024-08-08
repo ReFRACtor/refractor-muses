@@ -153,7 +153,8 @@ def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
                            "TROPOMIRADSQUEEZEBAND3" : 0.3,}
                            , ["TROPOMISOLARSHIFTBAND3",])
     obs = MusesTropomiObservation.create_from_id(rs.measurement_id, None,
-                                              cs, swin, None, osp_dir=osp_dir)
+                                                 cs, swin, None, osp_dir=osp_dir,
+                                                 write_tropomi_radiance_pickle=True)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
