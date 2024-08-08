@@ -53,7 +53,7 @@ class OmiEofStateElement(RetrievableStateElement):
                              retrieval_info: RetrievalInfo,
                              results_list:np.array,
                              update_next: bool,
-                             cloud_prefs : dict,
+                             retrieval_config : 'RetrievalConfiguration',
                              step : int,
                              do_update_fm : np.array):
         # If we are requested not to update the next step, then save a copy

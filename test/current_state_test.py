@@ -53,7 +53,7 @@ def test_current_state_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
         pass
     os.chdir(r.run_dir)
     # Sets up retrieval_info
-    for i in range(rs.number_table_step):
+    for i in range(rs.number_retrieval_step):
         rs.table_step = i
         rs.retrieval_info.stepNumber = rs.table_step
         rs.retrieval_info.stepName = rs.step_name

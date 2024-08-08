@@ -86,7 +86,7 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     rinfo = RetrievalInfo(rs._error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
-    sinfo.update_state(rinfo, results_list, [], rs._cloud_prefs,
+    sinfo.update_state(rinfo, results_list, [], rs.retrieval_config,
                        stable.table_step)
     
     assert selement.mapType == "linear"
@@ -180,7 +180,7 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     rinfo = RetrievalInfo(rs._error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
-    sinfo.update_state(rinfo, results_list, ["OMICLOUDFRACTION"], rs._cloud_prefs,
+    sinfo.update_state(rinfo, results_list, ["OMICLOUDFRACTION"], rs.retrieval_config,
                        stable.table_step)
     
     assert selement.mapType == "linear"
@@ -287,7 +287,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     rinfo = RetrievalInfo(rs._error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
-    sinfo.update_state(rinfo, results_list, [], rs._cloud_prefs,
+    sinfo.update_state(rinfo, results_list, [], rs.retrieval_config,
                        stable.table_step)
     
     assert selement.mapType == "linear"
@@ -387,7 +387,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     rinfo = RetrievalInfo(rs._error_analysis, stable, sinfo)
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
-    sinfo.update_state(rinfo, results_list, ["OMIEOFUV1"], rs._cloud_prefs,
+    sinfo.update_state(rinfo, results_list, ["OMIEOFUV1"], rs.retrieval_config,
                        stable.table_step)
     
     assert selement.mapType == "linear"

@@ -3,33 +3,22 @@ from .refractor_capture_directory import (RefractorCaptureDirectory,
 from .retrieval_l2_output import RetrievalL2Output
 from .retrieval_radiance_output import RetrievalRadianceOutput
 from .retrieval_jacobian_output import RetrievalJacobianOutput
-from .retrieval_debug_output import (RetrievalInputOutput, RetrievalPickleResult,
+from .retrieval_debug_output import (RetrievalPickleResult,
                                      RetrievalPlotRadiance, RetrievalPlotResult)
 from .retrieval_strategy_step import RetrievalStrategyStepSet
-from .strategy_table import StrategyTable
 from .retrieval_configuration import RetrievalConfiguration
 from .cost_function_creator import CostFunctionCreator
 from .muses_observation import MeasurementIdFile
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
 from .state_info import StateElementHandleSet
-from .replace_function_helper import (suppress_replacement,
-                                      register_replacement_function_in_block)
-from .error_analysis import ErrorAnalysis
 from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
 from .spectral_window_handle import SpectralWindowHandleSet
 import logging
 import refractor.muses.muses_py as mpy
 import os
 import copy
-import numpy as np
-import numpy.testing as npt
 import pickle
-from pathlib import Path
-from pprint import pformat, pprint
-import time
-from contextlib import contextmanager
-from .retrieval_info import RetrievalInfo
 from .state_info import StateInfo
 logger = logging.getLogger("py-retrieve")
 
@@ -147,15 +136,15 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         when this changes in case they need to clear out any caching.'''
         self._filename = os.path.abspath(filename)
         self._capture_directory.rundir = os.path.dirname(self.strategy_table_filename)
+        self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.strategy_table_filename)
         self._strategy_executor = MusesStrategyExecutorOldStrategyTable(
             self.strategy_table_filename, self,
             retrieval_strategy_step_set=self._retrieval_strategy_step_set,
             spectral_window_handle_set=self._spectral_window_handle_set)
         self._strategy_table = self._strategy_executor.stable
-        self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.strategy_table_filename)
         self._measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
-                                                self.retrieval_config,
-                                                self._strategy_table.filter_list_all())
+                                                 self.retrieval_config,
+                                                 self._strategy_executor.filter_list_dict)
         self._cost_function_creator.notify_update_target(self.measurement_id)
         self._strategy_executor.spectral_window_handle_set.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
@@ -214,21 +203,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             logger.info('\n---')    
             return exitcode
 
-    def get_initial_guess(self):
-        '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
-        self._retrieval_info = RetrievalInfo(self._error_analysis, self._strategy_table,
-                                             self._state_info)
-
-        # Update state with initial guess so that the initial guess is
-        # mapped properly, if doing a retrieval, for each retrieval step.
-        nparm = self._retrieval_info.n_totalParameters
-        logger.info(f"Step: {self.table_step}, Total Parameters: {nparm}")
-
-        if nparm > 0:
-            xig = self._retrieval_info.initial_guess_list[0:nparm]
-            self._state_info.update_state(self._retrieval_info, xig, [],
-                                         self._cloud_prefs, self.table_step)
-
     @property
     def run_dir(self) -> str:
         '''Directory we are running in (e.g. where the strategy table and measurement id files
@@ -276,26 +250,23 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         return self._spectral_window_handle_set
     
     @property
-    def _cloud_prefs(self):
-        (_, fileID) = mpy.read_all_tes_cache(self._strategy_table.cloud_parameters_filename)
-        cloudPrefs = fileID['preferences']
-        return cloudPrefs
-        
-    @property
     def table_step(self) -> int:
-        return self._strategy_table.table_step
+        return self._strategy_executor.current_strategy_step.step_number
 
     @table_step.setter
     def table_step(self, v : int):
-        self._strategy_table.table_step = v
+        # I think this can go away, but short term leave as an error
+        # to catch a place where this might actually be used.
+        #self._strategy_table.table_step = v
+        raise NotImplementedError()
 
     @property
-    def number_table_step(self) -> int:
-        return self._strategy_table.number_table_step
+    def number_retrieval_step(self) -> int:
+        return self._strategy_executor.number_retrieval_step
 
     @property
     def step_name(self) -> str:
-        return self._strategy_table.step_name
+        return self._strategy_executor.current_strategy_step.step_name
 
     @property
     def step_directory(self) -> str:
@@ -303,14 +274,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     @property
     def retrieval_type(self) -> str:
-        return self._retrieval_info.type.lower()
+        return self._strategy_executor.current_strategy_step.retrieval_type.lower()
 
     @property
-    def retrieval_info(self) -> RetrievalInfo:
+    def retrieval_info(self) -> "RetrievalInfo":
         '''RetrievalInfo for current retrieval step. Note it might be good to remove this
         if possible, right now this is just used by RetrievalL2Output. But at least for now
         we need this to get the required information for the output.'''
-        return self._retrieval_info
+        return self._strategy_executor.current_strategy_step.retrieval_info
 
     def retrieval_elements(self, step_num: int) -> 'list(str)':
         # This is just used in RetrievalL2Output to figure out the output name.
@@ -336,8 +307,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         '''This pairs with save_pickle.'''
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
         res._capture_directory.rundir = f"{os.path.abspath(path)}/{res._capture_directory.runbase}"
-        res._strategy_table.filename = f"{res.run_dir}/{os.path.basename(res._strategy_table.filename)}"
-        res._filename = res._strategy_table.filename
+        res._filename = f"{res.run_dir}/{os.path.basename(res.strategy_table_filename)}"
+        res._strategy_executor.strategy_table_filename = res._filename
         res._retrieval_config.osp_dir = osp_dir
         res._retrieval_config.base_dir = res.run_dir
         res._capture_directory.extract_directory(path=path,

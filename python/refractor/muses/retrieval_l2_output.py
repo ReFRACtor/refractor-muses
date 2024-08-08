@@ -36,7 +36,7 @@ class RetrievalL2Output(RetrievalOutput):
         if(self._species_count is None):
             self._species_count = defaultdict(lambda: 0)
             tstep = self.table_step
-            for i in range(self.table_step+1, self.number_table_step):
+            for i in range(self.table_step+1, self.number_retrieval_step):
                 for spc in self.retrieval_strategy.retrieval_elements(i):
                     self._species_count[spc] += 1
         return self._species_count

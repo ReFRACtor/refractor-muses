@@ -27,7 +27,7 @@ class EofStateElement(RetrievableStateElement):
                              retrieval_info: RetrievalInfo,
                              results_list:np.array,
                              update_next: bool,
-                             cloud_prefs : dict,
+                             retrieval_config : 'RetrievalConfiguration',
                              step : int,
                              do_update_fm : np.array):
         self._value = results_list[retrieval_info.species_list==self._name]

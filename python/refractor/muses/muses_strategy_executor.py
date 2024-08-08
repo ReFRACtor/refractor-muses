@@ -1,8 +1,10 @@
 from .retrieval_strategy_step_new import RetrievalStrategyStepSetNew
 from .retrieval_strategy_step import RetrievalStrategyStepSet
+from .retrieval_info import RetrievalInfo
 from .strategy_table import StrategyTable
 from .error_analysis import ErrorAnalysis
 from .spectral_window_handle import SpectralWindowHandleSet
+import refractor.muses.muses_py as mpy
 import abc
 import copy
 import logging
@@ -87,6 +89,14 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         '''The retrieval type.'''
         raise NotImplementedError()
 
+    @abc.abstractproperty
+    def retrieval_info(self) -> RetrievalInfo:
+        '''The RetrievalInfo.'''
+        # Note it would probably be good to remove this if we can. Right now
+        # this is only used by RetrievalL2Output. But at least for now, we
+        # need to to generate the output
+        raise NotImplementedError()
+    
 class CurrentStrategyStepDict(CurrentStrategyStep):
     '''Implementation of CurrentStrategyStep that uses a dict'''
     def __init__(self, current_strategy_step_dict : dict):
@@ -125,7 +135,14 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     def retrieval_type(self) -> str:
         '''The retrieval type.'''
         return self.current_strategy_step_dict['retrieval_type']
-        
+
+    @property
+    def retrieval_info(self) -> RetrievalInfo:
+        '''The RetrievalInfo.'''
+        # Note it would probably be good to remove this if we can. Right now
+        # this is only used by RetrievalL2Output. But at least for now, we
+        # need to to generate the output
+        return self.current_strategy_step_dict["retrieval_info"]
     
 class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     '''Much of the time our strategy is going to depend on having
@@ -143,6 +160,20 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self._spectral_window_handle_set = spectral_window_handle_set
             
 
+    @property
+    def filter_list_dict(self) -> 'dict(str,list[str])':
+        '''The complete list of filters we will be processing (so for all retrieval steps)
+        '''
+        raise NotImplementedError
+
+    @property
+    def number_retrieval_step(self) -> int:
+        '''Total number of retrieval steps. Note that this might change as
+        we work through the retrieval based off decisions from early steps.'''
+        # I think this is only needed for logging messages, we might be
+        # able to remove this if it proves hard to calculate
+        raise NotImplementedError
+    
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:
         '''Return the CurrentStrategyStep for the current step.'''
@@ -169,9 +200,27 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                          spectral_window_handle_set = spectral_window_handle_set)
         self.stable = StrategyTable(filename, osp_dir=osp_dir)
         self.rs = rs
+        self.retrieval_config = rs.retrieval_config
 
-    def filter_list_all(self):
+    @property
+    def strategy_table_filename(self):
+        return self.stable.filename
+
+    @strategy_table_filename.setter
+    def strategy_table_filename(self, v):
+        self.self.filename = v
+        
+    @property
+    def filter_list_dict(self) -> 'dict(str,list[str])':
+        '''The complete list of filters we will be processing (so for all retrieval steps)
+        '''
         return self.stable.filter_list_all()
+
+    @property
+    def number_retrieval_step(self) -> int:
+        '''Total number of retrieval steps. Note that this might change as
+        we work through the retrieval based off decisions from early steps.'''
+        return self.stable.number_table_step
 
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:
@@ -181,7 +230,8 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
              'step_name' : self.stable.step_name,
              'step_number' : self.stable.table_step,
              'max_num_iterations' : self.stable.max_num_iterations,
-             'retrieval_type' : self.stable.retrieval_type
+             'retrieval_type' : self.stable.retrieval_type,
+             'retrieval_info' : self.retrieval_info
              })
 
     def restart(self):
@@ -195,7 +245,23 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     def is_done(self):
         '''Return true if we are done, otherwise false.'''
         return self.stable.table_step >= self.stable.number_table_step
-    
+
+    def get_initial_guess(self):
+        '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
+        self.retrieval_info = RetrievalInfo(self.error_analysis, self.stable,
+                                             self.state_info)
+
+        # Update state with initial guess so that the initial guess is
+        # mapped properly, if doing a retrieval, for each retrieval step.
+        nparm = self.retrieval_info.n_totalParameters
+        logger.info(f"Step: {self.current_strategy_step.step_number}, Total Parameters: {nparm}")
+
+        if nparm > 0:
+            xig = self.retrieval_info.initial_guess_list[0:nparm]
+            self.state_info.update_state(self.retrieval_info, xig, [],
+                          self.retrieval_config, self.current_strategy_step.step_number)
+
+
     def run_step(self):
         '''Run a the current step.'''
         self.rs._swin_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
@@ -204,7 +270,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         logger.info(f'\n---')
         logger.info(f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.stable.number_table_step}")
         logger.info(f'\n---')
-        self.rs.get_initial_guess()
+        self.get_initial_guess()
         self.rs.notify_update("done get_initial_guess")
         logger.info(f"Step: {self.current_strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}")
         self.rs._retrieval_strategy_step_set.retrieval_step(self.current_strategy_step.retrieval_type, self.rs)
@@ -237,7 +303,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         # leave this in place until we understand this
         self.restart()
         while(not self.is_done()):
-            self.rs.get_initial_guess()
+            self.get_initial_guess()
             self.next_step()
         # Not sure that this is needed or used anywhere, but for now go ahead and this
         # this until we know for sure it doesn't matter.

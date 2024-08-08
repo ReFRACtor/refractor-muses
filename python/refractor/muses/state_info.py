@@ -107,7 +107,7 @@ class RetrievableStateElement(StateElement):
                              retrieval_info: RetrievalInfo,
                              results_list: np.array,
                              update_next: bool,
-                             cloud_prefs : dict,
+                             retrieval_config : 'RetrievalConfiguration',
                              step : int,
                              do_update_fm : np.array):
         '''Update the state element based on retrieval results.
@@ -465,7 +465,7 @@ class StateInfo:
         
 
     def update_state(self, retrieval_info : "RetrievalInfo",
-                     results_list: np.array, do_not_update, cloud_prefs:dict, step:int):
+                     results_list: np.array, do_not_update, retrieval_config : 'RetrievalConfigurationn', step:int):
         '''Note this updates the current state, and also creates a "next_state".
         The difference is that current gets all the changes found in the
         results_list, but next_state only gets the elements updated that aren't
@@ -481,7 +481,7 @@ class StateInfo:
             update_next = False if state_element_name in do_not_update else True
             self.state_element(state_element_name).update_state_element(
                 retrieval_info, results_list, update_next,
-                cloud_prefs, step, do_update_fm)
+                retrieval_config, step, do_update_fm)
             
         # Update altitude and air density
         indt = self.state_element_on_levels.index("TATM")

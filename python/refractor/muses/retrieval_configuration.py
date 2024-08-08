@@ -18,7 +18,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
     I'm not sure how to best capture what values are expected, since the list seems to
     be a bit dynamic (e.g., if you are using ILS then things like
     "apodizationMethodObs" are needed - otherwise not). At least for now, we make no
-    assumption in this class than any particular value is here, you simply get an error
+    assumption in this class that any particular value is here, you simply get an error
     if a value is looked for and not found.
 
     Note that a strategy table file tends to use relative paths from wherever the file
@@ -61,6 +61,10 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         d = dict(f)
         d.update(res._data)
         res._data = d
+        # Add in cloud parameters.
+        f = TesFile.create(res['CloudParameterFilename'])
+        res._data.update(f)
+        
         # There really should be a liteDirectory included here, but for some reason
         # muses-py treats this differently as a hard coded value - probably the general
         # problem of always solving problems locally rather than the best way.

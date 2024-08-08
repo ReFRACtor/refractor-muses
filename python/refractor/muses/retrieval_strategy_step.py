@@ -82,7 +82,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         '''
         if(self._uip is None):
             if(do_systematic):
-                retrieval_info = rs._retrieval_info.retrieval_info_obj
+                retrieval_info = rs.retrieval_info.retrieval_info_obj
                 rinfo = mpy.ObjectView({
                     'parameterStartFM': retrieval_info.parameterStartSys,
                     'parameterEndFM' : retrieval_info.parameterEndSys,
@@ -97,7 +97,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
                     'n_totalParametersFM': retrieval_info.n_totalParametersSys
                 })
             else:
-                rinfo = rs._retrieval_info
+                rinfo = rs.retrieval_info
             o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
                      "TROPOMI" : None, "OCO2" : None}
             o_airs = None
@@ -132,13 +132,13 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
         If do_systematic is True, then we use the systematic species list. '''
         self._uip = None
-        self.cstate = CurrentStateStateInfo(rs._state_info, rs._retrieval_info,
+        self.cstate = CurrentStateStateInfo(rs._state_info, rs.retrieval_info,
                                             do_systematic=do_systematic,
                                             retrieval_state_element_override=jacobian_speciesIn)
         # Temp, until we get this sorted out
-        self.cstate.apriori_cov = rs._retrieval_info.apriori_cov
+        self.cstate.apriori_cov = rs.retrieval_info.apriori_cov
         self.cstate.sqrt_constraint = (mpy.sqrt_matrix(self.cstate.apriori_cov)).transpose()
-        self.cstate.apriori = rs._retrieval_info.apriori
+        self.cstate.apriori = rs.retrieval_info.apriori
         # TODO Would probably be good to remove include_bad_sample, it isn't clear that
         # we ever want to run the forward model for bad samples. But right now the existing
         # py-retrieve code requires this is a few places.a
@@ -211,7 +211,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             self.BTstruct,
             writeOutputFlag=False)
         rs._strategy_table.strategy_table_dict = rs._strategy_table.strategy_table_dict.__dict__
-        logger.info(f"Step: {rs.table_step},  Total Steps (after modify_from_bt): {rs.number_table_step}")
+        logger.info(f"Step: {rs.table_step},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
         rs._state_info.next_state_dict = copy.deepcopy(rs._state_info.state_info_dict["current"])
         return (True, None)
 
@@ -223,8 +223,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "irk":
             return (False,  None)
-        jacobian_speciesNames = rs._retrieval_info.species[0:rs._retrieval_info.n_species]
-        jacobian_specieslist = rs._retrieval_info.speciesListFM[0:rs._retrieval_info.n_totalParametersFM]
+        jacobian_speciesNames = rs.retrieval_info.species[0:rs.retrieval_info.n_species]
+        jacobian_specieslist = rs.retrieval_info.speciesListFM[0:rs.retrieval_info.n_totalParametersFM]
         jacobianOut = None
         mytiming = None
         uip=tes = cris = omi = tropomi = None 
@@ -232,7 +232,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         self.cfunc = self.create_cost_function(rs)
         (resultsIRK, jacobianOut) = mpy.run_irk(
             rs._strategy_table.strategy_table_dict,
-            rs._state_info, rs._strategy_table.microwindows(), rs._retrieval_info,
+            rs._state_info, rs._strategy_table.microwindows(), rs.retrieval_info,
             jacobian_speciesNames, 
             jacobian_specieslist, 
             self.radiance_step(),
@@ -254,8 +254,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
         rs.notify_update("retrieval input")
-        rs._retrieval_info.stepNumber = rs.table_step
-        rs._retrieval_info.stepName = rs.step_name
+        rs.retrieval_info.stepNumber = rs.table_step
+        rs.retrieval_info.stepName = rs.step_name
         logger.info("Running run_retrieval ...")
         
         # SSK 2023.  I find I get failures from glitches like reading
@@ -272,7 +272,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         ret_res = self.run_retrieval(rs)
 
-        self.results = RetrievalResult(ret_res, rs._strategy_table, rs._retrieval_info,
+        self.results = RetrievalResult(ret_res, rs._strategy_table, rs.retrieval_info,
                                        rs._state_info, self.cfunc.obs_list,
                                        self.radiance_full(rs),
                                        self.propagated_qa)
@@ -287,8 +287,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         else:
             do_not_update = []
 
-        rs._state_info.update_state(rs._retrieval_info, self.results.results_list,
-                                   do_not_update, rs._cloud_prefs, rs.table_step)
+        rs._state_info.update_state(rs.retrieval_info, self.results.results_list,
+                                    do_not_update, rs.retrieval_config,
+                                    rs.table_step)
         if 'OCO2' in rs._strategy_table.instrument_name():
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels
@@ -301,7 +302,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # nice not to have special handling to add bad samples if we turn around and
         # weed them out. For right now, these are required, we would need to update
         # the error analysis to work without bad samples
-        if(rs._retrieval_info.n_speciesSys > 0):
+        if(rs.retrieval_info.n_speciesSys > 0):
             cfunc_sys = self.create_cost_function(rs, do_systematic=True,
                                      include_bad_sample=True, fix_apriori_size=True)
             logger.info("Running run_forward_model for systematic jacobians ...")

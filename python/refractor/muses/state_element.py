@@ -74,7 +74,7 @@ class MusesPyStateElement(RetrievableStateElement):
                              retrieval_info: RetrievalInfo,
                              results_list: np.array,
                              update_next: bool,
-                             cloud_prefs : dict,
+                             retrieval_config : 'RetrievalConfiguration',
                              step : int,
                              do_update_fm : np.array):
         updateFlag = True
@@ -174,9 +174,9 @@ class MusesPyStateElement(RetrievableStateElement):
             else:
                 # IGR step
                 # get update preferences
-                updateAve = cloud_prefs['CLOUDEXT_IGR_Average'].lower()
-                maxAve = float(cloud_prefs['CLOUDEXT_IGR_Max'])
-                resetAve = float(cloud_prefs['CLOUDEXT_Reset_Value'])
+                updateAve = retrieval_config['CLOUDEXT_IGR_Average'].lower()
+                maxAve = float(retrieval_config['CLOUDEXT_IGR_Max'])
+                resetAve = float(retrieval_config['CLOUDEXT_Reset_Value'])
 
                 # Python note:  During development, we see that it is possible for the value of ind.size to be 0
                 #               A side effect of that is we cannot use ind array as indices into other arrays.
@@ -333,12 +333,12 @@ class MusesPyStateElement(RetrievableStateElement):
 
             # do bounds checking for refinement step
             if retrieval_info.retrieval_info_obj.type.lower() == 'bt_ig_refine':
-                igr_min_reset = float(cloud_prefs['PCLOUD_IGR_Min'])
+                igr_min_reset = float(retrieval_config['PCLOUD_IGR_Min'])
                 resetValue = -1
-                if 'PCLOUD_IGR_Reset_Value' in cloud_prefs.keys():
-                    resetValue = float(cloud_prefs['PCLOUD_IGR_Reset_Value'])
+                if 'PCLOUD_IGR_Reset_Value' in retrieval_config.keys():
+                    resetValue = float(retrieval_config['PCLOUD_IGR_Reset_Value'])
                 if resetValue == -1:
-                    resetValue = int(cloud_prefs['PCLOUD_Reset_Value'])
+                    resetValue = int(retrieval_config['PCLOUD_Reset_Value'])
 
                 if self.state_info.state_info_obj.current['PCLOUD'][0] > self.state_info.state_info_obj.current['pressure'][0]:
                     self.state_info.state_info_obj.current['PCLOUD'][0] = self.state_info.state_info_obj.current['pressure'][1]
@@ -1982,7 +1982,7 @@ class MusesPyOmiStateElement(MusesPyStateElement):
                              retrieval_info: RetrievalInfo,
                              results_list: np.array,
                              update_next: bool,
-                             cloud_prefs : dict,
+                             retrieval_config : 'RetrievalConfiguration',
                              step : int,
                              do_update_fm : np.array):
         # Note we assume here that all the mappings are linear. I'm pretty
@@ -2064,7 +2064,7 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
                              retrieval_info: RetrievalInfo,
                              results_list: np.array,
                              update_next: bool,
-                             cloud_prefs : dict,
+                             retrieval_config : 'RetrievalConfiguration',
                              step : int,
                              do_update_fm : np.array):
         # Note we assume here that all the mappings are linear. I'm pretty
