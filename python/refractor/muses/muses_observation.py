@@ -1041,11 +1041,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
                 filename_list, irr_filename, cld_filename, xtrack_list, atrack,
                 utc_time, filter_list, osp_dir=osp_dir)
             obs = cls(o_tropomi, sdesc,filter_list, coeff=coeff, mp=mp)
-            if(write_tropomi_radiance_pickle):
-                # Save file needed by py-retrieve VLIDORT code
-                pfname = os.path.normpath(f"{mid.filename('initialGuessDirectory')}/../Radiance_TROPOMI_.pkl")
+            
+        if(write_tropomi_radiance_pickle):
+            # Save file needed by py-retrieve VLIDORT code
+            pfname = os.path.normpath(f"{mid.filename('initialGuessDirectory')}/../Radiance_TROPOMI_.pkl")
+            if(not os.path.exists(pfname)):
                 subprocess.run(["mkdir", "-p", os.path.dirname(pfname)])
-                pickle.dump(o_tropomi, open(pfname, "wb"))
+                pickle.dump(obs.muses_py_dict, open(pfname, "wb"))
 
         obs.spectral_window = \
             spec_win if spec_win is not None else MusesSpectralWindow(None,None)
