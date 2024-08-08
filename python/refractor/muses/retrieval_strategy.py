@@ -214,6 +214,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             logger.info('\n---')    
             return exitcode
 
+    def continue_retrieval(self):
+        '''After saving a pickled step, you can continue the processing starting
+        at that step to diagnose a problem.'''
+        self._strategy_executor.continue_retrieval()
+
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
         self._retrieval_info = RetrievalInfo(self._error_analysis, self._strategy_table,

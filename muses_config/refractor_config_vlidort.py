@@ -21,7 +21,7 @@ rs = RetrievalStrategy(None, write_tropomi_radiance_pickle=True)
 if False:
     # If desired, capture each step so we can rerun this for debugging
     rscap = RetrievalStrategyCaptureObserver("retrieval_step",
-                                             "start retrieval_ms_body_step")
+                                             "starting run_step")
     rs.add_observer(rscap)
 
 # Replace top level script_retrieval_ms with RetrievalStrategy.

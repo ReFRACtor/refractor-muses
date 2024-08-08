@@ -21,7 +21,7 @@ rs.forward_model_handle_set.add_handle(OmiForwardModelHandle(use_pca=True,
 if False:
     # If desired, capture each step so we can rerun this for debugging
     rscap = RetrievalStrategyCaptureObserver("retrieval_step",
-                                             "start retrieval_ms_body_step")
+                                             "starting run_step")
     rs.add_observer(rscap)
 
 # Replace top level script_retrieval_ms with RetrievalStrategy.
