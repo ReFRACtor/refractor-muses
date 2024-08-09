@@ -91,7 +91,8 @@ class RefractorCaptureDirectory:
         relpath2 = "./OSP/OMI"
         relpath3 = "./OSP/OMI/OMI_Solar"
         with tarfile.open(fileobj=fh, mode="x:bz2") as tar:
-            for f in ("RamanInputs", "Input", vlidort_input):
+            for f in ("DateTime.asc", "Measurement_ID.asc", "Table.asc", "Table-final.asc",
+                      "RamanInputs", "Input", vlidort_input):
                 if(f is not None and os.path.exists(f"{dirbase}/{f}")):
                     tar.add(f"{dirbase}/{f}", f"{relpath}/{f}")
             for f in ("omi_rtm_driver", "ring", "ring_cli", 

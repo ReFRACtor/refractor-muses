@@ -221,4 +221,17 @@ def test_two_tropomi(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     rs.script_retrieval_ms(f"{r.run_dir}/Table.asc")
     rs.script_retrieval_ms(f"{r2.run_dir}/Table.asc")
 
+# Sample of how to load a saved step (by RetrievalStrategyCaptureObserver) and
+# start running it again. This  test depends on a specific run, and a hard coded path,
+# so we don't normally run. But it is a basic example of how to do this.
+@skip    
+def test_run_fabiano_refractor(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+    rs, kwargs = RetrievalStrategy.load_retrieval_strategy("/home/smyth/muses/refractor-muses/compare_fabiano_refractor/20200701_204_05_29_0/retrieval_step_10.pkl",osp_dir=osp_dir,gmao_dir=gmao_dir,vlidort_cli=vlidort_cli, change_to_dir=True)
+    rs.continue_retrieval()
+
+@skip    
+def test_run_fabiano_vlidort(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+    print(vlidort_cli)
+    rs, kwargs = RetrievalStrategy.load_retrieval_strategy("/home/smyth/muses/refractor-muses/compare_fabiano_refractor_vlidort/20200701_204_05_29_0/retrieval_step_10.pkl",osp_dir=osp_dir,gmao_dir=gmao_dir,vlidort_cli=vlidort_cli, change_to_dir=True)
+    rs.continue_retrieval()
     

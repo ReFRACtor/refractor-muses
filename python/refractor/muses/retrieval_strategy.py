@@ -350,6 +350,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                               gmao_dir=gmao_dir)
         if(vlidort_cli is not None):
             res._vlidort_cli = vlidort_cli
+            res._kwargs["vlidort_cli"] = vlidort_cli
+            kwargs["vlidort_cli"] = vlidort_cli
         return res, kwargs
 
 class RetrievalStrategyCaptureObserver:
@@ -363,7 +365,10 @@ class RetrievalStrategyCaptureObserver:
         if(location != self.location_to_capture):
             return
         fname = f"{self.basefname}_{retrieval_strategy.table_step}.pkl"
+        # Don't want this class included in the pickle
+        retrieval_strategy.remove_observer(self)
         retrieval_strategy.save_pickle(fname, **kwargs)
+        retrieval_strategy.add_observer(self)
 
 class RetrievalStrategyMemoryUse:
     def __init__(self):
@@ -389,3 +394,4 @@ __all__ = ["RetrievalStrategy", "RetrievalStrategyCaptureObserver",
            "RetrievalStrategyMemoryUse"]    
 
     
+
