@@ -1,5 +1,4 @@
 from .state_info import (RetrievableStateElement, StateInfo)
-from .strategy_table import StrategyTable
 from .retrieval_info import RetrievalInfo
 import numpy as np
 import logging
@@ -62,7 +61,7 @@ class OmiEofStateElement(RetrievableStateElement):
             self.state_info.next_state[self.name] = self.clone_for_other_state()
         self._value = results_list[retrieval_info.species_list==self._name]
 
-    def update_initial_guess(self, strategy_table : StrategyTable):
+    def update_initial_guess(self, strategy_table : 'StrategyTable'):
         self.mapType = 'linear'
         self.pressureList = np.full((self.number_eof), -2.0)
         self.altitudeList  = np.full((self.number_eof), -2.0)

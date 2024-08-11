@@ -140,7 +140,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             self.strategy_table_filename, self,
             retrieval_strategy_step_set=self._retrieval_strategy_step_set,
             spectral_window_handle_set=self._spectral_window_handle_set)
-        self._strategy_table = self._strategy_executor.stable
         self._measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
                                                  self.retrieval_config,
                                                  self._strategy_executor.filter_list_dict)
@@ -260,6 +259,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     @property
     def number_retrieval_step(self) -> int:
         return self._strategy_executor.number_retrieval_step
+    
+    def number_steps_left(self, retrieval_element_name : str):
+        '''This returns the number of retrieval steps left that contain a given
+        retrieval element name. This is an odd seeming function, but is used by
+        RetrievalL2Output to name files. So for example we have Products_L2-O3-0.nc
+        for the last step that retrieves O3, Products_L2-O3-1.nc for the previous step
+        retrieving O3, etc.'''
+        return self._strategy_executor.number_steps_left(retrieval_element_name)
 
     @property
     def step_name(self) -> str:
@@ -275,11 +282,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         if possible, right now this is just used by RetrievalL2Output. But at least for now
         we need this to get the required information for the output.'''
         return self._strategy_executor.current_strategy_step.retrieval_info
-
-    def retrieval_elements(self, step_num: int) -> 'list(str)':
-        # This is just used in RetrievalL2Output to figure out the output name.
-        # We can perhaps clean up this interface
-        return self._strategy_table.table_entry('retrievalElements', step_num).split(",")
 
     @property
     def state_info(self):

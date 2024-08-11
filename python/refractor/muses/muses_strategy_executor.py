@@ -3,6 +3,7 @@ from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .retrieval_info import RetrievalInfo
 from .strategy_table import StrategyTable
 from .error_analysis import ErrorAnalysis
+from .order_species import order_species
 from .spectral_window_handle import SpectralWindowHandleSet
 import refractor.muses.muses_py as mpy
 import abc
@@ -261,12 +262,33 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             self.state_info.update_state(self.retrieval_info, xig, [],
                           self.retrieval_config, self.current_strategy_step.step_number)
 
-
+    def number_steps_left(self, retrieval_element_name : str):
+        '''This returns the number of retrieval steps left that contain a given
+        retrieval element name. This is an odd seeming function, but is used by
+        RetrievalL2Output to name files. So for example we have Products_L2-O3-0.nc
+        for the last step that retrieves O3, Products_L2-O3-1.nc for the previous step
+        retrieving O3, etc.
+        
+        I'm not sure if this is something we can calculate in general for a
+        StrategyExecutor (what if some decision is added if a future step is run or not?)
+        If this occurs, we can perhaps come up with a different naming convention.
+        Right now, this function is *only* used in RetrievalL2Output, so we can
+        update this if needed.
+        '''
+        step_number_start = self.current_strategy_step.step_number
+        res = 0
+        self.next_step()
+        while(not self.is_done()):
+            if retrieval_element_name in self.current_strategy_step.retrieval_elements:
+                res += 1
+            self.next_step()
+        self.stable.table_step = step_number_start
+        return res
+            
     def run_step(self):
         '''Run a the current step.'''
         self.rs._swin_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
         self.rs._state_info.copy_current_initial()
-        self.rs._strategy_table = self.stable
         logger.info(f'\n---')
         logger.info(f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.stable.number_table_step}")
         logger.info(f'\n---')
@@ -288,7 +310,17 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                                        self.rs.observation_handle_set,
                                        self.stable.instrument_name(all_step=True),
                                        self.rs.run_dir)
-        self.error_analysis = ErrorAnalysis(self.stable, self.state_info)
+            
+        # List of state elements we need covariance from. This is all the elements
+        # we will retrieve, plus any interferents that get added in. This list
+        # is unique elements, sorted by the order_species sorting
+        
+        covariance_state_element_name = order_species(
+            set(self.stable.retrieval_elements_all_step) |
+            set(self.stable.error_analysis_interferents_all_step))
+            
+        self.error_analysis = ErrorAnalysis(self.stable, self.state_info,
+                                            covariance_state_element_name)
         self.rs._error_analysis = self.error_analysis
         self.rs.notify_update("initial set up done")
         

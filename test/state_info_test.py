@@ -58,7 +58,7 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs._strategy_table
+    stable = rs._strategy_executor.stable
     stable.table_step = 0
     selement = sinfo.state_element("OMICLOUDFRACTION")
     selement.update_initial_guess(stable)
@@ -152,7 +152,7 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs._strategy_table
+    stable = rs._strategy_executor.stable
     stable.table_step = 0
     selement = sinfo.state_element("OMICLOUDFRACTION")
     selement.update_initial_guess(stable)
@@ -258,7 +258,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs._strategy_table
+    stable = rs._strategy_executor.stable
     stable.table_step = 0
     selement = sinfo.state_element("OMIEOFUV1")
     selement.update_initial_guess(stable)
@@ -358,7 +358,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs._strategy_table
+    stable = rs._strategy_executor.stable
     stable.table_step = 0
     selement = sinfo.state_element("OMIEOFUV1")
     selement.update_initial_guess(stable)

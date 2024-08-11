@@ -25,21 +25,9 @@ class RetrievalL2Output(RetrievalOutput):
     @property
     def retrieval_info(self):
         return self.retrieval_strategy.retrieval_info
-    
-    @property
-    def species_count(self):
-        '''Dictionary that gives the index we should use for product file names.
-        This is 0 if the species doesn't get retrieved in a following step, and
-        the count of other times the species is retrieved. So for example if
-        O3 is retrieved 4 times, the first time we retrieve it the file has
-        a "O3-3" in the name, followed by "O3-2", "O3-1" and "O3-0"'''
-        if(self._species_count is None):
-            self._species_count = defaultdict(lambda: 0)
-            tstep = self.step_number
-            for i in range(self.step_number+1, self.number_retrieval_step):
-                for spc in self.retrieval_strategy.retrieval_elements(i):
-                    self._species_count[spc] += 1
-        return self._species_count
+
+    def number_steps_left(self, retrieval_element_name : str):
+        return self.retrieval_strategy.number_steps_left(retrieval_element_name)
 
     @property
     def species_list(self):
@@ -71,7 +59,6 @@ class RetrievalL2Output(RetrievalOutput):
         if(location != "retrieval step"):
             return
         # Regenerate this for the current step
-        self._species_count = None
         self._species_list = None
         for self.spcname in self.species_list:
             if(self.species_list_fm.count(self.spcname) <= 1 or
@@ -79,7 +66,7 @@ class RetrievalL2Output(RetrievalOutput):
                self.spcname.startswith('OMI') or
                self.spcname.startswith('NIR')):
                 continue
-            self.out_fname = f"{self.output_directory}/Products/Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
+            self.out_fname = f"{self.output_directory}/Products/Products_L2-{self.spcname}-{self.number_steps_left(self.spcname)}.nc"
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
             # Not sure about the logic here, but this is what script_retrieval_ms does
             if(not os.path.exists(self.out_fname) or self.spcname in ('TATM', 'H2O', 'N2O')):
@@ -115,25 +102,25 @@ class RetrievalL2Output(RetrievalOutput):
         state_element_out = [t for t in self.state_info.state_element_list() if t.should_write_to_l2_product(self.instruments)]
             
         if(self.spcname == "H2O" and self.dataTATM is not None):
-            self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-RH-{self.species_count[self.spcname]}.nc"
+            self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-RH-{self.number_steps_left(self.spcname)}.nc"
             if("OCO2" not in self.instruments):
                 t = CdfWriteTes()
                 t.write_lite(
                     self.step_number,
                     self.out_fname, self.quality_name, self.instruments,
                     self.lite_directory, dataInfo, self.dataTATM, "RH",
-                    step=self.species_count[self.spcname],
-                    times_species_retrieved=self.species_count[self.spcname],
+                    step=self.number_steps_left(self.spcname),
+                    times_species_retrieved=self.number_steps_left(self.spcname),
                     state_element_out=state_element_out)
                 
-        self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.species_count[self.spcname]}.nc"
+        self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.number_steps_left(self.spcname)}.nc"
         if 'OCO2' not in self.instruments:
             t = CdfWriteTes()
             data2 = t.write_lite(
                 self.step_number, self.out_fname, self.quality_name,
                 self.instruments, self.lite_directory, dataInfo, data2, self.spcname,
-                step=self.species_count[self.spcname],
-                times_species_retrieved=self.species_count[self.spcname],
+                step=self.number_steps_left(self.spcname),
+                times_species_retrieved=self.number_steps_left(self.spcname),
                 state_element_out=state_element_out)
 
     def generate_geo_data(self, species_data):

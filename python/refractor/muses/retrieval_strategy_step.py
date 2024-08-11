@@ -106,15 +106,15 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
             o_omi = None
             o_tropomi = None
             o_oco2 = None
-            for iname in rs._strategy_table.instrument_name():
+            for iname in rs._strategy_executor.stable.instrument_name():
                 if iname in o_xxx:
                     obs = rs.observation_handle_set.observation(iname, None,
-                       MusesSpectralWindow(rs._strategy_table.spectral_window(iname), None),
+                       MusesSpectralWindow(rs._strategy_executor.stable.spectral_window(iname), None),
                        None)
                     if hasattr(obs, "muses_py_dict"):
                         o_xxx[iname] = obs.muses_py_dict
-            self._uip = RefractorUip.create_uip(rs._state_info, rs._strategy_table,
-                                                rs._strategy_table.microwindows(), rinfo,
+            self._uip = RefractorUip.create_uip(rs._state_info, rs._strategy_executor.stable,
+                                                rs._strategy_executor.stable.microwindows(), rinfo,
                                                 o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
                                                 o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
                                                 jacobian_speciesIn=jacobian_speciesIn)
@@ -143,7 +143,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         # we ever want to run the forward model for bad samples. But right now the existing
         # py-retrieve code requires this is a few places.a
         return rs._cost_function_creator.cost_function(
-            rs._strategy_table.instrument_name(),
+            rs._strategy_executor.stable.instrument_name(),
             self.cstate,
             rs._swin_dict,
             partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
@@ -159,7 +159,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
     def radiance_full(self, rs):
         '''The full set of radiance, for all instruments and full band.'''
         olist = [rs.observation_handle_set.observation(iname, None, None,None)
-                 for iname in rs._strategy_table.instrument_name(all_step=True)]
+                 for iname in rs._strategy_executor.stable.instrument_name(all_step=True)]
         return mpy_radiance_from_observation_list(olist, full_band=True)
         
 class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
@@ -202,15 +202,15 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         # Put into structure expected by modify_from_bt
         radiance_res = {"radiance" : radiance_fm,
                         "frequency" : freq_fm }
-        (rs._strategy_table.strategy_table_dict, rs._state_info.state_info_dict) = mpy.modify_from_bt(
-            mpy.ObjectView(rs._strategy_table.strategy_table_dict), rs.step_number,
+        (rs._strategy_executor.stable.strategy_table_dict, rs._state_info.state_info_dict) = mpy.modify_from_bt(
+            mpy.ObjectView(rs._strategy_executor.stable.strategy_table_dict), rs.step_number,
             self.radiance_step(),
             radiance_res,
             {},
             rs._state_info.state_info_dict,
             self.BTstruct,
             writeOutputFlag=False)
-        rs._strategy_table.strategy_table_dict = rs._strategy_table.strategy_table_dict.__dict__
+        rs._strategy_executor.stable.strategy_table_dict = rs._strategy_executor.stable.strategy_table_dict.__dict__
         logger.info(f"Step: {rs.step_number},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
         rs._state_info.next_state_dict = copy.deepcopy(rs._state_info.state_info_dict["current"])
         return (True, None)
@@ -231,8 +231,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         logger.info("Running run_irk ...")
         self.cfunc = self.create_cost_function(rs)
         (resultsIRK, jacobianOut) = mpy.run_irk(
-            rs._strategy_table.strategy_table_dict,
-            rs._state_info, rs._strategy_table.microwindows(), rs.retrieval_info,
+            rs._strategy_executor.stable.strategy_table_dict,
+            rs._state_info, rs._strategy_executor.stable.microwindows(), rs.retrieval_info,
             jacobian_speciesNames, 
             jacobian_specieslist, 
             self.radiance_step(),
@@ -272,7 +272,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         ret_res = self.run_retrieval(rs)
 
-        self.results = RetrievalResult(ret_res, rs._strategy_table, rs.retrieval_info,
+        self.results = RetrievalResult(ret_res, rs._strategy_executor.stable, rs.retrieval_info,
                                        rs._state_info, self.cfunc.obs_list,
                                        self.radiance_full(rs),
                                        self.propagated_qa)
@@ -281,7 +281,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         logger.info(f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}")
         logger.info('---\n')
         
-        do_not_update = rs._strategy_table.table_entry("donotupdate").lower()
+        do_not_update = rs._strategy_executor.stable.table_entry("donotupdate").lower()
         if do_not_update != '-':
             do_not_update = [x.upper() for x in do_not_update.split(',')]
         else:
@@ -290,10 +290,10 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs._state_info.update_state(rs.retrieval_info, self.results.results_list,
                                     do_not_update, rs.retrieval_config,
                                     rs.step_number)
-        if 'OCO2' in rs._strategy_table.instrument_name():
+        if 'OCO2' in rs._strategy_executor.stable.instrument_name():
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels
-            rs._strategy_table.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
+            rs._strategy_executor.stable.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
 
@@ -309,7 +309,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             self.results.update_jacobian_sys(cfunc_sys)
 
         self.results.update_error_analysis(rs._error_analysis)
-        self.propagated_qa.update(rs._strategy_table.retrieval_elements(),
+        self.propagated_qa.update(rs._strategy_executor.stable.retrieval_elements(),
                                   self.results.master_quality)
         
         # The solver can't be pickled, because a few pieces of the cost function
@@ -327,12 +327,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def run_retrieval(self, rs):
         '''run_retrieval'''
         self.cfunc = self.create_cost_function(rs)
-        maxIter = int(rs._strategy_table.table_entry("maxNumIterations"))
+        maxIter = int(rs._strategy_executor.stable.table_entry("maxNumIterations"))
         
         # Various thresholds from the input table
-        ConvTolerance_CostThresh = float(rs._strategy_table.preferences["ConvTolerance_CostThresh"])
-        ConvTolerance_pThresh = float(rs._strategy_table.preferences["ConvTolerance_pThresh"])
-        ConvTolerance_JacThresh = float(rs._strategy_table.preferences["ConvTolerance_JacThresh"])
+        ConvTolerance_CostThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_CostThresh"])
+        ConvTolerance_pThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_pThresh"])
+        ConvTolerance_JacThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_JacThresh"])
         r = self.radiance_step()["NESR"]
         Chi2Tolerance = 2.0 / len(r) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
@@ -341,7 +341,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             ConvTolerance_JacThresh = 0.00001
             Chi2Tolerance = 0.00001
         ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
-        delta_str = rs._strategy_table.preferences['LMDelta'] # 100 // original LM step size
+        delta_str = rs._strategy_executor.stable.preferences['LMDelta'] # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
 
         self.slv = MusesLevmarSolver(self.cfunc,

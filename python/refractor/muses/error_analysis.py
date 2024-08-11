@@ -1,6 +1,5 @@
 from .strategy_table import StrategyTable
 from .state_info import StateInfo
-from .order_species import order_species
 import refractor.muses.muses_py as mpy
 import copy
 import numpy as np
@@ -11,22 +10,23 @@ class ErrorAnalysis:
     to put this together. Nothing more than a shuffling around of stuff already
     in muses-py
     '''
-    def __init__(self, strategy_table: StrategyTable, state_info: StateInfo):
-        self.initialize_error_initial(strategy_table, state_info)
+    def __init__(self, strategy_table: StrategyTable, state_info: StateInfo,
+                 covariance_state_element_name : 'list(str)'):
+        self.initialize_error_initial(strategy_table, state_info,
+                                      covariance_state_element_name)
         self.error_current = copy.deepcopy(self.error_initial)
         # Code seems to assume these are object view.
         self.error_initial = mpy.ObjectView(self.error_initial)
         self.error_current = mpy.ObjectView(self.error_current)
 
     def initialize_error_initial(self, strategy_table: StrategyTable,
-                                 state_info: StateInfo):
+                                 state_info: StateInfo,
+                                 covariance_state_element_name : 'list(str)'):
+        '''covariance_state_element_name should be the list of state
+        elements we need covariance from. This is all the elements we
+        will retrieve, plus any interferents that get added in. This
+        list is unique elements, sorted by the order_species sorting'''
         smeta = state_info.sounding_metadata()
-        # List of state elements we need covariance from. This is all the elements
-        # we will retrieve, plus any interferents that get added in. This list
-        # is unique elements, sorted by the order_species sorting
-        
-        sname_list = order_species(set(strategy_table.retrieval_elements_all_step) |
-                              set(strategy_table.error_analysis_interferents_all_step))
         selem_list = []
         # TODO
         # Note clear why, but we get slightly different results if we update
@@ -38,7 +38,7 @@ class ErrorAnalysis:
         s_table = copy.deepcopy(strategy_table)
         sinfo = copy.deepcopy(state_info)
         s_table.table_step = 1
-        for sname in sname_list:
+        for sname in covariance_state_element_name:
             selem = sinfo.state_element(sname)
             selem.update_initial_guess(s_table)
             selem_list.append(selem)
@@ -78,6 +78,7 @@ class ErrorAnalysis:
                        retrieval_info : 'RetrievalInfo',
                        state_info : 'StateInfo',
                        retrieval_results : 'RetrievalResult'):
+
         '''Update results and error_current'''
         # Doesn't seem to be used for anything, but we need to pass in. I think
         # this might have been something that was used in the past?

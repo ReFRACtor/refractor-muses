@@ -1,6 +1,6 @@
 from test_support import *
-from refractor.muses import (MusesPySpectralWindowHandle, MusesRunDir, RetrievalConfiguration,
-                             StrategyTable, SpectralWindowHandleSet,
+from refractor.muses import (MusesRunDir, RetrievalConfiguration,
+                             SpectralWindowHandleSet,
                              CurrentStrategyStepDict, MeasurementIdFile)
 
 @require_muses_py
@@ -12,13 +12,13 @@ def test_muses_py_spectral_window_handle(osp_dir, isolated_dir, gmao_dir):
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     swin_handle_set = SpectralWindowHandleSet.default_handle_set()
     swin_handle_set.notify_update_target(mid)
-    stable = StrategyTable(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
-    stable.table_step = 8+1
-    current_strategy_step = CurrentStrategyStepDict({'retrieval_elements' : stable.retrieval_elements(),
-                                                     'step_name' : stable.step_name,
-                                                     'step_number' : 8,
-                                                     'max_num_iterations' : stable.max_num_iterations,
-                                                     'retrieval_type' : stable.retrieval_type})
+    # For step 8
+    current_strategy_step = CurrentStrategyStepDict(
+        {'retrieval_elements': ['H2O', 'O3', 'TSUR', 'CLOUDEXT', 'PCLOUD', 'OMICLOUDFRACTION', 'OMISURFACEALBEDOUV1', 'OMISURFACEALBEDOUV2', 'OMISURFACEALBEDOSLOPEUV2', 'OMINRADWAVUV1', 'OMINRADWAVUV2', 'OMIODWAVUV1', 'OMIODWAVUV2'],
+         'step_name': 'H2O,O3_OMI',
+         'step_number': 8,
+         'max_num_iterations': '15',
+         'retrieval_type': 'joint'})
     swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
 
 @require_muses_py
@@ -31,13 +31,13 @@ def test_muses_py_spectral_window_handle_empty_band(osp_dir, isolated_dir, gmao_
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     swin_handle_set = SpectralWindowHandleSet.default_handle_set()
     swin_handle_set.notify_update_target(mid)
-    stable = StrategyTable(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
-    stable.table_step = 3+1
-    current_strategy_step = CurrentStrategyStepDict({'retrieval_elements' : stable.retrieval_elements(),
-                                                     'step_name' : stable.step_name,
-                                                     'step_number' : 3,
-                                                     'max_num_iterations' : stable.max_num_iterations,
-                                                     'retrieval_type' : stable.retrieval_type})
+    # For step 3
+    current_strategy_step = CurrentStrategyStepDict(
+        {'retrieval_elements': ['OMICLOUDFRACTION'],
+         'step_name': 'OMICLOUDFRACTION',
+         'step_number': 3,
+         'max_num_iterations': '10',
+         'retrieval_type': 'OMICLOUD_IG_Refine'})
     swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
     print(swin_dict)
     print(swin_dict["OMI"]._spec_win)

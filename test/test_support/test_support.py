@@ -4,7 +4,7 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import (RefractorUip, osswrapper, StrategyTable,
+from refractor.muses import (RefractorUip, osswrapper, 
                              MusesTropomiObservation, MusesOmiObservation,
                              MusesCrisObservation, MusesAirsObservation, MusesSpectralWindow)
 from refractor.framework import load_config_module, find_config_function
@@ -161,12 +161,13 @@ def tropomi_obs_step_1(osp_dir):
     cld_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
-    stable = StrategyTable(f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_TROPOMICLOUDFRACTION_TROPOMICLOUD_IG_Refine.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=0),
-                                              obs)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -179,12 +180,13 @@ def tropomi_obs_sounding_2_band7(osp_dir):
     cld_filename = f"{tropomi_test_in_dir2}/../S5P_RPRO_L2__CLOUD__20220628T171636_20220628T185806_24393_03_020401_20230119T091435.nc"
     utc_time = "2022-06-28T18:07:51.984098Z"
     filter_list = ["BAND7",]
-    stable = StrategyTable(f"{tropomi_test_in_dir2}/Table.asc", osp_dir=osp_dir)
+    mwfile = f"{osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=0),
-                                              obs)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -197,12 +199,13 @@ def tropomi_obs_step_2(osp_dir):
     cld_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
-    stable = StrategyTable(f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_O3-Band3.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=1),
-                                              obs)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -215,12 +218,13 @@ def joint_tropomi_obs_step_12(osp_dir):
     cld_filename = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
     utc_time = "2019-08-07T06:24:33.584090Z"
     filter_list = ["BAND3",]
-    stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=12+1),
-                                              obs)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     granule = 65
     xtrack = 8
     atrack = 4
@@ -228,8 +232,8 @@ def joint_tropomi_obs_step_12(osp_dir):
     fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
     obscris = MusesCrisObservation.create_from_filename(
         fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
-    obscris.spectral_window = MusesSpectralWindow(stable.spectral_window("CRIS", stp=12+1),
-                                                  obscris)
+    obscris.spectral_window = swin_dict["CRIS"]
+    obscris.spectral_window.add_bad_sample_mask(obscris)
     return [obscris, obs]
 
 @pytest.fixture(scope="function")
@@ -242,21 +246,22 @@ def joint_omi_obs_step_8(osp_dir):
     cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     utc_time = "2016-04-01T23:07:33.676106Z"
     filter_list = ["UV1", "UV2"]
-    stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    channel_list = ['1A1', '2A1', '1B2', '2B1']
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"OMI" : filter_list, "AIRS" : channel_list})
     obs = MusesOmiObservation.create_from_filename(
         filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
         filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=8+1),
-                                              obs)
-    channel_list = ['1A1', '2A1', '1B2', '2B1']
+    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     granule = 231
     xtrack = 29
     atrack = 49
     fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
     obs_airs = MusesAirsObservation.create_from_filename(
         fname, granule, xtrack, atrack, channel_list, osp_dir=osp_dir)
-    obs_airs.spectral_window = MusesSpectralWindow(stable.spectral_window("AIRS", stp=8+1),
-                                                   obs_airs)
+    obs_airs.spectral_window = swin_dict["AIRS"]
+    obs_airs.spectral_window.add_bad_sample_mask(obs_airs)
     return [obs_airs, obs]
     
 
@@ -297,12 +302,13 @@ def tropomi_obs_band7_swir_step(osp_dir):
     cld_filename = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L2__CLOUD__20220628T185806_20220628T203935_24394_03_020401_20230119T091438.nc"
     utc_time = "2022-06-28T19:33:47.130000Z"
     filter_list = ["BAND7",]
-    stable = StrategyTable(f"{tropomi_band7_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    mwfile = f"{osp_dir}/Strategy_Tables/tropomi_nir/OSP-TROPOMI-BAND7/MWDefinitions/Windows_Nadir_O3-Band7.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", stp=0),
-                                              obs)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -338,12 +344,13 @@ def omi_obs_step_1(osp_dir):
     cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
     utc_time = "2016-04-14T23:59:46.000000Z"
     filter_list = ["UV1", "UV2"]
-    stable = StrategyTable(f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_OMICLOUDFRACTION_OMICLOUD_IG_Refine.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"OMI" : filter_list})
     obs = MusesOmiObservation.create_from_filename(
         filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
         filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=0),
-                                              obs)
+    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
 @pytest.fixture(scope="function")
@@ -357,12 +364,13 @@ def omi_obs_step_2(osp_dir):
     cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
     utc_time = "2016-04-14T23:59:46.000000Z"
     filter_list = ["UV1", "UV2"]
-    stable = StrategyTable(f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_O3.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"OMI" : filter_list})
     obs = MusesOmiObservation.create_from_filename(
         filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
         filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", stp=1),
-                                              obs)
+    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
 @pytest.fixture(scope="function")
