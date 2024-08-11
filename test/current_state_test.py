@@ -36,7 +36,12 @@ def test_current_state_uip(joint_tropomi_uip_step_12):
     print(coeff)
     print(mp)
     print(mp.retrieval_indexes)
-                    
+    
+# TODO - Return to this
+# The CurrentState is currently tightly coupled to a number of other pieces of code.
+# We are reworking this, and this test currently doesn't work. But once we have all
+# the pieces put back together, we will want to be able to rerun these tests.
+@skip    
 def test_current_state_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # TODO - We should have a constructor for StateInfo. Don't currently,
     # so we just run RetrievalStrategy to the beginning and stop

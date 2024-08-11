@@ -1,7 +1,7 @@
 from refractor.muses import (MusesRunDir, MusesAirsObservation,
-                             StrategyTable, RetrievalStrategy, ObservationHandleSet,
                              MusesCrisObservation,
                              MusesTropomiObservation, MusesOmiObservation,
+                             ObservationHandleSet,
                              MeasurementIdFile, RetrievalConfiguration,
                              CurrentStateDict, MusesSpectralWindow)
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
@@ -27,7 +27,6 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     xtrack = 29
     atrack = 49
     fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
-    stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
     obs = MusesAirsObservation.create_from_filename(fname, granule, xtrack, atrack,
                                                     channel_list, osp_dir=osp_dir)
     step_number = 8
@@ -43,12 +42,12 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     rf_uip.run_dir = rrefractor.run_dir
     obs_old = MusesAirsObservationOld(rf_uip, rrefractor.params["ret_info"]["obs_rad"],
                                       rrefractor.params["ret_info"]["meas_err"])
-    # Note this is off by 1. The table numbering get redone after the BT step. It might
-    # be nice to straighten this out - this is actually kind of confusing. Might be better to
-    # just have a way to skip steps - but this is at least how the code works. The
-    # code mpy.modify_from_bt changes the number of steps
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("AIRS", stp=step_number+1),
-                                              obs)
+    # This is the microwindows file for step 8, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    obs.spectral_window = swin_dict["AIRS"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
@@ -63,13 +62,21 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
 
 def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
+    # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
+    # to point to our test data rather than original location of these files, so go
+    # ahead and set this up
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    step_number = 8
-    rs.table_step = step_number+1
-    swin = MusesSpectralWindow(rs._strategy_table.spectral_window("AIRS"), None)
-    obs = MusesAirsObservation.create_from_id(rs.measurement_id, None,
-                                              None, swin, None, osp_dir=osp_dir)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
+    # Determined by looking a the full run
+    filter_list_dict = {'OMI': ['UV1', 'UV2'], 'AIRS': ['2B1', '1B2', '2A1', '1A1']}
+    measurement_id = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc",
+                                       rconfig, filter_list_dict)
+    # This is the microwindows file for step 8, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    obs = MusesAirsObservation.create_from_id(measurement_id, None,
+                                        None, swin_dict["AIRS"], None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
@@ -82,7 +89,6 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     cld_filename = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
     utc_time = "2019-08-07T06:24:33.584090Z"
     filter_list = ["BAND3",]
-    stable = StrategyTable(f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
     obs = MusesTropomiObservation.create_from_filename(
         filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
         filter_list, osp_dir=osp_dir)
@@ -114,12 +120,12 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
                    ])
     sv.update_state(x2)
     sv2.update_state(x2)
-    # Note this is off by 1. The table numbering get redone after the BT step. It might
-    # be nice to straighten this out - this is actually kind of confusing. Might be better to
-    # just have a way to skip steps - but this is at least how the code works. The
-    # code mpy.modify_from_bt changes the number of steps
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("TROPOMI", step_number+1),
-                                              obs)
+    # This is the microwindows file for step 12, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     npt.assert_allclose(obs.spectral_domain(0).data, obs_old.spectral_domain(0).data)
@@ -143,17 +149,49 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
 
 def test_create_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
+    # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
+    # to point to our test data rather than original location of these files, so go
+    # ahead and set this up
     r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    step_number = 12
-    rs.table_step = step_number+1
-    swin = MusesSpectralWindow(rs._strategy_table.spectral_window("TROPOMI"), None)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
+    # Determined by looking a the full run
+    filter_list_dict = {'TROPOMI': ['BAND3'], 'CRIS': ['2B1', '1B2', '2A1', '1A1']}
+    measurement_id = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc",
+                                       rconfig, filter_list_dict)
+    # This is the microwindows file for step 12, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
     cs = CurrentStateDict({"TROPOMISOLARSHIFTBAND3" : 0.1,
                            "TROPOMIRADIANCESHIFTBAND3" : 0.2,
                            "TROPOMIRADSQUEEZEBAND3" : 0.3,}
                            , ["TROPOMISOLARSHIFTBAND3",])
-    obs = MusesTropomiObservation.create_from_id(rs.measurement_id, None,
-                                                 cs, swin, None, osp_dir=osp_dir,
+    obs = MusesTropomiObservation.create_from_id(measurement_id, None,
+                                                 cs, swin_dict["TROPOMI"], None,
+                                                 osp_dir=osp_dir,
+                                                 write_tropomi_radiance_pickle=True)
+    print(obs.spectral_domain(0).data)
+    print(obs.radiance(0).spectral_range.data)
+    print(obs.filter_data)
+
+def test_create_muses_cris_observation(isolated_dir, osp_dir, gmao_dir,
+                                       vlidort_cli):
+    # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
+    # to point to our test data rather than original location of these files, so go
+    # ahead and set this up
+    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
+    # Determined by looking a the full run
+    filter_list_dict = {'TROPOMI': ['BAND3'], 'CRIS': ['2B1', '1B2', '2A1', '1A1']}
+    measurement_id = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc",
+                                       rconfig, filter_list_dict)
+    # This is the microwindows file for step 12, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    obs = MusesCrisObservation.create_from_id(measurement_id, None,
+                                                 None, swin_dict["CRIS"], None,
+                                                 osp_dir=osp_dir,
                                                  write_tropomi_radiance_pickle=True)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -167,7 +205,6 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     utc_time = "2016-04-01T23:07:33.676106Z"
     calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
     obs = MusesOmiObservation.create_from_filename(
         filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
         ["UV1", "UV2"], cld_filename=cld_filename, osp_dir=osp_dir)
@@ -196,12 +233,12 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     x2 = [0.01, 0.02, 0.03, 0.04, 0.001, 0.002]
     sv.update_state(x2)
     sv2.update_state(x2)
-    # Note this is off by 1. The table numbering get redone after the BT step. It might
-    # be nice to straighten this out - this is actually kind of confusing. Might be better to
-    # just have a way to skip steps - but this is at least how the code works. The
-    # code mpy.modify_from_bt changes the number of steps
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", step_number+1),
-                                              obs)
+    # This is the microwindows file for step 8, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
     print(obs.spectral_domain(1).data)
@@ -239,11 +276,19 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
 
 def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
+    # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
+    # to point to our test data rather than original location of these files, so go
+    # ahead and set this up
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    step_number = 8
-    rs.table_step = step_number+1
-    swin = MusesSpectralWindow(rs._strategy_table.spectral_window("OMI"), None)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
+    # Determined by looking a the full run
+    filter_list_dict = {'OMI': ['UV1', 'UV2'], 'AIRS': ['2B1', '1B2', '2A1', '1A1']}
+    measurement_id = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc",
+                                       rconfig, filter_list_dict)
+    # This is the microwindows file for step 8, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
     cs = CurrentStateDict({"OMINRADWAVUV1" : 0.1,
                            "OMINRADWAVUV2" : 0.11,
                            "OMIODWAVUV1" : 0.2,
@@ -251,8 +296,8 @@ def test_create_muses_omi_observation(isolated_dir, osp_dir, gmao_dir,
                            "OMIODWAVSLOPEUV1" : 0.3,
                            "OMIODWAVSLOPEUV2" : 0.31,}
                            , ["OMINRADWAVUV1",])
-    obs = MusesOmiObservation.create_from_id(rs.measurement_id, None,
-                                              cs, swin, None, osp_dir=osp_dir)
+    obs = MusesOmiObservation.create_from_id(measurement_id, None,
+                                              cs, swin_dict["OMI"], None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
@@ -265,7 +310,6 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     utc_time = "2016-04-01T23:07:33.676106Z"
     calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
     obs = MusesOmiObservation.create_from_filename(
         filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
         ["UV1", "UV2"], cld_filename=cld_filename, osp_dir=osp_dir)
@@ -274,12 +318,12 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     sv.add_observer(obs)
     x2 = [0.01, 0.02, 0.03, 0.04, 0.001, 0.002]
     sv.update_state(x2)
-    # Note this is off by 1. The table numbering get redone after the BT step. It might
-    # be nice to straighten this out - this is actually kind of confusing. Might be better to
-    # just have a way to skip steps - but this is at least how the code works. The
-    # code mpy.modify_from_bt changes the number of steps
-    obs.spectral_window = MusesSpectralWindow(stable.spectral_window("OMI", step_number+1),
-                                              obs)
+    # This is the microwindows file for step 8, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(1).data)
     print(obs.spectral_domain(1).sample_index)
     # Check handling of data with bad samples. Should get set to -999
