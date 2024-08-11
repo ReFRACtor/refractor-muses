@@ -203,6 +203,26 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             logger.info('\n---')    
             return exitcode
 
+    def continue_retrieval(self):
+        '''After saving a pickled step, you can continue the processing starting
+        at that step to diagnose a problem.'''
+        self._strategy_executor.continue_retrieval()
+
+    def get_initial_guess(self):
+        '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
+        self._retrieval_info = RetrievalInfo(self._error_analysis, self._strategy_table,
+                                             self._state_info)
+
+        # Update state with initial guess so that the initial guess is
+        # mapped properly, if doing a retrieval, for each retrieval step.
+        nparm = self._retrieval_info.n_totalParameters
+        logger.info(f"Step: {self.table_step}, Total Parameters: {nparm}")
+
+        if nparm > 0:
+            xig = self._retrieval_info.initial_guess_list[0:nparm]
+            self._state_info.update_state(self._retrieval_info, xig, [],
+                                         self._cloud_prefs, self.table_step)
+
     @property
     def run_dir(self) -> str:
         '''Directory we are running in (e.g. where the strategy table and measurement id files
@@ -316,6 +336,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                               gmao_dir=gmao_dir)
         if(vlidort_cli is not None):
             res._vlidort_cli = vlidort_cli
+            res._kwargs["vlidort_cli"] = vlidort_cli
+            kwargs["vlidort_cli"] = vlidort_cli
         return res, kwargs
 
 class RetrievalStrategyCaptureObserver:
@@ -329,7 +351,10 @@ class RetrievalStrategyCaptureObserver:
         if(location != self.location_to_capture):
             return
         fname = f"{self.basefname}_{retrieval_strategy.table_step}.pkl"
+        # Don't want this class included in the pickle
+        retrieval_strategy.remove_observer(self)
         retrieval_strategy.save_pickle(fname, **kwargs)
+        retrieval_strategy.add_observer(self)
 
 class RetrievalStrategyMemoryUse:
     def __init__(self):
@@ -355,3 +380,4 @@ __all__ = ["RetrievalStrategy", "RetrievalStrategyCaptureObserver",
            "RetrievalStrategyMemoryUse"]    
 
     
+

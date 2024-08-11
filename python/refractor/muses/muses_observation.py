@@ -10,6 +10,8 @@ import refractor.framework as rf
 import abc
 import copy
 import logging
+import pickle
+import subprocess
 
 logger = logging.getLogger("py-retrieve")
 
@@ -375,7 +377,8 @@ class MusesObservationHandle(ObservationHandle):
         obs = self.obs_cls.create_from_id(self.measurement_id,
                                           self.existing_obs,
                                           current_state, spec_win, fm_sv,
-                                          osp_dir=osp_dir)
+                                          osp_dir=osp_dir,
+                                          **kwargs)
         if(self.existing_obs is None):
             self.existing_obs = obs
         return obs
@@ -444,7 +447,8 @@ class MusesAirsObservation(MusesObservationImp):
                        current_state: 'Optional(CurrentState)',
                        spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
-                       osp_dir=None):
+                       osp_dir=None,
+                       **kwargs):
         '''Create from a MeasurementId. If this depends on any state information, you can
         pass in the CurrentState. This can be given as None if you just want to use default
         values, e.g. you aren't doing a retrieval. If the CurrentState is supplied, you can
@@ -611,7 +615,8 @@ class MusesCrisObservation(MusesObservationImp):
                        current_state: 'Optional(CurrentState)',
                        spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
-                       osp_dir=None):
+                       osp_dir=None,
+                       **kwargs):
         '''Create from a MeasurementId. If this depends on any state information, you can
         pass in the CurrentState. This can be given as None if you just want to use default
         values, e.g. you aren't doing a retrieval. If the CurrentState is supplied, you can
@@ -995,11 +1000,17 @@ class MusesTropomiObservation(MusesObservationReflectance):
                        current_state: 'Optional(CurrentState)',
                        spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
-                       osp_dir=None):
+                       osp_dir=None,
+                       write_tropomi_radiance_pickle=False,
+                       **kwargs):
         '''Create from a MeasurementId. If this depends on any state information, you can
         pass in the CurrentState. This can be given as None if you just want to use default
         values, e.g. you aren't doing a retrieval. If the CurrentState is supplied, you can
-        also pass a StateVector to add this class to as needed.'''
+        also pass a StateVector to add this class to as needed.
+
+        Note that VLIDORT depends on having a pickle file created. This is a bad interface,
+        basically this is like a hidden variable. But to support the old code,
+        we can optionally generate that pickle file.'''
         coeff = None
         mp = None
         if(existing_obs is not None):
@@ -1030,6 +1041,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
                 filename_list, irr_filename, cld_filename, xtrack_list, atrack,
                 utc_time, filter_list, osp_dir=osp_dir)
             obs = cls(o_tropomi, sdesc,filter_list, coeff=coeff, mp=mp)
+            
+        if(write_tropomi_radiance_pickle):
+            # Save file needed by py-retrieve VLIDORT code
+            pfname = os.path.normpath(f"{mid.filename('initialGuessDirectory')}/../Radiance_TROPOMI_.pkl")
+            if(not os.path.exists(pfname)):
+                subprocess.run(["mkdir", "-p", os.path.dirname(pfname)])
+                pickle.dump(obs.muses_py_dict, open(pfname, "wb"))
 
         obs.spectral_window = \
             spec_win if spec_win is not None else MusesSpectralWindow(None,None)
@@ -1117,7 +1135,8 @@ class MusesOmiObservation(MusesObservationReflectance):
                        current_state: 'Optional(CurrentState)',
                        spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
-                       osp_dir=None):
+                       osp_dir=None,
+                       **kwargs):
         '''Create from a MeasurementId. If this depends on any state information, you can
         pass in the CurrentState. This can be given as None if you just want to use default
         values, e.g. you aren't doing a retrieval. If the CurrentState is supplied, you can
