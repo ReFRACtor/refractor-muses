@@ -35,8 +35,8 @@ class RetrievalL2Output(RetrievalOutput):
         a "O3-3" in the name, followed by "O3-2", "O3-1" and "O3-0"'''
         if(self._species_count is None):
             self._species_count = defaultdict(lambda: 0)
-            tstep = self.table_step
-            for i in range(self.table_step+1, self.number_retrieval_step):
+            tstep = self.step_number
+            for i in range(self.step_number+1, self.number_retrieval_step):
                 for spc in self.retrieval_strategy.retrieval_elements(i):
                     self._species_count[spc] += 1
         return self._species_count
@@ -119,7 +119,7 @@ class RetrievalL2Output(RetrievalOutput):
             if("OCO2" not in self.instruments):
                 t = CdfWriteTes()
                 t.write_lite(
-                    self.table_step,
+                    self.step_number,
                     self.out_fname, self.quality_name, self.instruments,
                     self.lite_directory, dataInfo, self.dataTATM, "RH",
                     step=self.species_count[self.spcname],
@@ -130,7 +130,7 @@ class RetrievalL2Output(RetrievalOutput):
         if 'OCO2' not in self.instruments:
             t = CdfWriteTes()
             data2 = t.write_lite(
-                self.table_step, self.out_fname, self.quality_name,
+                self.step_number, self.out_fname, self.quality_name,
                 self.instruments, self.lite_directory, dataInfo, data2, self.spcname,
                 step=self.species_count[self.spcname],
                 times_species_retrieved=self.species_count[self.spcname],

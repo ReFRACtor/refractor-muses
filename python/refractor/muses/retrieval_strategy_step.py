@@ -203,7 +203,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         radiance_res = {"radiance" : radiance_fm,
                         "frequency" : freq_fm }
         (rs._strategy_table.strategy_table_dict, rs._state_info.state_info_dict) = mpy.modify_from_bt(
-            mpy.ObjectView(rs._strategy_table.strategy_table_dict), rs.table_step,
+            mpy.ObjectView(rs._strategy_table.strategy_table_dict), rs.step_number,
             self.radiance_step(),
             radiance_res,
             {},
@@ -211,7 +211,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             self.BTstruct,
             writeOutputFlag=False)
         rs._strategy_table.strategy_table_dict = rs._strategy_table.strategy_table_dict.__dict__
-        logger.info(f"Step: {rs.table_step},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
+        logger.info(f"Step: {rs.step_number},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
         rs._state_info.next_state_dict = copy.deepcopy(rs._state_info.state_info_dict["current"])
         return (True, None)
 
@@ -254,7 +254,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
         rs.notify_update("retrieval input")
-        rs.retrieval_info.stepNumber = rs.table_step
+        rs.retrieval_info.stepNumber = rs.step_number
         rs.retrieval_info.stepName = rs.step_name
         logger.info("Running run_retrieval ...")
         
@@ -277,7 +277,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                        self.radiance_full(rs),
                                        self.propagated_qa)
         logger.info('\n---')
-        logger.info(f"Step: {rs.table_step}, Step Name: {rs.step_name}")
+        logger.info(f"Step: {rs.step_number}, Step Name: {rs.step_name}")
         logger.info(f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}")
         logger.info('---\n')
         
@@ -289,7 +289,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         rs._state_info.update_state(rs.retrieval_info, self.results.results_list,
                                     do_not_update, rs.retrieval_config,
-                                    rs.table_step)
+                                    rs.step_number)
         if 'OCO2' in rs._strategy_table.instrument_name():
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels

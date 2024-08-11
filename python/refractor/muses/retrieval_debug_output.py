@@ -33,7 +33,7 @@ class RetrievalInputOutput(RetrievalOutput):
                                    self.state_info.state_info_obj,
                                    self.windows,
                                    self.retrievalInfo.retrieval_info_obj,
-                                   self.table_step,
+                                   self.step_number,
                                    self.errorCurrent.__dict__,
                                    detectorsUse)
         mpy.cdf_write_dict(self.retrievalInfo.retrieval_info_obj.__dict__,

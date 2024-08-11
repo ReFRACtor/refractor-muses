@@ -83,7 +83,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._capture_directory = RefractorCaptureDirectory()
         self._observers = set()
         self._vlidort_cli = vlidort_cli
-        self._table_step = -1
 
         self._retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
         self._spectral_window_handle_set = copy.deepcopy(SpectralWindowHandleSet.default_handle_set())
@@ -208,21 +207,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         at that step to diagnose a problem.'''
         self._strategy_executor.continue_retrieval()
 
-    def get_initial_guess(self):
-        '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
-        self._retrieval_info = RetrievalInfo(self._error_analysis, self._strategy_table,
-                                             self._state_info)
-
-        # Update state with initial guess so that the initial guess is
-        # mapped properly, if doing a retrieval, for each retrieval step.
-        nparm = self._retrieval_info.n_totalParameters
-        logger.info(f"Step: {self.table_step}, Total Parameters: {nparm}")
-
-        if nparm > 0:
-            xig = self._retrieval_info.initial_guess_list[0:nparm]
-            self._state_info.update_state(self._retrieval_info, xig, [],
-                                         self._cloud_prefs, self.table_step)
-
     @property
     def run_dir(self) -> str:
         '''Directory we are running in (e.g. where the strategy table and measurement id files
@@ -270,15 +254,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         return self._spectral_window_handle_set
     
     @property
-    def table_step(self) -> int:
+    def step_number(self) -> int:
         return self._strategy_executor.current_strategy_step.step_number
-
-    @table_step.setter
-    def table_step(self, v : int):
-        # I think this can go away, but short term leave as an error
-        # to catch a place where this might actually be used.
-        #self._strategy_table.table_step = v
-        raise NotImplementedError()
 
     @property
     def number_retrieval_step(self) -> int:
@@ -287,10 +264,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     @property
     def step_name(self) -> str:
         return self._strategy_executor.current_strategy_step.step_name
-
-    @property
-    def step_directory(self) -> str:
-        return self._strategy_table.step_directory
 
     @property
     def retrieval_type(self) -> str:
@@ -350,7 +323,7 @@ class RetrievalStrategyCaptureObserver:
     def notify_update(self, retrieval_strategy, location, **kwargs):
         if(location != self.location_to_capture):
             return
-        fname = f"{self.basefname}_{retrieval_strategy.table_step}.pkl"
+        fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
         # Don't want this class included in the pickle
         retrieval_strategy.remove_observer(self)
         retrieval_strategy.save_pickle(fname, **kwargs)

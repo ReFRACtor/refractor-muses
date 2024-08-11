@@ -28,7 +28,7 @@ class RetrievalOutput:
     
     @property
     def step_directory(self):
-        return self.retrieval_strategy.step_directory
+        return f"{self.output_directory}/Step{self.step_number:02d}_{self.step_name}"
 
     @property
     def input_directory(self):
@@ -75,9 +75,13 @@ class RetrievalOutput:
         return self.retrieval_strategy_step.results.quality_name
     
     @property
-    def table_step(self):
-        return self.retrieval_strategy.table_step
+    def step_number(self):
+        return self.retrieval_strategy.step_number
 
+    @property
+    def step_name(self):
+        return self.retrieval_strategy.step_name
+    
     @property
     def number_retrieval_step(self):
         return self.retrieval_strategy.number_retrieval_step
