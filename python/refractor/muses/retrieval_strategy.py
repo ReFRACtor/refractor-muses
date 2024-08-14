@@ -14,6 +14,7 @@ from .observation_handle import ObservationHandleSet
 from .state_info import StateElementHandleSet
 from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
 from .spectral_window_handle import SpectralWindowHandleSet
+from .qa_data_handle import QaDataHandleSet
 import logging
 import refractor.muses.muses_py as mpy
 import os
@@ -86,6 +87,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
         self._retrieval_strategy_step_set  = copy.deepcopy(RetrievalStrategyStepSet.default_handle_set())
         self._spectral_window_handle_set = copy.deepcopy(SpectralWindowHandleSet.default_handle_set())
+        self._qa_data_handle_set = copy.deepcopy(QaDataHandleSet.default_handle_set())
         self._cost_function_creator = CostFunctionCreator(rs=self)
         self._forward_model_handle_set = self._cost_function_creator.forward_model_handle_set
         self._observation_handle_set = self._cost_function_creator.observation_handle_set
@@ -139,12 +141,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._strategy_executor = MusesStrategyExecutorOldStrategyTable(
             self.strategy_table_filename, self,
             retrieval_strategy_step_set=self._retrieval_strategy_step_set,
-            spectral_window_handle_set=self._spectral_window_handle_set)
+            spectral_window_handle_set=self._spectral_window_handle_set,
+            qa_data_handle_set=self._qa_data_handle_set)
         self._measurement_id = MeasurementIdFile(f"{self.run_dir}/Measurement_ID.asc",
                                                  self.retrieval_config,
                                                  self._strategy_executor.filter_list_dict)
         self._cost_function_creator.notify_update_target(self.measurement_id)
         self._strategy_executor.spectral_window_handle_set.notify_update_target(self.measurement_id)
+        self._strategy_executor.qa_data_handle_set.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
         self._state_info.notify_update_target(self)
         self.notify_update("update target")
@@ -251,6 +255,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
         '''The set of handles for determining the MusesSpectralWindow.'''
         return self._spectral_window_handle_set
+
+    @property
+    def qa_data_handle_set(self) -> QaDataHandleSet:
+        '''The set of handles for determining the QA flag file name.'''
+        return self._qa_data_handle_set
     
     @property
     def step_number(self) -> int:

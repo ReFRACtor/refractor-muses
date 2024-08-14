@@ -71,10 +71,6 @@ class RetrievalOutput:
         return res
 
     @property
-    def quality_name(self):
-        return self.retrieval_strategy_step.results.quality_name
-    
-    @property
     def step_number(self):
         return self.retrieval_strategy.step_number
 
@@ -507,7 +503,7 @@ class CdfWriteTes:
             global_attr=global_attr
         )
 
-    def write_lite(self, stepNumber, filenameIn, qualityFilename, instrument,
+    def write_lite(self, stepNumber, filenameIn, instrument,
                    liteDirectory, data1In, data2=None, species_name='', step=0,
                    times_species_retrieved=0, state_element_out=None):
         '''This is a lightly edited version of make_lite_casper_script_retrieval,
@@ -549,6 +545,7 @@ class CdfWriteTes:
         directory = None
         useData = True
         dataAnc = copy.deepcopy(data1)
+        qualityFilename = None # Passed down in py-retrieve, but not actually used
         (data, data2, pressuresMax) = mpy.make_one_lite(
             species_name, runs, starttai, endtai, instrument,
             directory, pressuresMax,

@@ -107,7 +107,7 @@ class RetrievalL2Output(RetrievalOutput):
                 t = CdfWriteTes()
                 t.write_lite(
                     self.step_number,
-                    self.out_fname, self.quality_name, self.instruments,
+                    self.out_fname, self.instruments,
                     self.lite_directory, dataInfo, self.dataTATM, "RH",
                     step=self.number_steps_left(self.spcname),
                     times_species_retrieved=self.number_steps_left(self.spcname),
@@ -117,7 +117,7 @@ class RetrievalL2Output(RetrievalOutput):
         if 'OCO2' not in self.instruments:
             t = CdfWriteTes()
             data2 = t.write_lite(
-                self.step_number, self.out_fname, self.quality_name,
+                self.step_number, self.out_fname, 
                 self.instruments, self.lite_directory, dataInfo, data2, self.spcname,
                 step=self.number_steps_left(self.spcname),
                 times_species_retrieved=self.number_steps_left(self.spcname),

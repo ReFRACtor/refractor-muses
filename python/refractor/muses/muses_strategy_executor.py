@@ -5,6 +5,7 @@ from .strategy_table import StrategyTable
 from .error_analysis import ErrorAnalysis
 from .order_species import order_species
 from .spectral_window_handle import SpectralWindowHandleSet
+from .qa_data_handle import QaDataHandleSet
 import refractor.muses.muses_py as mpy
 import abc
 import copy
@@ -150,7 +151,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     a RetrievalStrategyStepSet to get the RetrievalStrategyStep based
     off a retrieval type name. This adds that functionality.'''
     def __init__(self, retrieval_strategy_step_set=None,
-                 spectral_window_handle_set=None):
+                 spectral_window_handle_set=None,
+                 qa_data_handle_set=None):
         if(retrieval_strategy_step_set is None):
             self._retrieval_strategy_step_set = copy.deepcopy(RetrievalStrategyStepSetNew.default_handle_set())
         else:
@@ -159,6 +161,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self._spectral_window_handle_set = copy.deepcopy(SpectralWindowHandleSet.default_handle_set())
         else:
             self._spectral_window_handle_set = spectral_window_handle_set
+        if(qa_data_handle_set is None):
+            self._qa_data_handle_set = copy.deepcopy(QaDataHandleSet.default_handle_set())
+        else:
+            self._qa_data_handle_set = qa_data_handle_set
             
 
     @property
@@ -186,6 +192,11 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return self._spectral_window_handle_set
 
     @property
+    def qa_data_handle_set(self):
+        '''The QaDataHandleSet to use to get the QA flag filename.'''
+        return self._qa_data_handle_set
+    
+    @property
     def retrieval_strategy_step_set(self):
         '''The RetrievalStrategyStepSet to use for getting RetrievalStrategyStep.'''
         return self._retrieval_strategy_step_set
@@ -196,9 +207,11 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     def __init__(self, filename : str, rs : 'RetrievalStrategy', osp_dir=None,
                  retrieval_strategy_step_set=None,
-                 spectral_window_handle_set=None):
+                 spectral_window_handle_set=None,
+                 qa_data_handle_set=None):
         super().__init__(retrieval_strategy_step_set = retrieval_strategy_step_set,
-                         spectral_window_handle_set = spectral_window_handle_set)
+                         spectral_window_handle_set = spectral_window_handle_set,
+                         qa_data_handle_set = qa_data_handle_set)
         self.stable = StrategyTable(filename, osp_dir=osp_dir)
         self.rs = rs
         self.retrieval_config = rs.retrieval_config
@@ -288,6 +301,11 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     def run_step(self):
         '''Run a the current step.'''
         self.rs._swin_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
+        try:
+            logger.info(f"Hi there! {self.qa_data_handle_set.qa_file_name(self.current_strategy_step)}")
+        except RuntimeError:
+            # Ignore error
+            pass
         self.rs._state_info.copy_current_initial()
         logger.info(f'\n---')
         logger.info(f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.stable.number_table_step}")
