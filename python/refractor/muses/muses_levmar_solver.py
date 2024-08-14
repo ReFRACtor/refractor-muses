@@ -5,6 +5,8 @@ from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 import refractor.muses.muses_py as mpy
 
+from typing import Optional
+
 class MusesLevmarSolver:
     '''This is a wrapper around levmar_nllsq_elanor that makes it look like
     a NLLSSolver. Right now we don't actually derive from that, we can perhaps
@@ -16,13 +18,14 @@ class MusesLevmarSolver:
     # a None or something like that.
     def __init__(self, cfunc: CostFunction, 
                  rf_uip, max_iter: int, delta_value: float, conv_tolerance: float,
-                 chi2_tolerance: float):
+                 chi2_tolerance: float, log_file: Optional[str] = None):
         self.cfunc = cfunc
         self.rf_uip = rf_uip
         self.max_iter = max_iter
         self.delta_value = delta_value
         self.conv_tolerance = conv_tolerance
         self.chi2_tolerance = chi2_tolerance
+        self.log_file = log_file
         # Defaults, so if we skip solve we have what is needed for output
         self.success_flag = 1
         self.bestIter = 0
@@ -96,7 +99,9 @@ class MusesLevmarSolver:
                          verbose=False, 
                          delta_value=self.delta_value, 
                          ConvTolerance=self.conv_tolerance,
-                         Chi2Tolerance=self.chi2_tolerance
+                         Chi2Tolerance=self.chi2_tolerance,
+                         logWrite=self.log_file is not None,
+                         logFile=self.log_file
                      )
             # Since xret is the best iteration, which might not be the last,
             # set the cost function to this. Note the cost function does internal

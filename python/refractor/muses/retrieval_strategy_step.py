@@ -265,12 +265,19 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         delta_str = rs.strategy_table.preferences['LMDelta'] # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
 
+        if rs.write_output:
+            levmar_log_dir = (Path(rs.strategy_table.output_directory) / rs.strategy_table.step_directory).resolve()
+            levmar_log_file = str(levmar_log_dir / f'LevmarSolver-{rs.strategy_table.step_name}.log')
+        else:
+            levmar_log_file = None
+
         self.slv = MusesLevmarSolver(cfunc,
                                      rf_uip,
                                      maxIter,
                                      delta_value,
                                      ConvTolerance,   
-                                     Chi2Tolerance)
+                                     Chi2Tolerance,
+                                     log_file=levmar_log_file)
         if(maxIter > 0):
             self.slv.solve()
         # TODO Hopefully this can go away
