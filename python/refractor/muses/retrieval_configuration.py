@@ -74,6 +74,10 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         if('liteDirectory' not in res._data):
             res._data['liteDirectory'] = "../OSP/Lite/"
 
+        # Similar for omiSolarReference
+        if('omiSolarReference' not in res._data):
+            res._data['omiSolarReference'] = "../OSP/OMI/OMI_Solar/omisol_v003_avg_nshi_backup.h5"
+            
         # There is a table included in the strategy table file that lists the required
         # options. Note sure if this is complete, but if we are missing one of these
         # then muses-py marks this as a failure

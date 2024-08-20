@@ -50,35 +50,31 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                  instrument_name: str, observation : 'MusesObservation',
                  # Temp, we are moving away from this
                  rf_uip : "Optional(RefractorUip)" = None,
+                 fm_sv : "Optional(rf.StateVector)" = None,
                  # Values, so we can flip between using pca and not
                  use_pca=True, use_lrad=False, lrad_second_order=False,
                  use_raman=True
                  ):
-        '''Constructor. 
+        '''Constructor. The StateVector to add things to can be passed in, or if this
+        isn't then we create a new StateVector.
         '''
-
-
         self.use_pca = use_pca
         self.use_lrad = use_lrad
         self.use_raman = use_raman
         self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
         self.observation = observation
+        if(fm_sv):
+            self.fm_sv = fm_sv
+        else:
+            self.fm_sv = rf.StateVector()
+            self.fm_sv.observer_claimed_size = current_state.fm_state_vector_size
+        self.current_state = current_state
         # Note MeasurementId also has access to all the stuff in RetrievalConfiguration
         self.measurement_id = measurement_id
-
-        self.current_state = current_state
         
         # We are moving away from this, but leave now as a reference
         self.rf_uip = rf_uip
-        # Hopefully we can move away from using rf_uip and use state_info
-        # directly. But for now we get this from the rf_uip
-        # Short term, support this missing in rf_uip. This is because we
-        # have old test data that doesn't have this in it yet.
-        if(hasattr(rf_uip, "state_info")):
-            self.state_info = rf_uip.state_info
-        else:
-            self.state_info = None
 
         self.filter_list = self.observation.filter_list
         self.num_channels = self.observation.num_channels
@@ -106,30 +102,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # This is what OMI currently uses, and TROPOMI band 3. We may put all this
         # together, but right now tropomi_fm_object_creator may replace this.
         self._inner_absorber = O3Absorber(self)
-
-    def channel_list(self):
-        '''This is list of microwindows relevant to self.instrument_name
-
-        Note that there are two microwindow indexes floating around. We have
-        ii_mw which goes through all the instruments, so for step 7 in
-        AIRS+OMI ii_mw goes through 12 values (only 10 and 11 are OMI).
-        mw_index (also call fm_idx) is relative to a instrument,
-        so if we are working with OMI the first microwindow has ii_mw = 10, but
-        mw_index is 0 (UV1, with the second UV2).
-        
-        The contents of channel_list() are ii_mw (e.g., 10 and 11 in our 
-        AIRS+OMI example), and the index into channel_list() is fm_idx
-        (also called mw_index). So you might loop with something like:
-
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-             blah blah
-        '''
-        chan_list = []
-        for ii_mw in range(self.rf_uip.number_micro_windows):
-            if self.rf_uip.instrument_name(ii_mw) == self.instrument_name:
-                chan_list.append(ii_mw)
-
-        return chan_list
 
     def solar_model(self, sensor_index):
         with self.observation.modify_spectral_window(do_raman_ext=True):
@@ -276,10 +248,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rf.PressureSigma(plev, surface_pressure,
                                 rf.Pressure.PREFER_DECREASING_PRESSURE)
 
-    @abc.abstractproperty
-    def uip_params(self):
-        raise NotImplementedError
-        
     @cached_property
     def pressure(self):
         cloud_pressure = self.uip_params["cloud_pressure"]

@@ -94,11 +94,11 @@ def test_fm_run(omi_fm_object_creator_step_1):
     print(fm.radiance(1, True).value)
 
 def test_state_vector(omi_fm_object_creator_step_1):
-    print(omi_fm_object_creator_step_1.state_vector_for_testing)
+    print(omi_fm_object_creator_step_1.fm_sv)
 
 @require_muses_py
 def test_state_vector_step2(omi_fm_object_creator_step_2):
-    print(omi_fm_object_creator_step_2.state_vector_for_testing)
+    print(omi_fm_object_creator_step_2.fm_sv)
 
 @require_muses_py
 def test_raman_effect(omi_fm_object_creator_step_1):

@@ -415,7 +415,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.rf_uip = RefractorUip(i_uip, basis_matrix=self.basis_matrix)
         self.rf_uip.run_dir = os.getcwd()
         if(hasattr(self, "obj_creator")):
-            self.obj_creator.state_vector_for_testing.update_state(self.rf_uip.current_state_x_fm)
+            self.obj_creator.fm_sv.update_state(self.rf_uip.current_state_x_fm)
         mrad = self.observation.radiance(0)
         o_measured_radiance_tropomi = {"measured_radiance_field" : mrad.spectral_range.data, "measured_nesr" : mrad.spectral_range.uncertainty}
         o_success_flag = 1
@@ -450,7 +450,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject if mpy.have_muses_py el
         self.rf_uip = RefractorUip(i_uip, basis_matrix=self.basis_matrix)
         self.rf_uip.run_dir = os.getcwd()
         if(hasattr(self, "obj_creator")):
-            self.obj_creator.state_vector_for_testing.update_state(self.rf_uip.current_state_x_fm)
+            self.obj_creator.fm_sv.update_state(self.rf_uip.current_state_x_fm)
         o_measured_radiance_omi = self.rf_uip.measured_radiance("OMI")
         o_success_flag = 1
 
@@ -790,7 +790,7 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
         self.ret_info = parms['i_ret_info']
         self.rf_uip = RefractorUip(parms['i_uip'])
         if(self.have_obj_creator):
-            self.obj_creator.state_vector_for_testing.update_state(fm_vec)
+            self.obj_creator.fm_sv.update_state(fm_vec)
             
     @property
     def fm(self):
@@ -804,7 +804,7 @@ class RefractorTropOrOmiFm(RefractorTropOrOmiFmBase):
         raise NotImplementedError()
 
     def radiance_all(self, skip_jacobian=False):
-        logger.info(f"FM state vector:\n{self.obj_creator.state_vector_for_testing}")
+        logger.info(f"FM state vector:\n{self.obj_creator.fm_sv}")
         spec = self.fm.radiance_all(skip_jacobian=skip_jacobian)
         return spec
 

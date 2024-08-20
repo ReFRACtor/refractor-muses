@@ -227,12 +227,12 @@ def test_fm_run(tropomi_fm_object_creator_step_1):
 
 
 def test_state_vector(tropomi_fm_object_creator_step_1):
-    print(tropomi_fm_object_creator_step_1.state_vector_for_testing)
+    print(tropomi_fm_object_creator_step_1.fm_sv)
 
 
 @require_muses_py
 def test_state_vector_step2(tropomi_fm_object_creator_step_2):
-    print(tropomi_fm_object_creator_step_2.state_vector_for_testing)
+    print(tropomi_fm_object_creator_step_2.fm_sv)
 
 
 @require_muses_py

@@ -37,6 +37,7 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2):
     print(mod)
 
     sv = rf.StateVector()
+    obj_creator.fm_sv.remove_observer(obj_creator.absorber_vmr[0])
     sv.add_observer(obj_creator.absorber_vmr[0])
     sv_val = []
     sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3"))

@@ -30,6 +30,9 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             self._inner_absorber = SwirAbsorber(self)
         else:
             raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
+        # Temp, until we get this all in place
+        _ = self.forward_model
+        self.add_to_sv(self.fm_sv)
         
 
     @cached_property
@@ -64,10 +67,12 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             filter_name = self.filter_list[i]
             t = self.rf_uip.full_band_frequency(self.instrument_name)[self.rf_uip.mw_fm_slice(filter_name, self.instrument_name)]
             ref_wav = (t[0] + t[-1])/2
-            coeff = [self.rf_uip.tropomi_params[f"resscale_O0_{filter_name}"],
-                     self.rf_uip.tropomi_params[f"resscale_O1_{filter_name}"],
-                     self.rf_uip.tropomi_params[f"resscale_O2_{filter_name}"]]
-            rscale = rf.RadianceScalingSvMusesFit(coeff, rf.DoubleWithUnit(ref_wav,"nm"), "BAND3")
+            selem = [f"TROPOMIRESSCALEO0{filter_name}",
+                     f"TROPOMIRESSCALEO1{filter_name}",
+                     f"TROPOMIRESSCALEO2{filter_name}"]
+            coeff,mp = self.current_state.object_state(selem)
+            rscale = rf.RadianceScalingSvMusesFit(coeff, rf.DoubleWithUnit(ref_wav,"nm"), filter_name)
+            self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [rscale,])
             res.append(rscale)
         return res
 
@@ -88,9 +93,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def ground_clear(self):
         albedo = np.zeros((self.num_channels, 3))
-        which_retrieved = np.full((self.num_channels, 3), False, dtype=bool)
         band_reference = np.zeros(self.num_channels)
-
+        selem = [ ] 
         for i in range(self.num_channels):
             filt_name = self.filter_list[i]
             if re.match(r'BAND\d$', filt_name) is not None:
@@ -99,24 +103,18 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                 slc = self.rf_uip.mw_fm_slice(filt_name, self.instrument_name)
                 wave_arr = self.rf_uip.full_band_frequency(self.instrument_name)[slc]
                 band_reference[i] = (wave_arr[-1] + wave_arr[0]) / 2
-                albedo[i, 0] = self.uip_params[f'surface_albedo_{filt_name}']
-                albedo[i, 1] = self.uip_params[f'surface_albedo_slope_{filt_name}']
-                albedo[i, 2] = self.uip_params[f'surface_albedo_slope_order2_{filt_name}']
-
-                if(f'TROPOMISURFACEALBEDO{filt_name}' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[i, 0] = True
-                if(f'TROPOMISURFACEALBEDOSLOPE{filt_name}' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[i, 1] = True
-                if(f'TROPOMISURFACEALBEDOSLOPEORDER2{filt_name}' in self.rf_uip.state_vector_params(self.instrument_name)):
-                    which_retrieved[i, 2] = True
+                selem.extend([f"TROPOMISURFACEALBEDO{filt_name}",
+                              f"TROPOMISURFACEALBEDOSLOPE{filt_name}",
+                              f"TROPOMISURFACEALBEDOSLOPEORDER2{filt_name}"])
             else:
                 raise RuntimeError("Don't recognize filter name")
 
-        return rf.GroundLambertian(albedo,
-                      rf.ArrayWithUnit(band_reference, "nm"),
-                      rf.Unit("nm"),
-                      self.filter_list,
-                      rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
+        coeff,mp = self.current_state.object_state(selem)
+        albedo[:, :] = np.reshape(coeff,albedo.shape)
+        res = rf.GroundLambertian(albedo, rf.ArrayWithUnit(band_reference, "nm"),
+                                  rf.Unit("nm"), self.filter_list, mp)
+        self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [res,])
+        return res
         
     @cached_property
     def ground_cloud(self):
@@ -124,53 +122,34 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         which_retrieved = np.full((self.num_channels, 1), False, dtype=bool)
         band_reference = np.zeros(self.num_channels)
         band_reference[:] = 1000
-
-        albedo[:,0] = self.uip_params['cloud_Surface_Albedo']
-        if("TROPOMICLOUDSURFACEALBEDO" in self.rf_uip.state_vector_params(self.instrument_name)):
-            which_retrieved[0,0] = True
-
-        return rf.GroundLambertian(albedo,
-                      rf.ArrayWithUnit(band_reference, "nm"),
-                      ["Cloud",] * self.num_channels,
-                      rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
+        selem = ["TROPOMICLOUDSURFACEALBEDO",]
+        coeff,mp = self.current_state.object_state(selem)
+        albedo[:,0] = coeff[0]
+        res = rf.GroundLambertian(
+            albedo, rf.ArrayWithUnit(band_reference, "nm"),
+            ["Cloud",] * self.num_channels,
+            mp)
+        self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [res,])
+        return res
 
     @cached_property
     def cloud_fraction(self):
-        # JLL: got a float32 for the cloud fraction in one case which made the C++ unhappy,
-        # so force conversion to a double
-        return rf.CloudFractionFromState(float(self.rf_uip.tropomi_cloud_fraction))
+        selem = [f"TROPOMICLOUDFRACTION",]
+        coeff,mp = self.current_state.object_state(selem)
+        cf = rf.CloudFractionFromState(float(coeff[0]))
+        self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [cf,])
+        return cf
 
     def add_to_sv(self, fm_sv : rf.StateVector):
         # TODO We have this hardcoded now. We'll rework this, adding to the state
         # vector should get moved into the object creation. But we'll have this in
         # place for now.
-        self.current_state.add_fm_state_vector_if_needed(
-            fm_sv, ["TROPOMICLOUDFRACTION",], [self.cloud_fraction,])
-        self.current_state.add_fm_state_vector_if_needed(
-            fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
-        self.current_state.add_fm_state_vector_if_needed(
-            fm_sv, [f"TROPOMICLOUDSURFACEALBEDO",], [self.ground_cloud,])
+        if("O3" in self.current_state.fm_sv_loc):
+            self.current_state.add_fm_state_vector_if_needed(
+                fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
         for b in (3,):
             self.current_state.add_fm_state_vector_if_needed(
-                fm_sv, [f"TROPOMISURFACEALBEDOBAND{b}",
-                        f"TROPOMISURFACEALBEDOSLOPEBAND{b}",
-                        f"TROPOMISURFACEALBEDOSLOPEORDER2BAND{b}"], [self.ground_clear,])
-            self.current_state.add_fm_state_vector_if_needed(
                 fm_sv, [f"TROPOMIRINGSFBAND{b}",], [self.raman_effect(0),])
-            self.current_state.add_fm_state_vector_if_needed(
-                fm_sv, [f"TROPOMIRESSCALEO0BAND{b}",
-                        f"TROPOMIRESSCALEO1BAND{b}",
-                        f"TROPOMIRESSCALEO2BAND{b}"], self.radiance_scaling[0])
-
-    @cached_property
-    def state_vector_for_testing(self):
-        '''Create a state vector for just this forward model. This is really
-        meant more for unit tests, during normal runs CostFunctionCreator handles
-        this (including the state vector element for other instruments).'''
-        fm_sv = rf.StateVector()
-        self.add_to_sv(fm_sv)
-        fm_sv.observer_claimed_size = self.current_state.fm_state_vector_size
-        return fm_sv
 
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
@@ -227,9 +206,10 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         if(instrument_name != "TROPOMI"):
             return None
         obj_creator = TropomiFmObjectCreator(current_state, self.measurement_id, obs,
-                                             rf_uip=rf_uip_func(), **self.creator_kwargs)
+                                             rf_uip=rf_uip_func(),
+                                             fm_sv=fm_sv,
+                                             **self.creator_kwargs)
         fm = obj_creator.forward_model
-        obj_creator.add_to_sv(fm_sv)
         logger.info(f"Tropomi Forward model\n{fm}")
         return fm
 

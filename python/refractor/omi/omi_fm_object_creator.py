@@ -23,6 +23,13 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                          **kwargs)
         self.use_eof = use_eof
         self.eof_dir = eof_dir
+        # Temp, until we get this updated to use current_state
+        if(hasattr(self.rf_uip, "state_info")):
+            self.state_info = self.rf_uip.state_info
+        else:
+            self.state_info = None
+        # Temp, until we get this all in place
+        self.add_to_sv(self.fm_sv)
         
     @cached_property
     def instrument_correction(self):
@@ -35,6 +42,32 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                         v.push_back(e)
             res.push_back(v)
         return res
+
+    # This should go away, I think we can get this from the observation. Curently just
+    # used by eof below
+    def channel_list(self):
+        '''This is list of microwindows relevant to self.instrument_name
+
+        Note that there are two microwindow indexes floating around. We have
+        ii_mw which goes through all the instruments, so for step 7 in
+        AIRS+OMI ii_mw goes through 12 values (only 10 and 11 are OMI).
+        mw_index (also call fm_idx) is relative to a instrument,
+        so if we are working with OMI the first microwindow has ii_mw = 10, but
+        mw_index is 0 (UV1, with the second UV2).
+        
+        The contents of channel_list() are ii_mw (e.g., 10 and 11 in our 
+        AIRS+OMI example), and the index into channel_list() is fm_idx
+        (also called mw_index). So you might loop with something like:
+
+        for fm_idx, ii_mw in enumerate(self.channel_list()):
+             blah blah
+        '''
+        chan_list = []
+        for ii_mw in range(self.rf_uip.number_micro_windows):
+            if self.rf_uip.instrument_name(ii_mw) == self.instrument_name:
+                chan_list.append(ii_mw)
+
+        return chan_list
 
     @cached_property
     def eof(self):
@@ -106,21 +139,12 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 res[band] = r
         return res
         
-    
-    @cached_property
-    def solar_reference_filename(self):
-        # This  path isn't in the strategy table file, it isn't clear why. But we
-        # can find it relative to the omi calibration file
-        bname = os.path.dirname(os.path.dirname(self.measurement_id['omi_calibrationFilename']))
-        return f"{bname}/OMI_Solar/omisol_v003_avg_nshi_backup.h5"
-
-
     @cached_property
     def omi_solar_model(self):
         '''We read a 3 year average solar file HDF file for omi. This
         duplicates what mpy.read_omi does, which is then stored in the pickle
         file that solar_model uses.'''
-        f = h5py.File(self.solar_reference_filename, "r")
+        f = h5py.File(self.measurement_id["omiSolarReference"], "r")
         res = []
         for i in range(self.num_channels):
             ind = self.rf_uip.across_track_indexes(self.filter_list[i],
@@ -206,16 +230,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         except (AttributeError, KeyError):
             pass
         
-    @cached_property
-    def state_vector_for_testing(self):
-        '''Create a state vector for just this forward model. This is really
-        meant more for unit tests, during normal runs CostFunctionCreator handles
-        this (including the state vector element for other instruments).'''
-        fm_sv = rf.StateVector()
-        self.add_to_sv(fm_sv)
-        fm_sv.observer_claimed_size = self.current_state.fm_state_vector_size
-        return fm_sv
-
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
         # Note we should probably look at this sample grid, and
@@ -264,9 +278,9 @@ class OmiForwardModelHandle(ForwardModelHandle):
         if(instrument_name != "OMI"):
             return None
         obj_creator = OmiFmObjectCreator(current_state, self.measurement_id, obs,
-                                         rf_uip = rf_uip_func(), **self.creator_kwargs)
+                                         rf_uip = rf_uip_func(),
+                                         fm_sv = fm_sv, **self.creator_kwargs)
         fm = obj_creator.forward_model
-        obj_creator.add_to_sv(fm_sv)
         logger.info(f"OMI Forward model\n{fm}")
         return fm
 
