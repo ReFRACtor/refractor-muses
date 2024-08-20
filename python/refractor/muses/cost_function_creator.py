@@ -152,7 +152,7 @@ class CostFunctionCreator:
         self.fm_list = []
         for i, instrument_name in enumerate(instrument_name_list):
             fm =  self.forward_model_handle_set.forward_model(
-                instrument_name, current_state, self.obs_list[i].spectral_window, self.obs_list[i],
+                instrument_name, current_state, self.obs_list[i],
                 fm_sv, rf_uip_func, **kwargs)
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size

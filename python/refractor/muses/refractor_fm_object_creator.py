@@ -45,23 +45,18 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     rf.StateVector, we need to have only one instance of them.
     '''
 
-    def __init__(self, rf_uip : RefractorUip,
+    def __init__(self, current_state : 'CurrentState',
+                 measurement_id : 'MeasurementId',
                  instrument_name: str, observation : 'MusesObservation',
-                 input_dir=None,
-                 # Short term, so we can flip between pca vs lidort
+                 # Temp, we are moving away from this
+                 rf_uip : "Optional(RefractorUip)" = None,
+                 # Values, so we can flip between using pca and not
                  use_pca=True, use_lrad=False, lrad_second_order=False,
                  use_raman=True
                  ):
-        '''Constructor. This takes a RefractorUip (so *not* the
-        muses-py dictionary, but rather a RefractorUip created from
-        that).
-        
-        The input directory can be given, this is used to read the 
-        solar model data (omisol_v003_avg_nshi_backup.h5). If not supplied,
-        we use the default directory path.
+        '''Constructor. 
         '''
 
-        self.input_dir = input_dir
 
         self.use_pca = use_pca
         self.use_lrad = use_lrad
@@ -69,7 +64,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
         self.observation = observation
+        # Note MeasurementId also has access to all the stuff in RetrievalConfiguration
+        self.measurement_id = measurement_id
 
+        self.current_state = current_state
+        
+        # We are moving away from this, but leave now as a reference
         self.rf_uip = rf_uip
         # Hopefully we can move away from using rf_uip and use state_info
         # directly. But for now we get this from the rf_uip
@@ -79,9 +79,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.state_info = rf_uip.state_info
         else:
             self.state_info = None
-
-        if(self.input_dir is None):
-            self.input_dir = os.path.realpath(os.path.join(rf_uip.uip_all(self.instrument_name)['L2_OSP_PATH'], "OMI"))
 
         self.filter_list = self.observation.filter_list
         self.num_channels = self.observation.num_channels

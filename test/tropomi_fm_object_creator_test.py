@@ -6,7 +6,7 @@ import glob
 from refractor.tropomi import (TropomiFmObjectCreator, 
                                TropomiForwardModelHandle)
 from refractor.muses import (MusesRunDir, CostFunctionCreator, CostFunction, 
-                             StateInfo, RefractorFmObjectCreatorNew)
+                             CurrentStateUip, RetrievalConfiguration, MeasurementIdFile)
 from refractor.old_py_retrieve_wrapper import (RefractorTropOmiFm, RefractorMusesIntegration,
                                                MusesForwardModelStep)
 import subprocess
@@ -14,33 +14,61 @@ import subprocess
 DEBUG = False
 
 
-def test_spec_win(tropomi_uip_step_1, tropomi_obs_step_1):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    print(obj_creator.spec_win)
-    obj_creator2 = RefractorFmObjectCreatorNew(*StateInfo.create_from_uip(tropomi_uip_step_1), "TROPOMI")
-    print(obj_creator2.spec_win)
+@pytest.fixture(scope="function")
+def tropomi_fm_object_creator_step_1(tropomi_uip_step_1, tropomi_obs_step_1, osp_dir):
+    '''Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
+    in multiple tests'''
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{test_base_path}/tropomi/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    flist = {'TROPOMI' : ['BAND3']}
+    mid = MeasurementIdFile(f"{test_base_path}/tropomi/in/sounding_1/Measurement_ID.asc",
+                            rconf, flist)
+    return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_1), mid,
+                                  tropomi_obs_step_1, rf_uip=tropomi_uip_step_1)
+
+@pytest.fixture(scope="function")
+def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp_dir):
+    '''Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
+    in multiple tests'''
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{test_base_path}/tropomi/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    flist = {'TROPOMI' : ['BAND3']}
+    mid = MeasurementIdFile(f"{test_base_path}/tropomi/in/sounding_1/Measurement_ID.asc",
+                            rconf, flist)
+    return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_2), mid,
+                                  tropomi_obs_step_2, rf_uip=tropomi_uip_step_2)
+
+
+@pytest.fixture(scope="function")
+def tropomi_fm_object_creator_band7_swir_step(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step, osp_dir):
+    '''Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
+    in multiple tests'''
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{test_base_path}/tropomi_band7/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    flist = {'TROPOMI' : ['BAND7']}
+    mid = MeasurementIdFile(f"{test_base_path}/tropomi_band7/in/sounding_1/Measurement_ID.asc",
+                            rconf, flist)
+    return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_band7_swir_step), mid,
+                                  tropomi_obs_band7_swir_step, rf_uip=tropomi_uip_band7_swir_step)
+
+
+def test_spec_win(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.spec_win)
     
+def test_spectrum_sampling(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.spectrum_sampling)
 
-def test_spectrum_sampling(tropomi_uip_step_1, tropomi_obs_step_1):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    print(obj_creator.spectrum_sampling)
-    obj_creator2 = RefractorFmObjectCreatorNew(*StateInfo.create_from_uip(tropomi_uip_step_1), "TROPOMI")
-    print(obj_creator2.spectrum_sampling)
+def test_instrument(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.instrument)
 
+def test_band3_ground_albedo(tropomi_fm_object_creator_step_1, tropomi_uip_step_1):
+    """Test that the object creator reads the correct albedo
+    parameters from the UIP for Band 3
 
-
-def test_instrument(tropomi_uip_step_1, tropomi_obs_step_1):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    print(obj_creator.instrument)
-
-
-def test_band3_ground_albedo(tropomi_uip_step_1, tropomi_obs_step_1):
-    """Test that the object creator reads the correct albedo parameters from the UIP for Band 3
-
-    This is to test that changes to add new bands do not cause it to accidentally get the wrong values.
+    This is to test that changes to add new bands do not cause it to
+    accidentally get the wrong values.
     """
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    obj_albedo_coeffs = obj_creator.ground_clear.albedo_coefficients(0).value
+    obj_albedo_coeffs = tropomi_fm_object_creator_step_1.ground_clear.albedo_coefficients(0).value
     expected = [
         tropomi_uip_step_1.tropomi_params['surface_albedo_BAND3'], # 0.896 as of 2023-10-03
         tropomi_uip_step_1.tropomi_params['surface_albedo_slope_BAND3'], # 0.0 as of 2023-10-03
@@ -50,19 +78,18 @@ def test_band3_ground_albedo(tropomi_uip_step_1, tropomi_obs_step_1):
 
     # Now check the state mapping indices. Since none of the albedo terms are in step 1 of this UIP,
     # this should be an empty array.
-    obj_state_map = obj_creator.ground_clear.state_mapping.retrieval_indexes
+    obj_state_map = tropomi_fm_object_creator_step_1.ground_clear.state_mapping.retrieval_indexes
     assert np.array_equal(obj_state_map, [])
 
 
-def test_band7_ground_albedo(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step):
+def test_band7_ground_albedo(tropomi_fm_object_creator_band7_swir_step,
+                             tropomi_uip_band7_swir_step):
     """Test that the object creator reads the correct albedo parameters from the UIP for Band 7
 
     This is to test that changes to add new bands do not cause it to accidentally get the wrong values.
     """
     uip = tropomi_uip_band7_swir_step
-    obs = tropomi_obs_band7_swir_step
-    obj_creator = TropomiFmObjectCreator(uip, obs)
-    obj_albedo_coeffs = obj_creator.ground_clear.albedo_coefficients(0).value
+    obj_albedo_coeffs = tropomi_fm_object_creator_band7_swir_step.ground_clear.albedo_coefficients(0).value
     expected = [
         uip.tropomi_params['surface_albedo_BAND7'], # 0.00169 as of 2023-10-03
         uip.tropomi_params['surface_albedo_slope_BAND7'], # 0.0 as of 2023-10-03
@@ -72,19 +99,18 @@ def test_band7_ground_albedo(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir
 
     # Now check the state mapping indices. Since all three of the albedo terms are in step 1 of this UIP,
     # this should be an array with indices 0 to 2.
-    obj_state_map = obj_creator.ground_clear.state_mapping.retrieval_indexes
+    obj_state_map = tropomi_fm_object_creator_band7_swir_step.ground_clear.state_mapping.retrieval_indexes
     assert np.array_equal(obj_state_map, [0, 1, 2])
 
 
-def test_band3_absorber(tropomi_uip_step_1, tropomi_obs_step_1):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    assert 'O3' == obj_creator.absorber.gas_name(0)
+def test_band3_absorber(tropomi_fm_object_creator_step_1):
+    assert 'O3' == tropomi_fm_object_creator_step_1.absorber.gas_name(0)
 
     # JLL: nothing special about choosing 330 nm or the step size of 15 - the idea was just to (a) get
     # optical depths somewhat in the middle of the O3 window for Band 3 over a range of levels without
     # having to type too many check values. Weirdly the OD doesn't seem to change with wavelength, which
     # seems wrong. Test values gotten on 2023-10-04.
-    optical_depths = obj_creator.absorber.optical_depth_each_layer(330.0, 0).value[::15].flatten()
+    optical_depths = tropomi_fm_object_creator_step_1.absorber.optical_depth_each_layer(330.0, 0).value[::15].flatten()
     expected = [
         3.43152898e-7,
         4.70869935e-6,
@@ -95,12 +121,7 @@ def test_band3_absorber(tropomi_uip_step_1, tropomi_obs_step_1):
     assert np.allclose(optical_depths, expected)
 
 
-def test_band7_absorber(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step, osp_dir):
-    # The osp_dir fixture is just to ensure that the OSP environmental variable is set 
-    # since this needs the ABSCO tables and the creator can only infer their location
-    # if it's in a sounding directory with "OSP" linked in the parent directory.
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step)
-
+def test_band7_absorber(tropomi_fm_object_creator_band7_swir_step):
     # JLL: I chose these values of pressure, temperature, and H2O VMR
     # because they are points in the ABSCO table that I can just extract
     # to compare against what the absorber returns without any interpolation
@@ -118,35 +139,29 @@ def test_band7_absorber(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step
     }
     
     for igas in range(4):
-        gas = obj_creator.absorber.gas_name(igas)
-        obj_xsec = obj_creator.absorber.gas_absorption(gas).absorption_cross_section(
+        gas = tropomi_fm_object_creator_band7_swir_step.absorber.gas_name(igas)
+        obj_xsec = tropomi_fm_object_creator_band7_swir_step.absorber.gas_absorption(gas).absorption_cross_section(
             test_freq, test_pres, test_temp, test_h2o
         ).value
         assert np.isclose(obj_xsec, expected_xsec[gas]), f'{gas} xsec does not match'
 
 
-def test_band3_vmr(tropomi_uip_step_1, tropomi_obs_step_1):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    obj_vmrs = obj_creator.absorber_vmr[0].vmr_profile
+def test_band3_vmr(tropomi_fm_object_creator_step_1, tropomi_uip_step_1):
+    obj_vmrs = tropomi_fm_object_creator_step_1.absorber_vmr[0].vmr_profile
     uip_vmrs = tropomi_uip_step_1.atmosphere_column('O3')
     assert np.allclose(obj_vmrs, uip_vmrs)
 
 
-def test_band7_vmr(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step):
-    uip = tropomi_uip_band7_swir_step
-    obs = tropomi_obs_band7_swir_step
-    obj_creator = TropomiFmObjectCreator(uip, obs)
-    for i, name in enumerate(uip.atm_params('TROPOMI')['species']):
-        obj_vmrs = obj_creator.absorber_vmr[i].vmr_profile
-        uip_vmrs = uip.atmosphere_column(name)
+def test_band7_vmr(tropomi_fm_object_creator_band7_swir_step, tropomi_uip_band7_swir_step):
+    for i, name in enumerate(tropomi_uip_band7_swir_step.atm_params('TROPOMI')['species']):
+        obj_vmrs = tropomi_fm_object_creator_band7_swir_step.absorber_vmr[i].vmr_profile
+        uip_vmrs = tropomi_uip_band7_swir_step.atmosphere_column(name)
         assert np.allclose(obj_vmrs, uip_vmrs), f'{name} VMRs differ in the object creator and UIP'
 
 
-def test_band7_ils_simple(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step, tropomi_band7_simple_ils_test_data):
-    uip = tropomi_uip_band7_swir_step
-    obs = tropomi_obs_band7_swir_step
-    obj_creator = TropomiFmObjectCreator(uip, obs)
-    inner_ils_obj = obj_creator.instrument.ils(0)
+def test_band7_ils_simple(tropomi_fm_object_creator_band7_swir_step,
+                          tropomi_band7_simple_ils_test_data):
+    inner_ils_obj = tropomi_fm_object_creator_band7_swir_step.instrument.ils(0)
 
     nchan = inner_ils_obj.sample_grid().pixel_grid.data.size
     test_conv_spec = inner_ils_obj.apply_ils(
@@ -161,21 +176,17 @@ def test_band7_ils_simple(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_st
     
 
 @require_muses_py
-def test_atmosphere(tropomi_uip_step_1, tropomi_obs_step_1, clean_up_replacement_function):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    print(obj_creator.atmosphere)
+def test_atmosphere(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.atmosphere)
+
+@require_muses_py
+def test_radiative_transfer(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.radiative_transfer)
 
 
 @require_muses_py
-def test_radiative_transfer(tropomi_uip_step_1, tropomi_obs_step_1, clean_up_replacement_function):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    print(obj_creator.radiative_transfer)
-
-
-@require_muses_py
-def test_forward_model(tropomi_uip_step_1, tropomi_obs_step_1, clean_up_replacement_function):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    print(obj_creator.forward_model)
+def test_forward_model(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.forward_model)
 
 
 class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
@@ -208,37 +219,33 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
 
 
 @require_muses_py
-def test_fm_run(tropomi_uip_step_1, tropomi_obs_step_1, clean_up_replacement_function):
-    fm = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1).forward_model
+def test_fm_run(tropomi_fm_object_creator_step_1):
+    fm = tropomi_fm_object_creator_step_1.forward_model
     rf.write_shelve("fm.xml", fm)
     fm.add_observer_and_keep_reference(PrintSpectrum())
     print(fm.radiance(0, True).value)
 
 
-def test_state_vector(tropomi_uip_step_1, tropomi_obs_step_1):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    print(obj_creator.state_vector_for_testing)
+def test_state_vector(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.state_vector_for_testing)
 
 
 @require_muses_py
-def test_state_vector_step2(tropomi_uip_step_2, tropomi_obs_step_2, clean_up_replacement_function):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_2, tropomi_obs_step_2)
-    print(obj_creator.state_vector_for_testing)
+def test_state_vector_step2(tropomi_fm_object_creator_step_2):
+    print(tropomi_fm_object_creator_step_2.state_vector_for_testing)
 
 
 @require_muses_py
-def test_raman_effect(tropomi_uip_step_1, tropomi_obs_step_1, clean_up_replacement_function):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_1, tropomi_obs_step_1)
-    print(obj_creator.raman_effect)
+def test_raman_effect(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.raman_effect)
 
 @require_muses_py
-def test_forward_model_step2(tropomi_uip_step_2, tropomi_obs_step_2, clean_up_replacement_function):
+def test_forward_model_step2(tropomi_fm_object_creator_step_2):
     '''Step 2, which has two microwindows'''
     print("Start of test, ignore valgrind errors before this", flush=True)
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_2, tropomi_obs_step_2)
-    fmodel = obj_creator.forward_model
+    fmodel = tropomi_fm_object_creator_step_2.forward_model
     print(fmodel)
-    atm = obj_creator.underlying_forward_model.radiative_transfer.atmosphere
+    atm = tropomi_fm_object_creator_step_2.underlying_forward_model.radiative_transfer.atmosphere
     # This use to be a bug, we fixed this in framework so it works now
     if True:
         # This combination causes an use to cause an invalid read error with
@@ -260,17 +267,15 @@ def test_forward_model_step2(tropomi_uip_step_2, tropomi_obs_step_2, clean_up_re
     else:
         # This is an alternative which didn't cause the read error initially
         # (and of course still doesn't)
-        absorber = obj_creator.absorber
+        absorber = tropomi_fm_object_creator_step_2.absorber
     
     
 @require_muses_py
-def test_species_basis(tropomi_uip_step_2, tropomi_obs_step_2, clean_up_replacement_function):
-    obj_creator = TropomiFmObjectCreator(tropomi_uip_step_2, tropomi_obs_step_2)
+def test_species_basis(tropomi_fm_object_creator_step_2):
     # Check that we are consistent with our species_basis_matrix
     # and atmosphere_retrieval_level_subset.
-    npt.assert_allclose(obj_creator.rf_uip.species_basis_matrix("O3"),
-                        obj_creator.rf_uip.species_basis_matrix_calc("O3"))
-    
+    npt.assert_allclose(tropomi_fm_object_creator_step_2.rf_uip.species_basis_matrix("O3"),
+                        tropomi_fm_object_creator_step_2.rf_uip.species_basis_matrix_calc("O3"))
 
 
 @require_muses_py

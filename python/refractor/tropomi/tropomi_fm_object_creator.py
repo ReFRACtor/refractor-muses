@@ -14,11 +14,12 @@ import copy
 logger = logging.getLogger("py-retrieve")
 
 class TropomiFmObjectCreator(RefractorFmObjectCreator):
-    def __init__(self, rf_uip : RefractorUip,
-                 observation : 'MusesObservation', **kwargs):
-        super().__init__(rf_uip, "TROPOMI", observation, **kwargs)
-        # TODO, I think we will want to pass in the CurrentState
-        self.current_state = CurrentStateUip(self.rf_uip)
+    def __init__(self, current_state : 'CurrentState',
+                 measurement_id : 'MeasurementId',
+                 observation : 'MusesObservation',
+                 **kwargs):
+        super().__init__(current_state, measurement_id, "TROPOMI", observation,
+                         **kwargs)
         unique_filters = set(self.filter_list)
         if len(unique_filters) != 1:
             raise NotImplementedError('Cannot handle multiple bands yet (requires different absorbers per band)')
@@ -139,24 +140,24 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # so force conversion to a double
         return rf.CloudFractionFromState(float(self.rf_uip.tropomi_cloud_fraction))
 
-    def add_to_sv(self, current_state: CurrentState, fm_sv : rf.StateVector):
+    def add_to_sv(self, fm_sv : rf.StateVector):
         # TODO We have this hardcoded now. We'll rework this, adding to the state
         # vector should get moved into the object creation. But we'll have this in
         # place for now.
-        current_state.add_fm_state_vector_if_needed(
+        self.current_state.add_fm_state_vector_if_needed(
             fm_sv, ["TROPOMICLOUDFRACTION",], [self.cloud_fraction,])
-        current_state.add_fm_state_vector_if_needed(
+        self.current_state.add_fm_state_vector_if_needed(
             fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
-        current_state.add_fm_state_vector_if_needed(
+        self.current_state.add_fm_state_vector_if_needed(
             fm_sv, [f"TROPOMICLOUDSURFACEALBEDO",], [self.ground_cloud,])
         for b in (3,):
-            current_state.add_fm_state_vector_if_needed(
+            self.current_state.add_fm_state_vector_if_needed(
                 fm_sv, [f"TROPOMISURFACEALBEDOBAND{b}",
                         f"TROPOMISURFACEALBEDOSLOPEBAND{b}",
                         f"TROPOMISURFACEALBEDOSLOPEORDER2BAND{b}"], [self.ground_clear,])
-            current_state.add_fm_state_vector_if_needed(
+            self.current_state.add_fm_state_vector_if_needed(
                 fm_sv, [f"TROPOMIRINGSFBAND{b}",], [self.raman_effect(0),])
-            current_state.add_fm_state_vector_if_needed(
+            self.current_state.add_fm_state_vector_if_needed(
                 fm_sv, [f"TROPOMIRESSCALEO0BAND{b}",
                         f"TROPOMIRESSCALEO1BAND{b}",
                         f"TROPOMIRESSCALEO2BAND{b}"], self.radiance_scaling[0])
@@ -167,7 +168,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         meant more for unit tests, during normal runs CostFunctionCreator handles
         this (including the state vector element for other instruments).'''
         fm_sv = rf.StateVector()
-        self.add_to_sv(self.current_state, fm_sv)
+        self.add_to_sv(fm_sv)
         fm_sv.observer_claimed_size = self.current_state.fm_state_vector_size
         return fm_sv
 
@@ -211,19 +212,24 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
+        self.measurement_id = None
+        
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        self.measurement_id = measurement_id
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
-                      spec_win : rf.SpectralWindowRange,
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
                       rf_uip_func,
                       **kwargs):
         if(instrument_name != "TROPOMI"):
             return None
-        obj_creator = TropomiFmObjectCreator(rf_uip_func(), obs, **self.creator_kwargs)
+        obj_creator = TropomiFmObjectCreator(current_state, self.measurement_id, obs,
+                                             rf_uip=rf_uip_func(), **self.creator_kwargs)
         fm = obj_creator.forward_model
-        obj_creator.add_to_sv(current_state, fm_sv)
+        obj_creator.add_to_sv(fm_sv)
         logger.info(f"Tropomi Forward model\n{fm}")
         return fm
 

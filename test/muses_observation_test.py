@@ -16,10 +16,10 @@ def test_measurement_id(isolated_dir, osp_dir, gmao_dir):
     flist = {'OMI': ['UV1', 'UV2'], 'AIRS': ['2B1', '1B2', '2A1', '1A1']}
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     assert mid.filter_list_dict == flist
-    assert mid.value_float("OMI_Longitude") == pytest.approx(-154.7512664794922)
-    assert mid.value_int("OMI_XTrack_UV1_Index") == 10
-    assert os.path.basename(mid.filename("OMI_Cloud_filename")) == "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
-    assert mid.filename("omi_calibrationFilename") == f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    assert float(mid["OMI_Longitude"]) == pytest.approx(-154.7512664794922)
+    assert int(mid["OMI_XTrack_UV1_Index"]) == 10
+    assert os.path.basename(mid["OMI_Cloud_filename"]) == "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
+    assert mid["omi_calibrationFilename"] == f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
 
 def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     channel_list = ['1A1', '2A1', '1B2', '2B1']

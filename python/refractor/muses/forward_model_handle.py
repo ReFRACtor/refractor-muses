@@ -33,7 +33,6 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
-                      spec_win : rf.SpectralWindowRange,
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
                       rf_uip_func,
@@ -65,7 +64,6 @@ class ForwardModelHandleSet(CreatorHandleSet):
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
-                      spec_win : rf.SpectralWindowRange,
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
                       rf_uip_func,
@@ -85,18 +83,18 @@ class ForwardModelHandleSet(CreatorHandleSet):
         information in our CurrentState object - only what was in py-retrieve.
         '''
         
-        return self.handle(instrument_name, current_state, spec_win, obs, fm_sv,
-                           rf_uip_func, **kwargs)
+        return self.handle(instrument_name, current_state, 
+                           obs, fm_sv, rf_uip_func, **kwargs)
     
     def handle_h(self, h : ForwardModelHandle, instrument_name : str,
                  current_state : 'CurrentState',
-                 spec_win : rf.SpectralWindowRange,
                  obs : 'MusesObservation',
                  fm_sv: rf.StateVector,
                  rf_uip_func,
                  **kwargs):
         '''Process a registered function'''
-        fm = h.forward_model(instrument_name, current_state, spec_win, obs, fm_sv, rf_uip_func,
+        fm = h.forward_model(instrument_name, current_state, obs,
+                             fm_sv, rf_uip_func,
                              **kwargs)
         if(fm is None):
             return (False, None)

@@ -207,7 +207,6 @@ class MusesForwardModelHandle(ForwardModelHandle):
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
-                      spec_win : rf.SpectralWindowRange,
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
                       rf_uip_func,

@@ -12,6 +12,9 @@ import copy
 import logging
 import pickle
 import subprocess
+import itertools
+import collections.abc
+import re
 
 logger = logging.getLogger("py-retrieve")
 
@@ -22,7 +25,7 @@ def _new_from_init(cls, *args):
     inst.__init__(*args)
     return inst
 
-class MeasurementId(object, metaclass=abc.ABCMeta):
+class MeasurementId(collections.abc.Mapping):
     '''py-retrieve uses a file called Measurement_ID.asc. This files contains
     information about the soundings we use. This is mostly just a standard
     keyword/value set, however there are a few complications:
@@ -51,25 +54,15 @@ class MeasurementId(object, metaclass=abc.ABCMeta):
         '''
         raise NotImplementedError
 
-    def value_float(self, keyword: str) -> float:
-        '''Value, converted from string to float'''
-        return float(self.value(keyword))
+    def __getitem__(self, key):
+        raise NotImplementedError
 
-    def value_int(self, keyword: str) -> int:
-        '''Value, converted from string to int'''
-        return int(self.value(keyword))
-
-    @abc.abstractmethod
-    def value(self, keyword: str) -> str:
-        '''Return a value found in the Measurement_ID file, or if not there
-        in the strategy table file.'''
+    def __iter__(self):
+        raise NotImplementedError
+        
+    def __len__(self):
         raise NotImplementedError
     
-    @abc.abstractmethod
-    def filename(self, keyword:str) -> str:
-        '''Return a filename found in the Measurement_ID file (handling
-        relative paths), or if not there then in the strategy table file.
-        '''
 
 class MeasurementIdDict(MeasurementId):
     '''Implementation of MeasurementId that uses a dict'''
@@ -83,19 +76,21 @@ class MeasurementIdDict(MeasurementId):
         '''
         return self._filter_list_dict
 
-    def value(self, keyword: str) -> str:
-        return self.measurement_dict[value]
+    def __getitem__(self, key):
+        return self.measurement_dict[key]
 
-    def filename(self, keyword:str) -> str:
-        # Assume we've already handled any relative paths when filling in measurement_dict
-        return self.value(keyword)
+    def __iter__(self):
+        return self.measurement_dict.__iter__()
+        
+    def __len__(self):
+        return len(self.measurement_dict)
         
 class MeasurementIdFile(MeasurementId):
     '''Implementation of MeasurementId that uses the Measurement_ID.asc file.'''
     def __init__(self, fname, retrieval_config: RetrievalConfiguration,
                  filter_list_dict : 'dict(str, list(str))'):
         self.fname = fname
-        self._dir_relative_to = os.path.abspath(os.path.dirname(self.fname))
+        self.base_dir = os.path.abspath(os.path.dirname(self.fname))
         self._p = mpy.tes_file_get_struct(mpy.read_all_tes(self.fname)[1])["preferences"]
         self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
@@ -106,28 +101,25 @@ class MeasurementIdFile(MeasurementId):
         '''
         return self._filter_list_dict
 
-    def value(self, keyword: str) -> str:
-        '''Return a value found in the Measurement_ID file, or if not there
-        in the strategy table file.'''
-        if(keyword in self._p):
-            return self._p[keyword]
-        if(keyword in self._retrieval_config):
-            return self._retrieval_config[keyword]
-        raise KeyError(keyword)
+    def __getitem__(self, key):
+        if(key in self._p):
+            return self._abs_dir(self._p[key])
+        if(key in self._retrieval_config):
+            return self._retrieval_config[key]
+        raise KeyError(key)
 
-    def filename(self, keyword:str) -> str:
-        '''Return a filename found in the Measurement_ID file (handling
-        relative paths), or if not there then in the strategy table file.
-        '''
-        if(keyword in self._p):
-            fname = self._p[keyword]
-            if(os.path.isabs(fname)):
-                return fname
-            return os.path.normpath(os.path.join(self._dir_relative_to, fname))
-        if(keyword in self._retrieval_config):
-            return os.path.normpath(self._retrieval_config[keyword])
-        raise KeyError(keyword)
-    
+    def __iter__(self):
+        return itertools.chain(self._p, self._retrieval_config)
+        
+    def __len__(self):
+        return len(self._p) + len(self._retrieval_config)
+
+    def _abs_dir(self, v):
+        v = copy.copy(v)
+        v = os.path.expandvars(os.path.expanduser(v))
+        if(re.match(r'^\.\./', v) or re.match(r'^\./', v)):
+            v = os.path.normpath(f"{self.base_dir}/{v}")
+        return v
     
 class MusesObservation(rf.ObservationSvImpBase):
     '''The Observation for MUSES is a standard ReFRACtor Observation, with a few
@@ -460,10 +452,10 @@ class MusesAirsObservation(MusesObservationImp):
         else:
             # Read the data from disk, because it doesn't already exist.
             filter_list = mid.filter_list_dict["AIRS"]
-            filename = mid.filename('AIRS_filename')
-            granule = mid.value('AIRS_Granule')
-            xtrack = mid.value_int('AIRS_XTrack_Index')
-            atrack = mid.value_int('AIRS_ATrack_Index')
+            filename = mid['AIRS_filename']
+            granule = mid['AIRS_Granule']
+            xtrack = int(mid['AIRS_XTrack_Index'])
+            atrack = int(mid['AIRS_ATrack_Index'])
             o_airs, sdesc = cls._read_data(filename, granule, xtrack, atrack, filter_list,
                                            osp_dir=osp_dir)
             obs = cls(o_airs, sdesc)
@@ -627,11 +619,11 @@ class MusesCrisObservation(MusesObservationImp):
                       num_channels=existing_obs.num_channels)
         else:
             filter_list = mid.filter_list_dict["CRIS"]
-            filename = mid.filename('CRIS_filename')
-            granule = mid.value("CRIS_Granule")
-            xtrack = mid.value_int('CRIS_XTrack_Index')
-            atrack = mid.value_int('CRIS_ATrack_Index')
-            pixel_index = mid.value_int('CRIS_Pixel_Index')
+            filename = mid['CRIS_filename']
+            granule = mid["CRIS_Granule"]
+            xtrack = int(mid['CRIS_XTrack_Index'])
+            atrack = int(mid['CRIS_ATrack_Index'])
+            pixel_index = int(mid['CRIS_Pixel_Index'])
             o_cris, sdesc = cls._read_data(filename, granule, xtrack, atrack,
                                            pixel_index, osp_dir=osp_dir)
             obs = cls(o_cris, sdesc)
@@ -1024,18 +1016,18 @@ class MusesTropomiObservation(MusesObservationReflectance):
             filter_list = mid.filter_list_dict["TROPOMI"]
             if(current_state is not None):
                 coeff,mp=current_state.object_state(cls.state_element_name_list_from_filter(filter_list))
-            if(mid.value_int('TROPOMI_Rad_calRun_flag') != 1):
+            if(int(mid['TROPOMI_Rad_calRun_flag']) != 1):
                 # The current py-retrieve code just silently ignores calibration,
                 # see about line 614 of script_retrieval_setup_ms. We duplicate
                 # this behavior, but go ahead and warn that we are doing that.
                 logger.warning("Don't support calibration files yet. Ignoring TROPOMI_Rad_calRun_flag")
-            irr_filename = mid.filename('TROPOMI_IRR_filename')
-            cld_filename = mid.filename('TROPOMI_Cloud_filename')
-            atrack = mid.value_int('TROPOMI_ATrack_Index')
-            utc_time = mid.value('TROPOMI_utcTime')
-            filename_list = [mid.filename(f"TROPOMI_filename_{flt}")
+            irr_filename = mid['TROPOMI_IRR_filename']
+            cld_filename = mid['TROPOMI_Cloud_filename']
+            atrack = int(mid['TROPOMI_ATrack_Index'])
+            utc_time = mid['TROPOMI_utcTime']
+            filename_list = [mid[f"TROPOMI_filename_{flt}"]
                              for flt in filter_list]
-            xtrack_list = [mid.value_int(f"TROPOMI_XTrack_Index_{flt}")
+            xtrack_list = [int(mid[f"TROPOMI_XTrack_Index_{flt}"])
                            for flt in filter_list]
             o_tropomi, sdesc = cls._read_data(
                 filename_list, irr_filename, cld_filename, xtrack_list, atrack,
@@ -1044,7 +1036,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             
         if(write_tropomi_radiance_pickle):
             # Save file needed by py-retrieve VLIDORT code
-            pfname = os.path.normpath(f"{mid.filename('initialGuessDirectory')}/../Radiance_TROPOMI_.pkl")
+            pfname = os.path.normpath(f"{mid['initialGuessDirectory']}/../Radiance_TROPOMI_.pkl")
             if(not os.path.exists(pfname)):
                 subprocess.run(["mkdir", "-p", os.path.dirname(pfname)])
                 pickle.dump(obs.muses_py_dict, open(pfname, "wb"))
@@ -1154,14 +1146,14 @@ class MusesOmiObservation(MusesObservationReflectance):
             if(current_state is not None):
                 coeff,mp=current_state.object_state(
                     cls.state_element_name_list_from_filter(filter_list))
-            xtrack_uv1 = mid.value_int("OMI_XTrack_UV1_Index")
-            xtrack_uv2 = mid.value_int("OMI_XTrack_UV2_Index")
-            atrack = mid.value_int('OMI_ATrack_Index')
-            filename = mid.filename("OMI_filename")
-            cld_filename = mid.filename('OMI_Cloud_filename')
-            utc_time = mid.value('OMI_utcTime')
-            if(mid.value_int('OMI_Rad_calRun_flag') != 1):
-                calibration_filename = mid.filename("omi_calibrationFilename")
+            xtrack_uv1 = int(mid["OMI_XTrack_UV1_Index"])
+            xtrack_uv2 = int(mid["OMI_XTrack_UV2_Index"])
+            atrack = int(mid['OMI_ATrack_Index'])
+            filename = mid["OMI_filename"]
+            cld_filename = mid['OMI_Cloud_filename']
+            utc_time = mid['OMI_utcTime']
+            if(int(mid['OMI_Rad_calRun_flag']) != 1):
+                calibration_filename = mid["omi_calibrationFilename"]
             else:
                 logger.info("Calibration run. Disabling EOF application.")
                 calibration_filename = None

@@ -14,13 +14,13 @@ from netCDF4 import Dataset
 logger = logging.getLogger("py-retrieve")
 
 class OmiFmObjectCreator(RefractorFmObjectCreator):
-    def __init__(self, rf_uip : RefractorUip,
+    def __init__(self, current_state : 'CurrentState',
+                 measurement_id : 'MeasurementId',
                  observation : 'MusesObservation',
                  use_eof=False, eof_dir=None,
                  **kwargs):
-        super().__init__(rf_uip, "OMI", observation, **kwargs)
-        # TODO, I think we will want to pass in the CurrentState
-        self.current_state = CurrentStateUip(self.rf_uip)
+        super().__init__(current_state, measurement_id, "OMI", observation,
+                         **kwargs)
         self.use_eof = use_eof
         self.eof_dir = eof_dir
         
@@ -109,7 +109,10 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     
     @cached_property
     def solar_reference_filename(self):
-        return os.path.join(self.input_dir, "OMI_Solar/omisol_v003_avg_nshi_backup.h5")
+        # This  path isn't in the strategy table file, it isn't clear why. But we
+        # can find it relative to the omi calibration file
+        bname = os.path.dirname(os.path.dirname(self.measurement_id['omi_calibrationFilename']))
+        return f"{bname}/OMI_Solar/omisol_v003_avg_nshi_backup.h5"
 
 
     @cached_property
@@ -181,24 +184,24 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         else:
             return rf.CloudFractionFromState(self.rf_uip.omi_cloud_fraction)
 
-    def add_to_sv(self, current_state: CurrentState, fm_sv : rf.StateVector):
+    def add_to_sv(self, fm_sv : rf.StateVector):
         # TODO We have this hardcoded now. We'll rework this, adding to the state
         # vector should get moved into the object creation. But we'll have this in
         # place for now.
-        current_state.add_fm_state_vector_if_needed(
+        self.current_state.add_fm_state_vector_if_needed(
             fm_sv, ["OMICLOUDFRACTION",], [self.cloud_fraction,])
-        current_state.add_fm_state_vector_if_needed(
+        self.current_state.add_fm_state_vector_if_needed(
             fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
-        current_state.add_fm_state_vector_if_needed(
+        self.current_state.add_fm_state_vector_if_needed(
             fm_sv, ["OMISURFACEALBEDOUV1",
                     "OMISURFACEALBEDOUV2",
                     "OMISURFACEALBEDOSLOPEUV2"], [self.ground_clear,])
         # Temp, the EOF required state_info. Just allow this to fail, we
         # are planning on reworking this anyways.
         try:
-            current_state.add_fm_state_vector_if_needed(
+            self.current_state.add_fm_state_vector_if_needed(
                 fm_sv, ["OMIEOFUV1",], self.eof["UV1"])
-            current_state.add_fm_state_vector_if_needed(
+            self.current_state.add_fm_state_vector_if_needed(
                 fm_sv, ["OMIEOFUV2",], self.eof["UV2"])
         except (AttributeError, KeyError):
             pass
@@ -209,7 +212,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         meant more for unit tests, during normal runs CostFunctionCreator handles
         this (including the state vector element for other instruments).'''
         fm_sv = rf.StateVector()
-        self.add_to_sv(self.current_state, fm_sv)
+        self.add_to_sv(fm_sv)
         fm_sv.observer_claimed_size = self.current_state.fm_state_vector_size
         return fm_sv
 
@@ -246,19 +249,24 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 class OmiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
+        self.measurement_id = None
+
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        self.measurement_id = measurement_id
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
-                      spec_win : rf.SpectralWindowRange,
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
                       rf_uip_func,
                       **kwargs):
         if(instrument_name != "OMI"):
             return None
-        obj_creator = OmiFmObjectCreator(rf_uip_func(), obs, **self.creator_kwargs)
+        obj_creator = OmiFmObjectCreator(current_state, self.measurement_id, obs,
+                                         rf_uip = rf_uip_func(), **self.creator_kwargs)
         fm = obj_creator.forward_model
-        obj_creator.add_to_sv(current_state, fm_sv)
+        obj_creator.add_to_sv(fm_sv)
         logger.info(f"OMI Forward model\n{fm}")
         return fm
 

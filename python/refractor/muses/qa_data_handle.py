@@ -7,6 +7,56 @@ import os
 
 logger = logging.getLogger("py-retrieve")
 
+class QaFlagValue(object, metaclass=abc.ABCMeta):
+    '''This class has the values needed to calculate QA flag values.
+    This is what is used by mpy.write_quality_flags and mpy.calculate_quality_flags.
+    '''
+    @abc.abstractproperty
+    def qa_flag_name(self) -> 'list[str]':
+        '''Return list of QA flags the other values apply to.'''
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def cutoff_min(self) -> 'list[float]':
+        '''Minimum cutoff value for flag.'''
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def cutoff_max(self) -> 'list[float]':
+        '''Maximum cutoff value for flag.'''
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def use_for_master(self) -> 'list[int]':
+        '''Indicate of QA flag is used for master quality.'''
+        raise NotImplementedError()
+
+
+class QaFlagValueFile(QaFlagValue):
+    '''Implementation that uses a file to get the values.'''
+    def __init__(self, fname):
+        self.d = TesFile(fname)
+        
+    @property
+    def qa_flag_name(self) -> 'list[str]':
+        '''Return list of QA flags the other values apply to.'''
+        return self.d["Flag"]
+    
+    @property
+    def cutoff_min(self) -> 'list[float]':
+        '''Minimum cutoff value for flag.'''
+        return self.d["CutoffMin"]
+
+    @abc.abstractproperty
+    def cutoff_max(self) -> 'list[float]':
+        '''Maximum cutoff value for flag.'''
+        return self.d["CutoffMax"]
+
+    @abc.abstractproperty
+    def use_for_master(self) -> 'list[int]':
+        '''Indicate of QA flag is used for master quality.'''
+        return self.d["Use_For_Master"]
+    
 class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
     '''Base class for QaDatawHandle. Note we use duck typing,
     don't need to actually derive from this object. But it can be
@@ -54,9 +104,9 @@ class MusesPyQaDataHandle(QaDataHandle):
     def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
-        self.spectral_window_directory = measurement_id.filename("spectralWindowDirectory")
-        self.viewing_mode = measurement_id.value("viewingMode")
-        self.qa_flag_directory = measurement_id.filename("QualityFlagDirectory")
+        self.spectral_window_directory = measurement_id["spectralWindowDirectory"]
+        self.viewing_mode = measurement_id["viewingMode"]
+        self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
 
     def qa_file_name(self,
            current_strategy_step : 'CurrentStrategyStep') -> "Optional(str)":
@@ -86,6 +136,7 @@ class MusesPyQaDataHandle(QaDataHandle):
 # For now, just fall back to the old muses-py code.    
 QaDataHandleSet.add_default_handle(MusesPyQaDataHandle())
 
-__all__ = ["QaDataHandle", "QaDataHandleSet", "MusesPyQaDataHandle"]
+__all__ = ["QaDataHandle", "QaDataHandleSet", "MusesPyQaDataHandle",
+           "QaFlagValue", "QaFlagValueFile"]
     
     

@@ -89,9 +89,9 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
     def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
-        self.spectral_window_directory = measurement_id.filename("spectralWindowDirectory")
-        self.viewing_mode = measurement_id.value("viewingMode")
-        self.filter_metadata = FileFilterMetadata(measurement_id.filename("defaultSpectralWindowsDefinitionFilename"))
+        self.spectral_window_directory = measurement_id["spectralWindowDirectory"]
+        self.viewing_mode = measurement_id["viewingMode"]
+        self.filter_metadata = FileFilterMetadata(measurement_id["defaultSpectralWindowsDefinitionFilename"])
         self.filter_list_dict = measurement_id.filter_list_dict
 
     def spectral_window_dict(self,

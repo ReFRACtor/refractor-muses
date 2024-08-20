@@ -5,7 +5,7 @@ from test_support import *
 import refractor.framework as rf
 import glob
 from refractor.muses import (MusesRunDir, CostFunctionCreator, CostFunction, 
-                             StateInfo, RefractorFmObjectCreatorNew)
+                             CurrentStateUip, RetrievalConfiguration, MeasurementIdFile)
 from refractor.omi import (OmiFmObjectCreator, OmiForwardModelHandle)
 from refractor.old_py_retrieve_wrapper import (RefractorMusesIntegration,
                                                RefractorOmiFm,MusesForwardModelStep,)
@@ -13,49 +13,55 @@ import subprocess
 
 DEBUG = False
 
+@pytest.fixture(scope="function")
+def omi_fm_object_creator_step_1(omi_uip_step_1, omi_obs_step_1, osp_dir):
+    '''Fixture for OmiFmObjectCreator, just so we don't need to repeat code
+    in multiple tests'''
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{test_base_path}/omi/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    flist = {'OMI' : ['UV1', 'UV2']}
+    mid = MeasurementIdFile(f"{test_base_path}/omi/in/sounding_1/Measurement_ID.asc",
+                            rconf, flist)
+    return OmiFmObjectCreator(CurrentStateUip(omi_uip_step_1), mid, omi_obs_step_1,
+                              rf_uip=omi_uip_step_1)
 
-def test_solar_model(omi_uip_step_1, omi_obs_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.omi_solar_model[0])
+@pytest.fixture(scope="function")
+def omi_fm_object_creator_step_2(omi_uip_step_2, omi_obs_step_2, osp_dir):
+    '''Fixture for OmiFmObjectCreator, just so we don't need to repeat code
+    in multiple tests'''
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{test_base_path}/omi/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    flist = {'OMI' : ['UV1', 'UV2']}
+    mid = MeasurementIdFile(f"{test_base_path}/omi/in/sounding_1/Measurement_ID.asc",
+                            rconf, flist)
+    return OmiFmObjectCreator(CurrentStateUip(omi_uip_step_2), mid, omi_obs_step_2,
+                              rf_uip=omi_uip_step_2)
 
+def test_solar_model(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.omi_solar_model[0])
 
-def test_spec_win(omi_uip_step_1, omi_obs_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.spec_win)
-    obj_creator2 = RefractorFmObjectCreatorNew(*StateInfo.create_from_uip(omi_uip_step_1), "OMI")
-    print(obj_creator2.spec_win)
+def test_spec_win(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.spec_win)
 
+def test_spectrum_sampling(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.spectrum_sampling)
 
-def test_spectrum_sampling(omi_uip_step_1, omi_obs_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.spectrum_sampling)
-
-
-def test_instrument(omi_uip_step_1, omi_obs_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.instrument)
-
+def test_instrument(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.instrument)
 
 @require_muses_py
-def test_atmosphere(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.atmosphere)
-
+def test_atmosphere(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.atmosphere)
 
 @require_muses_py
-def test_radiative_transfer(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.radiative_transfer)
-
+def test_radiative_transfer(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.radiative_transfer)
 
 @require_muses_py
-def test_forward_model(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.forward_model)
-
+def test_forward_model(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.forward_model)
 
 class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
-
     def notify_update(self, o):
         print("---------")
         print(o.name)
@@ -65,10 +71,8 @@ class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
 
 
 class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
-
     def __init__(self, filename):
         super().__init__()
-
         self.filename = filename
 
     def notify_update(self, o):
@@ -84,47 +88,47 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
 
 
 @require_muses_py
-def test_fm_run(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1).forward_model
+def test_fm_run(omi_fm_object_creator_step_1):
+    fm = omi_fm_object_creator_step_1.forward_model
     fm.add_observer_and_keep_reference(PrintSpectrum())
     print(fm.radiance(1, True).value)
 
-
-def test_state_vector(omi_uip_step_1, omi_obs_step_1):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.state_vector_for_testing)
-
+def test_state_vector(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.state_vector_for_testing)
 
 @require_muses_py
-def test_state_vector_step2(omi_uip_step_2, omi_obs_step_2, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_2, omi_obs_step_2)
-    print(fm.state_vector_for_testing)
-
+def test_state_vector_step2(omi_fm_object_creator_step_2):
+    print(omi_fm_object_creator_step_2.state_vector_for_testing)
 
 @require_muses_py
-def test_raman_effect(omi_uip_step_1, omi_obs_step_1, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_1, omi_obs_step_1)
-    print(fm.raman_effect)
-
+def test_raman_effect(omi_fm_object_creator_step_1):
+    print(omi_fm_object_creator_step_1.raman_effect)
 
 @require_muses_py
-def test_forward_model_step2(omi_uip_step_2, omi_obs_step_2, clean_up_replacement_function):
+def test_forward_model_step2(omi_fm_object_creator_step_2):
     '''Step 2, which has two microwindows'''
-    fm = OmiFmObjectCreator(omi_uip_step_2, omi_obs_step_2)
-    print(fm.forward_model)
+    print(omi_fm_object_creator_step_2.forward_model)
 
 
 @require_muses_py
-def test_fm_run_step2(omi_uip_step_2, omi_obs_step_2, clean_up_replacement_function):
-    fm = OmiFmObjectCreator(omi_uip_step_2, omi_obs_step_2, use_pca=False).forward_model
-
+def test_fm_run_step2(omi_fm_object_creator_step_2, omi_uip_step_2, omi_obs_step_2,
+                      osp_dir):
+    omi_fm_object_creator_step_2.use_pca = False
+    omi_fm_object_creator_step_2.use_lrad = False
+    omi_fm_object_creator_step_2.lrad_second_order = False
+    fm = omi_fm_object_creator_step_2.forward_model
     if DEBUG:
         fm.add_observer_and_keep_reference(SaveSpectrum("/home/mcduffie/Temp/lidort_radiance_{name}.pkl"))
         fm.add_observer_and_keep_reference(PrintSpectrum())
 
     spectrum_lidort = fm.radiance(0, True)
 
-    fm = OmiFmObjectCreator(omi_uip_step_2, omi_obs_step_2, use_pca=True).forward_model
+    
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{test_base_path}/omi/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    fm = OmiFmObjectCreator(CurrentStateUip(omi_uip_step_2), rconf, omi_obs_step_2,
+                            rf_uip=omi_uip_step_2, use_pca=True, use_lrad=False,
+                            lrad_second_order=False).forward_model
 
     if DEBUG:
         fm.add_observer_and_keep_reference(SaveSpectrum("/home/mcduffie/Temp/pca_radiance_{name}.pkl"))
