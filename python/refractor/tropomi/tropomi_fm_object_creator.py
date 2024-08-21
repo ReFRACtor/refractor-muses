@@ -70,6 +70,14 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             return rf.DoubleWithUnit(0.36, 'cm^-1')
         else:
             raise NotImplementedError(f'HWHM for band {band_name} not defined')
+
+    def reference_wavelength(self, sensor_index : int):
+        '''Calculate the reference wavelength used in couple of places. By convention, this
+        is the middle of the band used for MusesRaman, including bad samples.'''
+        with self.observation.modify_spectral_window(do_raman_ext=True,
+                                                     include_bad_sample=True):
+            t = self.observation.spectral_domain(sensor_index).data
+            return (t[0] + t[-1])/2
     
     @cached_property
     def radiance_scaling(self):
@@ -78,13 +86,12 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         res = []
         for i in range(self.num_channels):
             filter_name = self.filter_list[i]
-            t = self.rf_uip.full_band_frequency(self.instrument_name)[self.rf_uip.mw_fm_slice(filter_name, self.instrument_name)]
-            ref_wav = (t[0] + t[-1])/2
+            
             selem = [f"TROPOMIRESSCALEO0{filter_name}",
                      f"TROPOMIRESSCALEO1{filter_name}",
                      f"TROPOMIRESSCALEO2{filter_name}"]
             coeff,mp = self.current_state.object_state(selem)
-            rscale = rf.RadianceScalingSvMusesFit(coeff, rf.DoubleWithUnit(ref_wav,"nm"), filter_name)
+            rscale = rf.RadianceScalingSvMusesFit(coeff, rf.DoubleWithUnit(self.reference_wavelength(i),"nm"), filter_name)
             self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [rscale,])
             res.append(rscale)
         return res
@@ -115,11 +122,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         for i in range(self.num_channels):
             filt_name = self.filter_list[i]
             if re.match(r'BAND\d$', filt_name) is not None:
-                # This duplicates the calculation in
-                # print_tropomi_surface_albedo.py in py_retrieve
-                slc = self.rf_uip.mw_fm_slice(filt_name, self.instrument_name)
-                wave_arr = self.rf_uip.full_band_frequency(self.instrument_name)[slc]
-                band_reference[i] = (wave_arr[-1] + wave_arr[0]) / 2
+                band_reference[i] = self.reference_wavelength(i)
                 selem.extend([f"TROPOMISURFACEALBEDO{filt_name}",
                               f"TROPOMISURFACEALBEDOSLOPE{filt_name}",
                               f"TROPOMISURFACEALBEDOSLOPEORDER2{filt_name}"])
