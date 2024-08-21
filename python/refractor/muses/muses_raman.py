@@ -1,13 +1,31 @@
 import numpy as np
 import refractor.framework as rf
+import logging
+import abc
 
+logger = logging.getLogger("py-retrieve")
+
+class SurfaceAlbedo(object, metaclass=abc.ABCMeta):
+    '''MusesRaman needs a surface albedo. This class supplies that, however
+    is appropriate for a particular forward model set up. This should handle
+    cloud vs clear forward models, similar to rf.GroundWithCloudHandling and
+    other classes.
+    '''
+    # TODO Note in generate surface albedo has a jacobian wrt the state vector.
+    # We aren't currently handling propagating that in MusesRaman.
+    @abc.abstractmethod
+    def surface_albedo(self) -> float:
+        '''Return the surface albedo'''
+        raise NotImplementedError
+    
 class MusesRaman(rf.RamanSiorisEffect):
 
-    def __init__(self, rf_uip, instrument_name,
+    def __init__(self, surface_albedo : SurfaceAlbedo,
+                 rf_uip,
+                 instrument_name : str,
                  Solar_and_odepth_spec_domain : rf.SpectralDomain,
                  scale_factor : float,
-                 fm_idx : int,
-                 filter_name : str,
+                 sensor_index : int,
                  solar_zenith : rf.DoubleWithUnit,
                  observation_zenith : rf.DoubleWithUnit,
                  relative_azimuth : rf.DoubleWithUnit,
@@ -15,13 +33,13 @@ class MusesRaman(rf.RamanSiorisEffect):
                  solar_model : rf.SolarModel,
                  mapping : rf.StateMapping):
 
-        super().__init__(Solar_and_odepth_spec_domain, scale_factor, fm_idx,
+        # Note sensor_index is only used here for naming the state vector element
+        super().__init__(Solar_and_odepth_spec_domain, scale_factor, sensor_index,
                          solar_zenith, observation_zenith, relative_azimuth, 
                          atmosphere, solar_model, mapping)
-
+        self.surface_albedo = surface_albedo
         self.rf_uip = rf_uip
         self._pressure = atmosphere.pressure
-        self.filter_name = filter_name
         self.instrument_name = instrument_name
         # Save range of Solar_and_odepth_spec_domain, to give clearer error
         # message
@@ -34,19 +52,7 @@ class MusesRaman(rf.RamanSiorisEffect):
 
         temp_layers = self.rf_uip.ray_info(self.instrument_name)['tbar'][::-1][:nlay]
 
-        if self.filter_name in ("UV1", "UV2"):
-            if self._pressure.do_cloud:
-                # Replicate py-retrieve behavior in omi/print_ring_input.py
-                surf_alb = 0.80
-            else:
-                surf_alb = self.rf_uip.omi_params[f'surface_albedo_{str.lower(self.filter_name)}']
-        elif self.filter_name in ("BAND1", "BAND2", "BAND3", "BAND7"):
-            if self._pressure.do_cloud:
-                surf_alb = self.rf_uip.tropomi_params["cloud_Surface_Albedo"]
-            else:
-                surf_alb = self.rf_uip.tropomi_params[f'surface_albedo_{self.filter_name}']
-        else:
-            raise RuntimeError(f"Unrecognized filter_name {self.filter_name}")
+        surf_alb = self.surface_albedo.surface_albedo()
         # Sanity check - the error messages at the C++ level are pretty obscure
         sd_min = spec.spectral_domain.data.min()
         sd_max = spec.spectral_domain.data.max()
@@ -57,4 +63,4 @@ class MusesRaman(rf.RamanSiorisEffect):
     def desc(self):
         return "MusesRaman"
         
-__all__ = ["MusesRaman",]
+__all__ = ["MusesRaman", "SurfaceAlbedo"]

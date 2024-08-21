@@ -1,7 +1,6 @@
 from functools import cached_property, lru_cache
-from refractor.muses import (RefractorFmObjectCreator,
-                             RefractorUip, ForwardModelHandle,
-                             MusesRaman, CurrentState, CurrentStateUip)
+from refractor.muses import (RefractorFmObjectCreator, ForwardModelHandle,
+                             MusesRaman, SurfaceAlbedo)
 import refractor.framework as rf
 import os
 import logging
@@ -12,6 +11,23 @@ import copy
 from netCDF4 import Dataset
 
 logger = logging.getLogger("py-retrieve")
+
+class OmiSurfaceAlbedo(SurfaceAlbedo):
+    def __init__(self, ground : rf.GroundWithCloudHandling, spec_index : int):
+        self.ground = ground
+        self.spec_index = spec_index
+        
+    def surface_albedo(self):
+        # We just directly use the coefficients for the constant term. Could
+        # do something more clever, but this is what py-retrieve does
+        if(self.ground.do_cloud):
+            # TODO Reevaluate using a fixed value here
+            # py-retrieve returns a hard coded value. Not sure why we don't
+            # just use the cloud albedo, but for now match the old code
+            #return self.ground_cloud.coefficient[0].value
+            return 0.80
+        else:
+            return self.ground.ground_clear.albedo_coefficients(self.spec_index)[0].value
 
 class OmiFmObjectCreator(RefractorFmObjectCreator):
     def __init__(self, current_state : 'CurrentState',
@@ -247,17 +263,17 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         # This is short if we aren't actually running this filter
         if(wlen.data.shape[0] < 2):
             return None
-        return MusesRaman(self.rf_uip, self.instrument_name,
-                wlen,
-                float(scale_factor),
-                i,
-                self.filter_list[i],
-                self.sza_with_unit[i],
-                self.oza_with_unit[i],
-                self.raz_with_unit[i],
-                self.atmosphere,
-                self.solar_model(i),
-                rf.StateMappingLinear())
+        salbedo = OmiSurfaceAlbedo(self.ground, i)
+        return MusesRaman(salbedo, self.rf_uip, self.instrument_name,
+                          wlen,
+                          float(scale_factor),
+                          i,
+                          self.sza_with_unit[i],
+                          self.oza_with_unit[i],
+                          self.raz_with_unit[i],
+                          self.atmosphere,
+                          self.solar_model(i),
+                          rf.StateMappingLinear())
     
 
 class OmiForwardModelHandle(ForwardModelHandle):

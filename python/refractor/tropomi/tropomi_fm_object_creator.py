@@ -3,7 +3,8 @@ from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, 
                              O3Absorber, SwirAbsorber,
                              ForwardModelHandle,
-                             MusesRaman, CurrentState, CurrentStateUip)
+                             MusesRaman, CurrentState, CurrentStateUip,
+                             SurfaceAlbedo)
 import refractor.framework as rf
 import logging
 import numpy as np
@@ -13,6 +14,18 @@ import copy
 
 logger = logging.getLogger("py-retrieve")
 
+class TropomiSurfaceAlbedo(SurfaceAlbedo):
+    def __init__(self, ground : rf.GroundWithCloudHandling, spec_index : int):
+        self.ground = ground
+        self.spec_index = spec_index
+    def surface_albedo(self):
+        # We just directly use the coefficients for the constant term. Could
+        # do something more clever, but this is what py-retrieve does
+        if(self.ground.do_cloud):
+            return self.ground.ground_cloud.albedo_coefficients(self.spec_index)[0].value
+        else:
+            return self.ground.ground_clear.albedo_coefficients(self.spec_index)[0].value
+            
 class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def __init__(self, current_state : 'CurrentState',
                  measurement_id : 'MeasurementId',
@@ -175,17 +188,17 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             # This is short if we aren't actually running this filter
             if(wlen.data.shape[0] < 2):
                 return None
-            return MusesRaman(self.rf_uip, self.instrument_name,
-                    wlen,
-                    float(scale_factor),
-                    i,
-                    self.filter_list[i],
-                    self.sza_with_unit[i],
-                    self.oza_with_unit[i],
-                    self.raz_with_unit[i],
-                    self.atmosphere,
-                    self.solar_model(i),
-                    rf.StateMappingLinear())
+            salbedo = TropomiSurfaceAlbedo(self.ground, i)
+            return MusesRaman(salbedo, self.rf_uip, self.instrument_name,
+                              wlen,
+                              float(scale_factor),
+                              i,
+                              self.sza_with_unit[i],
+                              self.oza_with_unit[i],
+                              self.raz_with_unit[i],
+                              self.atmosphere,
+                              self.solar_model(i),
+                              rf.StateMappingLinear())
 
 
 class TropomiForwardModelHandle(ForwardModelHandle):
