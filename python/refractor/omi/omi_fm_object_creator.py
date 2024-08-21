@@ -185,6 +185,10 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     @property
     def uip_params(self):
         return self.rf_uip.omi_params
+
+    @property
+    def cloud_pressure(self):
+        return self.uip_params["cloud_pressure"]
     
     @cached_property
     def ground_clear(self):
@@ -215,6 +219,21 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                       rf.Unit("nm"),
                       self.filter_list,
                       rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
+
+    @cached_property
+    def ground_cloud(self):
+        albedo = np.zeros((self.num_channels, 1))
+        which_retrieved = np.full((self.num_channels, 1), False, dtype=bool)
+        band_reference = np.zeros(self.num_channels)
+        band_reference[:] = 1000
+
+        albedo[:,0] = self.uip_params['cloud_Surface_Albedo']
+
+        return rf.GroundLambertian(albedo,
+                      rf.ArrayWithUnit(band_reference, "nm"),
+                      ["Cloud",] * self.num_channels,
+                      rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
+    
                     
     @cached_property
     def cloud_fraction(self):
@@ -264,7 +283,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         if(wlen.data.shape[0] < 2):
             return None
         salbedo = OmiSurfaceAlbedo(self.ground, i)
-        return MusesRaman(salbedo, self.rf_uip, self.instrument_name,
+        return MusesRaman(salbedo, self.ray_info,
                           wlen,
                           float(scale_factor),
                           i,

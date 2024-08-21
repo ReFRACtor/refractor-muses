@@ -93,6 +93,10 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def uip_params(self):
         return self.rf_uip.tropomi_params
 
+    @property
+    def cloud_pressure(self):
+        return self.uip_params["cloud_pressure"]
+    
     @cached_property
     def temperature(self):
         tlev_fm = self.rf_uip.atmosphere_column("TATM")
@@ -160,9 +164,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         if("O3" in self.current_state.fm_sv_loc):
             self.current_state.add_fm_state_vector_if_needed(
                 fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
-        for b in (3,):
-            self.current_state.add_fm_state_vector_if_needed(
-                fm_sv, [f"TROPOMIRINGSFBAND{b}",], [self.raman_effect(0),])
 
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
@@ -172,8 +173,10 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # reason that the solar data/optical depth should be calculated
         # on the muses_fm_spectral_domain. But this is what muses-py
         # does, so we'll match that for now.
+        selem = [f"TROPOMIRINGSF{self.filter_list[i]}",]
         if(self.filter_list[i] in ("BAND1", "BAND2", "BAND3")):
-            scale_factor = self.uip_params[f"ring_sf_{self.filter_list[i]}"]
+            coeff,mp = self.current_state.object_state(selem)
+            scale_factor = float(coeff[0])
         elif(self.filter_list[i] in ("BAND7", "BAND8")):
             # JLL: The SWIR bands should not need to account for Raman scattering -
             # Vijay has never seen Raman scattering accounted for in the CO band.
@@ -189,16 +192,18 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             if(wlen.data.shape[0] < 2):
                 return None
             salbedo = TropomiSurfaceAlbedo(self.ground, i)
-            return MusesRaman(salbedo, self.rf_uip, self.instrument_name,
-                              wlen,
-                              float(scale_factor),
-                              i,
-                              self.sza_with_unit[i],
-                              self.oza_with_unit[i],
-                              self.raz_with_unit[i],
-                              self.atmosphere,
-                              self.solar_model(i),
-                              rf.StateMappingLinear())
+            ram = MusesRaman(salbedo, self.ray_info,
+                             wlen,
+                             float(scale_factor),
+                             i,
+                             self.sza_with_unit[i],
+                             self.oza_with_unit[i],
+                             self.raz_with_unit[i],
+                             self.atmosphere,
+                             self.solar_model(i),
+                             rf.StateMappingLinear())
+            self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [ram,])
+            return ram
 
 
 class TropomiForwardModelHandle(ForwardModelHandle):

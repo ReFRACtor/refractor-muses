@@ -5,6 +5,7 @@ from .muses_spectrum_sampling import MusesSpectrumSampling
 from .muses_raman import MusesRaman
 from .refractor_uip import RefractorUip
 from .muses_forward_model import RefractorForwardModel
+from .muses_ray_info import MusesRayInfo
 import refractor.framework as rf
 import os
 from pathlib import Path
@@ -103,10 +104,16 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # together, but right now tropomi_fm_object_creator may replace this.
         self._inner_absorber = O3Absorber(self)
 
+        
     def solar_model(self, sensor_index):
         with self.observation.modify_spectral_window(do_raman_ext=True):
             sol_rad = self.observation.solar_spectrum(sensor_index)
         return rf.SolarReferenceSpectrum(sol_rad, None)
+
+    @cached_property
+    def ray_info(self):
+        '''Return MusesRayInfo.'''
+        return MusesRayInfo(self.rf_uip, self.instrument_name, self.pressure)
 
     @property
     def spec_win(self):
@@ -248,13 +255,17 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rf.PressureSigma(plev, surface_pressure,
                                 rf.Pressure.PREFER_DECREASING_PRESSURE)
 
+    @abc.abstractproperty
+    @property
+    def cloud_pressure(self):
+        '''Pressure to use for cloud top'''
+        raise NotImplementedError()
+
     @cached_property
     def pressure(self):
-        cloud_pressure = self.uip_params["cloud_pressure"]
-        
         # We sometimes get negative cloud pressure (e.g. -32767), which later shows as bad_alloc errors
-        if cloud_pressure < 0:
-            raise RuntimeError(f"Invalid cloud pressure: {cloud_pressure}.")
+        if self.cloud_pressure < 0:
+            raise RuntimeError(f"Invalid cloud pressure: {self.cloud_pressure}.")
 
         # Note, there is a bit of a difference between the use of
         # cloud_pressure in py_retrieve vs. ReFRACtor. py_retrieve compares
@@ -265,7 +276,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # "cloud pressure level" that gives the same number of layers. We
         # could change ReFRACtor to use layers, but there doesn't seem to be
         # much point.
-        ncloud_lay = np.count_nonzero(self.rf_uip.ray_info(self.instrument_name)["pbar"] <= self.uip_params['cloud_pressure'])
+        ncloud_lay = np.count_nonzero(self.rf_uip.ray_info(self.instrument_name)["pbar"] <= self.cloud_pressure)
         pgrid = self.pressure_fm.pressure_grid().value.value
         if(ncloud_lay+1 < pgrid.shape[0]):
             cloud_pressure_level = (pgrid[ncloud_lay] + pgrid[ncloud_lay+1]) / 2
@@ -304,20 +315,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def ground_clear(self):
         raise NotImplementedError
 
+    @abc.abstractproperty
     @cached_property
     def ground_cloud(self):
-        albedo = np.zeros((self.num_channels, 1))
-        which_retrieved = np.full((self.num_channels, 1), False, dtype=bool)
-        band_reference = np.zeros(self.num_channels)
-        band_reference[:] = 1000
-
-        albedo[:,0] = self.uip_params['cloud_Surface_Albedo']
-
-        return rf.GroundLambertian(albedo,
-                      rf.ArrayWithUnit(band_reference, "nm"),
-                      ["Cloud",] * self.num_channels,
-                      rf.StateMappingAtIndexes(np.ravel(which_retrieved)))
-    
+        raise NotImplementedError
 
     @cached_property
     def ground(self):

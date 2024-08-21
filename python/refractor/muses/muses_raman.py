@@ -21,8 +21,7 @@ class SurfaceAlbedo(object, metaclass=abc.ABCMeta):
 class MusesRaman(rf.RamanSiorisEffect):
 
     def __init__(self, surface_albedo : SurfaceAlbedo,
-                 rf_uip,
-                 instrument_name : str,
+                 ray_info : 'MusesRayInfo',
                  Solar_and_odepth_spec_domain : rf.SpectralDomain,
                  scale_factor : float,
                  sensor_index : int,
@@ -38,20 +37,14 @@ class MusesRaman(rf.RamanSiorisEffect):
                          solar_zenith, observation_zenith, relative_azimuth, 
                          atmosphere, solar_model, mapping)
         self.surface_albedo = surface_albedo
-        self.rf_uip = rf_uip
-        self._pressure = atmosphere.pressure
-        self.instrument_name = instrument_name
+        self.ray_info = ray_info
         # Save range of Solar_and_odepth_spec_domain, to give clearer error
         # message
         self.solar_model_sd_min = Solar_and_odepth_spec_domain.data.min()
         self.solar_model_sd_max = Solar_and_odepth_spec_domain.data.max()
 
     def apply_effect(self, spec: rf.Spectrum, fm_grid: rf.ForwardModelSpectralGrid):
-
-        nlay = self._pressure.number_layer
-
-        temp_layers = self.rf_uip.ray_info(self.instrument_name)['tbar'][::-1][:nlay]
-
+        temp_layers = self.ray_info.tbar()
         surf_alb = self.surface_albedo.surface_albedo()
         # Sanity check - the error messages at the C++ level are pretty obscure
         sd_min = spec.spectral_domain.data.min()

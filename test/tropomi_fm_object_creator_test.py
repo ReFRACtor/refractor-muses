@@ -226,12 +226,14 @@ def test_fm_run(tropomi_fm_object_creator_step_1):
     print(fm.radiance(0, True).value)
 
 
-def test_state_vector(tropomi_fm_object_creator_step_1):
+def test_state_vector(tropomi_fm_object_creator_step_1, tropomi_uip_step_1):
+    tropomi_fm_object_creator_step_1.fm_sv.update_state(tropomi_uip_step_1.current_state_x_fm)
     print(tropomi_fm_object_creator_step_1.fm_sv)
 
 
 @require_muses_py
-def test_state_vector_step2(tropomi_fm_object_creator_step_2):
+def test_state_vector_step2(tropomi_fm_object_creator_step_2, tropomi_uip_step_2):
+    tropomi_fm_object_creator_step_2.fm_sv.update_state(tropomi_uip_step_2.current_state_x_fm)
     print(tropomi_fm_object_creator_step_2.fm_sv)
 
 
