@@ -54,7 +54,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                  fm_sv : "Optional(rf.StateVector)" = None,
                  # Values, so we can flip between using pca and not
                  use_pca=True, use_lrad=False, lrad_second_order=False,
-                 use_raman=True
+                 use_raman=True,
+                 skip_observation_add=False
                  ):
         '''Constructor. The StateVector to add things to can be passed in, or if this
         isn't then we create a new StateVector.
@@ -73,6 +74,16 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.current_state = current_state
         # Note MeasurementId also has access to all the stuff in RetrievalConfiguration
         self.measurement_id = measurement_id
+
+        # Depending on when the StateVector is created, the observation may or may
+        # not have been added. Note it is safe to add this multiple times, so we
+        # don't need to worry if it is already there. I don't think this will ever
+        # cause a problem, but we have a option to skip this if needed.
+        if(not skip_observation_add):
+            coeff,mp = self.current_state.object_state(self.observation.state_element_name_list())
+            self.observation.update_coeff_and_mapping(coeff,mp)
+            self.current_state.add_fm_state_vector_if_needed(
+                self.fm_sv, self.observation.state_element_name_list(), [self.observation,])
         
         # We are moving away from this, but leave now as a reference
         self.rf_uip = rf_uip

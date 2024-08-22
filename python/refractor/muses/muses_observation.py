@@ -201,8 +201,16 @@ class MusesObservation(rf.ObservationSvImpBase):
         '''Set the SpectralWindow to apply to the observation data.'''
         raise NotImplementedError()
 
+    def update_coeff_and_mapping(self, coeff : "np.array[float]", mp : 'rf.StateMapping'):
+        '''Update the objects coefficients and state mapping. Useful if we create
+        observation before we have a CurrentState and/or StateVector - which we often
+        do in unit tests.'''
+        # Default is no coefficients changing observation
+        pass
+    
     def state_element_name_list(self):
         '''List of state element names for this observation'''
+        # Default is no state element changing observation
         return []
 
     def radiance_all_extended(self, skip_jacobian=True,
@@ -267,6 +275,15 @@ class MusesObservationImp(MusesObservation):
             if(sz > 0):
                 res.append([fltname,sz])
         return res
+
+    def update_coeff_and_mapping(self, coeff : "np.array[float]", mp : 'rf.StateMapping'):
+        '''Update the objects coefficients and state mapping. Useful if we create
+        observation before we have a CurrentState and/or StateVector - which we often
+        do in unit tests.'''
+        # Despite the name "init", this really just sets the mapping and coefficient,
+        # it doesn't redo any of the other class initialization. Note this comes from
+        # the rf.SubStateVectorArray parent if you are looking for the code.
+        self.init(coeff, mp)
     
     @property
     def sounding_desc(self):
@@ -1073,6 +1090,15 @@ class MusesTropomiObservation(MusesObservationReflectance):
             res.append(f"TROPOMIRADSQUEEZE{flt}")
         return res
         
+    def state_vector_name_i(self, i):
+        res = []
+        for flt in self.filter_list:
+            res.append(f"Solar Shift {flt}")
+        for flt in self.filter_list:
+            res.append(f"Radiance Shift {flt}")
+        for flt in self.filter_list:
+            res.append(f"Radiance Squeeze {flt}")
+        return res[i]
     
     def state_element_name_list(self):
         '''List of state element names for this observation'''
@@ -1195,6 +1221,16 @@ class MusesOmiObservation(MusesObservationReflectance):
         for flt in filter_list:
             res.append(f"OMIODWAVSLOPE{flt}")
         return res
+    
+    def state_vector_name_i(self, i):
+        res = []
+        for flt in self.filter_list:
+            res.append(f"Solar Shift {flt}")
+        for flt in self.filter_list:
+            res.append(f"Radiance Shift {flt}")
+        for flt in self.filter_list:
+            res.append(f"Radiance Squeeze {flt}")
+        return res[i]
     
     def state_element_name_list(self):
         '''List of state element names for this observation'''

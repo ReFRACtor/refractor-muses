@@ -93,11 +93,13 @@ def test_fm_run(omi_fm_object_creator_step_1):
     fm.add_observer_and_keep_reference(PrintSpectrum())
     print(fm.radiance(1, True).value)
 
-def test_state_vector(omi_fm_object_creator_step_1):
+def test_state_vector(omi_fm_object_creator_step_1, omi_uip_step_1):
+    omi_fm_object_creator_step_1.fm_sv.update_state(omi_uip_step_1.current_state_x_fm)
     print(omi_fm_object_creator_step_1.fm_sv)
 
 @require_muses_py
-def test_state_vector_step2(omi_fm_object_creator_step_2):
+def test_state_vector_step2(omi_fm_object_creator_step_2, omi_uip_step_2):
+    omi_fm_object_creator_step_2.fm_sv.update_state(omi_uip_step_2.current_state_x_fm)
     print(omi_fm_object_creator_step_2.fm_sv)
 
 @require_muses_py
@@ -126,6 +128,7 @@ def test_fm_run_step2(omi_fm_object_creator_step_2, omi_uip_step_2, omi_obs_step
     
     rconf = RetrievalConfiguration.create_from_strategy_file(
         f"{test_base_path}/omi/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    omi_fm_object_creator_step_2.fm_sv.remove_observer(omi_obs_step_2)
     fm = OmiFmObjectCreator(CurrentStateUip(omi_uip_step_2), rconf, omi_obs_step_2,
                             rf_uip=omi_uip_step_2, use_pca=True, use_lrad=False,
                             lrad_second_order=False).forward_model
