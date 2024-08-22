@@ -100,10 +100,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def uip_params(self):
         return self.rf_uip.tropomi_params
 
-    @property
-    def cloud_pressure(self):
-        return self.uip_params["cloud_pressure"]
-    
     @cached_property
     def temperature(self):
         tlev_fm = self.rf_uip.atmosphere_column("TATM")

@@ -186,10 +186,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     def uip_params(self):
         return self.rf_uip.omi_params
 
-    @property
-    def cloud_pressure(self):
-        return self.uip_params["cloud_pressure"]
-    
     @cached_property
     def ground_clear(self):
         albedo = np.zeros((self.num_channels, 3))

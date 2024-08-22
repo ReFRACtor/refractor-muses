@@ -253,6 +253,12 @@ class MusesObservationImp(MusesObservation):
         self._filter_data_swin = None
 
     @property
+    def cloud_pressure(self):
+        '''Cloud pressure. I think all the instrument types handle this the same way,
+        if not we can push this down to omi and tropomi only.'''
+        return float(self.muses_py_dict["Cloud"]["CloudPressure"])
+    
+    @property
     def filter_data(self) -> "list[str,int]":
         res = []
         sd = self.spectral_domain_all()

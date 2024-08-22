@@ -255,11 +255,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rf.PressureSigma(plev, surface_pressure,
                                 rf.Pressure.PREFER_DECREASING_PRESSURE)
 
-    @abc.abstractproperty
     @property
     def cloud_pressure(self):
         '''Pressure to use for cloud top'''
-        raise NotImplementedError()
+        return self.observation.cloud_pressure
 
     @cached_property
     def pressure(self):
