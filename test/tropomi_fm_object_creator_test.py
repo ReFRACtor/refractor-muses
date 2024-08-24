@@ -47,6 +47,9 @@ def tropomi_fm_object_creator_band7_swir_step(tropomi_uip_band7_swir_step, tropo
     in multiple tests'''
     rconf = RetrievalConfiguration.create_from_strategy_file(
         f"{test_base_path}/tropomi_band7/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    # The UIP was created with POSTCONV turned on, although this table doesn't have that.
+    # So we just manually set that
+    rconf["ils_tropomi_xsection"] = "POSTCONV"
     flist = {'TROPOMI' : ['BAND7']}
     mid = MeasurementIdFile(f"{test_base_path}/tropomi_band7/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
@@ -307,6 +310,12 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
                                       lrad_second_order=False)
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     obslist = joint_tropomi_obs_step_12
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    flist = {'TROPOMI' : ['BAND3']}
+    mid = MeasurementIdFile(f"{joint_tropomi_test_in_dir}/Measurement_ID.asc",
+                            rconf, flist)
+    creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(rf_uip, obslist,
                                            rrefractor.params["ret_info"],
                                            vlidort_cli=vlidort_cli)

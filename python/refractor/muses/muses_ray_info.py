@@ -78,6 +78,10 @@ class MusesRayInfo:
         t = self._ray_info()
         return t['map_vmr_l'][::-1], t['map_vmr_u'][::-1]
 
+    def number_cloud_layer(self, cloud_pressure):
+        '''Return the number of cloud layers. This is used in RefractorFmObjectCreator'''
+        return np.count_nonzero(self._ray_info()["pbar"] <= cloud_pressure)        
+
     def dry_air_density(self):
         '''Return dry air density. This gets used in MusesOpticalDepthFile.'''
         return self._ray_info()['column_air'][::-1][:self._nlay()]

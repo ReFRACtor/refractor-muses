@@ -165,6 +165,12 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
     ihandle = OmiForwardModelHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False)
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{test_base_path}/omi/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    flist = {'OMI' : ['UV1', 'UV2']}
+    mid = MeasurementIdFile(f"{test_base_path}/omi/in/sounding_1/Measurement_ID.asc",
+                            rconf, flist)
+    creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(rf_uip, joint_omi_obs_step_8,
                                            rrefractor.params["ret_info"],
                                            vlidort_cli=vlidort_cli)

@@ -32,9 +32,10 @@ class RefractorOmiFm(RefractorTropOrOmiFm):
     
     Use a ReFRACtor ForwardModel as a replacement for omi_fm.'''
 
-    def __init__(self, obs, **kwargs):
+    def __init__(self, obs, measurement_id, **kwargs):
         super().__init__(func_name="omi_fm", **kwargs)
         self._obs = obs
+        self.measurement_id = measurement_id
 
     @property
     def observation(self):
@@ -49,13 +50,10 @@ class RefractorOmiFm(RefractorTropOrOmiFm):
         '''Object creator using to generate forward model. You can use
         this to get various pieces we use to create the forward model.'''
         if("omi_fm_object_creator" not in self.rf_uip.refractor_cache):
-            # Don't have an easy way to get this, so just pass an empty one. At
-            # some point this may break, and perhaps we can just drop this old
-            # class
-            mid = MeasurementIdDict({},{})
             self.rf_uip.refractor_cache["omi_fm_object_creator"] = \
-                OmiFmObjectCreator(CurrentStateUip(self.rf_uip), mid, self._obs,
-                                   rf_uip=self.rf_uip, **self.obj_creator_args)
+                OmiFmObjectCreator(
+                    CurrentStateUip(self.rf_uip), self.measurement_id,
+                    self._obs, rf_uip=self.rf_uip, **self.obj_creator_args)
         return self.rf_uip.refractor_cache["omi_fm_object_creator"]
         
             

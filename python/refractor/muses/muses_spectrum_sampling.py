@@ -2,30 +2,26 @@ import numpy as np
 import refractor.framework as rf
 
 class MusesSpectrumSampling(rf.SpectrumSampling):
-    "Return the monochromatic grid using OMI uip information"
-
-    def __init__(self, instrument_name, rf_uip=None, ils_method=None):
-        # Initalize director
+    '''Return the hires/monochromatic grid to use. This is a fixed grid, or
+    if we aren't using a ILS this is just the lowres grid.
+    '''
+    # TODO
+    # Note MusesSpectrumSampling doesn't have the logic in place to skip
+    # highres wavelengths that we don't need - e.g., because of bad pixels.
+    # For now, just follow the logic that py-retrieve uses, but we may
+    # want to change this.
+    
+    def __init__(self, hres_spec : "list[Optional(rf.SpectralDomain)"):
         super().__init__()
-
-        self.rf_uip = rf_uip
-        self.instrument_name = instrument_name
-        self.ils_method = ils_method
-        if(ils_method is None):
-            self.ils_method = self.rf_uip.ils_method(0, self.instrument_name)
+        self.hres_spec = hres_spec
         
-    def spectral_domain(self, fm_idx: int, lowres_grid: rf.SpectralDomain, edge_extension: rf.DoubleWithUnit) -> rf.SpectralDomain:
-        if self.ils_method in ("FASTCONV", "POSTCONV"):
-            if(self.rf_uip is None):
-                raise NotImplementedError()
-            ils_uip_info = self.rf_uip.ils_params(fm_idx, self.instrument_name)
-            return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
+    def spectral_domain(self, sensor_index: int, lowres_grid: rf.SpectralDomain,
+                        edge_extension: rf.DoubleWithUnit) -> rf.SpectralDomain:
+        if(self.hres_spec[sensor_index] is not None):
+            return self.hres_spec[sensor_index]
         else:
             return lowres_grid
 
     def desc(self):
-        return f'''MusesSpectrumSampling:
-  Instrument name: {self.instrument_name}
-  ILS method:      {self.ils_method}
-'''  
+        return "MusesSpectrumSampling"
 

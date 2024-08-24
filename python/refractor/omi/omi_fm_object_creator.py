@@ -46,6 +46,12 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             self.state_info = None
         # Temp, until we get this all in place
         self.add_to_sv(self.fm_sv)
+
+    def ils_method(self, sensor_index : int) -> str:
+        '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
+        # Note in principle we could have this be a function of the sensor band,
+        # however the current implementation just has one value set here.
+        return self.measurement_id["ils_omi_xsection"]
         
     @cached_property
     def instrument_correction(self):

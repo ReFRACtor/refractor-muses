@@ -135,7 +135,20 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def spectrum_sampling(self):
-        return MusesSpectrumSampling(self.instrument_name, rf_uip=self.rf_uip)
+        # TODO
+        # Note MusesSpectrumSampling doesn't have the logic in place to skip
+        # highres wavelengths that we don't need - e.g., because of bad pixels.
+        # For now, just follow the logic that py-retrieve uses, but we may
+        # want to change this.
+        hres_spec = []
+        for i in range(self.num_channels):
+            if(self.ils_method(i) in ("FASTCONV", "POSTCONV")):
+                cwave = self.rf_uip.ils_params(
+                    i, self.instrument_name)["central_wavelength"]
+                hres_spec.append(rf.SpectralDomain(cwave, rf.Unit("nm")))
+            else:
+                hres_spec.append(None)
+        return MusesSpectrumSampling(hres_spec)
 
     @cached_property
     def dispersion(self):
@@ -147,6 +160,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # Not currently used
         return None
 
+    def ils_method(self, sensor_index : int) -> str:
+        '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
+        raise NotImplementedError
+    
     @cached_property
     def ils_function(self):
         # This is the "real" ILS, but py-retrieve applies this to
@@ -181,9 +198,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         for i in range(self.num_channels):
             sg = rf.SampleGridSpectralDomain(self.observation.spectral_domain_full(i),
                                              self.observation.filter_list[i])
-
-            ils_method = self.rf_uip.ils_method(i, self.instrument_name)
-            if ils_method == "FASTCONV":
+            if self.ils_method(i) == "FASTCONV":
                 ils_params = self.rf_uip.ils_params(i, self.instrument_name)
 
                 # High res extensions unused by IlsFastApply
@@ -196,14 +211,20 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                           sg,
                                           high_res_ext,
                                           self.filter_list[i], self.filter_list[i])
-            elif ils_method == "POSTCONV":
+            elif self.ils_method(i) == "POSTCONV":
                 ils_params = self.rf_uip.ils_params(i, self.instrument_name)
-                # Calculate the wavelength grid first - deltas in wavelength don't translate to wavenumber deltas
-                # JLL: I *think* that "central_wavelength" from the UIP ILS parameters will be the wavelengths that the 
-                #  ISRF is defined on. Not sure what "central_wavelength_fm" is; in testing, it was identical to central_wavelength.
+                # Calculate the wavelength grid first - deltas in
+                # wavelength don't translate to wavenumber deltas JLL:
+                # I *think* that "central_wavelength" from the UIP ILS
+                # parameters will be the wavelengths that the ISRF is
+                # defined on. Not sure what "central_wavelength_fm"
+                # is; in testing, it was identical to
+                # central_wavelength.
                 response_wavelength = ils_params['central_wavelength'].reshape(-1,1) + ils_params['delta_wavelength']
 
-                # Convert to frequency-ordered wavenumber arrays. The 2D arrays need flipped on both axes since the order reverses in both
+                # Convert to frequency-ordered wavenumber arrays. The
+                # 2D arrays need flipped on both axes since the order
+                # reverses in both
                 center_wn = np.flip(rf.ArrayWithUnit(ils_params['central_wavelength'], 'nm').convert_wave('cm^-1').value)
                 response_wn = np.flip(np.flip(rf.ArrayWithUnit(response_wavelength, 'nm').convert_wave('cm^-1').value, axis=1), axis=0)
                 response = np.flip(np.flip(ils_params['isrf'], axis=1), axis=0)
@@ -214,23 +235,36 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 # Build a table of ILSs at the sampled wavelengths/frequencies
                 interp_wavenumber = True
                 band_name = self.filter_list[i]
-                ils_func = rf.IlsTableLinear(center_wn, delta_wn, response, band_name, band_name, interp_wavenumber)
+                ils_func = rf.IlsTableLinear(center_wn, delta_wn, response, band_name,
+                                             band_name, interp_wavenumber)
                 
-                # That defines the ILS function, but now we need to get the actual grating object.
-                # Technically we've conflating things here; POSTCONV doesn't necessarily need to 
-                # mean a grating spectrometer - we could be working with an FTIR. But we'll deal 
-                # with that when ReFRACtor has an FTIR ILS object.
+                # That defines the ILS function, but now we need to
+                # get the actual grating object.  Technically we've
+                # conflating things here; POSTCONV doesn't necessarily
+                # need to mean a grating spectrometer - we could be
+                # working with an FTIR. But we'll deal with that when
+                # ReFRACtor has an FTIR ILS object.
                 #
-                # It also seems to be important that the hwhm be in the same units as the ILS table. In my CO development,
-                # when I tried using a HWHM in nm, increasing it from ~0.2 nm to ~0.25 nm make the line widths simulated by
-                # ReFRACtor compare worse to measured TROPOMI radiances, but discussion with Matt Thill suggested that the
-                # HWHM input to the IlsGrating should just set how wide a window around the central wavelength that component
-                # does its calculations over, so a wider window should always produce a more accurate result. Converting
-                # HWHM to wavenumber seems to fix that issue; once I did that the 0.2 and 0.25 nm HWHM gave similar results.
+                # It also seems to be important that the hwhm be in
+                # the same units as the ILS table. In my CO
+                # development, when I tried using a HWHM in nm,
+                # increasing it from ~0.2 nm to ~0.25 nm make the line
+                # widths simulated by ReFRACtor compare worse to
+                # measured TROPOMI radiances, but discussion with Matt
+                # Thill suggested that the HWHM input to the
+                # IlsGrating should just set how wide a window around
+                # the central wavelength that component does its
+                # calculations over, so a wider window should always
+                # produce a more accurate result. Converting HWHM to
+                # wavenumber seems to fix that issue; once I did that
+                # the 0.2 and 0.25 nm HWHM gave similar results.
                 hwhm = self.instrument_hwhm(i)
                 if hwhm.units.name != 'cm^-1':
-                    # Don't try to convert non-wavenumber values - remember, this is a delta, and delta wavelengths
-                    # can't be simply converted to delta wavenumbers without knowing what wavelength we're working at.
+                    # Don't try to convert non-wavenumber values -
+                    # remember, this is a delta, and delta wavelengths
+                    # can't be simply converted to delta wavenumbers
+                    # without knowing what wavelength we're working
+                    # at.
                     raise ValueError('Half width at half max values for POSTCONV ILSes must be given in wavenumbers')
 
                 # Needs to be in wavenumbers.
@@ -246,12 +280,14 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rf.IlsInstrument(ils_vec, self.instrument_correction)
     
     @abc.abstractmethod
-    def instrument_hwhm(self, ii_mw: int) -> rf.DoubleWithUnit:
-        '''Grating spectrometers like OMI and TROPOMI require a fixed half 
-        width at half max for the IlsGrating object. This can vary from band
-        to band. This function must return the HWHM in wavenumbers for the 
-        band indicated by `ii_mw`, which will be the index from `self.channel_list()`
-        for the current band.'''
+    def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
+        '''Grating spectrometers like OMI and TROPOMI require a fixed
+        half width at half max for the IlsGrating object. This can
+        vary from band to band. This function must return the HWHM in
+        wavenumbers for the band indicated by `sensor_index`<`, which
+        will be the index from `self.channel_list()` for the current
+        band.
+        '''
         raise NotImplementedError
 
     @cached_property
@@ -289,7 +325,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # "cloud pressure level" that gives the same number of layers. We
         # could change ReFRACtor to use layers, but there doesn't seem to be
         # much point.
-        ncloud_lay = np.count_nonzero(self.rf_uip.ray_info(self.instrument_name)["pbar"] <= self.cloud_pressure)
+        rinfo = MusesRayInfo(self.rf_uip, self.instrument_name, self.pressure_fm)
+        ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure)
         pgrid = self.pressure_fm.pressure_grid().value.value
         if(ncloud_lay+1 < pgrid.shape[0]):
             cloud_pressure_level = (pgrid[ncloud_lay] + pgrid[ncloud_lay+1]) / 2
@@ -612,7 +649,7 @@ class O3Absorber(AbstractAbsorber):
         between absco and cross section.'''
 
         # Use higher resolution xsec when using FASTCONV
-        if self._parent.rf_uip.ils_method(0, self._parent.instrument_name) == "FASTCONV":
+        if self._parent.ils_method(0) == "FASTCONV":
             return self.absorber_xsec
         else:
             return self.absorber_muses
@@ -622,20 +659,11 @@ class O3Absorber(AbstractAbsorber):
         '''Uses MUSES O3 optical files, which are precomputed ahead
         of the forward model. They may include a convolution with the ILS.
         '''
-
-        if True:
-            res = MusesOpticalDepthFile(self._parent.ray_info,
-                                    self._parent.pressure,
-                                    self._parent.temperature, self._parent.altitude,
-                                    self.absorber_vmr, self._parent.num_channels,
-                                    f"{self._parent.step_directory}/vlidort/input")
-        else:
-            res = MusesOpticalDepthFile(self._parent.rf_uip, self._parent.instrument_name,
-                                    self._parent.pressure,
-                                    self._parent.temperature, self._parent.altitude,
-                                    self.absorber_vmr, self._parent.num_channels)
-            
-        return res
+        return MusesOpticalDepthFile(self._parent.ray_info,
+                                     self._parent.pressure,
+                                     self._parent.temperature, self._parent.altitude,
+                                     self.absorber_vmr, self._parent.num_channels,
+                                     f"{self._parent.step_directory}/vlidort/input")
 
     @cached_property
     def absorber_xsec(self):

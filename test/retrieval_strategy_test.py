@@ -99,6 +99,7 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         # Different expected results. Close, but not identical to VLIDORT version
         compare_dir = joint_tropomi_test_refractor_expected_dir
+        rs.update_target(f"{r.run_dir}/Table.asc")
     rs.retrieval_ms()
 
     diff_is_error = True
@@ -179,6 +180,7 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         # Different expected results. Close, but not identical to VLIDORT version
         compare_dir = joint_omi_test_refractor_expected_dir
+        rs.update_target(f"{r.run_dir}/Table.asc")
         
     rs.retrieval_ms()
 

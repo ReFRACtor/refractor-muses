@@ -56,9 +56,15 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             v.push_back(self.radiance_scaling[i])
             res.push_back(v)
         return res
+
+    def ils_method(self, sensor_index : int) -> str:
+        '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
+        # Note in principle we could have this be a function of the sensor band,
+        # however the current implementation just has one value set here.
+        return self.measurement_id["ils_tropomi_xsection"]
     
-    def instrument_hwhm(self, ii_mw: int) -> rf.DoubleWithUnit:
-        band_name = self.filter_list[ii_mw]
+    def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
+        band_name = self.filter_list[sensor_index]
         if band_name == 'BAND7':
             # JLL: testing different values of HWHM with the IlsGrating component,
             # this value (= a 0.2 nm difference at 2330 nm) gave output spectra that

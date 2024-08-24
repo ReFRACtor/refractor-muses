@@ -4,6 +4,7 @@ import pandas as pd
 import numpy.testing as npt
 import os
 import refractor.muses.muses_py as mpy
+from refractor.muses import (RetrievalConfiguration, MeasurementIdFile)
 from refractor.old_py_retrieve_wrapper import (RefractorTropOmiFm, RefractorTropOmiFmMusesPy,
                                                RefractorTropOrOmiFmPyRetrieve)
 from refractor.tropomi import TropomiFmObjectCreator
@@ -103,7 +104,12 @@ def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
         obs = tropomi_obs_step_1
     elif(step_number == 2):
         obs = tropomi_obs_step_2
-    r = RefractorTropOmiFm(obs, use_pca=False, use_lrad=False,
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    flist = {'TROPOMI' : ['BAND3']}
+    mid = MeasurementIdFile(f"{tropomi_test_in_dir}/Measurement_ID.asc",
+                            rconf, flist)
+    r = RefractorTropOmiFm(obs, mid, use_pca=False, use_lrad=False,
                            lrad_second_order=False)
     (o_jacobian, o_radiance,
      o_measured_radiance_tropomi, o_success_flag) = r.run_pickle_file(pfile,osp_dir=osp_dir,gmao_dir=gmao_dir,path="fm_muses_ref/", vlidort_cli=vlidort_cli)
@@ -143,7 +149,12 @@ def test_refractor_joint_fm_refractor(isolated_dir, step_number, osp_dir,
     pfile = f"{joint_tropomi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
     obs_cris, obs_tropomi = joint_tropomi_obs_step_12 
-    r = RefractorTropOmiFm(obs_tropomi, use_pca=False, use_lrad=False,
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    flist = {'TROPOMI' : ['BAND3']}
+    mid = MeasurementIdFile(f"{joint_tropomi_test_in_dir}/Measurement_ID.asc",
+                            rconf, flist)
+    r = RefractorTropOmiFm(obs_tropomi, mid, use_pca=False, use_lrad=False,
                            lrad_second_order=False)
     (o_jacobian, o_radiance,
      o_measured_radiance_tropomi, o_success_flag) = r.run_pickle_file(pfile,osp_dir=osp_dir,gmao_dir=gmao_dir,path="fm_muses_ref/", vlidort_cli=vlidort_cli)
@@ -204,8 +215,13 @@ def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
     #vlidort_nstokes=2
     vlidort_nstokes=1
     pfile = tropomi_test_in_dir + f"/refractor_fm_{step_number}_{iteration}.pkl"
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    flist = {'TROPOMI' : ['BAND3']}
+    mid = MeasurementIdFile(f"{tropomi_test_in_dir}/Measurement_ID.asc",
+                            rconf, flist)
     # Do a lidort run, just to leave PCA out of our checks
-    r = RefractorTropOmiFm(tropomi_obs_step_2, use_pca=False, use_lrad=False,
+    r = RefractorTropOmiFm(tropomi_obs_step_2, mid, use_pca=False, use_lrad=False,
                            lrad_second_order=False)
     (o_jacobian, o_radiance,
      o_measured_radiance_tropomi, o_success_flag) = r.run_pickle_file(pfile,osp_dir=osp_dir,gmao_dir=gmao_dir,path="fm_muses_ref/", vlidort_cli=vlidort_cli)
