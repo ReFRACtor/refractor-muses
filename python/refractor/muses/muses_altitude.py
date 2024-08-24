@@ -3,28 +3,27 @@ import refractor.framework as rf
 
 class MusesAltitude(rf.Altitude):
 
-    def __init__(self, rf_uip, instrument_name, pressure, latitude):
+    def __init__(self, ray_info : 'MusesRayInfo',
+                 pressure : 'rf.Pressure',
+                 latitude : 'rf.DoubleWithUnit'):
 
         # Initialize director
         super().__init__()
 
-        self.rf_uip = rf_uip
-        self.instrument_name = instrument_name
+        self.ray_info = ray_info
         self._pressure = pressure
         self._latitude = latitude
 
         self.altitude_grid = None
 
     def cache_altitude(self):
-
         nlev = self._pressure.number_level
 
         # Recompute if value is undefined or if number of layers in pressure grid has changed
         if self.altitude_grid is not None and self.altitude_grid.shape[0] == nlev:
             return
 
-        hlev = self.rf_uip.ray_info(self.instrument_name)['level_params']['radius'][:] - self.rf_uip.ray_info(self.instrument_name)['level_params']['radius'][0]
-        self.altitude_grid = np.flip(hlev, axis=0)[:nlev]
+        self.altitude_grid = self.ray_info.altitude_grid()
 
     def altitude(self, pressure_value):
 
@@ -68,8 +67,7 @@ class MusesAltitude(rf.Altitude):
         return rf.AutoDerivativeWithUnitDouble(rf.AutoDerivativeDouble(grav), "m/s^2")
 
     def clone(self):
-
-        return MusesAltitude(self.rf_uip, self._pressure)
+        return MusesAltitude(self.ray_info, self._pressure, self._latitude)
 
     def desc(self):
         return "MusesAltitude"

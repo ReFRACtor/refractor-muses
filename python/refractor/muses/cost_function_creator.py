@@ -5,6 +5,8 @@ from .current_state import CurrentState, CurrentStateUip, CurrentStateDict
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
 from .muses_spectral_window import MusesSpectralWindow
+from .muses_observation import MeasurementIdFile
+from .retrieval_configuration import RetrievalConfiguration
 import refractor.framework as rf
 import abc
 import copy

@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.testing as npt
-from refractor.muses import (MusesOpticalDepthFile, AbsorberVmrToUip,
+from refractor.muses import (MusesOpticalDepthFile, AbsorberVmrToUip, MusesRayInfo,
                              RetrievalConfiguration, CurrentStateUip, MeasurementIdFile)
 from refractor.tropomi import TropomiFmObjectCreator
 from test_support import *
@@ -26,14 +26,12 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2):
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
     obj_creator.rf_uip.uip_tropomi["jacobians"] = ["O3",]
-    mod  = MusesOpticalDepthFile(obj_creator.rf_uip, "TROPOMI",
+    mod  = MusesOpticalDepthFile(obj_creator.ray_info,
                                  obj_creator.pressure,
                                  obj_creator.temperature, obj_creator.altitude,
                                  obj_creator.absorber_vmr,
-                                 obj_creator.num_channels)
-    # TODO Note this is currently printing the wrong thing, this
-    # is "Absorber" rather than "MusesOpticalDepthFile". Not super urgent,
-    # but should fix this.
+                                 obj_creator.num_channels,
+                                 "./Step01_O3-Band3/vlidort/input")
     print(mod)
 
     sv = rf.StateVector()

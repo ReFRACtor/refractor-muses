@@ -171,6 +171,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         Just as a convention we always return a np.array, so if there is only one value
         put that in a length 1 np.array.'''
         raise NotImplementedError
+
+    @property
+    def step_directory(self) -> str:
+        '''Return the step directory. This is a bit odd, but it is needed by
+        MusesOpticalDepthFile. Since the current state depends on the step we are
+        using, it isn't ridiculous to have this here. However if we find a better
+        home for or better still remove the need for this that would be good.'''
+        raise NotImplementedError
     
                 
 class CurrentStateUip(CurrentState):
@@ -196,6 +204,10 @@ class CurrentStateUip(CurrentState):
     def retrieval_state_element(self) -> 'list[str]':
         return self.rf_uip.jacobian_all
 
+    @property
+    def step_directory(self) -> str:
+        return self.rf_uip.step_directory
+    
     def full_state_value(self, state_element_name) -> np.array:
         '''Return the full state value for the given state element name.
         Just as a convention we always return a np.array, so if there is only one value
@@ -376,6 +388,7 @@ class CurrentStateStateInfo(CurrentState):
     '''Implementation of CurrentState that uses our StateInfo. This is the way
     the actual full retrieval works.'''
     def __init__(self, state_info : 'StateInfo', retrieval_info : 'RetrievalInfo',
+                 step_directory : str,
                  retrieval_state_element_override=None, do_systematic=False):
         '''I think we'll want to get some of the logic in
         RetrievalInfo into this class, I'm not sure that we want this
@@ -399,6 +412,11 @@ class CurrentStateStateInfo(CurrentState):
         self._retrieval_info = retrieval_info
         self.retrieval_state_element_override = retrieval_state_element_override
         self.do_systematic = do_systematic
+        self._step_directory = step_directory
+
+    @property
+    def step_directory(self) -> str:
+        return self._step_directory
         
     @property
     def state_info(self) -> 'StateInfo':

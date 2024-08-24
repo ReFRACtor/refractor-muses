@@ -35,7 +35,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                  observation : 'MusesObservation',
                  use_eof=False, eof_dir=None,
                  **kwargs):
-        super().__init__(current_state, measurement_id, "OMI", observation,
+        super().__init__(current_state, measurement_id, "OMI", observation, 
                          **kwargs)
         self.use_eof = use_eof
         self.eof_dir = eof_dir

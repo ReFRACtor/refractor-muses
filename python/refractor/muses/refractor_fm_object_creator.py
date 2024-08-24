@@ -66,6 +66,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
         self.observation = observation
+        # TODO This is needed by MusesOpticalDepthFile. It would be nice to
+        # move away from needing this
+        self.step_directory = current_state.step_directory
         if(fm_sv):
             self.fm_sv = fm_sv
         else:
@@ -347,8 +350,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             #     self.temperature, self.rf_uip.latitude_with_unit(i),
             #     self.rf_uip.surface_height_with_unit(i))
 
-            chan_alt = MusesAltitude(self.rf_uip, self.instrument_name,
-                        self.pressure, self.rf_uip.latitude_with_unit(self.filter_list[i]))
+            chan_alt = MusesAltitude(self.ray_info, self.pressure,
+                                     self.rf_uip.latitude_with_unit(self.filter_list[i]))
             res.append(chan_alt)
         return res
 
@@ -620,10 +623,18 @@ class O3Absorber(AbstractAbsorber):
         of the forward model. They may include a convolution with the ILS.
         '''
 
-        res = MusesOpticalDepthFile(self._parent.rf_uip, self._parent.instrument_name,
+        if True:
+            res = MusesOpticalDepthFile(self._parent.ray_info,
+                                    self._parent.pressure,
+                                    self._parent.temperature, self._parent.altitude,
+                                    self.absorber_vmr, self._parent.num_channels,
+                                    f"{self._parent.step_directory}/vlidort/input")
+        else:
+            res = MusesOpticalDepthFile(self._parent.rf_uip, self._parent.instrument_name,
                                     self._parent.pressure,
                                     self._parent.temperature, self._parent.altitude,
                                     self.absorber_vmr, self._parent.num_channels)
+            
         return res
 
     @cached_property

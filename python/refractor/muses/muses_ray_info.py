@@ -1,4 +1,5 @@
 from .refractor_uip import RefractorUip
+import numpy as np
 
 class MusesRayInfo:
     '''There are a number of places where RefractorFmObjectCreator and related
@@ -55,10 +56,36 @@ class MusesRayInfo:
 
     def _nlay(self):
         return self.pressure.number_layer
+
+    def _nlev(self):
+        return self.pressure.number_level
     
     def tbar(self):
-        '''Return tbar. This get used in MusesRaman, I don't think this is used
+        '''Return tbar. This gets used in MusesRaman, I don't think this is used
         anywhere else.'''
         return self._ray_info()['tbar'][::-1][:self._nlay()]
+
+    def altitude_grid(self):
+        '''Return altitude grid of each level. This gets used in MusesAltitude, I don't think
+        it is used anywhere else'''
+
+        t = self._ray_info()['level_params']['radius']
+        hlev = t[:] - t[0]
+        return hlev[::-1][:self._nlev()]
+
+    def map_vmr(self):
+        '''Return map_vmr_l and map_vmr_u. This gets used in MusesOpticalDepthFile.'''
+        t = self._ray_info()
+        return t['map_vmr_l'][::-1], t['map_vmr_u'][::-1]
+
+    def dry_air_density(self):
+        '''Return dry air density. This gets used in MusesOpticalDepthFile.'''
+        return self._ray_info()['column_air'][::-1][:self._nlay()]
+
+    def gas_density_layer(self, species_name):
+        '''Return gas density layer for given species name.'''
+        t = self._ray_info()
+        ind = np.where(np.asarray(t["level_params"]["species"]) == species_name)[0]
+        return t["column_species"][ind, ::-1].squeeze()[:self._nlay()]
 
 __all__ = ["MusesRayInfo"]    

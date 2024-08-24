@@ -288,7 +288,11 @@ class RefractorUip:
         if("uip_TROPOMI" in self.uip):
             vlidort_input = self.uip['uip_TROPOMI']["vlidort_input"]
         self.capture_directory.save_directory(os.path.dirname(strategy_table), vlidort_input)
-        
+
+    @property
+    def step_directory(self):
+        return os.path.dirname(os.path.dirname(os.path.normpath(f"{self.run_dir}/{self.vlidort_input}")))
+    
     @property
     def current_state_x(self):
         '''Return the current guess. This is the same thing as retrieval_vec,

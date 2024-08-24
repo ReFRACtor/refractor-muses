@@ -24,7 +24,8 @@ def tropomi_fm_object_creator_step_1(tropomi_uip_step_1, tropomi_obs_step_1, osp
     mid = MeasurementIdFile(f"{test_base_path}/tropomi/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_1), mid,
-                                  tropomi_obs_step_1, rf_uip=tropomi_uip_step_1)
+                                  tropomi_obs_step_1,
+                                  rf_uip=tropomi_uip_step_1)
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp_dir):
@@ -36,7 +37,8 @@ def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp
     mid = MeasurementIdFile(f"{test_base_path}/tropomi/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_2), mid,
-                                  tropomi_obs_step_2, rf_uip=tropomi_uip_step_2)
+                                  tropomi_obs_step_2,
+                                  rf_uip=tropomi_uip_step_2)
 
 
 @pytest.fixture(scope="function")
@@ -49,7 +51,8 @@ def tropomi_fm_object_creator_band7_swir_step(tropomi_uip_band7_swir_step, tropo
     mid = MeasurementIdFile(f"{test_base_path}/tropomi_band7/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_band7_swir_step), mid,
-                                  tropomi_obs_band7_swir_step, rf_uip=tropomi_uip_band7_swir_step)
+                                  tropomi_obs_band7_swir_step,
+                                  rf_uip=tropomi_uip_band7_swir_step)
 
 
 def test_spec_win(tropomi_fm_object_creator_step_1):

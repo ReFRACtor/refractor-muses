@@ -132,9 +132,11 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
         If do_systematic is True, then we use the systematic species list. '''
         self._uip = None
-        self.cstate = CurrentStateStateInfo(rs._state_info, rs.retrieval_info,
-                                            do_systematic=do_systematic,
-                                            retrieval_state_element_override=jacobian_speciesIn)
+        self.cstate = CurrentStateStateInfo(
+            rs._state_info, rs.retrieval_info,
+            f"{rs.run_dir}/Step{rs.step_number:02d}_{rs.step_name}",
+            do_systematic=do_systematic,
+            retrieval_state_element_override=jacobian_speciesIn)
         # Temp, until we get this sorted out
         self.cstate.apriori_cov = rs.retrieval_info.apriori_cov
         self.cstate.sqrt_constraint = (mpy.sqrt_matrix(self.cstate.apriori_cov)).transpose()

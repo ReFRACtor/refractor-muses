@@ -48,8 +48,9 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # Where MUSES stores the computations it makes for VLIDORT we are leveraging
         self.input_dir = input_dir
 
+        # Reverse profile order to OD computation order
         self.map_vmr_l, self.map_vmr_u = self.ray_info.map_vmr()
-        
+
         # Initialize caches
         self.xsect_data = None
         self.xsect_data_temp = None
