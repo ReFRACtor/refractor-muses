@@ -265,6 +265,10 @@ class MusesObservationImp(MusesObservation):
         '''Cloud pressure. I think all the instrument types handle this the same way,
         if not we can push this down to omi and tropomi only.'''
         return float(self.muses_py_dict["Cloud"]["CloudPressure"])
+
+    @property
+    def observation_table(self):
+        return self.muses_py_dict['Earth_Radiance']['ObservationTable']
     
     @property
     def filter_data(self) -> "list[str,int]":

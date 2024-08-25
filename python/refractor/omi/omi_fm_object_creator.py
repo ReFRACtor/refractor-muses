@@ -47,6 +47,44 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         # Temp, until we get this all in place
         self.add_to_sv(self.fm_sv)
 
+    def ils_params_postconv(self, sensor_index : int):
+        # Place holder, this doesn't work yet. Copy of what is
+        # done in make_uip_tropomi.
+        return None
+        return mpy.get_omi_ils(
+            L2_OSP_PATH,
+            omiFrequency, tempfreqIndex, 
+            WAVELENGTH_FILTER, 
+            omiInfo['Earth_Radiance']['ObservationTable'],
+            num_fwhm_srf, 
+            mononfreq_spacing)
+
+    def ils_params_fastconv(self, sensor_index : int):
+        # Place holder, this doesn't work yet. Copy of what is
+        # done in make_uip_tropomi.
+        return None
+        return mpy.get_omi_ils_fastconv(
+            L2_OSP_PATH,
+            omiFrequency, tempfreqIndex_measgrid, 
+            WAVELENGTH_FILTER, 
+            tropomiInfo['Earth_Radiance']['ObservationTable'],
+            num_fwhm_srf, 
+            mononfreq_spacing, 
+            i_monochromfreq=tropomiFrequency[tempfreqIndex], 
+            i_interpmethod="INTERP_MONOCHROM"
+        )
+        
+    def ils_params(self, sensor_index : int):
+        '''ILS parameters'''
+        # TODO Pull out of rf_uip. This is in make_uip_tropomi.py
+        # Note that this seems to fold in determine the high resolution grid.
+        # We have a separate class MusesSpectrumSampling for doing that, which
+        # currently just returns what ils_params has. When we clean this up, we
+        # may want to put part of the functionality there - e.g., read the whole
+        # ILS table here and then have the calculation of the spectrum in
+        # MusesSpectrumSampling
+        return self.rf_uip.ils_params(sensor_index, self.instrument_name)
+
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
         # Note in principle we could have this be a function of the sensor band,

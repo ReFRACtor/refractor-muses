@@ -67,7 +67,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.lrad_second_order = lrad_second_order
         self.observation = observation
         # TODO This is needed by MusesOpticalDepthFile. It would be nice to
-        # move away from needing this
+        # move away from needing this. This is uses in make_uip_tropomi to
+        # write out the file, which we then read
         self.step_directory = current_state.step_directory
         if(fm_sv):
             self.fm_sv = fm_sv
@@ -140,11 +141,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # highres wavelengths that we don't need - e.g., because of bad pixels.
         # For now, just follow the logic that py-retrieve uses, but we may
         # want to change this.
+        # See comment in ils_params
         hres_spec = []
         for i in range(self.num_channels):
             if(self.ils_method(i) in ("FASTCONV", "POSTCONV")):
-                cwave = self.rf_uip.ils_params(
-                    i, self.instrument_name)["central_wavelength"]
+                cwave = self.ils_params(i)["central_wavelength"]
                 hres_spec.append(rf.SpectralDomain(cwave, rf.Unit("nm")))
             else:
                 hres_spec.append(None)
@@ -160,6 +161,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # Not currently used
         return None
 
+    def ils_params(self, sensor_index : int):
+        '''ILS parameters'''
+        raise NotImplementedError
+    
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
         raise NotImplementedError
@@ -199,20 +204,20 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             sg = rf.SampleGridSpectralDomain(self.observation.spectral_domain_full(i),
                                              self.observation.filter_list[i])
             if self.ils_method(i) == "FASTCONV":
-                ils_params = self.rf_uip.ils_params(i, self.instrument_name)
+                iparms = self.ils_params(i)
 
                 # High res extensions unused by IlsFastApply
                 high_res_ext = rf.DoubleWithUnit(0, rf.Unit("nm"))
 
-                ils_obj = rf.IlsFastApply(ils_params["scaled_uh_isrf"].transpose(),
-                                          ils_params["svh_isrf_fft_real"].transpose(),
-                                          ils_params["svh_isrf_fft_imag"].transpose(),
-                                          ils_params["where_extract"],
+                ils_obj = rf.IlsFastApply(iparms["scaled_uh_isrf"].transpose(),
+                                          iparms["svh_isrf_fft_real"].transpose(),
+                                          iparms["svh_isrf_fft_imag"].transpose(),
+                                          iparms["where_extract"],
                                           sg,
                                           high_res_ext,
                                           self.filter_list[i], self.filter_list[i])
             elif self.ils_method(i) == "POSTCONV":
-                ils_params = self.rf_uip.ils_params(i, self.instrument_name)
+                iparms = self.ils_params(i)
                 # Calculate the wavelength grid first - deltas in
                 # wavelength don't translate to wavenumber deltas JLL:
                 # I *think* that "central_wavelength" from the UIP ILS
@@ -220,14 +225,14 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 # defined on. Not sure what "central_wavelength_fm"
                 # is; in testing, it was identical to
                 # central_wavelength.
-                response_wavelength = ils_params['central_wavelength'].reshape(-1,1) + ils_params['delta_wavelength']
+                response_wavelength = iparms['central_wavelength'].reshape(-1,1) + iparms['delta_wavelength']
 
                 # Convert to frequency-ordered wavenumber arrays. The
                 # 2D arrays need flipped on both axes since the order
                 # reverses in both
-                center_wn = np.flip(rf.ArrayWithUnit(ils_params['central_wavelength'], 'nm').convert_wave('cm^-1').value)
+                center_wn = np.flip(rf.ArrayWithUnit(iparms['central_wavelength'], 'nm').convert_wave('cm^-1').value)
                 response_wn = np.flip(np.flip(rf.ArrayWithUnit(response_wavelength, 'nm').convert_wave('cm^-1').value, axis=1), axis=0)
-                response = np.flip(np.flip(ils_params['isrf'], axis=1), axis=0)
+                response = np.flip(np.flip(iparms['isrf'], axis=1), axis=0)
 
                 # Calculate the deltas in wavenumber space
                 delta_wn = response_wn - center_wn.reshape(-1,1)
@@ -659,6 +664,11 @@ class O3Absorber(AbstractAbsorber):
         '''Uses MUSES O3 optical files, which are precomputed ahead
         of the forward model. They may include a convolution with the ILS.
         '''
+        # TODO Note that MusesOpticalDepthFile reads files that get created
+        # in make_uip_tropomi.py. This get read in by functions like
+        # get_tropomi_o3xsec_without_ils and then written to file.
+        # We should move this into MusesOpticalDepthFile without having
+        # a file.
         return MusesOpticalDepthFile(self._parent.ray_info,
                                      self._parent.pressure,
                                      self._parent.temperature, self._parent.altitude,

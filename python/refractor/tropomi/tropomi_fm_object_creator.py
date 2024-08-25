@@ -5,12 +5,14 @@ from refractor.muses import (RefractorFmObjectCreator,
                              ForwardModelHandle,
                              MusesRaman, CurrentState, CurrentStateUip,
                              SurfaceAlbedo)
+from refractor.muses import muses_py as mpy
 import refractor.framework as rf
 import logging
 import numpy as np
 import re
 import glob
 import copy
+import os
 
 logger = logging.getLogger("py-retrieve")
 
@@ -56,6 +58,46 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             v.push_back(self.radiance_scaling[i])
             res.push_back(v)
         return res
+
+    def ils_params_postconv(self, sensor_index : int):
+        # Place holder, this doesn't work yet. Copy of what is
+        # done in make_uip_tropomi.
+        return None
+        # This is hardcoded in make_uip_tropomi, so we duplicate that here
+        num_fwhm_srf=4.0 
+        return mpy.get_tropomi_ils(
+            self.measurement_id["ElanorOSPDir"],
+            tropomiFrequency, tempfreqIndex, 
+            WAVELENGTH_FILTER, 
+            self.observation.observation_table,
+            num_fwhm_srf)
+
+    def ils_params_fastconv(self, sensor_index : int):
+        # Place holder, this doesn't work yet. Copy of what is
+        # done in make_uip_tropomi.
+        return None
+        # This is hardcoded in make_uip_tropomi, so we duplicate that here
+        num_fwhm_srf=4.0 
+        return mpy.get_tropomi_ils_fastconv(
+            self.measurement_id["ElanorOSPDir"],
+            tropomiFrequency, tempfreqIndex_measgrid, 
+            WAVELENGTH_FILTER, 
+            self.observation.observation_table,
+            num_fwhm_srf, 
+            i_monochromfreq=tropomiFrequency[tempfreqIndex], 
+            i_interpmethod="INTERP_MONOCHROM"
+        )
+
+    def ils_params(self, sensor_index : int):
+        '''ILS parameters'''
+        # TODO Pull out of rf_uip. This is in make_uip_tropomi.py
+        # Note that this seems to fold in determine the high resolution grid.
+        # We have a separate class MusesSpectrumSampling for doing that, which
+        # currently just returns what ils_params has. When we clean this up, we
+        # may want to put part of the functionality there - e.g., read the whole
+        # ILS table here and then have the calculation of the spectrum in
+        # MusesSpectrumSampling
+        return self.rf_uip.ils_params(sensor_index, self.instrument_name)
 
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''

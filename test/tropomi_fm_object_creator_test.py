@@ -60,6 +60,12 @@ def tropomi_fm_object_creator_band7_swir_step(tropomi_uip_band7_swir_step, tropo
 
 def test_spec_win(tropomi_fm_object_creator_step_1):
     print(tropomi_fm_object_creator_step_1.spec_win)
+
+def test_ils_params_postconv(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.ils_params_postconv(0))
+
+def test_ils_params_fastconv(tropomi_fm_object_creator_step_1):
+    print(tropomi_fm_object_creator_step_1.ils_params_fastconv(0))
     
 def test_spectrum_sampling(tropomi_fm_object_creator_step_1):
     print(tropomi_fm_object_creator_step_1.spectrum_sampling)
