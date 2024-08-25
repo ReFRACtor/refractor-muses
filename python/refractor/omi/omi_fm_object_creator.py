@@ -103,36 +103,13 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             res.push_back(v)
         return res
 
-    # This should go away, I think we can get this from the observation. Curently just
-    # used by eof below
-    def channel_list(self):
-        '''This is list of microwindows relevant to self.instrument_name
-
-        Note that there are two microwindow indexes floating around. We have
-        ii_mw which goes through all the instruments, so for step 7 in
-        AIRS+OMI ii_mw goes through 12 values (only 10 and 11 are OMI).
-        mw_index (also call fm_idx) is relative to a instrument,
-        so if we are working with OMI the first microwindow has ii_mw = 10, but
-        mw_index is 0 (UV1, with the second UV2).
-        
-        The contents of channel_list() are ii_mw (e.g., 10 and 11 in our 
-        AIRS+OMI example), and the index into channel_list() is fm_idx
-        (also called mw_index). So you might loop with something like:
-
-        for fm_idx, ii_mw in enumerate(self.channel_list()):
-             blah blah
-        '''
-        chan_list = []
-        for ii_mw in range(self.rf_uip.number_micro_windows):
-            if self.rf_uip.instrument_name(ii_mw) == self.instrument_name:
-                chan_list.append(ii_mw)
-
-        return chan_list
-
     @cached_property
     def eof(self):
         res = {}
-        for band in ("UV1", "UV2"):
+        for i in range(self.num_channels):
+            band = self.observation.filter_list[i]
+            if band not in ("UV1", "UV2"):
+                continue
             selem = self.state_info.state_element(f"OMIEOF{band}")
             r = []
             # This is the full instrument size of the given band. We only run
@@ -140,12 +117,12 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             # the full instrument size. Note the values outside of what we actually
             # run the forward model on don't really matter - we don't end up using
             # them. We can set these to zero if desired.
-            npixel = np.count_nonzero(self.rf_uip.uip_omi["frequencyfilterlist"] == band)
+            npixel = len(self.observation.frequency_full(i))
             # Note: npixel is 577 for UV2, which doesn't make sense given indexes in EOF
             # Muses uses fullbandfrequency subset by microwindow info (shown below) instead
-
+            
             if(self.eof_dir is not None):
-                uv1_index, uv2_index, _uv2_pair_index = self.rf_uip.omi_obs_table['XTRACK']
+                uv1_index, uv2_index, _uv2_pair_index = self.observation.observation_table["XTRACK"]
                 uv_basename = "EOF_xtrack_{0}-{1:02d}_window_{0}.nc"
                 uv1_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv1', uv1_index))}"
                 uv2_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv2', uv2_index))}"
@@ -158,7 +135,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                     mw_index = 1
 
                 # Note: We hit this code when retrieving cloud fraction which uses 7 freq. and 1 microwin
-                if len(self.rf_uip.uip_omi["microwindows"]) == 1:
+                if len(self.observation.filter_data) <= 1:
                     res["UV2"] = []
                     continue
 
@@ -167,22 +144,16 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 with Dataset(eof_fname) as eof_ds:
                     eofs = eof_ds[eof_path][:]
                     pixel_indexes = eof_ds[eof_index_path][:]
-            
+
+                # Sample index is 1 based (by convention),
+                # so subtract 1 to get index into array. Include bad pixels here
+                with self.observation.modify_spectral_window(include_bad_sample=True):
+                    nonzero_eof_index = self.observation.spectral_domain(i).sample_index-1
                 for basis_index in range(selem.number_eof):
-                    offset = 0
-                    findex = self.rf_uip.freq_index("OMI")
-                    for fm_idx, ii_mw in enumerate(self.channel_list()):
-                        sg = self.rf_uip.sample_grid(fm_idx, ii_mw)
-                        full_instrument_size = len(sg.data)
-                        # mod 10 is for joint retrievals where we come back with channel_list() == [10, 11]
-                        if (mw_index == (ii_mw % 10)):
-                            eof_full = np.zeros((full_instrument_size,))
-                            nonzero_eof_index = findex[np.logical_and(findex >= offset,
-                                                        findex < offset+full_instrument_size)] - offset
-                            eof_channel = np.zeros((len(nonzero_eof_index),))
-                            eof_channel[pixel_indexes] = eofs[basis_index, :]
-                            eof_full[nonzero_eof_index] = eof_channel
-                        offset += full_instrument_size
+                    eof_full = np.zeros((npixel,))
+                    eof_channel = np.zeros((len(nonzero_eof_index),))
+                    eof_channel[pixel_indexes] = eofs[basis_index, :]
+                    eof_full[nonzero_eof_index] = eof_channel
 
                     # Not sure about the units, but this is what we assigned to our
                     # forward model, and the EOF needs to match
@@ -222,8 +193,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             res.append(ref_spec)
         return res
 
-    def instrument_hwhm(self, ii_mw: int) -> rf.DoubleWithUnit:
-        band_name = self.rf_uip.filter_list(ii_mw)
+    def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
+        band_name = self.observation.filter_list[sensor_index]
         raise NotImplementedError(f'HWHM for band {band_name} not defined')
         
     @property

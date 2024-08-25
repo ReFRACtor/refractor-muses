@@ -48,6 +48,7 @@ def test_eof_omi(osp_dir, gmao_dir, vlidort_cli,
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV1", OmiEofStateElement, pass_state=False, name="OMIEOFUV1", number_eof=3))
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV2", OmiEofStateElement, pass_state=False, name="OMIEOFUV2", number_eof=3))
+    rs.update_target(f"{r.run_dir}/Table.asc")
     if(False):
         # We can use CLI and call this like py-retrieve. But this absorbed
         # errors, so it is a bit harder to debug
@@ -78,6 +79,8 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     subprocess.run("rm -r airs_omi_eof", shell=True)
     r = MusesRunDir('/tb/sandbox17/sval/muses_output_eof_application_single/airs_omi/2022-11-01/setup-targets/Global_Survey_Grid_4.0/20221101_028_009_22',
                     osp_dir, gmao_dir, path_prefix="airs_omi_eof")
+    #r = MusesRunDir('./eof_stuff/20221101_028_009_22',
+    #                osp_dir, gmao_dir, path_prefix="airs_omi_eof")
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
@@ -94,9 +97,11 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     ihandle = OmiForwardModelHandle(use_pca=False, use_lrad=False,
                                   lrad_second_order=False, use_eof=True,
                                   eof_dir = "/tb/sandbox21/lkuai/muses/output_py/airs_omi/plot/no_softCal_EOF/EOFout")
+                                  #eof_dir = "./eof_stuff/EOFout")
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV1", OmiEofStateElement, pass_state=False, name="OMIEOFUV1", number_eof=3))
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("OMIEOFUV2", OmiEofStateElement, pass_state=False, name="OMIEOFUV2", number_eof=3))
+    rs.update_target(f"{r.run_dir}/Table.asc")
     if(False):
         # We can use CLI and call this like py-retrieve. But this absorbed
         # errors, so it is a bit harder to debug
