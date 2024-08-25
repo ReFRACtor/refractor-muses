@@ -25,7 +25,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     This class provides a framework for a lot of the common pieces. It
     is intended that derived classes override certain functionality (e.g.,
-    have a difference Pressure object). The changes then ripple through
+    have a different Pressure object). The changes then ripple through
     the creation - so anything that needs a Pressure object to create itself
     will use whatever the derived class supplies.
 
@@ -95,25 +95,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.filter_list = self.observation.filter_list
         self.num_channels = self.observation.num_channels
 
-        self.sza = np.array([float(self.rf_uip.solar_zenith(filter_name))
-                             for filter_name in self.filter_list ])
-        self.oza = np.array([float(self.rf_uip.observation_zenith(filter_name))
-                             for filter_name in self.filter_list ])
-        # For TROPOMI view azimuth angle isn't available. Not sure if
-        # that matters, I don't think this gets used for anything (only
-        # relative azimuth is used). But go ahead and fill this in if
-        # we aren't working with TROPOMI.
-        if self.instrument_name != "TROPOMI":
-            self.oaz = np.array([float(self.rf_uip.observation_azimuth(filter_name))
-                                 for filter_name in self.filter_list ])
-        self.raz = np.array([float(self.rf_uip.relative_azimuth(filter_name))
-                             for filter_name in self.filter_list ])
-
-        self.sza_with_unit = rf.ArrayWithUnit(self.sza, "deg")
-        self.oza_with_unit = rf.ArrayWithUnit(self.oza, "deg")
-        if False:
-            self.oaz_with_unit = rf.ArrayWithUnit(self.oaz, "deg")
-        self.raz_with_unit = rf.ArrayWithUnit(self.raz, "deg")
+        self.sza = self.observation.solar_zenith
+        self.oza = self.observation.observation_zenith
+        self.raz = self.observation.relative_azimuth
 
         # This is what OMI currently uses, and TROPOMI band 3. We may put all this
         # together, but right now tropomi_fm_object_creator may replace this.
@@ -393,7 +377,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             #     self.rf_uip.surface_height_with_unit(i))
 
             chan_alt = MusesAltitude(self.ray_info, self.pressure,
-                                     self.rf_uip.latitude_with_unit(self.filter_list[i]))
+                                     self.observation.latitude[i])
             res.append(chan_alt)
         return res
 

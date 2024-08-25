@@ -5,7 +5,7 @@ class MusesAltitude(rf.Altitude):
 
     def __init__(self, ray_info : 'MusesRayInfo',
                  pressure : 'rf.Pressure',
-                 latitude : 'rf.DoubleWithUnit'):
+                 latitude : float):
 
         # Initialize director
         super().__init__()
@@ -49,8 +49,7 @@ class MusesAltitude(rf.Altitude):
         a7 = 1.517e-17
         a8 = 6.0e-20
 
-        dlat = self._latitude.convert("deg").value
-        cos2p = np.cos(np.radians(2 * dlat))
+        cos2p = np.cos(np.radians(2 * self._latitude))
 
         # sea level acceleration due to gravity
 

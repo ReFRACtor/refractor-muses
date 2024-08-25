@@ -327,9 +327,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                           wlen,
                           float(scale_factor),
                           i,
-                          self.sza_with_unit[i],
-                          self.oza_with_unit[i],
-                          self.raz_with_unit[i],
+                          rf.DoubleWithUnit(self.sza[i], "deg"),
+                          rf.DoubleWithUnit(self.oza[i], "deg"),
+                          rf.DoubleWithUnit(self.raz[i], "deg"),
                           self.atmosphere,
                           self.solar_model(i),
                           rf.StateMappingLinear())

@@ -269,7 +269,41 @@ class MusesObservationImp(MusesObservation):
     @property
     def observation_table(self):
         return self.muses_py_dict['Earth_Radiance']['ObservationTable']
+
+    def _avg_obs(self, nm : str, sensor_index : int) -> float:
+        '''Average values of the given name the the given sensor index (sometimes
+        more than one entry in the table).'''
+        # Note this is defined in MusesObservationReflectance. If we need to generalize
+        # this, we can try to come up with a more general way to handle this
+        fname = self.filter_list[sensor_index]
+        return np.mean(np.asarray(self.observation_table[nm])[np.asarray(self.observation_table["Filter_Band_Name"]) == fname])
+
+    @property
+    def solar_zenith(self) -> "np.array":
+        return np.array([float(self._avg_obs("SolarZenithAngle", i))
+                         for i in range(self.num_channels)])
+
+    @property
+    def observation_zenith(self) -> "np.array":
+        return np.array([float(self._avg_obs("ViewingZenithAngle", i))
+                         for i in range(self.num_channels)])
     
+    @property
+    def relative_azimuth(self) -> "np.array":
+        return np.array([float(self._avg_obs("RelativeAzimuthAngle", i))
+                         for i in range(self.num_channels)])
+
+    @property
+    def latitude(self) -> "np.array":
+        return np.array([float(self._avg_obs("Latitude", i))
+                         for i in range(self.num_channels)])
+
+    @property
+    def longitude(self) -> "np.array":
+        return np.array([float(self._avg_obs("Longitude", i))
+                         for i in range(self.num_channels)])
+    
+
     @property
     def filter_data(self) -> "list[str,int]":
         res = []
