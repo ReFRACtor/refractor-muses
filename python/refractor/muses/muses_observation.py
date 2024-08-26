@@ -270,6 +270,19 @@ class MusesObservationImp(MusesObservation):
     def observation_table(self):
         return self.muses_py_dict['Earth_Radiance']['ObservationTable']
 
+    @property
+    def across_track(self) -> 'list[int]':
+        res = []
+        for i in  range(self.num_channels):
+            fname = self.filter_list[i]
+            res.append(np.asarray(self.observation_table["XTRACK"])[np.asarray(self.observation_table["Filter_Band_Name"]) == fname][0])
+        return res
+
+    @property
+    def earth_sun_distance(self) -> float:
+        '''Earth sun distance in meter'''
+        return self.observation_table['EarthSunDistance'][0]
+    
     def _avg_obs(self, nm : str, sensor_index : int) -> float:
         '''Average values of the given name the the given sensor index (sometimes
         more than one entry in the table).'''
