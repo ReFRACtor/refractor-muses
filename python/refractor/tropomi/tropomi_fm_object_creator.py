@@ -144,18 +144,17 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             res.append(rscale)
         return res
 
-    @property
-    def uip_params(self):
-        return self.rf_uip.tropomi_params
-
     @cached_property
     def temperature(self):
-        tlev_fm = self.rf_uip.atmosphere_column("TATM")
-
+        tlev_fm, _ = self.current_state.object_state(["TATM",])
+        selem = ["TROPOMITEMPSHIFTBAND3",]
+        coeff, _ = self.current_state.object_state(selem)
         tlevel = rf.TemperatureLevel(tlev_fm, self.pressure_fm)
         t = rf.TemperatureLevelOffset(self.pressure_fm,
                                       tlevel.temperature_profile(),
-                                      self.uip_params['temp_shift_BAND3'])
+                                      coeff[0])
+        self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem,
+                                                         [t,])        
         return t
 
     @cached_property

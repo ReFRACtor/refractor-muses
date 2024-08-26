@@ -336,8 +336,12 @@ class CurrentStateUip(CurrentState):
             return np.array([o_uip.tropomiPars['temp_shift_BAND3']])
         elif state_element_name == 'TROPOMICLOUDSURFACEALBEDO':
             return np.array([o_uip.tropomiPars['cloud_Surface_Albedo']])
-        else:
-            raise RuntimeError(f"Don't recognize {state_element_name}")
+        # Check if it is a column
+        try:
+            return self.rf_uip.atmosphere_column(state_element_name)
+        except ValueError:
+            pass
+        raise RuntimeError(f"Don't recognize {state_element_name}")
         
 class CurrentStateDict(CurrentState):
     '''Implementation of CurrentState that just takes a dictionary of state elements
