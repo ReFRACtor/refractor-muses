@@ -622,7 +622,8 @@ class O3Absorber(AbstractAbsorber):
         # absorber methods need to be cached properties, this was the easiest way to keep
         # that structure.
         self._parent = parent_obj_creator
-
+        self.current_state = parent_obj_creator.current_state
+        self.fm_sv = parent_obj_creator.fm_sv
 
     @property
     def available_species(self) -> Sequence[str]:
@@ -700,15 +701,20 @@ class O3Absorber(AbstractAbsorber):
         # before mapping to a different number of levels
         # TODO from JLL: if the approach used in the SwirAbsorber (using `available_species`
         # and the UIP to determine which species are absorbers) is correct and more general,
-        # then this should be modified to be consistent with that method. 
+        # then this should be modified to be consistent with that method.
+        selem = ["O3",]
+        coeff, mp = self.current_state.object_state(selem)
+        # Need to get mp to be the log mapping
         mappings = []
         mappings.append(rf.StateMappingLog())
 
         smap = rf.StateMappingComposite(mappings)
-
-        vmrs.append(rf.AbsorberVmrLevel(self._parent.pressure_fm,
-                         self._parent.rf_uip.atmosphere_column("O3"),
-                         "O3", smap))
+        vmr_o3 = rf.AbsorberVmrLevel(self._parent.pressure_fm,
+                                     coeff, "O3", smap)
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv, selem, [vmr_o3,])
+        print(vmr_o3.this)
+        vmrs.append(vmr_o3)
         return vmrs
 
 
@@ -718,6 +724,8 @@ class SwirAbsorber(AbstractAbsorber):
         # absorber methods need to be cached properties, this was the easiest way to keep
         # that structure.
         self._parent = parent_obj_creator
+        self.current_state = parent_obj_creator.current_state
+        self.fm_sv = parent_obj_creator.fm_sv
 
     @property
     def available_species(self) -> Sequence[str]:
@@ -811,10 +819,14 @@ class SwirAbsorber(AbstractAbsorber):
                 raise NotImplementedError(f'Unknown map type "{map_type}"')
 
             smap = rf.StateMappingComposite(mappings)
-
-            vmrs.append(rf.AbsorberVmrLevel(self._parent.pressure_fm,
-                             self._parent.rf_uip.atmosphere_column(specie),
-                             specie, smap))
+            # TODO We need to get the mp to be the right mapping
+            coeff, mp = self.current_state.object_state([specie,])
+            vmr_specie = rf.AbsorberVmrLevel(self._parent.pressure_fm,
+                                             coeff,
+                                             specie, smap)
+            self.current_state.add_fm_state_vector_if_needed(
+                self.fm_sv, [specie,], [vmr_specie,])
+            vmrs.append(vmr_specie)
         return vmrs
     
 

@@ -39,8 +39,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                          **kwargs)
         self.use_eof = use_eof
         self.eof_dir = eof_dir
-        # Temp, until we get this all in place
-        self.add_to_sv(self.fm_sv)
 
     def ils_params_postconv(self, sensor_index : int):
         # Place holder, this doesn't work yet. Copy of what is
@@ -252,13 +250,6 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [cf,])
         return cf
 
-    def add_to_sv(self, fm_sv : rf.StateVector):
-        # TODO We have this hardcoded now. We'll rework this, adding to the state
-        # vector should get moved into the object creation. But we'll have this in
-        # place for now.
-        self.current_state.add_fm_state_vector_if_needed(
-            fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
-        
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
         # Note we should probably look at this sample grid, and

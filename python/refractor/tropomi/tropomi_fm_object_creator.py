@@ -45,10 +45,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             self._inner_absorber = SwirAbsorber(self)
         else:
             raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
-        # Temp, until we get this all in place
-        _ = self.forward_model
-        self.add_to_sv(self.fm_sv)
-        
 
     @cached_property
     def instrument_correction(self):
@@ -202,14 +198,6 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         cf = rf.CloudFractionFromState(float(coeff[0]))
         self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [cf,])
         return cf
-
-    def add_to_sv(self, fm_sv : rf.StateVector):
-        # TODO We have this hardcoded now. We'll rework this, adding to the state
-        # vector should get moved into the object creation. But we'll have this in
-        # place for now.
-        if("O3" in self.current_state.fm_sv_loc):
-            self.current_state.add_fm_state_vector_if_needed(
-                fm_sv, ["O3",], [self.absorber.absorber_vmr("O3"),])
 
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
