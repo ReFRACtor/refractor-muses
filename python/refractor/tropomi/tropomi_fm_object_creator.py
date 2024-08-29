@@ -41,10 +41,18 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         unique_filters = unique_filters.pop()
         if unique_filters == 'BAND3':
             self._inner_absorber = O3Absorber(self)
+            use_raman_default = True
         elif unique_filters == 'BAND7':
             self._inner_absorber = SwirAbsorber(self)
+            use_raman_default = False
         else:
             raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
+
+        # The different bands need different defaults for use_raman; since there wasn't
+        # a convenient way to determine which bands we were retrieving before now, we
+        # reset the instance attribute to the value we need if it wasn't specified in the
+        # creation arguments.
+        self.use_raman = kwargs.get('use_raman', use_raman_default)
 
     @cached_property
     def instrument_correction(self):

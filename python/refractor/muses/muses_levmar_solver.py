@@ -4,6 +4,9 @@ import numpy as np
 from .replace_function_helper import (suppress_replacement,
                                       register_replacement_function_in_block)
 import refractor.muses.muses_py as mpy
+from typing import Optional
+import subprocess
+import os
 
 class MusesLevmarSolver:
     '''This is a wrapper around levmar_nllsq_elanor that makes it look like
@@ -12,12 +15,13 @@ class MusesLevmarSolver:
     '''
     def __init__(self, cfunc: CostFunction, 
                  max_iter: int, delta_value: float, conv_tolerance: float,
-                 chi2_tolerance: float):
+                 chi2_tolerance: float, log_file: Optional[str] = None):
         self.cfunc = cfunc
         self.max_iter = max_iter
         self.delta_value = delta_value
         self.conv_tolerance = conv_tolerance
         self.chi2_tolerance = chi2_tolerance
+        self.log_file = log_file
         # Defaults, so if we skip solve we have what is needed for output
         self.success_flag = 1
         self.bestIter = 0
@@ -74,6 +78,10 @@ class MusesLevmarSolver:
         
 
     def solve(self):
+        # py-retrieve expects the directory to already be there, so create if
+        # needed.
+        if(self.log_file is not None):
+            subprocess.run(["mkdir", "-p", os.path.dirname(self.log_file)])
         with register_replacement_function_in_block("update_uip",
                                                     self.cfunc):
             with register_replacement_function_in_block("residual_fm_jacobian",
@@ -91,7 +99,9 @@ class MusesLevmarSolver:
                          verbose=False, 
                          delta_value=self.delta_value, 
                          ConvTolerance=self.conv_tolerance,
-                         Chi2Tolerance=self.chi2_tolerance
+                         Chi2Tolerance=self.chi2_tolerance,
+                         logWrite=self.log_file is not None,
+                         logFile=self.log_file
                      )
             # Since xret is the best iteration, which might not be the last,
             # set the cost function to this. Note the cost function does internal

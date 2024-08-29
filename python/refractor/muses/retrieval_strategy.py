@@ -102,7 +102,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.add_observer(RetrievalJacobianOutput())
         self.add_observer(RetrievalRadianceOutput())
         self.add_observer(RetrievalL2Output())
-        # Similarly logic here is hardcoded
+        # Similarly logic here is hardcoded.
+        # JLL: some MUSES diagnostics (esp. the solver steps in the levmar code)
+        # aren't observers yet, until they are, I need this boolean to turn them
+        # on.
+        self.write_output = writeOutput
         if(writeOutput):
             # Depends on internal objects like strategy_table_dict. For now,
             # skip this

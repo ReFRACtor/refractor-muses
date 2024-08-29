@@ -14,6 +14,7 @@ from .retrieval_result import PropagatedQA, RetrievalResult
 from .muses_spectral_window import MusesSpectralWindow
 from functools import partial
 import numpy as np
+import subprocess
 
 logger = logging.getLogger("py-retrieve")
 
@@ -345,12 +346,16 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
         delta_str = rs._strategy_executor.stable.preferences['LMDelta'] # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
-
+        if rs.write_output:
+            levmar_log_file = f"{rs.run_dir}/Step{rs.step_number:02d}_{rs.step_name}/LevmarSolver-{rs.step_name}.log"
+        else:
+            levmar_log_file = None
         self.slv = MusesLevmarSolver(self.cfunc,
                                      maxIter,
                                      delta_value,
                                      ConvTolerance,   
-                                     Chi2Tolerance)
+                                     Chi2Tolerance,
+                                     log_file=levmar_log_file)
         if(maxIter > 0):
             self.slv.solve()
         return self.slv.retrieval_results()
