@@ -33,6 +33,7 @@ class RetrievalInfo:
                            strategy_table,
                            state_info)
         self.retrieval_dict = self.retrieval_dict.__dict__
+        self._map_type_systematic = mpy.constraint_get_maptype(error_analysis.error_current, self.species_list_sys)
 
     @property
     def retrieval_info_obj(self):
@@ -92,6 +93,27 @@ class RetrievalInfo:
     @property
     def species_list_sys(self):
         return list(self.retrieval_dict["speciesListSys"][0:self.n_totalParametersSys])
+
+    @property
+    def map_type_systematic(self):
+        return self._map_type_systematic
+
+    def retrieval_info_systematic(self):
+        '''Version of retrieval info to use for a creating a systematic UIP'''
+        return mpy.ObjectView({
+                    'parameterStartFM': self.retrieval_info_obj.parameterStartSys,
+                    'parameterEndFM' : self.retrieval_info_obj.parameterEndSys,
+                    'species': self.species_names_sys,
+                    'n_species': self.n_totalParametersSys,
+                    'speciesList': self.species_list_sys,
+                    'speciesListFM': self.species_list_sys,
+                    'mapTypeListFM': self.map_type_systematic,
+                    'initialGuessListFM': np.zeros(shape=(self.n_totalParametersSys,), dtype=np.float32),
+                    'constraintVectorListFM': np.zeros(shape=(self.n_totalParametersSys,), dtype=np.float32),
+                    'initialGuessList': np.zeros(shape=(self.n_totalParametersSys,), dtype=np.float32),
+                    'n_totalParametersFM': self.n_totalParametersSys
+                })
+        
     
     @property
     def species_list_fm(self):

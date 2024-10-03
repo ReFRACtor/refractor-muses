@@ -40,7 +40,7 @@ class osswrapper:
     and will fail.
 
     Note, another probably bug with OSS is that *first* call to it
-    returns difference results then future calls. Not clear what is going
+    returns different results then future calls. Not clear what is going
     on here, but it makes it hard to have repeatable code. To work around
     this the very first time we initialize code we do it twice -
     initialize + delete followed by a second initialization. This should

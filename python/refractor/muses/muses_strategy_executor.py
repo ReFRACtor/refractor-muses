@@ -339,7 +339,6 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             
         self.error_analysis = ErrorAnalysis(self.stable, self.state_info,
                                             covariance_state_element_name)
-        self.rs._error_analysis = self.error_analysis
         self.rs.notify_update("initial set up done")
         
         # Note the original muses-py ran through all the initial guess steps at

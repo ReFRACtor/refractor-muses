@@ -83,20 +83,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         '''
         if(self._uip is None):
             if(do_systematic):
-                retrieval_info = rs.retrieval_info.retrieval_info_obj
-                rinfo = mpy.ObjectView({
-                    'parameterStartFM': retrieval_info.parameterStartSys,
-                    'parameterEndFM' : retrieval_info.parameterEndSys,
-                    'species': retrieval_info.speciesSys,
-                    'n_species': retrieval_info.n_speciesSys,
-                    'speciesList': retrieval_info.speciesListSys,
-                    'speciesListFM': retrieval_info.speciesListSys,
-                    'mapTypeListFM': mpy.constraint_get_maptype(rs._error_analysis.error_current, retrieval_info.speciesListSys),
-                    'initialGuessListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
-                    'constraintVectorListFM': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
-                    'initialGuessList': np.zeros(shape=(retrieval_info.n_totalParametersSys,), dtype=np.float32),
-                    'n_totalParametersFM': retrieval_info.n_totalParametersSys
-                })
+                rinfo = rs.retrieval_info.retrieval_info_systematic()
             else:
                 rinfo = rs.retrieval_info
             o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
@@ -311,7 +298,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.update_jacobian_sys(cfunc_sys)
 
-        self.results.update_error_analysis(rs._error_analysis)
+        self.results.update_error_analysis(rs._strategy_executor.error_analysis)
         self.propagated_qa.update(rs._strategy_executor.stable.retrieval_elements(),
                                   self.results.master_quality)
         
