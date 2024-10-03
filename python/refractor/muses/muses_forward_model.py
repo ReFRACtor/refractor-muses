@@ -66,7 +66,6 @@ class RefractorForwardModel(rf.ForwardModel):
         return self.fm.spectral_domain(sensor_index)
 
     def radiance(self, sensor_index, skip_jacobian = False):
-        print("hi, in radiance")
         return self.fm.radiance(sensor_index, skip_jacobian)
         
 class MusesOssForwardModelBase(MusesForwardModelBase):
@@ -79,7 +78,6 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         with osswrapper(self.rf_uip.uip):
-            print("hi there")
             rad, jac = mpy.fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
         # This is for the full set            
         gmask = self.bad_sample_mask(sensor_index) != True

@@ -713,7 +713,6 @@ class O3Absorber(AbstractAbsorber):
                                      coeff, "O3", smap)
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv, selem, [vmr_o3,])
-        print(vmr_o3.this)
         vmrs.append(vmr_o3)
         return vmrs
 

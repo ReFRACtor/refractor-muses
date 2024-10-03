@@ -2,6 +2,24 @@ from . import muses_py as mpy
 from .replace_function_helper import suppress_replacement
 import os
 import copy
+from contextlib import contextmanager
+import sys
+
+@contextmanager
+def suppress_stdout():
+    '''A context manager to temporarily redirect stdout to /dev/null'''
+    oldstdchannel = None
+    dest_file = None
+    try:
+        oldstdchannel = os.dup(sys.stdout.fileno())
+        dest_file = open(os.devnull, 'w')
+        os.dup2(dest_file.fileno(), sys.stdout.fileno())
+        yield
+    finally:
+        if oldstdchannel is not None:
+            os.dup2(oldstdchannel, sys.stdout.fileno())
+        if dest_file is not None:
+            dest_file.close()
 
 class WatchOssInit(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
     '''Helper object to update osswrapper.have_oss when py-retrieve calls
@@ -67,29 +85,30 @@ class osswrapper:
         if(not osswrapper.have_oss):
             for inst in ('CRIS','AIRS', 'TES'):
                 if(f'uip_{inst}' in self.uip):
-                    os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
-                    # Delete frequencyList if found. I don't think we
-                    # run into that in actual muses-py runs, but we do
-                    # with some of our test data based on where we are
-                    # in the processing.
-                    self.uip.pop("frequencyList", None)
-                    uip_all = mpy.struct_combine(self.uip, self.uip[f"uip_{inst}"])
-                    # Special handling for the first time through, working
-                    # around what is a bug or "feature" of the OSS code
-                    if(osswrapper.first_oss_initialize):
+                    # Suppress warning message print out, it clutters output
+                    with suppress_stdout():
+                        os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
+                        # Delete frequencyList if found. I don't think we
+                        # run into that in actual muses-py runs, but we do
+                        # with some of our test data based on where we are
+                        # in the processing.
+                        self.uip.pop("frequencyList", None)
+                        uip_all = mpy.struct_combine(self.uip, self.uip[f"uip_{inst}"])
+                        # Special handling for the first time through, working
+                        # around what is a bug or "feature" of the OSS code
+                        if(osswrapper.first_oss_initialize):
+                            with suppress_replacement("fm_oss_init"):
+                                (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                            mpy.fm_oss_windows(mpy.ObjectView(uip_all))
+                            with suppress_replacement("fm_oss_delete"):
+                                mpy.fm_oss_delete()                        
+                            osswrapper.first_oss_initialize = False
                         with suppress_replacement("fm_oss_init"):
                             (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                            self.uip['oss_jacobianList'] = jacobianList
                         mpy.fm_oss_windows(mpy.ObjectView(uip_all))
-                        with suppress_replacement("fm_oss_delete"):
-                            mpy.fm_oss_delete()
-                        osswrapper.first_oss_initialize = False
-                        
-                    with suppress_replacement("fm_oss_init"):
-                        (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
-                        self.uip['oss_jacobianList'] = jacobianList
-                    mpy.fm_oss_windows(mpy.ObjectView(uip_all))
-                    self.need_cleanup = True
-                    osswrapper.have_oss =  True
+                        self.need_cleanup = True
+                        osswrapper.have_oss =  True
         if(uip_all is not None):
             self.oss_dir_lut = uip_all["oss_dir_lut"]
             self.oss_jacobianList = uip_all["oss_jacobianList"]

@@ -21,17 +21,6 @@ logger = logging.getLogger("py-retrieve")
 # TODO clean up the usage for various internal objects of RetrievalStrategy, we want to rework
 # this anyways as we introduce the MusesStrategyExecutor.
 
-def struct_compare(s1, s2):
-    for k in s1.keys():
-        print(k)
-        if(isinstance(s1[k], np.ndarray) and
-           np.can_cast(s1[k], np.float64)):
-           npt.assert_allclose(s1[k], s2[k])
-        elif(isinstance(s1[k], np.ndarray)):
-            assert np.all(s1[k] == s2[k])
-        else:
-            assert s1[k] == s2[k]
-
 class RetrievalStrategyStepSet(PriorityHandleSet):
     '''This takes the retrieval_type and determines a RetrievalStrategyStep
     to handle this. It then does the retrieval step.
