@@ -79,6 +79,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
         if(sensor_index !=0):
             raise ValueError("sensor_index must be 0")
         with osswrapper(self.rf_uip.uip):
+            print("hi there")
             rad, jac = mpy.fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
         # This is for the full set            
         gmask = self.bad_sample_mask(sensor_index) != True
