@@ -393,7 +393,7 @@ len(o_results.LMResults_costThresh): {len(o_results.LMResults_costThresh)}
 
         o_results.retrieval = 'true'
         if o_results.num_iterations == 0:
-            logger.error(f'Retrieval files not found.  Value of o_results.num_iterations {o_results.num_iterations}')
+            logger.warning(f'Retrieval files not found.  Value of o_results.num_iterations {o_results.num_iterations}')
             o_results.retrieval = 'false'
             o_results.radianceInitial[:, :] = self.ret_res.radiance['radiance'][:, :]
         else:

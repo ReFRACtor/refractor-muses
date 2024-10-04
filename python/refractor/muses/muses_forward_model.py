@@ -103,8 +103,6 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             else:
                 a = rf.ArrayAd_double_1(rad[gmask])
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
-        if(sd.data.shape[0] != sr.data.shape[0]):
-            breakpoint()
         return rf.Spectrum(sd, sr)
 
 class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
