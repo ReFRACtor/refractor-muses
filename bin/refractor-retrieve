@@ -1,0 +1,43 @@
+#! /usr/bin/env python
+import refractor.muses
+
+version="1.0.0"
+usage="""Usage:
+  refractor-retrieve [options]
+  refractor-retrieve -h | --help
+  refractor-retrieve -v | --version
+
+Blah blah
+
+Options:
+  -h --help
+      Print this message
+
+  --debug
+      Set logger level to DEBUG, which provides debugging log messages.
+
+  --trace
+      Set logger level to TRACE, which provides both debugging and tracing log messages
+
+  --mpi
+      Process multiple targets in parallel using MPI.
+
+  --refractor
+      Ignored, for backwards compatibility with py-retrieve. We always use
+      ReFRACtor
+
+  --refractor-config=f
+      Use the given refractor config file. If not supplied, we fall back to using
+      the old py-retrieve forward models.
+
+  -t --targets=dirlist
+      Target directories
+
+  -v --version
+      Print program version
+
+"""
+args = refractor.muses.docopt_simple(usage, version=version)
+print(args.targets)
+print("hi there")
+

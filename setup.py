@@ -16,4 +16,5 @@ setup(
     install_requires=[
         'numpy', 'refractor-framework', 
     ],
+    scripts=["bin/refractor-retrieve",]
 )
