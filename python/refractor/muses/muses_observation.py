@@ -1211,6 +1211,7 @@ class MusesOmiObservation(MusesObservationReflectance):
                        spec_win: "Optional(MusesSpectralWindow)",
                        fm_sv: "Optional(rf.StateVector)",
                        osp_dir=None,
+                       write_omi_radiance_pickle=False,
                        **kwargs):
         '''Create from a MeasurementId. If this depends on any state information, you can
         pass in the CurrentState. This can be given as None if you just want to use default
@@ -1244,6 +1245,14 @@ class MusesOmiObservation(MusesObservationReflectance):
                 filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
                 cld_filename=cld_filename, osp_dir=osp_dir)
             obs = cls(o_omi, sdesc,filter_list, coeff=coeff, mp=mp)
+
+        if(write_omi_radiance_pickle):
+            # Save file needed by py-retrieve VLIDORT code
+            pfname = os.path.normpath(f"{mid['initialGuessDirectory']}/../Radiance_OMI_.pkl")
+            if(not os.path.exists(pfname)):
+                subprocess.run(["mkdir", "-p", os.path.dirname(pfname)])
+                pickle.dump(obs.muses_py_dict, open(pfname, "wb"))
+            
         obs.spectral_window = \
             spec_win if spec_win is not None else MusesSpectralWindow(None,None)
         obs.spectral_window.add_bad_sample_mask(obs)

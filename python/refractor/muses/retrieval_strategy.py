@@ -26,8 +26,7 @@ logger = logging.getLogger("py-retrieve")
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
 class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
-    '''
-    This is a replacement for script_retrieval_ms, that tries to do a
+    '''This is a replacement for script_retrieval_ms, that tries to do a
     few things:
 
     1. Simplifies the core code, the script_retrieval_ms is really
@@ -66,14 +65,16 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     This may well merge once we have the external interface sorted out.
 
-    Note that is class has a number of internal variables, with the normal
-    python "private" suggestion of using a leading "_", e.g. "_capture_directory".
-    It is a normal python convention that external classes not use this private
-    variables. But this should be even stronger for this class - one of the primary
-    things we are trying to figure out is what should be visible as the external
-    interface. So classes should only access things through the public properties
-    of this class. If something is missing, that is a finding about the needed interface
-    and this class should be updated rather than working around the issue by "knowing" how to
+    Note that is class has a number of internal variables, with the
+    normal python "private" suggestion of using a leading "_",
+    e.g. "_capture_directory".  It is a normal python convention that
+    external classes not use this private variables. But this should
+    be even stronger for this class - one of the primary things we are
+    trying to figure out is what should be visible as the external
+    interface. So classes should only access things through the public
+    properties of this class. If something is missing, that is a
+    finding about the needed interface and this class should be
+    updated rather than working around the issue by "knowing" how to
     get what we want from the internal variables.
     '''
     # TODO Add handling of writeOutput, writePlots, debug. I think we
@@ -194,12 +195,22 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         for obs in self._observers:
             obs.notify_update(self, location, **kwargs)
 
+    @property
+    def vlidort_cli(self):
+        return self._vlidort_cli
+
+    @vlidort_cli.setter
+    def vlidort_cli(self, v):
+        self._vlidort_cli = v
+        self._kwargs["vlidort_cli"] = v
+        
+
     def retrieval_ms(self):
         '''This is script_retrieval_ms in muses-py'''
         # Wrapper around calling mpy. We can perhaps pull some this out, but
         # for now we'll do that.
         with muses_py_call(self.run_dir,
-                           vlidort_cli=self._vlidort_cli):
+                           vlidort_cli=self.vlidort_cli):
             self._strategy_executor.execute_retrieval()
             exitcode = 37
             logger.info(f"Done")
@@ -323,8 +334,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                               change_to_dir=change_to_dir, osp_dir=osp_dir,
                               gmao_dir=gmao_dir)
         if(vlidort_cli is not None):
-            res._vlidort_cli = vlidort_cli
-            res._kwargs["vlidort_cli"] = vlidort_cli
+            res.vlidort_cli = vlidort_cli
             kwargs["vlidort_cli"] = vlidort_cli
         return res, kwargs
 

@@ -1,5 +1,11 @@
 #! /usr/bin/env python
 import refractor.muses
+# We will replace this shortly with loggure, but for now just use the existing logger
+import logging
+import sys
+import glob
+import os
+import importlib.util
 
 version="1.0.0"
 usage="""Usage:
@@ -17,27 +23,92 @@ Options:
       Set logger level to DEBUG, which provides debugging log messages.
 
   --trace
-      Set logger level to TRACE, which provides both debugging and tracing log messages
+      Set logger level to TRACE, which provides both debugging and tracing log
+      messages.
 
   --mpi
       Process multiple targets in parallel using MPI.
 
   --refractor
-      Ignored, for backwards compatibility with py-retrieve. We always use
-      ReFRACtor
+      Ignored, we take this argument for backwards compatibility with py-retrieve.
+      We always use ReFRACtor
 
   --refractor-config=f
       Use the given refractor config file. If not supplied, we fall back to using
       the old py-retrieve forward models.
 
+  --plots
+      Generate plots for a subset of the species
+
   -t --targets=dirlist
       Target directories
+
+  --vlidort-cli=v
+      Path to the directory in which vlidort_cli executable can be found.
 
   -v --version
       Print program version
 
 """
 args = refractor.muses.docopt_simple(usage, version=version)
-print(args.targets)
-print("hi there")
+
+# Old py-retrieve logger
+# Py-retrieve sets this up, so we don't need to add any handlers here
+logger = logging.getLogger('py-retrieve')
+
+write_debug_output = False
+if args.trace:
+    # We will add tracing level with loguru
+    logger.setLevel(logging.DEBUG)
+    write_debug_output = True
+elif args.debug:
+    logger.setLevel(logging.DEBUG)
+    write_debug_output = True
+    
+logger.info("py-retrieve is running ...")
+
+if args.refractor_config:
+    logger.info("Loading refractor configuration file: %s", args.refractor_config)
+    spec = importlib.util.spec_from_file_location("refractor_config",
+                                                  args.refractor_config)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    sys.modules["refractor_config"] = module
+    rs = module.rs
+else:
+    # This is needed by the fall back of using  py-retrieve forward models.
+    # The write_tropomi_radiance_pickle and write_omi_radiance_pickle is needed
+    # by the py-retrieve forward models (which get the radiance values through
+    # a pickle file).
+    rs = refractor.muses.RetrievalStrategy(filename=None,
+                                           writeOutput=write_debug_output,
+                                           writePlots=args.plots,
+                                           write_tropomi_radiance_pickle=True,
+                                           write_omi_radiance_pickle=True)
+
+# Pass location of VLIDORT. We do this separately, so the refractor config file
+# doesn't need to worry about setting this up
+if(args.vlidort_cli):    
+    rs.vlidort_cli = args.vlidort_cli
+else:
+    rs.vlidort_cli = os.environ.get("MUSES_VLIDORT_CLI",
+                                    "~/muses/muses-vlidort/build/release/vlidort_cli")
+    
+try:
+    target_dir_list = glob.glob(os.path.expanduser(args.targets))
+    if(args.mpi):
+        pass
+    else:
+        for target_dir in target_dir_list:
+            rs.update_target(f"{target_dir}/Table.asc")
+            rs.retrieval_ms()
+except:
+    # I think we can have this go away with loguru
+    logger.error("something bad happened", exc_info=True)
+    logger.info("py-retrieve is done ...")
+    logger.info("Exiting with code 1")
+    sys.exit(1)
+
+logger.info("py-retrieve is done ...")
+logger.info("Exiting with code 0")
 
