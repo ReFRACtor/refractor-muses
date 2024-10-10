@@ -6,6 +6,9 @@ import sys
 import glob
 import os
 import importlib.util
+import socket
+import subprocess
+from multiprocessing import Process
 
 version="1.0.0"
 usage="""Usage:
@@ -86,6 +89,12 @@ else:
                                            write_tropomi_radiance_pickle=True,
                                            write_omi_radiance_pickle=True)
 
+def retrieve_wrap(rs, target_dir):
+    '''Wrapper so we can run a sounding in a separate process, so any memory leaks
+    don't grow.'''
+    rs.update_target(f"{target_dir}/Table.asc")
+    rs.retrieval_ms()
+
 # Pass location of VLIDORT. We do this separately, so the refractor config file
 # doesn't need to worry about setting this up
 if(args.vlidort_cli):    
@@ -93,15 +102,73 @@ if(args.vlidort_cli):
 else:
     rs.vlidort_cli = os.environ.get("MUSES_VLIDORT_CLI",
                                     "~/muses/muses-vlidort/build/release/vlidort_cli")
+
+# Set up for MPI run, if needed
+target_dir_full_list = glob.glob(os.path.expanduser(args.targets))
+if(args.mpi):
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    hostname = socket.gethostname()
+    mpi_rank = comm.Get_rank()
+    mpi_size = comm.Get_size()
+    # Partition into ranges of close to equal sizes
+    start = 0
+    end = len(target_dir_full_list)
+    count = (end - start) // mpi_size
+    remainder = (end - start) % mpi_size
+    i_start = start + mpi_rank * count + min([mpi_rank, remainder])
+    i_stop = start + (mpi_rank + 1 ) * count + min([mpi_rank + 1, remainder])
+    target_dir_list = target_dir_full_list[i_start:i_stop]
+    
+    # For MPI, we use a few fixed directories. By convention, we
+    # don't use these for the non-MPI case.
+    bpath = os.path.abspath(os.path.dirname(os.path.dirname(target_dir_full_list[0])))
+    success_dir = f"{bpath}/success"
+    error_dir = f"{bpath}/error"
+    log_dir = f"{bpath}/log"
+    subprocess.run(["mkdir", "-p", success_dir])
+    subprocess.run(["mkdir", "-p", error_dir])
+    subprocess.run(["mkdir", "-p", log_dir])
+else:
+    # We just process everything if we aren't using MPI.
+    target_dir_list = target_dir_full_list
+
+logger.info('Number of tasks: %d', len(target_dir_list))
     
 try:
-    target_dir_list = glob.glob(os.path.expanduser(args.targets))
-    if(args.mpi):
-        pass
-    else:
-        for target_dir in target_dir_list:
-            rs.update_target(f"{target_dir}/Table.asc")
-            rs.retrieval_ms()
+    for target_dir in target_dir_list:
+        # For MPI, skip anything already run. Just by convention, this isn't
+        # done without MPI (the assumption being that this is just a small number of
+        # target that we want to run, e.g., for testing).
+        if(args.mpi):
+            indicator = f'{os.path.basename(target_dir)}-{hostname}_{mpi_rank}'
+            if(os.path.isfile(f"{success_dir}/{indicator}")):
+                logger.info(f"node: {hostname}, rank: {mpi_rank}, already successfully processed. Skipping: {os.path.basename(target_dir)}")
+                continue
+            if(os.path.isfile(f"{error_dir}/{indicator}")):
+                logger.info(f"node: {hostname}, rank: {mpi_rank}, errored out in a previous run. Skipping: {os.path.basename(target_dir)}")
+                continue
+        # Special case of 1 target, run directly. This makes debugging an issue
+        # easier - so you run the sounding you are interested in and everything
+        # happens in the same process space.
+        if(len(target_dir_list) == 1):
+            retrieve_wrap(rs, target_dir)
+            run_exitcode = 0
+        else:
+            # Otherwise, run in a separate process space to avoid accumulation of
+            # memory from small memory leaks in processing a sounding.
+            p = Process(target=retrieve_wrap, args=(rs, target_dir))
+            p.start()
+            p.join()
+            run_exitcode = p.exitcode
+        if(run_exitcode ==0):
+            logger.info(f"Success: {os.path.basename(target_dir)}")
+            if(args.mpi):
+                subprocess.run(["touch", f"{success_dir}/{indicator}"])
+        else:
+            logger.info(f"Failure: {os.path.basename(target_dir)}")
+            if(args.mpi):
+                subprocess.run(["touch", f"{error_dir}/{indicator}"])
 except:
     # I think we can have this go away with loguru
     logger.error("something bad happened", exc_info=True)
