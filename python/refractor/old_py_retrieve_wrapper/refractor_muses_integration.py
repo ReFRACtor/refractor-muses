@@ -11,8 +11,7 @@ import copy
 import os
 import pickle
 import sys
-import logging
-logger = logging.getLogger('py-retrieve')
+from loguru import logger
 
 #============================================================================
 # RefractorMusesIntegration was an earlier attempt at integrating ReFRACtor 

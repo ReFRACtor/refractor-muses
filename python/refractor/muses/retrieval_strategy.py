@@ -15,13 +15,12 @@ from .state_info import StateElementHandleSet
 from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
-import logging
+from loguru import logger
 import refractor.muses.muses_py as mpy
 import os
 import copy
 import pickle
 from .state_info import StateInfo
-logger = logging.getLogger("py-retrieve")
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here

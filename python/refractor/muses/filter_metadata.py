@@ -1,7 +1,6 @@
 from .tes_file import TesFile
-import logging
+from loguru import logger
 import abc
-logger = logging.getLogger("py-retrieve")
 
 class FilterMetadata(object, metaclass=abc.ABCMeta):
     '''muses-py code has additional metadata associated with each filter name

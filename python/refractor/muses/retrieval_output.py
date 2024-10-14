@@ -2,7 +2,7 @@ from .current_state import CurrentStateDict
 from .observation_handle import mpy_radiance_from_observation_list
 import refractor.framework as rf
 from glob import glob
-import logging
+from loguru import logger
 import refractor.muses.muses_py as mpy
 import os
 from collections import defaultdict
@@ -10,8 +10,6 @@ import copy
 import numpy as np
 import datetime
 import pytz
-
-logger = logging.getLogger("py-retrieve")
 
 class RetrievalOutput:
     '''Observer of RetrievalStrategy, common behavior for Products files.'''

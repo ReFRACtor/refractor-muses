@@ -9,14 +9,12 @@ import numpy as np
 import refractor.framework as rf
 import abc
 import copy
-import logging
+from loguru import logger
 import pickle
 import subprocess
 import itertools
 import collections.abc
 import re
-
-logger = logging.getLogger("py-retrieve")
 
 def _new_from_init(cls, *args):
     '''For use with pickle, covers common case where we just store the

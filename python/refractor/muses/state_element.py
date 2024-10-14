@@ -12,8 +12,7 @@ import copy
 import os
 import glob
 import math
-import logging
-logger = logging.getLogger("py-retrieve")
+from loguru import logger
 
 class MusesPyStateElement(RetrievableStateElement):
     '''This will need a bit of work, right now we don't exactly know what

@@ -9,10 +9,9 @@ from .qa_data_handle import QaDataHandleSet
 import refractor.muses.muses_py as mpy
 import abc
 import copy
-import logging
+from loguru import logger
 import time
 import functools
-logger = logging.getLogger("py-retrieve")
 
 def log_timing(f):
     '''Decorator to log the timing of a function.'''

@@ -7,14 +7,12 @@ from refractor.muses import (RefractorFmObjectCreator,
                              SurfaceAlbedo)
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf
-import logging
+from loguru import logger
 import numpy as np
 import re
 import glob
 import copy
 import os
-
-logger = logging.getLogger("py-retrieve")
 
 class TropomiSurfaceAlbedo(SurfaceAlbedo):
     def __init__(self, ground : rf.GroundWithCloudHandling, spec_index : int):

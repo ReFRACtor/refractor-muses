@@ -1,11 +1,10 @@
 from . import muses_py as mpy
 from .refractor_capture_directory import muses_py_call
 import shutil
-import logging
+from loguru import logger
 import os
 import subprocess
 
-logger = logging.getLogger('refractor.muses')
 class MusesRunDir:
     '''This provides a bit of support for copying a run directory
     from an amuse-me run to refractor_test_data, and for copying that

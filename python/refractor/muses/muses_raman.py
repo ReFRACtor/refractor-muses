@@ -1,9 +1,7 @@
 import numpy as np
 import refractor.framework as rf
-import logging
+from loguru import logger
 import abc
-
-logger = logging.getLogger("py-retrieve")
 
 class SurfaceAlbedo(object, metaclass=abc.ABCMeta):
     '''MusesRaman needs a surface albedo. This class supplies that, however

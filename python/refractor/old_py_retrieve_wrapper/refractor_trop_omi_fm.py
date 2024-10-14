@@ -8,10 +8,8 @@ import pandas as pd
 import os
 import refractor.framework as rf
 import pickle
-import logging
+from loguru import logger
 import copy
-
-logger = logging.getLogger('py-retrieve')
 
 #============================================================================
 # This set of classes replace the lower level call to tropomi_fm in

@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 import refractor.muses
-# We will replace this shortly with loggure, but for now just use the existing logger
-import logging
+from loguru import logger
 import sys
 import glob
 import os
@@ -55,10 +54,6 @@ Options:
 """
 args = refractor.muses.docopt_simple(usage, version=version)
 
-# Old py-retrieve logger
-# Py-retrieve sets this up, so we don't need to add any handlers here
-logger = logging.getLogger('py-retrieve')
-
 write_debug_output = False
 if args.trace:
     # We will add tracing level with loguru
@@ -68,7 +63,7 @@ elif args.debug:
     logger.setLevel(logging.DEBUG)
     write_debug_output = True
     
-logger.info("py-retrieve is running ...")
+logger.info("refractor-retrieve is running ...")
 
 if args.refractor_config:
     logger.info("Loading refractor configuration file: %s", args.refractor_config)
@@ -172,10 +167,10 @@ try:
 except:
     # I think we can have this go away with loguru
     logger.error("something bad happened", exc_info=True)
-    logger.info("py-retrieve is done ...")
+    logger.info("refractor-retrieve is done ...")
     logger.info("Exiting with code 1")
     sys.exit(1)
 
-logger.info("py-retrieve is done ...")
+logger.info("refractor-retrieve is done ...")
 logger.info("Exiting with code 0")
 

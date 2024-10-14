@@ -1,9 +1,7 @@
 from .creator_handle import CreatorHandleSet, CreatorHandle
 import refractor.framework as rf
 import abc
-import logging
-
-logger = logging.getLogger("py-retrieve")
+from loguru import logger
 
 class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
     '''Base class for ForwardModelHandle. Note we use duck typing, so you

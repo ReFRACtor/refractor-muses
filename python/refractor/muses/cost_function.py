@@ -3,9 +3,7 @@ from .refractor_uip import RefractorUip
 from . import muses_py as mpy
 from typing import List
 import numpy as np
-import logging
-
-logger = logging.getLogger("py-retrieve")
+from loguru import logger
 
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     '''This is the cost function we use to interface between ReFRACtor

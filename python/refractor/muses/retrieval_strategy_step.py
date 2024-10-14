@@ -1,5 +1,5 @@
 import abc
-import logging
+from loguru import logger
 import refractor.muses.muses_py as mpy
 from pathlib import Path
 import copy
@@ -15,8 +15,6 @@ from .muses_spectral_window import MusesSpectralWindow
 from functools import partial
 import numpy as np
 import subprocess
-
-logger = logging.getLogger("py-retrieve")
 
 # TODO clean up the usage for various internal objects of RetrievalStrategy, we want to rework
 # this anyways as we introduce the MusesStrategyExecutor.

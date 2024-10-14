@@ -2,8 +2,7 @@ import refractor.muses.muses_py as mpy
 from .observation_handle import mpy_radiance_from_observation_list
 import numpy as np
 import os
-import logging
-logger = logging.getLogger("py-retrieve")
+from loguru import logger
 
 class PropagatedQA:
     '''There are a few parameters that get propagated from one step to the next. Not

@@ -2,9 +2,8 @@ from .creator_handle import CreatorHandleSet, CreatorHandle
 from .current_state import CurrentState, CurrentStateUip, CurrentStateDict
 import refractor.framework as rf
 import abc
-import logging
+from loguru import logger
 import numpy as np
-logger = logging.getLogger("py-retrieve")
 
 def mpy_radiance_from_observation_list(obs_list : 'list(MusesObservation)',
                                        include_bad_sample=False, full_band=False):

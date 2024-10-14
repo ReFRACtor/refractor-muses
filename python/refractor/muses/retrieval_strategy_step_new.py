@@ -1,13 +1,11 @@
 from .creator_handle import CreatorHandleSet, CreatorHandle
-import logging
+from loguru import logger
 import abc
 
 
 # This file should be temporary. We are reworking the RetrievalStrategyStep, and
 # want a clean copy to tweak while leaving the other one in place. This will
 # eventually just replace retrieval_strategy_step.py
-
-logger = logging.getLogger("py-retrieve")
 
 class RetrievalStrategyStepSetNew(CreatorHandleSet):
     '''This takes the retrieval_type and determines a RetrievalStrategyStep

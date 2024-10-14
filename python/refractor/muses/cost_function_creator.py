@@ -12,12 +12,10 @@ import abc
 import copy
 import numpy as np
 import refractor.muses.muses_py as mpy
-import logging
+from loguru import logger
 import os
 import pickle
 from typing import Optional
-
-logger = logging.getLogger("py-retrieve")
 
 class CostFunctionCreator:
     '''This creates the set of ForwardModel and Observation and then uses those to

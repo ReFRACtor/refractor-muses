@@ -1,13 +1,11 @@
 from glob import glob
-import logging
+from loguru import logger
 import refractor.muses.muses_py as mpy
 import os
 from collections import defaultdict
 import copy
 from .retrieval_output import RetrievalOutput
 import numpy as np
-
-logger = logging.getLogger("py-retrieve")
 
 def _new_from_init(cls, *args):
     '''For use with pickle, covers common case where we just store the

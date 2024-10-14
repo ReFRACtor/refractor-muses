@@ -12,9 +12,7 @@ from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              RetrievableStateElement, StateInfo,
                              RetrievalInfo)
 import subprocess
-import logging
-
-logger = logging.getLogger("py-retrieve")
+from loguru import logger
 
 class O3ScaledStateElement(RetrievableStateElement):
     '''Note that we may rework this. Not sure how much we need specific

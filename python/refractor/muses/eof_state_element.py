@@ -1,9 +1,7 @@
 from .state_info import (RetrievableStateElement, StateInfo)
 from .retrieval_info import RetrievalInfo
 import numpy as np
-import logging
-logger = logging.getLogger("py-retrieve")
-
+from loguru import logger
 
 class OmiEofStateElement(RetrievableStateElement):
     '''Note that we may rework this. Not sure how much we need specific

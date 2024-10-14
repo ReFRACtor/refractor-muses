@@ -9,15 +9,13 @@ from .muses_ray_info import MusesRayInfo
 import refractor.framework as rf
 import os
 from pathlib import Path
-import logging
+from loguru import logger
 import numpy as np
 import glob
 import abc
 import copy
 
 from typing import Sequence
-
-logger = logging.getLogger("py-retrieve")
 
 class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     '''There are a lot of interrelated object needed to be created to

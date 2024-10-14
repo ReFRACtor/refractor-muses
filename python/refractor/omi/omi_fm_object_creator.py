@@ -3,14 +3,12 @@ from refractor.muses import (RefractorFmObjectCreator, ForwardModelHandle,
                              MusesRaman, SurfaceAlbedo)
 import refractor.framework as rf
 import os
-import logging
+from loguru import logger
 import numpy as np
 import h5py
 import copy
 # for netCDF3 support which is not supported in h5py
 from netCDF4 import Dataset
-
-logger = logging.getLogger("py-retrieve")
 
 class OmiSurfaceAlbedo(SurfaceAlbedo):
     def __init__(self, ground : rf.GroundWithCloudHandling, spec_index : int):

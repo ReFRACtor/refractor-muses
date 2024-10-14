@@ -5,8 +5,7 @@ import copy
 import os
 import glob
 import math
-import logging
-logger = logging.getLogger("py-retrieve")
+from loguru import logger
 
 class RetrievalInfo:
     '''Not sure if we'll keep this or not, but pull out RetrievalInfo stuff so

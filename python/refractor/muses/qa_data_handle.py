@@ -1,11 +1,9 @@
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .muses_spectral_window import MusesSpectralWindow
 import refractor.muses.muses_py as mpy
-import logging
+from loguru import logger
 import abc
 import os
-
-logger = logging.getLogger("py-retrieve")
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
     '''This class has the values needed to calculate QA flag values.

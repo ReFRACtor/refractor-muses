@@ -5,13 +5,11 @@ from refractor.muses import (RefractorUip, osswrapper, suppress_replacement,
 import os
 import pickle
 import tempfile
-import logging
+from loguru import logger
 import copy
 import numpy as np
 import pandas as pd
 from weakref import WeakSet
-
-logger = logging.getLogger('py-retrieve')
 
 #============================================================================
 # Note the classes in this file shouldn't be used in general.
