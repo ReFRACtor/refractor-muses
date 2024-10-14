@@ -326,6 +326,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             levmar_log_file = f"{rs.run_dir}/Step{rs.step_number:02d}_{rs.step_name}/LevmarSolver-{rs.step_name}.log"
         else:
             levmar_log_file = None
+        logger.info(f"Initial State vector:\n{self.cfunc.fm_sv}")
         self.slv = MusesLevmarSolver(self.cfunc,
                                      maxIter,
                                      delta_value,
@@ -334,6 +335,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                      log_file=levmar_log_file)
         if(maxIter > 0):
             self.slv.solve()
+        logger.info(f"Solved State vector:\n{self.cfunc.fm_sv}")
         return self.slv.retrieval_results()
     
 

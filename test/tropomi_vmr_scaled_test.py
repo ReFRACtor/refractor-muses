@@ -1,18 +1,20 @@
+from functools import cached_property
 import numpy as np
 import numpy.testing as npt
-from refractor.tropomi import TropomiForwardModelHandle
+from refractor.tropomi import TropomiFmObjectCreator
 from test_support import *
 import refractor.framework as rf
 import glob
 from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              RetrievalStrategyCaptureObserver,
-                             RetrievalL2Output,
-                             OmiEofStateElement,
-                             SingleSpeciesHandle,
+                             ForwardModelHandle,
+                             SingleSpeciesHandle, O3Absorber,
                              RetrievableStateElement, StateInfo,
-                             RetrievalInfo,
-                             RetrievalStrategyMemoryUse)
+                             RetrievalInfo)
 import subprocess
+import logging
+
+logger = logging.getLogger("py-retrieve")
 
 class O3ScaledStateElement(RetrievableStateElement):
     '''Note that we may rework this. Not sure how much we need specific
@@ -26,7 +28,7 @@ class O3ScaledStateElement(RetrievableStateElement):
     '''
     def __init__(self, state_info : StateInfo, name="O3_SCALED"):
         super().__init__(state_info, name)
-        self._value = np.zeros(1)
+        self._value = np.array([1.0,])
         self._constraint = self._value.copy()
 
     def sa_covariance(self):
@@ -42,6 +44,7 @@ class O3ScaledStateElement(RetrievableStateElement):
         return self._value
 
     def should_write_to_l2_product(self, instruments):
+        breakpoint()
         if "TROPOMI" in instruments:
             return True
         return False
@@ -94,6 +97,56 @@ class O3ScaledStateElement(RetrievableStateElement):
         # like a weighting that is independent of apriori covariance.
         self.constraintMatrix = np.diag(np.full((1,),10*10.0))
 
+class ScaledO3Absorber(O3Absorber):
+    '''We can put this into O3Absorber as an option, but for now
+    just have a new class to handle this.'''
+    @cached_property
+    def absorber_vmr(self):
+        vmrs = []
+        # Get the VMR profile. This will remain at the initial guess
+        vmr_profile, _ = self.current_state.object_state(["O3",])
+        # And get the scaling
+        selem = ["O3_SCALED",]
+        coeff, mp = self.current_state.object_state(selem)
+        vmr_o3 = rf.AbsorberVmrLevelScaled(self._parent.pressure_fm,
+                                           vmr_profile, coeff[0], "O3")
+        self.current_state.add_fm_state_vector_if_needed(
+            self.fm_sv, selem, [vmr_o3,])
+        vmrs.append(vmr_o3)
+        return vmrs
+
+class ScaledTropomiFmObjectionCreator(TropomiFmObjectCreator):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._inner_absorber = ScaledO3Absorber(self)
+    
+class ScaledTropomiForwardModelHandle(ForwardModelHandle):
+    def __init__(self, **creator_kwargs):
+        self.creator_kwargs = creator_kwargs
+        self.measurement_id = None
+        
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        self.measurement_id = measurement_id
+        
+    def forward_model(self, instrument_name : str,
+                      current_state : 'CurrentState',
+                      obs : 'MusesObservation',
+                      fm_sv: rf.StateVector,
+                      rf_uip_func,
+                      **kwargs):
+        if(instrument_name != "TROPOMI"):
+            return None
+        obj_creator = ScaledTropomiFmObjectionCreator(
+            current_state, self.measurement_id, obs,
+            rf_uip=rf_uip_func(),
+            fm_sv=fm_sv,
+            **self.creator_kwargs)
+        fm = obj_creator.forward_model
+        logger.info(f"Scaled Tropomi Forward model\n{fm}")
+        return fm
+    
+
 @long_test
 @require_muses_py
 def test_tropomi_vrm_scaled(osp_dir, gmao_dir, vlidort_cli,
@@ -115,17 +168,20 @@ def test_tropomi_vrm_scaled(osp_dir, gmao_dir, vlidort_cli,
     subprocess.run(f'sed -i -e "s/15/1 /" {r.run_dir}/Table.asc', shell=True)
     
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    rs.register_with_muses_py()
     # Save data so we can work on getting output in isolation
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
     rs.add_observer(rscap)
-    ihandle = TropomiForwardModelHandle(use_pca=False, use_lrad=False,
-                                        lrad_second_order=False)
+    ihandle = ScaledTropomiForwardModelHandle(use_pca=False, use_lrad=False,
+                                              lrad_second_order=False)
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("O3_SCALED", O3ScaledStateElement, pass_state=False, name="O3_SCALED"))
     rs.update_target(f"{r.run_dir}/Table.asc")
     rs.retrieval_ms()
     if True:
+        # The L2-O3 product doesn't get generated, since "O3-SCALED" isn't the "O3"
+        # looked for in the code. Fixing this looks a bit involved, and we really should
+        # just rework the output anyways. So for now just skip this.
+        pass
         # Print out output of EOF, just so we have something to see
-        subprocess.run("h5dump -d OMI_EOF_UV1 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
-        subprocess.run("h5dump -d OMI_EOF_UV2 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
+        #subprocess.run("h5dump -d OMI_EOF_UV1 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
+        #subprocess.run("h5dump -d OMI_EOF_UV2 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
