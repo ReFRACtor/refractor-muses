@@ -139,6 +139,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         target, e.g., read the input files once. py-retrieve can call script_retrieval_ms
         multiple times with different targets, so we need to notify all the objects
         when this changes in case they need to clear out any caching.'''
+        if False:
+            # Clear any caching of files muses-py did.
+            # Don't exactly understand these caches, but this causes an error with
+            # threading. So just skip, I don't think we actually need this
+            mpy.clear_cache()
         self._filename = os.path.abspath(filename)
         self._capture_directory.rundir = os.path.dirname(self.strategy_table_filename)
         self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.strategy_table_filename)

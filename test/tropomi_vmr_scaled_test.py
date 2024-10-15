@@ -14,8 +14,6 @@ from refractor.muses import (RetrievalStrategy, MusesRunDir,
 import subprocess
 from loguru import logger
 
-rf.PythonFpLogger.turn_on_logger(logger)
-
 class O3ScaledStateElement(RetrievableStateElement):
     '''Note that we may rework this. Not sure how much we need specific
     StateElement vs. handling a class of them. But for now, we have
@@ -159,8 +157,7 @@ def test_tropomi_vrm_scaled(osp_dir, gmao_dir, vlidort_cli,
     subprocess.run("rm -r tropomi_vmr_scaled", shell=True)
     r = MusesRunDir(tropomi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="tropomi_vmr_scaled")
-    logger.remove(0)
-    logger.add("tropomi_vmr_scaled/retrieve.log")
+    lognum = logger.add("tropomi_vmr_scaled/retrieve.log")
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
@@ -187,3 +184,4 @@ def test_tropomi_vrm_scaled(osp_dir, gmao_dir, vlidort_cli,
         # Print out output of EOF, just so we have something to see
         #subprocess.run("h5dump -d OMI_EOF_UV1 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
         #subprocess.run("h5dump -d OMI_EOF_UV2 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
+    logger.remove(lognum)

@@ -7,7 +7,7 @@ import refractor.muses.muses_py as mpy
 from refractor.muses import (RefractorUip, osswrapper, 
                              MusesTropomiObservation, MusesOmiObservation,
                              MusesCrisObservation, MusesAirsObservation, MusesSpectralWindow)
-from refractor.framework import load_config_module, find_config_function
+from refractor.framework import load_config_module, find_config_function, PythonFpLogger
 from refractor.framework.factory import process_config, creator
 from refractor.old_py_retrieve_wrapper import MusesResidualFmJacobian, MusesRetrievalStep
 from scipy.io import readsav
@@ -18,9 +18,22 @@ import numpy as np
 import numpy.testing as npt
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
-import logging
+from loguru import logger
 import io
 import subprocess
+import warnings
+
+# Forward C++ logging in framework to the python logger
+PythonFpLogger.turn_on_logger(logger)
+
+#warnings to logger
+showwarning_ = warnings.showwarning
+
+def showwarning(message, *args, **kwargs):
+    logger.warning(message)
+    #showwarning_(message, *args, **kwargs)
+
+warnings.showwarning = showwarning
 
 if("REFRACTOR_TEST_DATA" in os.environ):
     test_base_path = os.environ["REFRACTOR_TEST_DATA"]
@@ -403,14 +416,13 @@ def vlidort_cli():
 def all_output_disabled():
     '''Suppress stdout, stderr, and logging, useful for some of the noisy output we
     get running muses-py code.'''
-    previous_level = logging.root.manager.disable
     try:
-        logging.disable(logging.CRITICAL)
+        logger.remove()
         with redirect_stdout(io.StringIO()) as sout:
             with redirect_stderr(io.StringIO()) as serr:
                 yield
     finally:
-        logging.disable(previous_level)
+        logger.add(sys.stderr)
 
 def struct_compare(s1, s2, skip_list=None, verbose=False):
     if(skip_list is None):

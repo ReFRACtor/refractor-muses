@@ -9,6 +9,7 @@ import pprint
 import glob
 import shutil
 import copy
+from loguru import logger
 
 # Use refractor forward model. We default to not, because we are
 # mostly testing everything *other* than the forward model with this
@@ -85,23 +86,25 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     r = MusesRunDir(joint_tropomi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_cris_tropomi")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", writeOutput=True, writePlots=True,
-                           vlidort_cli=vlidort_cli)
-    # Grab each step so we can separately test output
-    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
-    rs.add_observer(rscap)
-    compare_dir = joint_tropomi_test_expected_dir
-    if run_refractor:
-        # Use refractor forward model. We default to not, because we are
-        # mostly testing everything *other* than the forward model with this
-        # test. But can be useful to run with this occasionally
-        ihandle = TropomiForwardModelHandle(use_pca=True, use_lrad=False,
-                                          lrad_second_order=False)
-        rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-        # Different expected results. Close, but not identical to VLIDORT version
-        compare_dir = joint_tropomi_test_refractor_expected_dir
-        rs.update_target(f"{r.run_dir}/Table.asc")
-    rs.retrieval_ms()
-
+                           vlidort_cli=vlidort_cli,
+                           write_tropomi_radiance_pickle=not run_refractor)
+    try:
+        lognum = logger.add("retrieval_strategy_cris_tropomi/retrieve.log")
+        # Grab each step so we can separately test output
+        rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+        rs.add_observer(rscap)
+        compare_dir = joint_tropomi_test_expected_dir
+        if run_refractor:
+            # Use refractor forward model. 
+            ihandle = TropomiForwardModelHandle(use_pca=True, use_lrad=False,
+                                                lrad_second_order=False)
+            rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+            # Different expected results. Close, but not identical to VLIDORT version
+            compare_dir = joint_tropomi_test_refractor_expected_dir
+            rs.update_target(f"{r.run_dir}/Table.asc")
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
     diff_is_error = True
     compare_run(compare_dir, "retrieval_strategy_cris_tropomi",
                 diff_is_error=diff_is_error)
@@ -166,23 +169,25 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     subprocess.run("rm -r retrieval_strategy_airs_omi", shell=True)
     r = MusesRunDir(joint_omi_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_airs_omi")
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    # Grab each step so we can separately test output
-    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
-    rs.add_observer(rscap)
-    compare_dir = joint_omi_test_expected_dir
-    if run_refractor:
-        # Use refractor forward model. We default to not, because we are
-        # mostly testing everything *other* than the forward model with this
-        # test. But can be useful to run with this occasionally
-        ihandle = OmiForwardModelHandle(use_pca=True, use_lrad=False,
-                                      lrad_second_order=False, use_eof=False)
-        rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-        # Different expected results. Close, but not identical to VLIDORT version
-        compare_dir = joint_omi_test_refractor_expected_dir
-        rs.update_target(f"{r.run_dir}/Table.asc")
-        
-    rs.retrieval_ms()
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli,
+                           write_omi_radiance_pickle=not run_refractor)
+    try:
+        lognum = logger.add("retrieval_strategy_airs_omi/retrieve.log")
+        # Grab each step so we can separately test output
+        rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+        rs.add_observer(rscap)
+        compare_dir = joint_omi_test_expected_dir
+        if run_refractor:
+            # Use refractor forward model.
+            ihandle = OmiForwardModelHandle(use_pca=True, use_lrad=False,
+                                            lrad_second_order=False, use_eof=False)
+            rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+            # Different expected results. Close, but not identical to VLIDORT version
+            compare_dir = joint_omi_test_refractor_expected_dir
+            rs.update_target(f"{r.run_dir}/Table.asc")
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
 
     diff_is_error = True
     compare_run(compare_dir, "retrieval_strategy_airs_omi",

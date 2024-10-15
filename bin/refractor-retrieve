@@ -7,6 +7,8 @@ import os
 import importlib.util
 import socket
 import subprocess
+import warnings
+import refractor.framework as rf
 from multiprocessing import Process
 
 version="1.0.0"
@@ -54,6 +56,22 @@ Options:
 """
 args = refractor.muses.docopt_simple(usage, version=version)
 
+# log to stdout instead of stderr, this works better with the mpi log capture
+logger.remove()
+logger.add(sys.stdout)
+
+#warnings to logger
+showwarning_ = warnings.showwarning
+
+def showwarning(message, *args, **kwargs):
+    logger.warning(message)
+    if False:
+        # Print warning as normal, if desired. Otherwise we just include
+        # in log
+        showwarning_(message, *args, **kwargs)
+
+warnings.showwarning = showwarning
+
 write_debug_output = False
 if args.trace:
     # We will add tracing level with loguru
@@ -84,11 +102,52 @@ else:
                                            write_tropomi_radiance_pickle=True,
                                            write_omi_radiance_pickle=True)
 
-def retrieve_wrap(rs, target_dir):
+def retrieve_wrap(rs, target_dir, in_process=False):
     '''Wrapper so we can run a sounding in a separate process, so any memory leaks
     don't grow.'''
-    rs.update_target(f"{target_dir}/Table.asc")
-    rs.retrieval_ms()
+    try:
+        # Move or add logging to local file
+        if(args.mpi):
+            # If we aren't using MPI, then presumably we are running a terminal
+            # where we want to see the output. So only remove stdout in mpi.
+            logger.remove()
+        loghid = logger.add(f"{target_dir}/refractor-retrieve.log")
+        with logger.catch(reraise=True):
+            # Forward C++ logging in framework to the python logger
+            rf.PythonFpLogger.turn_on_logger(logger)
+            rs.update_target(f"{target_dir}/Table.asc")
+            #if True:
+            if False:
+                # Fake error, for use in testing handling of this
+                if(mpi_rank == 4):
+                    raise RuntimeError("Fake retrieval error")
+            rs.retrieval_ms()
+            logger.info(f"Success: {os.path.basename(target_dir)}")
+    except:
+        logger.info(f"Failure: {os.path.basename(target_dir)}")
+        if(in_process):
+            # Reraising the exception causes a printout at the top level we want
+            # to avoid, so just exit
+            sys.exit(1)
+        else:
+            # Otherwise, just reraise the error
+            raise
+    finally:
+        # We ran into a weird seg fault on exit, presumably some lifetime issue.
+        # Related somehow to the rf.PythonFpLogger (although not clear exactly what
+        # is happening - we have rf.PythonFpLogger turned on and see the seg fault,
+        # off and we don't).
+        #
+        # We only need this logger when we are doing a retrieval, so we just
+        # manually turn this off after each target is run, and back on for
+        # the next target. This isn't strictly necessary, we could probably
+        # use sys.atexit or something similiar. But this is easy and sufficient
+        # to fix the seg fault issue.
+        rf.PythonFpLogger.turn_off_logger()
+        logger.remove(loghid)
+        if(args.mpi):
+            # Add back stdout, to capture any other logging not tied to target
+            logger.add(sys.stdout)
 
 # Pass location of VLIDORT. We do this separately, so the refractor config file
 # doesn't need to worry about setting this up
@@ -128,9 +187,14 @@ else:
     # We just process everything if we aren't using MPI.
     target_dir_list = target_dir_full_list
 
-logger.info('Number of tasks: %d', len(target_dir_list))
-    
-try:
+logger.info(f'Number of tasks: {len(target_dir_list)}')
+
+def onerror():
+    logger.info("refractor-retrieve is done ...")
+    logger.info("Exiting with code 1")
+    sys.exit(1)
+
+with logger.catch(onerror=onerror):
     for target_dir in target_dir_list:
         # For MPI, skip anything already run. Just by convention, this isn't
         # done without MPI (the assumption being that this is just a small number of
@@ -147,12 +211,17 @@ try:
         # easier - so you run the sounding you are interested in and everything
         # happens in the same process space.
         if(len(target_dir_list) == 1):
-            retrieve_wrap(rs, target_dir)
-            run_exitcode = 0
+        # For testing, force use of Process even with small test data set
+        #if False:
+            try:
+                retrieve_wrap(rs, target_dir)
+                run_exitcode = 0
+            except:
+                run_exitcode = 1
         else:
             # Otherwise, run in a separate process space to avoid accumulation of
             # memory from small memory leaks in processing a sounding.
-            p = Process(target=retrieve_wrap, args=(rs, target_dir))
+            p = Process(target=retrieve_wrap, args=(rs, target_dir, True))
             p.start()
             p.join()
             run_exitcode = p.exitcode
@@ -164,12 +233,6 @@ try:
             logger.info(f"Failure: {os.path.basename(target_dir)}")
             if(args.mpi):
                 subprocess.run(["touch", f"{error_dir}/{indicator}"])
-except:
-    # I think we can have this go away with loguru
-    logger.error("something bad happened", exc_info=True)
-    logger.info("refractor-retrieve is done ...")
-    logger.info("Exiting with code 1")
-    sys.exit(1)
 
 logger.info("refractor-retrieve is done ...")
 logger.info("Exiting with code 0")
