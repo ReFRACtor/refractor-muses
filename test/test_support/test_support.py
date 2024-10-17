@@ -22,9 +22,18 @@ from loguru import logger
 import io
 import subprocess
 import warnings
+import atexit
 
 # Forward C++ logging in framework to the python logger
 PythonFpLogger.turn_on_logger(logger)
+# We have a lifetime issue. The C++ code normally has destructors called after
+# python has shut down, which means that our cleanup of the logger PyObject can
+# seg fault (a race conditon, so doesn't always seg fault). We can avoid this
+# by making the clean up part of the python cleanup, so it happens earlier than
+# the C++ destructors.
+@atexit.register
+def python_fp_logger_cleanup():
+    PythonFpLogger.turn_off_logger()
 
 #warnings to logger
 showwarning_ = warnings.showwarning

@@ -415,12 +415,13 @@ class MusesPyStateElement(RetrievableStateElement):
         retrievalTypeStr = '_' + strategy_table.retrieval_type.lower()
         if strategy_table.retrieval_type.lower() == 'default':
             retrievalTypeStr = ''
-        speciesInformationFilename = f"{strategy_table.species_directory}/{self.name}{retrievalTypeStr}.asc"
+        species_directory = self.retrieval_config["speciesDirectory"]
+        speciesInformationFilename = f"{species_directory}/{self.name}{retrievalTypeStr}.asc"
 
         files = glob.glob(speciesInformationFilename)
         if len(files) == 0:
             # Look for alternate file.
-            speciesInformationFilename = f"{strategy_table.species_directory}/{self.name}.asc"
+            speciesInformationFilename = f"{species_directory}/{self.name}.asc"
         # Can turn this one if we want to see what gets read. A bit noisy to
         # have on in general though.
         #logger.debug(f"Reading file {speciesInformationFilename}")
@@ -1099,7 +1100,7 @@ class MusesPyStateElement(RetrievableStateElement):
             if species_name == 'CLOUDEXT':
                 # get IGR frequency mode
                 # AT_LINE 308 Get_Species_Information.pro
-                filename = strategy_table.cloud_parameters_filename
+                filename = self.retrieval_config["CloudParameterFilename"]
                 if not os.path.isfile(filename):
                     raise RuntimeError(f"File not found:  {filename}")
 
@@ -1673,18 +1674,18 @@ class MusesPyStateElement(RetrievableStateElement):
             # AT_LINE 668 Get_Species_Information.pro
             if mapType.lower() == 'log':
                 if self.state_info.has_true_values():
-                    if strategy_table.preferences["mapTrueFullStateVector"] == 'yes':
+                    if self.retrieval_config["mapTrueFullStateVector"] == 'yes':
                         trueStateFM = np.exp(np.matmul(np.matmul(mapToState, mapToParameters), np.log(trueStateFM)))
 
-                if strategy_table.preferences["mapInitialGuess"] == 'yes':
+                if self.retrieval_config["mapInitialGuess"] == 'yes':
                     initialGuessFM = np.exp(np.matmul(np.log(initialGuessFM), np.matmul(mapToParameters, mapToState)))
                     currentGuessFM = np.exp(np.matmul(np.log(currentGuessFM), np.matmul(mapToParameters, mapToState)))
             else:
                 if self.state_info.has_true_values():
-                    if strategy_table.preferences["mapTrueFullStateVector"] == 'yes':
+                    if self.retrieval_config["mapTrueFullStateVector"] == 'yes':
                         trueStateFM = np.matmul(np.matmul(mapToState, mapToParameters), trueStateFM)
 
-                if strategy_table.preferences["mapInitialGuess"] == 'yes':
+                if self.retrieval_config["mapInitialGuess"] == 'yes':
                     initialGuess = np.matmul(initialGuessFM, np.matmul(mapToParameters, mapToState), initialGuessFM) # TRICKY_LOGIC
                     currentGuess = np.matmul(currentGuessFM, np.matmul(mapToParameters, mapToState))              # TRICKY_LOGIC
 

@@ -299,15 +299,4 @@ class StrategyTable:
         res = self.preferences["apodizationWindowCombineThreshold"]
         return int(res.split()[0])
         
-
-class FakeStrategyTable:
-    '''For testing purposes, it is useful to create a StrategyTable from a UIP, see
-    StateInfo.create_from_uip for more details about this. This class supplies the handful of
-    functions we need for testing. This is pretty minimal, but is sufficient for what we need.'''
-    def __init__(self, ils_method="APPLY"):
-        self._ils_method = ils_method
-
-    def ils_method(self, instrument_name):
-        return self._ils_method
-    
-__all__ = ["StrategyTable", "FakeStrategyTable"]
+__all__ = ["StrategyTable", ]

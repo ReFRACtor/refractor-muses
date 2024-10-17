@@ -1,7 +1,6 @@
 from __future__ import annotations # We can remove this when we upgrade to python 3.9
 import abc
 from .priority_handle_set import PriorityHandleSet
-from .strategy_table import FakeStrategyTable
 from .current_state import CurrentStateDict
 from .observation_handle import mpy_radiance_from_observation_list
 import refractor.muses.muses_py as mpy
@@ -32,6 +31,10 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @property
     def name(self):
         return self._name
+
+    @property
+    def retrieval_config(self):
+        return self.state_info.retrieval_config
 
     def sa_covariance(self):
         '''Return sa covariance matrix, and also pressure. This is what
@@ -312,20 +315,9 @@ class StateInfo:
         self._utc_time = None
         self.info_file = None
         self._sounding_id = None
+        self.retrieval_config = rs.retrieval_config if rs is not None else None
         self.state_element_handle_set.notify_update_target(rs)
         
-    @classmethod
-    def create_from_uip(cls, rf_uip):
-        '''For testing purposes, it can be useful to pickle a  UIP from a previous py-retrieve run
-        and then use in ReFRACtor to duplicate/compare with py-retrieve. We are trying to get away from
-        the UIP, so this create an equivalent StateInfo. We also create some related information,
-        returning the StrategyTable and i_windows structure (which we may turn into a class)'''
-        res = cls()
-        strategy_table = FakeStrategyTable(rf_uip.uip_omi['ils_omi_xsection'] if rf_uip.uip_omi else
-                                           rf_uip.uip_tropomi['ils_tropomi_xsection'])
-        i_windows = rf_uip.uip['microwindows_all']
-        return (res, strategy_table, i_windows)
-    
     def init_state(self, strategy_table : 'StrategyTable',
                    observation_handle_set : 'ObservationHandleSet', instrument_name_all,
                    run_dir : str):
