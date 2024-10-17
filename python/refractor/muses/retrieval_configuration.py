@@ -64,6 +64,12 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # Add in cloud parameters.
         f = TesFile.create(res['CloudParameterFilename'])
         res._data.update(f)
+        f = TesFile.create(res['allTESPressureLevelsFilename'])
+        # This is the pressure levels that species information. This is generally
+        # the initial pressure levels the forward model is performed on, although
+        # these are distinct concepts. This is really a column that might make sense
+        # to include in the species information files, but is kept in this separate file.
+        res["pressure_species_input"] = list(f.table["Pressure"])
         
         # There really should be a liteDirectory included here, but for some reason
         # muses-py treats this differently as a hard coded value - probably the general
@@ -93,6 +99,9 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
     def _abs_dir(self, v):
         '''Convert values like ../OSP to the osp_dir passed in. Expand user ~ and
         environment variables. Convert relative paths to absolute paths.'''
+        # Skip if not something like a str
+        if(not isinstance(v, str)):
+            return v
         t = os.environ.get("strategy_table_dir")
         v = copy.copy(v)
         try:

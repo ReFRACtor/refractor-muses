@@ -1,6 +1,6 @@
 from test_support import *
 from refractor.muses import (StrategyTable, MusesRunDir, RetrievableStateElement,
-                             RetrievalInfo)
+                             RetrievalInfo, CurrentStrategyStep)
 from pprint import pprint
 
 # Add a extra state element, just so we can make sure our StrategyTable functions
@@ -32,7 +32,8 @@ class EofStateElement(RetrievableStateElement):
                              do_update_fm : np.array):
         self._value = results_list[retrieval_info.species_list==self._name]
 
-    def update_initial_guess(self, strategy_table : StrategyTable):
+    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep,
+                             swin : 'dict(str,MusesSpectralWindow)'):
         self.mapType = 'linear'
         self.pressureList = np.array([-2,])
         self.altitudeList  = np.array([-2,])

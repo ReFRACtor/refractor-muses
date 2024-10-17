@@ -103,6 +103,20 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     def __init__(self, current_strategy_step_dict : dict):
         self.current_strategy_step_dict = current_strategy_step_dict
 
+    @classmethod
+    def current_step(cls, strategy_table : StrategyTable):
+        '''Create a current strategy step, leaving out the RetrievalInfo stuff. Mostly
+        meant for testing, MusesStrategyExecutor will normally create the current_step
+        but testing at a lower level might not have a MusesStrategyExecutor available.'''
+        return cls(
+            {'retrieval_elements' : strategy_table.retrieval_elements(),
+             'step_name' : strategy_table.step_name,
+             'step_number' : strategy_table.table_step,
+             'max_num_iterations' : strategy_table.max_num_iterations,
+             'retrieval_type' : strategy_table.retrieval_type,
+             'retrieval_info' : None
+             })
+    
     @property
     def retrieval_elements(self) -> 'list(str)':
         '''List of retrieval elements that we retrieve for this step.'''
@@ -214,6 +228,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.stable = StrategyTable(filename, osp_dir=osp_dir)
         self.rs = rs
         self.retrieval_config = rs.retrieval_config
+        self.retrieval_info = None
 
     @property
     def strategy_table_filename(self):
@@ -261,8 +276,11 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
-        self.retrieval_info = RetrievalInfo(self.error_analysis, self.stable,
-                                             self.state_info)
+        self.retrieval_info = RetrievalInfo(
+            self.error_analysis, self.stable,
+            self.current_strategy_step,
+            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
+            self.state_info)
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
@@ -335,9 +353,13 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         covariance_state_element_name = order_species(
             set(self.stable.retrieval_elements_all_step) |
             set(self.stable.error_analysis_interferents_all_step))
-            
-        self.error_analysis = ErrorAnalysis(self.stable, self.state_info,
-                                            covariance_state_element_name)
+
+        self.restart()
+        self.error_analysis = ErrorAnalysis(
+            self.current_strategy_step,
+            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
+            self.state_info,
+            covariance_state_element_name)
         self.rs.notify_update("initial set up done")
         
         # Note the original muses-py ran through all the initial guess steps at

@@ -1,4 +1,3 @@
-from .strategy_table import StrategyTable
 from .state_info import StateInfo
 import refractor.muses.muses_py as mpy
 import copy
@@ -10,16 +9,22 @@ class ErrorAnalysis:
     to put this together. Nothing more than a shuffling around of stuff already
     in muses-py
     '''
-    def __init__(self, strategy_table: StrategyTable, state_info: StateInfo,
+    def __init__(self, current_strategy_step: 'CurrentStrategyStep',
+                 swin_dict : 'dict(str, MusesSpectralWindow)',
+                 state_info: StateInfo,
                  covariance_state_element_name : 'list(str)'):
-        self.initialize_error_initial(strategy_table, state_info,
+        self.initialize_error_initial(current_strategy_step,
+                                      swin_dict,
+                                      state_info,
                                       covariance_state_element_name)
         self.error_current = copy.deepcopy(self.error_initial)
         # Code seems to assume these are object view.
         self.error_initial = mpy.ObjectView(self.error_initial)
         self.error_current = mpy.ObjectView(self.error_current)
 
-    def initialize_error_initial(self, strategy_table: StrategyTable,
+    def initialize_error_initial(self,
+                                 current_strategy_step: 'CurrentStrategyStep',
+                                 swin_dict : 'dict(str, MusesSpectralWindow)',
                                  state_info: StateInfo,
                                  covariance_state_element_name : 'list(str)'):
         '''covariance_state_element_name should be the list of state
@@ -30,17 +35,15 @@ class ErrorAnalysis:
         selem_list = []
         # TODO
         # Note clear why, but we get slightly different results if we update
-        # the original state_info and strategy_table. May want to track this
+        # the original state_info. May want to track this
         # down, but as a work around we just copy this. This is just needed
         # to get the mapping type, I don't think anything else is needed. We
         # should be able to pull that out from the full initial guess update at
         # some point, so we don't need to do the full initial guess
-        s_table = copy.deepcopy(strategy_table)
         sinfo = copy.deepcopy(state_info)
-        s_table.table_step = 1
         for sname in covariance_state_element_name:
             selem = sinfo.state_element(sname)
-            selem.update_initial_guess(s_table)
+            selem.update_initial_guess(current_strategy_step, swin_dict)
             selem_list.append(selem)
             
         # Note the odd seeming "capitalize" here. This is because get_prior_error

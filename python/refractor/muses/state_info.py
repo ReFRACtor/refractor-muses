@@ -121,7 +121,8 @@ class RetrievableStateElement(StateElement):
         raise NotImplementedError
     
     @abc.abstractmethod
-    def update_initial_guess(self, strategy_table : StrategyTable):
+    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep',
+                             swin_dict : 'dict(str,MusesSpectralWindow)'):
         '''Create/update a initial guess. This currently fills in a number
         of member variables. I'm not sure that all of this is actually needed,
         we may clean up this list. But right now RetrievalInfo needs all these

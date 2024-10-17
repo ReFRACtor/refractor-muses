@@ -59,7 +59,8 @@ class OmiEofStateElement(RetrievableStateElement):
             self.state_info.next_state[self.name] = self.clone_for_other_state()
         self._value = results_list[retrieval_info.species_list==self._name]
 
-    def update_initial_guess(self, strategy_table : 'StrategyTable'):
+    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep',
+                             swin : 'dict(str,MusesSpectralWindow)'):
         self.mapType = 'linear'
         self.pressureList = np.full((self.number_eof), -2.0)
         self.altitudeList  = np.full((self.number_eof), -2.0)

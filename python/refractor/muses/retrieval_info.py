@@ -14,22 +14,21 @@ class RetrievalInfo:
     A few functions seem sort of like member functions, we'll just make a list
     of these to sort out later but not try to get the full interface in place.
 
-    update_state - I think this updates just doUpdateFM
-    create_uip - This just reads values, mostly copying stuff over to the UIP
-    systematic_jacobian - Pretty much just make the dummy retrieval_info_temp
-    write_retrieval_input - Probably go away, since this is debug output and wouldn't
-                            really apply if we change RetrievalInfo
-    plot_results
-    error_analysis_wrapper - Lots of stuff read here
-    write_retrieval_summary
-    write_products_one
+    Note a side effect of creating this is to update the StateInfo StateElement.
+    This seems like a kind of major side effect, but for now leave this in place.
+    We should perhaps pull this out as a separate thing, it makes more sense for
+    StateInfo to handle this perhaps, and have this update explicitly called.
     '''
     def __init__(self, error_analysis : "ErrorAnalysis",
                  strategy_table : "StrategyTable",
+                 current_strategy_step: 'CurrentStrategyStep',
+                 swin_dict : 'dict(str, MusesSpectralWindow)',
                  state_info : "StateInfo"):
         self.retrieval_dict = \
             self.init_data(error_analysis,
                            strategy_table,
+                           current_strategy_step,
+                           swin_dict,
                            state_info)
         self.retrieval_dict = self.retrieval_dict.__dict__
         self._map_type_systematic = mpy.constraint_get_maptype(error_analysis.error_current, self.species_list_sys)
@@ -222,10 +221,10 @@ class RetrievalInfo:
                 o_retrievalInfo.parameterEndSys.append(-1)
 
         
-    def add_species(self, species_name, strategy_table, state_info,
-                    o_retrievalInfo):
+    def add_species(self, species_name, current_strategy_step, swin_dict,
+                    state_info, o_retrievalInfo):
         selem = state_info.state_element(species_name)
-        selem.update_initial_guess(strategy_table)
+        selem.update_initial_guess(current_strategy_step, swin_dict)
         
         row = o_retrievalInfo.n_totalParameters
         rowFM = o_retrievalInfo.n_totalParametersFM
@@ -358,6 +357,8 @@ class RetrievalInfo:
 
     def init_data(self, error_analysis : "ErrorAnalysis",
                   strategy_table : "StrategyTable",
+                  current_strategy_step: 'CurrentStrategyStep',
+                  swin_dict : 'dict(str, MusesSpectralWindow)',
                   state_info : "StateInfo"):
         # This is a reworking of get_species_information in muses-py
         utilLevels = mpy.UtilLevels()
@@ -372,7 +373,7 @@ class RetrievalInfo:
 
 
         # AT_LINE 13 Get_Species_Information.pro
-        step = strategy_table.table_step
+        step = current_strategy_step.step_number
 
         # errors propagated from step to step - possibly used as covariances
         #                                       but perhaps also as propagated
@@ -444,7 +445,7 @@ class RetrievalInfo:
         # o_retrievalInfo OBJECT_TYPE dict
 
         # AT_LINE 83 Get_Species_Information.pro
-        o_retrievalInfo['type'] = strategy_table.retrieval_type
+        o_retrievalInfo['type'] = current_strategy_step.retrieval_type
 
         o_retrievalInfo = mpy.ObjectView(o_retrievalInfo)  # Convert to object so we can use '.' to access member variables.
 
@@ -452,15 +453,15 @@ class RetrievalInfo:
         # map types for all species
         # now in strategy table
        
-        if strategy_table.retrieval_type.lower() in ('bt', 'forwardmodel'):
+        if current_strategy_step.retrieval_type.lower() in ('bt', 'forwardmodel'):
             pass
         else:
-            o_retrievalInfo.species = strategy_table.retrieval_elements()
+            o_retrievalInfo.species = current_strategy_step.retrieval_elements
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for species_name in o_retrievalInfo.species:
-                self.add_species(species_name, strategy_table, state_info,
-                                 o_retrievalInfo)
+                self.add_species(species_name, current_strategy_step, swin_dict,
+                                 state_info, o_retrievalInfo)
 
             self.init_interferents(strategy_table, state_info, o_retrievalInfo,
                                    error_analysis)

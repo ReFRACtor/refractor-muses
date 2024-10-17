@@ -3,7 +3,6 @@ import refractor.muses.muses_py as mpy
 from .state_info import (StateElement, StateElementHandle,
                          RetrievableStateElement,
                          StateElementHandleSet, StateInfo)
-from .strategy_table import StrategyTable
 from .order_species import order_species
 import numpy as np
 import numbers
@@ -409,14 +408,14 @@ class MusesPyStateElement(RetrievableStateElement):
             # set HDO by initial ratio multiplied by retrieved H2O
             self.state_info.state_info_obj.current['values'][locH2O17[0], 0:len(result)] = result*initialRatio
 
-    def species_information_file(self, strategy_table : StrategyTable):
+    def species_information_file(self, retrieval_type : str):
         '''Determine the species information file, and read the data'''
         # Open, read species file
-        retrievalTypeStr = '_' + strategy_table.retrieval_type.lower()
-        if strategy_table.retrieval_type.lower() == 'default':
-            retrievalTypeStr = ''
+        retrieval_type_v = '_' + retrieval_type.lower()
+        if retrieval_type_v == '_default':
+            retrieval_type_v = ''
         species_directory = self.retrieval_config["speciesDirectory"]
-        speciesInformationFilename = f"{species_directory}/{self.name}{retrievalTypeStr}.asc"
+        speciesInformationFilename = f"{species_directory}/{self.name}{retrieval_type_v}.asc"
 
         files = glob.glob(speciesInformationFilename)
         if len(files) == 0:
@@ -429,20 +428,21 @@ class MusesPyStateElement(RetrievableStateElement):
         (_, fileID) = mpy.read_all_tes_cache(speciesInformationFilename)
         return mpy.ObjectView(fileID['preferences'])
         
-    def update_initial_guess(self, strategy_table : StrategyTable):
-        species_list = order_species(strategy_table.retrieval_elements())
+    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep,
+                             swin_dict : 'dict(str,MusesSpectralWindow)'):
+        species_list = order_species(current_strategy_step.retrieval_elements)
         species_name = self.name
         pressure = self.state_info.pressure
         # user specifies the number of forward model levels
-        if strategy_table.number_fm_levels < len(pressure):
-            pressure = pressure[:strategy_table.number_fm_levels]
-        surfacePressure = pressure[0]
+        nfm_levels = int(self.retrieval_config["num_FMLevels"])
+        if nfm_levels < len(pressure):
+            pressure = pressure[:nfm_levels]
         num_pressures = len(pressure)
-        
+
         stateInfo = mpy.ObjectView(self.state_info.state_info_dict)
         current = mpy.ObjectView(stateInfo.current)
         
-        speciesInformationFile = self.species_information_file(strategy_table)
+        speciesInformationFile = self.species_information_file(current_strategy_step.retrieval_type)
         
         # AT_LINE 157 Get_Species_Information.pro
         mapType = speciesInformationFile.mapType.lower()
@@ -990,7 +990,9 @@ class MusesPyStateElement(RetrievableStateElement):
              (species_name == 'CALSCALE') or (species_name == 'CALOFFSET'):
 
             # IDL AT_LINE 243 Get_Species_Information:
-            microwindows = strategy_table.microwindows()
+            microwindows = []
+            for swin in swin_dict.values():
+                microwindows.extend(swin.muses_microwindows())
 
             # Select non-UV windows
             ind = []
@@ -1112,7 +1114,7 @@ class MusesPyStateElement(RetrievableStateElement):
                 # step type
                 # AT_LINE 318 Get_Species_Information.pro
                 frequencyIn = stateInfo.cloudPars['frequency'][0:int(stateInfo.cloudPars['num_frequencies'])]
-                stepType = strategy_table.retrieval_type
+                stepType = current_strategy_step.retrieval_type
                 stepFMSelect = mpy.mw_frequency_needed(microwindows, frequencyIn, stepType, freqMode)
 
                 nn = len(stepFMSelect)
@@ -1349,7 +1351,7 @@ class MusesPyStateElement(RetrievableStateElement):
                 trueParameterListFM = math.log(stateInfo.true['PCLOUD'][0])
 
             # get constraint
-            stepType = strategy_table.retrieval_type
+            stepType = current_strategy_step.retrieval_type
             tag_names = mpy.idl_tag_names(speciesInformationFile)
             if 'sSubaDiagonalValues' not in tag_names:
                 raise RuntimeError(f"Preference 'sSubaDiagonalValues' NOT found in file {speciesInformationFile.filename}")
@@ -1425,7 +1427,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
             tag_names = mpy.idl_tag_names(speciesInformationFile)
             upperTags = [x.upper() for x in tag_names]
-            step_name = strategy_table.step_name
+            step_name = current_strategy_step.step_name
             full_step_label = ('sSubaDiagonalValues-'  + step_name).upper()
             if full_step_label in upperTags:
                 sSubaDiagonalValues = np.asarray(speciesInformationFile[upperTags.index(full_step_label)])
@@ -1464,7 +1466,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
             tag_names = mpy.idl_tag_names(speciesInformationFile)
             upperTags = [x.upper() for x in tag_names]
-            step_name = strategy_table.step_name
+            step_name = current_strategy_step.step_name
             full_step_label = ('sSubaDiagonalValues-'  + step_name).upper()
             if full_step_label in upperTags:
                 sSubaDiagonalValues = np.asarray(speciesInformationFile[upperTags.index(full_step_label)])
@@ -1625,7 +1627,9 @@ class MusesPyStateElement(RetrievableStateElement):
                 levels_tokens = speciesInformationFile.retrievalLevels.split(',')
                 int_levels_arr = [int(x) for x in levels_tokens]
                 levels0 = np.asarray(int_levels_arr)
-                retrievalParameters = mpy.supplier_retrieval_levels_tes(levels0, strategy_table.pressure_fm, stateInfo.current['pressure'])
+                pinput = self.retrieval_config["pressure_species_input"]
+                retrievalParameters = mpy.supplier_retrieval_levels_tes(levels0, pinput,
+                                                      stateInfo.current['pressure'])
 
                 # PYTHON_NOTE: It is possible that some values in i_levels may index passed the size of pressure.
                 # The size of pressure may be 63 and one indices may be 64.
@@ -1667,7 +1671,7 @@ class MusesPyStateElement(RetrievableStateElement):
             # allows two NH3 steps which start at different initial
             # values.  Put '2' for steptype in table for 2nd NH3 step (need to
             # duplicate microwindows, quality flag, and species files)
-            if strategy_table.retrieval_type == '2' and species_name == 'NH3':
+            if current_strategy_step.retrieval_type == '2' and species_name == 'NH3':
                 logger.info("TWO STEP NH3.  SECOND STEP GUESS 2/3 ORIGINAL")
                 currentGuess = initialGuess * 2/3.
 
@@ -1996,7 +2000,8 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         if(update_next):
             self.state_info.next_state_dict["omi"][self.omi_key] = self.value[0]
 
-    def update_initial_guess(self, strategy_table : StrategyTable):
+    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep,
+                             swin_dict : 'dict(str,MusesSpectralWindow)'):
         self.mapType = 'linear'
         self.pressureList = np.array([-2,])
         self.altitudeList  = np.array([-2,])
@@ -2020,7 +2025,7 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         self.mapToState = np.eye(1)
         self.mapToParameters = np.eye(1)
         # Not sure if the is covariance, or sqrt covariance
-        sfile = self.species_information_file(strategy_table)
+        sfile = self.species_information_file(current_strategy_step.retrieval_type)
         sSubaDiagonalValues = float(sfile.sSubaDiagonalValues) 
         self.constraintMatrix = np.diag([1 / (sSubaDiagonalValues * sSubaDiagonalValues)])
         
@@ -2078,7 +2083,8 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
         if(update_next):
             self.state_info.next_state_dict["tropomi"][self.tropomi_key] = self.value[0]
 
-    def update_initial_guess(self, strategy_table : StrategyTable):
+    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep,
+                             swin_dict : 'dict(str,MusesSpectralWindow)'):
         self.mapType = 'linear'
         self.pressureList = np.array([-2,])
         self.altitudeList  = np.array([-2,])
@@ -2102,7 +2108,7 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
         self.mapToState = np.eye(1)
         self.mapToParameters = np.eye(1)
         # Not sure if the is covariance, or sqrt covariance
-        sfile = self.species_information_file(strategy_table)
+        sfile = self.species_information_file(current_strategy_step.retrieval_type)
         sSubaDiagonalValues = float(sfile.sSubaDiagonalValues) 
         self.constraintMatrix = np.diag([1 / (sSubaDiagonalValues * sSubaDiagonalValues)])
         
