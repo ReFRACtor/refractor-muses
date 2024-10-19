@@ -81,7 +81,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
             o_omi = None
             o_tropomi = None
             o_oco2 = None
-            for iname in rs._strategy_executor.stable.instrument_name():
+            for iname in rs._strategy_executor.current_strategy_step.instrument_name:
                 if iname in o_xxx:
                     obs = rs.observation_handle_set.observation(iname, None,
                        MusesSpectralWindow(rs._strategy_executor.stable.spectral_window(iname), None),
@@ -120,7 +120,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         # we ever want to run the forward model for bad samples. But right now the existing
         # py-retrieve code requires this is a few places.a
         return rs._cost_function_creator.cost_function(
-            rs._strategy_executor.stable.instrument_name(),
+            rs._strategy_executor.current_strategy_step.instrument_name,
             self.cstate,
             rs._swin_dict,
             partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
@@ -267,7 +267,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs._state_info.update_state(rs.retrieval_info, self.results.results_list,
                                     do_not_update, rs.retrieval_config,
                                     rs.step_number)
-        if 'OCO2' in rs._strategy_executor.stable.instrument_name():
+        if 'OCO2' in rs._strategy_executor.current_strategy_step.instrument_name:
             # set table.pressurefm to stateConstraint.pressure because OCO-2
             # is on sigma levels
             rs._strategy_executor.stable.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
@@ -286,7 +286,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             self.results.update_jacobian_sys(cfunc_sys)
 
         self.results.update_error_analysis(rs._strategy_executor.error_analysis)
-        self.propagated_qa.update(rs._strategy_executor.stable.retrieval_elements(),
+        self.propagated_qa.update(rs._strategy_executor.current_strategy_step.retrieval_elements,
                                   self.results.master_quality)
         
         # The solver can't be pickled, because a few pieces of the cost function
@@ -304,7 +304,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def run_retrieval(self, rs):
         '''run_retrieval'''
         self.cfunc = self.create_cost_function(rs)
-        maxIter = int(rs._strategy_executor.stable.table_entry("maxNumIterations"))
+        maxIter = rs._strategy_executor.current_strategy_step.max_num_iterations
         
         # Various thresholds from the input table
         ConvTolerance_CostThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_CostThresh"])

@@ -61,7 +61,12 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     def retrieval_elements(self) -> 'list(str)':
         '''List of retrieval elements that we retrieve for this step.'''
         raise NotImplementedError()
-    
+
+    @abc.abstractproperty
+    def instrument_name(self) -> 'list(str)':
+        '''List of instruments used in this step.'''
+        raise NotImplementedError()
+        
     @abc.abstractproperty
     def step_name(self) -> str:
         '''A name for the current strategy step.'''
@@ -110,9 +115,10 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         but testing at a lower level might not have a MusesStrategyExecutor available.'''
         return cls(
             {'retrieval_elements' : strategy_table.retrieval_elements(),
+             'instrument_name' : strategy_table.instrument_name(),
              'step_name' : strategy_table.step_name,
              'step_number' : strategy_table.table_step,
-             'max_num_iterations' : strategy_table.max_num_iterations,
+             'max_num_iterations' : int(strategy_table.max_num_iterations),
              'retrieval_type' : strategy_table.retrieval_type,
              'retrieval_info' : None
              })
@@ -121,6 +127,11 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     def retrieval_elements(self) -> 'list(str)':
         '''List of retrieval elements that we retrieve for this step.'''
         return self.current_strategy_step_dict['retrieval_elements']
+
+    @property
+    def instrument_name(self) -> 'list(str)':
+        '''List of instruments used in this step.'''
+        return self.current_strategy_step_dict['instrument_name']
     
     @property
     def step_name(self) -> str:
@@ -255,9 +266,10 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         '''Return the CurrentStrategyStep for the current step.'''
         return CurrentStrategyStepDict(
             {'retrieval_elements' : self.stable.retrieval_elements(),
+             'instrument_name' : self.stable.instrument_name(),
              'step_name' : self.stable.step_name,
              'step_number' : self.stable.table_step,
-             'max_num_iterations' : self.stable.max_num_iterations,
+             'max_num_iterations' : int(self.stable.max_num_iterations),
              'retrieval_type' : self.stable.retrieval_type,
              'retrieval_info' : self.retrieval_info
              })
