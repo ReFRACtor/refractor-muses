@@ -47,7 +47,7 @@ def compare_run(expected_dir, run_dir, diff_is_error=True):
 # have the full original run if we need to dig into and issue with
 # test_retrieval_strategy_cris_tropomi. But note the output isn't identical, just pretty
 # close.
-@skip
+#@skip
 @long_test
 @require_muses_py
 def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,

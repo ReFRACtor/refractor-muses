@@ -82,16 +82,16 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
     print(obs.filter_data)
         
 def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
-    xtrack_list = [226,]
-    atrack = 2995
-    filename_list = [f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc",]
-    irr_filename = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    cld_filename = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
+    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
+    atrack_dict = {"BAND3" : 2995, "CLOUD" : 2995}
+    filename_dict = {}
+    filename_dict["BAND3"] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc"
+    filename_dict['IRR_BAND_1to6'] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    filename_dict["CLOUD"] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
     utc_time = "2019-08-07T06:24:33.584090Z"
     filter_list = ["BAND3",]
     obs = MusesTropomiObservation.create_from_filename(
-        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
-        filter_list, osp_dir=osp_dir)
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
     step_number = 12
     iteration = 2
     rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,

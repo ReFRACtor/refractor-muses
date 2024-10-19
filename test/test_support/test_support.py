@@ -53,6 +53,7 @@ tropomi_test_in_dir = f"{test_base_path}/tropomi/in/sounding_1"
 tropomi_test_in_dir2 = f"{test_base_path}/tropomi/in/sounding_2"
 tropomi_test_in_dir3 = f"{test_base_path}/tropomi/in/sounding_3"
 tropomi_band7_test_in_dir = f"{test_base_path}/tropomi_band7/in/sounding_1"
+tropomi_band7_test_in_dir2 = f"{test_base_path}/tropomi_band7/in/sounding_2"
 tropomi_band7_expected_results_dir = f"{test_base_path}/tropomi_band7/expected/"
 tropomi_band7_swir_step_test_in_dir = f"{test_base_path}/tropomi_band7/in/sounding_one_step"
 joint_tropomi_test_in_dir = f"{test_base_path}/cris_tropomi/in/sounding_1"
@@ -96,6 +97,15 @@ def osp_dir():
     osp_path = os.environ.get("MUSES_OSP_PATH", None)
     if osp_path is None or not os.path.exists(osp_path):
         raise pytest.skip('test requires OSP directory set by through the MUSES_OSP_PATH environment variable')
+    return osp_path
+
+@pytest.fixture(scope="function")
+def josh_osp_dir():
+    '''Location of Josh's newer OSP directory. Eventually stuff will get merged into
+    the real OSP directory, but for now keep this separate'''
+    osp_path = os.environ.get("MUSES_JOSH_OSP_PATH", "/tb/sandbox17/laughner/OSP-mine/OSP")
+    if osp_path is None or not os.path.exists(osp_path):
+        raise pytest.skip("test requires Josh's OSP directory set by through the MUSES_JOSH_OSP_PATH environment variable")
     return osp_path
 
 @pytest.fixture(scope="function")
@@ -176,18 +186,18 @@ def tropomi_uip_step_1(isolated_dir, osp_dir, gmao_dir):
 @pytest.fixture(scope="function")
 def tropomi_obs_step_1(osp_dir):
     # Observation going with trompomi_uip_step_1
-    xtrack_list = [226,]
-    atrack = 359
-    filename_list = [f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc",]
-    irr_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    cld_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
+    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
+    atrack_dict = {"BAND3" : 359, "CLOUD" : 359}
+    filename_dict = {}
+    filename_dict["BAND3"] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc"
+    filename_dict['IRR_BAND_1to6'] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    filename_dict["CLOUD"]= f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
     mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_TROPOMICLOUDFRACTION_TROPOMICLOUD_IG_Refine.asc"
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
-        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
-        filter_list, osp_dir=osp_dir)
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs
@@ -195,18 +205,18 @@ def tropomi_obs_step_1(osp_dir):
 @pytest.fixture(scope="function")
 def tropomi_obs_sounding_2_band7(osp_dir):
     # Observation going with trompomi_uip_step_1
-    xtrack_list = [205,]
-    atrack = 2297
-    filename_list = [f"{tropomi_test_in_dir2}/../S5P_RPRO_L1B_RA_BD7_20220628T185806_20220628T203935_24394_03_020100_20230104T092546.nc",]
-    irr_filename = f"{tropomi_test_in_dir2}/../S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
-    cld_filename = f"{tropomi_test_in_dir2}/../S5P_RPRO_L2__CLOUD__20220628T171636_20220628T185806_24393_03_020401_20230119T091435.nc"
+    xtrack_dict = {"BAND7" : 205, 'CLOUD' : 205, 'IRR_BAND_1to6' : 204}
+    atrack_dict = {"BAND7" : 2297, "CLOUD" : 2297}
+    filename_dict = {}
+    filename_dict["BAND7"] = f"{tropomi_test_in_dir2}/../S5P_RPRO_L1B_RA_BD7_20220628T185806_20220628T203935_24394_03_020100_20230104T092546.nc"
+    filename_dict["IRR_BAND_7to8"] = f"{tropomi_test_in_dir2}/../S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
+    filename_dict["CLOUD"] = f"{tropomi_test_in_dir2}/../S5P_RPRO_L2__CLOUD__20220628T171636_20220628T185806_24393_03_020401_20230119T091435.nc"
     utc_time = "2022-06-28T18:07:51.984098Z"
     filter_list = ["BAND7",]
     mwfile = f"{osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
-        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
-        filter_list, osp_dir=osp_dir)
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs
@@ -214,18 +224,18 @@ def tropomi_obs_sounding_2_band7(osp_dir):
 @pytest.fixture(scope="function")
 def tropomi_obs_step_2(osp_dir):
     # Observation going with trompomi_uip_step_1
-    xtrack_list = [226,]
-    atrack = 359
-    filename_list = [f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc",]
-    irr_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    cld_filename = f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
+    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
+    atrack_dict = {"BAND3" : 359, "CLOUD" : 359}
+    filename_dict = {}
+    filename_dict["BAND3"] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc"
+    filename_dict['IRR_BAND_1to6'] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    filename_dict["CLOUD"]= f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
     mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_O3-Band3.asc"
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
-        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
-        filter_list, osp_dir=osp_dir)
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs
@@ -233,18 +243,18 @@ def tropomi_obs_step_2(osp_dir):
 @pytest.fixture(scope="function")
 def joint_tropomi_obs_step_12(osp_dir):
     # Observation going with trompomi_uip_step_1
-    xtrack_list = [226,]
-    atrack = 2995
-    filename_list = [f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc",]
-    irr_filename = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    cld_filename = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
+    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
+    atrack_dict = {"BAND3" : 2995, "CLOUD" : 2995}
+    filename_dict = {}
+    filename_dict["BAND3"] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc"
+    filename_dict['IRR_BAND_1to6'] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    filename_dict["CLOUD"]= f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
     utc_time = "2019-08-07T06:24:33.584090Z"
     filter_list = ["BAND3",]
     mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
     obs = MusesTropomiObservation.create_from_filename(
-        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
-        filter_list, osp_dir=osp_dir)
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
     obs.spectral_window.add_bad_sample_mask(obs)
     granule = 65
@@ -317,18 +327,18 @@ def tropomi_uip_band7_swir_step(isolated_dir):
 @pytest.fixture(scope="function")
 def tropomi_obs_band7_swir_step(osp_dir):
     # Observation going with trompomi_uip_step_1
-    xtrack_list = [108,]
-    atrack = 1008
-    filename_list = [f"{tropomi_band7_swir_step_test_in_dir}/../S5P_OFFL_L1B_RA_BD7_20220628T185806_20220628T203935_24394_02_020000_20220628T222834.nc",]
-    irr_filename = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
-    cld_filename = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L2__CLOUD__20220628T185806_20220628T203935_24394_03_020401_20230119T091438.nc"
+    xtrack_dict = {"BAND7" : 108, 'CLOUD' : 108, 'IRR_BAND_7to8' : 108}
+    atrack_dict = {"BAND7" : 1008, "CLOUD" : 1008}
+    filename_dict = {}
+    filename_dict["BAND7"] = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_OFFL_L1B_RA_BD7_20220628T185806_20220628T203935_24394_02_020000_20220628T222834.nc"
+    filename_dict['IRR_BAND_7to8'] = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
+    filename_dict["CLOUD"]= f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L2__CLOUD__20220628T185806_20220628T203935_24394_03_020401_20230119T091438.nc"
     utc_time = "2022-06-28T19:33:47.130000Z"
     filter_list = ["BAND7",]
     mwfile = f"{osp_dir}/Strategy_Tables/tropomi_nir/OSP-TROPOMI-BAND7/MWDefinitions/Windows_Nadir_O3-Band7.asc"
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
-        filename_list, irr_filename, cld_filename, xtrack_list, atrack, utc_time,
-        filter_list, osp_dir=osp_dir)
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs

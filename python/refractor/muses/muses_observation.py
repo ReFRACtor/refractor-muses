@@ -997,7 +997,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
                          coeff=coeff, mp=mp)
 
     @classmethod
-    def _read_data(cls, filename_list, irr_filename, cld_filename, xtrack_list, atrack,
+    def _read_data(cls, filename_dict, xtrack_dict, atrack_dict,
                  utc_time, filter_list, calibration_filename=None, osp_dir=None):
         # Filter list should be in the same order as filename_list, and should be
         # things like "BAND3"
@@ -1007,30 +1007,38 @@ class MusesTropomiObservation(MusesObservationReflectance):
             raise RuntimeError("We don't support TROPOMI calibration yet")
         i_windows = [{'instrument' : 'TROPOMI', 'filter' : flt} for flt in filter_list]
         with(osp_setup(osp_dir)):
-            o_tropomi = mpy.read_tropomi(filename_list, irr_filename, cld_filename,
-                                         xtrack_list, atrack, utc_time, i_windows)
+            o_tropomi = mpy.read_tropomi(filename_dict, xtrack_dict, atrack_dict,
+                                         utc_time, i_windows)
         sdesc = {
-            "TROPOMI_ATRACK_INDEX" : np.int16(atrack),
+            "TROPOMI_ATRACK_INDEX_BAND1" : np.int16(-999),
             'TROPOMI_XTRACK_INDEX_BAND1': np.int16(-999),
             'POINTINGANGLE_TROPOMI_BAND1': -999.0,
+            "TROPOMI_ATRACK_INDEX_BAND2" : np.int16(-999),
             'TROPOMI_XTRACK_INDEX_BAND2': np.int16(-999),
             'POINTINGANGLE_TROPOMI_BAND2': -999.0,
+            "TROPOMI_ATRACK_INDEX_BAND3" : np.int16(-999),
             'TROPOMI_XTRACK_INDEX_BAND3': np.int16(-999),
             'POINTINGANGLE_TROPOMI_BAND3': -999.0,
+            "TROPOMI_ATRACK_INDEX_BAND4" : np.int16(-999),
             'TROPOMI_XTRACK_INDEX_BAND4': np.int16(-999),
             'POINTINGANGLE_TROPOMI_BAND4': -999.0,
+            "TROPOMI_ATRACK_INDEX_BAND5" : np.int16(-999),
             'TROPOMI_XTRACK_INDEX_BAND5': np.int16(-999),
             'POINTINGANGLE_TROPOMI_BAND5': -999.0,
+            "TROPOMI_ATRACK_INDEX_BAND6" : np.int16(-999),
             'TROPOMI_XTRACK_INDEX_BAND6': np.int16(-999),
             'POINTINGANGLE_TROPOMI_BAND6': -999.0,
+            "TROPOMI_ATRACK_INDEX_BAND7" : np.int16(-999),
             'TROPOMI_XTRACK_INDEX_BAND7': np.int16(-999),
             'POINTINGANGLE_TROPOMI_BAND7': -999.0,
+            "TROPOMI_ATRACK_INDEX_BAND7" : np.int16(-999),
             'TROPOMI_XTRACK_INDEX_BAND8': np.int16(-999),
             'POINTINGANGLE_TROPOMI_BAND8': -999.0,
         }
         # TODO Fill in POINTINGANGLE_TROPOMI
         for i,flt in enumerate(filter_list):
-            sdesc[f'TROPOMI_XTRACK_INDEX_{flt}'] = np.int16(xtrack_list[i])
+            sdesc[f'TROPOMI_XTRACK_INDEX_{flt}'] = np.int16(xtrack_dict[flt])
+            sdesc[f'TROPOMI_ATRACK_INDEX_{flt}'] = np.int16(atrack_dict[flt])
             # Think this is right
             sdesc[f'POINTINGANGLE_TROPOMI_{flt}'] = o_tropomi["Earth_Radiance"]["ObservationTable"]["ViewingZenithAngle"][i]
         return (o_tropomi, sdesc)
@@ -1043,8 +1051,8 @@ class MusesTropomiObservation(MusesObservationReflectance):
         return "TROPOMI"
     
     @classmethod
-    def create_from_filename(cls, filename_list, irr_filename, cld_filename, xtrack_list,
-                             atrack, utc_time, filter_list, calibration_filename=None,
+    def create_from_filename(cls, filename_dict, xtrack_dict,
+                             atrack_dict, utc_time, filter_list, calibration_filename=None,
                              osp_dir=None):
         '''Create from just the filenames. Note that spectral window doesn't get
         set here, but this can be useful if you just want access to the underlying
@@ -1053,9 +1061,8 @@ class MusesTropomiObservation(MusesObservationReflectance):
         You might also want to use create_from_id, which sets up everything
         (spectral window, coefficients, attaching to a fm_sv).'''
         o_tropomi, sdesc = cls._read_data(
-            filename_list, irr_filename, cld_filename, xtrack_list,
-            atrack, utc_time, filter_list, calibration_filename=calibration_filename,
-            osp_dir=osp_dir)
+            filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list,
+            calibration_filename=calibration_filename, osp_dir=osp_dir)
         return cls(o_tropomi, sdesc, filter_list)
     
     @classmethod
@@ -1093,17 +1100,32 @@ class MusesTropomiObservation(MusesObservationReflectance):
                 # see about line 614 of script_retrieval_setup_ms. We duplicate
                 # this behavior, but go ahead and warn that we are doing that.
                 logger.warning("Don't support calibration files yet. Ignoring TROPOMI_Rad_calRun_flag")
-            irr_filename = mid['TROPOMI_IRR_filename']
-            cld_filename = mid['TROPOMI_Cloud_filename']
-            atrack = int(mid['TROPOMI_ATrack_Index'])
+            filename_dict = {}
+            xtrack_dict = {}
+            atrack_dict = {}
+            
+            filename_dict["CLOUD"] = mid['TROPOMI_Cloud_filename']
+            # Note this is what mpy.get_tropomi_measurement_id_info requires. Not
+            # sure if we don't have a band 3 here, but follow what that file does.
+            xtrack_dict["CLOUD"] = mid['TROPOMI_XTrack_Index_BAND3']
+            atrack_dict["CLOUD"] = mid['TROPOMI_ATrack_Index']
+            for flt in filter_list:
+                filename_dict[flt] = mid[f"TROPOMI_filename_{flt}"]
+                xtrack_dict[flt] = mid[f'TROPOMI_XTrack_Index_{flt}']
+                # We happen to have only one atrack in the file, but the
+                # mpy.read_tropomi doesn't assume that so we have one entry
+                # per filter here.
+                atrack_dict[flt] = mid['TROPOMI_ATrack_Index']
+                if flt in ("BAND7", "BAND8"):
+                    filename_dict["IRR_BAND_7to8"] = mid["TROPOMI_IRR_SIR_filename"]
+                    xtrack_dict["IRR_BAND_7to8"] = xtrack_dict[flt]
+                else:
+                    filename_dict["IRR_BAND_1to6"] = mid["TROPOMI_IRR_filename"]
+                    xtrack_dict["IRR_BAND_1to6"] = xtrack_dict[flt]
             utc_time = mid['TROPOMI_utcTime']
-            filename_list = [mid[f"TROPOMI_filename_{flt}"]
-                             for flt in filter_list]
-            xtrack_list = [int(mid[f"TROPOMI_XTrack_Index_{flt}"])
-                           for flt in filter_list]
             o_tropomi, sdesc = cls._read_data(
-                filename_list, irr_filename, cld_filename, xtrack_list, atrack,
-                utc_time, filter_list, osp_dir=osp_dir)
+                filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list,
+                osp_dir=osp_dir)
             obs = cls(o_tropomi, sdesc,filter_list, coeff=coeff, mp=mp)
             
         if(write_tropomi_radiance_pickle):
