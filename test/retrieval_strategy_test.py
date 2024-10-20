@@ -131,7 +131,7 @@ def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
 # have the full original run if we need to dig into and issue with
 # test_retrieval_strategy_airs_omi. But note the output isn't identical, just pretty
 # close.
-@skip
+#@skip
 @long_test
 @require_muses_py
 def test_original_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli,

@@ -368,7 +368,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def altitude(self):
-        res = []
+        res = rf.vector_altitude()
         for i in range(self.num_channels):
             # chan_alt = rf.AltitudeHydrostatic(self.pressure,
             #     self.temperature, self.rf_uip.latitude_with_unit(i),
@@ -376,7 +376,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
             chan_alt = MusesAltitude(self.ray_info, self.pressure,
                                      self.observation.latitude[i])
-            res.append(chan_alt)
+            res.push_back(chan_alt)
         return res
 
     @cached_property
@@ -384,11 +384,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         atm = rf.AtmosphereStandard(self.absorber, self.pressure,
             self.temperature, self.rayleigh, self.relative_humidity,
             self.ground, self.altitude, self.constants)
-
-        patm = atm.pressure.pressure_grid().value.value / 100
-        tatm = atm.temperature.temperature_grid(atm.pressure).value.value
-        alt = atm.altitude(0).value
-
         return atm
 
     @cached_property
