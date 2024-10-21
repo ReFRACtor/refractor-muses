@@ -53,7 +53,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                  # Values, so we can flip between using pca and not
                  use_pca=True, use_lrad=False, lrad_second_order=False,
                  use_raman=True,
-                 skip_observation_add=False
+                 skip_observation_add=False,
+                 osp_dir=None,
+                 absorption_gases = ["O3",],
+                 primary_absorber = "O3"
                  ):
         '''Constructor. The StateVector to add things to can be passed in, or if this
         isn't then we create a new StateVector.
@@ -97,10 +100,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.oza = self.observation.observation_zenith
         self.raz = self.observation.relative_azimuth
 
-        # This is what OMI currently uses, and TROPOMI band 3. We may put all this
-        # together, but right now tropomi_fm_object_creator may replace this.
-        self._inner_absorber = O3Absorber(self)
-
+        self.osp_dir = osp_dir if osp_dir is not None else os.environ.get('MUSES_OSP_PATH', '../OSP')
+        # We may put in logic to determine this, but for right now just
+        # take the list of absorption species as a input list and the
+        # primary absorber needed by PCA
+        self.absorption_gases = copy.copy(absorption_gases)
+        self.primary_absorber = primary_absorber
         
     def solar_model(self, sensor_index):
         with self.observation.modify_spectral_window(do_raman_ext=True):
@@ -340,12 +345,111 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def absorber_vmr(self):
-        return self._inner_absorber.absorber_vmr
+        vmrs = []
+        for gas in self.absorption_gases:
+            selem = [gas,]
+            coeff, mp = self.current_state.object_state(selem)
+            # Need to get mp to be the log mapping in current_state, but for
+            # now just work around this
+            mp = rf.StateMappingLog()
+            vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, gas, mp)
+            self.current_state.add_fm_state_vector_if_needed(
+                self.fm_sv, selem, [vmr,])
+            vmrs.append(vmr)
+        return vmrs
 
+    @cached_property
+    def absorber_muses(self):
+        '''Uses MUSES O3 optical files, which are precomputed ahead
+        of the forward model. They may include a convolution with the ILS.
+        '''
+        # TODO Note that MusesOpticalDepthFile reads files that get created
+        # in make_uip_tropomi.py. This get read in by functions like
+        # get_tropomi_o3xsec_without_ils and then written to file.
+        # We should move this into MusesOpticalDepthFile without having
+        # a file.
+        return MusesOpticalDepthFile(self.ray_info,
+                                     self.pressure,
+                                     self.temperature, self.altitude,
+                                     self.absorber_vmr, self.num_channels,
+                                     f"{self.step_directory}/vlidort/input")
+    
+    @cached_property
+    def absorber_xsec(self):
+        '''Use the O3 cross section files for calculation absorption.
+        This does not include the ILS at the absorption calculation level,
+        so to get good results we should include an ILS with our forward
+        model.'''
+        xsectable = []
+        for gas in self.absorption_gases:
+            xsec_data = np.loadtxt(rf.cross_section_filenames[gas])
+            cfac = rf.cross_section_file_conversion_factors.get(gas, 1.0)
+            spec_grid = rf.ArrayWithUnit(xsec_data[:, 0], "nm")
+            xsec_values = rf.ArrayWithUnit(xsec_data[:, 1:], "cm^2")
+            if xsec_data.shape[1] >= 4:
+                xsectable.append(rf.XSecTableTempDep(spec_grid, xsec_values,
+                                                        cfac))
+            else:
+                xsectable.append(rf.XSecTableSimple(spec_grid, xsec_values,
+                                                       cfac))
+        return rf.AbsorberXSec(self.absorber_vmr, self.pressure,
+                               self.temperature, self.alt_vec(),
+                               xsectable)
+    
+
+    def find_absco_pattern(self, pattern, join_to_absco_base_path=True):
+        if join_to_absco_base_path:
+            fname_pat = f"{self.absco_base_path}/{pattern}"
+        else:
+            fname_pat = pattern
+            
+        flist = glob.glob(fname_pat)
+        if(len(flist) > 1):
+            raise RuntimeError(f"Found more than one ABSCO file at {fname_pat}")
+        if(len(flist) == 0):
+            raise RuntimeError(f"No ABSCO files found at {fname_pat}")
+        return flist[0]
+
+    @property
+    def absco_base_path(self):
+        return f"{self.osp_dir}/ABSCO/"
+    
+
+    def find_absco_file_name(self, gas):
+        if(gas != "O3"):
+            return None
+        return self.find_absco_pattern("O3_*_v0.0_init.nc")
+
+    def absco_absco(self):
+        '''Use ABSCO tables to calculation absorption.'''
+        absorptions = []
+        skipped_gases = []
+        for gas in self.absorption_gases:
+            fname = self.absco_filename(gas)
+            if(fname is not None):
+                absorptions.append(rf.AbscoAer(absco_filename, 1.0, 5000,
+                                               rf.AbscoAer.NEAREST_NEIGHBOR_WN))
+            else:
+                skipped_gases.append(gas)
+        if len(skipped_gases) > 0:
+            logger.info(f"One or absorption_gases does not have a ABSCO file, so won't be include. Skipped gases: {', '.join(skipped_gases)}")
+        
+        return rf.AbsorberAbsco(self.absorber_vmr, self.pressure,
+                                self.temperature,
+                                self.alt_vec(), absorptions, self.constants)
+            
+            
     @cached_property
     def absorber(self):
         '''Absorber to use. This is a pass through method to the inner absorber component.'''
-        return self._inner_absorber.absorber
+        '''Absorber to use. This just gives us a simple place to switch
+        between absco and cross section.'''
+
+        # Use higher resolution xsec when using FASTCONV
+        if self.ils_method(0) == "FASTCONV":
+            return self.absorber_xsec
+        else:
+            return self.absorber_muses
 
     @abc.abstractproperty
     @cached_property
@@ -414,7 +518,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         a = np.zeros((self.num_channels, 1))
         a[:, 0] = 1
         stokes = rf.StokesCoefficientConstant(a)
-        primary_absorber = self._inner_absorber.primary_absorber_name
         bin_method = rf.PCABinning.UVVSWIR_V4
         num_bins = 11
         num_eofs = 4
@@ -442,7 +545,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                        self.lrad_second_order,
                                        num_streams)
 
-        rt = rf.PCARt(self.atmosphere, primary_absorber,
+        rt = rf.PCARt(self.atmosphere, self.primary_absorber,
                       bin_method, num_bins, num_eofs,
                       stokes, self.sza, self.oza, self.raz,
                       num_streams, num_mom, use_solar_sources,
