@@ -72,7 +72,8 @@ def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
 @long_test
 @require_muses_py
 def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
-                                         clean_up_replacement_function):
+                                         clean_up_replacement_function,
+                                         python_fp_logger):
     '''Full run, that we then compare the output files to expected results.
     This is not really a unit test, but for convenience we have it here.
     Note that a "failure" in the comparison might not actually indicate a problem, just
@@ -156,7 +157,8 @@ def test_original_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli,
 @long_test
 @require_muses_py
 def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
-                                         clean_up_replacement_function):
+                                     clean_up_replacement_function,
+                                     python_fp_logger):
     '''Full run, that we then compare the output files to expected results.
     This is not really a unit test, but for convenience we have it here.
     Note that a "failure" in the comparison might not actually indicate a problem, just

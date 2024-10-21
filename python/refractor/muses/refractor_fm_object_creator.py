@@ -335,7 +335,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def rayleigh(self):
-        return rf.RayleighBodhaine(self.pressure, self.altitude,
+        return rf.RayleighBodhaine(self.pressure, self.alt_vec(),
                                    self.constants)
 
     @cached_property
@@ -368,7 +368,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def altitude(self):
-        res = rf.vector_altitude()
+        #res = rf.vector_altitude()
+        res = []
         for i in range(self.num_channels):
             # chan_alt = rf.AltitudeHydrostatic(self.pressure,
             #     self.temperature, self.rf_uip.latitude_with_unit(i),
@@ -376,14 +377,21 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
             chan_alt = MusesAltitude(self.ray_info, self.pressure,
                                      self.observation.latitude[i])
-            res.push_back(chan_alt)
+            #res.push_back(chan_alt)
+            res.append(chan_alt)
         return res
 
+    def alt_vec(self):
+        res = rf.vector_altitude()
+        for alt in self.altitude:
+            res.push_back(alt)
+        return res
+    
     @cached_property
     def atmosphere(self):
         atm = rf.AtmosphereStandard(self.absorber, self.pressure,
             self.temperature, self.rayleigh, self.relative_humidity,
-            self.ground, self.altitude, self.constants)
+            self.ground, self.alt_vec(), self.constants)
         return atm
 
     @cached_property
@@ -672,7 +680,7 @@ class O3Absorber(AbstractAbsorber):
                 xsectable.append(rf.XSecTableSimple(spec_grid, xsec_values,
                                                        cfac))
         return rf.AbsorberXSec(self.absorber_vmr, self._parent.pressure,
-                               self._parent.temperature, self._parent.altitude,
+                               self._parent.temperature, self._parent.alt_vec(),
                                xsectable)
 
     @cached_property
@@ -684,7 +692,7 @@ class O3Absorber(AbstractAbsorber):
                               rf.AbscoAer.NEAREST_NEIGHBOR_WN))
         return rf.AbsorberAbsco(self.absorber_vmr, self._parent.pressure,
                                 self._parent.temperature,
-                                self._parent.altitude, absorptions, self._parent.constants)
+                                self._parent.alt_vec(), absorptions, self._parent.constants)
 
     @cached_property
     def absorber_vmr(self):
@@ -755,7 +763,7 @@ class SwirAbsorber(AbstractAbsorber):
 
         return rf.AbsorberAbsco(self.absorber_vmr, self._parent.pressure,
                                 self._parent.temperature,
-                                self._parent.altitude, absorptions, self._parent.constants)
+                                self._parent.alt_vec(), absorptions, self._parent.constants)
         
 
 

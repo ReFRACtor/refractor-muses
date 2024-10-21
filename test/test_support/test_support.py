@@ -7,7 +7,8 @@ import refractor.muses.muses_py as mpy
 from refractor.muses import (RefractorUip, osswrapper, 
                              MusesTropomiObservation, MusesOmiObservation,
                              MusesCrisObservation, MusesAirsObservation, MusesSpectralWindow)
-from refractor.framework import load_config_module, find_config_function, PythonFpLogger
+from refractor.framework import (load_config_module, find_config_function, PythonFpLogger,
+                                 FpLogger)
 from refractor.framework.factory import process_config, creator
 from refractor.old_py_retrieve_wrapper import MusesResidualFmJacobian, MusesRetrievalStep
 from scipy.io import readsav
@@ -23,17 +24,6 @@ import io
 import subprocess
 import warnings
 import atexit
-
-# Forward C++ logging in framework to the python logger
-PythonFpLogger.turn_on_logger(logger)
-# We have a lifetime issue. The C++ code normally has destructors called after
-# python has shut down, which means that our cleanup of the logger PyObject can
-# seg fault (a race conditon, so doesn't always seg fault). We can avoid this
-# by making the clean up part of the python cleanup, so it happens earlier than
-# the C++ destructors.
-@atexit.register
-def python_fp_logger_cleanup():
-    PythonFpLogger.turn_off_logger()
 
 #warnings to logger
 showwarning_ = warnings.showwarning
@@ -149,6 +139,15 @@ def clean_up_replacement_function():
         mpy.unregister_replacement_function_all()
         osswrapper.register_with_muses_py()
 
+@pytest.fixture(scope="function")
+def python_fp_logger(tmpdir):
+    '''Use PythonFpLogger to put the C++ logging stuff into the python logger.'''
+    PythonFpLogger.turn_on_logger(logger)
+    yield
+    PythonFpLogger.turn_off_logger()
+    FpLogger.turn_on_logger()
+    
+        
 def load_muses_retrieval_step(dir_in, step_number=1, osp_dir=None,
                               gmao_dir=None, change_to_dir=True):
     '''This reads parameters that can be use to call the py-retrieve function
