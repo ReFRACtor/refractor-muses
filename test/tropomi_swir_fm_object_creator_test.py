@@ -3,15 +3,14 @@ import numpy.testing as npt
 from test_support import *
 import refractor.framework as rf
 import glob
-from refractor.tropomi import (TropomiFmObjectCreator, 
+from refractor.tropomi import (TropomiFmObjectCreator, TropomiSwirFmObjectCreator,
                                TropomiForwardModelHandle)
 from refractor.muses import (MusesRunDir, CostFunctionCreator, CostFunction, 
                              CurrentStateUip, RetrievalConfiguration, MeasurementIdFile)
 import subprocess
 
-@skip
 @pytest.fixture(scope="function")
-def tropomi_fm_object_creator_band7_swir_step(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step, osp_dir):
+def tropomi_fm_object_creator_swir_step(tropomi_uip_band7_swir_step, tropomi_obs_band7_swir_step, osp_dir):
     '''Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
     in multiple tests'''
     rconf = RetrievalConfiguration.create_from_strategy_file(
@@ -22,19 +21,20 @@ def tropomi_fm_object_creator_band7_swir_step(tropomi_uip_band7_swir_step, tropo
     flist = {'TROPOMI' : ['BAND7']}
     mid = MeasurementIdFile(f"{test_base_path}/tropomi_band7/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
-    return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_band7_swir_step), mid,
-                                  tropomi_obs_band7_swir_step,
-                                  rf_uip=tropomi_uip_band7_swir_step)
+    return TropomiSwirFmObjectCreator(CurrentStateUip(tropomi_uip_band7_swir_step), mid,
+                                      tropomi_obs_band7_swir_step,
+                                      rf_uip=tropomi_uip_band7_swir_step)
 
-@skip
-def test_band7_ground_albedo(tropomi_fm_object_creator_band7_swir_step,
-                             tropomi_uip_band7_swir_step):
-    """Test that the object creator reads the correct albedo parameters from the UIP for Band 7
+def test_ground_albedo(tropomi_fm_object_creator_swir_step,
+                       tropomi_uip_band7_swir_step):
+    """Test that the object creator reads the correct albedo
+    parameters from the UIP for Band 7
 
-    This is to test that changes to add new bands do not cause it to accidentally get the wrong values.
+    This is to test that changes to add new bands do not cause it to
+    accidentally get the wrong values.
     """
     uip = tropomi_uip_band7_swir_step
-    obj_albedo_coeffs = tropomi_fm_object_creator_band7_swir_step.ground_clear.albedo_coefficients(0).value
+    obj_albedo_coeffs = tropomi_fm_object_creator_swir_step.ground_clear.albedo_coefficients(0).value
     expected = [
         uip.tropomi_params['surface_albedo_BAND7'], # 0.00169 as of 2023-10-03
         uip.tropomi_params['surface_albedo_slope_BAND7'], # 0.0 as of 2023-10-03
@@ -44,11 +44,10 @@ def test_band7_ground_albedo(tropomi_fm_object_creator_band7_swir_step,
 
     # Now check the state mapping indices. Since all three of the albedo terms are in step 1 of this UIP,
     # this should be an array with indices 0 to 2.
-    obj_state_map = tropomi_fm_object_creator_band7_swir_step.ground_clear.state_mapping.retrieval_indexes
+    obj_state_map = tropomi_fm_object_creator_swir_step.ground_clear.state_mapping.retrieval_indexes
     assert np.array_equal(obj_state_map, [0, 1, 2])
 
-@skip
-def test_band7_absorber(tropomi_fm_object_creator_band7_swir_step):
+def test_absorber(tropomi_fm_object_creator_swir_step):
     # JLL: I chose these values of pressure, temperature, and H2O VMR
     # because they are points in the ABSCO table that I can just extract
     # to compare against what the absorber returns without any interpolation
@@ -66,25 +65,23 @@ def test_band7_absorber(tropomi_fm_object_creator_band7_swir_step):
     }
     
     for igas in range(4):
-        gas = tropomi_fm_object_creator_band7_swir_step.absorber.gas_name(igas)
-        obj_xsec = tropomi_fm_object_creator_band7_swir_step.absorber.gas_absorption(gas).absorption_cross_section(
+        gas = tropomi_fm_object_creator_swir_step.absorber.gas_name(igas)
+        obj_xsec = tropomi_fm_object_creator_swir_step.absorber.gas_absorption(gas).absorption_cross_section(
             test_freq, test_pres, test_temp, test_h2o
         ).value
         assert np.isclose(obj_xsec, expected_xsec[gas]), f'{gas} xsec does not match'
 
 
-@skip
-def test_band7_vmr(tropomi_fm_object_creator_band7_swir_step, tropomi_uip_band7_swir_step):
-    for i, name in enumerate(tropomi_uip_band7_swir_step.atm_params('TROPOMI')['species']):
-        obj_vmrs = tropomi_fm_object_creator_band7_swir_step.absorber_vmr[i].vmr_profile
+def test_vmr(tropomi_fm_object_creator_swir_step, tropomi_uip_band7_swir_step):
+    for i, name in enumerate(tropomi_fm_object_creator_swir_step.absorption_gases):
+        obj_vmrs = tropomi_fm_object_creator_swir_step.absorber_vmr[i].vmr_profile
         uip_vmrs = tropomi_uip_band7_swir_step.atmosphere_column(name)
         assert np.allclose(obj_vmrs, uip_vmrs), f'{name} VMRs differ in the object creator and UIP'
 
 
-@skip
-def test_band7_ils_simple(tropomi_fm_object_creator_band7_swir_step,
+def test_ils_simple(tropomi_fm_object_creator_swir_step,
                           tropomi_band7_simple_ils_test_data):
-    inner_ils_obj = tropomi_fm_object_creator_band7_swir_step.instrument.ils(0)
+    inner_ils_obj = tropomi_fm_object_creator_swir_step.instrument.ils(0)
 
     nchan = inner_ils_obj.sample_grid().pixel_grid.data.size
     test_conv_spec = inner_ils_obj.apply_ils(

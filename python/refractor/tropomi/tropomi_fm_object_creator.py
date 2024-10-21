@@ -1,7 +1,6 @@
 from functools import cached_property, lru_cache
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, 
-                             O3Absorber, SwirAbsorber,
                              ForwardModelHandle,
                              MusesRaman, CurrentState, CurrentStateUip,
                              SurfaceAlbedo)
@@ -30,27 +29,10 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def __init__(self, current_state : 'CurrentState',
                  measurement_id : 'MeasurementId',
                  observation : 'MusesObservation',
+                 use_raman=True,
                  **kwargs):
         super().__init__(current_state, measurement_id, "TROPOMI", observation,
-                         **kwargs)
-        unique_filters = set(self.filter_list)
-        if len(unique_filters) != 1:
-            raise NotImplementedError('Cannot handle multiple bands yet (requires different absorbers per band)')
-        unique_filters = unique_filters.pop()
-        if unique_filters == 'BAND3':
-            self._inner_absorber = O3Absorber(self)
-            use_raman_default = True
-        elif unique_filters == 'BAND7':
-            self._inner_absorber = SwirAbsorber(self)
-            use_raman_default = False
-        else:
-            raise NotImplementedError(f'No absorber class defined for filter "{unique_filters}" on instrument {self.instruument_name}')
-
-        # The different bands need different defaults for use_raman; since there wasn't
-        # a convenient way to determine which bands we were retrieving before now, we
-        # reset the instance attribute to the value we need if it wasn't specified in the
-        # creation arguments.
-        self.use_raman = kwargs.get('use_raman', use_raman_default)
+                         use_raman=use_raman, **kwargs)
 
     @cached_property
     def instrument_correction(self):

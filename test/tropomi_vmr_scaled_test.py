@@ -8,7 +8,7 @@ import glob
 from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              RetrievalStrategyCaptureObserver,
                              ForwardModelHandle,
-                             SingleSpeciesHandle, O3Absorber,
+                             SingleSpeciesHandle, 
                              RetrievableStateElement, StateInfo,
                              RetrievalInfo)
 import subprocess
@@ -96,9 +96,8 @@ class O3ScaledStateElement(RetrievableStateElement):
         # like a weighting that is independent of apriori covariance.
         self.constraintMatrix = np.diag(np.full((1,),10*10.0))
 
-class ScaledO3Absorber(O3Absorber):
-    '''We can put this into O3Absorber as an option, but for now
-    just have a new class to handle this.'''
+        TropomiFmObjectCreator        
+class ScaledTropomiFmObjectCreator(TropomiFmObjectCreator):
     @cached_property
     def absorber_vmr(self):
         vmrs = []
@@ -107,17 +106,12 @@ class ScaledO3Absorber(O3Absorber):
         # And get the scaling
         selem = ["O3_SCALED",]
         coeff, mp = self.current_state.object_state(selem)
-        vmr_o3 = rf.AbsorberVmrLevelScaled(self._parent.pressure_fm,
+        vmr_o3 = rf.AbsorberVmrLevelScaled(self.pressure_fm,
                                            vmr_profile, coeff[0], "O3")
         self.current_state.add_fm_state_vector_if_needed(
             self.fm_sv, selem, [vmr_o3,])
         vmrs.append(vmr_o3)
         return vmrs
-
-class ScaledTropomiFmObjectionCreator(TropomiFmObjectCreator):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._inner_absorber = ScaledO3Absorber(self)
     
 class ScaledTropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
@@ -136,7 +130,7 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
                       **kwargs):
         if(instrument_name != "TROPOMI"):
             return None
-        obj_creator = ScaledTropomiFmObjectionCreator(
+        obj_creator = ScaledTropomiFmObjectCreator(
             current_state, self.measurement_id, obs,
             rf_uip=rf_uip_func(),
             fm_sv=fm_sv,

@@ -415,19 +415,20 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return f"{self.osp_dir}/ABSCO/"
     
 
-    def find_absco_file_name(self, gas):
+    def absco_filename(self, gas):
         if(gas != "O3"):
             return None
         return self.find_absco_pattern("O3_*_v0.0_init.nc")
 
-    def absco_absco(self):
+    @cached_property
+    def absorber_absco(self):
         '''Use ABSCO tables to calculation absorption.'''
         absorptions = []
         skipped_gases = []
         for gas in self.absorption_gases:
             fname = self.absco_filename(gas)
             if(fname is not None):
-                absorptions.append(rf.AbscoAer(absco_filename, 1.0, 5000,
+                absorptions.append(rf.AbscoAer(fname, 1.0, 5000,
                                                rf.AbscoAer.NEAREST_NEIGHBOR_WN))
             else:
                 skipped_gases.append(gas)
@@ -441,7 +442,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             
     @cached_property
     def absorber(self):
-        '''Absorber to use. This is a pass through method to the inner absorber component.'''
         '''Absorber to use. This just gives us a simple place to switch
         between absco and cross section.'''
 
@@ -659,278 +659,4 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class AbstractAbsorber(object, metaclass=abc.ABCMeta):
-    @abc.abstractproperty
-    @cached_property
-    def absorber(self):
-        """Return the `rf.Absorber` subclass instance that the FM object creator should use to calculate 
-        trace gase absorbance.
-        """
-        raise NotImplementedError
-
-    @abc.abstractproperty
-    def available_species(self) -> Sequence[str]:
-        """Return a list of species names which this class can calculate absorbances for.
-        The intended use is for the class to check this list against the list of species
-        required by the UIP, and skip trying to simulate species it does not have the 
-        nesessary spectroscopy for.
-        """
-        raise NotImplementedError
-
-    @abc.abstractproperty
-    def primary_absorber_name(self) -> str:
-        """Return the name of the absorber specie that the PCA radiative transfer method
-        should use as the "primary" absorber when determining its bins.
-        """
-        raise NotImplementedError
-
-    @abc.abstractproperty
-    @cached_property
-    def absorber_vmr(self):
-        """Return the vector of gas VMR absorber instances to use in the main absorber class.
-        """
-        raise NotImplementedError
-
-    def find_absco_fname(self, pattern, join_to_absco_base_path=True):
-        if join_to_absco_base_path:
-            fname_pat = os.path.join(self.absco_base_path, pattern)
-        else:
-            fname_pat = pattern
-            
-        flist = glob.glob(fname_pat)
-        if(len(flist) > 1):
-            raise RuntimeError(f"Found more than one ABSCO file at {fname_pat}")
-        if(len(flist) == 0):
-            raise RuntimeError(f"No ABSCO files found at {fname_pat}")
-        return flist[0]
-
-    @property
-    def absco_base_path(self):
-        # JLL: if the MUSES_OSP_PATH environmental variable isn't set, assume that it's
-        # the standard MUSES OSP path and we are currently in a sounding directory
-        # which has the OSPs linked in its parent directory.
-        osp_path = os.environ.get('MUSES_OSP_PATH', '../OSP')
-        return os.path.join(osp_path, 'ABSCO')
-
-
-
-class O3Absorber(AbstractAbsorber):
-    """A class representing absorbance hard-coded for O3.
-
-    This is the original implementation of O3 absorbance for TROPOMI/OMI. It has aspects
-    that are specifically written assuming O3 is the only absorber, so it may not be the
-    best choice or need modification if implementing new UV/visible absorbers (e.g. NO2).
-    """
-    def __init__(self, parent_obj_creator: RefractorFmObjectCreator):
-        # JLL: I'm not thrilled about introducing a circular reference here, but since the
-        # absorber methods need to be cached properties, this was the easiest way to keep
-        # that structure.
-        self._parent = parent_obj_creator
-        self.current_state = parent_obj_creator.current_state
-        self.fm_sv = parent_obj_creator.fm_sv
-
-    @property
-    def available_species(self) -> Sequence[str]:
-        return ['O3']
-        
-    @property
-    def primary_absorber_name(self) -> str:
-        return 'O3'
-    
-    @cached_property
-    def absorber(self):
-        '''Absorber to use. This just gives us a simple place to switch
-        between absco and cross section.'''
-
-        # Use higher resolution xsec when using FASTCONV
-        if self._parent.ils_method(0) == "FASTCONV":
-            return self.absorber_xsec
-        else:
-            return self.absorber_muses
-
-    @cached_property
-    def absorber_muses(self):
-        '''Uses MUSES O3 optical files, which are precomputed ahead
-        of the forward model. They may include a convolution with the ILS.
-        '''
-        # TODO Note that MusesOpticalDepthFile reads files that get created
-        # in make_uip_tropomi.py. This get read in by functions like
-        # get_tropomi_o3xsec_without_ils and then written to file.
-        # We should move this into MusesOpticalDepthFile without having
-        # a file.
-        return MusesOpticalDepthFile(self._parent.ray_info,
-                                     self._parent.pressure,
-                                     self._parent.temperature, self._parent.altitude,
-                                     self.absorber_vmr, self._parent.num_channels,
-                                     f"{self._parent.step_directory}/vlidort/input")
-
-    @cached_property
-    def absorber_xsec(self):
-        '''Use the O3 cross section files for calculation absorption.
-        This does not include the ILS at the absorption calculation level,
-        so to get good results we should include an ILS with our forward
-        model.'''
-        xsectable = []
-        for gas in ["O3", ]:
-            xsec_data = np.loadtxt(rf.cross_section_filenames[gas])
-            cfac = rf.cross_section_file_conversion_factors.get(gas, 1.0)
-            spec_grid = rf.ArrayWithUnit(xsec_data[:, 0], "nm")
-            xsec_values = rf.ArrayWithUnit(xsec_data[:, 1:], "cm^2")
-            if xsec_data.shape[1] >= 4:
-                xsectable.append(rf.XSecTableTempDep(spec_grid, xsec_values,
-                                                        cfac))
-            else:
-                xsectable.append(rf.XSecTableSimple(spec_grid, xsec_values,
-                                                       cfac))
-        return rf.AbsorberXSec(self.absorber_vmr, self._parent.pressure,
-                               self._parent.temperature, self._parent.alt_vec(),
-                               xsectable)
-
-    @cached_property
-    def absorber_absco(self):
-        '''Use ABSCO tables to calculation absorption.'''
-        absorptions = []
-        absco_filename = self.find_absco_fname("O3_*_v0.0_init.nc")
-        absorptions.append(rf.AbscoAer(absco_filename, 1.0, 5000,
-                              rf.AbscoAer.NEAREST_NEIGHBOR_WN))
-        return rf.AbsorberAbsco(self.absorber_vmr, self._parent.pressure,
-                                self._parent.temperature,
-                                self._parent.alt_vec(), absorptions, self._parent.constants)
-
-    @cached_property
-    def absorber_vmr(self):
-        vmrs = []
-
-        # Log mapping must come first to convert state vector elements from log first
-        # before mapping to a different number of levels
-        # TODO from JLL: if the approach used in the SwirAbsorber (using `available_species`
-        # and the UIP to determine which species are absorbers) is correct and more general,
-        # then this should be modified to be consistent with that method.
-        selem = ["O3",]
-        coeff, mp = self.current_state.object_state(selem)
-        # Need to get mp to be the log mapping
-        mappings = []
-        mappings.append(rf.StateMappingLog())
-
-        smap = rf.StateMappingComposite(mappings)
-        vmr_o3 = rf.AbsorberVmrLevel(self._parent.pressure_fm,
-                                     coeff, "O3", smap)
-        self.current_state.add_fm_state_vector_if_needed(
-            self.fm_sv, selem, [vmr_o3,])
-        vmrs.append(vmr_o3)
-        return vmrs
-
-
-class SwirAbsorber(AbstractAbsorber):
-    def __init__(self, parent_obj_creator: RefractorFmObjectCreator):
-        # JLL: I'm not thrilled about introducing a circular reference here, but since the
-        # absorber methods need to be cached properties, this was the easiest way to keep
-        # that structure.
-        self._parent = parent_obj_creator
-        self.current_state = parent_obj_creator.current_state
-        self.fm_sv = parent_obj_creator.fm_sv
-
-    @property
-    def available_species(self) -> Sequence[str]:
-        return ['CO', 'CH4', 'H2O', 'HDO']
-        
-    @property
-    def primary_absorber_name(self) -> str:
-        # JLL: Depending on how the PCA RT uses the primary absorber, this may need
-        # to be updated to figure this out from the UIP in case we want to target one
-        # of the other available species. I don't think there's anything in strategy tables
-        # at the moment that allows us to manually specify a "primary absorber", but
-        # depending on exactly what that means, we might be able to infer a reasonable
-        # answer.
-        return 'CO'
-    
-    @cached_property
-    def absorber(self):
-        '''Use ABSCO tables to calculation absorption.'''
-        absorptions = []
-        species = self._parent.rf_uip.atm_params(self._parent.instrument_name)['species']
-        skipped_species = []
-        for spec in species:
-            if spec in self.available_species:
-                absco_filename = self.find_swir_absco_filename(spec)
-                # JLL: during development, I used an AbscoStub class that inherited from rf.Absco.
-                # Not sure if there are key differences with the rf.AbscoAer class.
-                absorptions.append(rf.AbscoAer(absco_filename, 1.0, 5000,
-                                               rf.AbscoAer.NEAREST_NEIGHBOR_WN))
-            else:
-                skipped_species.append(spec)
-
-        if skipped_species:
-            skipped_species = ', '.join(skipped_species)
-            logger.info(f'One or species from the strategy table will not be simulated by ReFRACtor because SWIR absorbances are not implemented for them: {skipped_species}')
-
-        return rf.AbsorberAbsco(self.absorber_vmr, self._parent.pressure,
-                                self._parent.temperature,
-                                self._parent.alt_vec(), absorptions, self._parent.constants)
-        
-
-
-    def find_swir_absco_filename(self, specie, version='latest'):
-        # allow one to pass in "latest" or a version number like either "1.0" or "v1.0"
-        if version == 'latest':
-            vpat = 'v*'
-        elif version.startswith('v'):
-            vpat = version
-        else:
-            vpat = f'v{version}'
-
-        # Assumes that in the top level of the ABSCO directory there are
-        # subdirectories such as "v1.0_SWIR_CO" which contain our ABSCO files.
-        absco_subdir_pattern = f'{vpat}_SWIR_{specie.upper()}'
-        absco_subdirs = sorted(Path(self.absco_base_path).glob(absco_subdir_pattern))
-        if version == 'latest' and len(absco_subdirs) == 0:
-            full_pattern = Path(self.absco_base_path) / absco_subdir_pattern
-            raise RuntimeError(f'Found no ABSCO directories for specie "{specie}" matching {full_pattern}')
-        elif version == 'latest':
-            # Assumes that the latest version will be the last after sorting (e.g. v1.1
-            # > v1.0). Should technically use a semantic version parser to ensure e.g.
-            # v1.0.1 would be selected over v1.0.
-            specie_subdir = absco_subdirs[-1]
-            logger.info(f'Using ABSCO files from {specie_subdir} for {specie}')
-        elif len(absco_subdirs) == 1:
-            specie_subdir = absco_subdirs[0]
-        else:
-            raise RuntimeError(f'{len(absco_subdirs)} were found for {specie} {version} in {self.absco_base_path}')
-
-        specie_pattern = (specie_subdir / 'nc_ABSCO' / f'{specie.upper()}_*_v0.0_init.nc').as_posix()
-        return self.find_absco_fname(specie_pattern, join_to_absco_base_path=False)
-
-    @cached_property
-    def absorber_vmr(self):        
-        vmrs = []
-
-        # Log mapping must come first to convert state vector elements from log first
-        # before mapping to a different number of levels
-        # (JLL: I take it the mappings are applied from the end of the vector to the front?)
-        for specie in self._parent.rf_uip.atm_params(self._parent.instrument_name)['species']:
-            mappings = []
-            if specie in self._parent.rf_uip.uip['speciesListFM']:
-                map_type = self._parent.rf_uip.species_lin_log_mapping(specie).lower()
-            else:
-                # JLL: When the specie isn't listed in speciesListFM we can't know the mapping, however
-                # Mike indicated that it doesn't matter because it won't be used.
-                map_type = 'log'
-
-            if map_type == 'log':
-                mappings.append(rf.StateMappingLog())
-            elif map_type != 'linear':
-                raise NotImplementedError(f'Unknown map type "{map_type}"')
-
-            smap = rf.StateMappingComposite(mappings)
-            # TODO We need to get the mp to be the right mapping
-            coeff, mp = self.current_state.object_state([specie,])
-            vmr_specie = rf.AbsorberVmrLevel(self._parent.pressure_fm,
-                                             coeff,
-                                             specie, smap)
-            self.current_state.add_fm_state_vector_if_needed(
-                self.fm_sv, [specie,], [vmr_specie,])
-            vmrs.append(vmr_specie)
-        return vmrs
-    
-
-__all__ = ["RefractorFmObjectCreator", "O3Absorber", "SwirAbsorber"]
+__all__ = ["RefractorFmObjectCreator", ]
