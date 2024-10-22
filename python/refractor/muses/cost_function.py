@@ -5,6 +5,13 @@ from typing import List
 import numpy as np
 from loguru import logger
 
+def _new_from_init(cls, *args):
+    '''For use with pickle, covers common case where we just store the
+    arguments needed to create an object.'''
+    inst = cls.__new__(cls)
+    inst.__init__(*args)
+    return inst
+
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     '''This is the cost function we use to interface between ReFRACtor
     and muses-py. This is just a standard rf.NLLSMaxAPosteriori with
@@ -36,6 +43,13 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                                   mapping)
         super().__init__(mstand)
 
+    def __reduce__(self):
+        return (_new_from_init, (self.__class__, self.instrument_name_list,
+                                 self.fm_list, self.obs_list, self.fm_sv,
+                                 self.retrieval_sv_apriori,
+                                 self.retrieval_sv_sqrt_constraint,
+                                 self.basis_matrix))
+        
     # ----------------------------------------------------------------------------------
     # All the functions past this point are just for testing with old py-retrieve code,
     # ReFRACtor retrieval doesn't need any of this.

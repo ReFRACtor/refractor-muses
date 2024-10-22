@@ -92,6 +92,8 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
     except StopIteration:
         pass
     cfunc = cfcap.cost_function
+    # Save in case we want to access directly
+    pickle.dump(cfunc,open("cfunc.pkl", "wb"))    
     fm_sv = cfunc.fm_sv
     fm = cfunc.fm_list[0]
     pspec = PrintSpectrum()
