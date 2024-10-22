@@ -304,6 +304,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def run_retrieval(self, rs):
         '''run_retrieval'''
         self.cfunc = self.create_cost_function(rs)
+        rs.notify_update("create_cost_function", retrieval_strategy_step=self)
         maxIter = rs._strategy_executor.current_strategy_step.max_num_iterations
         
         # Various thresholds from the input table
