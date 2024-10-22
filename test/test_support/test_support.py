@@ -202,7 +202,7 @@ def tropomi_obs_step_1(osp_dir):
     return obs
 
 @pytest.fixture(scope="function")
-def tropomi_obs_sounding_2_band7(osp_dir):
+def tropomi_obs_sounding_2_band7(josh_osp_dir):
     # Observation going with trompomi_uip_step_1
     xtrack_dict = {"BAND7" : 205, 'CLOUD' : 205, 'IRR_BAND_1to6' : 204}
     atrack_dict = {"BAND7" : 2297, "CLOUD" : 2297}
@@ -212,10 +212,10 @@ def tropomi_obs_sounding_2_band7(osp_dir):
     filename_dict["CLOUD"] = f"{tropomi_test_in_dir2}/../S5P_RPRO_L2__CLOUD__20220628T171636_20220628T185806_24393_03_020401_20230119T091435.nc"
     utc_time = "2022-06-28T18:07:51.984098Z"
     filter_list = ["BAND7",]
-    mwfile = f"{osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
+    mwfile = f"{josh_osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=josh_osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs
@@ -324,7 +324,7 @@ def tropomi_uip_band7_swir_step(isolated_dir):
     return load_uip(tropomi_band7_swir_step_test_in_dir, step_number=1)
 
 @pytest.fixture(scope="function")
-def tropomi_obs_band7_swir_step(osp_dir):
+def tropomi_obs_band7_swir_step(josh_osp_dir):
     # Observation going with trompomi_uip_step_1
     xtrack_dict = {"BAND7" : 108, 'CLOUD' : 108, 'IRR_BAND_7to8' : 108}
     atrack_dict = {"BAND7" : 1008, "CLOUD" : 1008}
@@ -334,10 +334,10 @@ def tropomi_obs_band7_swir_step(osp_dir):
     filename_dict["CLOUD"]= f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L2__CLOUD__20220628T185806_20220628T203935_24394_03_020401_20230119T091438.nc"
     utc_time = "2022-06-28T19:33:47.130000Z"
     filter_list = ["BAND7",]
-    mwfile = f"{osp_dir}/Strategy_Tables/tropomi_nir/OSP-TROPOMI-BAND7/MWDefinitions/Windows_Nadir_O3-Band7.asc"
+    mwfile = f"{josh_osp_dir}/Strategy_Tables/tropomi_nir/OSP-TROPOMI-BAND7/MWDefinitions/Windows_Nadir_O3-Band7.asc"
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=josh_osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs

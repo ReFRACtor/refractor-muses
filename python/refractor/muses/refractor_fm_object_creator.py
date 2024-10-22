@@ -496,6 +496,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         atm = rf.AtmosphereStandard(self.absorber, self.pressure,
             self.temperature, self.rayleigh, self.relative_humidity,
             self.ground, self.alt_vec(), self.constants)
+        # Atmosphere doesn't directly use state vector elements, but it needs
+        # to know when this changes because the number of jacobian variables
+        # might change, and we need to know that the cache should be cleared.
+        self.fm_sv.add_observer(atm)
         return atm
 
     @cached_property
