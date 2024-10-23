@@ -334,7 +334,7 @@ def tropomi_obs_band7_swir_step(josh_osp_dir):
     filename_dict["CLOUD"]= f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L2__CLOUD__20220628T185806_20220628T203935_24394_03_020401_20230119T091438.nc"
     utc_time = "2022-06-28T19:33:47.130000Z"
     filter_list = ["BAND7",]
-    mwfile = f"{josh_osp_dir}/Strategy_Tables/tropomi_nir/OSP-TROPOMI-BAND7/MWDefinitions/Windows_Nadir_O3-Band7.asc"
+    mwfile = f"{josh_osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=josh_osp_dir)

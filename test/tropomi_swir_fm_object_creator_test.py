@@ -25,9 +25,6 @@ def tropomi_fm_object_creator_swir_step(tropomi_uip_band7_swir_step, tropomi_obs
                                       tropomi_obs_band7_swir_step,
                                       rf_uip=tropomi_uip_band7_swir_step)
 
-# Temporary, skip these. We have stuff in the OSP that isn't being found,
-# we can track that down
-@skip
 def test_ground_albedo(tropomi_fm_object_creator_swir_step,
                        tropomi_uip_band7_swir_step):
     """Test that the object creator reads the correct albedo
@@ -50,9 +47,6 @@ def test_ground_albedo(tropomi_fm_object_creator_swir_step,
     obj_state_map = tropomi_fm_object_creator_swir_step.ground_clear.state_mapping.retrieval_indexes
     assert np.array_equal(obj_state_map, [0, 1, 2])
 
-# Temporary, skip these. We have stuff in the OSP that isn't being found,
-# we can track that down
-@skip
 def test_absorber(tropomi_fm_object_creator_swir_step):
     # JLL: I chose these values of pressure, temperature, and H2O VMR
     # because they are points in the ABSCO table that I can just extract
@@ -78,9 +72,6 @@ def test_absorber(tropomi_fm_object_creator_swir_step):
         assert np.isclose(obj_xsec, expected_xsec[gas]), f'{gas} xsec does not match'
 
 
-# Temporary, skip these. We have stuff in the OSP that isn't being found,
-# we can track that down
-@skip
 def test_vmr(tropomi_fm_object_creator_swir_step, tropomi_uip_band7_swir_step):
     for i, name in enumerate(tropomi_fm_object_creator_swir_step.absorption_gases):
         obj_vmrs = tropomi_fm_object_creator_swir_step.absorber_vmr[i].vmr_profile
@@ -88,9 +79,6 @@ def test_vmr(tropomi_fm_object_creator_swir_step, tropomi_uip_band7_swir_step):
         assert np.allclose(obj_vmrs, uip_vmrs), f'{name} VMRs differ in the object creator and UIP'
 
 
-# Temporary, skip these. We have stuff in the OSP that isn't being found,
-# we can track that down
-@skip
 def test_ils_simple(tropomi_fm_object_creator_swir_step,
                           tropomi_band7_simple_ils_test_data):
     inner_ils_obj = tropomi_fm_object_creator_swir_step.instrument.ils(0)

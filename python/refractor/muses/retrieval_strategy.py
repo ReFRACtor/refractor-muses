@@ -79,7 +79,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     # TODO Add handling of writeOutput, writePlots, debug. I think we
     # can probably do that by just adding Observers
     def __init__(self, filename, vlidort_cli=None, writeOutput=False, writePlots=False,
-                 **kwargs):
+                 osp_dir=None, **kwargs):
         logger.info(f"Strategy table filename {filename}")
         self._capture_directory = RefractorCaptureDirectory()
         self._observers = set()
@@ -96,7 +96,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         
         self._state_info = StateInfo()
         self._state_element_handle_set = self._state_info.state_element_handle_set
-
+        self.osp_dir = osp_dir
+        if(self.osp_dir is None):
+            self.osp_dir = os.environ.get("MUSES_OSP_PATH", None)
+            
         # Right now, we hardcode the output observers. Probably want to
         # rework this
         self.add_observer(RetrievalJacobianOutput())
@@ -146,7 +149,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             mpy.clear_cache()
         self._filename = os.path.abspath(filename)
         self._capture_directory.rundir = os.path.dirname(self.strategy_table_filename)
-        self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.strategy_table_filename)
+        self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(self.strategy_table_filename, osp_dir=self.osp_dir)
         self._strategy_executor = MusesStrategyExecutorOldStrategyTable(
             self.strategy_table_filename, self,
             retrieval_strategy_step_set=self._retrieval_strategy_step_set,
