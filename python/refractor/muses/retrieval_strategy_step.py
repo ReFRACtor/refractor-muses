@@ -5,14 +5,9 @@ from pathlib import Path
 import copy
 from .priority_handle_set import PriorityHandleSet
 from pprint import pprint, pformat
-from .refractor_uip import RefractorUip
-from .cost_function import CostFunction
 from .muses_levmar_solver import MusesLevmarSolver
-from .current_state import CurrentState, CurrentStateUip, CurrentStateStateInfo
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import PropagatedQA, RetrievalResult
-from .muses_spectral_window import MusesSpectralWindow
-from functools import partial
 import numpy as np
 import subprocess
 
@@ -63,70 +58,6 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         otherwise'''
         raise NotImplementedError
 
-    def uip_func(self, rs, do_systematic, jacobian_speciesIn):
-        '''To support the old muses-py ForwardModel, we pass a uip_func to our
-        CostFunctionCreator that gets used if needed. This should only be used
-        by the old muses-py code, we shouldn't use this for ReFRACtor ForwardModel.
-        '''
-        if(self._uip is None):
-            if(do_systematic):
-                rinfo = rs.retrieval_info.retrieval_info_systematic()
-            else:
-                rinfo = rs.retrieval_info
-            o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
-                     "TROPOMI" : None, "OCO2" : None}
-            o_airs = None
-            o_tes = None
-            o_cris = None
-            o_omi = None
-            o_tropomi = None
-            o_oco2 = None
-            for iname in rs._strategy_executor.current_strategy_step.instrument_name:
-                if iname in o_xxx:
-                    obs = rs.observation_handle_set.observation(iname, None,
-                       MusesSpectralWindow(rs._strategy_executor.stable.spectral_window(iname), None),
-                       None)
-                    if hasattr(obs, "muses_py_dict"):
-                        o_xxx[iname] = obs.muses_py_dict
-            self._uip = RefractorUip.create_uip(rs._state_info, rs._strategy_executor.stable,
-                                                rs._strategy_executor.stable.microwindows(), rinfo,
-                                                o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
-                                                o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
-                                                jacobian_speciesIn=jacobian_speciesIn)
-        return self._uip
-
-    def create_cost_function(self, rs : 'RetrievalStrategy',
-                             do_systematic=False,
-                             include_bad_sample=False,
-                             fix_apriori_size=False,
-                             jacobian_speciesIn=None):
-        '''Create a CostFunction, for use either in retrieval or just for running
-        the forward model (the CostFunction is a little overkill for just a
-        forward model run, but it has all the pieces needed so no reason not to
-        just generate everything).
-
-        If do_systematic is True, then we use the systematic species list. '''
-        self._uip = None
-        self.cstate = CurrentStateStateInfo(
-            rs._state_info, rs.retrieval_info,
-            f"{rs.run_dir}/Step{rs.step_number:02d}_{rs.step_name}",
-            do_systematic=do_systematic,
-            retrieval_state_element_override=jacobian_speciesIn)
-        # Temp, until we get this sorted out
-        self.cstate.apriori_cov = rs.retrieval_info.apriori_cov
-        self.cstate.sqrt_constraint = (mpy.sqrt_matrix(self.cstate.apriori_cov)).transpose()
-        self.cstate.apriori = rs.retrieval_info.apriori
-        # TODO Would probably be good to remove include_bad_sample, it isn't clear that
-        # we ever want to run the forward model for bad samples. But right now the existing
-        # py-retrieve code requires this is a few places.a
-        return rs._cost_function_creator.cost_function(
-            rs._strategy_executor.current_strategy_step.instrument_name,
-            self.cstate,
-            rs._swin_dict,
-            partial(self.uip_func, rs, do_systematic, jacobian_speciesIn),
-            include_bad_sample=include_bad_sample,
-            fix_apriori_size=fix_apriori_size, **rs._kwargs)
-
     def radiance_step(self):
         '''We have a few places that need the old py-retrieve dict version of our
         observation data. This function calculates that - it is just a reformatting
@@ -170,9 +101,9 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         jacobianOut = None
         mytiming = None
         logger.info("Running run_forward_model ...")
-        self.cfunc = self.create_cost_function(rs, include_bad_sample=True,
-                                               fix_apriori_size=True,
-                                               jacobian_speciesIn=jacobian_speciesNames)
+        self.cfunc = rs._strategy_executor.create_cost_function(
+            include_bad_sample=True, fix_apriori_size=True,
+            jacobian_speciesIn=jacobian_speciesNames)
         radiance_fm = self.cfunc.max_a_posteriori.model
         freq_fm = np.concatenate([fm.spectral_domain_all().data
                                   for fm in self.cfunc.max_a_posteriori.forward_model])
@@ -206,7 +137,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         mytiming = None
         uip=tes = cris = omi = tropomi = None 
         logger.info("Running run_irk ...")
-        self.cfunc = self.create_cost_function(rs)
+        self.cfunc = rs._strategy_executor.create_cost_function()
         (resultsIRK, jacobianOut) = mpy.run_irk(
             rs._strategy_executor.stable.strategy_table_dict,
             rs._state_info, rs._strategy_executor.stable.microwindows(), rs.retrieval_info,
@@ -280,8 +211,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # weed them out. For right now, these are required, we would need to update
         # the error analysis to work without bad samples
         if(rs.retrieval_info.n_speciesSys > 0):
-            cfunc_sys = self.create_cost_function(rs, do_systematic=True,
-                                     include_bad_sample=True, fix_apriori_size=True)
+            cfunc_sys = rs._strategy_executor.create_cost_function(
+                do_systematic=True, include_bad_sample=True, fix_apriori_size=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.update_jacobian_sys(cfunc_sys)
 
@@ -303,7 +234,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
-        self.cfunc = self.create_cost_function(rs)
+        self.cfunc = rs._strategy_executor.create_cost_function()
         rs.notify_update("create_cost_function", retrieval_strategy_step=self)
         maxIter = rs._strategy_executor.current_strategy_step.max_num_iterations
         

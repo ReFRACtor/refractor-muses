@@ -5,7 +5,10 @@ from .strategy_table import StrategyTable
 from .error_analysis import ErrorAnalysis
 from .order_species import order_species
 from .spectral_window_handle import SpectralWindowHandleSet
+from .current_state import CurrentStateStateInfo
+from .muses_spectral_window import MusesSpectralWindow
 from .qa_data_handle import QaDataHandleSet
+from .refractor_uip import RefractorUip
 import refractor.muses.muses_py as mpy
 import abc
 import copy
@@ -224,6 +227,63 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def retrieval_strategy_step_set(self):
         '''The RetrievalStrategyStepSet to use for getting RetrievalStrategyStep.'''
         return self._retrieval_strategy_step_set
+
+    def uip_func(self, do_systematic=False, jacobian_speciesIn=None):
+        if(do_systematic):
+            rinfo = self.retrieval_info.retrieval_info_systematic()
+        else:
+            rinfo = self.retrieval_info
+        o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
+                 "TROPOMI" : None, "OCO2" : None}
+        o_airs = None
+        o_tes = None
+        o_cris = None
+        o_omi = None
+        o_tropomi = None
+        o_oco2 = None
+        for iname in self.current_strategy_step.instrument_name:
+            if iname in o_xxx:
+                obs = self.rs.observation_handle_set.observation(
+                    iname, None, MusesSpectralWindow(self.stable.spectral_window(iname), None),
+                    None)
+                if hasattr(obs, "muses_py_dict"):
+                    o_xxx[iname] = obs.muses_py_dict
+        return RefractorUip.create_uip(
+            self.state_info, self.stable,
+            self.stable.microwindows(), rinfo,
+            o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
+            o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
+            jacobian_speciesIn=jacobian_speciesIn)
+
+    def create_cost_function(self, do_systematic=False, include_bad_sample=False,
+                             fix_apriori_size=False, jacobian_speciesIn=None):
+        '''Create a CostFunction, for use either in retrieval or just for running
+        the forward model (the CostFunction is a little overkill for just a
+        forward model run, but it has all the pieces needed so no reason not to
+        just generate everything).
+
+        If do_systematic is True, then we use the systematic species list. '''
+        cstate = CurrentStateStateInfo(
+            self.state_info, self.retrieval_info,
+            f"{self.rs.run_dir}/Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}",
+            do_systematic=do_systematic,
+            retrieval_state_element_override=jacobian_speciesIn)
+        # Temp, until we get this sorted out
+        cstate.apriori_cov = self.retrieval_info.apriori_cov
+        cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
+        cstate.apriori = self.retrieval_info.apriori
+
+        # TODO Would probably be good to remove include_bad_sample, it isn't clear that
+        # we ever want to run the forward model for bad samples. But right now the
+        # existing
+        # py-retrieve code requires this is a few places.a
+        return self.rs._cost_function_creator.cost_function(
+            self.current_strategy_step.instrument_name,
+            cstate,
+            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
+            functools.partial(self.uip_func, do_systematic, jacobian_speciesIn),
+            include_bad_sample=include_bad_sample,
+            fix_apriori_size=fix_apriori_size, **self.rs._kwargs)
 
 class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrategyStep):
     '''Placeholder that wraps the muses-py strategy table up, so we can get the
