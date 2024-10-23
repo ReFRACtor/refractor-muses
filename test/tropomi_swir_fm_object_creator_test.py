@@ -23,6 +23,7 @@ def tropomi_fm_object_creator_swir_step(tropomi_uip_band7_swir_step, tropomi_obs
                             rconf, flist)
     return TropomiSwirFmObjectCreator(CurrentStateUip(tropomi_uip_band7_swir_step), mid,
                                       tropomi_obs_band7_swir_step,
+                                      osp_dir=josh_osp_dir,
                                       rf_uip=tropomi_uip_band7_swir_step)
 
 def test_ground_albedo(tropomi_fm_object_creator_swir_step,
