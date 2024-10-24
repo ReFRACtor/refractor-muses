@@ -15,7 +15,8 @@ class MusesLevmarSolver:
     '''
     def __init__(self, cfunc: CostFunction, 
                  max_iter: int, delta_value: float, conv_tolerance: float,
-                 chi2_tolerance: float, log_file: Optional[str] = None):
+                 chi2_tolerance: float, log_file: Optional[str] = None,
+                 verbose=False):
         self.cfunc = cfunc
         self.max_iter = max_iter
         self.delta_value = delta_value
@@ -32,6 +33,7 @@ class MusesLevmarSolver:
         self.radiance_iter = np.zeros((1,1))
         self.iterNum = 0
         self.stopCode = -1
+        self.verbose = verbose
 
     def retrieval_results(self):
         '''Return the retrieval results dict. Hopefully this can go away, this
@@ -96,7 +98,7 @@ class MusesLevmarSolver:
                          None, 
                          {},
                          self.max_iter, 
-                         verbose=False, 
+                         verbose=self.verbose, 
                          delta_value=self.delta_value, 
                          ConvTolerance=self.conv_tolerance,
                          Chi2Tolerance=self.chi2_tolerance,

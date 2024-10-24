@@ -1,4 +1,5 @@
 from .retrieval_strategy_step_new import RetrievalStrategyStepSetNew
+from .refractor_capture_directory import muses_py_call
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .retrieval_info import RetrievalInfo
 from .strategy_table import StrategyTable
@@ -248,12 +249,14 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                     None)
                 if hasattr(obs, "muses_py_dict"):
                     o_xxx[iname] = obs.muses_py_dict
-        return RefractorUip.create_uip(
-            self.state_info, self.stable,
-            self.stable.microwindows(), rinfo,
-            o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
-            o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
-            jacobian_speciesIn=jacobian_speciesIn)
+        with muses_py_call(self.rs.run_dir,
+                           vlidort_cli=self.rs.vlidort_cli):
+            return RefractorUip.create_uip(
+                self.state_info, self.stable,
+                self.stable.microwindows(), rinfo,
+                o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
+                o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
+                jacobian_speciesIn=jacobian_speciesIn)
 
     def create_cost_function(self, do_systematic=False, include_bad_sample=False,
                              fix_apriori_size=False, jacobian_speciesIn=None):
@@ -407,10 +410,26 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.rs._state_info.next_state_to_current()
         self.rs.notify_update("done next_state_to_current")
         logger.info(f"Done with step {self.current_strategy_step.step_number}")
-
+        
     @log_timing
-    def execute_retrieval(self):
-        '''Run through all the steps, i.e., do a full retrieval.'''
+    def execute_retrieval(self, stop_at_step=None):
+        '''Run through all the steps, i.e., do a full retrieval.
+        
+        Note for various testing purposes, you can have the retrieval stop at the given
+        step. This can be useful for looking at problems with an individual step, or
+        to run a simulation at a particular step.'''
+        # Currently the initialization etc. code assumes we are in the run directory.
+        # Hopefully we can remove this in the future, but for now we need this
+        with muses_py_call(self.rs.run_dir,
+                           vlidort_cli=self.rs.vlidort_cli):
+            self.execute_retrieval_body(stop_at_step=stop_at_step)
+        
+    def execute_retrieval_body(self, stop_at_step=None):
+        '''Run through all the steps, i.e., do a full retrieval.
+        
+        Note for various testing purposes, you can have the retrieval stop at the given
+        step. This can be useful for looking at problems with an individual step, or
+        to run a simulation at a particular step.'''
         self.state_info = self.rs._state_info
         with self.stable.chdir_run_dir():
             self.state_info.init_state(self.stable,
@@ -453,6 +472,9 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.rs.notify_update("starting retrieval steps")
         self.restart()
         while(not self.is_done()):
+            if(stop_at_step is not None and
+               stop_at_step == self.current_strategy_step.step_number):
+                return
             self.rs.notify_update("starting run_step")
             self.run_step()
             self.next_step()

@@ -262,6 +262,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                      delta_value,
                                      ConvTolerance,   
                                      Chi2Tolerance,
+                                     verbose=True,
                                      log_file=levmar_log_file)
         if(maxIter > 0):
             self.slv.solve()

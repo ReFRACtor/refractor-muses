@@ -402,7 +402,129 @@ class MusesObservationImp(MusesObservation):
         # for negative values).
         return np.array(self.nesr_full(sensor_index) < 0)
 
+class SimulatedObservation(MusesObservationImp):
+    '''This is a Observation based off of a underlying observation. We get the
+    various pieces from the underlying observation, except we replace the
+    radiance with other values (e.g, from a forward model run.'''
+    def __init__(self, obs : MusesObservationImp, replacement_spectrum : 'list(np.array)'):
+        super().__init__(obs.muses_py_dict, obs.sounding_desc,
+                         num_channels=obs.num_channels)
+        self._obs = copy.deepcopy(obs)
+        # We only have replacement_spectrum where the current spectral window is. We
+        # just pretend that all the pixels outside of the spectral window are bad,
+        # because we don't have other values.
+        self._nesr_full = []
+        self._rad_full = []
+        self._spectral_window = copy.deepcopy(obs.spectral_window)
+        for i in range(self.num_channels):
+            gpt = obs.radiance(i).spectral_domain.sample_index - 1
+            t = obs.nesr_full(i)
+            t2 = np.full_like(t, -9999)
+            t2[gpt] = t[gpt]
+            self._nesr_full.append(t2)
+            t = obs.radiance_full(i, skip_jacobian=True)
+            t2 = np.full_like(t, -9999)
+            t2[gpt] = replacement_spectrum[i]
+            self._rad_full.append(t2)
 
+        # Update bad pixel mask for our spectral window
+        self.spectral_window.add_bad_sample_mask(self)
+
+    @property
+    def filter_list(self):
+        return self._obs.filter_list
+        
+    @property
+    def instrument_name(self):
+        return self._obs.instrument_name
+        
+    @property
+    def cloud_pressure(self):
+        return self._obs.cloud_pressure
+
+    @property
+    def observation_table(self):
+        return self._obs.observation_table
+
+    @property
+    def across_track(self) -> 'list[int]':
+        return self._obs.across_track
+
+    @property
+    def earth_sun_distance(self) -> float:
+        return self._obs.earth_sun_distance
+
+    @property
+    def solar_zenith(self) -> "np.array":
+        return self._obs.solar_zenith
+
+    @property
+    def observation_zenith(self) -> "np.array":
+        return self._obs.observation_zenith
+
+    @property
+    def relative_azimuth(self) -> "np.array":
+        return self._obs.relative_azimuth
+
+    @property
+    def latitude(self) -> "np.array":
+        return self._obs.latitude
+
+    @property
+    def longitude(self) -> "np.array":
+        return self._obs.longitude
+
+    @property
+    def filter_data(self) -> "list[str,int]":
+        return self._obs.filter_data
+    
+    def update_coeff_and_mapping(self, coeff : "np.array[float]", mp : 'rf.StateMapping'):
+        # We don't do any updating here, the observation stays fixed
+        pass
+
+    @property
+    def spectral_window(self):
+        return self._spectral_window
+
+    @spectral_window.setter
+    def spectral_window(self, val):
+        self._spectral_window = val
+
+    def radiance_full(self, sensor_index, skip_jacobian=False):
+        '''The full list of radiance, before we have removed bad samples or applied the
+        microwindows.'''
+        return self._rad_full[sensor_index]
+
+    def frequency_full(self, sensor_index):
+        '''The full list of frequency, before we have removed bad samples or applied the
+        microwindows.'''
+        return self._obs.frequency_full(sensor_index)
+
+    def nesr_full(self, sensor_index):
+        '''The full list of NESR, before we have removed bad samples or applied the
+        microwindows.'''
+        return self._nesr_full[sensor_index]
+
+class SimulatedObservationHandle(ObservationHandle):
+    '''Just return the given observation always for the given instrument.
+    This is intended for testing, with for example a SimulatedObservation.'''
+    def __init__(self, instrument_name, obs : MusesObservation):
+        self.instrument_name = instrument_name
+        self.obs = obs
+
+    def notify_update_target(self, measurement_id : MeasurementId):
+        self.measurement_id = measurement_id
+        
+    def observation(self, instrument_name : str,
+                    current_state : 'Optional(CurrentState)',
+                    spec_win : "Optional(MusesSpectralWindow)",
+                    fm_sv: "Optional(rf.StateVector)",
+                    osp_dir=None,
+                    **kwargs):
+        if(instrument_name != self.instrument_name):
+            return None
+        return copy.deepcopy(self.obs)
+    
 class MusesObservationHandle(ObservationHandle):
     '''A lot of our observation classes just map a name to
     a object of a specific class. This handles this generic construction.'''
@@ -985,6 +1107,15 @@ class MusesObservationReflectance(MusesObservationImp):
         sr = rf.SpectralRange(nrad_ad, rf.Unit("sr^-1"), uncer)
         sd = self.spectral_domain_full(sensor_index)
         return rf.Spectrum(sd, sr)
+
+    def radiance_full(self, sensor_index, skip_jacobian=False):
+        '''The full list of radiance, before we have removed bad samples or applied the
+        microwindows.'''
+        if(skip_jacobian):
+            return self.spectrum_full(sensor_index, skip_jacobian=True).spectral_range.data
+        else:
+            return self.spectrum_full(sensor_index, skip_jacobian=False).spectral_range.data_ad
+        
     
 
 class MusesTropomiObservation(MusesObservationReflectance):
@@ -1355,4 +1486,5 @@ ObservationHandleSet.add_default_handle(MusesObservationHandle("OMI",
 __all__ = ["MusesAirsObservation", "MusesObservation", "MusesObservationHandle",
            "MusesCrisObservation", "MusesObservationReflectance",
            "MusesTropomiObservation", "MusesOmiObservation", "MeasurementId",
-           "MeasurementIdDict", "MeasurementIdFile"]
+           "MeasurementIdDict", "MeasurementIdFile",
+           "SimulatedObservation", "SimulatedObservationHandle"]

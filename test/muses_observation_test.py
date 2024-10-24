@@ -2,12 +2,15 @@ from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              MusesCrisObservation,
                              MusesTropomiObservation, MusesOmiObservation,
                              ObservationHandleSet,
+                             SimulatedObservation,
                              MeasurementIdFile, RetrievalConfiguration,
                              CurrentStateDict, MusesSpectralWindow)
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
                                                MusesCrisObservationOld, MusesAirsObservationOld)
 import refractor.framework as rf
 from test_support import *
+import copy
+
 
 def test_measurement_id(isolated_dir, osp_dir, gmao_dir):
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
@@ -328,3 +331,12 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     print(obs.spectral_domain(1).sample_index)
     # Check handling of data with bad samples. Should get set to -999
     print(obs.radiance(1).spectral_range.data)
+
+def test_simulated_obs(tropomi_obs_step_1):
+    rad = [copy.copy(tropomi_obs_step_1.radiance(0).spectral_range.data),]
+    rad[0] *= 0.75
+    obs = SimulatedObservation(tropomi_obs_step_1, rad)
+    npt.assert_allclose(obs.spectral_domain(0).data, tropomi_obs_step_1.spectral_domain(0).data)
+    npt.assert_allclose(obs.radiance(0).spectral_range.data,
+                        tropomi_obs_step_1.radiance(0).spectral_range.data*0.75)
+    

@@ -214,23 +214,24 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     def retrieval_ms(self):
         '''This is script_retrieval_ms in muses-py'''
-        # Wrapper around calling mpy. We can perhaps pull some this out, but
-        # for now we'll do that.
-        with muses_py_call(self.run_dir,
-                           vlidort_cli=self.vlidort_cli):
-            self._strategy_executor.execute_retrieval()
-            exitcode = 37
-            logger.info(f"Done")
-            logger.info('\n---')    
-            logger.info(f"signaling successful completion w/ exit code {exitcode}")
-            logger.info('\n---')    
-            logger.info('\n---')    
-            return exitcode
+        self._strategy_executor.execute_retrieval()
+        exitcode = 37
+        logger.info(f"Done")
+        logger.info('\n---')    
+        logger.info(f"signaling successful completion w/ exit code {exitcode}")
+        logger.info('\n---')    
+        logger.info('\n---')    
+        return exitcode
 
     def continue_retrieval(self):
         '''After saving a pickled step, you can continue the processing starting
         at that step to diagnose a problem.'''
         self._strategy_executor.continue_retrieval()
+
+    @property
+    def strategy_executor(self) -> 'MusesStrategyExecutor':
+        '''The MusesStrategyExecutor used to run through the strategy'''
+        return self._strategy_executor
 
     @property
     def run_dir(self) -> str:

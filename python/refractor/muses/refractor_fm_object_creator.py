@@ -84,7 +84,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # not have been added. Note it is safe to add this multiple times, so we
         # don't need to worry if it is already there. I don't think this will ever
         # cause a problem, but we have a option to skip this if needed.
-        if(not skip_observation_add):
+        if(not skip_observation_add and len(self.observation.state_element_name_list()) > 0):
             coeff,mp = self.current_state.object_state(self.observation.state_element_name_list())
             self.observation.update_coeff_and_mapping(coeff,mp)
             self.current_state.add_fm_state_vector_if_needed(
