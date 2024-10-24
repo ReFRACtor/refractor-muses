@@ -243,7 +243,14 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     
 class MusesObservationImp(MusesObservation):
-    '''Common behavior for each of the MusesObservation classes we have'''
+    '''Common behavior for each of the MusesObservation classes we have.
+
+    Note that muses_py_dict is the old structure used in py-retrieve. We
+    *only* use this internally, except for the creation of the old UIP that also
+    depends on this (see MusesStrategyExecutor.uip_func).  We want to get to the
+    point where the only use of the uip is to support the old py-retrieve forward
+    models - however we are still cleaning a few spots.  But for now, we rely on
+    having muses_py_dict.'''
     def __init__(self, muses_py_dict, sdesc, num_channels=1, coeff=None,mp=None):
         if(coeff is None):
             super().__init__([])
@@ -407,6 +414,12 @@ class SimulatedObservation(MusesObservationImp):
     various pieces from the underlying observation, except we replace the
     radiance with other values (e.g, from a forward model run.'''
     def __init__(self, obs : MusesObservationImp, replacement_spectrum : 'list(np.array)'):
+        # Note the muses_py_dict is needed here, although only for generating
+        # a UIP. Right now we still need that functionality in a few places.
+        # The long term goal is to have this *only* used by the old py-retrieve
+        # forward models, but we still are working to that point. If we get there,
+        # it would be reasonable to remove the muses_py_dict and just not have
+        # SimulatedObservation work with the old forward models.
         super().__init__(obs.muses_py_dict, obs.sounding_desc,
                          num_channels=obs.num_channels)
         self._obs = copy.deepcopy(obs)

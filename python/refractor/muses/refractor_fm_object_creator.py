@@ -291,10 +291,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         cases, this pressure object is what is needed by the ForwardModel,
         which is the pressure on the forward model grid.'''
         # 100 is to convert hPa used by py-retrieve to Pa we use here.
-        plev = self.rf_uip.atmosphere_column("pressure") * 100
+        plev_fm, _ = self.current_state.object_state(["pressure",])
+        # 100 is to convert hPa used by py-retrieve to Pa we use here.
+        plev_fm *= 100.0
 
-        surface_pressure = plev[0]
-        return rf.PressureSigma(plev, surface_pressure,
+        surface_pressure = plev_fm[0]
+        return rf.PressureSigma(plev_fm, surface_pressure,
                                 rf.Pressure.PREFER_DECREASING_PRESSURE)
 
     @property
