@@ -3,6 +3,8 @@ from refractor.muses import (MusesRunDir, RetrievalStrategy,
                              RetrievalStrategyCaptureObserver,
                              RetrievableStateElement,
                              SingleSpeciesHandle,
+                             SimulatedObservation,
+                             SimulatedObservationHandle,
                              StateInfo,
                              RetrievalInfo,
                              CurrentStateUip)
@@ -154,6 +156,62 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
     #print(np.abs(pspec.data['high_res_rt'][2][1] - pspec.data['high_res_rt'][0][1]).max())
     # All zero. Why?
     breakpoint()
+
+@long_test
+@require_muses_py
+def test_simulated_retrieval(gmao_dir, josh_osp_dir):
+    '''Do a simulation, and then a retrieval to get this result'''
+    subprocess.run("rm -f -r swir_simulation", shell=True)
+    mrdir = MusesRunDir(tropomi_band7_test_in_dir2, josh_osp_dir, gmao_dir,
+                        path_prefix = "./swir_simulation")
+    subprocess.run(f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {mrdir.run_dir}/Table.asc', shell=True)
+    rs = RetrievalStrategy(None,osp_dir=josh_osp_dir)
+    ihandle = TropomiSwirForwardModelHandle(use_pca=True, use_lrad=False,
+                                            lrad_second_order=False,
+                                            osp_dir=josh_osp_dir)
+    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    rs.update_target(f"{mrdir.run_dir}/Table.asc")
+    
+    # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
+    # do the first retrieval step). We then grab the CostFunction for that step,
+    # which we can use for simulation purposes.
+    rs.strategy_executor.execute_retrieval(stop_at_step=0)
+    cfunc = rs.strategy_executor.create_cost_function()
+    pickle.dump(cfunc,open("swir_simulation/cfunc_initial_guess.pkl","wb"))
+
+    # Get the log vmr values set in the state vector. This is the initial guess.
+    # For purposes of a simulation, we will say the "right" answer is to reduce the
+    # VMR by 25%. So calculate the "true" log vmr and update the cost function with
+    # this set of parameters.
+    vmr_log_initial = cfunc.parameters
+    vmr_initial = np.exp(vmr_log_initial)
+    vmr_true = 0.75 * vmr_initial
+    vmr_log_true = np.log(vmr_true)
+    cfunc.parameters = vmr_log_true
+
+    # Run forward model and get "true" radiance.
+    rad_true = [cfunc.fm_list[0].radiance(0, True).spectral_range.data,]
+    obs_sim = SimulatedObservation(cfunc.obs_list[0], rad_true)
+    pickle.dump(obs_sim, open("swir_simulation/obs_sim.pkl", "wb"))
+
+    # Have simulated observation, and do retrieval
+    ohandle = SimulatedObservationHandle(
+        "TROPOMI", pickle.load(open("swir_simulation/obs_sim.pkl", "rb")))
+    rs.observation_handle_set.add_handle(ohandle, priority_order=100)
+    rs.update_target(f"{mrdir.run_dir}/Table.asc")
+    rs.retrieval_ms()
+    
+    
+    
+    
+    
+    
+
+
+
+
+
+
 
     
 
