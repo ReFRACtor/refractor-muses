@@ -330,3 +330,25 @@ def test_compare_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
         subprocess.run(cmd, shell=True, check=diff_is_error)
     
 
+def test_compare_altitude(tropomi_fm_object_creator_step_1):
+    '''Compare MuseAltitude and ReFRACtor altitude'''
+    alt1 = tropomi_fm_object_creator_step_1.altitude_muses[0]
+    alt2 = tropomi_fm_object_creator_step_1.altitude_refractor[0]
+    p = tropomi_fm_object_creator_step_1.pressure.pressure_grid()
+    print(alt1.gravity(p[0]).units.name)
+    print(alt2.gravity(p[0]).units.name)
+    print(alt1.altitude(p[0]).units.name)
+    print(alt2.altitude(p[0]).units.name)
+    gdifper = []
+    adifper = []
+    for i in range(p.rows):
+        print(f"gravity {i}: {alt1.gravity(p[i]).value.value} {alt2.gravity(p[i]).value.value} diff: {(alt1.gravity(p[i]).value.value - alt2.gravity(p[i]).value.value) / alt1.gravity(p[i]).value.value * 100} %")
+        print(f"altitude {i}: {alt1.altitude(p[i]).value.value} {alt2.altitude(p[i]).value.value*1000} diff: {(alt1.altitude(p[i]).value.value - alt2.altitude(p[i]).value.value*1000) / max(alt1.altitude(p[i]).value.value,1) * 100} %")
+        gdifper.append((alt1.gravity(p[i]).value.value - alt2.gravity(p[i]).value.value) / alt1.gravity(p[i]).value.value * 100)
+        adifper.append((alt1.altitude(p[i]).value.value - alt2.altitude(p[i]).value.value*1000) / max(alt1.altitude(p[i]).value.value,1) * 100)
+
+    # Check that we are close. Gravity is almost identical, altitude varies a little more
+    # near the top of the atmosphere but is still pretty close. These are percent differences
+    assert np.abs(gdifper).max() < 0.005
+    assert np.abs(adifper).max() < 0.55
+    
