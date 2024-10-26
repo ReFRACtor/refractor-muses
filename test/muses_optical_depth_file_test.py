@@ -16,16 +16,17 @@ def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp
     mid = MeasurementIdFile(f"{test_base_path}/tropomi/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_2), mid,
-                                  tropomi_obs_step_2, rf_uip=tropomi_uip_step_2)
+                                  tropomi_obs_step_2, rf_uip_func=lambda: tropomi_uip_step_2)
 
 
 @require_muses_py
-def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2):
+def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2,
+                                  tropomi_uip_step_2):
     obj_creator = tropomi_fm_object_creator_step_2
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
-    obj_creator.rf_uip.uip_tropomi["jacobians"] = ["O3",]
+    tropomi_uip_step_2.uip_tropomi["jacobians"] = ["O3",]
     mod  = MusesOpticalDepthFile(obj_creator.ray_info,
                                  obj_creator.pressure,
                                  obj_creator.temperature, obj_creator.altitude,
@@ -38,11 +39,11 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2):
     obj_creator.fm_sv.remove_observer(obj_creator.absorber_vmr[0])
     sv.add_observer(obj_creator.absorber_vmr[0])
     sv_val = []
-    sv_val = np.log(obj_creator.rf_uip.atmosphere_column("O3"))
+    sv_val = np.log(tropomi_uip_step_2.atmosphere_column("O3"))
     sv.update_state(sv_val)
     # Make sure update to sv gets reflected in UIP
-    obj_creator.rf_uip.refractor_cache["atouip_O3"] =  \
-        AbsorberVmrToUip(obj_creator.rf_uip, obj_creator.pressure,
+    tropomi_uip_step_2.refractor_cache["atouip_O3"] =  \
+        AbsorberVmrToUip(tropomi_uip_step_2, obj_creator.pressure,
                          obj_creator.absorber_vmr[0], "O3")
     
     # Pick a wavenumber in the forward model, but not at the edge. Pretty

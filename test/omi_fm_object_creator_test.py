@@ -23,7 +23,7 @@ def omi_fm_object_creator_step_1(omi_uip_step_1, omi_obs_step_1, osp_dir):
     mid = MeasurementIdFile(f"{test_base_path}/omi/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
     return OmiFmObjectCreator(CurrentStateUip(omi_uip_step_1), mid, omi_obs_step_1,
-                              rf_uip=omi_uip_step_1)
+                              rf_uip_func=lambda: omi_uip_step_1)
 
 @pytest.fixture(scope="function")
 def omi_fm_object_creator_step_2(omi_uip_step_2, omi_obs_step_2, osp_dir):
@@ -35,7 +35,7 @@ def omi_fm_object_creator_step_2(omi_uip_step_2, omi_obs_step_2, osp_dir):
     mid = MeasurementIdFile(f"{test_base_path}/omi/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
     return OmiFmObjectCreator(CurrentStateUip(omi_uip_step_2), mid, omi_obs_step_2,
-                              rf_uip=omi_uip_step_2)
+                              rf_uip_func=lambda: omi_uip_step_2)
 
 def test_solar_model(omi_fm_object_creator_step_1):
     print(omi_fm_object_creator_step_1.omi_solar_model[0])
@@ -130,7 +130,7 @@ def test_fm_run_step2(omi_fm_object_creator_step_2, omi_uip_step_2, omi_obs_step
         f"{test_base_path}/omi/in/sounding_1/Table.asc", osp_dir=osp_dir)
     omi_fm_object_creator_step_2.fm_sv.remove_observer(omi_obs_step_2)
     fm = OmiFmObjectCreator(CurrentStateUip(omi_uip_step_2), rconf, omi_obs_step_2,
-                            rf_uip=omi_uip_step_2, use_pca=True, use_lrad=False,
+                            rf_uip_func=lambda: omi_uip_step_2, use_pca=True, use_lrad=False,
                             lrad_second_order=False).forward_model
 
     if DEBUG:

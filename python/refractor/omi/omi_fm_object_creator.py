@@ -74,7 +74,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         # may want to put part of the functionality there - e.g., read the whole
         # ILS table here and then have the calculation of the spectrum in
         # MusesSpectrumSampling
-        return self.rf_uip.ils_params(sensor_index, self.instrument_name)
+        return self.rf_uip_func().ils_params(sensor_index, self.instrument_name)
 
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
@@ -295,7 +295,7 @@ class OmiForwardModelHandle(ForwardModelHandle):
         if(instrument_name != "OMI"):
             return None
         obj_creator = OmiFmObjectCreator(current_state, self.measurement_id, obs,
-                                         rf_uip = rf_uip_func(),
+                                         rf_uip_func = rf_uip_func,
                                          fm_sv = fm_sv, **self.creator_kwargs)
         fm = obj_creator.forward_model
         logger.info(f"OMI Forward model\n{fm}")

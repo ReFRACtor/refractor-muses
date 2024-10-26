@@ -315,6 +315,11 @@ class MusesObservationImp(MusesObservation):
     def latitude(self) -> "np.array":
         return np.array([float(self._avg_obs("Latitude", i))
                          for i in range(self.num_channels)])
+    
+    @property
+    def surface_height(self)  -> "np.array":
+        return np.array([float(self._avg_obs("TerrainHeight", i))
+                         for i in range(self.num_channels)])
 
     @property
     def longitude(self) -> "np.array":

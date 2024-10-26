@@ -25,7 +25,7 @@ def tropomi_fm_object_creator_step_1(tropomi_uip_step_1, tropomi_obs_step_1, osp
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_1), mid,
                                   tropomi_obs_step_1,
-                                  rf_uip=tropomi_uip_step_1)
+                                  rf_uip_func=lambda: tropomi_uip_step_1)
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp_dir):
@@ -38,7 +38,7 @@ def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_2), mid,
                                   tropomi_obs_step_2,
-                                  rf_uip=tropomi_uip_step_2)
+                                  rf_uip_func=lambda:tropomi_uip_step_2)
 
 
 
@@ -202,11 +202,11 @@ def test_forward_model_step2(tropomi_fm_object_creator_step_2):
     
     
 @require_muses_py
-def test_species_basis(tropomi_fm_object_creator_step_2):
+def test_species_basis(tropomi_uip_step_2):
     # Check that we are consistent with our species_basis_matrix
     # and atmosphere_retrieval_level_subset.
-    npt.assert_allclose(tropomi_fm_object_creator_step_2.rf_uip.species_basis_matrix("O3"),
-                        tropomi_fm_object_creator_step_2.rf_uip.species_basis_matrix_calc("O3"))
+    npt.assert_allclose(tropomi_uip_step_2.species_basis_matrix("O3"),
+                        tropomi_uip_step_2.species_basis_matrix_calc("O3"))
 
 
 @require_muses_py
@@ -329,3 +329,4 @@ def test_compare_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
         print(cmd, flush=True)
         subprocess.run(cmd, shell=True, check=diff_is_error)
     
+
