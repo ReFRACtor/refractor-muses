@@ -115,10 +115,7 @@ class CostFunctionCreator:
         for uip in self._rf_uip.values():
             if(uip.basis_matrix is not None):
                 cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(uip))
-        # TODO, we want to get the parameters from CurrentState object, but we
-        # don't have that in place yet. Fall back to the RefractorUip, which we should
-        # remove in the future
-        cfunc.parameters = self._rf_uip_func_wrap().current_state_x
+        cfunc.parameters = current_state.initial_guess
         return cfunc
 
     def _forward_model(self,

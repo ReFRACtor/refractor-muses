@@ -34,6 +34,16 @@ class RetrievalInfo:
         self._map_type_systematic = mpy.constraint_get_maptype(error_analysis.error_current, self.species_list_sys)
 
     @property
+    def basis_matrix(self):
+        '''Basis matrix to go from forward model grid to retrieval grid.
+        By convention, None if we don't actually have any retrieval parameters.'''
+        if(self.n_totalParameters == 0):
+            return None
+        mmm = self.n_totalParameters
+        nnn = self.n_totalParametersFM
+        return self.mapToState[0:mmm, 0:nnn]
+
+    @property
     def retrieval_info_obj(self):
         return mpy.ObjectView(self.retrieval_dict)
 
