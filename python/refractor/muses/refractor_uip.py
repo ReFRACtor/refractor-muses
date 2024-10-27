@@ -1345,9 +1345,17 @@ class RefractorUip:
     @classmethod
     def create_uip(cls, i_stateInfo, i_strategy_table, i_windows,     
                    i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi,
-                   i_oco2, jacobian_speciesIn=None):
-        '''We duplicate what mpy.run_retrieval does to make the uip.'''
+                   i_oco2, jacobian_speciesIn=None,
+                   only_create_instrument=None):
+        '''We duplicate what mpy.run_retrieval does to make the uip.
+
+        To help reduce coupling, you can give the instrument you want, we'll create
+        only that UIP. Default is None for everything found in the instrument windows.
+        '''
         i_windows = copy.deepcopy(i_windows)
+        # Filter to only include the desired instrument
+        if(only_create_instrument is not None):
+            i_windows = [w for w in i_windows if w["instrument"] == only_create_instrument]
         # Bit if a kludge here, but we adjust the windows for the CRIS instrument
         if(i_cris is not None):
             for win in i_windows:

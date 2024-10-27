@@ -210,7 +210,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
                       **kwargs):
         if(instrument_name != self.instrument_name):
             return None
-        return self.cls(rf_uip_func(), obs, **kwargs)
+        return self.cls(rf_uip_func(instrument=instrument_name), obs, **kwargs)
 
 # The Muses code is the fallback, so add with the lowest priority
 ForwardModelHandleSet.add_default_handle(

@@ -91,7 +91,7 @@ class TropomiSwirForwardModelHandle(ForwardModelHandle):
             return None
         obj_creator = TropomiSwirFmObjectCreator(current_state,
                                                  self.measurement_id, obs,
-                                                 rf_uip=rf_uip_func(),
+                                                 rf_uip_func=rf_uip_func,
                                                  fm_sv=fm_sv,
                                                  **self.creator_kwargs)
         fm = obj_creator.forward_model

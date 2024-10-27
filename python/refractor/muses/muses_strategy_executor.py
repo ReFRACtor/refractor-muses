@@ -229,7 +229,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         '''The RetrievalStrategyStepSet to use for getting RetrievalStrategyStep.'''
         return self._retrieval_strategy_step_set
 
-    def uip_func(self, do_systematic=False, jacobian_speciesIn=None):
+    def uip_func(self, instrument=None, do_systematic=False, jacobian_speciesIn=None):
+        '''To reduce coupling, you can give the instrument name to use. The default
+        is None, which means to create all instruments used in this step.'''
         if(do_systematic):
             rinfo = self.retrieval_info.retrieval_info_systematic()
         else:
@@ -244,11 +246,12 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         o_oco2 = None
         for iname in self.current_strategy_step.instrument_name:
             if iname in o_xxx:
-                obs = self.rs.observation_handle_set.observation(
-                    iname, None, MusesSpectralWindow(self.stable.spectral_window(iname), None),
-                    None)
-                if hasattr(obs, "muses_py_dict"):
-                    o_xxx[iname] = obs.muses_py_dict
+                if(instrument is None or iname == instrument):
+                    obs = self.rs.observation_handle_set.observation(
+                        iname, None, MusesSpectralWindow(self.stable.spectral_window(iname), None),
+                        None)
+                    if hasattr(obs, "muses_py_dict"):
+                        o_xxx[iname] = obs.muses_py_dict
         with muses_py_call(self.rs.run_dir,
                            vlidort_cli=self.rs.vlidort_cli):
             return RefractorUip.create_uip(
@@ -256,7 +259,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 self.stable.microwindows(), rinfo,
                 o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
                 o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
-                jacobian_speciesIn=jacobian_speciesIn)
+                jacobian_speciesIn=jacobian_speciesIn,
+                only_create_instrument=instrument)
 
     def create_cost_function(self, do_systematic=False, include_bad_sample=False,
                              fix_apriori_size=False, jacobian_speciesIn=None):
@@ -284,7 +288,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.current_strategy_step.instrument_name,
             cstate,
             self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
-            functools.partial(self.uip_func, do_systematic, jacobian_speciesIn),
+            functools.partial(self.uip_func, do_systematic=do_systematic,
+                              jacobian_speciesIn=jacobian_speciesIn),
             include_bad_sample=include_bad_sample,
             fix_apriori_size=fix_apriori_size, **self.rs._kwargs)
 

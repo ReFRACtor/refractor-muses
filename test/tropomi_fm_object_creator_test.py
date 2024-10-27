@@ -25,7 +25,7 @@ def tropomi_fm_object_creator_step_1(tropomi_uip_step_1, tropomi_obs_step_1, osp
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_1), mid,
                                   tropomi_obs_step_1,
-                                  rf_uip_func=lambda: tropomi_uip_step_1)
+                                  rf_uip_func=lambda **kwargs: tropomi_uip_step_1)
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp_dir):
@@ -38,7 +38,7 @@ def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_2), mid,
                                   tropomi_obs_step_2,
-                                  rf_uip_func=lambda:tropomi_uip_step_2)
+                                  rf_uip_func=lambda **kwargs:tropomi_uip_step_2)
 
 
 

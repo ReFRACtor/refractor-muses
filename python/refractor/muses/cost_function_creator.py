@@ -44,10 +44,13 @@ class CostFunctionCreator:
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
 
-    def _rf_uip_func_wrap(self):
-        if(self._rf_uip is None):
-            self._rf_uip = self._rf_uip_func()
-        return self._rf_uip
+    def _rf_uip_func_wrap(self, instrument=None):
+        # TODO Not ready yet to make use of instrument to restrict UIP,
+        # so we ignore that. We'll need to come back to that in a bit
+        if(instrument not in self._rf_uip):
+            logger.debug(f"Creating rf_uip for {instrument}")
+            self._rf_uip[instrument] = self._rf_uip_func(instrument=instrument)
+        return self._rf_uip[instrument]
         
     def cost_function(self,
                       instrument_name_list : "list[str]",
@@ -96,7 +99,7 @@ class CostFunctionCreator:
         Again, this isn't something you would do for "real", this is more to support testing.
         '''
         # Keep track of this, in case we create one so we know to attach this to the state vector
-        self._rf_uip = None
+        self._rf_uip = {}
         self._rf_uip_func = rf_uip_func
         args = self._forward_model(
             instrument_name_list, current_state, spec_win_dict,
@@ -109,8 +112,9 @@ class CostFunctionCreator:
         # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
         # have no parameters, for example for RetrievalStrategyStepBT. Any time we
         # have parameters, the basis_matrix shouldn't be None.
-        if(self._rf_uip is not None and self._rf_uip.basis_matrix is not None):
-            cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(self._rf_uip))
+        for uip in self._rf_uip.values():
+            if(uip.basis_matrix is not None):
+                cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(uip))
         # TODO, we want to get the parameters from CurrentState object, but we
         # don't have that in place yet. Fall back to the RefractorUip, which we should
         # remove in the future
@@ -209,9 +213,6 @@ class CostFunctionCreator:
         forward. Since this function is only used for backwards testing, the slightly
         klunky design doesn't seem like much of a problem.
         '''
-        # Fake the input for the normal cost_function function
-        def uip_func():
-            return rf_uip
         cstate = CurrentStateUip(rf_uip)
         if(ret_info):
             fix_apriori_size=False
@@ -221,7 +222,8 @@ class CostFunctionCreator:
             fix_apriori_size=True
             cstate.sqrt_constraint = np.eye(1)
             cstate.apriori = np.zeros((1,))
-        return self.cost_function(rf_uip.instrument, cstate, None, uip_func,
+        return self.cost_function(rf_uip.instrument, cstate, None,
+                                  rf_uip_func=lambda **kwargs : rf_uip,
                                   obs_list=obs_list,
                                   fix_apriori_size=fix_apriori_size, **kwargs)
     

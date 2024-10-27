@@ -55,7 +55,7 @@ class RefractorTropOmiFm(RefractorTropOrOmiFm):
             self.rf_uip.refractor_cache["tropomi_fm_object_creator"] = \
                 TropomiFmObjectCreator(
                     CurrentStateUip(self.rf_uip), self.measurement_id,
-                    self._obs, rf_uip_func=lambda: self.rf_uip,
+                    self._obs, rf_uip_func=lambda **kwargs: self.rf_uip,
                     match_py_retrieve=True,
                     **self.obj_creator_args)
         return self.rf_uip.refractor_cache["tropomi_fm_object_creator"]
