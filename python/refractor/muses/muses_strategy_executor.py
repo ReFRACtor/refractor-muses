@@ -280,12 +280,14 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             cstate.apriori_cov = None
             cstate.sqrt_constraint = None
             cstate.apriori = None
+            cstate.basis_matrix = None
             cstate.initial_guess = self.retrieval_info.retrieval_info_systematic().initialGuessList
         else:
             cstate.apriori_cov = self.retrieval_info.apriori_cov
             cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
             cstate.apriori = self.retrieval_info.apriori
             cstate.initial_guess = self.retrieval_info.initial_guess_list
+            cstate.basis_matrix = self.retrieval_info.basis_matrix
 
         # TODO Would probably be good to remove include_bad_sample, it isn't clear that
         # we ever want to run the forward model for bad samples. But right now the

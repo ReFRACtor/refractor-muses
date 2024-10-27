@@ -37,11 +37,11 @@ class RetrievalInfo:
     def basis_matrix(self):
         '''Basis matrix to go from forward model grid to retrieval grid.
         By convention, None if we don't actually have any retrieval parameters.'''
-        if(self.n_totalParameters == 0):
+        if(self.n_totalParameters == 0 or self.n_totalParametersFM == 0):
             return None
         mmm = self.n_totalParameters
         nnn = self.n_totalParametersFM
-        return self.mapToState[0:mmm, 0:nnn]
+        return self.retrieval_dict["mapToState"][0:mmm, 0:nnn]
 
     @property
     def retrieval_info_obj(self):

@@ -157,9 +157,7 @@ class CostFunctionCreator:
                 fm_sv, rf_uip_func, **kwargs)
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
-        # TODO Get a way to have the basis_matrix that doesn't requier a UIP
-        rf_uip = rf_uip_func()
-        bmatrix = rf_uip.basis_matrix
+        bmatrix = current_state.basis_matrix
         if(not fix_apriori_size):
             # Normally, we get the apriori and constraint from our current state
             retrieval_sv_apriori =  current_state.apriori

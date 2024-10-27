@@ -187,6 +187,7 @@ class CurrentStateUip(CurrentState):
         super().__init__()
         self.rf_uip = rf_uip
         self.initial_guess = rf_uip.current_state_x
+        self.basis_matrix = rf_uip.basis_matrix
 
     # We don't have the other gas species working yet. Short term, just have a
     # different implementation of fm_sv_loc. We should sort this out at some point.
