@@ -275,20 +275,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             f"{self.rs.run_dir}/Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}",
             do_systematic=do_systematic,
             retrieval_state_element_override=jacobian_speciesIn)
-        # Temp, until we get this sorted out
-        if(do_systematic):
-            cstate.apriori_cov = None
-            cstate.sqrt_constraint = None
-            cstate.apriori = None
-            cstate.basis_matrix = None
-            cstate.initial_guess = self.retrieval_info.retrieval_info_systematic().initialGuessList
-        else:
-            cstate.apriori_cov = self.retrieval_info.apriori_cov
-            cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
-            cstate.apriori = self.retrieval_info.apriori
-            cstate.initial_guess = self.retrieval_info.initial_guess_list
-            cstate.basis_matrix = self.retrieval_info.basis_matrix
-
+        
         # TODO Would probably be good to remove include_bad_sample, it isn't clear that
         # we ever want to run the forward model for bad samples. But right now the
         # existing
@@ -299,8 +286,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
             functools.partial(self.uip_func, do_systematic=do_systematic,
                               jacobian_speciesIn=jacobian_speciesIn),
-            include_bad_sample=include_bad_sample,
-            fix_apriori_size=fix_apriori_size, **self.rs._kwargs)
+            include_bad_sample=include_bad_sample, **self.rs._kwargs)
 
 class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrategyStep):
     '''Placeholder that wraps the muses-py strategy table up, so we can get the

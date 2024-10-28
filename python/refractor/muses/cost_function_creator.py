@@ -59,7 +59,6 @@ class CostFunctionCreator:
                       rf_uip_func, 
                       include_bad_sample=False,
                       obs_list : "Optional(list[MusesObservation])" =None,
-                      fix_apriori_size=False,
                       **kwargs):
         '''Return cost function for the RetrievalStrategy.
 
@@ -90,20 +89,15 @@ class CostFunctionCreator:
         some other method, so you can optionally pass in the obs_list to use in place of
         what the class would normally create. This isn't something you would normally use
         for "real", this is just to support testing.
-
-        Similarly, you may sometimes not have an easy way to create the apriori and
-        sqrt_constraint. In that case, you can pass in fix_apriori_size=True and we
-        create dummy data of the right size rather than getting this from current_state.
-        Again, this isn't something you would do for "real", this is more to support testing.
         '''
-        # Keep track of this, in case we create one so we know to attach this to the state vector
+        # Keep track of this, in case we create one so we know to attach this to
+        # the state vector
         self._rf_uip = {}
         self._rf_uip_func = rf_uip_func
         args = self._forward_model(
             instrument_name_list, current_state, spec_win_dict,
             self._rf_uip_func_wrap, include_bad_sample=include_bad_sample,
-            obs_list=obs_list, fix_apriori_size=fix_apriori_size,
-            **kwargs)
+            obs_list=obs_list, **kwargs)
         cfunc = CostFunction(*args)
         # If we have an UIP, then update this when the parameters get updated.
         # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
@@ -122,7 +116,6 @@ class CostFunctionCreator:
                        rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                        include_bad_sample=False,
                        obs_list : "Optional(list[MusesObservation])" =None,
-                       fix_apriori_size=False,
                        **kwargs):
         ret_info = { 
             'sqrt_constraint': current_state.sqrt_constraint,
@@ -155,23 +148,8 @@ class CostFunctionCreator:
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         bmatrix = current_state.basis_matrix
-        if(not fix_apriori_size):
-            # Normally, we get the apriori and constraint from our current state
-            retrieval_sv_apriori =  current_state.apriori
-            retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
-        else:
-            # This handles when we call with a RefractorUip but without a
-            # ret_info, or otherwise don't have a apriori and sqrt_constraint. We
-            # create dummy data of the right size.
-            # This isn't something we encounter in our normal processing,
-            # this is more to support old testing
-            if(bmatrix is not None):
-                retrieval_sv_apriori = np.zeros((bmatrix.shape[0],))
-                retrieval_sv_sqrt_constraint=np.eye(bmatrix.shape[0])
-            else:
-                # No bmatrix then retrieval_sv and fm_sv are the same
-                retrieval_sv_apriori = np.zeros((fm_sv.observer_claimed_size,))
-                retrieval_sv_sqrt_constraint=np.eye(fm_sv.observer_claimed_size)
+        retrieval_sv_apriori =  current_state.apriori
+        retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
 
         return (instrument_name_list,
                 self.fm_list, self.obs_list, fm_sv, retrieval_sv_apriori,

@@ -508,54 +508,53 @@ class CurrentStateStateInfo(CurrentState):
         self.do_systematic = do_systematic
         self._step_directory = step_directory
 
-    # Temporary implementations, we'll come back to this        
     @property
     def initial_guess(self) -> np.array:
         '''Initial guess'''
-        return self._initial_guess
-
-    @initial_guess.setter
-    def initial_guess(self, val):
-        self._initial_guess = val
-
+        # Not sure about systematic handling here. I think this is all zeros, not
+        # sure if that is right or not.
+        if self.do_systematic:
+            return self._retrieval_info.retrieval_info_systematic().initialGuessList
+        else:
+            return self._retrieval_info.initial_guess_list
+        
     @property
     def apriori_cov(self) -> np.array:
         '''Apriori Covariance'''
-        return self._apriori_cov
-
-    @apriori_cov.setter
-    def apriori_cov(self, val):
-        self._apriori_cov = val
+        # Not sure about systematic handling here.
+        if self.do_systematic:
+            return None
+        else:
+            return self._retrieval_info.apriori_cov            
 
     @property
     def sqrt_constraint(self) -> np.array:
         '''Sqrt matrix from covariance'''
-        return self._sqrt_constraint
-
-    @sqrt_constraint.setter
-    def sqrt_constraint(self, val):
-        self._sqrt_constraint = val
+        # Not sure about systematic handling here.
+        if self.do_systematic:
+            return np.eye(len(self.initial_guess))
+        else:
+            return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
     
     @property
     def apriori(self) -> np.array:
         '''Apriori value'''
-        return self._apriori
+        # Not sure about systematic handling here.
+        if self.do_systematic:
+            return np.zeros((len(self.initial_guess),))
+        else:
+            return self.retrieval_info.apriori
 
-    @apriori.setter
-    def apriori(self, val):
-        self._apriori = val
-        
     @property
     def basis_matrix(self) -> 'Optional(np.array)':
         '''Basis matrix going from retrieval vector to full model vector.
         We don't always have this, so we return None if there isn't a basis matrix.
         '''
-        return self._basis_matrix
+        if self.do_systematic:
+            return None
+        else:
+            return self.retrieval_info.basis_matrix
 
-    @basis_matrix.setter
-    def basis_matrix(self, val):
-        self._basis_matrix = val
-        
     @property
     def step_directory(self) -> str:
         return self._step_directory
