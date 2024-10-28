@@ -47,7 +47,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def __init__(self, current_state : 'CurrentState',
                  measurement_id : 'MeasurementId',
                  instrument_name: str, observation : 'MusesObservation',
-                 rf_uip_func : "Optional(Callable[[], RefractorUip])" = None,
+                 rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])" = None,
                  fm_sv : "Optional(rf.StateVector)" = None,
                  # Values, so we can flip between using pca and not
                  use_pca=True, use_lrad=False, lrad_second_order=False,

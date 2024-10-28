@@ -496,7 +496,7 @@ class CurrentStateStateInfo(CurrentState):
         RetrievalStrategyStepBT - I'm guessing this was a kludge put in to support
         this retrieval step.
 
-        In addition, the CurrentState can also we used when we are calculating the
+        In addition, the CurrentState can also be used when we are calculating the
         "systematic" jacobian. This create a StateVector with a different set of state elements.
         This isn't used to do a retrieval, but rather to just calculate a jacobian.
         If do_systematic is set to True, we use this values instead.
@@ -508,6 +508,54 @@ class CurrentStateStateInfo(CurrentState):
         self.do_systematic = do_systematic
         self._step_directory = step_directory
 
+    # Temporary implementations, we'll come back to this        
+    @property
+    def initial_guess(self) -> np.array:
+        '''Initial guess'''
+        return self._initial_guess
+
+    @initial_guess.setter
+    def initial_guess(self, val):
+        self._initial_guess = val
+
+    @property
+    def apriori_cov(self) -> np.array:
+        '''Apriori Covariance'''
+        return self._apriori_cov
+
+    @apriori_cov.setter
+    def apriori_cov(self, val):
+        self._apriori_cov = val
+
+    @property
+    def sqrt_constraint(self) -> np.array:
+        '''Sqrt matrix from covariance'''
+        return self._sqrt_constraint
+
+    @sqrt_constraint.setter
+    def sqrt_constraint(self, val):
+        self._sqrt_constraint = val
+    
+    @property
+    def apriori(self) -> np.array:
+        '''Apriori value'''
+        return self._apriori
+
+    @apriori.setter
+    def apriori(self, val):
+        self._apriori = val
+        
+    @property
+    def basis_matrix(self) -> 'Optional(np.array)':
+        '''Basis matrix going from retrieval vector to full model vector.
+        We don't always have this, so we return None if there isn't a basis matrix.
+        '''
+        return self._basis_matrix
+
+    @basis_matrix.setter
+    def basis_matrix(self, val):
+        self._basis_matrix = val
+        
     @property
     def step_directory(self) -> str:
         return self._step_directory

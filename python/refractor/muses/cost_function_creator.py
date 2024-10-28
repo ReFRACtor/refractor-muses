@@ -56,10 +56,8 @@ class CostFunctionCreator:
                       instrument_name_list : "list[str]",
                       current_state : CurrentState,
                       spec_win_dict : "Optional(dict(str, MusesSpectralWindow))",
-                      rf_uip_func,
+                      rf_uip_func, 
                       include_bad_sample=False,
-                      do_systematic=False,
-                      jacobian_speciesIn=None,
                       obs_list : "Optional(list[MusesObservation])" =None,
                       fix_apriori_size=False,
                       **kwargs):
@@ -104,7 +102,6 @@ class CostFunctionCreator:
         args = self._forward_model(
             instrument_name_list, current_state, spec_win_dict,
             self._rf_uip_func_wrap, include_bad_sample=include_bad_sample,
-            do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
             obs_list=obs_list, fix_apriori_size=fix_apriori_size,
             **kwargs)
         cfunc = CostFunction(*args)
@@ -122,7 +119,7 @@ class CostFunctionCreator:
                        instrument_name_list : "list[str]",
                        current_state : CurrentState,
                        spec_win_dict : "Optional(dict[str, MusesSpectralWindow])",
-                       rf_uip_func,
+                       rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                        include_bad_sample=False,
                        obs_list : "Optional(list[MusesObservation])" =None,
                        fix_apriori_size=False,
