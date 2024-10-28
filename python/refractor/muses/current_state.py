@@ -117,12 +117,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if(self._fm_state_vector_size is None):
             # Side effect of fm_sv_loc is filling in fm_state_vector_size
             _ = self.fm_sv_loc
-        # As a convention, py-retrieve uses a dummy state vector of length 1 if
-        # we aren't actually retrieving anything. This should probably get cleaned up
-        # at some point, there isn't actually anything wrong with a zero size state
-        # vector. But for now, support this convention
-        if(self._fm_state_vector_size == 0):
-            return 1
         return self._fm_state_vector_size
     
     def object_state(self, state_element_name_list : 'list[str]') -> (np.array, rf.StateMapping):
