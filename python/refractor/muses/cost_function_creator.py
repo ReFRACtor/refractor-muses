@@ -60,7 +60,7 @@ class CostFunctionCreator:
                       include_bad_sample=False,
                       do_systematic=False,
                       jacobian_speciesIn=None,
-                      obs_list=None,
+                      obs_list : "Optional(list[MusesObservation])" =None,
                       fix_apriori_size=False,
                       **kwargs):
         '''Return cost function for the RetrievalStrategy.
@@ -124,7 +124,7 @@ class CostFunctionCreator:
                        spec_win_dict : "Optional(dict[str, MusesSpectralWindow])",
                        rf_uip_func,
                        include_bad_sample=False,
-                       obs_list=None,
+                       obs_list : "Optional(list[MusesObservation])" =None,
                        fix_apriori_size=False,
                        **kwargs):
         ret_info = { 
@@ -181,8 +181,8 @@ class CostFunctionCreator:
                 retrieval_sv_sqrt_constraint, bmatrix)
 
     def cost_function_from_uip(self, rf_uip : RefractorUip,
-                               obs_list,
-                               ret_info : dict,
+                               obs_list : 'Optional(list(MusesObservation))',
+                               ret_info : 'Optional(dict)',
                                **kwargs):
         '''Create a cost function from a RefractorUip and a
         ret_info. Note that this is really just for backwards testing,
@@ -208,19 +208,10 @@ class CostFunctionCreator:
         forward. Since this function is only used for backwards testing, the slightly
         klunky design doesn't seem like much of a problem.
         '''
-        cstate = CurrentStateUip(rf_uip)
-        if(ret_info):
-            fix_apriori_size=False
-            cstate.sqrt_constraint = ret_info["sqrt_constraint"]
-            cstate.apriori = ret_info["const_vec"]
-        else:
-            fix_apriori_size=True
-            cstate.sqrt_constraint = np.eye(1)
-            cstate.apriori = np.zeros((1,))
+        cstate = CurrentStateUip(rf_uip, ret_info)
         return self.cost_function(rf_uip.instrument, cstate, None,
                                   rf_uip_func=lambda **kwargs : rf_uip,
-                                  obs_list=obs_list,
-                                  fix_apriori_size=fix_apriori_size, **kwargs)
+                                  obs_list=obs_list, **kwargs)
     
 __all__ = ["CostFunctionCreator"]
         
