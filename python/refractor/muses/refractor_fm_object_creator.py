@@ -381,6 +381,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # get_tropomi_o3xsec_without_ils and then written to file.
         # We should move this into MusesOpticalDepthFile without having
         # a file.
+        # MusesOpticalDepthFile only support O3
+        vmr_list = [vmr for vmr in self.absorber_vmr if vmr.gas_name == "O3"]
         return MusesOpticalDepthFile(self.ray_info,
                                      self.pressure,
                                      self.temperature, self.altitude,
