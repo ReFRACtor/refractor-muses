@@ -310,7 +310,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     @strategy_table_filename.setter
     def strategy_table_filename(self, v):
-        self.self.filename = v
+        self.filename = v
         
     @property
     def filter_list_dict(self) -> 'dict(str,list[str])':

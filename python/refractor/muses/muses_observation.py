@@ -276,6 +276,10 @@ class MusesObservationImp(MusesObservation):
         return self.muses_py_dict['Earth_Radiance']['ObservationTable']
 
     @property
+    def wavelength_filter(self):
+        return self.muses_py_dict['Earth_Radiance']['EarthWavelength_Filter']
+    
+    @property
     def across_track(self) -> 'list[int]':
         res = []
         for i in  range(self.num_channels):

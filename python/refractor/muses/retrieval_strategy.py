@@ -331,7 +331,21 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                                 change_to_dir = False,
                                 osp_dir=None, gmao_dir=None,
                                 vlidort_cli=None):
-        '''This pairs with save_pickle.'''
+        '''This pairs with save_pickle.
+
+        This is pretty direct to use, but as an example we can  do something like:
+
+        osp_dir = os.environ["MUSES_OSP_PATH"]
+        gmao_dir = os.environ["MUSES_GMAO_PATH"]
+        subprocess.run("rm -r ./try_it", shell=True)
+        dir_in = "./retrieval_strategy_cris_tropomi/20190807_065_04_08_5"
+        step_number=10
+        rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
+            f"{dir_in}/retrieval_step_{step_number}.pkl",
+            path="./try_it",
+            osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=True)
+        rs.continue_retrieval()
+        '''
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
         res._capture_directory.rundir = f"{os.path.abspath(path)}/{res._capture_directory.runbase}"
         res._filename = f"{res.run_dir}/{os.path.basename(res.strategy_table_filename)}"

@@ -43,19 +43,36 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             res.push_back(v)
         return res
 
-    def ils_params_postconv(self, sensor_index : int):
-        # Place holder, this doesn't work yet. Copy of what is
-        # done in make_uip_tropomi.
-        return None
+    def ils_params_preconv(self, sensor_index : int):
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
-        num_fwhm_srf=4.0 
+        num_fwhm_srf=4.0
+        with self.observation.modify_spectral_window(include_bad_sample = True,
+                                                     do_raman_ext = True):
+            sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
         return mpy.get_tropomi_ils(
-            self.measurement_id["ElanorOSPDir"],
-            tropomiFrequency, tempfreqIndex, 
-            WAVELENGTH_FILTER, 
+            self.osp_dir,
+            self.observation.frequency_full(sensor_index), sindex,
+            self.observation.wavelength_filter, 
             self.observation.observation_table,
             num_fwhm_srf)
 
+    def ils_params_postconv(self, sensor_index : int):
+        # This is hardcoded in make_uip_tropomi, so we duplicate that here
+        # Place holder, this doesn't work yet. Copy of what is
+        # done in make_uip_tropomi.
+        return None
+        num_fwhm_srf=4.0
+        with self.observation.modify_spectral_window(include_bad_sample = True,
+                                                     do_raman_ext = True):
+            sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
+        # Need to get WAVELENGTH_FILTER logic from make_uip_tropomi.py in place
+        return mpy.get_tropomi_ils(
+            self.osp_dir,
+            self.obs.frequency_full(sensor_index), sindex,
+            WAVELENGTH_FILTER, 
+            self.observation.observation_table,
+            num_fwhm_srf)
+    
     def ils_params_fastconv(self, sensor_index : int):
         # Place holder, this doesn't work yet. Copy of what is
         # done in make_uip_tropomi.
@@ -74,19 +91,29 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
     def ils_params(self, sensor_index : int):
         '''ILS parameters'''
-        # TODO Pull out of rf_uip. This is in make_uip_tropomi.py
-        # Note that this seems to fold in determine the high resolution grid.
-        # We have a separate class MusesSpectrumSampling for doing that, which
-        # currently just returns what ils_params has. When we clean this up, we
-        # may want to put part of the functionality there - e.g., read the whole
-        # ILS table here and then have the calculation of the spectrum in
-        # MusesSpectrumSampling
-        return self.rf_uip_func().ils_params(sensor_index, self.instrument_name)
+        if self.ils_method(sensor_index) == "APPLY":
+            return self.ils_params_preconv(sensor_index)
+        else:
+            # TODO Pull out of rf_uip. This is in make_uip_tropomi.py
+            # Note that this seems to fold in determine the high resolution grid.
+            # We have a separate class MusesSpectrumSampling for doing that, which
+            # currently just returns what ils_params has. When we clean this up, we
+            # may want to put part of the functionality there - e.g., read the whole
+            # ILS table here and then have the calculation of the spectrum in
+            # MusesSpectrumSampling
+            return self.rf_uip_func().ils_params(sensor_index, self.instrument_name)
 
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
         # Note in principle we could have this be a function of the sensor band,
         # however the current implementation just has one value set here.
+        #
+        # This is currently the same for all sensor_index values. We can extend this
+        # if needed, but we also need to change the absorber to handle this, since the
+        # selection is based off the ils_method. We could probably wrap the different
+        # absorber types and select which one is used by some kind of logic.
+        #
+        # We really need a test case to work through the logic here before changing this
         return self.measurement_id["ils_tropomi_xsection"]
     
     def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:

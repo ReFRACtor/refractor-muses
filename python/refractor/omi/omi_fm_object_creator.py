@@ -80,6 +80,13 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
         # Note in principle we could have this be a function of the sensor band,
         # however the current implementation just has one value set here.
+        #
+        # This is currently the same for all sensor_index values. We can extend this
+        # if needed, but we also need to change the absorber to handle this, since the
+        # selection is based off the ils_method. We could probably wrap the different
+        # absorber types and select which one is used by some kind of logic.
+        #
+        # We really need a test case to work through the logic here before changing this
         return self.measurement_id["ils_omi_xsection"]
         
     @cached_property

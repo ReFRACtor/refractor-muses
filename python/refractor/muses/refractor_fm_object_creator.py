@@ -1,5 +1,6 @@
 from functools import cached_property, lru_cache
 from .muses_optical_depth_file import MusesOpticalDepthFile
+from .muses_optical_depth import MusesOpticalDepth
 from .muses_altitude import MusesAltitude
 from .muses_spectrum_sampling import MusesSpectrumSampling
 from .muses_raman import MusesRaman
@@ -162,9 +163,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def ils_params(self, sensor_index : int):
         '''ILS parameters'''
         raise NotImplementedError
-    
+
+    @property
     def ils_method(self, sensor_index : int) -> str:
-        '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
+        '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV.
+        '''
         raise NotImplementedError
     
     @cached_property
@@ -372,7 +375,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return vmrs
 
     @cached_property
-    def absorber_muses(self):
+    def absorber_muses_file(self):
         '''Uses MUSES O3 optical files, which are precomputed ahead
         of the forward model. They may include a convolution with the ILS.
         '''
@@ -388,6 +391,24 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                      self.temperature, self.altitude,
                                      self.absorber_vmr, self.num_channels,
                                      f"{self.step_directory}/vlidort/input")
+
+    @cached_property
+    def absorber_muses(self):
+        '''Uses MUSES code for O3 absorption, which are precomputed ahead
+        of the forward model. They may include a convolution with the ILS.
+        '''
+        # Temp, force UIP to generate O3 file so we can compare
+        _ = self.ray_info
+        vmr_list = [vmr for vmr in self.absorber_vmr if vmr.gas_name == "O3"]
+        ils_params_list = []
+        for i in range(self.num_channels):
+            ils_params_list.append(self.ils_params(i))
+        return MusesOpticalDepth(self.pressure,
+                                 self.temperature, self.altitude,
+                                 self.absorber_vmr,
+                                 self.observation,
+                                 ils_params_list,
+                                 self.osp_dir)
     
     @cached_property
     def absorber_xsec(self):
@@ -460,9 +481,16 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         '''Absorber to use. This just gives us a simple place to switch
         between absco and cross section.'''
 
-        # Use higher resolution xsec when using FASTCONV
-        if self.ils_method(0) == "FASTCONV":
+        # Use higher resolution xsec when not using APPLY (which means
+        # pre convolve)
+        #
+        # Note see commend in ils_method, this assumes all spectral bands are
+        # the same. We can probably relax that, but really need a test case to
+        # work through the logic
+        if self.ils_method(0) != "APPLY":
             return self.absorber_xsec
+        elif(self.match_py_retrieve):
+            return self.absorber_muses_file
         else:
             return self.absorber_muses
 
