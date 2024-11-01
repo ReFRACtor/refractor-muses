@@ -57,7 +57,10 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         res._data = dict(f)
         
         # Start with default values, and then add anything we find in the table
-        f = TesFile.create(f"{res['defaultStrategyTableDirectory']}/{res['defaultStrategyTableFilename']}")
+        # Make sure to use os.path.join or pathlib.Path's / operator so that if
+        # defaultStrategyTableFilename is already an absolute path, we don't
+        # prepend the default directory.
+        f = TesFile.create(os.path.join(res['defaultStrategyTableDirectory'], res['defaultStrategyTableFilename']))
         d = dict(f)
         d.update(res._data)
         res._data = d

@@ -84,7 +84,7 @@ class RetrievalL2Output(RetrievalOutput):
                 data2 = self.dataN2O
             else:
                 # Fake the data
-                logger.warn("code has not been tested for species_name CH4 and dataN2O is None")
+                logger.warning("code has not been tested for species_name CH4 and dataN2O is None")
                 data2 = copy.deepcopy(dataInfo)
                 value = self.state_info.state_element("N2O", step="initial").value
                 data2['SPECIES'][data2['SPECIES'] > 0] = copy.deepcopy(value)
