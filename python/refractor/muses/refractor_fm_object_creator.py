@@ -342,7 +342,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def rayleigh(self):
-        return rf.RayleighBodhaine(self.pressure, self.alt_vec(),
+        return rf.RayleighBodhaine(self.pressure, self.altitude,
                                    self.constants)
 
     @cached_property
@@ -395,7 +395,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 xsectable.append(rf.XSecTableSimple(spec_grid, xsec_values,
                                                        cfac))
         return rf.AbsorberXSec(self.absorber_vmr, self.pressure,
-                               self.temperature, self.alt_vec(),
+                               self.temperature, self.altitude,
                                xsectable)
     
 
@@ -439,7 +439,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         
         return rf.AbsorberAbsco(self.absorber_vmr, self.pressure,
                                 self.temperature,
-                                self.alt_vec(), absorptions, self.constants)
+                                self.altitude, absorptions, self.constants)
             
             
     @cached_property
@@ -487,17 +487,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             res.append(chan_alt)
         return res
 
-    def alt_vec(self):
-        res = rf.vector_altitude()
-        for alt in self.altitude:
-            res.push_back(alt)
-        return res
-    
     @cached_property
     def atmosphere(self):
         atm = rf.AtmosphereStandard(self.absorber, self.pressure,
             self.temperature, self.rayleigh, self.relative_humidity,
-            self.ground, self.alt_vec(), self.constants)
+            self.ground, self.altitude, self.constants)
         # Atmosphere doesn't directly use state vector elements, but it needs
         # to know when this changes because the number of jacobian variables
         # might change, and we need to know that the cache should be cleared.
