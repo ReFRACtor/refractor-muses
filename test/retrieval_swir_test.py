@@ -200,6 +200,28 @@ def test_simulated_retrieval(gmao_dir, josh_osp_dir):
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
     rs.update_target(f"{mrdir.run_dir}/Table.asc")
     rs.retrieval_ms()
+
+@long_test
+@require_muses_py
+def test_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
+    '''Use simulated data Josh generated'''
+    subprocess.run("rm -f -r synth_alb_0_9", shell=True)
+    mrdir = MusesRunDir(f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
+                        josh_osp_dir, gmao_dir,
+                        path_prefix = "./synth_alb_0_9")
+    try:
+        lognum = logger.add("synth_alb_0_9/retrieve.log")
+        rs = RetrievalStrategy(None,osp_dir=josh_osp_dir)
+        ihandle = TropomiSwirForwardModelHandle(use_pca=True, use_lrad=False,
+                                                lrad_second_order=False,
+                                                osp_dir=josh_osp_dir)
+        rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+        rs.update_target(f"{mrdir.run_dir}/Table.asc")
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
+        
+    
     
     
     
