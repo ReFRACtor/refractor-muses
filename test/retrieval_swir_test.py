@@ -249,7 +249,6 @@ class ScaledStateElement(RetrievableStateElement):
         return self._value
 
     def should_write_to_l2_product(self, instruments):
-        breakpoint()
         if "TROPOMI" in instruments:
             return True
         return False
