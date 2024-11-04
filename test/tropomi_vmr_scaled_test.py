@@ -96,7 +96,6 @@ class O3ScaledStateElement(RetrievableStateElement):
         # like a weighting that is independent of apriori covariance.
         self.constraintMatrix = np.diag(np.full((1,),10*10.0))
 
-        TropomiFmObjectCreator        
 class ScaledTropomiFmObjectCreator(TropomiFmObjectCreator):
     @cached_property
     def absorber_vmr(self):
