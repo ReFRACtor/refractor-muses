@@ -161,6 +161,35 @@ class MusesSpectralWindow(rf.SpectralWindow):
             return self._spec_win_with_bad_sample.grid_indexes(grid, spec_index)
         return self._spec_win.grid_indexes(grid, spec_index)
 
+    def muses_monochromatic(self):
+        '''In certain places, muses-py uses a "monochromatic" list of points, along
+        with a wavelength filter. This seems to serve much the same function as our
+        high resolution grid in ReFRACtor, although this doesn't filter out bad points or
+        anything like that.
+
+        ReFRACtor doesn't directly use this, but it does get passed into the muses-py
+        function calls such as getting the ILS information. So we go ahead and have
+        this calculation here, much like we do the muses_microwindows down below.
+
+        It is possible this can go away at some point, right now we only need this for
+        muses-py calls, and if these get removed or replaced the need to for this function
+        may go away.'''
+        mono_list = []
+        mono_filter_list = []
+        for w in self.muses_microwindows():
+            mw_start = w['start']
+            mw_end = w['endd']
+            mw_monospacing = w['monoSpacing']
+            mw_monoextend = np.float64(w['monoextend']) 
+            mw_filter = w['filter']
+            mono_temp = np.arange(mw_start - mw_monoextend, mw_end + mw_monoextend,
+                                  mw_monospacing)
+            mono_list.append(mono_temp)
+            mono_filter_list.extend([mw_filter,]*len(mono_temp))
+        mono_list = np.concatenate(mono_list,axis=0)
+        mono_filter_list = np.array(mono_filter_list)
+        return mono_list, mono_filter_list
+
     def muses_microwindows(self):
         '''Return the muses-py list of dict structure used as microwindows. This is
         used in a few places, e.g., for creating a UIP for forward models that depend
