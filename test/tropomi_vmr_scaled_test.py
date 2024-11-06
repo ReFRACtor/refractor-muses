@@ -42,7 +42,6 @@ class O3ScaledStateElement(RetrievableStateElement):
         return self._value
 
     def should_write_to_l2_product(self, instruments):
-        breakpoint()
         if "TROPOMI" in instruments:
             return True
         return False
@@ -96,7 +95,6 @@ class O3ScaledStateElement(RetrievableStateElement):
         # like a weighting that is independent of apriori covariance.
         self.constraintMatrix = np.diag(np.full((1,),10*10.0))
 
-        TropomiFmObjectCreator        
 class ScaledTropomiFmObjectCreator(TropomiFmObjectCreator):
     @cached_property
     def absorber_vmr(self):

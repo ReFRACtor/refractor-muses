@@ -45,7 +45,12 @@ class MusesRunDir:
                   "TROPOMI_Cloud_filename"):
             if k in d['preferences']:
                 f = d['preferences'][k]
-                freplace = os.path.abspath(f"{refractor_sounding_dir}/../{os.path.basename(f)}")
+                # If this starts with a ".", assume we want a file in the sounding director.
+                # otherwise we want the one in the input director.
+                if(os.path.dirname(f) == "."):
+                    freplace = os.path.abspath(f"{refractor_sounding_dir}/{os.path.basename(f)}")
+                else:
+                    freplace = os.path.abspath(f"{refractor_sounding_dir}/../{os.path.basename(f)}")
                 # Special handling for CRIS_filename, it uses the
                 # string nasa_fsr normally found in the path to
                 # know the type of file. Since we are mucking with the
