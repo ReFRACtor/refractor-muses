@@ -46,13 +46,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def ils_params_preconv(self, sensor_index : int):
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
         num_fwhm_srf=4.0
-        wn = [ self.observation.frequency_full(i) for i in range(self.observation.num_channels) ]
-        wn_len = [len(w) for w in wn]
-        wn = np.concatenate(wn)
-        with self.observation.modify_spectral_window(include_bad_sample = True,
-                                                     do_raman_ext = True):
-            sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
-        sindex += sum(wn_len[:sensor_index])
+        wn, sindex = self.observation.wn_and_sindex(sensor_index)
         return mpy.get_tropomi_ils(
             self.osp_dir,
             self.observation.frequency_full(sensor_index), sindex,
@@ -71,11 +65,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # and the monochromatic for all the windows added into one long list, and then give
         # the index numbers that are actually relevant for the ILS. 
         mono_list, mono_filter_list, mono_list_length = self.observation.spectral_window.muses_monochromatic()
-        wn = [ self.observation.frequency_full(i) for i in range(self.observation.num_channels) ]
-        wn_len = [len(w) for w in wn]
-        wn = np.concatenate(wn)
-        wn_list = np.concatenate([wn, mono_list],
-                                 axis=0)
+        wn, _ = self.observation.wn_and_sindex(sensor_index)
+        wn_list = np.concatenate([wn, mono_list], axis=0)
         wn_filter = np.concatenate([self.observation.wavelength_filter, mono_filter_list],
                                    axis=0)
         startmw_fm = len(wn) + sum(mono_list_length[:sensor_index])
@@ -92,14 +83,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # run this. But put this in here for completeness.
         
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
-        num_fwhm_srf=4.0 
-        wn = [ self.observation.frequency_full(i) for i in range(self.observation.num_channels) ]
-        wn_len = [len(w) for w in wn]
-        wn = np.concatenate(wn)
-        with self.observation.modify_spectral_window(include_bad_sample = True,
-                                                     do_raman_ext = True):
-            sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
-        sindex += sum(wn_len[:sensor_index])
+        num_fwhm_srf=4.0
+        wn, sindex = self.observation.wn_and_sindex(sensor_index)
         # Kind of a convoluted way to just get the monochromatic list, but this is what
         # make_uip_tropomi does, so we duplicate it here. We have the observation frequencies,
         # and the monochromatic for all the windows added into one long list, and then give

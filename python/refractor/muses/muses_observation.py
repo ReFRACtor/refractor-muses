@@ -265,6 +265,24 @@ class MusesObservationImp(MusesObservation):
         self._filter_data_name = []
         self._filter_data_swin = None
 
+    def wn_and_sindex(self, sensor_index):
+        '''We have a couple of places where we need the complete frequency grid (so
+        all spectral channels), and the sample index for one of the sensors in that
+        full grid.
+
+        This is pretty specific, but is used in a few muses-py calls (for ILS, for
+        o3xsec.
+
+        We put this into one function here, just so we don't end up with a bug where
+        one place in the code does this differently'''
+        wn = [ self.frequency_full(i) for i in range(self.num_channels) ]
+        wn_len = [len(w) for w in wn]
+        wn = np.concatenate(wn)
+        with self.modify_spectral_window(include_bad_sample = True, do_raman_ext = True):
+            sindex = self.spectral_domain(sensor_index).sample_index - 1
+        sindex += sum(wn_len[:sensor_index])
+        return wn, sindex
+
     @property
     def cloud_pressure(self):
         '''Cloud pressure. I think all the instrument types handle this the same way,

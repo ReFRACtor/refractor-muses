@@ -43,13 +43,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     def ils_params_preconv(self, sensor_index : int):
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
         num_fwhm_srf=4.0
-        wn = [ self.observation.frequency_full(i) for i in range(self.observation.num_channels) ]
-        wn_len = [len(w) for w in wn]
-        wn = np.concatenate(wn)
-        with self.observation.modify_spectral_window(include_bad_sample = True,
-                                                     do_raman_ext = True):
-            sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
-        sindex += sum(wn_len[:sensor_index])
+        wn, sindex = self.observation.wn_and_sindex(sensor_index)
         return mpy.get_omi_ils(
             self.osp_dir, wn, sindex, self.observation.wavelength_filter, 
             self.observation.observation_table,
@@ -60,20 +54,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return self.ils_params_preconv(sensor_index)
 
     def ils_params_fastconv(self, sensor_index : int):
-        # Note, I'm not sure of fastconv actually works. This fails in muses-py if
-        # we try to use fastconv. From the code, I *think* this is what was intended,
-        # but I don't know if this was actually tested anywhere since you can't actuall
-        # run this. But put this in here for completeness.
-        
-        # This is hardcoded in make_uip_tropomi, so we duplicate that here
+        # This is hardcoded in make_uip_omi, so we duplicate that here
         num_fwhm_srf=4.0 
-        wn = [ self.observation.frequency_full(i) for i in range(self.observation.num_channels) ]
-        wn_len = [len(w) for w in wn]
-        wn = np.concatenate(wn)
-        with self.observation.modify_spectral_window(include_bad_sample = True,
-                                                     do_raman_ext = True):
-            sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
-        sindex += sum(wn_len[:sensor_index])
+        wn, sindex = self.observation.wn_and_sindex(sensor_index)
         # Kind of a convoluted way to just get the monochromatic list, but this is what
         # make_uip_tropomi does, so we duplicate it here. We have the observation frequencies,
         # and the monochromatic for all the windows added into one long list, and then give

@@ -34,6 +34,8 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         for i in range(self.obs.num_channels):
             if(self.obs.instrument_name == "TROPOMI"):
                 t1, t2 = self._xsect_tropomi_ils(i)
+            elif(self.obs.instrument_name == "OMI"):
+                t1, t2 = self._xsect_omi_ils(i)
             else:
                 raise RuntimeError(f"Unrecognized instrument name {self.obs.instrument_name}")
             self.xsect_grid.append(t1)
@@ -45,26 +47,35 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         # I don't think we ever have no2_col. We can add this in if needed later,
         # this would just be gas_number_density_layer for no2.
         no2_col = []
-        # Not 100% sure about direction here
         tatm = self.temperature.temperature_grid(self.pressure,
                                                  rf.Pressure.DECREASING_PRESSURE).value.value
         gas_col = self.gas_number_density_layer(sensor_index).value.value
         # Note that get_tropomi_o3xsec expects this in the opposite order (so decreasing
         #pressure) So we flip this
         o3_col = gas_col[::-1,0]
-        with self.obs.modify_spectral_window(include_bad_sample = True, do_raman_ext = True):
-            sindex = self.obs.spectral_domain(sensor_index).sample_index - 1
+        wn, sindex = self.obs.wn_and_sindex(sensor_index)
         o3_xsec = mpy.get_tropomi_o3xsec(
-            self.osp_dir,
-            self.ils_params_list[sensor_index], 
-            tatm,
-            self.obs.frequency_full(sensor_index),
-            sindex,
-            uip, do_temp_shift, o3_col, no2_col, self.obs.muses_py_dict)
+            self.osp_dir, self.ils_params_list[sensor_index], tatm,
+            wn, sindex, uip, do_temp_shift, o3_col, no2_col, self.obs.muses_py_dict)
         xsect_grid = o3_xsec["X0"][o3_xsec['freqIndex']]
         xsect_data = o3_xsec["o3xsec"]
         return xsect_grid.astype(float), xsect_data.astype(float)
-        
+
+    def _xsect_omi_ils(self, sensor_index):
+        tatm = self.temperature.temperature_grid(self.pressure,
+                                                 rf.Pressure.DECREASING_PRESSURE).value.value
+        gas_col = self.gas_number_density_layer(sensor_index).value.value
+        # Note that get_tropomi_o3xsec expects this in the opposite order (so decreasing
+        #pressure) So we flip this
+        o3_col = gas_col[::-1,0]
+        wn, sindex = self.obs.wn_and_sindex(sensor_index)
+        o3_xsec = mpy.get_omi_o3xsec(
+            self.osp_dir, self.ils_params_list[sensor_index], 
+            tatm, wn, sindex, o3_col, self.obs.muses_py_dict)
+        xsect_grid = o3_xsec["X0"][o3_xsec['freqIndex']]
+        xsect_data = o3_xsec["o3xsec"]
+        return xsect_grid.astype(float), xsect_data.astype(float)
+    
     def optical_depth_each_layer(self, wn, sensor_index):
         # Convert value to units of spectral points used in file
         spec_point = rf.DoubleWithUnit(wn, "cm^-1").convert_wave("nm").value
