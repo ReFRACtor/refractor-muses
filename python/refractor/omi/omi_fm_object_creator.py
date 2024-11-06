@@ -1,10 +1,12 @@
 from functools import cached_property, lru_cache
 from refractor.muses import (RefractorFmObjectCreator, ForwardModelHandle,
                              MusesRaman, SurfaceAlbedo)
+from refractor.muses import muses_py as mpy
 import refractor.framework as rf
 import os
 from loguru import logger
 import numpy as np
+import numpy.testing as npt
 import h5py
 import copy
 # for netCDF3 support which is not supported in h5py
@@ -38,32 +40,58 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         self.use_eof = use_eof
         self.eof_dir = eof_dir
 
-    def ils_params_postconv(self, sensor_index : int):
-        # Place holder, this doesn't work yet. Copy of what is
-        # done in make_uip_tropomi.
-        return None
+    def ils_params_preconv(self, sensor_index : int):
+        # This is hardcoded in make_uip_tropomi, so we duplicate that here
+        num_fwhm_srf=4.0
+        wn = [ self.observation.frequency_full(i) for i in range(self.observation.num_channels) ]
+        wn_len = [len(w) for w in wn]
+        wn = np.concatenate(wn)
+        with self.observation.modify_spectral_window(include_bad_sample = True,
+                                                     do_raman_ext = True):
+            sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
+        sindex += sum(wn_len[:sensor_index])
         return mpy.get_omi_ils(
-            L2_OSP_PATH,
-            omiFrequency, tempfreqIndex, 
-            WAVELENGTH_FILTER, 
-            omiInfo['Earth_Radiance']['ObservationTable'],
-            num_fwhm_srf, 
-            mononfreq_spacing)
+            self.osp_dir, wn, sindex, self.observation.wavelength_filter, 
+            self.observation.observation_table,
+            num_fwhm_srf)
+    
+    def ils_params_postconv(self, sensor_index : int):
+        # make_uip_omi does the same thing for postconv as preconv
+        return self.ils_params_preconv(sensor_index)
 
     def ils_params_fastconv(self, sensor_index : int):
-        # Place holder, this doesn't work yet. Copy of what is
-        # done in make_uip_tropomi.
-        return None
+        # Note, I'm not sure of fastconv actually works. This fails in muses-py if
+        # we try to use fastconv. From the code, I *think* this is what was intended,
+        # but I don't know if this was actually tested anywhere since you can't actuall
+        # run this. But put this in here for completeness.
+        
+        # This is hardcoded in make_uip_tropomi, so we duplicate that here
+        num_fwhm_srf=4.0 
+        wn = [ self.observation.frequency_full(i) for i in range(self.observation.num_channels) ]
+        wn_len = [len(w) for w in wn]
+        wn = np.concatenate(wn)
+        with self.observation.modify_spectral_window(include_bad_sample = True,
+                                                     do_raman_ext = True):
+            sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
+        sindex += sum(wn_len[:sensor_index])
+        # Kind of a convoluted way to just get the monochromatic list, but this is what
+        # make_uip_tropomi does, so we duplicate it here. We have the observation frequencies,
+        # and the monochromatic for all the windows added into one long list, and then give
+        # the index numbers that are actually relevant for the ILS. 
+        mono_list, mono_filter_list, mono_list_length = self.observation.spectral_window.muses_monochromatic()
+        wn_list = np.concatenate([wn, mono_list], axis=0)
+        wn_filter = np.concatenate([self.observation.wavelength_filter, mono_filter_list],
+                                   axis=0)
+        startmw_fm = len(wn) + sum(mono_list_length[:sensor_index])
+        
+        sindex2 = np.arange(0,mono_list_length[sensor_index]) + startmw_fm
+        
         return mpy.get_omi_ils_fastconv(
-            L2_OSP_PATH,
-            omiFrequency, tempfreqIndex_measgrid, 
-            WAVELENGTH_FILTER, 
-            tropomiInfo['Earth_Radiance']['ObservationTable'],
-            num_fwhm_srf, 
-            mononfreq_spacing, 
-            i_monochromfreq=tropomiFrequency[tempfreqIndex], 
-            i_interpmethod="INTERP_MONOCHROM"
-        )
+            self.osp_dir, wn_list, sindex, wn_filter,
+            self.observation.observation_table,
+            num_fwhm_srf,
+            i_monochromfreq=wn_list[sindex2],
+            i_interpmethod="INTERP_MONOCHROM")
         
     def ils_params(self, sensor_index : int):
         '''ILS parameters'''
@@ -74,7 +102,14 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         # may want to put part of the functionality there - e.g., read the whole
         # ILS table here and then have the calculation of the spectrum in
         # MusesSpectrumSampling
-        return self.rf_uip_func().ils_params(sensor_index, self.instrument_name)
+        if self.ils_method(sensor_index) == "APPLY":
+            return self.ils_params_preconv(sensor_index)
+        elif (self.ils_method(sensor_index) == "POSTCONV"):
+            return self.ils_params_postconv(sensor_index)
+        elif (self.ils_method(sensor_index) == "FASTCONV"):
+            return self.ils_params_fastconv(sensor_index)
+        else:
+            raise RuntimeError(f"Unrecognized ils_method {self.ils_method(sensor_index)}")
 
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''

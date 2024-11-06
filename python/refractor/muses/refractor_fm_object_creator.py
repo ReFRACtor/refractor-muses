@@ -492,7 +492,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         elif(self.match_py_retrieve):
             return self.absorber_muses_file
         else:
-            return self.absorber_muses
+            self.ils_params(0)
+            self.ils_params(1)
+            #return self.absorber_muses
+            return self.absorber_muses_file
 
     @abc.abstractproperty
     @cached_property

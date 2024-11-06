@@ -689,7 +689,7 @@ class RefractorUip:
     def ils_params(self, mw_index, instrument_name):
         '''Returns ILS information for the given microwindow'''
         if(instrument_name == "OMI"):
-            return self.uip_omi["ils_mw_%02d" % (mw_index+1)]
+            return self.uip_omi["ils_%02d" % (mw_index+1)]
         elif(instrument_name == "TROPOMI"):
             # JLL: the TROPOMI UIP seems to use a different naming convention than the OMI UIP
             # (ils_mw_II, where II is the zero-based index - see end of make_uip_tropomi).
