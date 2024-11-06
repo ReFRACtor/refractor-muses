@@ -60,48 +60,65 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
         # Place holder, this doesn't work yet. Copy of what is
         # done in make_uip_tropomi.
-        return None
         num_fwhm_srf=4.0
+
+        # Kind of a convoluted way to just get the monochromatic list, but this is what
+        # make_uip_tropomi does, so we duplicate it here. We have the observation frequencies,
+        # and the monochromatic for all the windows added into one long list, and then give
+        # the index numbers that are actually relevant for the ILS. 
+        mono_list, mono_filter_list, mono_list_length = self.observation.spectral_window.muses_monochromatic()
+        wn_list = np.concatenate([self.observation.frequency_full(sensor_index), mono_list],
+                                 axis=0)
+        wn_filter = np.concatenate([self.observation.wavelength_filter, mono_filter_list],
+                                   axis=0)
+        startmw_fm = len(self.observation.frequency_full(sensor_index)) + sum(mono_list_length[:sensor_index])
+        
+        sindex = np.arange(0,mono_list_length[sensor_index]) + startmw_fm
+        return mpy.get_tropomi_ils(self.osp_dir, wn_list, sindex, wn_filter,
+                                   self.observation.observation_table,
+                                   num_fwhm_srf)
+    
+    def ils_params_fastconv(self, sensor_index : int):
+        # Note, I'm not sure of fastconv actually works. This fails in muses-py if
+        # we try to use fastconv. From the code, I *think* this is what was intended,
+        # but I don't know if this was actually tested anywhere since you can't actuall
+        # run this. But put this in here for completeness.
+        
+        # This is hardcoded in make_uip_tropomi, so we duplicate that here
+        num_fwhm_srf=4.0 
         with self.observation.modify_spectral_window(include_bad_sample = True,
                                                      do_raman_ext = True):
             sindex = self.observation.spectral_domain(sensor_index).sample_index - 1
-        # Need to get WAVELENGTH_FILTER logic from make_uip_tropomi.py in place
-        return mpy.get_tropomi_ils(
-            self.osp_dir,
-            self.obs.frequency_full(sensor_index), sindex,
-            WAVELENGTH_FILTER, 
+        # Kind of a convoluted way to just get the monochromatic list, but this is what
+        # make_uip_tropomi does, so we duplicate it here. We have the observation frequencies,
+        # and the monochromatic for all the windows added into one long list, and then give
+        # the index numbers that are actually relevant for the ILS. 
+        mono_list, mono_filter_list, mono_list_length = self.observation.spectral_window.muses_monochromatic()
+        wn_list = np.concatenate([self.observation.frequency_full(sensor_index), mono_list],
+                                 axis=0)
+        wn_filter = np.concatenate([self.observation.wavelength_filter, mono_filter_list],
+                                   axis=0)
+        startmw_fm = len(self.observation.frequency_full(sensor_index)) + sum(mono_list_length[:sensor_index])
+        
+        sindex2 = np.arange(0,mono_list_length[sensor_index]) + startmw_fm
+        
+        return mpy.get_tropomi_ils_fastconv.get_tropomi_ils_fastconv(
+            self.osp_dir, wn_list, sindex, wn_filter,
             self.observation.observation_table,
-            num_fwhm_srf)
-    
-    def ils_params_fastconv(self, sensor_index : int):
-        # Place holder, this doesn't work yet. Copy of what is
-        # done in make_uip_tropomi.
-        return None
-        # This is hardcoded in make_uip_tropomi, so we duplicate that here
-        num_fwhm_srf=4.0 
-        return mpy.get_tropomi_ils_fastconv(
-            self.measurement_id["ElanorOSPDir"],
-            tropomiFrequency, tempfreqIndex_measgrid, 
-            WAVELENGTH_FILTER, 
-            self.observation.observation_table,
-            num_fwhm_srf, 
-            i_monochromfreq=tropomiFrequency[tempfreqIndex], 
-            i_interpmethod="INTERP_MONOCHROM"
-        )
+            num_fwhm_srf,
+            i_monochromfreq=wn_list[sindex2],
+            i_interpmethod="INTERP_MONOCHROM")
 
     def ils_params(self, sensor_index : int):
         '''ILS parameters'''
         if self.ils_method(sensor_index) == "APPLY":
             return self.ils_params_preconv(sensor_index)
+        elif (self.ils_method(sensor_index) == "POSTCONV"):
+            return self.ils_params_postconv(sensor_index)
+        elif (self.ils_method(sensor_index) == "FASTCONV"):
+            return self.ils_params_fastconv(sensor_index)
         else:
-            # TODO Pull out of rf_uip. This is in make_uip_tropomi.py
-            # Note that this seems to fold in determine the high resolution grid.
-            # We have a separate class MusesSpectrumSampling for doing that, which
-            # currently just returns what ils_params has. When we clean this up, we
-            # may want to put part of the functionality there - e.g., read the whole
-            # ILS table here and then have the calculation of the spectrum in
-            # MusesSpectrumSampling
-            return self.rf_uip_func().ils_params(sensor_index, self.instrument_name)
+            raise RuntimeError(f"Unrecognized ils_method {self.ils_method(sensor_index)}")
 
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''

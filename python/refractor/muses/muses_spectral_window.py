@@ -176,6 +176,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         may go away.'''
         mono_list = []
         mono_filter_list = []
+        mono_list_length = []
         for w in self.muses_microwindows():
             mw_start = w['start']
             mw_end = w['endd']
@@ -186,9 +187,10 @@ class MusesSpectralWindow(rf.SpectralWindow):
                                   mw_monospacing)
             mono_list.append(mono_temp)
             mono_filter_list.extend([mw_filter,]*len(mono_temp))
+            mono_list_length.append(len(mono_temp))
         mono_list = np.concatenate(mono_list,axis=0)
         mono_filter_list = np.array(mono_filter_list)
-        return mono_list, mono_filter_list
+        return mono_list, mono_filter_list, mono_list_length
 
     def muses_microwindows(self):
         '''Return the muses-py list of dict structure used as microwindows. This is
