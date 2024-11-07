@@ -32,7 +32,10 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         self.xsect_grid = []
         self.xsect_data = []
         for i in range(self.obs.num_channels):
-            if(self.obs.instrument_name == "TROPOMI"):
+            if(self.obs.spectral_domain(i).data.shape[0] == 0):
+                t1 = []
+                t2 = []
+            elif(self.obs.instrument_name == "TROPOMI"):
                 t1, t2 = self._xsect_tropomi_ils(i)
             elif(self.obs.instrument_name == "OMI"):
                 t1, t2 = self._xsect_omi_ils(i)
