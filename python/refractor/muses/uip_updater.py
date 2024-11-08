@@ -1,5 +1,6 @@
 import refractor.framework as rf
 from .refractor_uip import RefractorUip
+from loguru import logger
 
 # The information in the ReFRACtor StateVector and the py-retrieve UIP are
 # redundant - basically we have two copies of everything because of the
@@ -45,6 +46,7 @@ class StateVectorUpdateUip(rf.StateVectorObserver):
         self.rf_uip = rf_uip
 
     def notify_update(self, sv : rf.StateVector):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.rf_uip.update_uip(sv.state)
 
 class MaxAPosterioriSqrtConstraintUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
@@ -53,6 +55,7 @@ class MaxAPosterioriSqrtConstraintUpdateUip(rf.ObserverMaxAPosterioriSqrtConstra
         self.rf_uip = rf_uip
 
     def notify_update(self, mstand : rf.MaxAPosterioriSqrtConstraint):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.rf_uip.update_uip(mstand.parameters)
         
 __all__ = ["AbsorberVmrToUip", "StateVectorUpdateUip"]

@@ -308,6 +308,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         
     def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
         
     def forward_model(self, instrument_name : str,

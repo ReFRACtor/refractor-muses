@@ -397,8 +397,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         '''Uses MUSES code for O3 absorption, which are precomputed ahead
         of the forward model. They may include a convolution with the ILS.
         '''
-        # Temp, force UIP to generate O3 file so we can compare
-        _ = self.ray_info
         vmr_list = [vmr for vmr in self.absorber_vmr if vmr.gas_name == "O3"]
         ils_params_list = []
         for i in range(self.num_channels):
@@ -698,6 +696,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def forward_model(self):
+        logger.debug(f"Creating forward model using {self.__class__.__name__}")
         res = rf.ForwardModelWithCloudHandling(self.underlying_forward_model,
                                                self.cloud_fraction)
         res.add_cloud_handling_object(self.pressure)

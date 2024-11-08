@@ -27,6 +27,7 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
+
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
                 h.notify_update_target(rs)
@@ -90,12 +91,14 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
         
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "bt":
             return (False,  None)
+        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         jacobian_speciesNames = ['H2O']
         jacobian_specieslist = ['H2O']
         jacobianOut = None
@@ -131,6 +134,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "irk":
             return (False,  None)
+        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         jacobian_speciesNames = rs.retrieval_info.species[0:rs.retrieval_info.n_species]
         jacobian_specieslist = rs.retrieval_info.speciesListFM[0:rs.retrieval_info.n_totalParametersFM]
         jacobianOut = None
@@ -157,10 +161,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.propagated_qa = PropagatedQA()
         
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
+        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         rs.notify_update("retrieval input")
         rs.retrieval_info.stepNumber = rs.step_number
         rs.retrieval_info.stepName = rs.step_name

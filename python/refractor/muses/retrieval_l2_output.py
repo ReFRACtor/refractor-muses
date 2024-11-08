@@ -56,6 +56,7 @@ class RetrievalL2Output(RetrievalOutput):
             self.dataN2O = None
         if(location != "retrieval step"):
             return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         # Regenerate this for the current step
         self._species_list = None
         for self.spcname in self.species_list:

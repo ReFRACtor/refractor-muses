@@ -102,6 +102,7 @@ class MusesPyQaDataHandle(QaDataHandle):
     def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.spectral_window_directory = measurement_id["spectralWindowDirectory"]
         self.viewing_mode = measurement_id["viewingMode"]
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]

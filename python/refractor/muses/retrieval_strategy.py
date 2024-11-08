@@ -370,6 +370,7 @@ class RetrievalStrategyCaptureObserver:
     def notify_update(self, retrieval_strategy, location, **kwargs):
         if(location != self.location_to_capture):
             return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
         # Don't want this class included in the pickle
         retrieval_strategy.remove_observer(self)

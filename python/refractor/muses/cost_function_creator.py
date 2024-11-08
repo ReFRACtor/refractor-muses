@@ -40,6 +40,7 @@ class CostFunctionCreator:
 
         We take measure_id, which is a MeasurementId.
         '''
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
@@ -49,6 +50,8 @@ class CostFunctionCreator:
         # so we ignore that. We'll need to come back to that in a bit
         if(instrument not in self._rf_uip):
             logger.debug(f"Creating rf_uip for {instrument}")
+            if(instrument == None):
+                breakpoint()
             self._rf_uip[instrument] = self._rf_uip_func(instrument=instrument)
         return self._rf_uip[instrument]
         

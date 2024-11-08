@@ -4,6 +4,7 @@ from .priority_handle_set import PriorityHandleSet
 from .current_state import CurrentStateDict
 from .observation_handle import mpy_radiance_from_observation_list
 import refractor.muses.muses_py as mpy
+from loguru import logger
 import copy
 import refractor.framework as rf
 import numpy as np
@@ -301,6 +302,7 @@ class StateInfo:
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.state_info_dict = None
         self.initialInitial = {}
         self.initial = {}

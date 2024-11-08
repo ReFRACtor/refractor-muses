@@ -378,6 +378,7 @@ class MusesObservationImp(MusesObservation):
         return self._num_channels
     
     def notify_update(self, sv):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         super().notify_update(sv)
         self._spec = [None,] * self.num_channels
         
@@ -553,6 +554,7 @@ class SimulatedObservationHandle(ObservationHandle):
         self.obs = obs
 
     def notify_update_target(self, measurement_id : MeasurementId):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
         
     def observation(self, instrument_name : str,
@@ -563,6 +565,7 @@ class SimulatedObservationHandle(ObservationHandle):
                     **kwargs):
         if(instrument_name != self.instrument_name):
             return None
+        logger.debug(f"Creating observation using {self.__class__.__name__}")
         return copy.deepcopy(self.obs)
     
 class MusesObservationHandle(ObservationHandle):
@@ -588,6 +591,7 @@ class MusesObservationHandle(ObservationHandle):
 
     def notify_update_target(self, measurement_id : MeasurementId):
         # Need to read new data when the target changes
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.existing_obs = None
         self.measurement_id = measurement_id
         
@@ -599,7 +603,7 @@ class MusesObservationHandle(ObservationHandle):
                     **kwargs):
         if(instrument_name != self.instrument_name):
             return None
-        
+        logger.debug(f"Creating observation using {self.obs_cls.__name__}")
         obs = self.obs_cls.create_from_id(self.measurement_id,
                                           self.existing_obs,
                                           current_state, spec_win, fm_sv,
