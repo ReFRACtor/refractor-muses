@@ -228,6 +228,13 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
+        if(self.match_py_retrieve):
+            return self.raman_effect_muses(i)
+        else:
+            return self.raman_effect_refractor(i)
+        
+    @lru_cache(maxsize=None)
+    def raman_effect_muses(self, i):
         # Note we should probably look at this sample grid, and
         # make sure it goes RamanSioris.ramam_edge_wavenumber past
         # the edges of our spec_win. Also there isn't any particular
@@ -266,6 +273,33 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [ram,])
             return ram
 
+    @lru_cache(maxsize=None)
+    def raman_effect_refractor(self, i):
+        selem = [f"TROPOMIRINGSF{self.filter_list[i]}",]
+        if(self.filter_list[i] in ("BAND1", "BAND2", "BAND3")):
+            coeff,mp = self.current_state.object_state(selem)
+            scale_factor = float(coeff[0])
+        elif(self.filter_list[i] in ("BAND7", "BAND8")):
+            # JLL: The SWIR bands should not need to account for Raman scattering -
+            # Vijay has never seen Raman scattering accounted for in the CO band.
+            scale_factor = None
+        else:
+            raise RuntimeError("Unrecognized filter_list")
+        if scale_factor is None:
+            return None
+        else:
+            with self.observation.modify_spectral_window(do_raman_ext=True):
+                wlen = self.observation.spectral_domain(i)
+            # This is short if we aren't actually running this filter
+            if(wlen.data.shape[0] < 2):
+                return None
+            ram = rf.RamanSiorisEffect(
+                wlen, scale_factor, i, rf.DoubleWithUnit(self.sza[i], "deg"),
+                rf.DoubleWithUnit(self.oza[i], "deg"),
+                rf.DoubleWithUnit(self.raz[i], "deg"),
+                self.atmosphere, self.solar_model(i), rf.StateMappingLinear())
+            self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [ram,])
+            return ram
 
 class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):

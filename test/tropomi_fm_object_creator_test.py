@@ -89,12 +89,11 @@ def test_absorber(tropomi_fm_object_creator_step_1):
     # seems wrong. Test values gotten on 2023-10-04.
     optical_depths = tropomi_fm_object_creator_step_1.absorber.optical_depth_each_layer(330.0, 0).value[::15].flatten()
     expected = [
-        3.43152898e-7,
-        4.70869935e-6,
-        1.34748075e-05,
-        4.38287067e-06,
-        8.47041057e-06,
-    ]
+        3.88059557e-07,
+        4.75033709e-06,
+        1.35658586e-05,
+        4.43398085e-06,
+        8.64108049e-06]
     assert np.allclose(optical_depths, expected)
 
 

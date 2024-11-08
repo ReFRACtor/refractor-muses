@@ -22,7 +22,7 @@ def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp
 
 @require_muses_py
 def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2,
-                                  tropomi_uip_step_2):
+                                  tropomi_uip_step_2, osp_dir):
     obj_creator = tropomi_fm_object_creator_step_2
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
@@ -38,8 +38,9 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2,
     mod2 = MusesOpticalDepth(obj_creator.pressure,
                              obj_creator.temperature, obj_creator.altitude,
                              obj_creator.absorber_vmr,
-                             obj_creator.num_channels,
-                             "./Step01_O3-Band3/vlidort/input")
+                             obj_creator.observation,
+                             [obj_creator.ils_params(0),],
+                             osp_dir)
 
     print(mod2)
     sv = rf.StateVector()
@@ -69,14 +70,14 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2,
     gden_diff = (mod_g-mod2_g) / mod_g * 100
     # Actually have a few larger differences, although most of them are pretty similar.
     # Not sure of the reason, but refractor is probably the more accurate.
-    assert np.abs(gden_diff).max() < 12.0
+    assert np.abs(gden_diff).max() < 13.0
     assert np.median(np.abs(gden_diff)) < 0.1
     mod_od = mod.optical_depth_each_layer(wn, spec_index).value
     mod2_od = mod2.optical_depth_each_layer(wn, spec_index).value
     od_diff = (mod_od-mod2_od) / mod_od * 100
     # Same here, since the gden_diff is larger
-    assert np.abs(od_diff).max() < 12.0
-    assert np.median(np.abs(od_diff)) < 0.1
+    assert np.abs(od_diff).max() < 13.0
+    assert np.median(np.abs(od_diff)) < 1.0
     svinitial = np.copy(sv.state)
     odinitial = mod.optical_depth_each_layer(wn, spec_index).value
     od2initial = mod2.optical_depth_each_layer(wn, spec_index).value

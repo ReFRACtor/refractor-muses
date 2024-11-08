@@ -275,6 +275,13 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
+        if(self.match_py_retrieve):
+            return self.raman_effect_muses(i)
+        else:
+            return self.raman_effect_refractor(i)
+            
+    @lru_cache(maxsize=None)
+    def raman_effect_muses(self, i):
         # Note we should probably look at this sample grid, and
         # make sure it goes RamanSioris.ramam_edge_wavenumber past
         # the edges of our spec_win. Also there isn't any particular
@@ -300,6 +307,22 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                           self.atmosphere,
                           self.solar_model(i),
                           rf.StateMappingLinear())
+
+    @lru_cache(maxsize=None)
+    def raman_effect_refractor(self, i):
+        scale_factor = 1.9
+        with self.observation.modify_spectral_window(do_raman_ext=True):
+            wlen = self.observation.spectral_domain(i)
+        # This is short if we aren't actually running this filter
+        if(wlen.data.shape[0] < 2):
+            return None
+        return rf.RamanSiorisEffect(wlen, scale_factor, i,
+                                    rf.DoubleWithUnit(self.sza[i], "deg"),
+                                    rf.DoubleWithUnit(self.oza[i], "deg"),
+                                    rf.DoubleWithUnit(self.raz[i], "deg"),
+                                    self.atmosphere,
+                                    self.solar_model(i),
+                                    rf.StateMappingLinear())
     
 
 class OmiForwardModelHandle(ForwardModelHandle):
