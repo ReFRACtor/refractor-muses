@@ -321,8 +321,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def pressure(self):
         # We sometimes get negative cloud pressure (e.g. -32767), which later shows as bad_alloc errors
-        if self.cloud_pressure < 0:
-            raise RuntimeError(f"Invalid cloud pressure: {self.cloud_pressure}.")
+        if self.cloud_pressure.value < 0:
+            raise RuntimeError(f"Invalid cloud pressure: {self.cloud_pressure.value}.")
 
         # Note, there is a bit of a difference between the use of
         # cloud_pressure in py_retrieve vs. ReFRACtor. py_retrieve compares
@@ -333,13 +333,23 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # "cloud pressure level" that gives the same number of layers. We
         # could change ReFRACtor to use layers, but there doesn't seem to be
         # much point.
-        rinfo = MusesRayInfo(self.rf_uip_func(), self.instrument_name, self.pressure_fm)
-        ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure)
-        pgrid = self.pressure_fm.pressure_grid().value.value
-        if(ncloud_lay+1 < pgrid.shape[0]):
-            cloud_pressure_level = (pgrid[ncloud_lay] + pgrid[ncloud_lay+1]) / 2
+        pgrid = self.pressure_fm.pressure_grid()
+        pgrid_v = self.pressure_fm.pressure_grid().value.value
+        if(self.match_py_retrieve):
+            rinfo = MusesRayInfo(self.rf_uip_func(), self.instrument_name, self.pressure_fm)
+            ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure.value)
         else:
-            cloud_pressure_level = pgrid[ncloud_lay]
+            # Calculate without MusesRayInfo. I'm not sure if this is ever actually
+            # different, but go ahead and have this only done if match_py_retrieve
+            # isn't true. For MusesRayInfo, play isn't exactly half way between
+            # the levels, so there may be edge cases where the MusesRayInfo
+            # and ReFRACtor count are off by 1.
+            play = (pgrid_v[:-1] + pgrid_v[1:])/2
+            ncloud_lay = np.count_nonzero(play <= self.cloud_pressure.convert(pgrid.units).value)
+        if(ncloud_lay+1 < pgrid_v.shape[0]):
+            cloud_pressure_level = (pgrid_v[ncloud_lay] + pgrid_v[ncloud_lay+1]) / 2
+        else:
+            cloud_pressure_level = pgrid_v[ncloud_lay]
             
         p = rf.PressureWithCloudHandling(self.pressure_fm, cloud_pressure_level)
         return p
