@@ -204,10 +204,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs._state_info.update_state(rs.retrieval_info, self.results.results_list,
                                     do_not_update, rs.retrieval_config,
                                     rs.step_number)
-        if 'OCO2' in rs._strategy_executor.current_strategy_step.instrument_name:
-            # set table.pressurefm to stateConstraint.pressure because OCO-2
-            # is on sigma levels
-            rs._strategy_executor.stable.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
+        # I don't think we actually want this in here. 1) we don't currently
+        # support OCO2 and 2) we would just use a direct PressureSigma object
+        # along with a new state element name if we did. But leave this commented
+        # here to document that py-retrieve did this by we aren't
+        #if 'OCO2' in rs._strategy_executor.current_strategy_step.instrument_name:
+        #    rs._strategy_executor.stable.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
 
@@ -245,9 +247,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         maxIter = rs._strategy_executor.current_strategy_step.max_num_iterations
         
         # Various thresholds from the input table
-        ConvTolerance_CostThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_CostThresh"])
-        ConvTolerance_pThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_pThresh"])
-        ConvTolerance_JacThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_JacThresh"])
+        ConvTolerance_CostThresh = float(rs.retrieval_config["ConvTolerance_CostThresh"])
+        ConvTolerance_pThresh = float(rs.retrieval_config["ConvTolerance_pThresh"])
+        ConvTolerance_JacThresh = float(rs.retrieval_config["ConvTolerance_JacThresh"])
         r = self.radiance_step()["NESR"]
         Chi2Tolerance = 2.0 / len(r) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
@@ -256,7 +258,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             ConvTolerance_JacThresh = 0.00001
             Chi2Tolerance = 0.00001
         ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
-        delta_str = rs._strategy_executor.stable.preferences['LMDelta'] # 100 // original LM step size
+        delta_str = rs.retrieval_config['LMDelta'] # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
         if rs.write_output:
             levmar_log_file = f"{rs.run_dir}/Step{rs.step_number:02d}_{rs.step_name}/LevmarSolver-{rs.step_name}.log"
