@@ -201,12 +201,12 @@ class MusesSpectralWindow(rf.SpectralWindow):
         for i in range(d.shape[0]):
             for j in range(d.shape[1]):
                 if(d[i,j,0] < d[i,j,1]):
-                    v = {'start' : d[i,j,0],
+                    v = {'THROW_AWAY_WINDOW_INDEX' : -1,
+                         'start' : d[i,j,0],
                          'endd' : d[i,j,1],
                          'instrument' : self.instrument_name,
                          'RT' : self.rt[i,j] if self.rt[i,j] is not None else "None",
-                         'filter' : self.filter_name[i,j] if self.filter_name[i,j] is not None else "None",
-                         'THROW_AWAY_WINDOW_INDEX' : -1,
+                         'filter' : self.filter_name[i,j] if self.filter_name[i,j] is not None else "None"
                          }
                     v2 = self.filter_metadata.filter_metadata(self.filter_name[i,j])
                     # Make a copy so we can update v2 without changing anything it might
@@ -224,6 +224,17 @@ class MusesSpectralWindow(rf.SpectralWindow):
                     # Values in both v and v2 prefer the v one based on the rules for
                     # update.
                     v2.update(v)
+                    # In a truly kludgy way, mw_augment_default in py-retrieve
+                    # overrides these values, for AIRS only. Duplicate this
+                    # functionality.
+                    if(self.instrument_name == "AIRS"):
+                        v2["maxopd"] = 0
+                        v2["spacing"] = 0
+                        freqs = np.array([649.62000, 706.13702, 847.13702, 1112.01500, 1524.35210, 2181.49390, 2183.30590, 2458.54390])
+                        ind = np.searchsorted(np.array(freqs) - 0.1, v['endd'],
+                                              side="right") - 1
+                        exts = [2, 3, 4, 5, 6, 7, 8, 9]
+                        v2["monoextend"] = exts[ind]
                     res.append(v2)
         return res
 

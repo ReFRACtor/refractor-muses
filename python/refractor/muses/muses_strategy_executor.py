@@ -16,6 +16,8 @@ import copy
 from loguru import logger
 import time
 import functools
+import numpy as np
+import numpy.testing as npt
 
 def log_timing(f):
     '''Decorator to log the timing of a function.'''
@@ -37,6 +39,29 @@ def log_timing(f):
         logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
         return res
     return log_tm
+
+def struct_compare(s1, s2, skip_list=None, verbose=False):
+    if(skip_list is None):
+        skip_list = []
+    for k in s1.keys():
+        if(k in skip_list):
+            if(verbose):
+                print(f"Skipping {k}")
+            continue
+        if(verbose):
+            print(k)
+        if(isinstance(s1[k], np.ndarray) and
+           np.can_cast(s1[k], np.float64)):
+           npt.assert_allclose(s1[k], s2[k])
+        elif(isinstance(s1[k], np.ndarray)):
+            assert np.all(s1[k] == s2[k])
+        else:
+            assert s1[k] == s2[k]
+
+def array_compare(s1, s2, skip_list=None, verbose=False):
+    assert len(s1) == len(s2)
+    for i in range(len(s1)):
+        struct_compare(s1[i], s2[i], skip_list=skip_list, verbose=verbose)
 
 class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
     '''This is the base class for executing a strategy.
@@ -268,8 +293,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         mwin = []
         for swin in cstep.spectral_window_dict.values():
             mwin.extend(swin.muses_microwindows())
-        # Temp
-        mwin = self.stable.microwindows()
+        if False:
+            mwin2 = self.stable.microwindows()
+            array_compare(mwin, mwin2, skip_list=["THROW_AWAY_WINDOW_INDEX"])
         with muses_py_call(self.rs.run_dir,
                            vlidort_cli=self.rs.vlidort_cli):
             return RefractorUip.create_uip(
