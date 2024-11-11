@@ -206,6 +206,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                          'instrument' : self.instrument_name,
                          'RT' : self.rt[i,j] if self.rt[i,j] is not None else "None",
                          'filter' : self.filter_name[i,j] if self.filter_name[i,j] is not None else "None",
+                         'THROW_AWAY_WINDOW_INDEX' : -1,
                          }
                     v2 = self.filter_metadata.filter_metadata(self.filter_name[i,j])
                     # Make a copy so we can update v2 without changing anything it might

@@ -22,13 +22,11 @@ class RetrievalInfo:
     def __init__(self, error_analysis : "ErrorAnalysis",
                  strategy_table : "StrategyTable",
                  current_strategy_step: 'CurrentStrategyStep',
-                 swin_dict : 'dict(str, MusesSpectralWindow)',
                  state_info : "StateInfo"):
         self.retrieval_dict = \
             self.init_data(error_analysis,
                            strategy_table,
                            current_strategy_step,
-                           swin_dict,
                            state_info)
         self.retrieval_dict = self.retrieval_dict.__dict__
         self._map_type_systematic = mpy.constraint_get_maptype(error_analysis.error_current, self.species_list_sys)
@@ -231,10 +229,10 @@ class RetrievalInfo:
                 o_retrievalInfo.parameterEndSys.append(-1)
 
         
-    def add_species(self, species_name, current_strategy_step, swin_dict,
+    def add_species(self, species_name, current_strategy_step, 
                     state_info, o_retrievalInfo):
         selem = state_info.state_element(species_name)
-        selem.update_initial_guess(current_strategy_step, swin_dict)
+        selem.update_initial_guess(current_strategy_step, current_strategy_step.spectral_window_dict)
         
         row = o_retrievalInfo.n_totalParameters
         rowFM = o_retrievalInfo.n_totalParametersFM
@@ -368,7 +366,6 @@ class RetrievalInfo:
     def init_data(self, error_analysis : "ErrorAnalysis",
                   strategy_table : "StrategyTable",
                   current_strategy_step: 'CurrentStrategyStep',
-                  swin_dict : 'dict(str, MusesSpectralWindow)',
                   state_info : "StateInfo"):
         # This is a reworking of get_species_information in muses-py
         utilLevels = mpy.UtilLevels()
@@ -470,7 +467,7 @@ class RetrievalInfo:
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for species_name in o_retrievalInfo.species:
-                self.add_species(species_name, current_strategy_step, swin_dict,
+                self.add_species(species_name, current_strategy_step, 
                                  state_info, o_retrievalInfo)
 
             self.init_interferents(strategy_table, state_info, o_retrievalInfo,

@@ -100,6 +100,12 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
+    def spectral_window_dict(self) -> "dict(str, MusesSpectralWindow)":
+        '''Return a dictionary that maps instrument name to the MusesSpectralWindow
+        to use for that.'''
+        raise NotImplementedError()
+
+    @abc.abstractproperty
     def retrieval_info(self) -> RetrievalInfo:
         '''The RetrievalInfo.'''
         # Note it would probably be good to remove this if we can. Right now
@@ -124,6 +130,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
              'step_number' : strategy_table.table_step,
              'max_num_iterations' : int(strategy_table.max_num_iterations),
              'retrieval_type' : strategy_table.retrieval_type,
+             'spectral_window_dict' : None,
              'retrieval_info' : None
              })
     
@@ -166,6 +173,12 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         '''The retrieval type.'''
         return self.current_strategy_step_dict['retrieval_type']
 
+    @property
+    def spectral_window_dict(self) -> "dict(str, MusesSpectralWindow)":
+        '''Return a dictionary that maps instrument name to the MusesSpectralWindow
+        to use for that.'''
+        return self.current_strategy_step_dict['spectral_window_dict']
+    
     @property
     def retrieval_info(self) -> RetrievalInfo:
         '''The RetrievalInfo.'''
@@ -244,7 +257,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         o_omi = None
         o_tropomi = None
         o_oco2 = None
-        for iname in self.current_strategy_step.instrument_name:
+        cstep = self.current_strategy_step
+        for iname in cstep.instrument_name:
             if iname in o_xxx:
                 if(instrument is None or iname == instrument):
                     obs = self.rs.observation_handle_set.observation(
@@ -303,6 +317,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.rs = rs
         self.retrieval_config = rs.retrieval_config
         self.retrieval_info = None
+        self.spectral_window_dict = None
 
     @property
     def strategy_table_filename(self):
@@ -334,12 +349,14 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
              'step_number' : self.stable.table_step,
              'max_num_iterations' : int(self.stable.max_num_iterations),
              'retrieval_type' : self.stable.retrieval_type,
+             'spectral_window_dict' : self.spectral_window_dict,
              'retrieval_info' : self.retrieval_info
              })
 
     def restart(self):
         '''Set step to the first one.'''
         self.stable.table_step = 0
+        self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
 
     def next_step(self):
         '''Advance to the next step'''
@@ -351,10 +368,12 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
+        # Temp, we'll want to get this update done automatically. But do this
+        # to figure out issue
+        self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
         self.retrieval_info = RetrievalInfo(
             self.error_analysis, self.stable,
             self.current_strategy_step,
-            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
             self.state_info)
 
         # Update state with initial guess so that the initial guess is
@@ -392,7 +411,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             
     def run_step(self):
         '''Run a the current step.'''
-        self.rs._swin_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
+        self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
         try:
             logger.info(f"Hi there! {self.qa_data_handle_set.qa_file_name(self.current_strategy_step)}")
         except RuntimeError:
