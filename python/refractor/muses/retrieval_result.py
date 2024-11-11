@@ -52,7 +52,7 @@ class RetrievalResult:
         self.retrieval_info = retrieval_info
         self.state_info = state_info
         self.sounding_metadata = state_info.sounding_metadata()
-        self.strategy_table = strategy_table
+        self._strategy_table = strategy_table
         self.ret_res = mpy.ObjectView(ret_res)
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
@@ -71,7 +71,7 @@ class RetrievalResult:
         res = error_analysis.error_analysis(self.rstep.__dict__, self.retrieval_info,
                                             self.state_info, self)
         res = mpy.write_retrieval_summary(
-            self.strategy_table.analysis_directory,
+            self._strategy_table.analysis_directory,
             self.retrieval_info.retrieval_info_obj,
             self.state_info.state_info_obj,
             None,
@@ -121,21 +121,21 @@ class RetrievalResult:
 
     @property
     def press_list(self):
-        return [float(self.strategy_table.preferences["plotMaximumPressure"]),
-                float(self.strategy_table.preferences["plotMinimumPressure"])]
+        return [float(self._strategy_table.preferences["plotMaximumPressure"]),
+                float(self._strategy_table.preferences["plotMinimumPressure"])]
 
     @property
     def quality_name(self):
-        with self.strategy_table.chdir_run_dir():
-            res = os.path.basename(self.strategy_table.spectral_filename)
+        with self._strategy_table.chdir_run_dir():
+            res = os.path.basename(self._strategy_table.spectral_filename)
             res = res.replace("Microwindows_", "QualityFlag_Spec_")
             res = res.replace("Windows_", "QualityFlag_Spec_")
-            res = self.strategy_table.preferences["QualityFlagDirectory"] + res
+            res = self._strategy_table.preferences["QualityFlagDirectory"] + res
             
             # if this does not exist use generic nadir / limb quality flag
             if not os.path.isfile(res):
                 logger.warning(f'Could not find quality flag file: {res}')
-                viewingMode = self.strategy_table.preferences["viewingMode"]
+                viewingMode = self._strategy_table.preferences["viewingMode"]
                 viewMode = viewingMode.lower().capitalize()
 
                 res = f"{os.path.dirname(res)}/QualityFlag_Spec_{viewMode}.asc"
@@ -154,7 +154,7 @@ class RetrievalResult:
     
         niter = len(self.ret_res.resdiag[:, 0])
         # to standardize the size of maxIter, set it to maxIter from strategy table
-        maxIter = self.strategy_table.max_num_iterations
+        maxIter = self._strategy_table.max_num_iterations
         maxIter = int(maxIter) + 1  # Add 1 to account for initial.
 
 

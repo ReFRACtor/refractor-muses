@@ -232,7 +232,7 @@ class RetrievalInfo:
     def add_species(self, species_name, current_strategy_step, 
                     state_info, o_retrievalInfo):
         selem = state_info.state_element(species_name)
-        selem.update_initial_guess(current_strategy_step, current_strategy_step.spectral_window_dict)
+        selem.update_initial_guess(current_strategy_step)
         
         row = o_retrievalInfo.n_totalParameters
         rowFM = o_retrievalInfo.n_totalParametersFM

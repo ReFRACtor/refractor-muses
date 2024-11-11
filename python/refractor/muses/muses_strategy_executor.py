@@ -262,15 +262,18 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             if iname in o_xxx:
                 if(instrument is None or iname == instrument):
                     obs = self.rs.observation_handle_set.observation(
-                        iname, None, MusesSpectralWindow(self.stable.spectral_window(iname), None),
-                        None)
+                        iname, None, cstep.spectral_window_dict[iname],None)
                     if hasattr(obs, "muses_py_dict"):
                         o_xxx[iname] = obs.muses_py_dict
+        mwin = []
+        for swin in cstep.spectral_window_dict.values():
+            mwin.extend(swin.muses_microwindows())
+        # Temp
+        mwin = self.stable.microwindows()
         with muses_py_call(self.rs.run_dir,
                            vlidort_cli=self.rs.vlidort_cli):
             return RefractorUip.create_uip(
-                self.state_info, self.stable,
-                self.stable.microwindows(), rinfo,
+                self.state_info, self.stable, mwin, rinfo,
                 o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
                 o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
                 jacobian_speciesIn=jacobian_speciesIn,
@@ -297,7 +300,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return self.rs._cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,
             cstate,
-            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
+            self.current_strategy_step.spectral_window_dict,
             functools.partial(self.uip_func, do_systematic=do_systematic,
                               jacobian_speciesIn=jacobian_speciesIn),
             include_bad_sample=include_bad_sample, **self.rs._kwargs)
@@ -467,7 +470,6 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.restart()
         self.error_analysis = ErrorAnalysis(
             self.current_strategy_step,
-            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
             self.state_info,
             covariance_state_element_name)
         self.rs.notify_update("initial set up done")

@@ -32,8 +32,7 @@ class EofStateElement(RetrievableStateElement):
                              do_update_fm : np.array):
         self._value = results_list[retrieval_info.species_list==self._name]
 
-    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep,
-                             swin : 'dict(str,MusesSpectralWindow)'):
+    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep):
         self.mapType = 'linear'
         self.pressureList = np.array([-2,])
         self.altitudeList  = np.array([-2,])

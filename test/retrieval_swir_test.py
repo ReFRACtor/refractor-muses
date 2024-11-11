@@ -155,11 +155,6 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
     # This is the portion that isn't the parameter constraint
     #print((residual2-residual)[:112])
 
-    # Difference high resolution clear spectrum
-    #print(np.abs(pspec.data['high_res_rt'][2][1] - pspec.data['high_res_rt'][0][1]).max())
-    # All zero. Why?
-    breakpoint()
-
 @long_test
 @require_muses_py
 def test_simulated_retrieval(gmao_dir, josh_osp_dir):
@@ -276,8 +271,7 @@ class ScaledStateElement(RetrievableStateElement):
             self.state_info.next_state[self.name] = self.clone_for_other_state()
         self._value = results_list[retrieval_info.species_list==self._name]
 
-    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep',
-                             swin : 'dict(str,MusesSpectralWindow)'):
+    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep'):
         self.mapType = 'linear'
         self.pressureList = np.full((1,), -2.0)
         self.altitudeList  = np.full((1,), -2.0)
@@ -343,7 +337,7 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
             return None
         obj_creator = ScaledTropomiFmObjectCreator(
             current_state, self.measurement_id, obs,
-            rf_uip=rf_uip_func(),
+            rf_uip_func=rf_uip_func,
             fm_sv=fm_sv,
             **self.creator_kwargs)
         fm = obj_creator.forward_model
