@@ -4,6 +4,7 @@ from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
 import refractor.framework as rf
+from loguru import logger
 import os
 import numpy as np
 
@@ -187,6 +188,7 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
         self.coeff = None
 
     def notify_update(self, sv):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.coeff = sv.state[self.pstart:(self.pstart+self.plen)]
 
     def state_vector_name(self, sv, sv_namev):
@@ -210,7 +212,8 @@ class MusesForwardModelHandle(ForwardModelHandle):
                       **kwargs):
         if(instrument_name != self.instrument_name):
             return None
-        return self.cls(rf_uip_func(), obs, **kwargs)
+        logger.debug(f"Creating forward model {self.cls.__name__}")
+        return self.cls(rf_uip_func(instrument=instrument_name), obs, **kwargs)
 
 # The Muses code is the fallback, so add with the lowest priority
 ForwardModelHandleSet.add_default_handle(

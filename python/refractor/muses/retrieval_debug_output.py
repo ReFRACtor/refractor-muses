@@ -1,6 +1,7 @@
 import logging
 import refractor.muses.muses_py as mpy
 from .retrieval_output import RetrievalOutput
+from loguru import logger
 import os
 import pickle
 
@@ -26,6 +27,7 @@ class RetrievalInputOutput(RetrievalOutput):
         self.retrieval_strategy_step = retrieval_strategy_step
         if(location != "retrieval step"):
             return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(f"{self.step_directory}/ELANORInput", exist_ok=True)
         # May need to extend this logic here
         detectorsUse = [1]
@@ -46,6 +48,7 @@ class RetrievalPickleResult(RetrievalOutput):
         self.retrieval_strategy_step = retrieval_strategy_step
         if(location != "retrieval step"):
             return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.elanor_directory, exist_ok=True)
         with open(f"{self.elanor_directory}/results.pkl", "wb") as fh:
             pickle.dump(self.results.__dict__, fh)
@@ -61,6 +64,7 @@ class RetrievalPlotResult(RetrievalOutput):
         self.retrieval_strategy_step = retrieval_strategy_step
         if(location != "retrieval step"):
             return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.step_directory, exist_ok=True)
         mpy.plot_results(f"{self.step_directory}/", self.results,
                          self.retrieval_info.retrieval_info_obj,
@@ -73,6 +77,7 @@ class RetrievalPlotRadiance(RetrievalOutput):
         self.retrieval_strategy_step = retrieval_strategy_step
         if(location != "retrieval step"):
             return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.analysis_directory, exist_ok=True)
         mpy.plot_radiance(self.analysis_directory, self.results,
                           self.radiance_step.__dict__, None)

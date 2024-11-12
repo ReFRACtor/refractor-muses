@@ -1,6 +1,7 @@
 from glob import glob
 from loguru import logger
 import refractor.muses.muses_py as mpy
+from loguru import logger
 import os
 from collections import defaultdict
 import copy
@@ -25,6 +26,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
         self.retrieval_strategy_step = retrieval_strategy_step
         if(location != "retrieval step"):
             return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         if len(glob(f"{self.out_fname}*")) == 0:
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
             self.write_jacobian()

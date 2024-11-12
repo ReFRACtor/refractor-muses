@@ -1,5 +1,6 @@
 from functools import cached_property, lru_cache
 from .muses_optical_depth_file import MusesOpticalDepthFile
+from .muses_optical_depth import MusesOpticalDepth
 from .muses_altitude import MusesAltitude
 from .muses_spectrum_sampling import MusesSpectrumSampling
 from .muses_raman import MusesRaman
@@ -47,25 +48,36 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def __init__(self, current_state : 'CurrentState',
                  measurement_id : 'MeasurementId',
                  instrument_name: str, observation : 'MusesObservation',
-                 # Temp, we are moving away from this
-                 rf_uip : "Optional(RefractorUip)" = None,
+                 rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])" = None,
                  fm_sv : "Optional(rf.StateVector)" = None,
                  # Values, so we can flip between using pca and not
                  use_pca=True, use_lrad=False, lrad_second_order=False,
                  use_raman=True,
                  skip_observation_add=False,
+                 match_py_retrieve=False,
                  osp_dir=None,
                  absorption_gases = ["O3",],
                  primary_absorber = "O3"
                  ):
         '''Constructor. The StateVector to add things to can be passed in, or if this
         isn't then we create a new StateVector.
+
+        There are a number of number of options for exactly how we construct the
+        ForwardModel.
+
+        match_py_retrieve - We have some classes that purposely mimic the way py-retrieves
+             forward model works. These may have only minor differences with standard
+             ReFRACtor classes, but for doing an initial comparison against py-retrieve
+             it can be useful to remove minor differences to uncover anything that might
+             be a real, unexpected difference. Normally you want to the default False
+             value, but for testing purposes you might want to turn this on.
         '''
         self.use_pca = use_pca
         self.use_lrad = use_lrad
         self.use_raman = use_raman
         self.instrument_name = instrument_name
         self.lrad_second_order = lrad_second_order
+        self.match_py_retrieve = match_py_retrieve
         self.observation = observation
         # TODO This is needed by MusesOpticalDepthFile. It would be nice to
         # move away from needing this. This is uses in make_uip_tropomi to
@@ -91,7 +103,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 self.fm_sv, self.observation.state_element_name_list(), [self.observation,])
         
         # We are moving away from this, but leave now as a reference
-        self.rf_uip = rf_uip
+        self.rf_uip_func = rf_uip_func
 
         self.filter_list = self.observation.filter_list
         self.num_channels = self.observation.num_channels
@@ -115,7 +127,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def ray_info(self):
         '''Return MusesRayInfo.'''
-        return MusesRayInfo(self.rf_uip, self.instrument_name, self.pressure)
+        return MusesRayInfo(self.rf_uip_func(), self.instrument_name, self.pressure)
 
     @property
     def spec_win(self):
@@ -158,9 +170,11 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def ils_params(self, sensor_index : int):
         '''ILS parameters'''
         raise NotImplementedError
-    
+
+    @property
     def ils_method(self, sensor_index : int) -> str:
-        '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
+        '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV.
+        '''
         raise NotImplementedError
     
     @cached_property
@@ -309,10 +323,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         cases, this pressure object is what is needed by the ForwardModel,
         which is the pressure on the forward model grid.'''
         # 100 is to convert hPa used by py-retrieve to Pa we use here.
-        plev = self.rf_uip.atmosphere_column("pressure") * 100
+        plev_fm, _ = self.current_state.object_state(["pressure",])
+        # 100 is to convert hPa used by py-retrieve to Pa we use here.
+        plev_fm *= 100.0
 
-        surface_pressure = plev[0]
-        return rf.PressureSigma(plev, surface_pressure,
+        surface_pressure = plev_fm[0]
+        return rf.PressureSigma(plev_fm, surface_pressure,
                                 rf.Pressure.PREFER_DECREASING_PRESSURE)
 
     @property
@@ -323,8 +339,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def pressure(self):
         # We sometimes get negative cloud pressure (e.g. -32767), which later shows as bad_alloc errors
-        if self.cloud_pressure < 0:
-            raise RuntimeError(f"Invalid cloud pressure: {self.cloud_pressure}.")
+        if self.cloud_pressure.value < 0:
+            raise RuntimeError(f"Invalid cloud pressure: {self.cloud_pressure.value}.")
 
         # Note, there is a bit of a difference between the use of
         # cloud_pressure in py_retrieve vs. ReFRACtor. py_retrieve compares
@@ -335,13 +351,23 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # "cloud pressure level" that gives the same number of layers. We
         # could change ReFRACtor to use layers, but there doesn't seem to be
         # much point.
-        rinfo = MusesRayInfo(self.rf_uip, self.instrument_name, self.pressure_fm)
-        ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure)
-        pgrid = self.pressure_fm.pressure_grid().value.value
-        if(ncloud_lay+1 < pgrid.shape[0]):
-            cloud_pressure_level = (pgrid[ncloud_lay] + pgrid[ncloud_lay+1]) / 2
+        pgrid = self.pressure_fm.pressure_grid()
+        pgrid_v = self.pressure_fm.pressure_grid().value.value
+        if(self.match_py_retrieve):
+            rinfo = MusesRayInfo(self.rf_uip_func(), self.instrument_name, self.pressure_fm)
+            ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure.value)
         else:
-            cloud_pressure_level = pgrid[ncloud_lay]
+            # Calculate without MusesRayInfo. I'm not sure if this is ever actually
+            # different, but go ahead and have this only done if match_py_retrieve
+            # isn't true. For MusesRayInfo, play isn't exactly half way between
+            # the levels, so there may be edge cases where the MusesRayInfo
+            # and ReFRACtor count are off by 1.
+            play = (pgrid_v[:-1] + pgrid_v[1:])/2
+            ncloud_lay = np.count_nonzero(play <= self.cloud_pressure.convert(pgrid.units).value)
+        if(ncloud_lay+1 < pgrid_v.shape[0]):
+            cloud_pressure_level = (pgrid_v[ncloud_lay] + pgrid_v[ncloud_lay+1]) / 2
+        else:
+            cloud_pressure_level = pgrid_v[ncloud_lay]
             
         p = rf.PressureWithCloudHandling(self.pressure_fm, cloud_pressure_level)
         return p
@@ -358,7 +384,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def rayleigh(self):
-        return rf.RayleighBodhaine(self.pressure, self.alt_vec(),
+        return rf.RayleighBodhaine(self.pressure, self.altitude,
                                    self.constants)
 
     @cached_property
@@ -377,7 +403,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return vmrs
 
     @cached_property
-    def absorber_muses(self):
+    def absorber_muses_file(self):
         '''Uses MUSES O3 optical files, which are precomputed ahead
         of the forward model. They may include a convolution with the ILS.
         '''
@@ -386,11 +412,29 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # get_tropomi_o3xsec_without_ils and then written to file.
         # We should move this into MusesOpticalDepthFile without having
         # a file.
+        # MusesOpticalDepthFile only support O3
+        vmr_list = [vmr for vmr in self.absorber_vmr if vmr.gas_name == "O3"]
         return MusesOpticalDepthFile(self.ray_info,
                                      self.pressure,
                                      self.temperature, self.altitude,
                                      self.absorber_vmr, self.num_channels,
                                      f"{self.step_directory}/vlidort/input")
+
+    @cached_property
+    def absorber_muses(self):
+        '''Uses MUSES code for O3 absorption, which are precomputed ahead
+        of the forward model. They may include a convolution with the ILS.
+        '''
+        vmr_list = [vmr for vmr in self.absorber_vmr if vmr.gas_name == "O3"]
+        ils_params_list = []
+        for i in range(self.num_channels):
+            ils_params_list.append(self.ils_params(i))
+        return MusesOpticalDepth(self.pressure,
+                                 self.temperature, self.altitude,
+                                 self.absorber_vmr,
+                                 self.observation,
+                                 ils_params_list,
+                                 self.osp_dir)
     
     @cached_property
     def absorber_xsec(self):
@@ -411,7 +455,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 xsectable.append(rf.XSecTableSimple(spec_grid, xsec_values,
                                                        cfac))
         return rf.AbsorberXSec(self.absorber_vmr, self.pressure,
-                               self.temperature, self.alt_vec(),
+                               self.temperature, self.altitude,
                                xsectable)
     
 
@@ -455,7 +499,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         
         return rf.AbsorberAbsco(self.absorber_vmr, self.pressure,
                                 self.temperature,
-                                self.alt_vec(), absorptions, self.constants)
+                                self.altitude, absorptions, self.constants)
             
             
     @cached_property
@@ -463,9 +507,16 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         '''Absorber to use. This just gives us a simple place to switch
         between absco and cross section.'''
 
-        # Use higher resolution xsec when using FASTCONV
-        if self.ils_method(0) == "FASTCONV":
+        # Use higher resolution xsec when not using APPLY (which means
+        # pre convolve)
+        #
+        # Note see commend in ils_method, this assumes all spectral bands are
+        # the same. We can probably relax that, but really need a test case to
+        # work through the logic
+        if self.ils_method(0) != "APPLY":
             return self.absorber_xsec
+        elif(self.match_py_retrieve):
+            return self.absorber_muses_file
         else:
             return self.absorber_muses
 
@@ -489,31 +540,38 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                                    self.pressure)
 
     @cached_property
-    def altitude(self):
-        #res = rf.vector_altitude()
+    def altitude_muses(self):
         res = []
         for i in range(self.num_channels):
-            # chan_alt = rf.AltitudeHydrostatic(self.pressure,
-            #     self.temperature, self.rf_uip.latitude_with_unit(i),
-            #     self.rf_uip.surface_height_with_unit(i))
-
             chan_alt = MusesAltitude(self.ray_info, self.pressure,
                                      self.observation.latitude[i])
-            #res.push_back(chan_alt)
             res.append(chan_alt)
         return res
 
-    def alt_vec(self):
-        res = rf.vector_altitude()
-        for alt in self.altitude:
-            res.push_back(alt)
+    @cached_property
+    def altitude_refractor(self):
+        res = []
+        for i in range(self.num_channels):
+            chan_alt = rf.AltitudeHydrostatic(
+                self.pressure,
+                self.temperature,
+                rf.DoubleWithUnit(self.observation.latitude[i], "deg"),
+                rf.DoubleWithUnit(self.observation.surface_height[i], "m"))
+            res.append(chan_alt)
         return res
-    
+
+    @property
+    def altitude(self):
+        if(self.match_py_retrieve):
+            return self.altitude_muses
+        else:
+            return self.altitude_refractor
+
     @cached_property
     def atmosphere(self):
         atm = rf.AtmosphereStandard(self.absorber, self.pressure,
             self.temperature, self.rayleigh, self.relative_humidity,
-            self.ground, self.alt_vec(), self.constants)
+            self.ground, self.altitude, self.constants)
         # Atmosphere doesn't directly use state vector elements, but it needs
         # to know when this changes because the number of jacobian variables
         # might change, and we need to know that the cache should be cleared.
@@ -666,6 +724,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def forward_model(self):
+        logger.debug(f"Creating forward model using {self.__class__.__name__}")
         res = rf.ForwardModelWithCloudHandling(self.underlying_forward_model,
                                                self.cloud_fraction)
         res.add_cloud_handling_object(self.pressure)

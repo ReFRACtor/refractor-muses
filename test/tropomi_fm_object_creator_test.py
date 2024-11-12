@@ -25,7 +25,7 @@ def tropomi_fm_object_creator_step_1(tropomi_uip_step_1, tropomi_obs_step_1, osp
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_1), mid,
                                   tropomi_obs_step_1,
-                                  rf_uip=tropomi_uip_step_1)
+                                  rf_uip_func=lambda **kwargs: tropomi_uip_step_1)
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp_dir):
@@ -38,7 +38,7 @@ def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_2), mid,
                                   tropomi_obs_step_2,
-                                  rf_uip=tropomi_uip_step_2)
+                                  rf_uip_func=lambda **kwargs:tropomi_uip_step_2)
 
 
 
@@ -89,12 +89,11 @@ def test_absorber(tropomi_fm_object_creator_step_1):
     # seems wrong. Test values gotten on 2023-10-04.
     optical_depths = tropomi_fm_object_creator_step_1.absorber.optical_depth_each_layer(330.0, 0).value[::15].flatten()
     expected = [
-        3.43152898e-7,
-        4.70869935e-6,
-        1.34748075e-05,
-        4.38287067e-06,
-        8.47041057e-06,
-    ]
+        3.88059557e-07,
+        4.75033709e-06,
+        1.35658586e-05,
+        4.43398085e-06,
+        8.64108049e-06]
     assert np.allclose(optical_depths, expected)
 
 
@@ -202,11 +201,11 @@ def test_forward_model_step2(tropomi_fm_object_creator_step_2):
     
     
 @require_muses_py
-def test_species_basis(tropomi_fm_object_creator_step_2):
+def test_species_basis(tropomi_uip_step_2):
     # Check that we are consistent with our species_basis_matrix
     # and atmosphere_retrieval_level_subset.
-    npt.assert_allclose(tropomi_fm_object_creator_step_2.rf_uip.species_basis_matrix("O3"),
-                        tropomi_fm_object_creator_step_2.rf_uip.species_basis_matrix_calc("O3"))
+    npt.assert_allclose(tropomi_uip_step_2.species_basis_matrix("O3"),
+                        tropomi_uip_step_2.species_basis_matrix_calc("O3"))
 
 
 @require_muses_py
@@ -245,87 +244,26 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
     (uip, o_residual, o_jacobian_ret, radiance_out,
      o_jacobianOut, o_stop_flag) = cfunc.residual_fm_jacobian(**rrefractor.params)
 
-@long_test
-@require_muses_py
-def test_tropomi_fm_object_creator_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
-                                        clean_up_replacement_function):
-    '''Full run, that we can compare the output files. This is not
-    really a unit test, but for convenience we have it here. We don't
-    actually do anything with the data, other than make it available.
 
-    Data goes in the local directory, rather than an isolated one.'''
-    subprocess.run("rm -r tropomi_fm_object_creator_cris_tropomi", shell=True)
-    r = MusesRunDir(joint_tropomi_test_in_dir,
-                    osp_dir, gmao_dir, path_prefix="tropomi_fm_object_creator_cris_tropomi")
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    ihandle = TropomiForwardModelHandle(use_pca=False, use_lrad=False,
-                                      lrad_second_order=False)
-    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.retrieval_ms()
-    
-    # Temp, compare right after
-    diff_is_error = True
-    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_L2*.nc"):
-        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_Radiance*.nc"):
-        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_Jacobian*.nc"):
-        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
+def test_compare_altitude(tropomi_fm_object_creator_step_1):
+    '''Compare MuseAltitude and ReFRACtor altitude'''
+    alt1 = tropomi_fm_object_creator_step_1.altitude_muses[0]
+    alt2 = tropomi_fm_object_creator_step_1.altitude_refractor[0]
+    p = tropomi_fm_object_creator_step_1.pressure.pressure_grid()
+    print(alt1.gravity(p[0]).units.name)
+    print(alt2.gravity(p[0]).units.name)
+    print(alt1.altitude(p[0]).units.name)
+    print(alt2.altitude(p[0]).units.name)
+    gdifper = []
+    adifper = []
+    for i in range(p.rows):
+        print(f"gravity {i}: {alt1.gravity(p[i]).value.value} {alt2.gravity(p[i]).value.value} diff: {(alt1.gravity(p[i]).value.value - alt2.gravity(p[i]).value.value) / alt1.gravity(p[i]).value.value * 100} %")
+        print(f"altitude {i}: {alt1.altitude(p[i]).value.value} {alt2.altitude(p[i]).value.value*1000} diff: {(alt1.altitude(p[i]).value.value - alt2.altitude(p[i]).value.value*1000) / max(alt1.altitude(p[i]).value.value,1) * 100} %")
+        gdifper.append((alt1.gravity(p[i]).value.value - alt2.gravity(p[i]).value.value) / alt1.gravity(p[i]).value.value * 100)
+        adifper.append((alt1.altitude(p[i]).value.value - alt2.altitude(p[i]).value.value*1000) / max(alt1.altitude(p[i]).value.value,1) * 100)
 
-@long_test
-@require_muses_py
-def test_refractor_py_fm_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
-                                        clean_up_replacement_function):
-    '''Full run, that we can compare the output files. This is not
-    really a unit test, but for convenience we have it here. We don't
-    actually do anything with the data, other than make it available.
-
-    Data goes in the local directory, rather than an isolated one.
-
-    This uses our older RefractorTropOmiFm code. The point of this is that
-    we've validated RefractorOmiFm against the original muses-py version.
-    We expect the results of this to be nearly identical to our newer
-    RefractorMusesIntegration version.'''
-    subprocess.run("rm -r refractor_py_fm_cris_tropomi", shell=True)
-    rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli)
-    rmi.register_with_muses_py()
-    rfm = RefractorTropOmiFm(use_pca=False, use_lrad=False,
-                         lrad_second_order=False)
-    rfm.register_with_muses_py()
-    r = MusesRunDir(joint_tropomi_test_in_dir,
-                    osp_dir, gmao_dir, path_prefix="refractor_py_fm_cris_tropomi")
-    r.run_retrieval(vlidort_cli=vlidort_cli)
-    
-@long_test
-@require_muses_py
-def test_compare_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
-    '''Quick test to compare cris_tropomi runs. This assumes they are
-    already done. This is just h5diff, but this figures out the path
-    for each of the tests so we don't have to.'''
-    diff_is_error = True
-    #diff_is_error = False
-    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_L2*.nc"):
-        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_Radiance*.nc"):
-        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
-    for f in glob.glob("refractor_py_fm_cris_tropomi/*/Products/Products_Jacobian*.nc"):
-        f2 = f.replace("refractor_py_fm_cris_tropomi", "tropomi_fm_object_creator_cris_tropomi")
-        cmd = f"h5diff --relative 1e-8 {f} {f2}"
-        print(cmd, flush=True)
-        subprocess.run(cmd, shell=True, check=diff_is_error)
+    # Check that we are close. Gravity is almost identical, altitude varies a little more
+    # near the top of the atmosphere but is still pretty close. These are percent differences
+    assert np.abs(gdifper).max() < 0.005
+    assert np.abs(adifper).max() < 0.55
     

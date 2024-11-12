@@ -27,6 +27,7 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
+
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
                 h.notify_update_target(rs)
@@ -90,12 +91,14 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
         
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "bt":
             return (False,  None)
+        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         jacobian_speciesNames = ['H2O']
         jacobian_specieslist = ['H2O']
         jacobianOut = None
@@ -131,6 +134,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type != "irk":
             return (False,  None)
+        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         jacobian_speciesNames = rs.retrieval_info.species[0:rs.retrieval_info.n_species]
         jacobian_specieslist = rs.retrieval_info.speciesListFM[0:rs.retrieval_info.n_totalParametersFM]
         jacobianOut = None
@@ -157,10 +161,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.propagated_qa = PropagatedQA()
         
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
+        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         rs.notify_update("retrieval input")
         rs.retrieval_info.stepNumber = rs.step_number
         rs.retrieval_info.stepName = rs.step_name
@@ -198,10 +204,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs._state_info.update_state(rs.retrieval_info, self.results.results_list,
                                     do_not_update, rs.retrieval_config,
                                     rs.step_number)
-        if 'OCO2' in rs._strategy_executor.current_strategy_step.instrument_name:
-            # set table.pressurefm to stateConstraint.pressure because OCO-2
-            # is on sigma levels
-            rs._strategy_executor.stable.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
+        # I don't think we actually want this in here. 1) we don't currently
+        # support OCO2 and 2) we would just use a direct PressureSigma object
+        # along with a new state element name if we did. But leave this commented
+        # here to document that py-retrieve did this by we aren't
+        #if 'OCO2' in rs._strategy_executor.current_strategy_step.instrument_name:
+        #    rs._strategy_executor.stable.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step")
 
@@ -239,9 +247,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         maxIter = rs._strategy_executor.current_strategy_step.max_num_iterations
         
         # Various thresholds from the input table
-        ConvTolerance_CostThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_CostThresh"])
-        ConvTolerance_pThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_pThresh"])
-        ConvTolerance_JacThresh = float(rs._strategy_executor.stable.preferences["ConvTolerance_JacThresh"])
+        ConvTolerance_CostThresh = float(rs.retrieval_config["ConvTolerance_CostThresh"])
+        ConvTolerance_pThresh = float(rs.retrieval_config["ConvTolerance_pThresh"])
+        ConvTolerance_JacThresh = float(rs.retrieval_config["ConvTolerance_JacThresh"])
         r = self.radiance_step()["NESR"]
         Chi2Tolerance = 2.0 / len(r) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
@@ -250,7 +258,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             ConvTolerance_JacThresh = 0.00001
             Chi2Tolerance = 0.00001
         ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
-        delta_str = rs._strategy_executor.stable.preferences['LMDelta'] # 100 // original LM step size
+        delta_str = rs.retrieval_config['LMDelta'] # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
         if rs.write_output:
             levmar_log_file = f"{rs.run_dir}/Step{rs.step_number:02d}_{rs.step_name}/LevmarSolver-{rs.step_name}.log"

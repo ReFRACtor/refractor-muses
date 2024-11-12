@@ -16,6 +16,8 @@ import copy
 from loguru import logger
 import time
 import functools
+import numpy as np
+import numpy.testing as npt
 
 def log_timing(f):
     '''Decorator to log the timing of a function.'''
@@ -37,6 +39,29 @@ def log_timing(f):
         logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
         return res
     return log_tm
+
+def struct_compare(s1, s2, skip_list=None, verbose=False):
+    if(skip_list is None):
+        skip_list = []
+    for k in s1.keys():
+        if(k in skip_list):
+            if(verbose):
+                print(f"Skipping {k}")
+            continue
+        if(verbose):
+            print(k)
+        if(isinstance(s1[k], np.ndarray) and
+           np.can_cast(s1[k], np.float64)):
+           npt.assert_allclose(s1[k], s2[k])
+        elif(isinstance(s1[k], np.ndarray)):
+            assert np.all(s1[k] == s2[k])
+        else:
+            assert s1[k] == s2[k]
+
+def array_compare(s1, s2, skip_list=None, verbose=False):
+    assert len(s1) == len(s2)
+    for i in range(len(s1)):
+        struct_compare(s1[i], s2[i], skip_list=skip_list, verbose=verbose)
 
 class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
     '''This is the base class for executing a strategy.
@@ -100,6 +125,12 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
+    def spectral_window_dict(self) -> "dict(str, MusesSpectralWindow)":
+        '''Return a dictionary that maps instrument name to the MusesSpectralWindow
+        to use for that.'''
+        raise NotImplementedError()
+
+    @abc.abstractproperty
     def retrieval_info(self) -> RetrievalInfo:
         '''The RetrievalInfo.'''
         # Note it would probably be good to remove this if we can. Right now
@@ -124,6 +155,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
              'step_number' : strategy_table.table_step,
              'max_num_iterations' : int(strategy_table.max_num_iterations),
              'retrieval_type' : strategy_table.retrieval_type,
+             'spectral_window_dict' : None,
              'retrieval_info' : None
              })
     
@@ -166,6 +198,12 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         '''The retrieval type.'''
         return self.current_strategy_step_dict['retrieval_type']
 
+    @property
+    def spectral_window_dict(self) -> "dict(str, MusesSpectralWindow)":
+        '''Return a dictionary that maps instrument name to the MusesSpectralWindow
+        to use for that.'''
+        return self.current_strategy_step_dict['spectral_window_dict']
+    
     @property
     def retrieval_info(self) -> RetrievalInfo:
         '''The RetrievalInfo.'''
@@ -229,7 +267,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         '''The RetrievalStrategyStepSet to use for getting RetrievalStrategyStep.'''
         return self._retrieval_strategy_step_set
 
-    def uip_func(self, do_systematic=False, jacobian_speciesIn=None):
+    def uip_func(self, instrument=None, do_systematic=False, jacobian_speciesIn=None):
+        '''To reduce coupling, you can give the instrument name to use. The default
+        is None, which means to create all instruments used in this step.'''
         if(do_systematic):
             rinfo = self.retrieval_info.retrieval_info_systematic()
         else:
@@ -242,21 +282,28 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         o_omi = None
         o_tropomi = None
         o_oco2 = None
-        for iname in self.current_strategy_step.instrument_name:
+        cstep = self.current_strategy_step
+        for iname in cstep.instrument_name:
             if iname in o_xxx:
-                obs = self.rs.observation_handle_set.observation(
-                    iname, None, MusesSpectralWindow(self.stable.spectral_window(iname), None),
-                    None)
-                if hasattr(obs, "muses_py_dict"):
-                    o_xxx[iname] = obs.muses_py_dict
+                if(instrument is None or iname == instrument):
+                    obs = self.rs.observation_handle_set.observation(
+                        iname, None, cstep.spectral_window_dict[iname],None)
+                    if hasattr(obs, "muses_py_dict"):
+                        o_xxx[iname] = obs.muses_py_dict
+        mwin = []
+        for swin in cstep.spectral_window_dict.values():
+            mwin.extend(swin.muses_microwindows())
+        if False:
+            mwin2 = self.stable.microwindows()
+            array_compare(mwin, mwin2, skip_list=["THROW_AWAY_WINDOW_INDEX"])
         with muses_py_call(self.rs.run_dir,
                            vlidort_cli=self.rs.vlidort_cli):
             return RefractorUip.create_uip(
-                self.state_info, self.stable,
-                self.stable.microwindows(), rinfo,
+                self.state_info, self.stable, mwin, rinfo,
                 o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
                 o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
-                jacobian_speciesIn=jacobian_speciesIn)
+                jacobian_speciesIn=jacobian_speciesIn,
+                only_create_instrument=instrument)
 
     def create_cost_function(self, do_systematic=False, include_bad_sample=False,
                              fix_apriori_size=False, jacobian_speciesIn=None):
@@ -271,11 +318,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             f"{self.rs.run_dir}/Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}",
             do_systematic=do_systematic,
             retrieval_state_element_override=jacobian_speciesIn)
-        # Temp, until we get this sorted out
-        cstate.apriori_cov = self.retrieval_info.apriori_cov
-        cstate.sqrt_constraint = (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
-        cstate.apriori = self.retrieval_info.apriori
-
+        
         # TODO Would probably be good to remove include_bad_sample, it isn't clear that
         # we ever want to run the forward model for bad samples. But right now the
         # existing
@@ -283,10 +326,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return self.rs._cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,
             cstate,
-            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
-            functools.partial(self.uip_func, do_systematic, jacobian_speciesIn),
-            include_bad_sample=include_bad_sample,
-            fix_apriori_size=fix_apriori_size, **self.rs._kwargs)
+            self.current_strategy_step.spectral_window_dict,
+            functools.partial(self.uip_func, do_systematic=do_systematic,
+                              jacobian_speciesIn=jacobian_speciesIn),
+            include_bad_sample=include_bad_sample, **self.rs._kwargs)
 
 class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrategyStep):
     '''Placeholder that wraps the muses-py strategy table up, so we can get the
@@ -303,6 +346,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.rs = rs
         self.retrieval_config = rs.retrieval_config
         self.retrieval_info = None
+        self.spectral_window_dict = None
 
     @property
     def strategy_table_filename(self):
@@ -310,7 +354,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     @strategy_table_filename.setter
     def strategy_table_filename(self, v):
-        self.self.filename = v
+        self.filename = v
         
     @property
     def filter_list_dict(self) -> 'dict(str,list[str])':
@@ -334,12 +378,14 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
              'step_number' : self.stable.table_step,
              'max_num_iterations' : int(self.stable.max_num_iterations),
              'retrieval_type' : self.stable.retrieval_type,
+             'spectral_window_dict' : self.spectral_window_dict,
              'retrieval_info' : self.retrieval_info
              })
 
     def restart(self):
         '''Set step to the first one.'''
         self.stable.table_step = 0
+        self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
 
     def next_step(self):
         '''Advance to the next step'''
@@ -351,10 +397,12 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
+        # Temp, we'll want to get this update done automatically. But do this
+        # to figure out issue
+        self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
         self.retrieval_info = RetrievalInfo(
             self.error_analysis, self.stable,
             self.current_strategy_step,
-            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
             self.state_info)
 
         # Update state with initial guess so that the initial guess is
@@ -392,7 +440,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             
     def run_step(self):
         '''Run a the current step.'''
-        self.rs._swin_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
+        self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
         try:
             logger.info(f"Hi there! {self.qa_data_handle_set.qa_file_name(self.current_strategy_step)}")
         except RuntimeError:
@@ -448,7 +496,6 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.restart()
         self.error_analysis = ErrorAnalysis(
             self.current_strategy_step,
-            self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step),
             self.state_info,
             covariance_state_element_name)
         self.rs.notify_update("initial set up done")

@@ -98,6 +98,33 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self._fm_state_vector_size = None
 
     @property
+    def initial_guess(self) -> np.array:
+        '''Initial guess'''
+        raise NotImplementedError()
+
+    @property
+    def apriori_cov(self) -> np.array:
+        '''Apriori Covariance'''
+        raise NotImplementedError()
+
+    @property
+    def sqrt_constraint(self) -> np.array:
+        '''Sqrt matrix from covariance'''
+        return (mpy.sqrt_matrix(cstate.apriori_cov)).transpose()
+    
+    @property
+    def apriori(self) -> np.array:
+        '''Apriori value'''
+        raise NotImplementedError()
+
+    @property
+    def basis_matrix(self) -> 'Optional(np.array)':
+        '''Basis matrix going from retrieval vector to full model vector.
+        We don't always have this, so we return None if there isn't a basis matrix.
+        '''
+        raise NotImplementedError()
+        
+    @property
     def fm_sv_loc(self) -> 'dict[str,int]':
         '''Dict that gives the starting location in the forward model state vector for a
         particular state element name (state elements not being retrieved don't
@@ -117,12 +144,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if(self._fm_state_vector_size is None):
             # Side effect of fm_sv_loc is filling in fm_state_vector_size
             _ = self.fm_sv_loc
-        # As a convention, py-retrieve uses a dummy state vector of length 1 if
-        # we aren't actually retrieving anything. This should probably get cleaned up
-        # at some point, there isn't actually anything wrong with a zero size state
-        # vector. But for now, support this convention
-        if(self._fm_state_vector_size == 0):
-            return 1
         return self._fm_state_vector_size
     
     def object_state(self, state_element_name_list : 'list[str]') -> (np.array, rf.StateMapping):
@@ -170,7 +191,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         '''Return the full state value for the given state element name.
         Just as a convention we always return a np.array, so if there is only one value
         put that in a length 1 np.array.'''
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @property
     def step_directory(self) -> str:
@@ -178,15 +199,84 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         MusesOpticalDepthFile. Since the current state depends on the step we are
         using, it isn't ridiculous to have this here. However if we find a better
         home for or better still remove the need for this that would be good.'''
-        raise NotImplementedError
+        raise NotImplementedError()
     
                 
 class CurrentStateUip(CurrentState):
     '''Implementation of CurrentState that uses a RefractorUip'''
-    def __init__(self, rf_uip: 'RefractorUip'):
+    def __init__(self, rf_uip: 'RefractorUip', ret_info : 'Optional(dict)' = None):
+        '''Get the CurrentState from a RefractorUip and ret_info. Note that this
+        is just for backwards testing, we don't use the UIP in our current processing
+        but rather something like CurrentStateStateInfo.
+
+        The RefractorUip doesn't have everything we need, specifically we don't have
+        the apriori and sqrt_constraint. We can get this from a ret_info, if available.
+        For testing we don't always have ret_info. This is fine if we don't actually
+        need the apriori and sqrt_constraint. We still need a value for this, so if
+        ret_info is None we return arrays of all zeros of the right size.'''
         super().__init__()
         self.rf_uip = rf_uip
+        self._initial_guess = rf_uip.current_state_x
+        self._basis_matrix = rf_uip.basis_matrix
+        self.ret_info = ret_info
 
+    @property
+    def initial_guess(self) -> np.array:
+        '''Initial guess'''
+        return self._initial_guess
+
+    @property
+    def apriori_cov(self) -> np.array:
+        '''Apriori Covariance'''
+        # Don't think we need this. We can calculate something frm sqrt_constraint
+        # if needed, but for now just leave unimplemented
+        raise NotImplementedError()
+
+    @property
+    def sqrt_constraint(self) -> np.array:
+        '''Sqrt matrix from covariance'''
+        if(self.ret_info):
+            return self.ret_info["sqrt_constraint"]
+        else:
+            # Dummy value, of the right size. Useful when we need this, but
+            # don't actually care about the value (e.g., we are running the
+            # forward model only in the CostFunction).
+            #
+            # This is entirely a matter of convenience, we could instead just
+            # duplicate the stitching together part of our CostFunction and skip
+            # this. But for now this seems like the easiest thing thing to do. We
+            # can revisit this decision in the future if needed - it is never
+            # great to have fake data but in this case seemed the easiest path
+            # forward. Since this function is only used for backwards testing, the slightly
+            # klunky design doesn't seem like much of a problem.
+            return np.eye(len(self.initial_guess))
+    
+    @property
+    def apriori(self) -> np.array:
+        '''Apriori value'''
+        if(self.ret_info):
+            return self.ret_info["const_vec"]
+        else:
+            # Dummy value, of the right size. Useful when we need this, but
+            # don't actually care about the value (e.g., we are running the
+            # forward model only in the CostFunction).
+            #
+            # This is entirely a matter of convenience, we could instead just
+            # duplicate the stitching together part of our CostFunction and skip
+            # this. But for now this seems like the easiest thing thing to do. We
+            # can revisit this decision in the future if needed - it is never
+            # great to have fake data but in this case seemed the easiest path
+            # forward. Since this function is only used for backwards testing, the slightly
+            # klunky design doesn't seem like much of a problem.
+            return np.zeros((len(self.initial_guess),))
+
+    @property
+    def basis_matrix(self) -> 'Optional(np.array)':
+        '''Basis matrix going from retrieval vector to full model vector.
+        We don't always have this, so we return None if there isn't a basis matrix.
+        '''
+        return self._basis_matrix
+        
     # We don't have the other gas species working yet. Short term, just have a
     # different implementation of fm_sv_loc. We should sort this out at some point.
     @property
@@ -406,7 +496,7 @@ class CurrentStateStateInfo(CurrentState):
         RetrievalStrategyStepBT - I'm guessing this was a kludge put in to support
         this retrieval step.
 
-        In addition, the CurrentState can also we used when we are calculating the
+        In addition, the CurrentState can also be used when we are calculating the
         "systematic" jacobian. This create a StateVector with a different set of state elements.
         This isn't used to do a retrieval, but rather to just calculate a jacobian.
         If do_systematic is set to True, we use this values instead.
@@ -417,6 +507,53 @@ class CurrentStateStateInfo(CurrentState):
         self.retrieval_state_element_override = retrieval_state_element_override
         self.do_systematic = do_systematic
         self._step_directory = step_directory
+
+    @property
+    def initial_guess(self) -> np.array:
+        '''Initial guess'''
+        # Not sure about systematic handling here. I think this is all zeros, not
+        # sure if that is right or not.
+        if self.do_systematic:
+            return self._retrieval_info.retrieval_info_systematic().initialGuessList
+        else:
+            return self._retrieval_info.initial_guess_list
+        
+    @property
+    def apriori_cov(self) -> np.array:
+        '''Apriori Covariance'''
+        # Not sure about systematic handling here.
+        if self.do_systematic:
+            return None
+        else:
+            return self._retrieval_info.apriori_cov            
+
+    @property
+    def sqrt_constraint(self) -> np.array:
+        '''Sqrt matrix from covariance'''
+        # Not sure about systematic handling here.
+        if self.do_systematic:
+            return np.eye(len(self.initial_guess))
+        else:
+            return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
+    
+    @property
+    def apriori(self) -> np.array:
+        '''Apriori value'''
+        # Not sure about systematic handling here.
+        if self.do_systematic:
+            return np.zeros((len(self.initial_guess),))
+        else:
+            return self.retrieval_info.apriori
+
+    @property
+    def basis_matrix(self) -> 'Optional(np.array)':
+        '''Basis matrix going from retrieval vector to full model vector.
+        We don't always have this, so we return None if there isn't a basis matrix.
+        '''
+        if self.do_systematic:
+            return None
+        else:
+            return self.retrieval_info.basis_matrix
 
     @property
     def step_directory(self) -> str:

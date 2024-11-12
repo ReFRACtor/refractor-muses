@@ -428,8 +428,7 @@ class MusesPyStateElement(RetrievableStateElement):
         (_, fileID) = mpy.read_all_tes_cache(speciesInformationFilename)
         return mpy.ObjectView(fileID['preferences'])
         
-    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep,
-                             swin_dict : 'dict(str,MusesSpectralWindow)'):
+    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep):
         species_list = order_species(current_strategy_step.retrieval_elements)
         species_name = self.name
         pressure = self.state_info.pressure
@@ -991,7 +990,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
             # IDL AT_LINE 243 Get_Species_Information:
             microwindows = []
-            for swin in swin_dict.values():
+            for swin in current_strategy_step.spectral_window_dict.values():
                 microwindows.extend(swin.muses_microwindows())
 
             # Select non-UV windows
@@ -2000,8 +1999,7 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         if(update_next):
             self.state_info.next_state_dict["omi"][self.omi_key] = self.value[0]
 
-    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep,
-                             swin_dict : 'dict(str,MusesSpectralWindow)'):
+    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep):
         self.mapType = 'linear'
         self.pressureList = np.array([-2,])
         self.altitudeList  = np.array([-2,])
@@ -2083,8 +2081,7 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
         if(update_next):
             self.state_info.next_state_dict["tropomi"][self.tropomi_key] = self.value[0]
 
-    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep,
-                             swin_dict : 'dict(str,MusesSpectralWindow)'):
+    def update_initial_guess(self, current_strategy_step : CurrentStrategyStep):
         self.mapType = 'linear'
         self.pressureList = np.array([-2,])
         self.altitudeList  = np.array([-2,])

@@ -42,7 +42,6 @@ class O3ScaledStateElement(RetrievableStateElement):
         return self._value
 
     def should_write_to_l2_product(self, instruments):
-        breakpoint()
         if "TROPOMI" in instruments:
             return True
         return False
@@ -70,8 +69,7 @@ class O3ScaledStateElement(RetrievableStateElement):
             self.state_info.next_state[self.name] = self.clone_for_other_state()
         self._value = results_list[retrieval_info.species_list==self._name]
 
-    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep',
-                             swin : 'dict(str,MusesSpectralWindow)'):
+    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep'):
         self.mapType = 'linear'
         self.pressureList = np.full((1,), -2.0)
         self.altitudeList  = np.full((1,), -2.0)
@@ -96,7 +94,6 @@ class O3ScaledStateElement(RetrievableStateElement):
         # like a weighting that is independent of apriori covariance.
         self.constraintMatrix = np.diag(np.full((1,),10*10.0))
 
-        TropomiFmObjectCreator        
 class ScaledTropomiFmObjectCreator(TropomiFmObjectCreator):
     @cached_property
     def absorber_vmr(self):
@@ -132,7 +129,7 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
             return None
         obj_creator = ScaledTropomiFmObjectCreator(
             current_state, self.measurement_id, obs,
-            rf_uip=rf_uip_func(),
+            rf_uip_func=rf_uip_func,
             fm_sv=fm_sv,
             **self.creator_kwargs)
         fm = obj_creator.forward_model

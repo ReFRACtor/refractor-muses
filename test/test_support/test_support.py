@@ -4,7 +4,8 @@ import sys
 import pickle
 import pytest
 import refractor.muses.muses_py as mpy
-from refractor.muses import (RefractorUip, osswrapper, 
+from refractor.muses import (RefractorUip, osswrapper,
+                             DictFilterMetadata,
                              MusesTropomiObservation, MusesOmiObservation,
                              MusesCrisObservation, MusesAirsObservation, MusesSpectralWindow)
 from refractor.framework import (load_config_module, find_config_function, PythonFpLogger,
@@ -196,7 +197,10 @@ def tropomi_obs_step_1(osp_dir):
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
     mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_TROPOMICLOUDFRACTION_TROPOMICLOUD_IG_Refine.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, filter_list_dict={"TROPOMI" : filter_list},
+        filter_metadata = DictFilterMetadata({"BAND3" : {"monoextend" : 2.0, "monoSpacing" : 0.01}})
+    )
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
@@ -215,7 +219,9 @@ def tropomi_obs_sounding_2_band7(josh_osp_dir):
     utc_time = "2022-06-28T18:07:51.984098Z"
     filter_list = ["BAND7",]
     mwfile = f"{josh_osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, filter_list_dict={"TROPOMI" : filter_list},
+        filter_metadata = DictFilterMetadata({"BAND7" : {"monoextend" : 2.0, "monoSpacing" : 0.01}}))
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=josh_osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
@@ -234,7 +240,9 @@ def tropomi_obs_step_2(osp_dir):
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = ["BAND3",]
     mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_O3-Band3.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, filter_list_dict={"TROPOMI" : filter_list},
+        filter_metadata = DictFilterMetadata({"BAND3" : {"monoextend" : 2.0, "monoSpacing" : 0.01}}))
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]
@@ -337,7 +345,9 @@ def tropomi_obs_band7_swir_step(josh_osp_dir):
     utc_time = "2022-06-28T19:33:47.130000Z"
     filter_list = ["BAND7",]
     mwfile = f"{josh_osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"TROPOMI" : filter_list})
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, filter_list_dict={"TROPOMI" : filter_list},
+        filter_metadata = DictFilterMetadata({"BAND7" : {"monoextend" : 2.0, "monoSpacing" : 0.01}}))
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=josh_osp_dir)
     obs.spectral_window = swin_dict["TROPOMI"]

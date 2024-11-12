@@ -93,14 +93,13 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         for i in range(self.num_channels):
             if self.filter_list[i] == 'BAND7':
                 absco_grid = self.full_absco_grid.convert_wave('nm').value
-                absco_grid_units = self.full_absco_grid.units.name
 
                 # We should only need monochromatic wavelengths within the microwindow(s)
                 # being used. To be safe, we'll go 3x the ILS width outside the window,
                 # that should be plenty to make sure the ILS has monochromatic lines over
                 # its whole span.
 
-                mw_bounds = self.rf_uip.micro_windows(i).convert_wave('nm').value
+                mw_bounds = self.rf_uip_func().micro_windows(i).convert_wave('nm').value
                 # If there are multiple sub windows, this will just keep the monochromatic
                 # wavelengths in between the sub windows. We can optimize those out later
                 # if need be.
@@ -123,19 +122,20 @@ class TropomiSwirForwardModelHandle(ForwardModelHandle):
         
     def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
-                      rf_uip_func,
+                      rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                       **kwargs):
         if(instrument_name != "TROPOMI"):
             return None
         obj_creator = TropomiSwirFmObjectCreator(current_state,
                                                  self.measurement_id, obs,
-                                                 rf_uip=rf_uip_func(),
+                                                 rf_uip_func=rf_uip_func,
                                                  fm_sv=fm_sv,
                                                  **self.creator_kwargs)
         fm = obj_creator.forward_model

@@ -51,7 +51,9 @@ class RefractorOmiFm(RefractorTropOrOmiFm):
             self.rf_uip.refractor_cache["omi_fm_object_creator"] = \
                 OmiFmObjectCreator(
                     CurrentStateUip(self.rf_uip), self.measurement_id,
-                    self._obs, rf_uip=self.rf_uip, **self.obj_creator_args)
+                    self._obs, rf_uip_func=lambda **kwargs: self.rf_uip,
+                    match_py_retrieve=True,
+                    **self.obj_creator_args)
         return self.rf_uip.refractor_cache["omi_fm_object_creator"]
         
             

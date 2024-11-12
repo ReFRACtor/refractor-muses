@@ -28,6 +28,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
         self.retrieval_strategy_step = retrieval_strategy_step
         if(location != "retrieval step"):
             return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         if len(glob(f"{self.out_fname}*")) == 0:
             # First argument isn't actually used in write_products_one_jacobian.
             # It is special_name, which doesn't actually apply to the jacobian file.

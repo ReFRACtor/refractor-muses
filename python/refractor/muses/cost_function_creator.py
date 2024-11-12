@@ -40,25 +40,26 @@ class CostFunctionCreator:
 
         We take measure_id, which is a MeasurementId.
         '''
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
 
-    def _rf_uip_func_wrap(self):
-        if(self._rf_uip is None):
-            self._rf_uip = self._rf_uip_func()
-        return self._rf_uip
+    def _rf_uip_func_wrap(self, instrument=None):
+        # TODO Not ready yet to make use of instrument to restrict UIP,
+        # so we ignore that. We'll need to come back to that in a bit
+        if(instrument not in self._rf_uip):
+            logger.debug(f"Creating rf_uip for {instrument}")
+            self._rf_uip[instrument] = self._rf_uip_func(instrument=instrument)
+        return self._rf_uip[instrument]
         
     def cost_function(self,
                       instrument_name_list : "list[str]",
                       current_state : CurrentState,
                       spec_win_dict : "Optional(dict(str, MusesSpectralWindow))",
-                      rf_uip_func,
+                      rf_uip_func, 
                       include_bad_sample=False,
-                      do_systematic=False,
-                      jacobian_speciesIn=None,
-                      obs_list=None,
-                      fix_apriori_size=False,
+                      obs_list : "Optional(list[MusesObservation])" =None,
                       **kwargs):
         '''Return cost function for the RetrievalStrategy.
 
@@ -89,42 +90,33 @@ class CostFunctionCreator:
         some other method, so you can optionally pass in the obs_list to use in place of
         what the class would normally create. This isn't something you would normally use
         for "real", this is just to support testing.
-
-        Similarly, you may sometimes not have an easy way to create the apriori and
-        sqrt_constraint. In that case, you can pass in fix_apriori_size=True and we
-        create dummy data of the right size rather than getting this from current_state.
-        Again, this isn't something you would do for "real", this is more to support testing.
         '''
-        # Keep track of this, in case we create one so we know to attach this to the state vector
-        self._rf_uip = None
+        # Keep track of this, in case we create one so we know to attach this to
+        # the state vector
+        self._rf_uip = {}
         self._rf_uip_func = rf_uip_func
         args = self._forward_model(
             instrument_name_list, current_state, spec_win_dict,
             self._rf_uip_func_wrap, include_bad_sample=include_bad_sample,
-            do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn,
-            obs_list=obs_list, fix_apriori_size=fix_apriori_size,
-            **kwargs)
+            obs_list=obs_list, **kwargs)
         cfunc = CostFunction(*args)
         # If we have an UIP, then update this when the parameters get updated.
         # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
         # have no parameters, for example for RetrievalStrategyStepBT. Any time we
         # have parameters, the basis_matrix shouldn't be None.
-        if(self._rf_uip is not None and self._rf_uip.basis_matrix is not None):
-            cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(self._rf_uip))
-        # TODO, we want to get the parameters from CurrentState object, but we
-        # don't have that in place yet. Fall back to the RefractorUip, which we should
-        # remove in the future
-        cfunc.parameters = self._rf_uip_func_wrap().current_state_x
+        for uip in self._rf_uip.values():
+            if(uip.basis_matrix is not None):
+                cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(uip))
+        cfunc.parameters = current_state.initial_guess
         return cfunc
 
     def _forward_model(self,
                        instrument_name_list : "list[str]",
                        current_state : CurrentState,
                        spec_win_dict : "Optional(dict[str, MusesSpectralWindow])",
-                       rf_uip_func,
+                       rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                        include_bad_sample=False,
-                       obs_list=None,
-                       fix_apriori_size=False,
+                       obs_list : "Optional(list[MusesObservation])" =None,
                        **kwargs):
         ret_info = { 
             'sqrt_constraint': current_state.sqrt_constraint,
@@ -156,34 +148,17 @@ class CostFunctionCreator:
                 fm_sv, rf_uip_func, **kwargs)
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
-        # TODO Get a way to have the basis_matrix that doesn't requier a UIP
-        rf_uip = rf_uip_func()
-        bmatrix = rf_uip.basis_matrix
-        if(not fix_apriori_size):
-            # Normally, we get the apriori and constraint from our current state
-            retrieval_sv_apriori =  current_state.apriori
-            retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
-        else:
-            # This handles when we call with a RefractorUip but without a
-            # ret_info, or otherwise don't have a apriori and sqrt_constraint. We
-            # create dummy data of the right size.
-            # This isn't something we encounter in our normal processing,
-            # this is more to support old testing
-            if(bmatrix is not None):
-                retrieval_sv_apriori = np.zeros((bmatrix.shape[0],))
-                retrieval_sv_sqrt_constraint=np.eye(bmatrix.shape[0])
-            else:
-                # No bmatrix then retrieval_sv and fm_sv are the same
-                retrieval_sv_apriori = np.zeros((fm_sv.observer_claimed_size,))
-                retrieval_sv_sqrt_constraint=np.eye(fm_sv.observer_claimed_size)
+        bmatrix = current_state.basis_matrix
+        retrieval_sv_apriori =  current_state.apriori
+        retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
 
         return (instrument_name_list,
                 self.fm_list, self.obs_list, fm_sv, retrieval_sv_apriori,
                 retrieval_sv_sqrt_constraint, bmatrix)
 
     def cost_function_from_uip(self, rf_uip : RefractorUip,
-                               obs_list,
-                               ret_info : dict,
+                               obs_list : 'Optional(list(MusesObservation))',
+                               ret_info : 'Optional(dict)',
                                **kwargs):
         '''Create a cost function from a RefractorUip and a
         ret_info. Note that this is really just for backwards testing,
@@ -209,21 +184,10 @@ class CostFunctionCreator:
         forward. Since this function is only used for backwards testing, the slightly
         klunky design doesn't seem like much of a problem.
         '''
-        # Fake the input for the normal cost_function function
-        def uip_func():
-            return rf_uip
-        cstate = CurrentStateUip(rf_uip)
-        if(ret_info):
-            fix_apriori_size=False
-            cstate.sqrt_constraint = ret_info["sqrt_constraint"]
-            cstate.apriori = ret_info["const_vec"]
-        else:
-            fix_apriori_size=True
-            cstate.sqrt_constraint = np.eye(1)
-            cstate.apriori = np.zeros((1,))
-        return self.cost_function(rf_uip.instrument, cstate, None, uip_func,
-                                  obs_list=obs_list,
-                                  fix_apriori_size=fix_apriori_size, **kwargs)
+        cstate = CurrentStateUip(rf_uip, ret_info)
+        return self.cost_function(rf_uip.instrument, cstate, None,
+                                  rf_uip_func=lambda **kwargs : rf_uip,
+                                  obs_list=obs_list, **kwargs)
     
 __all__ = ["CostFunctionCreator"]
         

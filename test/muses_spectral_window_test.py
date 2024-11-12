@@ -89,3 +89,7 @@ def test_muses_spectral_window_microwindows(osp_dir):
                 spec_file=None)
     mw2 = MusesSpectralWindow.muses_microwindows_from_dict(swin_dict)
     mw_compare(mw,mw2)
+    # check calculation of muses_monochromatic
+    mono_list, mono_filter_list, mono_list_length = swin.muses_monochromatic()
+    assert(len(mono_list) == (337-323)*100)
+    assert(len(mono_filter_list) == (337-323)*100)

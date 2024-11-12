@@ -18,6 +18,7 @@ class RetrievalOutput:
 
     def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
                       **kwargs):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.retrieval_strategy_step = retrieval_strategy_step
 
     @property

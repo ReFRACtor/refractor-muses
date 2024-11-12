@@ -33,7 +33,7 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
                       current_state : 'CurrentState',
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
-                      rf_uip_func,
+                      rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                       **kwargs):
         '''Return ForwardModel if we can process the given
         instrument_name, or None if we can't.
@@ -64,7 +64,7 @@ class ForwardModelHandleSet(CreatorHandleSet):
                       current_state : 'CurrentState',
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
-                      rf_uip_func,
+                      rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                       **kwargs):
         '''Create a ForwardModel for the given instrument.
         
@@ -88,7 +88,7 @@ class ForwardModelHandleSet(CreatorHandleSet):
                  current_state : 'CurrentState',
                  obs : 'MusesObservation',
                  fm_sv: rf.StateVector,
-                 rf_uip_func,
+                 rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                  **kwargs):
         '''Process a registered function'''
         fm = h.forward_model(instrument_name, current_state, obs,

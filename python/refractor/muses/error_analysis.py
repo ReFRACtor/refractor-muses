@@ -10,11 +10,9 @@ class ErrorAnalysis:
     in muses-py
     '''
     def __init__(self, current_strategy_step: 'CurrentStrategyStep',
-                 swin_dict : 'dict(str, MusesSpectralWindow)',
                  state_info: StateInfo,
                  covariance_state_element_name : 'list(str)'):
         self.initialize_error_initial(current_strategy_step,
-                                      swin_dict,
                                       state_info,
                                       covariance_state_element_name)
         self.error_current = copy.deepcopy(self.error_initial)
@@ -24,7 +22,6 @@ class ErrorAnalysis:
 
     def initialize_error_initial(self,
                                  current_strategy_step: 'CurrentStrategyStep',
-                                 swin_dict : 'dict(str, MusesSpectralWindow)',
                                  state_info: StateInfo,
                                  covariance_state_element_name : 'list(str)'):
         '''covariance_state_element_name should be the list of state
@@ -43,7 +40,7 @@ class ErrorAnalysis:
         sinfo = copy.deepcopy(state_info)
         for sname in covariance_state_element_name:
             selem = sinfo.state_element(sname)
-            selem.update_initial_guess(current_strategy_step, swin_dict)
+            selem.update_initial_guess(current_strategy_step)
             selem_list.append(selem)
             
         # Note the odd seeming "capitalize" here. This is because get_prior_error

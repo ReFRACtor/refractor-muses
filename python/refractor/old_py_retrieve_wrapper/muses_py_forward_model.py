@@ -775,6 +775,7 @@ class _CaptureSpectrum(rf.ObserverPtrNamedSpectrum):
 
     def notify_update(self, named_spectrum):
         # The name we use right after the RT is high_res_rt.
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         if named_spectrum.name == "high_res_rt":
             self.spectrum.append(named_spectrum.copy())
     

@@ -243,7 +243,14 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     
 class MusesObservationImp(MusesObservation):
-    '''Common behavior for each of the MusesObservation classes we have'''
+    '''Common behavior for each of the MusesObservation classes we have.
+
+    Note that muses_py_dict is the old structure used in py-retrieve. We
+    *only* use this internally, except for the creation of the old UIP that also
+    depends on this (see MusesStrategyExecutor.uip_func).  We want to get to the
+    point where the only use of the uip is to support the old py-retrieve forward
+    models - however we are still cleaning a few spots.  But for now, we rely on
+    having muses_py_dict.'''
     def __init__(self, muses_py_dict, sdesc, num_channels=1, coeff=None,mp=None):
         if(coeff is None):
             super().__init__([])
@@ -258,16 +265,39 @@ class MusesObservationImp(MusesObservation):
         self._filter_data_name = []
         self._filter_data_swin = None
 
+    def wn_and_sindex(self, sensor_index):
+        '''We have a couple of places where we need the complete frequency grid (so
+        all spectral channels), and the sample index for one of the sensors in that
+        full grid.
+
+        This is pretty specific, but is used in a few muses-py calls (for ILS, for
+        o3xsec.
+
+        We put this into one function here, just so we don't end up with a bug where
+        one place in the code does this differently'''
+        wn = [ self.frequency_full(i) for i in range(self.num_channels) ]
+        wn_len = [len(w) for w in wn]
+        wn = np.concatenate(wn)
+        with self.modify_spectral_window(include_bad_sample = True, do_raman_ext = True):
+            sindex = self.spectral_domain(sensor_index).sample_index - 1
+        sindex += sum(wn_len[:sensor_index])
+        return wn, sindex
+
     @property
     def cloud_pressure(self):
         '''Cloud pressure. I think all the instrument types handle this the same way,
         if not we can push this down to omi and tropomi only.'''
-        return float(self.muses_py_dict["Cloud"]["CloudPressure"])
+        return rf.DoubleWithUnit(float(self.muses_py_dict["Cloud"]["CloudPressure"]),
+                                 "hPa")
 
     @property
     def observation_table(self):
         return self.muses_py_dict['Earth_Radiance']['ObservationTable']
 
+    @property
+    def wavelength_filter(self):
+        return self.muses_py_dict['Earth_Radiance']['EarthWavelength_Filter']
+    
     @property
     def across_track(self) -> 'list[int]':
         res = []
@@ -308,6 +338,11 @@ class MusesObservationImp(MusesObservation):
     def latitude(self) -> "np.array":
         return np.array([float(self._avg_obs("Latitude", i))
                          for i in range(self.num_channels)])
+    
+    @property
+    def surface_height(self)  -> "np.array":
+        return np.array([float(self._avg_obs("TerrainHeight", i))
+                         for i in range(self.num_channels)])
 
     @property
     def longitude(self) -> "np.array":
@@ -344,6 +379,7 @@ class MusesObservationImp(MusesObservation):
         return self._num_channels
     
     def notify_update(self, sv):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         super().notify_update(sv)
         self._spec = [None,] * self.num_channels
         
@@ -407,6 +443,12 @@ class SimulatedObservation(MusesObservationImp):
     various pieces from the underlying observation, except we replace the
     radiance with other values (e.g, from a forward model run.'''
     def __init__(self, obs : MusesObservationImp, replacement_spectrum : 'list(np.array)'):
+        # Note the muses_py_dict is needed here, although only for generating
+        # a UIP. Right now we still need that functionality in a few places.
+        # The long term goal is to have this *only* used by the old py-retrieve
+        # forward models, but we still are working to that point. If we get there,
+        # it would be reasonable to remove the muses_py_dict and just not have
+        # SimulatedObservation work with the old forward models.
         super().__init__(obs.muses_py_dict, obs.sounding_desc,
                          num_channels=obs.num_channels)
         self._obs = copy.deepcopy(obs)
@@ -513,6 +555,7 @@ class SimulatedObservationHandle(ObservationHandle):
         self.obs = obs
 
     def notify_update_target(self, measurement_id : MeasurementId):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
         
     def observation(self, instrument_name : str,
@@ -523,6 +566,7 @@ class SimulatedObservationHandle(ObservationHandle):
                     **kwargs):
         if(instrument_name != self.instrument_name):
             return None
+        logger.debug(f"Creating observation using {self.__class__.__name__}")
         return copy.deepcopy(self.obs)
     
 class MusesObservationHandle(ObservationHandle):
@@ -548,6 +592,7 @@ class MusesObservationHandle(ObservationHandle):
 
     def notify_update_target(self, measurement_id : MeasurementId):
         # Need to read new data when the target changes
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.existing_obs = None
         self.measurement_id = measurement_id
         
@@ -559,7 +604,7 @@ class MusesObservationHandle(ObservationHandle):
                     **kwargs):
         if(instrument_name != self.instrument_name):
             return None
-        
+        logger.debug(f"Creating observation using {self.obs_cls.__name__}")
         obs = self.obs_cls.create_from_id(self.measurement_id,
                                           self.existing_obs,
                                           current_state, spec_win, fm_sv,

@@ -2,15 +2,18 @@ from test_support import *
 from refractor.muses import (MusesRunDir, RetrievalStrategy,
                              RetrievalStrategyCaptureObserver,
                              RetrievableStateElement,
+                             ForwardModelHandle,
                              SingleSpeciesHandle,
                              SimulatedObservation,
                              SimulatedObservationHandle,
                              StateInfo,
                              RetrievalInfo,
                              CurrentStateUip)
-from refractor.tropomi import TropomiSwirForwardModelHandle
+from refractor.tropomi import (TropomiSwirForwardModelHandle,
+                               TropomiSwirFmObjectCreator)
 import refractor.muses.muses_py as mpy
 import refractor.framework as rf
+from functools import cached_property
 import subprocess
 import pprint
 import glob
@@ -152,11 +155,6 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
     # This is the portion that isn't the parameter constraint
     #print((residual2-residual)[:112])
 
-    # Difference high resolution clear spectrum
-    #print(np.abs(pspec.data['high_res_rt'][2][1] - pspec.data['high_res_rt'][0][1]).max())
-    # All zero. Why?
-    breakpoint()
-
 @long_test
 @require_muses_py
 def test_simulated_retrieval(gmao_dir, josh_osp_dir):
@@ -200,19 +198,176 @@ def test_simulated_retrieval(gmao_dir, josh_osp_dir):
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
     rs.update_target(f"{mrdir.run_dir}/Table.asc")
     rs.retrieval_ms()
+
+@long_test
+@require_muses_py
+def test_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
+    '''Use simulated data Josh generated'''
+    subprocess.run("rm -f -r synth_alb_0_9", shell=True)
+    mrdir = MusesRunDir(f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
+                        josh_osp_dir, gmao_dir,
+                        path_prefix = "./synth_alb_0_9")
+    try:
+        lognum = logger.add("synth_alb_0_9/retrieve.log")
+        rs = RetrievalStrategy(None,osp_dir=josh_osp_dir)
+        ihandle = TropomiSwirForwardModelHandle(use_pca=True, use_lrad=False,
+                                                lrad_second_order=False,
+                                                osp_dir=josh_osp_dir)
+        rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+        rs.update_target(f"{mrdir.run_dir}/Table.asc")
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
+        
+class ScaledStateElement(RetrievableStateElement):
+    '''Note that we may rework this. Not sure how much we need specific
+    StateElement vs. handling a class of them. 
+    We can use the SingleSpeciesHandle to add this in, e.g.,
+
+    rs.state_element_handle_set.add_handle(SingleSpeciesHandle("H2O_SCALED", ScaledStateElement, pass_state=False, name="H2O_SCALED"))
+    '''
+    def __init__(self, state_info : StateInfo, name=None):
+        super().__init__(state_info, name)
+        self._value = np.array([1.0,])
+        self._constraint = self._value.copy()
+
+    def sa_covariance(self):
+        '''Return sa covariance matrix, and also pressure. This is what
+        ErrorAnalysis needs.'''
+        # TODO, Double check this. Not sure of the connection between this
+        # and the constraintMatrix. Note the pressure is right, this
+        # indicates we aren't on levels so we don't need a pressure
+        return np.diag([10*10.0] * 1), [-999.0] * 1
+
+    @property
+    def value(self):
+        return self._value
+
+    def should_write_to_l2_product(self, instruments):
+        if "TROPOMI" in instruments:
+            return True
+        return False
     
+    def net_cdf_variable_name(self):
+        # Want names like OMI_EOF_UV1
+        return self.name
     
+    def net_cdf_struct_units(self):
+        '''Returns the attributes attached to a netCDF write out of this
+        StateElement.'''
+        return {'Longname': "O3 VMR scale factor", 'Units': '', 'FillValue': '',
+                'MisingValue': ''}
+
+    def update_state_element(self, 
+                             retrieval_info: RetrievalInfo,
+                             results_list:np.array,
+                             update_next: bool,
+                             retrieval_config : 'RetrievalConfiguration',
+                             step : int,
+                             do_update_fm : np.array):
+        # If we are requested not to update the next step, then save a copy
+        # of this to reset the value
+        if(not update_next):
+            self.state_info.next_state[self.name] = self.clone_for_other_state()
+        self._value = results_list[retrieval_info.species_list==self._name]
+
+    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep'):
+        self.mapType = 'linear'
+        self.pressureList = np.full((1,), -2.0)
+        self.altitudeList  = np.full((1,), -2.0)
+        self.pressureListFM = self.pressureList
+        self.altitudeListFM = self.altitudeList
+        # Apriori
+        self.constraintVector = self._constraint.copy()
+        # Normally the same as apriori, but doesn't have to be
+        self.initialGuessList = self.value.copy()
+        self.trueParameterList = np.zeros((1))
+        self.constraintVectorFM = self.constraintVector
+        self.initialGuessListFM = self.initialGuessList
+        self.trueParameterListFM = self.trueParameterList
+        self.minimum = np.full((1), -999.0)
+        self.maximum = np.full((1), -999.0)
+        self.maximum_change = np.full((1), -999.0)
+        self.mapToState = np.eye(1)
+        self.mapToParameters = np.eye(1)
+        # Not sure if the is covariance, or sqrt covariance. Note this
+        # does not seem to the be the same as the Sa used in the error
+        # analysis. I think muses-py uses the constraintMatrix sort of
+        # like a weighting that is independent of apriori covariance.
+        self.constraintMatrix = np.diag(np.full((1,),10*10.0))
+
+class ScaledTropomiFmObjectCreator(TropomiSwirFmObjectCreator):
+    @cached_property
+    def absorber_vmr(self):
+        vmrs = []
+        for gas in self.absorption_gases:
+            selem = [gas,]
+            coeff, mp = self.current_state.object_state(selem)
+            # Need to get mp to be the log mapping in current_state, but for
+            # now just work around this
+            mp = rf.StateMappingLog()
+            # Scaled retrievals other than CO
+            if(gas == "CO"):
+                vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, gas, mp)
+            else:
+                selem = [f"{gas}_SCALED",]
+                coeff2, _ = self.current_state.object_state(selem)
+                vmr = rf.AbsorberVmrLevelScaled(self.pressure_fm, coeff, coeff2[0], gas)
+            self.current_state.add_fm_state_vector_if_needed(
+                self.fm_sv, selem, [vmr,])
+            vmrs.append(vmr)
+        return vmrs
     
-    
-    
-    
+class ScaledTropomiForwardModelHandle(ForwardModelHandle):
+    def __init__(self, **creator_kwargs):
+        self.creator_kwargs = creator_kwargs
+        self.measurement_id = None
+        
+    def notify_update_target(self, measurement_id : 'MeasurementId'):
+        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        self.measurement_id = measurement_id
+        
+    def forward_model(self, instrument_name : str,
+                      current_state : 'CurrentState',
+                      obs : 'MusesObservation',
+                      fm_sv: rf.StateVector,
+                      rf_uip_func,
+                      **kwargs):
+        if(instrument_name != "TROPOMI"):
+            return None
+        obj_creator = ScaledTropomiFmObjectCreator(
+            current_state, self.measurement_id, obs,
+            rf_uip_func=rf_uip_func,
+            fm_sv=fm_sv,
+            **self.creator_kwargs)
+        fm = obj_creator.forward_model
+        logger.info(f"Scaled Tropomi Forward model\n{fm}")
+        return fm
 
-
-
-
-
-
-
-    
-
+@long_test
+@require_muses_py
+def test_scaled_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
+    '''Use simulated data Josh generated'''
+    subprocess.run("rm -f -r synth_alb_0_9_scaled", shell=True)
+    mrdir = MusesRunDir(f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
+                        josh_osp_dir, gmao_dir,
+                        path_prefix = "./synth_alb_0_9_scaled")
+    # Change table to use scaled versions
+    subprocess.run(f'sed -i -e "s/H2O,/H2O_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True)
+    subprocess.run(f'sed -i -e "s/CH4,/CH4_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True)
+    subprocess.run(f'sed -i -e "s/HDO,/HDO_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True)
+    try:
+        lognum = logger.add("synth_alb_0_9/retrieve.log")
+        rs = RetrievalStrategy(None,osp_dir=josh_osp_dir)
+        ihandle = ScaledTropomiForwardModelHandle(use_pca=True, use_lrad=False,
+                                                  lrad_second_order=False,
+                                                  osp_dir=josh_osp_dir)
+        rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+        rs.state_element_handle_set.add_handle(SingleSpeciesHandle("H2O_SCALED", ScaledStateElement, pass_state=False, name="H2O_SCALED"))
+        rs.state_element_handle_set.add_handle(SingleSpeciesHandle("CH4_SCALED", ScaledStateElement, pass_state=False, name="CH4_SCALED"))
+        rs.state_element_handle_set.add_handle(SingleSpeciesHandle("HDO_SCALED", ScaledStateElement, pass_state=False, name="HDO_SCALED"))        
+        rs.update_target(f"{mrdir.run_dir}/Table.asc")
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
     

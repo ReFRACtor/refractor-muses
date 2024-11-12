@@ -43,50 +43,89 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             res.push_back(v)
         return res
 
-    def ils_params_postconv(self, sensor_index : int):
-        # Place holder, this doesn't work yet. Copy of what is
-        # done in make_uip_tropomi.
-        return None
+    def ils_params_preconv(self, sensor_index : int):
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
-        num_fwhm_srf=4.0 
+        num_fwhm_srf=4.0
+        wn, sindex = self.observation.wn_and_sindex(sensor_index)
         return mpy.get_tropomi_ils(
-            self.measurement_id["ElanorOSPDir"],
-            tropomiFrequency, tempfreqIndex, 
-            WAVELENGTH_FILTER, 
+            self.osp_dir,
+            self.observation.frequency_full(sensor_index), sindex,
+            self.observation.wavelength_filter, 
             self.observation.observation_table,
             num_fwhm_srf)
 
-    def ils_params_fastconv(self, sensor_index : int):
+    def ils_params_postconv(self, sensor_index : int):
+        # This is hardcoded in make_uip_tropomi, so we duplicate that here
         # Place holder, this doesn't work yet. Copy of what is
         # done in make_uip_tropomi.
-        return None
+        num_fwhm_srf=4.0
+
+        # Kind of a convoluted way to just get the monochromatic list, but this is what
+        # make_uip_tropomi does, so we duplicate it here. We have the observation frequencies,
+        # and the monochromatic for all the windows added into one long list, and then give
+        # the index numbers that are actually relevant for the ILS. 
+        mono_list, mono_filter_list, mono_list_length = self.observation.spectral_window.muses_monochromatic()
+        wn, _ = self.observation.wn_and_sindex(sensor_index)
+        wn_list = np.concatenate([wn, mono_list], axis=0)
+        wn_filter = np.concatenate([self.observation.wavelength_filter, mono_filter_list],
+                                   axis=0)
+        startmw_fm = len(wn) + sum(mono_list_length[:sensor_index])
+        
+        sindex = np.arange(0,mono_list_length[sensor_index]) + startmw_fm
+        return mpy.get_tropomi_ils(self.osp_dir, wn_list, sindex, wn_filter,
+                                   self.observation.observation_table,
+                                   num_fwhm_srf)
+    
+    def ils_params_fastconv(self, sensor_index : int):
+        # Note, I'm not sure of fastconv actually works. This fails in muses-py if
+        # we try to use fastconv. From the code, I *think* this is what was intended,
+        # but I don't know if this was actually tested anywhere since you can't actuall
+        # run this. But put this in here for completeness.
+        
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
-        num_fwhm_srf=4.0 
-        return mpy.get_tropomi_ils_fastconv(
-            self.measurement_id["ElanorOSPDir"],
-            tropomiFrequency, tempfreqIndex_measgrid, 
-            WAVELENGTH_FILTER, 
+        num_fwhm_srf=4.0
+        wn, sindex = self.observation.wn_and_sindex(sensor_index)
+        # Kind of a convoluted way to just get the monochromatic list, but this is what
+        # make_uip_tropomi does, so we duplicate it here. We have the observation frequencies,
+        # and the monochromatic for all the windows added into one long list, and then give
+        # the index numbers that are actually relevant for the ILS. 
+        mono_list, mono_filter_list, mono_list_length = self.observation.spectral_window.muses_monochromatic()
+        wn_list = np.concatenate([wn, mono_list], axis=0)
+        wn_filter = np.concatenate([self.observation.wavelength_filter, mono_filter_list],
+                                   axis=0)
+        startmw_fm = len(wn) + sum(mono_list_length[:sensor_index])
+        
+        sindex2 = np.arange(0,mono_list_length[sensor_index]) + startmw_fm
+        
+        return mpy.get_tropomi_ils_fastconv.get_tropomi_ils_fastconv(
+            self.osp_dir, wn_list, sindex, wn_filter,
             self.observation.observation_table,
-            num_fwhm_srf, 
-            i_monochromfreq=tropomiFrequency[tempfreqIndex], 
-            i_interpmethod="INTERP_MONOCHROM"
-        )
+            num_fwhm_srf,
+            i_monochromfreq=wn_list[sindex2],
+            i_interpmethod="INTERP_MONOCHROM")
 
     def ils_params(self, sensor_index : int):
         '''ILS parameters'''
-        # TODO Pull out of rf_uip. This is in make_uip_tropomi.py
-        # Note that this seems to fold in determine the high resolution grid.
-        # We have a separate class MusesSpectrumSampling for doing that, which
-        # currently just returns what ils_params has. When we clean this up, we
-        # may want to put part of the functionality there - e.g., read the whole
-        # ILS table here and then have the calculation of the spectrum in
-        # MusesSpectrumSampling
-        return self.rf_uip.ils_params(sensor_index, self.instrument_name)
+        if self.ils_method(sensor_index) == "APPLY":
+            return self.ils_params_preconv(sensor_index)
+        elif (self.ils_method(sensor_index) == "POSTCONV"):
+            return self.ils_params_postconv(sensor_index)
+        elif (self.ils_method(sensor_index) == "FASTCONV"):
+            return self.ils_params_fastconv(sensor_index)
+        else:
+            raise RuntimeError(f"Unrecognized ils_method {self.ils_method(sensor_index)}")
 
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
         # Note in principle we could have this be a function of the sensor band,
         # however the current implementation just has one value set here.
+        #
+        # This is currently the same for all sensor_index values. We can extend this
+        # if needed, but we also need to change the absorber to handle this, since the
+        # selection is based off the ils_method. We could probably wrap the different
+        # absorber types and select which one is used by some kind of logic.
+        #
+        # We really need a test case to work through the logic here before changing this
         return self.measurement_id["ils_tropomi_xsection"]
     
     def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
@@ -189,6 +228,13 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
+        if(self.match_py_retrieve):
+            return self.raman_effect_muses(i)
+        else:
+            return self.raman_effect_refractor(i)
+        
+    @lru_cache(maxsize=None)
+    def raman_effect_muses(self, i):
         # Note we should probably look at this sample grid, and
         # make sure it goes RamanSioris.ramam_edge_wavenumber past
         # the edges of our spec_win. Also there isn't any particular
@@ -227,6 +273,33 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [ram,])
             return ram
 
+    @lru_cache(maxsize=None)
+    def raman_effect_refractor(self, i):
+        selem = [f"TROPOMIRINGSF{self.filter_list[i]}",]
+        if(self.filter_list[i] in ("BAND1", "BAND2", "BAND3")):
+            coeff,mp = self.current_state.object_state(selem)
+            scale_factor = float(coeff[0])
+        elif(self.filter_list[i] in ("BAND7", "BAND8")):
+            # JLL: The SWIR bands should not need to account for Raman scattering -
+            # Vijay has never seen Raman scattering accounted for in the CO band.
+            scale_factor = None
+        else:
+            raise RuntimeError("Unrecognized filter_list")
+        if scale_factor is None:
+            return None
+        else:
+            with self.observation.modify_spectral_window(do_raman_ext=True):
+                wlen = self.observation.spectral_domain(i)
+            # This is short if we aren't actually running this filter
+            if(wlen.data.shape[0] < 2):
+                return None
+            ram = rf.RamanSiorisEffect(
+                wlen, scale_factor, i, rf.DoubleWithUnit(self.sza[i], "deg"),
+                rf.DoubleWithUnit(self.oza[i], "deg"),
+                rf.DoubleWithUnit(self.raz[i], "deg"),
+                self.atmosphere, self.solar_model(i), rf.StateMappingLinear())
+            self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, [ram,])
+            return ram
 
 class TropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
@@ -235,18 +308,19 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         
     def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
-                      rf_uip_func,
+                      rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                       **kwargs):
         if(instrument_name != "TROPOMI"):
             return None
         obj_creator = TropomiFmObjectCreator(current_state, self.measurement_id, obs,
-                                             rf_uip=rf_uip_func(),
+                                             rf_uip_func=rf_uip_func,
                                              fm_sv=fm_sv,
                                              **self.creator_kwargs)
         fm = obj_creator.forward_model

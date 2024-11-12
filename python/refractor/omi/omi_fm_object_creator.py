@@ -1,10 +1,12 @@
 from functools import cached_property, lru_cache
 from refractor.muses import (RefractorFmObjectCreator, ForwardModelHandle,
                              MusesRaman, SurfaceAlbedo)
+from refractor.muses import muses_py as mpy
 import refractor.framework as rf
 import os
 from loguru import logger
 import numpy as np
+import numpy.testing as npt
 import h5py
 import copy
 # for netCDF3 support which is not supported in h5py
@@ -38,32 +40,41 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         self.use_eof = use_eof
         self.eof_dir = eof_dir
 
-    def ils_params_postconv(self, sensor_index : int):
-        # Place holder, this doesn't work yet. Copy of what is
-        # done in make_uip_tropomi.
-        return None
+    def ils_params_preconv(self, sensor_index : int):
+        # This is hardcoded in make_uip_tropomi, so we duplicate that here
+        num_fwhm_srf=4.0
+        wn, sindex = self.observation.wn_and_sindex(sensor_index)
         return mpy.get_omi_ils(
-            L2_OSP_PATH,
-            omiFrequency, tempfreqIndex, 
-            WAVELENGTH_FILTER, 
-            omiInfo['Earth_Radiance']['ObservationTable'],
-            num_fwhm_srf, 
-            mononfreq_spacing)
+            self.osp_dir, wn, sindex, self.observation.wavelength_filter, 
+            self.observation.observation_table,
+            num_fwhm_srf)
+    
+    def ils_params_postconv(self, sensor_index : int):
+        # make_uip_omi does the same thing for postconv as preconv
+        return self.ils_params_preconv(sensor_index)
 
     def ils_params_fastconv(self, sensor_index : int):
-        # Place holder, this doesn't work yet. Copy of what is
-        # done in make_uip_tropomi.
-        return None
+        # This is hardcoded in make_uip_omi, so we duplicate that here
+        num_fwhm_srf=4.0 
+        wn, sindex = self.observation.wn_and_sindex(sensor_index)
+        # Kind of a convoluted way to just get the monochromatic list, but this is what
+        # make_uip_tropomi does, so we duplicate it here. We have the observation frequencies,
+        # and the monochromatic for all the windows added into one long list, and then give
+        # the index numbers that are actually relevant for the ILS. 
+        mono_list, mono_filter_list, mono_list_length = self.observation.spectral_window.muses_monochromatic()
+        wn_list = np.concatenate([wn, mono_list], axis=0)
+        wn_filter = np.concatenate([self.observation.wavelength_filter, mono_filter_list],
+                                   axis=0)
+        startmw_fm = len(wn) + sum(mono_list_length[:sensor_index])
+        
+        sindex2 = np.arange(0,mono_list_length[sensor_index]) + startmw_fm
+        
         return mpy.get_omi_ils_fastconv(
-            L2_OSP_PATH,
-            omiFrequency, tempfreqIndex_measgrid, 
-            WAVELENGTH_FILTER, 
-            tropomiInfo['Earth_Radiance']['ObservationTable'],
-            num_fwhm_srf, 
-            mononfreq_spacing, 
-            i_monochromfreq=tropomiFrequency[tempfreqIndex], 
-            i_interpmethod="INTERP_MONOCHROM"
-        )
+            self.osp_dir, wn_list, sindex, wn_filter,
+            self.observation.observation_table,
+            num_fwhm_srf,
+            i_monochromfreq=wn_list[sindex2],
+            i_interpmethod="INTERP_MONOCHROM")
         
     def ils_params(self, sensor_index : int):
         '''ILS parameters'''
@@ -74,12 +85,26 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         # may want to put part of the functionality there - e.g., read the whole
         # ILS table here and then have the calculation of the spectrum in
         # MusesSpectrumSampling
-        return self.rf_uip.ils_params(sensor_index, self.instrument_name)
+        if self.ils_method(sensor_index) == "APPLY":
+            return self.ils_params_preconv(sensor_index)
+        elif (self.ils_method(sensor_index) == "POSTCONV"):
+            return self.ils_params_postconv(sensor_index)
+        elif (self.ils_method(sensor_index) == "FASTCONV"):
+            return self.ils_params_fastconv(sensor_index)
+        else:
+            raise RuntimeError(f"Unrecognized ils_method {self.ils_method(sensor_index)}")
 
     def ils_method(self, sensor_index : int) -> str:
         '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV'''
         # Note in principle we could have this be a function of the sensor band,
         # however the current implementation just has one value set here.
+        #
+        # This is currently the same for all sensor_index values. We can extend this
+        # if needed, but we also need to change the absorber to handle this, since the
+        # selection is based off the ils_method. We could probably wrap the different
+        # absorber types and select which one is used by some kind of logic.
+        #
+        # We really need a test case to work through the logic here before changing this
         return self.measurement_id["ils_omi_xsection"]
         
     @cached_property
@@ -250,6 +275,13 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
     @lru_cache(maxsize=None)
     def raman_effect(self, i):
+        if(self.match_py_retrieve):
+            return self.raman_effect_muses(i)
+        else:
+            return self.raman_effect_refractor(i)
+            
+    @lru_cache(maxsize=None)
+    def raman_effect_muses(self, i):
         # Note we should probably look at this sample grid, and
         # make sure it goes RamanSioris.ramam_edge_wavenumber past
         # the edges of our spec_win. Also there isn't any particular
@@ -275,6 +307,22 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                           self.atmosphere,
                           self.solar_model(i),
                           rf.StateMappingLinear())
+
+    @lru_cache(maxsize=None)
+    def raman_effect_refractor(self, i):
+        scale_factor = 1.9
+        with self.observation.modify_spectral_window(do_raman_ext=True):
+            wlen = self.observation.spectral_domain(i)
+        # This is short if we aren't actually running this filter
+        if(wlen.data.shape[0] < 2):
+            return None
+        return rf.RamanSiorisEffect(wlen, scale_factor, i,
+                                    rf.DoubleWithUnit(self.sza[i], "deg"),
+                                    rf.DoubleWithUnit(self.oza[i], "deg"),
+                                    rf.DoubleWithUnit(self.raz[i], "deg"),
+                                    self.atmosphere,
+                                    self.solar_model(i),
+                                    rf.StateMappingLinear())
     
 
 class OmiForwardModelHandle(ForwardModelHandle):
@@ -284,18 +332,19 @@ class OmiForwardModelHandle(ForwardModelHandle):
 
     def notify_update_target(self, measurement_id : 'MeasurementId'):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
         
     def forward_model(self, instrument_name : str,
                       current_state : 'CurrentState',
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
-                      rf_uip_func,
+                      rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
                       **kwargs):
         if(instrument_name != "OMI"):
             return None
         obj_creator = OmiFmObjectCreator(current_state, self.measurement_id, obs,
-                                         rf_uip = rf_uip_func(),
+                                         rf_uip_func = rf_uip_func,
                                          fm_sv = fm_sv, **self.creator_kwargs)
         fm = obj_creator.forward_model
         logger.info(f"OMI Forward model\n{fm}")

@@ -4,6 +4,7 @@ from .priority_handle_set import PriorityHandleSet
 from .current_state import CurrentStateDict
 from .observation_handle import mpy_radiance_from_observation_list
 import refractor.muses.muses_py as mpy
+from loguru import logger
 import copy
 import refractor.framework as rf
 import numpy as np
@@ -121,8 +122,7 @@ class RetrievableStateElement(StateElement):
         raise NotImplementedError
     
     @abc.abstractmethod
-    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep',
-                             swin_dict : 'dict(str,MusesSpectralWindow)'):
+    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep'):
         '''Create/update a initial guess. This currently fills in a number
         of member variables. I'm not sure that all of this is actually needed,
         we may clean up this list. But right now RetrievalInfo needs all these
@@ -301,6 +301,7 @@ class StateInfo:
         self.notify_update_target(None)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.state_info_dict = None
         self.initialInitial = {}
         self.initial = {}
