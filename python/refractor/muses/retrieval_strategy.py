@@ -286,7 +286,15 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     
     @property
     def step_number(self) -> int:
-        return self._strategy_executor.current_strategy_step.step_number
+        return self.current_strategy_step.step_number
+
+    @property
+    def instrument_name_all_step(self) -> 'list(str)':
+        return self._strategy_executor.instrument_name_all_step
+
+    @property
+    def current_strategy_step(self) -> 'CurrentStrategyStep':
+        return self._strategy_executor.current_strategy_step
 
     @property
     def number_retrieval_step(self) -> int:
@@ -302,18 +310,18 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     @property
     def step_name(self) -> str:
-        return self._strategy_executor.current_strategy_step.step_name
+        return self.current_strategy_step.step_name
 
     @property
     def retrieval_type(self) -> str:
-        return self._strategy_executor.current_strategy_step.retrieval_type.lower()
+        return self.current_strategy_step.retrieval_type.lower()
 
     @property
     def retrieval_info(self) -> "RetrievalInfo":
         '''RetrievalInfo for current retrieval step. Note it might be good to remove this
         if possible, right now this is just used by RetrievalL2Output. But at least for now
         we need this to get the required information for the output.'''
-        return self._strategy_executor.current_strategy_step.retrieval_info
+        return self.current_strategy_step.retrieval_info
 
     @property
     def state_info(self):

@@ -18,6 +18,10 @@ from loguru import logger
 #run_refractor = False
 run_refractor = True
 
+# Can use the older py_retrieve matching objects
+match_py_retrieve = False
+#match_py_retrieve = True
+
 def compare_run(expected_dir, run_dir, diff_is_error=True):
     '''Compare products from two runs.'''
     for f in glob.glob(f"{expected_dir}/*/Products/Products_L2*.nc"):
@@ -98,7 +102,8 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
         if run_refractor:
             # Use refractor forward model. 
             ihandle = TropomiForwardModelHandle(use_pca=True, use_lrad=False,
-                                                lrad_second_order=False)
+                                                lrad_second_order=False,
+                                                match_py_retrieve=match_py_retrieve)
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             # Different expected results. Close, but not identical to VLIDORT version
             compare_dir = joint_tropomi_test_refractor_expected_dir
@@ -182,7 +187,8 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
         if run_refractor:
             # Use refractor forward model.
             ihandle = OmiForwardModelHandle(use_pca=True, use_lrad=False,
-                                            lrad_second_order=False, use_eof=False)
+                                            lrad_second_order=False, use_eof=False,
+                                            match_py_retrieve=match_py_retrieve)
             rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
             # Different expected results. Close, but not identical to VLIDORT version
             compare_dir = joint_omi_test_refractor_expected_dir

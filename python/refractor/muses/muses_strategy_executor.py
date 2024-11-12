@@ -125,6 +125,10 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
+    def do_not_update_list(self) -> "list(str)":
+        raise NotImplementedError()
+        
+    @abc.abstractproperty
     def spectral_window_dict(self) -> "dict(str, MusesSpectralWindow)":
         '''Return a dictionary that maps instrument name to the MusesSpectralWindow
         to use for that.'''
@@ -155,6 +159,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
              'step_number' : strategy_table.table_step,
              'max_num_iterations' : int(strategy_table.max_num_iterations),
              'retrieval_type' : strategy_table.retrieval_type,
+             'do_not_update_list' : strategy_table.do_not_update_list,
              'spectral_window_dict' : None,
              'retrieval_info' : None
              })
@@ -197,6 +202,10 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     def retrieval_type(self) -> str:
         '''The retrieval type.'''
         return self.current_strategy_step_dict['retrieval_type']
+
+    @property
+    def do_not_update_list(self) -> "list(str)":
+        return self.current_strategy_step_dict['do_not_update_list']
 
     @property
     def spectral_window_dict(self) -> "dict(str, MusesSpectralWindow)":
@@ -294,12 +303,22 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         for swin in cstep.spectral_window_dict.values():
             mwin.extend(swin.muses_microwindows())
         if False:
+            # Can check that we are getting the right microwindows, if needed
             mwin2 = self.stable.microwindows()
             array_compare(mwin, mwin2, skip_list=["THROW_AWAY_WINDOW_INDEX"])
+        # Dummy strategy table, with the information needed by
+        # RefractorUip.create_uip
+        fake_table = { 'preferences' : self.retrieval_config,
+                       'vlidort_dir' : f"{self.rs.run_dir}/Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}/vlidort/",
+                       'numRows' : cstep.step_number,
+                       'numColumns' : 1,
+                       'step' : cstep.step_number,
+                       'labels1' : "retrievalType",
+                       'data' : [cstep.retrieval_type] * cstep.step_number }
         with muses_py_call(self.rs.run_dir,
                            vlidort_cli=self.rs.vlidort_cli):
             return RefractorUip.create_uip(
-                self.state_info, self.stable, mwin, rinfo,
+                self.state_info, fake_table, mwin, rinfo,
                 o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
                 o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
                 jacobian_speciesIn=jacobian_speciesIn,
@@ -378,6 +397,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
              'step_number' : self.stable.table_step,
              'max_num_iterations' : int(self.stable.max_num_iterations),
              'retrieval_type' : self.stable.retrieval_type,
+             'do_not_update_list' : self.stable.do_not_update_list,
              'spectral_window_dict' : self.spectral_window_dict,
              'retrieval_info' : self.retrieval_info
              })
@@ -394,6 +414,10 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     def is_done(self):
         '''Return true if we are done, otherwise false.'''
         return self.stable.table_step >= self.stable.number_table_step
+
+    @property
+    def instrument_name_all_step(self):
+        return self.stable.instrument_name(all_step=True)
 
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
@@ -482,7 +506,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         with self.stable.chdir_run_dir():
             self.state_info.init_state(self.stable,
                                        self.rs.observation_handle_set,
-                                       self.stable.instrument_name(all_step=True),
+                                       self.instrument_name_all_step,
                                        self.rs.run_dir)
             
         # List of state elements we need covariance from. This is all the elements

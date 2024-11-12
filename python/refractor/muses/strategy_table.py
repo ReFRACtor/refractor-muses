@@ -55,6 +55,15 @@ class StrategyTable:
         return self.strategy_table_dict["preferences"]
 
     @property
+    def do_not_update_list(self) -> 'list(str)':
+        do_not_update = self.table_entry("donotupdate").lower()
+        if do_not_update != '-':
+            do_not_update = [x.upper() for x in do_not_update.split(',')]
+        else:
+            do_not_update = []
+        return do_not_update
+    
+    @property
     def spectral_filename(self):
         with self.chdir_run_dir():
             return self.abs_filename(mpy.table_get_spectral_filename(self.strategy_table_dict, self.table_step))
