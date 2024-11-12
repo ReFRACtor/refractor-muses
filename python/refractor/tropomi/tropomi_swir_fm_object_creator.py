@@ -2,7 +2,8 @@ from functools import cached_property, lru_cache
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, 
                              ForwardModelHandle,
-                             MusesRaman, CurrentState, CurrentStateUip,
+                             MusesRaman, MusesSpectrumSampling,
+                             CurrentState, CurrentStateUip,
                              SurfaceAlbedo)
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf
@@ -71,6 +72,13 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
 
         gas_pattern = f"{gas_subdir}/nc_ABSCO/{gas.upper()}_*_v0.0_init.nc"
         return self.find_absco_pattern(gas_pattern, join_to_absco_base_path=False)
+    
+    @cached_property
+    def spectrum_sampling(self):
+        # For now, we just know that the spacing is 0.01. I think we can
+        # probably read that somewhere, but skip for now.
+        return rf.SpectrumSamplingFixedSpacing(rf.ArrayWithUnit(np.array([0.01]),
+                                                                "cm^-1"))
 
 class TropomiSwirForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
