@@ -132,6 +132,13 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         hres_spec = []
         for i in range(self.num_channels):
             if(self.ils_method(i) in ("FASTCONV", "POSTCONV")):
+                if not self.ils_params(i).get('central_wavelength_is_mono_grid', False):
+                    raise NotImplementedError(
+                        'Tried to use the "central_wavelength" array from self.ils_params '
+                        'as a monochromatic grid, but the ILS parameters either indicated '
+                        'that the central wavelengths cannot be used this way or did not '
+                        'include the "central_wavelength_is_mono_grid" key at all.'
+                    )
                 cwave = self.ils_params(i)["central_wavelength"]
                 hres_spec.append(rf.SpectralDomain(cwave, rf.Unit("nm")))
             else:

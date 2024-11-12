@@ -2,7 +2,8 @@ from functools import cached_property, lru_cache
 from refractor.muses import (RefractorFmObjectCreator,
                              RefractorUip, 
                              ForwardModelHandle,
-                             MusesRaman, CurrentState, CurrentStateUip,
+                             MusesRaman, MusesSpectrumSampling,
+                             CurrentState, CurrentStateUip,
                              SurfaceAlbedo)
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf
@@ -13,6 +14,7 @@ import re
 import glob
 import copy
 import os
+from netCDF4 import Dataset
 
 class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
     '''This is the variation for handling the SWIR channels. Note that
@@ -35,6 +37,19 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
                          absorption_gases=absorption_gases, primary_absorber=primary_absorber,
                          use_raman=use_raman,
                          **kwargs)
+        
+        # JLL: I always get an HDF error if I try to read the ABSCO netCDF file in the
+        # spectrum_sampling method. I'm guessing something else is accessing it at that
+        # point, in a way that confounds Python's netCDF4. To get around that for now,
+        # I'll just read in the absco grid here.
+        primary_absco_file = self.absco_filename(self.primary_absorber)
+        with Dataset(primary_absco_file) as ds:
+            absco_grid = ds['Spectral_Grid'][:].filled(np.nan)
+            absco_grid_units = ds['Spectral_Grid'].units
+        # Special case, since ReFRACtor expects a ^ in cm^-1 and the ABSCO files
+        # just use cm-1...
+        absco_grid_units = 'cm^-1' if absco_grid_units == 'cm-1' else absco_grid_units
+        self.full_absco_grid = rf.ArrayWithUnit(absco_grid, absco_grid_units)
 
     @cached_property
     def absorber(self):
@@ -71,6 +86,35 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
 
         gas_pattern = f"{gas_subdir}/nc_ABSCO/{gas.upper()}_*_v0.0_init.nc"
         return self.find_absco_pattern(gas_pattern, join_to_absco_base_path=False)
+    
+    @cached_property
+    def spectrum_sampling(self):
+        hres_spec = []
+        for i in range(self.num_channels):
+            if self.filter_list[i] == 'BAND7':
+                absco_grid = self.full_absco_grid.convert_wave('nm').value
+                absco_grid_units = self.full_absco_grid.units.name
+
+                # We should only need monochromatic wavelengths within the microwindow(s)
+                # being used. To be safe, we'll go 3x the ILS width outside the window,
+                # that should be plenty to make sure the ILS has monochromatic lines over
+                # its whole span.
+
+                mw_bounds = self.rf_uip.micro_windows(i).convert_wave('nm').value
+                # If there are multiple sub windows, this will just keep the monochromatic
+                # wavelengths in between the sub windows. We can optimize those out later
+                # if need be.
+                mw_start = np.min(mw_bounds)
+                mw_end = np.max(mw_bounds)
+                ils_width = np.abs(np.max(self.ils_params(i)['delta_wavelength']))
+                to_keep = (absco_grid >= (mw_start - 3*ils_width)) & (absco_grid <= (mw_end + 3*ils_width))
+                hres_spec.append(rf.SpectralDomain(absco_grid[to_keep], rf.Unit('nm')))
+            else:
+                # Not sure how this will work for multi-band retrievals yet...
+                hres_spec.append(None)
+
+        return MusesSpectrumSampling(hres_spec)
+        
 
 class TropomiSwirForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
