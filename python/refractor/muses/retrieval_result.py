@@ -3,6 +3,7 @@ from .observation_handle import mpy_radiance_from_observation_list
 import numpy as np
 import os
 from loguru import logger
+from pathlib import Path
 
 class PropagatedQA:
     '''There are a few parameters that get propagated from one step to the next. Not
@@ -68,22 +69,29 @@ class RetrievalResult:
 
     def update_error_analysis(self, error_analysis : 'ErrorAnalysis'):
         '''Run the error analysis and calculate various summary statistics for retrieval'''
+        # Note the interface here is fairly confusing. res is just a reference to
+        # self, so although this looks like it is returning something new we are
+        # actually just updating self.__dict__
         res = error_analysis.error_analysis(self.rstep.__dict__, self.retrieval_info,
                                             self.state_info, self)
         res = mpy.write_retrieval_summary(
-            self._strategy_table.analysis_directory,
+            None,
             self.retrieval_info.retrieval_info_obj,
             self.state_info.state_info_obj,
             None,
             res,
             {},
             None,
-            self.quality_name, 
+            None,
             None,
             error_analysis.error_current, 
             writeOutputFlag=False, 
             errorInitial=error_analysis.error_initial
         )
+        master = mpy.write_quality_flags(Path(self._strategy_table.analysis_directory, "QualityFlags.asc"), self.quality_name, self, self.state_info.state_info_obj, writeOutput=False)
+        self.masterQuality = 1 if master == "GOOD" else 0
+        logger.info(f"Master Quality: {self.masterQuality} ({master})")
+        
         # This is already done in place
         #self.__dict__.update(res)
                               
