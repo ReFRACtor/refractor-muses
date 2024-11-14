@@ -98,6 +98,9 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
         # Grab each step so we can separately test output
         rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
         rs.add_observer(rscap)
+        rscap2 = RetrievalStrategyCaptureObserver("retrieval_result",
+                                                  "systematic_jacobian")
+        rs.add_observer(rscap2)
         compare_dir = joint_tropomi_test_expected_dir
         if run_refractor:
             # Use refractor forward model. 

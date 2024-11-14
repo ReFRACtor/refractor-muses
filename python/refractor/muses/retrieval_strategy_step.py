@@ -206,7 +206,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         #if 'OCO2' in rs.current_strategy_step.instrument_name:
         #    rs._strategy_executor.stable.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
         self.extra_after_run_retrieval_step(rs)
-        rs.notify_update("run_retrieval_step")
+        rs.notify_update("run_retrieval_step", retrieval_strategy_step=self)
 
         # TODO jacobian_sys is only used in error_analysis_wrapper and error_analysis.
         # I think we can leave bad sample out, although I'm not positive. Would be
@@ -218,7 +218,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                 do_systematic=True, include_bad_sample=True, fix_apriori_size=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.update_jacobian_sys(cfunc_sys)
-
+        rs.notify_update("systematic_jacobian", retrieval_strategy_step=self)
         self.results.update_error_analysis(rs._strategy_executor.error_analysis)
         self.propagated_qa.update(rs.current_strategy_step.retrieval_elements,
                                   self.results.master_quality)

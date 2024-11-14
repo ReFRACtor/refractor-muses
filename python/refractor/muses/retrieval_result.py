@@ -5,6 +5,23 @@ import os
 from loguru import logger
 from pathlib import Path
 
+class RetrievalResultCaptureObserver:
+    '''Helper class, pickles RetrievalResult at each time notify_update is
+    called. Intended for unit tests and other kinds of debugging.'''
+    def __init__(self, basefname, location_to_capture):
+        self.basefname = basefname
+        self.location_to_capture = location_to_capture
+
+    def notify_update(self, retrieval_strategy, location,
+                      retrieval_strategy_step=None, **kwargs):
+        if(location != self.location_to_capture):
+            return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
+        pickle.dump(retrieval_strategy_step.results, open(fname, "wb"))
+        retrieval_strategy.save_pickle(fname, **kwargs)
+        retrieval_strategy.add_observer(self)
+
 class PropagatedQA:
     '''There are a few parameters that get propagated from one step to the next. Not
     sure exactly what this gets looked for, it look just like flags copied from one
@@ -418,4 +435,4 @@ len(o_results.LMResults_costThresh): {len(o_results.LMResults_costThresh)}
         return o_results
         
 
-__all__ = ["PropagatedQA", "RetrievalResult"]    
+__all__ = ["PropagatedQA", "RetrievalResult", "RetrievalResultCaptureObserver"]    
