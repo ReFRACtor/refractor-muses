@@ -125,7 +125,7 @@ def test_capture_tropomi_cris_retrieval_strategy(isolated_dir, osp_dir, gmao_dir
         f"{joint_tropomi_test_in_dir}/retrieval_strategy_retrieval_step",
         "starting run_step")
     rs.add_observer(rscap)
-    rscap2 = RetrievalStrategyCaptureObserver(
+    rscap2 = RetrievalResultCaptureObserver(
         f"{joint_tropomi_test_in_dir}/retrieval_result",
         "systematic_jacobian")
     rs.add_observer(rscap2)

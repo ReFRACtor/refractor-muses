@@ -465,11 +465,6 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     def run_step(self):
         '''Run a the current step.'''
         self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
-        try:
-            logger.info(f"Hi there! {self.qa_data_handle_set.qa_file_name(self.current_strategy_step)}")
-        except RuntimeError:
-            # Ignore error
-            pass
         self.rs._state_info.copy_current_initial()
         logger.info(f'\n---')
         logger.info(f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.stable.number_table_step}")

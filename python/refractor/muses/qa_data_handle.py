@@ -2,6 +2,7 @@ from .creator_handle import CreatorHandleSet, CreatorHandle
 from .muses_spectral_window import MusesSpectralWindow
 import refractor.muses.muses_py as mpy
 from loguru import logger
+from pathlib import Path
 import abc
 import os
 
@@ -67,33 +68,35 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def qa_file_name(self,
-           current_strategy_step : 'CurrentStrategyStep') -> "Optional(str)":
-        '''Return the qa file name to use.'''
+    def qa_update_retrieval_result(self,
+                     retrieval_result : 'RetrievalResult') -> "Optional(str)":
+        '''This does the QA calculation, and updates the given RetrievalResult.
+        Returns the master quality flag results'''
         raise NotImplementedError()
 
 
-# TODO Rework this. Can we move the whole QA into this?    
 class QaDataHandleSet(CreatorHandleSet):
-    '''This takes a CurrentStrategyStep and maps that to a QA file name.
-    Note it isn't clear that this is really what we want - why can't we just do
-    the entire QA processing based off the handle? But at least for now, we are
-    wrapping older py-retrieve code that *only* reads the QA data from a file.
+    '''This takes a RetrievalResult and updates it with QA data.
     '''
     def __init__(self):
-        super().__init__("qa_file_name")
+        super().__init__("qa_update_retrieval_result")
 
-    def qa_file_name(self,
-             current_strategy_step : 'CurrentStrategyStep') -> str:
-        '''Return the qa file name to use.'''
-        return self.handle(current_strategy_step)
+    def qa_update_retrieval_result(self,
+                     retrieval_result : 'RetrievalResult') -> "Optional(str)":
+        '''This does the QA calculation, and updates the given RetrievalResult.
+        Returns the master quality flag results'''
+        self.handle(retrieval_result)
 
 class MusesPyQaDataHandle(QaDataHandle):
-    '''This wraps the old muses-py code for determining the spectral window. Note
-    the logic used in this code is a bit complicated, this looks like something that
-    has been extended and had special cases added over time. We should probably replace
-    this with newer code, but this older wrapper is useful for doing testing if nothing
-    else.'''
+    '''This wraps the old muses-py code for determining the qa file name and
+    then using to calculate QA information.
+
+    Note the logic used in this code is a bit complicated, this looks
+    like something that has been extended and had special cases added
+    over time. We should probably replace this with newer code, but
+    this older wrapper is useful for doing testing if nothing else.
+
+    '''
     def __init__(self):
         self.viewing_mode = None
         self.spectral_window_directory = None
@@ -103,34 +106,47 @@ class MusesPyQaDataHandle(QaDataHandle):
         '''Clear any caching associated with assuming the target being retrieved is fixed'''
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
+        self.run_dir = Path(measurement_id['outputDirectory'],
+                            measurement_id['sessionID'])
         self.spectral_window_directory = measurement_id["spectralWindowDirectory"]
         self.viewing_mode = measurement_id["viewingMode"]
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
 
-    def qa_file_name(self,
-           current_strategy_step : 'CurrentStrategyStep') -> "Optional(str)":
-        '''Return the qa file name to use.'''
+    def qa_update_retrieval_result(self,
+           retrieval_result : 'RetrievalResult') -> "Optional(str)":
+        '''This does the QA calculation, and updates the given RetrievalResult.
+        Returns the master quality flag results'''
+        logger.debug(f"Doing QA calculation using {self.cls.__name__}")
         # Name is derived from the microwindows file name
+        current_strategy_step = retrieval_result.current_strategy_step
         mwfname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
             self.viewing_mode, self.spectral_window_directory,
             current_strategy_step.retrieval_elements,
             current_strategy_step.step_name,
             current_strategy_step.retrieval_type,
             current_strategy_step.microwindow_file_name_override)
-        res = os.path.basename(mwfname)
-        res = res.replace("Microwindows_", "QualityFlag_Spec_")
-        res = res.replace("Windows_", "QualityFlag_Spec_")
-        res = f"{self.qa_flag_directory}/{res}"
+        quality_fname = os.path.basename(mwfname)
+        quality_fname = quality_fname.replace("Microwindows_", "QualityFlag_Spec_")
+        quality_fname = quality_fname.replace("Windows_", "QualityFlag_Spec_")
+        quality_fname = f"{self.qa_flag_directory}/{quality_fname}"
         # if this does not exist use generic nadir / limb quality flag
-        if not os.path.isfile(res):
-            logger.warning(f'Could not find quality flag file: {res}')
+        if not os.path.isfile(quality_fname):
+            logger.warning(f'Could not find quality flag file: {quality_fname}')
             viewMode = self.viewing_mode.lower().capitalize()
-            res = f"{os.path.dirname(res)}/QualityFlag_Spec_{viewMode}.asc"
-            logger.warning(f"Using generic quality flag file: {res}")
+            quality_fname = f"{os.path.dirname(quality_fname)}/QualityFlag_Spec_{viewMode}.asc"
+            logger.warning(f"Using generic quality flag file: {quality_fname}")
             # One last check.
-            if not os.path.isfile(res):
-                raise RuntimeError(f"Quality flag filename not found: {res}")
-        return os.path.abspath(res)
+            if not os.path.isfile(quality_fname):
+                raise RuntimeError(f"Quality flag filename not found: {quality_fname}")
+        quality_fname = os.path.abspath(quality_fname)
+        qa_outname = Path(self.run_dir, f"Step{current_strategy_step.step_number:02d}_{current_strategy_step.step_name}",
+                          "StepAnalysis", "QualityFlags.asc")
+        master = mpy.write_quality_flags(
+            qa_outname, quality_name, retrieval_result,
+            retrieval_result.state_info.state_info_obj, writeOutput=False)
+        retrieval_result.masterQuality = 1 if master == "GOOD" else 0
+        logger.info(f"Master Quality: {retrieval_result.masterQuality} ({master})")
+        return master
 
 # For now, just fall back to the old muses-py code.    
 QaDataHandleSet.add_default_handle(MusesPyQaDataHandle())

@@ -186,10 +186,11 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         ret_res = self.run_retrieval(rs)
 
-        self.results = RetrievalResult(ret_res, rs._strategy_executor.stable, rs.retrieval_info,
-                                       rs.state_info, self.cfunc.obs_list,
-                                       self.radiance_full(rs),
-                                       self.propagated_qa)
+        self.results = RetrievalResult(
+            ret_res, rs.current_strategy_step, rs._strategy_executor.stable,
+            rs.retrieval_info, rs.state_info, self.cfunc.obs_list,
+            self.radiance_full(rs),
+            self.propagated_qa)
         logger.info('\n---')
         logger.info(f"Step: {rs.step_number}, Step Name: {rs.step_name}")
         logger.info(f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}")

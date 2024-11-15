@@ -4,6 +4,7 @@ import numpy as np
 import os
 from loguru import logger
 from pathlib import Path
+import pickle
 
 class RetrievalResultCaptureObserver:
     '''Helper class, pickles RetrievalResult at each time notify_update is
@@ -19,8 +20,6 @@ class RetrievalResultCaptureObserver:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
         pickle.dump(retrieval_strategy_step.results, open(fname, "wb"))
-        retrieval_strategy.save_pickle(fname, **kwargs)
-        retrieval_strategy.add_observer(self)
 
 class PropagatedQA:
     '''There are a few parameters that get propagated from one step to the next. Not
@@ -53,11 +52,31 @@ class RetrievalResult:
     retrieval_results. Pull all this together into an object so we can clearly
     see the interface and possibly change things.
 
-    Unlike a number of things that we want to elevate to a class, this really does
-    look like just a structure of various calculated things that then get reported in
-    the output files - so I think this is probably little more than wrapping up stuff in
-    one place.'''
-    def __init__(self, ret_res : dict, strategy_table : 'StrategyTable',
+    Unlike a number of things that we want to elevate to a class, this
+    really does look like just a structure of various calculated
+    things that then get reported in the output files - so I think
+    this is probably little more than wrapping up stuff in one place.
+
+    The coupling of this isn't great, we may want to break this up. The current
+    set of steps needed to fully generate this can be found in
+    RetrievalStrategyStepRetrieve
+
+    1. Use results of the run_retrieval to create RetrievalResult using the
+       constructor (__init__).
+    2. Pass this object along with other object to update the StateInfo
+       (StateInfo.update_state)
+    3. Generate the systematic Jacobian using this updated StateInfo, and
+       store results in RetrievalResult
+    4. Run the error analysis (ErrorAnalysis.update_retrieval_result) and
+       store the results in RetrievalResult
+    5. Run the QA analysis (QaDataHandleSet.qa_update_retrieval_result) and
+       store the results in RetrievalResult
+
+    TODO Not sure how to unpack this, buy we'll work on it.
+    '''
+    def __init__(self, ret_res : dict,
+                 current_strategy_step : 'CurrentStrategyStep',
+                 strategy_table : 'StrategyTable',
                  retrieval_info : 'RetrievalInfo', state_info : 'StateInfo',
                  obs_list : 'list(MusesObservation)',
                  radiance_full : 'dict',
@@ -70,6 +89,7 @@ class RetrievalResult:
         self.retrieval_info = retrieval_info
         self.state_info = state_info
         self.sounding_metadata = state_info.sounding_metadata()
+        self.current_strategy_step = current_strategy_step
         self._strategy_table = strategy_table
         self.ret_res = mpy.ObjectView(ret_res)
         # Get old retrieval results structure, and merge in with this object
