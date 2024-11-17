@@ -72,12 +72,35 @@ class ErrorAnalysis:
         self.error_initial = mpy.constraint_data(initial, pressure_list,
                                                  species_list, map_list)
 
-        
+    def update_retrieval_result(self, retrieval_result : 'RetrievalResult'):
+        '''Update the retrieval_result and ErrorAnalysis. The retrieval_result
+        are updated in place.'''
+        # Both these functions update retrieval_result in place, and
+        # also returned. We don't need the return value, it is just the
+        # same as retrieval_result
+        _ = self.error_analysis(retrieval_result.rstep.__dict__,
+                                retrieval_result.retrieval_info,
+                                retrieval_result.state_info,
+                                retrieval_result)
+        _ = mpy.write_retrieval_summary(
+            None,
+            retrieval_result.retrieval_info.retrieval_info_obj,
+            retrieval_result.state_info.state_info_obj,
+            None,
+            retrieval_result,
+            {},
+            None,
+            None,
+            None,
+            self.error_current, 
+            writeOutputFlag=False, 
+            errorInitial=self.error_initial
+        )
 
     def error_analysis(self, radiance_step: dict,
                        retrieval_info : 'RetrievalInfo',
                        state_info : 'StateInfo',
-                       retrieval_results : 'RetrievalResult'):
+                       retrieval_result : 'RetrievalResult'):
 
         '''Update results and error_current'''
         # Doesn't seem to be used for anything, but we need to pass in. I think
@@ -93,7 +116,7 @@ class ErrorAnalysis:
             self.error_initial,
             self.error_current,
             None,
-            retrieval_results
+            retrieval_result
             )
         return results
 

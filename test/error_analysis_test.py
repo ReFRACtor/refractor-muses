@@ -1,6 +1,7 @@
 from test_support import *
 from refractor.muses import (ErrorAnalysis, RetrievalStrategy, MusesRunDir,
                              order_species)
+import copy
 
 class RetrievalStrategyStop:
     def notify_update(self, retrieval_strategy, location, **kwargs):
@@ -51,4 +52,11 @@ def test_error_analysis_update_retrieval_results(isolated_dir, osp_dir, gmao_dir
     enalysis = ErrorAnalysis(retrieval_result.current_strategy_step,
                              retrieval_result.state_info,
                              covariance_state_element_name)
+    before = copy.deepcopy(retrieval_result)
+    enalysis.update_retrieval_result(retrieval_result)
+    # TODO Not really sure what the results are suppose to be, or even easily what
+    # gets changed. So we just check that the call is successful.
+    # Note we do check this indirectly by our end to end runs and comparison
+    # to expected results, but it would be good to check this is more detail
+    # in this test.
     

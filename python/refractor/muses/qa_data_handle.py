@@ -116,7 +116,7 @@ class MusesPyQaDataHandle(QaDataHandle):
            retrieval_result : 'RetrievalResult') -> "Optional(str)":
         '''This does the QA calculation, and updates the given RetrievalResult.
         Returns the master quality flag results'''
-        logger.debug(f"Doing QA calculation using {self.cls.__name__}")
+        logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         # Name is derived from the microwindows file name
         current_strategy_step = retrieval_result.current_strategy_step
         mwfname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
@@ -142,7 +142,7 @@ class MusesPyQaDataHandle(QaDataHandle):
         qa_outname = Path(self.run_dir, f"Step{current_strategy_step.step_number:02d}_{current_strategy_step.step_name}",
                           "StepAnalysis", "QualityFlags.asc")
         master = mpy.write_quality_flags(
-            qa_outname, quality_name, retrieval_result,
+            qa_outname, quality_fname, retrieval_result,
             retrieval_result.state_info.state_info_obj, writeOutput=False)
         retrieval_result.masterQuality = 1 if master == "GOOD" else 0
         logger.info(f"Master Quality: {retrieval_result.masterQuality} ({master})")

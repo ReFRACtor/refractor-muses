@@ -104,7 +104,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         jacobianOut = None
         mytiming = None
         logger.info("Running run_forward_model ...")
-        self.cfunc = rs._strategy_executor.create_cost_function(
+        self.cfunc = rs.create_cost_function(
             include_bad_sample=True, fix_apriori_size=True,
             jacobian_speciesIn=jacobian_speciesNames)
         radiance_fm = self.cfunc.max_a_posteriori.model
@@ -141,7 +141,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         mytiming = None
         uip=tes = cris = omi = tropomi = None 
         logger.info("Running run_irk ...")
-        self.cfunc = rs._strategy_executor.create_cost_function()
+        self.cfunc = rs.create_cost_function()
         (resultsIRK, jacobianOut) = mpy.run_irk(
             rs._strategy_executor.stable.strategy_table_dict,
             rs.state_info, rs._strategy_executor.stable.microwindows(), rs.retrieval_info,
@@ -215,12 +215,13 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # weed them out. For right now, these are required, we would need to update
         # the error analysis to work without bad samples
         if(rs.retrieval_info.n_speciesSys > 0):
-            cfunc_sys = rs._strategy_executor.create_cost_function(
+            cfunc_sys = rs.create_cost_function(
                 do_systematic=True, include_bad_sample=True, fix_apriori_size=True)
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.update_jacobian_sys(cfunc_sys)
         rs.notify_update("systematic_jacobian", retrieval_strategy_step=self)
-        self.results.update_error_analysis(rs._strategy_executor.error_analysis)
+        rs.error_analysis.update_retrieval_result(self.results)
+        rs.qa_data_handle_set.qa_update_retrieval_result(self.results)
         self.propagated_qa.update(rs.current_strategy_step.retrieval_elements,
                                   self.results.master_quality)
         
@@ -238,7 +239,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
-        self.cfunc = rs._strategy_executor.create_cost_function()
+        self.cfunc = rs.create_cost_function()
         rs.notify_update("create_cost_function", retrieval_strategy_step=self)
         maxIter = rs.current_strategy_step.max_num_iterations
         
