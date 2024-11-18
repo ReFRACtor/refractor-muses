@@ -59,10 +59,9 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs._strategy_executor.stable
-    stable.table_step = 0
+    rs._strategy_executor.restart()
     selement = sinfo.state_element("OMICLOUDFRACTION")
-    selement.update_initial_guess(CurrentStrategyStepDict.current_step(stable))
+    selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,]))
@@ -84,13 +83,12 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
 
     # Update results, and make sure element gets updated
-    rinfo = RetrievalInfo(rs._strategy_executor.error_analysis, stable,
-                          CurrentStrategyStepDict.current_step(stable), 
-                          sinfo)
+    rs._strategy_executor.get_initial_guess()
+    rinfo = rs.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
     sinfo.update_state(rinfo, results_list, [], rs.retrieval_config,
-                       stable.table_step)
+                       rs.current_strategy_step.step_number)
     
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,]))
@@ -114,9 +112,9 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
-    stable.table_step = 1
+    rs._strategy_executor.next_step()
     selement = sinfo.state_element("OMICLOUDFRACTION")
-    selement.update_initial_guess(CurrentStrategyStepDict.current_step(stable))
+    selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,]))
@@ -155,10 +153,9 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs._strategy_executor.stable
-    stable.table_step = 0
+    rs._strategy_executor.restart()
     selement = sinfo.state_element("OMICLOUDFRACTION")
-    selement.update_initial_guess(CurrentStrategyStepDict.current_step(stable))
+    selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,]))
@@ -180,13 +177,13 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
 
     # Update results, and make sure element gets updated
-    rinfo = RetrievalInfo(rs._strategy_executor.error_analysis, stable,
-                          CurrentStrategyStepDict.current_step(stable), 
-                          sinfo)
+    rs._strategy_executor.get_initial_guess()
+    rinfo = rs.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
-    sinfo.update_state(rinfo, results_list, ["OMICLOUDFRACTION"], rs.retrieval_config,
-                       stable.table_step)
+    sinfo.update_state(rinfo, results_list, ["OMICLOUDFRACTION"],
+                       rs.retrieval_config,
+                       rs.current_strategy_step.step_number)
     
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,]))
@@ -210,9 +207,9 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
-    stable.table_step = 1
+    rs._strategy_executor.next_step()
     selement = sinfo.state_element("OMICLOUDFRACTION")
-    selement.update_initial_guess(CurrentStrategyStepDict.current_step(stable))
+    selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,]))
@@ -263,10 +260,9 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs._strategy_executor.stable
-    stable.table_step = 0
+    rs._strategy_executor.restart()
     selement = sinfo.state_element("OMIEOFUV1")
-    selement.update_initial_guess(CurrentStrategyStepDict.current_step(stable))
+    selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
@@ -289,13 +285,12 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
 
     # Update results, and make sure element gets updated
-    rinfo = RetrievalInfo(rs._strategy_executor.error_analysis, stable,
-                          CurrentStrategyStepDict.current_step(stable), 
-                          sinfo)
+    rs._strategy_executor.get_initial_guess()
+    rinfo = rs.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     sinfo.update_state(rinfo, results_list, [], rs.retrieval_config,
-                       stable.table_step)
+                       rs.current_strategy_step.step_number)
     
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
@@ -318,9 +313,9 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
-    stable.table_step = 1
+    rs._strategy_executor.next_step()
     selement = sinfo.state_element("OMIEOFUV1")
-    selement.update_initial_guess(CurrentStrategyStepDict.current_step(stable))
+    selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
@@ -365,10 +360,9 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     except StopIteration:
         pass
     sinfo = rs.state_info
-    stable = rs._strategy_executor.stable
-    stable.table_step = 0
+    rs._strategy_executor.restart()
     selement = sinfo.state_element("OMIEOFUV1")
-    selement.update_initial_guess(CurrentStrategyStepDict.current_step(stable))
+    selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
@@ -391,13 +385,12 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
 
     # Update results, and make sure element gets updated
-    rinfo = RetrievalInfo(rs._strategy_executor.error_analysis, stable,
-                          CurrentStrategyStepDict.current_step(stable), 
-                          sinfo)
+    rs._strategy_executor.get_initial_guess()
+    rinfo = rs.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     sinfo.update_state(rinfo, results_list, ["OMIEOFUV1"], rs.retrieval_config,
-                       stable.table_step)
+                       rs.current_strategy_step.step_number)
     
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
@@ -420,9 +413,9 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
-    stable.table_step = 1
+    rs._strategy_executor.next_step()
     selement = sinfo.state_element("OMIEOFUV1")
-    selement.update_initial_guess(CurrentStrategyStepDict.current_step(stable))
+    selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"
     npt.assert_allclose(selement.pressureList, np.array([-2,-2,-2]))
