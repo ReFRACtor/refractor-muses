@@ -76,7 +76,6 @@ class RetrievalResult:
     '''
     def __init__(self, ret_res : dict,
                  current_strategy_step : 'CurrentStrategyStep',
-                 strategy_table : 'StrategyTable',
                  retrieval_info : 'RetrievalInfo', state_info : 'StateInfo',
                  obs_list : 'list(MusesObservation)',
                  radiance_full : 'dict',
@@ -90,7 +89,6 @@ class RetrievalResult:
         self.state_info = state_info
         self.sounding_metadata = state_info.sounding_metadata()
         self.current_strategy_step = current_strategy_step
-        self._strategy_table = strategy_table
         self.ret_res = mpy.ObjectView(ret_res)
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
@@ -104,13 +102,6 @@ class RetrievalResult:
         self.jacobianSys = \
             cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[np.newaxis,:,:]
 
-    def update_qa(self):
-        '''Run the error analysis and calculate various summary statistics for retrieval'''
-        # Upates RetrievalResult in place
-        master = mpy.write_quality_flags(Path(self._strategy_table.analysis_directory, "QualityFlags.asc"), self.quality_name, self, self.state_info.state_info_obj, writeOutput=False)
-        self.masterQuality = 1 if master == "GOOD" else 0
-        logger.info(f"Master Quality: {self.masterQuality} ({master})")
-                              
     @property
     def species_list_fm(self) -> 'list(str)':
         '''This is the length of the forward model state vector, with a
@@ -143,32 +134,6 @@ class RetrievalResult:
     def jacobian_sys(self):
         return self.jacobianSys
 
-    @property
-    def press_list(self):
-        return [float(self._strategy_table.preferences["plotMaximumPressure"]),
-                float(self._strategy_table.preferences["plotMinimumPressure"])]
-
-    @property
-    def quality_name(self):
-        with self._strategy_table.chdir_run_dir():
-            res = os.path.basename(self._strategy_table.spectral_filename)
-            res = res.replace("Microwindows_", "QualityFlag_Spec_")
-            res = res.replace("Windows_", "QualityFlag_Spec_")
-            res = self._strategy_table.preferences["QualityFlagDirectory"] + res
-            
-            # if this does not exist use generic nadir / limb quality flag
-            if not os.path.isfile(res):
-                logger.warning(f'Could not find quality flag file: {res}')
-                viewingMode = self._strategy_table.preferences["viewingMode"]
-                viewMode = viewingMode.lower().capitalize()
-
-                res = f"{os.path.dirname(res)}/QualityFlag_Spec_{viewMode}.asc"
-                logger.warning(f"Using generic quality flag file: {res}")
-                # One last check.
-                if not os.path.isfile(res):
-                    raise RuntimeError(f"Quality flag filename not found: {res}")
-            return os.path.abspath(res)
-
     def set_retrieval_results(self):
         '''This is our own copy of mpy.set_retrieval_results, so we can start making changes
         to clean up the coupling of this.'''
@@ -178,7 +143,7 @@ class RetrievalResult:
     
         niter = len(self.ret_res.resdiag[:, 0])
         # to standardize the size of maxIter, set it to maxIter from strategy table
-        maxIter = self._strategy_table.max_num_iterations
+        maxIter = self.current_strategy_step.max_num_iterations
         maxIter = int(maxIter) + 1  # Add 1 to account for initial.
 
 
