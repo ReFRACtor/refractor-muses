@@ -113,15 +113,15 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         # Put into structure expected by modify_from_bt
         radiance_res = {"radiance" : radiance_fm,
                         "frequency" : freq_fm }
-        (rs._strategy_executor.stable.strategy_table_dict, rs._state_info.state_info_dict) = mpy.modify_from_bt(
-            mpy.ObjectView(rs._strategy_executor.stable.strategy_table_dict), rs.step_number,
+        (rs._strategy_executor.strategy._stable.strategy_table_dict, rs._state_info.state_info_dict) = mpy.modify_from_bt(
+            mpy.ObjectView(rs._strategy_executor.strategy._stable.strategy_table_dict), rs.step_number,
             self.radiance_step(),
             radiance_res,
             {},
             rs._state_info.state_info_dict,
             self.BTstruct,
             writeOutputFlag=False)
-        rs._strategy_executor.stable.strategy_table_dict = rs._strategy_executor.stable.strategy_table_dict.__dict__
+        rs._strategy_executor.strategy._stable.strategy_table_dict = rs._strategy_executor.strategy._stable.strategy_table_dict.__dict__
         logger.info(f"Step: {rs.step_number},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
         rs.state_info.next_state_dict = copy.deepcopy(rs.state_info.state_info_dict["current"])
         return (True, None)
@@ -143,8 +143,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         logger.info("Running run_irk ...")
         self.cfunc = rs.create_cost_function()
         (resultsIRK, jacobianOut) = mpy.run_irk(
-            rs._strategy_executor.stable.strategy_table_dict,
-            rs.state_info, rs._strategy_executor.stable.microwindows(), rs.retrieval_info,
+            rs._strategy_executor._stable.strategy_table_dict,
+            rs.state_info, rs._strategy_executor._stable.microwindows(), rs.retrieval_info,
             jacobian_speciesNames, 
             jacobian_specieslist, 
             self.radiance_step(),

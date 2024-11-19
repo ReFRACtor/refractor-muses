@@ -2,13 +2,13 @@ from .retrieval_strategy_step_new import RetrievalStrategyStepSetNew
 from .refractor_capture_directory import muses_py_call
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .retrieval_info import RetrievalInfo
-from .strategy_table import StrategyTable
 from .error_analysis import ErrorAnalysis
 from .order_species import order_species
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentStateStateInfo
 from .muses_spectral_window import MusesSpectralWindow
 from .qa_data_handle import QaDataHandleSet
+from .muses_strategy import MusesStrategyOldStrategyTable
 from .refractor_uip import RefractorUip
 import refractor.muses.muses_py as mpy
 import abc
@@ -66,18 +66,25 @@ def array_compare(s1, s2, skip_list=None, verbose=False):
 class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
     '''This is the base class for executing a strategy.
 
-    Note that there a refractor.framework class StrategyExecutor. This class has a
-    similar intention as that older StrategyExecutor class, however this really
-    is a complete rewrite of this for the way py-retrieve does this. It is possible
-    that these classes might get merged at some point, but for now it is better
-    to think of these as completely separate classes that just happen to have similar
-    names.
+    Note that there a refractor.framework class StrategyExecutor. This
+    class has a similar intention as that older StrategyExecutor
+    class, however this really is a complete rewrite of this for the
+    way py-retrieve does this. It is possible that these classes might
+    get merged at some point, but for now it is better to think of
+    these as completely separate classes that just happen to have
+    similar names.
 
-    The canonical way of determining the strategy is to read the old strategy table
-    ("Table.asc") that amuse-me populates.
+    The canonical way of determining the strategy is to read the old
+    strategy table ("Table.asc") that amuse-me populates.
 
-    This base class provides an abstract interface so we can have different implementations
-    of executing a strategy.
+    This base class provides an abstract interface so we can have
+    different implementations of executing a strategy.
+
+    It isn't clear how much flexibility we actually need here, a lot
+    of the configuration/customization happens at a lower level of
+    processing (e.g., ForwardModelHandleSet), but we'll go ahead a set
+    up the inheritance structure since this is pretty cheap. If we
+    only end up with one implementation that's fine.
     '''
     pass
 
@@ -148,7 +155,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         self.current_strategy_step_dict = current_strategy_step_dict
 
     @classmethod
-    def current_step(cls, strategy_table : StrategyTable):
+    def current_step(cls, strategy_table : 'StrategyTable'):
         '''Create a current strategy step, leaving out the RetrievalInfo stuff. Mostly
         meant for testing, MusesStrategyExecutor will normally create the current_step
         but testing at a lower level might not have a MusesStrategyExecutor available.'''
@@ -304,7 +311,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             mwin.extend(swin.muses_microwindows())
         if False:
             # Can check that we are getting the right microwindows, if needed
-            mwin2 = self.stable.microwindows()
+            mwin2 = self.strategy._stable.microwindows()
             array_compare(mwin, mwin2, skip_list=["THROW_AWAY_WINDOW_INDEX"])
         # Dummy strategy table, with the information needed by
         # RefractorUip.create_uip
@@ -361,7 +368,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         super().__init__(retrieval_strategy_step_set = retrieval_strategy_step_set,
                          spectral_window_handle_set = spectral_window_handle_set,
                          qa_data_handle_set = qa_data_handle_set)
-        self.stable = StrategyTable(filename, osp_dir=osp_dir)
+        self.strategy = MusesStrategyOldStrategyTable(filename, osp_dir=osp_dir)
         self.rs = rs
         self.retrieval_config = rs.retrieval_config
         self.retrieval_info = None
@@ -369,7 +376,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     @property
     def strategy_table_filename(self):
-        return self.stable.filename
+        return self.strategy._stable.filename
 
     @strategy_table_filename.setter
     def strategy_table_filename(self, v):
@@ -379,45 +386,45 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     def filter_list_dict(self) -> 'dict(str,list[str])':
         '''The complete list of filters we will be processing (so for all retrieval steps)
         '''
-        return self.stable.filter_list_all()
+        return self.strategy._stable.filter_list_all()
 
     @property
     def number_retrieval_step(self) -> int:
         '''Total number of retrieval steps. Note that this might change as
         we work through the retrieval based off decisions from early steps.'''
-        return self.stable.number_table_step
+        return self.strategy._stable.number_table_step
 
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:
         '''Return the CurrentStrategyStep for the current step.'''
         return CurrentStrategyStepDict(
-            {'retrieval_elements' : self.stable.retrieval_elements(),
-             'instrument_name' : self.stable.instrument_name(),
-             'step_name' : self.stable.step_name,
-             'step_number' : self.stable.table_step,
-             'max_num_iterations' : int(self.stable.max_num_iterations),
-             'retrieval_type' : self.stable.retrieval_type,
-             'do_not_update_list' : self.stable.do_not_update_list,
+            {'retrieval_elements' : self.strategy._stable.retrieval_elements(),
+             'instrument_name' : self.strategy._stable.instrument_name(),
+             'step_name' : self.strategy._stable.step_name,
+             'step_number' : self.strategy._stable.table_step,
+             'max_num_iterations' : int(self.strategy._stable.max_num_iterations),
+             'retrieval_type' : self.strategy._stable.retrieval_type,
+             'do_not_update_list' : self.strategy._stable.do_not_update_list,
              'spectral_window_dict' : self.spectral_window_dict,
              'retrieval_info' : self.retrieval_info
              })
 
     def restart(self):
         '''Set step to the first one.'''
-        self.stable.table_step = 0
+        self.strategy._stable.table_step = 0
         self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
 
     def next_step(self):
         '''Advance to the next step'''
-        self.stable.table_step = self.stable.table_step+1
+        self.strategy._stable.table_step = self.strategy._stable.table_step+1
 
     def is_done(self):
         '''Return true if we are done, otherwise false.'''
-        return self.stable.table_step >= self.stable.number_table_step
+        return self.strategy._stable.table_step >= self.strategy._stable.number_table_step
 
     @property
     def instrument_name_all_step(self):
-        return self.stable.instrument_name(all_step=True)
+        return self.strategy._stable.instrument_name(all_step=True)
 
     def get_initial_guess(self):
         '''Set retrieval_info, errorInitial and errorCurrent for the current step.'''
@@ -425,7 +432,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         # to figure out issue
         self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
         self.retrieval_info = RetrievalInfo(
-            self.error_analysis, self.stable,
+            self.error_analysis, self.strategy._stable,
             self.current_strategy_step,
             self.state_info)
 
@@ -459,7 +466,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             if retrieval_element_name in self.current_strategy_step.retrieval_elements:
                 res += 1
             self.next_step()
-        self.stable.table_step = step_number_start
+        self.strategy._stable.table_step = step_number_start
         return res
             
     def run_step(self):
@@ -467,7 +474,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
         self.rs._state_info.copy_current_initial()
         logger.info(f'\n---')
-        logger.info(f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.stable.number_table_step}")
+        logger.info(f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.strategy._stable.number_table_step}")
         logger.info(f'\n---')
         self.get_initial_guess()
         self.rs.notify_update("done get_initial_guess")
@@ -498,8 +505,8 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         step. This can be useful for looking at problems with an individual step, or
         to run a simulation at a particular step.'''
         self.state_info = self.rs._state_info
-        with self.stable.chdir_run_dir():
-            self.state_info.init_state(self.stable,
+        with self.strategy._stable.chdir_run_dir():
+            self.state_info.init_state(self.strategy._stable,
                                        self.rs.observation_handle_set,
                                        self.instrument_name_all_step,
                                        self.rs.run_dir)
@@ -509,8 +516,8 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         # is unique elements, sorted by the order_species sorting
         
         covariance_state_element_name = order_species(
-            set(self.stable.retrieval_elements_all_step) |
-            set(self.stable.error_analysis_interferents_all_step))
+            set(self.strategy._stable.retrieval_elements_all_step) |
+            set(self.strategy._stable.error_analysis_interferents_all_step))
 
         self.restart()
         self.error_analysis = ErrorAnalysis(
