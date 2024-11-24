@@ -253,3 +253,82 @@ def test_run_fabiano_vlidort(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     rs, kwargs = RetrievalStrategy.load_retrieval_strategy("/home/smyth/muses/refractor-muses/compare_fabiano_refractor_vlidort/20200701_204_05_29_0/retrieval_step_10.pkl",osp_dir=osp_dir,gmao_dir=gmao_dir,vlidort_cli=vlidort_cli, change_to_dir=True)
     rs.continue_retrieval()
     
+
+@long_test
+@require_muses_py
+def test_original_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. We don't
+    actually do anything with the data, other than make it available.
+
+    This is a version 8 IRK ocean retrieval.
+
+    Data goes in the local directory, rather than an isolated one.
+    '''
+    subprocess.run("rm -r original_retrieval_airs_irk", shell=True)
+    r = MusesRunDir(f"{test_base_path}/airs_omi/in/sounding_1_irk",
+                    osp_dir, gmao_dir, path_prefix="original_retrieval_airs_irk")
+    r.run_retrieval(vlidort_cli=vlidort_cli)
+
+@long_test
+@require_muses_py
+def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,
+                                     python_fp_logger):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. 
+
+    Note that a "failure" in the comparison might not actually
+    indicate a problem, just that the output changed. You may need to
+    look into detail and decide that the run was successful and we
+    just want to update the expected results.
+
+    Data goes in the local directory, rather than an isolated one. We
+    can change this in the future if desired, but for now it is useful
+    to be able to look into the directory if some kind of a problem
+    arises.
+    
+    This is a version 8 IRK ocean retrieval.
+
+    '''
+    subprocess.run("rm -r retrieval_strategy_airs_irk", shell=True)
+    r = MusesRunDir(f"{test_base_path}/airs_omi/in/sounding_1_irk",
+                    osp_dir, gmao_dir, path_prefix="retrieval_strategy_airs_irk")
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    try:
+        lognum = logger.add("retrieval_strategy_airs_irk/retrieve.log")
+        # Grab each step so we can separately test output
+        rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+        rs.add_observer(rscap)
+        compare_dir = f"{test_base_path}/airs_omi/expected/sounding_1_irk"
+        rs.update_target(f"{r.run_dir}/Table.asc")
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
+
+    diff_is_error = True
+    compare_run(compare_dir, "retrieval_strategy_airs_irk",
+                diff_is_error=diff_is_error)
+
+
+@long_test
+@require_muses_py
+def test_continue_airs_irk(osp_dir, gmao_dir, vlidort_cli,
+                           python_fp_logger):
+    '''Quick turn around, starts at IRK step. This will go away, but
+    useful during development.'''
+    subprocess.run("rm -r continue_airs_irk", shell=True)
+    dir_in = "./retrieval_strategy_airs_irk/20160401_231_049_29"
+    step_number=6
+    rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
+        f"{dir_in}/retrieval_step_{step_number}.pkl",
+        path="./continue_airs_irk",
+        osp_dir=osp_dir, gmao_dir=gmao_dir)
+    try:
+        lognum = logger.add("continue_airs_irk/retrieve.log")
+        rs.continue_retrieval()
+    finally:
+        logger.remove(lognum)
+
+    
+
+    
