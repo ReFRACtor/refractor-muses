@@ -1,6 +1,7 @@
 from .refractor_capture_directory import (RefractorCaptureDirectory,
                                           muses_py_call)
 from .retrieval_l2_output import RetrievalL2Output
+from .retrieval_irk_output import RetrievalIrkOutput
 from .retrieval_radiance_output import RetrievalRadianceOutput
 from .retrieval_jacobian_output import RetrievalJacobianOutput
 from .retrieval_debug_output import (RetrievalPickleResult,
@@ -105,6 +106,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.add_observer(RetrievalJacobianOutput())
         self.add_observer(RetrievalRadianceOutput())
         self.add_observer(RetrievalL2Output())
+        self.add_observer(RetrievalIrkOutput())
         # Similarly logic here is hardcoded.
         # JLL: some MUSES diagnostics (esp. the solver steps in the levmar code)
         # aren't observers yet, until they are, I need this boolean to turn them
@@ -223,10 +225,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         logger.info('\n---')    
         return exitcode
 
-    def continue_retrieval(self):
+    def continue_retrieval(self, stop_after_step=None):
         '''After saving a pickled step, you can continue the processing starting
         at that step to diagnose a problem.'''
-        self._strategy_executor.continue_retrieval()
+        self._strategy_executor.continue_retrieval(stop_after_step=stop_after_step)
 
     @property
     def strategy_executor(self) -> 'MusesStrategyExecutor':

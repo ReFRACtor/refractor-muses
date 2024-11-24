@@ -49,7 +49,15 @@ def compare_run(expected_dir, run_dir, diff_is_error=True):
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
         subprocess.run(cmd, shell=True, check=diff_is_error)
-    
+
+def compare_irk(expected_dir, run_dir, diff_is_error=True):
+    '''Compare products from two runs, just the IRK part.'''
+    for f in glob.glob(f"{expected_dir}/*/Products/Products_IRK.nc"):
+        f2 = f.replace(expected_dir, run_dir)
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
+        
 # This test was used to generate the original test data using py-retrieve. We have
 # tweaked the expected output slightly for test_retrieval_strategy_cris_tropomi (so
 # minor round off differeneces). But leave this code around, it can still be useful to
@@ -332,23 +340,34 @@ def test_compare_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
     
 @long_test
 @require_muses_py
-def test_continue_airs_irk(osp_dir, gmao_dir, vlidort_cli,
+def test_only_airs_irk(osp_dir, gmao_dir, vlidort_cli,
                            python_fp_logger):
-    '''Quick turn around, starts at IRK step. This will go away, but
-    useful during development.'''
-    subprocess.run("rm -r continue_airs_irk", shell=True)
+    '''Quick turn around, starts at IRK step and just runs it. Depends on
+    having retrieval_strategy_airs_irk already run. We can save the pickle
+    files if needed in refractor_test_data, but for now things aren't too
+    stable so it is good to require a fresh run.
+
+    We might either turn this into more of a regular test, or we can run this
+    only occasionally.
+
+    This checks Products_IRK.nc, but nothing else.'''
+    subprocess.run("rm -r only_airs_irk", shell=True)
     dir_in = "./retrieval_strategy_airs_irk/20160401_231_049_29"
     step_number=6
     rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
         f"{dir_in}/retrieval_step_{step_number}.pkl",
-        path="./continue_airs_irk",
+        path="./only_airs_irk",
         osp_dir=osp_dir, gmao_dir=gmao_dir)
     try:
         lognum = logger.add("continue_airs_irk/retrieve.log")
-        rs.continue_retrieval()
+        rs.continue_retrieval(stop_after_step=6)
     finally:
         logger.remove(lognum)
-
+    diff_is_error = True
+    compare_dir = f"{test_base_path}/airs_omi/expected/sounding_1_irk"
+    compare_irk(compare_dir, "only_airs_irk",
+                diff_is_error=diff_is_error)
+    
     
 
     

@@ -552,7 +552,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             self.run_step()
             self.next_step()
 
-    def continue_retrieval(self):
+    def continue_retrieval(self, stop_after_step=None):
         '''After saving a pickled step, you can continue the processing starting
         at that step to diagnose a problem.'''
         with muses_py_call(self.rs.run_dir,
@@ -560,6 +560,9 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             while(not self.is_done()):
                 self.rs.notify_update("starting run_step")
                 self.run_step()
+                if(stop_after_step is not None and
+                   stop_after_step == self.current_strategy_step.step_number):
+                    return
                 self.next_step()
             
         

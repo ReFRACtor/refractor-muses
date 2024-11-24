@@ -146,7 +146,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                     o_xxx[iname] = obs.muses_py_dict
         logger.info("Running run_irk ...")
         self.cfunc = rs.create_cost_function()
-        (resultsIRK, jacobianOut) = mpy.run_irk(
+        (self.results_irk, self.jacobian_out) = mpy.run_irk(
             rs._strategy_executor.strategy._stable.strategy_table_dict,
             rs.state_info.state_info_dict,
             rs._strategy_executor.strategy._stable.microwindows(),
@@ -157,6 +157,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             airs=o_xxx["AIRS"], tes_struct=o_xxx["TES"], cris=o_xxx["CRIS"],
             omi=o_xxx["OMI"],
             oco2=o_xxx["OCO2"])
+        rs.notify_update("IRK step", retrieval_strategy_step=self)
         return (True, None)
 
 class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
