@@ -44,6 +44,11 @@ def compare_run(expected_dir, run_dir, diff_is_error=True):
         cmd = f"h5diff --relative 1e-8 {f} {f2}"
         print(cmd, flush=True)
         subprocess.run(cmd, shell=True, check=diff_is_error)
+    for f in glob.glob(f"{expected_dir}/*/Products/Products_IRK.nc"):
+        f2 = f.replace(expected_dir, run_dir)
+        cmd = f"h5diff --relative 1e-8 {f} {f2}"
+        print(cmd, flush=True)
+        subprocess.run(cmd, shell=True, check=diff_is_error)
     
 # This test was used to generate the original test data using py-retrieve. We have
 # tweaked the expected output slightly for test_retrieval_strategy_cris_tropomi (so
@@ -310,6 +315,21 @@ def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,
                 diff_is_error=diff_is_error)
 
 
+@long_test
+@require_muses_py
+def test_compare_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
+    '''The test_retrieval_strategy_airs_irk already checks the results, but it is
+    nice to have a stand alone run that just checks the results. Note that this
+    depends on
+    test_retrieval_strategy_airs_irk already having been run.'''
+    # Either error if we have any differences if this is True, or if this is False
+    # just report differences
+    diff_is_error = True
+    #diff_is_error = False
+    compare_dir = f"{test_base_path}/airs_omi/expected/sounding_1_irk"
+    compare_run(compare_dir, "retrieval_strategy_airs_irk",
+                diff_is_error=diff_is_error)
+    
 @long_test
 @require_muses_py
 def test_continue_airs_irk(osp_dir, gmao_dir, vlidort_cli,
