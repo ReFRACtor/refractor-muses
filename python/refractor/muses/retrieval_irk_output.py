@@ -19,22 +19,37 @@ class RetrievalIrkOutput(RetrievalOutput):
     
     def __reduce__(self):
         return (_new_from_init, (self.__class__,))
+
+    @property
+    def retrieval_info(self) -> 'RetrievalInfo':
+        return self.retrieval_strategy.retrieval_info
+
+    @property
+    def propagated_qa(self) -> 'PropagatedQa':
+        return self.retrieval_strategy.propagated_qa
+
+    @property
+    def results_irk(self) -> 'ObjectView':
+        return mpy.ObjectView(self.retrieval_strategy_step.results_irk)
     
     def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
                       **kwargs):
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
-        # Save these, used in later lite files. Note these actually get
-        # saved between steps, so we initialize these for the first step but
-        # then leave them alone
-        if(location == "retrieval step" and "dataTATM" not in self.__dict__):
-            self.dataTATM = None
-            self.dataH2O = None
-            self.dataN2O = None
         if(location != "IRK step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         logger.info("fake output for IRK")
+        self.out_fname = f"{self.output_directory}/Products/Products_IRK"
+        os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
+        mpy.write_products_irk_one(
+            self.out_fname,
+            self.results_irk,
+            self.retrieval_info.retrieval_info_obj,
+            self.state_info.state_info_obj,
+            self.propagated_qa.tatm_qa,
+            self.propagated_qa.o3_qa,
+            self.step_number)
 
 __all__ = ["RetrievalIrkOutput", ] 
         

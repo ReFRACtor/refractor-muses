@@ -168,7 +168,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.propagated_qa = PropagatedQA()
+        # Nothing currently needed
         
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
@@ -194,7 +194,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         self.results = RetrievalResult(
             ret_res, rs.current_strategy_step, rs.retrieval_info, rs.state_info,
-            self.cfunc.obs_list, self.radiance_full(rs), self.propagated_qa)
+            self.cfunc.obs_list, self.radiance_full(rs), rs.propagated_qa)
         logger.info('\n---')
         logger.info(f"Step: {rs.step_number}, Step Name: {rs.step_name}")
         logger.info(f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}")
@@ -226,8 +226,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs.notify_update("systematic_jacobian", retrieval_strategy_step=self)
         rs.error_analysis.update_retrieval_result(self.results)
         rs.qa_data_handle_set.qa_update_retrieval_result(self.results)
-        self.propagated_qa.update(rs.current_strategy_step.retrieval_elements,
-                                  self.results.master_quality)
+        rs.propagated_qa.update(rs.current_strategy_step.retrieval_elements,
+                                self.results.master_quality)
         
         # The solver can't be pickled, because a few pieces of the cost function
         # can't be pickled. We could sort that out if it becomes an issue, but for
