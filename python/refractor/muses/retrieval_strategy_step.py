@@ -8,7 +8,6 @@ from pprint import pprint, pformat
 from .muses_levmar_solver import MusesLevmarSolver
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import PropagatedQA, RetrievalResult
-from .irk import irk
 import numpy as np
 import subprocess
 
@@ -125,40 +124,6 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         rs._strategy_executor.strategy._stable.strategy_table_dict = rs._strategy_executor.strategy._stable.strategy_table_dict.__dict__
         logger.info(f"Step: {rs.step_number},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
         rs.state_info.next_state_dict = copy.deepcopy(rs.state_info.state_info_dict["current"])
-        return (True, None)
-
-class RetrievalStrategyStepIRK(RetrievalStrategyStep):
-    '''IRK strategy step.
-
-    NOTE - This hasn't been tested. I haven't found a test case that uses this.'''
-    def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy') -> (bool, None):
-        if retrieval_type != "irk":
-            return (False,  None)
-        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
-        o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
-                 "TROPOMI" : None, "OCO2" : None}
-        cstep = rs.current_strategy_step
-        for iname in cstep.instrument_name:
-            if iname in o_xxx:
-                obs = rs.observation_handle_set.observation(
-                    iname, None, cstep.spectral_window_dict[iname],None)
-                if hasattr(obs, "muses_py_dict"):
-                    o_xxx[iname] = obs.muses_py_dict
-        logger.info("Running run_irk ...")
-        self.cfunc = rs.create_cost_function()
-        self.results_irk = irk(
-            rs._strategy_executor.strategy._stable.strategy_table_dict,
-            rs.state_info.state_info_dict,
-            rs._strategy_executor.strategy._stable.microwindows(),
-            rs.retrieval_info.retrieval_info_obj,
-            rs.retrieval_info.species_names, 
-            rs.retrieval_info.species_list_fm, 
-            self.radiance_step(),
-            airs=o_xxx["AIRS"], tes_struct=o_xxx["TES"], cris=o_xxx["CRIS"],
-            omi=o_xxx["OMI"],
-            oco2=o_xxx["OCO2"])
-        rs.notify_update("IRK step", retrieval_strategy_step=self)
         return (True, None)
 
 class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
@@ -316,7 +281,6 @@ class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve
     
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepNotImplemented())
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())
-RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepIRK())
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStep_omicloud_ig_refine())
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStep_tropomicloud_ig_refine())
 # Anything that isn't one of the special types is a generic retrieval, so
@@ -327,7 +291,6 @@ RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepRetrieve(),
 __all__ = ["RetrievalStrategyStepSet", "RetrievalStrategyStep",
            "RetrievalStrategyStepNotImplemented",
            "RetrievalStrategyStepBT",
-           "RetrievalStrategyStepIRK",
            "RetrievalStrategyStepRetrieve",
            "RetrievalStrategyStep_omicloud_ig_refine",
            "RetrievalStrategyStep_tropomicloud_ig_refine",
