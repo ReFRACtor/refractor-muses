@@ -12,53 +12,35 @@ def irk(
         jacobian_speciesIn,
         jacobian_specieslistIn,
         radianceStep,
-        uip=None,
         airs=None,
         cris=None,
         tes_struct=None,
         omi=None,
-	    oco2=None,
-        mytiming=None,
-        writeOutputFlag=False,
-        trueFlag=False):
+	oco2=None):
     '''This was originally the run_irk.py code from py-retrieve. We
     have our own copy of this so we can clean this code up a bit.
 
     This is currently only used by RetrievalStrategyStepIRK. We may move this
     function into that class, but for now go ahead and keep this separate because
     if its size'''
-    # IDL_LEGACY_NOTE: This function run_irk is the same as run_irk in run_irk.pro file.
-    function_name = "run_irk: "
-
-    utilGeneral = mpy.UtilGeneral()
-    
     if isinstance(i_table, mpy.ObjectView):
-        i_table = i_table.__dict__    
-    
-    o_results_irk = None
+        i_table = i_table.__dict__
+        
+    # Make a copy of stateIn so we won't affect it.
+    stateInfo = copy.deepcopy(stateIn)  
 
-    # AT_LINE 18 run_irk.pro
-    writeOutputFlag = False
-
-    # AT_LINE 20 run_irk.pro
-    stateInfo = copy.deepcopy(stateIn)  # Make a copy of stateIn so we won't affect it.
-
-    TES_angles = [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765] # in degree
-    IASI_angles = [0.0, 14.2483, 31.7557, 46.7816, 57.0576, 61.2563] # in degree IASI
+    # in degree
+    TES_angles = [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765] 
     CRIS_angles = [0.0, 14.2906, 31.8588, 46.9590, 57.3154, 61.5613]
-    AIRS_angles = [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765] # in degree
+    AIRS_angles = [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
     
-    # AT_LINE 26 run_irk.pro
-    xi_list = [0.0 for ii in range(0, len(TES_angles))]
+    xi_list = [0.0,] * len(TES_angles)
 
-    # AT_LINE 28 run_irk.pro
-    for iangle in range(0, len(TES_angles)):
+    for iangle in range(len(TES_angles)):
         stateInfo['current']['cris']['scanAng'] = CRIS_angles[iangle]
         stateInfo['current']['tes']['boresightNadirRadians'] = TES_angles[iangle]
         stateInfo['current']['airs']['scanAng'] = AIRS_angles[iangle]
 
-        # AT_LINE 60 src_ms-2018-12-10/run_irk.pro
-        
         # remove gaps using TES OSS 
         windows_instrument = []
         for ii in range(0, len(windows)):
@@ -66,8 +48,7 @@ def irk(
                 windows_instrument.append(windows[ii]['instrument'])
 
         # We should now have a unique list of instruments.
-        # Note: the flag MUSES_DEVELOPER_RUN_PRODUCTS_COMPARE_FLAG is used by developer to skip this code for testing purpose.
-        if windows[0]['instrument'] == 'AIRS' and (os.getenv('MUSES_DEVELOPER_REMOVE_GAPS_USE_TES_OSS', '') != 'false'):
+        if windows[0]['instrument'] == 'AIRS':
             # Set all 'instrument' field in all windows to 'TES'
             for ii in range(0, len(windows)):
                 windows[ii]['instrument'] = 'TES'
@@ -78,46 +59,8 @@ def irk(
             logger.debug(f"cdf_file_name {cdf_file_name}")
             my_file = mpy.cdf_read_tes_frequency(cdf_file_name)
 
-            # Reading from NetCDF file has its own drawbacks:
-            #
-            #   1.  The variable names are all uppercased.
-            #   2.  Some ndarrays (more than 1-d) should be transposed.
-            #   3.  Some byte arrays should be converted to text.
-            #   4.  The 'instrumentSizes' may contain [0, 18554], we need to remove the first element.
-            #   5.  Some ndarrays should be convert to list.
-            #   6.  Some ndarrays should be convert to scalar.
-            #   7.  The 'filterSizes' may contain [0, 4451, 8402, 12553, 18554], we need to remove the first element.
-
-            #
-            # ISSUE_1: Due to how the variable names are all uppercase we have to correct them here.
-            # ISSUE_2: Some ndarrays (more than 1-d) should be transposed. 
-            #
             my_file = _make_case_right(my_file)
-
-            # It is important the function _transpose_2d_arrays() is called after _make_case_right() because
-            # the keys referenced in _transpose_2d_arrays() uses the key name with the cases corrected.
             my_file = _transpose_2d_arrays(my_file)
-
-            # Notes for developer to understand why radiance_copy_metadata() function is failing.
-            # TES structure of 'pixelsUsed'
-            # radiance_copy_metadata: structIn['pixelsUsed'] [[1 1 1 1]
-            # [1 1 1 0]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]
-            # [1 1 1 1]]
-            # AIRS structure of 'pixelsUsed'
-            # [[1 1 1 1]]
 
             # Convert filterNames from array of bytes (ASCII)  to array of strings since the NetCDF file store the strings as bytes.
             filterNamesAsStrings = []
@@ -174,30 +117,18 @@ def irk(
         # end if windows[0]['instrument'] == 'AIRS':
         #assert False # pass # exit(0)
 
-        # AT_LINE 38 run_irk.pro
-        #(uip, radianceOut, jacobianOut) = run_forward_model(
-        #    i_table, stateInfo, windows, retrievalInfo,
-        #    jacobian_speciesIn, jacobian_specieslistIn, 
-        #    uip, 
-        #    airs, cris, tes_struct, omi,
-        #    mytiming,
-        #    writeOutputFlag,
-        #    trueFlag)
         (uip, radianceOut, jacobianOut) = mpy.run_forward_model(
             i_table, stateInfo, windows, retrievalInfo,
             jacobian_speciesIn, jacobian_specieslistIn, 
             radianceStep,
-            airs, cris, tes_struct, omi, oco2,
-            mytiming,
-            writeOutputFlag)
+            airs, cris, tes_struct, omi, None, oco2,
+            None)
 
         results = radianceOut   # Do this assignment so it matches the IDL code where only 1 variable is returned.
 
 
         # uip is a dict.
         if 'CRIS' in uip['instruments']:
-            #print(function_name, "WARN_NOT_IMPLEMENTED_YET: CRIS")
-            #assert False
             gi_angle = CRIS_angles[iangle]
             uip_all = {**uip,**uip['uip_CRIS']}
 
@@ -215,8 +146,7 @@ def irk(
 
         # AT_LINE 141 src_ms-2018-12-10/run_irk.pro
         if 'OMI' in uip['instruments']:
-            print(function_name, "WARN_NOT_IMPLEMENTED_YET: OMI")
-            assert False
+            raise RuntimeError("Not implemented yet")
 
         # AT_LINE 84 run_irk.pro
         # compute nadir_column and slant_column
@@ -283,8 +213,6 @@ def irk(
     freq_step = [temp_freq[0]]  # Fetch the first element from temp_freq.
     freq_step.extend(temp_freq) # Add all elements in temp_freq to the newly created freq_step.
     freq_step = np.asarray(freq_step)
-
-    del temp_freq
 
     # AT_LINE 207 src_ms-2018-12-10/run_irk.pro
     frqL1b = radianceStep['frequency']
@@ -443,55 +371,32 @@ def irk(
         'rad_L1b'   : radL1b,    
         'freq_L1b'  : frqL1b
     }
-
-    # Release temporary memory back to heap since we don't need them anymore.
-    del radiance0
-    del jacobian0
-    del radiance1
-    del jacobian2
-    del radiance2
-    del jacobian3
-    del radiance3
-    del jacobian4
-    del radiance4
-    del jacobian5
-    del radiance5
-
-    # AT_LINE 225 run_irk.pro
     o_results_irk['freqSegments_irk'] = freq_segs
-    o_results_irk['radiances'] = radInfo   # AT_LINE 343 src_ms-2018-12-10/run_irk.pro
+    o_results_irk['radiances'] = radInfo
 
     # calculate irk for each type
-    # AT_LINE 229 run_irk.pro
     for ispecies in range(len(jacobian_speciesIn)):
         species_name = retrievalInfo.species[ispecies]
         ii = retrievalInfo.parameterStartFM[ispecies]
         jj = retrievalInfo.parameterEndFM[ispecies]
-        vmr = retrievalInfo.initialGuessListFM[ii: jj+1]   # Python slices does not include the end so we add 1 to jj.
+        vmr = retrievalInfo.initialGuessListFM[ii: jj+1]
         if retrievalInfo.mapType[ispecies] == 'log':
             vmr = np.exp(vmr)
-        pressure = retrievalInfo.pressureListFM[ii: jj+1]  # Python slices does not include the end.
+        pressure = retrievalInfo.pressureListFM[ii: jj+1]
 
-        # AT_LINE 249 run_irk.pro
-        myirfk = copy.deepcopy(irk_array[ii:jj+1]);   # Python slices does not include the end so we add 1 to jj.
-        myirfk_segs = copy.deepcopy(irk_segs [ii:jj+1, :]) # Python slices does not include the end so we add 1 to jj.
+        myirfk = copy.deepcopy(irk_array[ii:jj+1]);
+        myirfk_segs = copy.deepcopy(irk_segs [ii:jj+1, :])
 
         # convert cloudext to cloudod
         # dL/dod = dL/dext * dext/dod
         if species_name == 'CLOUDEXT':
             myirfk = np.multiply(myirfk, dEdOD)
-            # ValueError: operands could not be broadcast together with shapes (28,33) (28,)
-            # IDL_NOTE: IDL is more forgiving, it allows the multiplication.
-            # PYTHON_NOTE: We will use np.multiply() for elementwise multiplication.
-            # THIS_MAY_NOT_BE_CORRECT:
             for pp in range(dEdOD.shape[0]):
                 myirfk_segs[pp, :] = myirfk_segs[pp, :] * dEdOD[pp]
 
-            species_name = 'CLOUDOD'  # Changed the species_name to 'CLOUDOD' since that's what the variable holds now.
-            vmr = np.divide(vmr, dEdOD) # convert extinction to OD
-        # end if species_name == 'CLOUDEXT'
+            species_name = 'CLOUDOD'  
+            vmr = np.divide(vmr, dEdOD)
 
-        # AT_LINE 264 run_irk.pro
         mm = (jj-ii+1)
         if species_name == 'TATM' or species_name == 'TSUR':
             mylirfk = np.multiply(myirfk,vmr)
@@ -506,73 +411,54 @@ def irk(
             for kk in range(mm):
                 myirfk_segs[kk, :] = myirfk_segs[kk, :] / vmr[kk]
 
-            # PYTHON_NOTE: For some strange reason, IDL's shape for myirfk_segs and mylirfk_segs are (6,) whereas in Python, (6,33).
-        # end else part of if species_name == 'TATM' or species_name == 'TSUR':
-
-        # AT_LINE 285 run_irk.pro
         mult_factor = 1.0
         unit = ' '  # Set to one space just in case nobody below sets it.
         if species_name == 'O3':
             mult_factor = 1.0/1e9 # W/m2/ppb
             unit = 'W/m2/ppb'
-        
-        if species_name == 'O3':
+        elif species_name == 'O3':
+            mult_factor = 1.0
             unit = 'W/m2/ppb'
-        
-        if species_name == 'H2O':
+        elif species_name == 'H2O':
             mult_factor = 1.0/1e6  # W/m2/ppm
             unit = 'W/m2/ppm'
-        
-        if species_name == 'H2O':
+        elif species_name == 'H2O':
+            mult_factor = 1.0
             unit = 'W/m2/ppm'
-        
-        if species_name == 'TATM':
+        elif species_name == 'TATM':
+            mult_factor = 1.0
             unit = 'W/m2/K'
-        
-        if species_name == 'TSUR':
+        elif species_name == 'TSUR':
+            mult_factor = 1.0
             unit = 'W/m2/K'
-        
-        if species_name == 'EMIS':
+        elif species_name == 'EMIS':
+            mult_factor = 1.0
             unit = 'W/m2'
-        
-        if species_name == 'CLOUDDOD':
+        elif species_name == 'CLOUDDOD':
+            mult_factor = 1.0
             unit = 'W/m2'
-        
-        if species_name == 'PCLOUD':
+        elif species_name == 'PCLOUD':
+            mult_factor = 1.0
             unit = 'W/m2/hPa'
-
-        # AT_LINE 296 run_irk.pro
+        else:
+            # Fall back
+            mult_factor = 1.0
+            unit = ' '
+            
         myirfk = np.multiply(myirfk, mult_factor)
         myirfk_segs = np.multiply(myirfk_segs, mult_factor)
 
         # subset only freqs in range
-        # AT_LINE 300 run_irk.pro
-        if species_name == 'EMIS' or species_name == 'CLOUDOD':
-            if False: # skip execution of lines in this block.
-                ind = np.where(abs(myirfk) > 1e-10)[0]
-                myirfk = myirfk[ind]
-                mylirfk = mylirfk[ind]
-                pressure = pressure[ind]
-
-                myirfk_segs = myirfk_segs[ind, :]
-                mylirfk_segs = mylirfk_segs[ind, :]
-                vmr = vmr[ind]
-
-            # PYTHON_NOTE: For some strange reason, IDL's shape for myirfk_segs and mylirfk_segs are (6,) whereas in Python, (6,33).
-            # To match IDL, we will just drop the columns.
-            if species_name == 'CLOUDOD':
-                myirfk_segs = myirfk_segs[:, 0]
-                myirfk_segs = np.reshape(myirfk_segs, (myirfk_segs.shape[0]))
+        if species_name == 'CLOUDOD':
+            myirfk_segs = myirfk_segs[:, 0]
+            myirfk_segs = np.reshape(myirfk_segs, (myirfk_segs.shape[0]))
                 
-                mylirfk_segs = mylirfk_segs[:,0]
-                mylirfk_segs = np.reshape(mylirfk_segs, (mylirfk_segs.shape[0]))
-        # end if species_name == 'EMIS' or species_name == 'CLOUDOD':
+            mylirfk_segs = mylirfk_segs[:,0]
+            mylirfk_segs = np.reshape(mylirfk_segs, (mylirfk_segs.shape[0]))
 
-        # AT_LINE 322 run_irk.pro
         vmr = np.divide(vmr, mult_factor)
 
         # Build a structure of result for each species_name.
-        # AT_LINE 324 run_irk.pro
         result_per_species = {
             'irfk'      : myirfk,       
             'lirfk'     : mylirfk,      
@@ -586,11 +472,10 @@ def irk(
         # Add the result for each species_name to our structure to return.
         # Note that the name of the species is the key for the dictionary structure.
 
-        # AT_LINE 325 run_irk.pro
         o_results_irk[species_name] = copy.deepcopy(result_per_species)  # o_results_irk
     # end for ispecies in range(len(jacobian_speciesIn)):
 
-    return (o_results_irk, jacobianOut)
+    return o_results_irk
 
 
 def _make_case_right(i_struct):

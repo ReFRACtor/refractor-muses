@@ -147,7 +147,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                     o_xxx[iname] = obs.muses_py_dict
         logger.info("Running run_irk ...")
         self.cfunc = rs.create_cost_function()
-        (self.results_irk, self.jacobian_out) = irk(
+        self.results_irk = irk(
             rs._strategy_executor.strategy._stable.strategy_table_dict,
             rs.state_info.state_info_dict,
             rs._strategy_executor.strategy._stable.microwindows(),
