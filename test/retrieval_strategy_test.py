@@ -1,5 +1,10 @@
 from test_support import *
-from refractor.muses import (MusesRunDir, RetrievalStrategy, RetrievalStrategyCaptureObserver,
+from refractor.muses import (MusesRunDir, RetrievalStrategy,
+                             RetrievalStrategyCaptureObserver,
+                             RetrievalJacobianOutput,
+                             RetrievalRadianceOutput,
+                             RetrievalL2Output,
+                             RetrievalIrkOutput,
                              CurrentStateUip)
 from refractor.omi import OmiForwardModelHandle
 from refractor.tropomi import TropomiForwardModelHandle
@@ -109,7 +114,7 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     try:
         lognum = logger.add("retrieval_strategy_cris_tropomi/retrieve.log")
         # Grab each step so we can separately test output
-        rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+        rscap = RetrievalStrategyCaptureObserver("retrieval_strategy_retrieval_step", "starting run_step")
         rs.add_observer(rscap)
         rscap2 = RetrievalStrategyCaptureObserver("retrieval_result",
                                                   "systematic_jacobian")
@@ -310,7 +315,7 @@ def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,
     try:
         lognum = logger.add("retrieval_strategy_airs_irk/retrieve.log")
         # Grab each step so we can separately test output
-        rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+        rscap = RetrievalStrategyCaptureObserver("retrieval_strategy_retrieval_step", "starting run_step")
         rs.add_observer(rscap)
         compare_dir = airs_irk_test_expected_dir
         rs.update_target(f"{r.run_dir}/Table.asc")
@@ -350,9 +355,17 @@ def test_only_airs_irk(osp_dir, gmao_dir, vlidort_cli,
     subprocess.run("rm -r only_airs_irk", shell=True)
     step_number=6
     rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
-        f"{airs_irk_test_in_dir}/retrieval_step_{step_number}.pkl",
+        f"{airs_irk_test_in_dir}/retrieval_strategy_retrieval_step_{step_number}.pkl",
         path="./only_airs_irk",
         osp_dir=osp_dir, gmao_dir=gmao_dir)
+    # We turned off all the output when we saved, and we have the capture stuff
+    # still in. So remove our current observations, and add back in the output
+    rs.clear_observers()
+    rs.add_observer(RetrievalJacobianOutput())
+    rs.add_observer(RetrievalRadianceOutput())
+    rs.add_observer(RetrievalL2Output())
+    rs.add_observer(RetrievalIrkOutput())
+
     try:
         lognum = logger.add("continue_airs_irk/retrieve.log")
         rs.continue_retrieval(stop_after_step=6)

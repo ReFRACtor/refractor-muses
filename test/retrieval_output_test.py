@@ -29,9 +29,9 @@ import glob
 # TODO Longer term we would like a more stable way to save state. Perhaps just
 # pickle/save StateInfo, and recreate everything else from scratch? 
 
-#run_retrieval_output_test = False
+run_retrieval_output_test = False
 # Only run these if you have done the capture
-run_retrieval_output_test = True
+#run_retrieval_output_test = True
 
 def compare_run(expected_dir, run_dir, diff_is_error=True):
     '''Compare products from two runs.'''

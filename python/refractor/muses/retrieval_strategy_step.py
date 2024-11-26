@@ -8,6 +8,7 @@ from pprint import pprint, pformat
 from .muses_levmar_solver import MusesLevmarSolver
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import PropagatedQA, RetrievalResult
+from .irk import irk
 import numpy as np
 import subprocess
 
@@ -146,7 +147,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                     o_xxx[iname] = obs.muses_py_dict
         logger.info("Running run_irk ...")
         self.cfunc = rs.create_cost_function()
-        (self.results_irk, self.jacobian_out) = mpy.run_irk(
+        (self.results_irk, self.jacobian_out) = irk(
             rs._strategy_executor.strategy._stable.strategy_table_dict,
             rs.state_info.state_info_dict,
             rs._strategy_executor.strategy._stable.microwindows(),
