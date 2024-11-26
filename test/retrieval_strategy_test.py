@@ -304,7 +304,7 @@ def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,
 
     '''
     subprocess.run("rm -r retrieval_strategy_airs_irk", shell=True)
-    r = MusesRunDir(f"{test_base_path}/airs_omi/in/sounding_1_irk",
+    r = MusesRunDir(airs_irk_test_in_dir,
                     osp_dir, gmao_dir, path_prefix="retrieval_strategy_airs_irk")
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     try:
@@ -312,7 +312,7 @@ def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,
         # Grab each step so we can separately test output
         rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
         rs.add_observer(rscap)
-        compare_dir = f"{test_base_path}/airs_omi/expected/sounding_1_irk"
+        compare_dir = airs_irk_test_expected_dir
         rs.update_target(f"{r.run_dir}/Table.asc")
         rs.retrieval_ms()
     finally:
@@ -343,19 +343,14 @@ def test_compare_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
 def test_only_airs_irk(osp_dir, gmao_dir, vlidort_cli,
                            python_fp_logger):
     '''Quick turn around, starts at IRK step and just runs it. Depends on
-    having retrieval_strategy_airs_irk already run. We can save the pickle
-    files if needed in refractor_test_data, but for now things aren't too
-    stable so it is good to require a fresh run.
-
-    We might either turn this into more of a regular test, or we can run this
-    only occasionally.
+    having retrieval_strategy_airs_irk already run (so test_capture_airs_irk in
+    capture_data_test.py).
 
     This checks Products_IRK.nc, but nothing else.'''
     subprocess.run("rm -r only_airs_irk", shell=True)
-    dir_in = "./retrieval_strategy_airs_irk/20160401_231_049_29"
     step_number=6
     rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
-        f"{dir_in}/retrieval_step_{step_number}.pkl",
+        f"{airs_irk_test_in_dir}/retrieval_step_{step_number}.pkl",
         path="./only_airs_irk",
         osp_dir=osp_dir, gmao_dir=gmao_dir)
     try:
@@ -364,7 +359,7 @@ def test_only_airs_irk(osp_dir, gmao_dir, vlidort_cli,
     finally:
         logger.remove(lognum)
     diff_is_error = True
-    compare_dir = f"{test_base_path}/airs_omi/expected/sounding_1_irk"
+    compare_dir = airs_irk_test_expected_dir
     compare_irk(compare_dir, "only_airs_irk",
                 diff_is_error=diff_is_error)
     
