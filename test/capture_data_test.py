@@ -24,9 +24,9 @@ def test_capture_tropomi_residual_fm_jac(isolated_dir, step_number, iteration,
     rstep = load_muses_retrieval_step(tropomi_test_in_dir,
                                  step_number=step_number,osp_dir=osp_dir,
                                  gmao_dir=gmao_dir)
-    MusesResidualFmJacobian.create_from_retrieval_step\
-        (rstep, iteration=iteration, capture_directory=True,
-         save_pickle_file=f"{tropomi_test_in_dir}/residual_fm_jac_{step_number}_{iteration}.pkl", suppress_noisy_output=False, vlidort_cli=vlidort_cli)
+    MusesResidualFmJacobian.create_from_retrieval_step(
+        rstep, iteration=iteration, capture_directory=True,
+        save_pickle_file=f"{tropomi_test_in_dir}/residual_fm_jac_{step_number}_{iteration}.pkl", suppress_noisy_output=False, vlidort_cli=vlidort_cli)
 
 @pytest.mark.parametrize("step_number", [12,])
 @pytest.mark.parametrize("iteration", [1,2,3])
@@ -37,9 +37,9 @@ def test_capture_joint_tropomi_residual_fm_jac(isolated_dir, step_number, iterat
     rstep = load_muses_retrieval_step(joint_tropomi_test_in_dir,
                                  step_number=step_number,osp_dir=osp_dir,
                                  gmao_dir=gmao_dir)
-    MusesResidualFmJacobian.create_from_retrieval_step\
-        (rstep, iteration=iteration, capture_directory=True,
-         save_pickle_file=f"{joint_tropomi_test_in_dir}/residual_fm_jac_{step_number}_{iteration}.pkl",vlidort_cli=vlidort_cli)
+    MusesResidualFmJacobian.create_from_retrieval_step(
+        rstep, iteration=iteration, capture_directory=True,
+        save_pickle_file=f"{joint_tropomi_test_in_dir}/residual_fm_jac_{step_number}_{iteration}.pkl",vlidort_cli=vlidort_cli)
 
 @pytest.mark.parametrize("step_number", [1, 2])
 @pytest.mark.parametrize("iteration", [1, 2, 3])
@@ -129,20 +129,49 @@ def test_capture_tropomi_cris_retrieval_strategy(isolated_dir, osp_dir, gmao_dir
         f"{joint_tropomi_test_in_dir}/retrieval_result",
         "systematic_jacobian")
     rs.add_observer(rscap2)
+    rscap3 = RetrievalStrategyCaptureObserver(
+        f"{joint_tropomi_test_in_dir}/retrieval_ready_output",
+        "retrieval step")
+    rs.add_observer(rscap3)
+    rs.update_target(f"{r.run_dir}/Table.asc")
+    rs.retrieval_ms()
+
+@capture_test
+@require_muses_py
+def test_capture_airs_irk(isolated_dir, osp_dir, gmao_dir,
+                          vlidort_cli,
+                          clean_up_replacement_function):
+    r = MusesRunDir(airs_irk_test_in_dir, osp_dir, gmao_dir)
+    rs = RetrievalStrategy(None)
+    rs.clear_observers()
+    rscap = RetrievalStrategyCaptureObserver(
+        f"{airs_irk_test_in_dir}/retrieval_strategy_retrieval_step",
+        "starting run_step")
+    rs.add_observer(rscap)
+    rscap2 = RetrievalStrategyCaptureObserver(
+        f"{airs_irk_test_in_dir}/retrieval_irk",
+        "IRK step")
+    rs.add_observer(rscap2)
+    rscap3 = RetrievalStrategyCaptureObserver(
+        f"{airs_irk_test_in_dir}/retrieval_ready_output",
+        "retrieval step")
+    rs.add_observer(rscap3)
     rs.update_target(f"{r.run_dir}/Table.asc")
     rs.retrieval_ms()
     
-# These next set of captures duplicates what muses-capture program does. You don't need to
-# run these if you already ran muses-capture. But it can be useful to run these here to
-# regenerate data, both because it uses our stashed version meaning we don't need access to
-# the full MUSES input directory, and because these can run in parallel.
+# These next set of captures duplicates what muses-capture program
+# does. You don't need to run these if you already ran
+# muses-capture. But it can be useful to run these here to regenerate
+# data, both because it uses our stashed version meaning we don't need
+# access to the full MUSES input directory, and because these can run
+# in parallel.
 
 @pytest.mark.parametrize("step_number", [1, 2])
 @pytest.mark.parametrize("do_uip", [True, False])
 @capture_initial_test
 @require_muses_py
-def test_capture_initial_tropomi(isolated_dir, step_number, do_uip, osp_dir, gmao_dir,
-                                 vlidort_cli):
+def test_capture_initial_tropomi(isolated_dir, step_number, do_uip, osp_dir,
+                                 gmao_dir, vlidort_cli):
     capoutdir = tropomi_test_in_dir
     r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
     fname = f"{r.run_dir}/Table.asc"

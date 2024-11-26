@@ -237,6 +237,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # come back here to figure out what to do - probably just have a explicit
         # pickle function for this class.
         self.slv = None
+        self.cfunc = None
         rs.notify_update("retrieval step", retrieval_strategy_step=self)
         
         return (True, None)

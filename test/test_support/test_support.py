@@ -59,6 +59,9 @@ omi_test_expected_results_dir = f"{test_base_path}/omi/expected"
 joint_omi_test_in_dir = f"{test_base_path}/airs_omi/in/sounding_1"
 joint_omi_test_expected_dir = f"{test_base_path}/airs_omi/expected/sounding_1"
 joint_omi_test_refractor_expected_dir = f"{test_base_path}/airs_omi/expected/sounding_1_refractor"
+airs_irk_test_in_dir = f"{test_base_path}/airs_omi/in/sounding_1_irk"
+airs_irk_test_expected_dir = f"{test_base_path}/airs_omi/expected/sounding_1_irk"
+
 if not os.path.exists(tropomi_test_in_dir):
     raise RuntimeError(f"ERROR: unit test data not found at {test_base_path}. Please clone the test data repo there.")
 
