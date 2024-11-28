@@ -290,6 +290,43 @@ def test_original_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
 
 @long_test
 @require_muses_py
+def test_original_retrieval_tes(osp_dir, gmao_dir, vlidort_cli):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. We don't
+    actually do anything with the data, other than make it available.
+
+    Data goes in the local directory, rather than an isolated one.
+    '''
+    subprocess.run("rm -r original_retrieval_tes", shell=True)
+    r = MusesRunDir(f"{test_base_path}/tes/in/sounding_1",
+                    osp_dir, gmao_dir, path_prefix="original_retrieval_tes")
+    r.run_retrieval(vlidort_cli=vlidort_cli)
+
+@skip    
+@long_test
+@require_muses_py
+def test_original_retrieval_oco2(osp_dir, gmao_dir, vlidort_cli):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. We don't
+    actually do anything with the data, other than make it available.
+
+    Data goes in the local directory, rather than an isolated one.
+    '''
+    raise RuntimeError(
+        '''This doesn't currently work. I'm guessing Susan has her own
+        branch of py-retrieve to run this. No reason to spend time now
+        debugging this, we were just adding OCO-2 to make sure
+        refractor works the same with it. But since py-retrieve on the
+        develop branch doesn't work with OCO-2, no reason to try to
+        get refractor working. refractor already duplicates
+        py-retrieve behavior of failing ;->''')
+    subprocess.run("rm -r original_retrieval_oco2", shell=True)
+    r = MusesRunDir(f"{test_base_path}/oco2/in/sounding_1",
+                    osp_dir, gmao_dir, path_prefix="original_retrieval_oco2")
+    r.run_retrieval(vlidort_cli=vlidort_cli)
+    
+@long_test
+@require_muses_py
 def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,
                                      python_fp_logger):
     '''Full run, that we can compare the output files. This is not

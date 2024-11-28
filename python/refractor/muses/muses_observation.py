@@ -729,6 +729,135 @@ class MusesAirsObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict['radiance']['NESR']
 
+class MusesTesObservation(MusesObservationImp):
+    def __init__(self, o_tes, sdesc, num_channels=1, coeff=None,mp=None):
+        '''Note you don't normally create an object of this class with the
+        __init__. Instead, call one of the create_xxx class methods.'''
+        super().__init__(o_tes, sdesc)
+        # Set up stuff for the filter_data metadata
+        self._filter_data_name = o_tes["radianceStruct"]["filterNames"]
+        mw_range = np.zeros((len(self._filter_data_name),1,2))
+        sindex = 0
+        for i in range(mw_range.shape[0]):
+            eindex = o_tes["radianceStruct"]["filterSizes"][i] + sindex
+            freq = o_tes["radianceStruct"]["frequency"][sindex:eindex]
+            mw_range[i,0,:] = min(freq),max(freq)
+            sindex = eindex
+        mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
+        self._filter_data_swin = rf.SpectralWindowRange(mw_range)
+
+    @classmethod
+    def _read_data(cls, filename, l1b_index, l1b_avgflag, run, sequence, scan,
+                   filter_list, osp_dir=None):
+        i_fileid = {}
+        i_fileid['preferences'] = {'TES_filename_L1B' : os.path.abspath(filename),
+                                   'TES_filename_L1B_Index' : l1b_index,
+                                   'TES_L1B_Average_Flag' : l1b_avgflag}
+        i_window = []
+        for cname in filter_list:
+            i_window.append({'filter': cname})
+        with(osp_setup(osp_dir)):
+            o_tes = mpy.read_tes_l1b(i_fileid, i_window)
+        bangle = rf.DoubleWithUnit(o_tes["boresightNadirRadians"], "rad")
+        sdesc = {
+            "TES_RUN" : np.int16(run),
+            "TES_SEQUENCE" : np.int16(sequence),
+            "TES_SCAN" : np.int16(scan),
+            "POINTINGANGLE_TES" : abs(bangle.convert("deg").value)
+        }
+        # TODO Add in apodize here, see script_retrieval_setup_ms.
+        return (o_tes, sdesc)
+
+    @property
+    def boresight_angle(self):
+        return rf.DoubleWithUnit(self.muses_py_dict["boresightNadirRadians"], "rad")
+    
+    def desc(self):
+        return "MusesTesObservation"
+
+    @property
+    def instrument_name(self):
+        return "TES"
+    
+    @classmethod
+    def create_from_filename(cls, filename, l1b_index, l1b_avgflag, run,
+                             sequence, scan, filter_list, osp_dir=None):
+        '''Create from just the filenames. Note that spectral window doesn't get
+        set here, but this can be useful if you just want access to the underlying
+        data.
+
+        You might also want to use create_from_id, which sets up everything
+        (spectral window, coefficients, attaching to a fm_sv).'''
+        o_tes, sdesc = cls._read_data(
+            filename, l1b_index, l1b_avgflag, run, sequence, scan, filter_list,
+            osp_dir=osp_dir)
+        return cls(o_tes, sdesc)
+        
+
+    @classmethod
+    def create_from_id(cls, mid : MeasurementId,
+                       existing_obs : 'cls',
+                       current_state: 'Optional(CurrentState)',
+                       spec_win: "Optional(MusesSpectralWindow)",
+                       fm_sv: "Optional(rf.StateVector)",
+                       osp_dir=None,
+                       **kwargs):
+        '''Create from a MeasurementId. If this depends on any state
+        information, you can pass in the CurrentState. This can be
+        given as None if you just want to use default values, e.g. you
+        aren't doing a retrieval. If the CurrentState is supplied, you
+        can also pass a StateVector to add this class to as needed.
+
+        '''
+        if(existing_obs is not None):
+            # Take data from existing observation
+            obs = cls(existing_obs.muses_py_dict, existing_obs.sounding_desc,
+                      num_channels=existing_obs.num_channels)
+        else:
+            # Read the data from disk, because it doesn't already exist.
+            filter_list = mid.filter_list_dict["TES"]
+            filename = mid['TES_filename_L1B']
+            l1b_index = mid['TES_filename_L1B_Index']
+            l1b_avgflag = int(mid['TES_L1B_Average_Flag'])
+            run = int(mid['TES_Run'])
+            sequence = int(mid['TES_Sequence'])
+            scan = int(mid['TES_Scan'])
+            o_tes, sdesc = cls._read_data(filename, l1b_index, l1b_avgflag,
+                                          run, sequence, scan,
+                                          filter_list,
+                                          osp_dir=osp_dir)
+            obs = cls(o_tes, sdesc)
+        obs.spectral_window = \
+            spec_win if spec_win is not None else MusesSpectralWindow(None,None)
+        obs.spectral_window.add_bad_sample_mask(obs)
+        if(fm_sv is not None):
+            if(current_state is None):
+                raise RuntimeError("If fm_sv is not None, current_state needs to also be not None")
+            current_state.add_fm_state_vector_if_needed(
+                fm_sv, obs.state_element_name_list(), [obs,])
+        return obs
+    
+    def radiance_full(self, sensor_index, skip_jacobian=False):
+        '''The full list of radiance, before we have removed bad samples or applied the
+        microwindows.'''
+        if(sensor_index < 0 or sensor_index >= self.num_channels):
+            raise RuntimeError("sensor_index out of range")
+        return self.muses_py_dict['radianceStruct']['radiance']
+
+    def frequency_full(self, sensor_index):
+        '''The full list of frequency, before we have removed bad samples or applied the
+        microwindows.'''
+        if(sensor_index < 0 or sensor_index >= self.num_channels):
+            raise RuntimeError("sensor_index out of range")
+        return self.muses_py_dict['radianceStruct']['frequency']
+
+    def nesr_full(self, sensor_index):
+        '''The full list of NESR, before we have removed bad samples or applied the
+        microwindows.'''
+        if(sensor_index < 0 or sensor_index >= self.num_channels):
+            raise RuntimeError("sensor_index out of range")
+        return self.muses_py_dict['radianceStruct']['NESR']
+    
 
 class MusesCrisObservation(MusesObservationImp):
     def __init__(self, o_cris, sdesc, num_channels=1, coeff=None,mp=None):
@@ -1530,6 +1659,7 @@ ObservationHandleSet.add_default_handle(MusesObservationHandle("OMI",
 
 __all__ = ["MusesAirsObservation", "MusesObservation", "MusesObservationHandle",
            "MusesCrisObservation", "MusesObservationReflectance",
+           "MusesTesObservation",
            "MusesTropomiObservation", "MusesOmiObservation", "MeasurementId",
            "MeasurementIdDict", "MeasurementIdFile",
            "SimulatedObservation", "SimulatedObservationHandle"]

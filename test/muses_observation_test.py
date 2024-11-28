@@ -1,6 +1,7 @@
 from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              MusesCrisObservation,
                              MusesTropomiObservation, MusesOmiObservation,
+                             MusesTesObservation,
                              ObservationHandleSet,
                              SimulatedObservation,
                              MeasurementIdFile, RetrievalConfiguration,
@@ -83,6 +84,19 @@ def test_create_muses_airs_observation(isolated_dir, osp_dir, gmao_dir,
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
+
+def test_muses_tes_observation(isolated_dir, osp_dir, gmao_dir):
+    channel_list = ['2B1', '1B2', '2A1', '1A1']
+    l1b_index = [54,54,54,54]
+    l1b_avgflag = 0
+    run = 2147
+    sequence = 388
+    scan = 2
+    fname = f"{tes_test_in_dir}/../TES-Aura_L1B-Nadir_FP2B_r0000002147-o00978_F04_07.h5"
+    obs = MusesTesObservation.create_from_filename(fname, l1b_index, l1b_avgflag,
+                                                   run, sequence, scan,
+                                                   channel_list, osp_dir=osp_dir)
+    
         
 def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}

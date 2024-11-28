@@ -37,6 +37,10 @@ class MusesRunDir:
         _, d = mpy.read_all_tes(f"{refractor_sounding_dir}/Measurement_ID.asc")
         for k in ("AIRS_filename", "OMI_filename", "OMI_Cloud_filename",
                   "CRIS_filename",
+                  "TES_filename_L2",
+                  "TES_filename_L1B",
+                  "OCO2_filename",
+                  "OCO2_filename_l1b",
                   "TROPOMI_filename_BAND3",
                   "TROPOMI_filename_BAND7",
                   "TROPOMI_filename_BAND8",
@@ -106,6 +110,10 @@ class MusesRunDir:
         _, d = mpy.read_all_tes(f"{amuse_me_run_dir}/Measurement_ID.asc")
         for k in ("AIRS_filename", "OMI_filename", "OMI_Cloud_filename",
                   "CRIS_filename",
+                  "TES_filename_L2",
+                  "TES_filename_L1B",
+                  "OCO2_filename",
+                  "OCO2_filename_l1b",
                   "TROPOMI_filename_BAND3",
                   "TROPOMI_filename_BAND7",
                   "TROPOMI_filename_BAND8",
