@@ -264,7 +264,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
             # special handling here.
             # Temp, until we get this to work for AIRS and CRIS
             different_filter_different_sensor_index=True
-            if(iname in ('AIRS', 'CRIS')):
+            if(iname in ('AIRS', 'CRIS', 'TES')):
                 different_filter_different_sensor_index = False
             res[iname] = cls.create_from_file(
                 spec_fname, iname,

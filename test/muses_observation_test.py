@@ -96,6 +96,27 @@ def test_muses_tes_observation(isolated_dir, osp_dir, gmao_dir):
     obs = MusesTesObservation.create_from_filename(fname, l1b_index, l1b_avgflag,
                                                    run, sequence, scan,
                                                    channel_list, osp_dir=osp_dir)
+
+def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir,
+                                       vlidort_cli):
+    # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
+    # to point to our test data rather than original location of these files, so go
+    # ahead and set this up
+    r = MusesRunDir(tes_test_in_dir, osp_dir, gmao_dir)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
+    # Determined by looking a the full run
+    filter_list_dict = {'TES' : ['2B1', '1B2', '2A1', '1A1'] }
+    measurement_id = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc",
+                                       rconfig, filter_list_dict)
+    # This is the microwindows file for step 0, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ssund/OSP-R14/MWDefinitions/Windows_Nadir_EMIS_CLOUDEXT_PAN_PREP.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    obs = MusesTesObservation.create_from_id(measurement_id, None,
+                                             None, swin_dict["TES"], None, osp_dir=osp_dir)
+    print(obs.spectral_domain(0).data)
+    print(obs.radiance(0).spectral_range.data)
+    print(obs.filter_data)
     
         
 def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):

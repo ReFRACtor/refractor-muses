@@ -274,22 +274,6 @@ def test_run_fabiano_vlidort(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
 
 @long_test
 @require_muses_py
-def test_original_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
-    '''Full run, that we can compare the output files. This is not
-    really a unit test, but for convenience we have it here. We don't
-    actually do anything with the data, other than make it available.
-
-    This is a version 8 IRK ocean retrieval.
-
-    Data goes in the local directory, rather than an isolated one.
-    '''
-    subprocess.run("rm -r original_retrieval_airs_irk", shell=True)
-    r = MusesRunDir(f"{test_base_path}/airs_omi/in/sounding_1_irk",
-                    osp_dir, gmao_dir, path_prefix="original_retrieval_airs_irk")
-    r.run_retrieval(vlidort_cli=vlidort_cli)
-
-@long_test
-@require_muses_py
 def test_original_retrieval_tes(osp_dir, gmao_dir, vlidort_cli):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -302,6 +286,40 @@ def test_original_retrieval_tes(osp_dir, gmao_dir, vlidort_cli):
                     osp_dir, gmao_dir, path_prefix="original_retrieval_tes")
     r.run_retrieval(vlidort_cli=vlidort_cli)
 
+@long_test
+@require_muses_py
+def test_retrieval_strategy_tes(osp_dir, gmao_dir, vlidort_cli,
+                                clean_up_replacement_function,
+                                python_fp_logger):
+    '''Full run, that we then compare the output files to expected results.
+    This is not really a unit test, but for convenience we have it here.
+    Note that a "failure" in the comparison might not actually indicate a problem, just
+    that the output changed. You may need to look into detail and decide that the
+    run was successful and we just want to update the expected results.
+
+    Data goes in the local directory, rather than an isolated one. We can change this
+    in the future if desired, but  for now it is useful to be able to look into the directory
+    if some kind of a problem arises.'''
+    subprocess.run("rm -r retrieval_strategy_tes", shell=True)
+    r = MusesRunDir(tes_test_in_dir,
+                    osp_dir, gmao_dir, path_prefix="retrieval_strategy_tes")
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli,
+                           write_omi_radiance_pickle=not run_refractor)
+    try:
+        lognum = logger.add("retrieval_strategy_tes/retrieve.log")
+        # Grab each step so we can separately test output
+        rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+        rs.add_observer(rscap)
+        compare_dir = tes_test_expected_dir
+        rs.update_target(f"{r.run_dir}/Table.asc")
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
+
+    diff_is_error = True
+    compare_run(compare_dir, "retrieval_strategy_tes",
+                diff_is_error=diff_is_error)
+    
 @skip    
 @long_test
 @require_muses_py
@@ -325,6 +343,22 @@ def test_original_retrieval_oco2(osp_dir, gmao_dir, vlidort_cli):
                     osp_dir, gmao_dir, path_prefix="original_retrieval_oco2")
     r.run_retrieval(vlidort_cli=vlidort_cli)
     
+@long_test
+@require_muses_py
+def test_original_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
+    '''Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here. We don't
+    actually do anything with the data, other than make it available.
+
+    This is a version 8 IRK ocean retrieval.
+
+    Data goes in the local directory, rather than an isolated one.
+    '''
+    subprocess.run("rm -r original_retrieval_airs_irk", shell=True)
+    r = MusesRunDir(f"{test_base_path}/airs_omi/in/sounding_1_irk",
+                    osp_dir, gmao_dir, path_prefix="original_retrieval_airs_irk")
+    r.run_retrieval(vlidort_cli=vlidort_cli)
+
 @long_test
 @require_muses_py
 def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,

@@ -2,6 +2,7 @@ from .misc import osp_setup
 from .observation_handle import ObservationHandle, ObservationHandleSet
 from .muses_spectral_window import MusesSpectralWindow
 from .retrieval_configuration import RetrievalConfiguration
+from .tes_file import TesFile
 from contextlib import contextmanager
 import refractor.muses.muses_py as mpy
 import os
@@ -113,6 +114,9 @@ class MeasurementIdFile(MeasurementId):
         return len(self._p) + len(self._retrieval_config)
 
     def _abs_dir(self, v):
+        # Don't try treating a list like a path.
+        if(isinstance(v, list)):
+            return v
         v = copy.copy(v)
         v = os.path.expandvars(os.path.expanduser(v))
         if(re.match(r'^\.\./', v) or re.match(r'^\./', v)):
@@ -765,8 +769,16 @@ class MusesTesObservation(MusesObservationImp):
             "TES_SCAN" : np.int16(scan),
             "POINTINGANGLE_TES" : abs(bangle.convert("deg").value)
         }
-        # TODO Add in apodize here, see script_retrieval_setup_ms.
         return (o_tes, sdesc)
+
+    @classmethod
+    def _apodization(cls, o_tes, func, strength, flt, maxopd, spacing):
+        '''Apply apodization to the radiance and NESR. o_tes is updated in place'''
+        if(func != "NORTON_BEER"):
+            raise RuntimeError(f"Don't know how to apply apodization function {func}")
+        rstruct = mpy.radiance_apodize(o_tes["radianceStruct"], strength,
+                                       flt, maxopd, spacing)
+        o_tes['radianceStruct'] = rstruct
 
     @property
     def boresight_angle(self):
@@ -826,6 +838,14 @@ class MusesTesObservation(MusesObservationImp):
                                           run, sequence, scan,
                                           filter_list,
                                           osp_dir=osp_dir)
+            func = mid["apodizationFunction"]
+            if(func == "NORTON_BEER"):
+                strength = mid['NortonBeerApodizationStrength']
+                sdef = TesFile(mid["defaultSpectralWindowsDefinitionFilename"])
+                maxopd = np.array(sdef.table["MAXOPD"])
+                flt = np.array(sdef.table["FILTER"])
+                spacing = np.array(sdef.table["RET_FRQ_SPC"])
+                cls._apodization(o_tes, func, strength, flt, maxopd, spacing)
             obs = cls(o_tes, sdesc)
         obs.spectral_window = \
             spec_win if spec_win is not None else MusesSpectralWindow(None,None)
@@ -1621,36 +1641,9 @@ class MusesOmiObservation(MusesObservationReflectance):
         '''List of state element names for this observation'''
         return self.state_element_name_list_from_filter(self.filter_list)
 
-# We have old code with the TES sounding_desc. This isn't used anywhere, and should
-# go into a TES observation class when we get around to incorporating this. But
-# keep this code around for reference until we can create full observations.
-class Level1bTes:
-    '''This is like a Level1b class from framework, although right now we won't
-    bother making this actually one those. Instead this pulls stuff out of
-    StateInfo and makes in looks like we got it from a Level1bAirs file.
-    We'll then eventually separate this out from StateInfo and put this
-    over with the Observation.'''
-    def __init__(self, state_info):
-        self.state_info = state_info
-
-    @property
-    def sounding_desc(self):
-        '''Different types of instruments have different description of the
-        sounding ID. This gets used in retrieval_l2_output for metadata.'''
-        info_file = self.state_info.info_file
-        return {
-            "TES_RUN" : np.int16(info_file['preferences']['TES_run']),
-            "TES_SEQUENCE" : np.int16(info_file['preferences']['TES_sequence']),
-            "TES_SCAN" : np.int16(info_file['preferences']['TES_scan']),
-            "POINTINGANGLE_TES" : self.boresight_angle.convert("deg").value
-        }
-
-    @property
-    def boresight_angle(self):
-        return rf.DoubleWithUnit(self.state_info.state_info_dict["current"]["boresightNadirRadians"], "rad")
-
 
 ObservationHandleSet.add_default_handle(MusesObservationHandle("AIRS", MusesAirsObservation))
+ObservationHandleSet.add_default_handle(MusesObservationHandle("TES", MusesTesObservation))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("CRIS", MusesCrisObservation))
 ObservationHandleSet.add_default_handle(MusesObservationHandle("TROPOMI",
                                                                MusesTropomiObservation))

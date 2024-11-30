@@ -99,14 +99,28 @@ class osswrapper:
                         if(osswrapper.first_oss_initialize):
                             with suppress_replacement("fm_oss_init"):
                                 (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                            # This can potentially change oss_frequencyList.
+                            # Neither py-retrieve or refractor is set up to handle
+                            # that.
                             mpy.fm_oss_windows(mpy.ObjectView(uip_all))
+                            flen = len(uip_all["frequencyList"])
+                            flen2 = len(uip_all["oss_frequencyList"])
+                            if(flen != flen2):
+                                raise RuntimeError("fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this")
                             with suppress_replacement("fm_oss_delete"):
                                 mpy.fm_oss_delete()                        
                             osswrapper.first_oss_initialize = False
                         with suppress_replacement("fm_oss_init"):
                             (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
                             self.uip['oss_jacobianList'] = jacobianList
+                        # This can potentially change oss_frequencyList.
+                        # Neither py-retrieve or refractor is set up to handle
+                        # that.
                         mpy.fm_oss_windows(mpy.ObjectView(uip_all))
+                        flen = len(uip_all["frequencyList"])
+                        flen2 = len(uip_all["oss_frequencyList"])
+                        if(flen != flen2):
+                            raise RuntimeError("fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this")
                         self.need_cleanup = True
                         osswrapper.have_oss =  True
         if(uip_all is not None):

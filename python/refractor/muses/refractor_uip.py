@@ -1483,7 +1483,9 @@ class RefractorUip:
                                                i_modifyCloudFreq=True)
                 
         if 'TES' in inst_to_window:
-            raise RuntimeError("TES is not implemented yet")
+            uip['uip_TES'] = mpy.make_uip_tes(
+                i_state, i_state.current, i_table, inst_to_window['TES'],
+                i_tes['radianceStruct'], '', uip['jacobians_all'])
         if "OMI" in inst_to_window:
             uip["uip_OMI"] = mpy.make_uip_omi(i_state, i_state.current,
                                               i_table,
@@ -1507,8 +1509,10 @@ class RefractorUip:
                                                 i_oco2)
 
         # Correct surface pointing angle. Not sure why this needs to be
-        # done, but this matches what run_retrieval does
-        for k in ("AIRS", "CRIS", "OMI", "TROPOMI", "OCO2"):
+        # done, but this matches what run_retrieval does. Note OCO-2 has
+        # this same logic, but commented out. OCO-2 isn't currently working,
+        # so not sure if it should have this or not.
+        for k in ("AIRS", "CRIS", "OMI", "TROPOMI", "TES"):
             if f'uip_{k}' in uip:
                 uip[f'uip_{k}']["obs_table"]["pointing_angle_surface"] = \
                     rf_uip.ray_info(k, set_pointing_angle_zero=False)["ray_angle_surface"]

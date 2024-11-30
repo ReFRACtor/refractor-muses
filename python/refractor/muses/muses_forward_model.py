@@ -83,6 +83,12 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
         # This is for the full set            
         gmask = self.bad_sample_mask(sensor_index) != True
         sd = self.spectral_domain(sensor_index)
+        # We ran into this issue because the fm_oss_stack uses the UIP for the
+        # frequency grid, and self.obs uses MusesSpectralWindow. These are
+        # generally the same, but we might get odd situations where they aren't.
+        # Give a clearer error message.
+        if(gmask.shape[0] != rad.shape[0]):
+            raise RuntimeError(f"gmask and rad don't match in size. gmask size is {gmask.shape[0]} and rad size if {rad.shape[0]}")
         if(skip_jacobian):
             sr = rf.SpectralRange(rad[gmask], rf.Unit("sr^-1"))
         else:
@@ -175,6 +181,11 @@ class MusesAirsForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for Airs instrument'''
     def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
         super().__init__(rf_uip, "AIRS", obs, **kwargs)
+
+class MusesTesForwardModel(MusesOssForwardModelBase):
+    '''Wrapper around fm_oss_stack call for TES instrument'''
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "TES", obs, **kwargs)
         
 class StateVectorPlaceHolder(rf.StateVectorObserver):
     '''Place holder for parts of the StateVector that ReFRACtor objects
@@ -221,12 +232,15 @@ ForwardModelHandleSet.add_default_handle(
 ForwardModelHandleSet.add_default_handle(
     MusesForwardModelHandle("AIRS", MusesAirsForwardModel), priority_order=-1)
 ForwardModelHandleSet.add_default_handle(
+    MusesForwardModelHandle("TES", MusesTesForwardModel), priority_order=-1)
+ForwardModelHandleSet.add_default_handle(
     MusesForwardModelHandle("TROPOMI", MusesTropomiForwardModel), priority_order=-1)
 ForwardModelHandleSet.add_default_handle(
     MusesForwardModelHandle("OMI", MusesOmiForwardModel), priority_order=-1)
 
 __all__ = [ "MusesCrisForwardModel", 
             "MusesAirsForwardModel", 
+            "MusesTesForwardModel", 
             "MusesTropomiForwardModel", 
             "MusesOmiForwardModel", 
            ]
