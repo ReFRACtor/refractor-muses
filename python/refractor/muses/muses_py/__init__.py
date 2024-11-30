@@ -47,6 +47,7 @@ if(have_muses_py):
     from py_retrieve.app.tools.cdf_var_names import *
     from py_retrieve.app.tools.cdf_var_map import *
     from py_retrieve.app.tools.strategy_table_file import *
+    from py_retrieve.app.tools.radiance_file import *
     
 del _broken
 del _i

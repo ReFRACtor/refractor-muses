@@ -80,13 +80,20 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             raise ValueError("sensor_index must be 0")
         with osswrapper(self.rf_uip.uip):
             rad, jac = mpy.fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
-        # This is for the full set            
+        # This is for the full set of frequences that fm_oss_stack works with
+        # (which of course includes bad samples)
         gmask = self.bad_sample_mask(sensor_index) != True
+        # This already has bad samples removed
         sd = self.spectral_domain(sensor_index)
         # We ran into this issue because the fm_oss_stack uses the UIP for the
         # frequency grid, and self.obs uses MusesSpectralWindow. These are
         # generally the same, but we might get odd situations where they aren't.
-        # Give a clearer error message.
+        # In particular, this led us to a special case for TES where we needed
+        # TesSpectralWindow instead of MusesSpectralWindow.
+        # 
+        # In case we run into this again, give a clearer error message. Still
+        # need to fix the underlying cause, but at least have a clear description
+        # of what went wrong.
         if(gmask.shape[0] != rad.shape[0]):
             raise RuntimeError(f"gmask and rad don't match in size. gmask size is {gmask.shape[0]} and rad size if {rad.shape[0]}")
         if(skip_jacobian):

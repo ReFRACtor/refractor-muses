@@ -1,6 +1,6 @@
 from .misc import osp_setup
 from .observation_handle import ObservationHandle, ObservationHandleSet
-from .muses_spectral_window import MusesSpectralWindow
+from .muses_spectral_window import MusesSpectralWindow, TesSpectralWindow
 from .retrieval_configuration import RetrievalConfiguration
 from .tes_file import TesFile
 from contextlib import contextmanager
@@ -847,8 +847,12 @@ class MusesTesObservation(MusesObservationImp):
                 spacing = np.array(sdef.table["RET_FRQ_SPC"])
                 cls._apodization(o_tes, func, strength, flt, maxopd, spacing)
             obs = cls(o_tes, sdesc)
+        # Note that TES has a particularly complicated spectral window needed
+        # to match what gets uses of OSS in MusesTesForwardModel. Use this
+        # adapter in place of spec_win to match.
         obs.spectral_window = \
-            spec_win if spec_win is not None else MusesSpectralWindow(None,None)
+            TesSpectralWindow(spec_win,obs) if spec_win is not None \
+            else MusesSpectralWindow(None,None)
         obs.spectral_window.add_bad_sample_mask(obs)
         if(fm_sv is not None):
             if(current_state is None):

@@ -12,7 +12,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
     (which are otherwise removed with the normal SpectralWindow) and
     2) the full data (referred to as full band).
 
-    This class adds support for this. It wraps around and existing
+    This class adds support for this. It wraps around an existing
     SpectralWindow and adds flags that can be set to
     "include_bad_data" or "full_band".
 
@@ -399,6 +399,50 @@ class MusesSpectralWindow(rf.SpectralWindow):
         stable["numRows"] = 1
         stable["numColumns"] = len(t2)
         return mpy.table_new_mw_from_step(stable, 0)
+
+class TesSpectralWindow(MusesSpectralWindow):
+    '''TES has a fairly complicated spectral window. In addition to checking
+    for ranges (which it does with a tolerance), it also checks that a
+    particular microwindow matches the filter. This appears to be TES only, but
+    we need to match this because otherwise our observation doesn't match the
+    frequencies used in the OSS forward model.
+
+    We could probably duplicate this behavior but 1) it is complicated
+    2) it only applies to TES, and 3) we aren't really going to be doing a lot
+    of TES retrievals, this is just for backwards compatibility.
+
+    So we have a special adapter here to pull in the extra behavior. This is
+    pretty much just a MusesSpectralWindow, except we have extra logic in the
+    grid_indexes.'''
+    def __init__(self, swin : MusesSpectralWindow,
+                 obs: 'MusesObservation'):
+        super().__init__(swin._spec_win_with_bad_sample, obs,
+                         raman_ext=swin._raman_ext,
+                         instrument_name=swin.instrument_name,
+                         filter_metadata=swin.filter_metadata,
+                         filter_name=swin.filter_name,
+                         rt=swin.rt,
+                         species_list=swin.species_list)
+        self._obs = obs
+
+    def desc(self):
+        return "TesSpectralWindow"
+    
+    def grid_indexes(self, grid, spec_index):
+        gindex = super().grid_indexes(grid, spec_index)
+        # We only have the extra logic for the unchanged ranges,
+        # or bad sample. So just return results otherwise
+        if(self._spec_win is None or self.full_band or self.do_raman_ext):
+            return gindex
+        # Determine what py-retrieve thinks the list is. Note that this includes
+        # bad samples, so there may be more values then in gindex. But any
+        # value in gindex by *not* py-retrieve version should get removed
+        muses_gindex = mpy.radiance_get_indices(
+            self._obs.muses_py_dict["radianceStruct"], self.muses_microwindows())
+        muses_gindex = set(muses_gindex)
+        # Note the "natural" way to do this is a set intersection, but we need
+        # to preserve the ordering, so we do this slightly less efficient version.
+        return [i for i in (gindex) if i in muses_gindex]
 
 __all__ = ["MusesSpectralWindow",]
            

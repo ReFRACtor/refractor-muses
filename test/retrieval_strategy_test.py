@@ -202,7 +202,7 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     try:
         lognum = logger.add("retrieval_strategy_airs_omi/retrieve.log")
         # Grab each step so we can separately test output
-        rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+        rscap = RetrievalStrategyCaptureObserver("retrieval_strategy_retrieval_step", "starting run_step")
         rs.add_observer(rscap)
         compare_dir = joint_omi_test_expected_dir
         if run_refractor:
@@ -308,7 +308,7 @@ def test_retrieval_strategy_tes(osp_dir, gmao_dir, vlidort_cli,
     try:
         lognum = logger.add("retrieval_strategy_tes/retrieve.log")
         # Grab each step so we can separately test output
-        rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+        rscap = RetrievalStrategyCaptureObserver("retrieval_strategy_retrieval_step", "starting run_step")
         rs.add_observer(rscap)
         compare_dir = tes_test_expected_dir
         rs.update_target(f"{r.run_dir}/Table.asc")
@@ -319,6 +319,23 @@ def test_retrieval_strategy_tes(osp_dir, gmao_dir, vlidort_cli,
     diff_is_error = True
     compare_run(compare_dir, "retrieval_strategy_tes",
                 diff_is_error=diff_is_error)
+
+# Temp    
+@require_muses_py
+def test_failed_tes(osp_dir, gmao_dir, vlidort_cli,
+                    python_fp_logger):
+    '''Quick turn around at failing step for tes'''
+    subprocess.run("rm -r failed_tes", shell=True)
+    step_number=12
+    rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
+        f"retrieval_strategy_tes/20040920_02147_388_02/retrieval_strategy_retrieval_step_{step_number}.pkl",
+        path="./failed_tes",
+        osp_dir=osp_dir, gmao_dir=gmao_dir)
+    try:
+        lognum = logger.add("failed_tes/retrieve.log")
+        rs.continue_retrieval(stop_after_step=5)
+    finally:
+        logger.remove(lognum)
     
 @skip    
 @long_test
