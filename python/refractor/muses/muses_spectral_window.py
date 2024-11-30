@@ -429,20 +429,19 @@ class TesSpectralWindow(MusesSpectralWindow):
         return "TesSpectralWindow"
     
     def grid_indexes(self, grid, spec_index):
-        gindex = super().grid_indexes(grid, spec_index)
         # We only have the extra logic for the unchanged ranges,
-        # or bad sample. So just return results otherwise
+        # or include_bad_sample. So just return results otherwise
         if(self._spec_win is None or self.full_band or self.do_raman_ext):
-            return gindex
-        # Determine what py-retrieve thinks the list is. Note that this includes
-        # bad samples, so there may be more values then in gindex. But any
-        # value in gindex by *not* py-retrieve version should get removed
+            return super().grid_indexes(grid, spec_index)
+        # Determine the list of grid_indexes from py-retrieve. Note that
+        # this includes bad_samples.
         muses_gindex = mpy.radiance_get_indices(
             self._obs.muses_py_dict["radianceStruct"], self.muses_microwindows())
-        muses_gindex = set(muses_gindex)
-        # Note the "natural" way to do this is a set intersection, but we need
-        # to preserve the ordering, so we do this slightly less efficient version.
-        return [i for i in (gindex) if i in muses_gindex]
+        if(self.include_bad_sample):
+            return [int(i) for i in muses_gindex]
+        # Only include indices that aren't bad samples
+        good_gindex = set(i for i in (self._obs.bad_sample_mask(spec_index) == False).nonzero()[0])
+        return [int(i) for i in muses_gindex if i in good_gindex]
 
 __all__ = ["MusesSpectralWindow",]
            

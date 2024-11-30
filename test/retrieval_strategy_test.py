@@ -320,7 +320,24 @@ def test_retrieval_strategy_tes(osp_dir, gmao_dir, vlidort_cli,
     compare_run(compare_dir, "retrieval_strategy_tes",
                 diff_is_error=diff_is_error)
 
-# Temp    
+@long_test
+@require_muses_py
+def test_compare_retrieval_tes(osp_dir, gmao_dir, vlidort_cli):
+    '''The test_retrieval_strategy_tes already checks the results, but it is nice
+    to have a stand alone run that just checks the results. Note that this depends on
+    test_retrieval_strategy_tes already having been run.'''
+    # Either error if we have any differences if this is True, or if this is False
+    # just report differences
+    #diff_is_error = True
+    diff_is_error = False
+    compare_dir = tes_test_expected_dir
+    compare_run(compare_dir, "retrieval_strategy_tes",
+                diff_is_error=diff_is_error)
+    
+
+# Used to diagnose a few problems with TES. Leave here in case we need
+# to do this again in the future
+@skip
 @require_muses_py
 def test_failed_tes(osp_dir, gmao_dir, vlidort_cli,
                     python_fp_logger):

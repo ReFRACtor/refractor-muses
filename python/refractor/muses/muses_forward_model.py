@@ -95,6 +95,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
         # need to fix the underlying cause, but at least have a clear description
         # of what went wrong.
         if(gmask.shape[0] != rad.shape[0]):
+            breakpoint()
             raise RuntimeError(f"gmask and rad don't match in size. gmask size is {gmask.shape[0]} and rad size if {rad.shape[0]}")
         if(skip_jacobian):
             sr = rf.SpectralRange(rad[gmask], rf.Unit("sr^-1"))
