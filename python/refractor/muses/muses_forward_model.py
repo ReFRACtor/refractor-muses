@@ -25,6 +25,25 @@ class MusesForwardModelBase(rf.ForwardModel):
         self.obs = obs
         self.kwargs = kwargs
 
+    def __getstate__(self):
+        # We have a bit of a chicken an egg issue. rf_uip_func is
+        # typically MusesStrategyExecutor.uip_func. This in turn
+        # is an object that has forward models in it. So this needs
+        # to get restored, but before the MusesForwardModelBase has
+        # been fully restored. We work around this by dropping the
+        # self.rf_uip_func when we pickle. I don't think this will
+        # matter much in practice, rf_uip_func is only used in the
+        # IRK stuff where we are creating the objects. We can revisit
+        # this if needed, but for now just accept the limitation so we
+        # can pickle this.
+        attributes = self.__dict__.copy()
+        del attributes['rf_uip_func']
+        return attributes
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.rf_uip_func = None
+
     def bad_sample_mask(self, sensor_index):
         bmask = self.obs.bad_sample_mask(sensor_index)
         if(self.obs.spectral_window.include_bad_sample):
