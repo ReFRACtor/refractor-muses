@@ -49,7 +49,6 @@ class CostFunctionCreator:
         # TODO Not ready yet to make use of instrument to restrict UIP,
         # so we ignore that. We'll need to come back to that in a bit
         if(instrument not in self._rf_uip):
-            logger.debug(f"Creating rf_uip for {instrument}")
             self._rf_uip[instrument] = self._rf_uip_func(instrument=instrument)
         return self._rf_uip[instrument]
         

@@ -1,6 +1,7 @@
 import refractor.muses.muses_py as mpy
 from .retrieval_strategy_step import (RetrievalStrategyStep,
                                       RetrievalStrategyStepSet)
+from .muses_observation import MusesTesObservation
 from loguru import logger
 import copy
 import os
@@ -13,21 +14,24 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         if retrieval_type != "irk":
             return (False,  None)
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
+        cstep = rs.current_strategy_step
+        if(len(cstep.instrument_name) != 1):
+            raise RuntimeError("RetrievalStrategyStepIrk can only work with one instrument, we don't have handling for multiple.")
+        iname = cstep.instrument_name[0]
+        obs = rs.observation_handle_set.observation(
+            iname, None, cstep.spectral_window_dict[iname],None)
         o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
                  "TROPOMI" : None, "OCO2" : None}
-        cstep = rs.current_strategy_step
-        for iname in cstep.instrument_name:
-            if iname in o_xxx:
-                obs = rs.observation_handle_set.observation(
-                    iname, None, cstep.spectral_window_dict[iname],None)
-                if hasattr(obs, "muses_py_dict"):
-                    o_xxx[iname] = obs.muses_py_dict
+        if iname in o_xxx:
+            if hasattr(obs, "muses_py_dict"):
+                o_xxx[iname] = obs.muses_py_dict
         logger.info("Running run_irk ...")
         self.cfunc = rs.create_cost_function()
         self.results_irk = self.irk(
             rs._strategy_executor.strategy._stable.strategy_table_dict,
             rs.state_info.state_info_dict,
-            rs._strategy_executor.strategy._stable.microwindows(),
+            rs.retrieval_config,
+            obs,
             rs.retrieval_info.retrieval_info_obj,
             rs.retrieval_info.species_names, 
             rs.retrieval_info.species_list_fm, 
@@ -41,7 +45,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
     def irk(self,
             i_table,
             stateIn,
-            windows,
+            retrieval_config : 'RetrievalConfiguration',
+            obs : 'MusesObservation',
             retrievalInfo,
             jacobian_speciesIn,
             jacobian_specieslistIn,
@@ -71,9 +76,11 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         xi_list = [0.0,] * len(TES_angles)
 
         # If we are using AIRS, then replace with the TES forward model
-        if windows[0]['instrument'] == 'AIRS':
-            tes = self.replace_airs_with_tes(i_table, windows, stateInfo)
-        
+        if obs.instrument_name == 'AIRS':
+            tes_frequency_fname = f"{retrieval_config['spectralWindowDirectory']}/../../tes_frequency.nc"
+            obs = MusesTesObservation.create_fake_for_irk(tes_frequency_fname,
+                                                          obs.spectral_window)
+            tes = obs.muses_py_dict
         for iangle in range(len(TES_angles)):
             stateInfo['current']['cris']['scanAng'] = CRIS_angles[iangle]
             stateInfo['current']['tes']['boresightNadirRadians'] = TES_angles[iangle]
@@ -81,7 +88,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
     
     
             (uip, radianceOut, jacobianOut) = mpy.run_forward_model(
-                i_table, stateInfo, windows, retrievalInfo,
+                i_table, stateInfo, obs.spectral_window.muses_microwindows(),
+                retrievalInfo,
                 jacobian_speciesIn, jacobian_specieslistIn, 
                 radianceStep,
                 airs, cris, tes, omi, None, oco2,

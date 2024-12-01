@@ -790,6 +790,132 @@ class MusesTesObservation(MusesObservationImp):
     @property
     def instrument_name(self):
         return "TES"
+
+    @classmethod
+    def create_fake_for_irk(cls, tes_frequency_fname : str,
+                            swin : MusesSpectralWindow):
+        '''For the RetrievalStrategyStepIrk (Instantaneous Radiative Kernels)
+        AIRS frequencies gets replaced with TES. I think TES is a more full grid.
+        We don't really need a full MusesObservation for this, but the OSS
+        MusesTesForwardModel gets the frequency grid from an observation. So
+        this reads a frequency netcdf file and uses that to create a fake
+        observation. This doesn't actually have the radiance or anything in it,
+        just the frequency part. But this is all that is needed by the IRK
+        calculation.'''
+        logger.info(f"Reading {tes_frequency_fname} to get frequencies for IRK calculation")
+        my_file = mpy.cdf_read_tes_frequency(tes_frequency_fname)
+    
+        my_file = cls._make_case_right(my_file)
+        my_file = cls._transpose_2d_arrays(my_file)
+    
+        # Convert filterNames from array of bytes (ASCII)  to array of strings since the NetCDF file store the strings as bytes.
+        filterNamesAsStrings = []
+        for ii in range(0, len(my_file['filterNames'])):
+            filterNamesAsStrings.append(''.join(chr(i) for i in my_file['filterNames'][ii]))
+        my_file['filterNames'] = filterNamesAsStrings
+             # Convert instrumentNames from bytes (ASCII) to string.
+        instrumentNamesAsStrings = []
+        instrumentNamesAsStrings.append(''.join(chr(i) for i in my_file['instrumentNames']))
+        my_file['instrumentNames'] = instrumentNamesAsStrings
+             # Remove first element from 'instrumentSizes' if it is 0
+        if my_file['instrumentSizes'][0] == 0:
+            my_file['instrumentSizes'] = np.delete(my_file['instrumentSizes'], 0)
+             # Change 'instrumentSizes' from ndarray to list since some later function expects a list.
+        if isinstance(my_file['instrumentSizes'],np.ndarray):
+            my_file['instrumentSizes'] = my_file['instrumentSizes'].tolist() 
+             # Change 'instrumentNames' from ndarray to list since some later function expects a list.
+        if isinstance(my_file['instrumentNames'], np.ndarray):
+            my_file['instrumentNames'] = my_file['instrumentNames'].tolist() 
+             # Change 'numDetectorsOrig' from ndarray to scalar.
+        if isinstance(my_file['numDetectorsOrig'], np.ndarray) or isinstance(my_file['numDetectorsOrig'], list):
+            my_file['numDetectorsOrig'] = my_file['numDetectorsOrig'][0]
+             # Remove first element from 'filterSizes' if it is 0 and perform calculation of actual filter sizes.
+        if my_file['filterSizes'][0] == 0:
+            # Because the way the file specifies the my_file['filterSizes'] as [ 0 4451  8402 12553 18554]
+            # We have to subtract each number from the previous to get the exact numbers of the frequencies for each filter
+            # to get [4451 3951 4151 6001]
+            actual_filter_sizes = []
+            for ii in range(1, len(my_file['filterSizes'])):
+                # Start with the 2nd index, subtract the 2nd index from the first to get the actual filter size for each filter.
+                actual_filter_sizes.append(my_file['filterSizes'][ii] - my_file['filterSizes'][ii-1])
+            my_file['filterSizes'] = np.asarray(actual_filter_sizes)
+ 
+        tes_struct = {
+            'radianceStruct': my_file
+        }
+        sdesc = {
+            "TES_RUN" : 0,
+            "TES_SEQUENCE" : 0,
+            "TES_SCAN" : 0,
+            "POINTINGANGLE_TES" : -999
+        }
+        res = cls(tes_struct, sdesc)
+        swin2 = copy.deepcopy(swin)
+        swin2.instrument_name = "TES"
+        res.spectral_window = swin2
+        return res
+
+    @classmethod
+    def _make_case_right(cls, my_file):
+        # Because all the fields in tesRadiance are uppercased from
+        # when they were read from external file, we have to make the
+        # cases right before calling radiance_set_windows(),
+        # otherwise, the function will barf that it cannot find the
+        # correct key.
+    
+        translation_table = {
+            'FILENAME' : 'filename',
+            'INSTRUMENT' : 'instrument',
+            'COMMENTS' : 'comments',
+            'PREFERENCES' : 'preferences',
+            'DETECTORS' : 'detectors',
+            'MWS' : 'mws',
+            'NUMDETECTORSORIG' : 'numDetectorsOrig',
+            'NUMDETECTORS' : 'numDetectors',
+            'NUM_FREQUENCIES' : 'num_frequencies',
+            'RADIANCE' : 'radiance',
+            'NESR' : 'NESR',
+            'FREQUENCY' : 'frequency',
+            'VALID' : 'valid',
+            'FILTERSIZES' : 'filterSizes',
+            'FILTERNAMES' : 'filterNames',
+            'INSTRUMENTSIZES' : 'instrumentSizes',
+            'INSTRUMENTNAMES' : 'instrumentNames',
+            'PIXELSUSED' : 'pixelsUsed',
+            'INTERPIXELVAR' : 'interpixelVar',
+            'FREQSHIFT' : 'freqShift',
+            'IMAGINARYMEAN' : 'imaginaryMean',
+            'IMAGINARYRMS' : 'imaginaryRMS',
+            'BT8' : 'bt8',
+            'BT10' : 'bt10',
+            'BT11' : 'bt11',
+            'SCANDIRECTION' : 'scanDirection',
+            'VALID' : 'valid'
+        }
+        return { translation_table.get(k, k) : v for k, v in my_file.items() }
+
+    @classmethod
+    def _transpose_2d_arrays(cls, my_file):
+        # Because of how the 2D (and greater dimensions) arrays are
+        # read in from external NetCDF file, we have to transpose them
+        # so the shape will be correct.  otherwise, the function will
+        # barf that it cannot find the correct key.
+        
+        res = {}
+        for key, value in my_file.items():
+            # Keep the value on the right side as is as default.
+            res[key] = value
+    
+            # Check to see if the array is 2 D or more so we can transpose it.
+            # Also, don't transpose 'filterNames' since it is of string type.
+            if (isinstance(value, np.ndarray) and len(value.shape) >= 2 and
+                key != 'filterNames'):
+                # Don't transpose if the shape ends with 1: (18554, 1)
+                if (value.shape[-1] != 1):
+                    res[key] = np.transpose(value)
+    
+        return res
+    
     
     @classmethod
     def create_from_filename(cls, filename, l1b_index, l1b_avgflag, run,

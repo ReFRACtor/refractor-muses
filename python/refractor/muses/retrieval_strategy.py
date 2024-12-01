@@ -243,6 +243,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         return self._strategy_executor
 
     @property
+    def uip_func(self) -> 'func->RefractorUip':
+        return self._strategy_executor.uip_func
+
+    @property
     def run_dir(self) -> str:
         '''Directory we are running in (e.g. where the strategy table and measurement id files
         are)'''
@@ -304,6 +308,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     @property
     def current_strategy_step(self) -> 'CurrentStrategyStep':
         return self._strategy_executor.current_strategy_step
+
+    def current_state(self, do_systematic=False, jacobian_speciesIn=None) -> 'CurrentState':
+        return self._strategy_executor.current_state(
+            do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn)
 
     @property
     def number_retrieval_step(self) -> int:

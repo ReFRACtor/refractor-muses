@@ -4,6 +4,7 @@ from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              MusesTesObservation,
                              ObservationHandleSet,
                              SimulatedObservation,
+                             FileFilterMetadata,
                              MeasurementIdFile, RetrievalConfiguration,
                              CurrentStateDict, MusesSpectralWindow)
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
@@ -111,7 +112,8 @@ def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir,
     # This is the microwindows file for step 0, determined by just running the full
     # retrieval and noting the file used
     mwfile = f"{osp_dir}/Strategy_Tables/ssund/OSP-R14/MWDefinitions/Windows_Nadir_EMIS_CLOUDEXT_PAN_PREP.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    fmeta = FileFilterMetadata(f"{osp_dir}/Strategy_Tables/ssund/Defaults/Default_Spectral_Windows_Definition_File_Filters.asc")
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_metadata=fmeta)
     obs = MusesTesObservation.create_from_id(measurement_id, None,
                                              None, swin_dict["TES"], None, osp_dir=osp_dir)
     print(obs.spectral_domain(0).data)
