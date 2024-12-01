@@ -297,9 +297,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             rinfo = self.retrieval_info.retrieval_info_systematic()
         else:
             rinfo = self.retrieval_info
+        cstep = self.current_strategy_step
         if(obs_list is None):
             obs_list = []
-            cstep = self.current_strategy_step
             for iname in cstep.instrument_name:
                 if(instrument is None or iname == instrument):
                     obs = self.rs.observation_handle_set.observation(

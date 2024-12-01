@@ -28,6 +28,9 @@ class StrategyTable:
                     os.environ["strategy_table_dir"] = t
                 else:
                     del os.environ["strategy_table_dir"]
+    @property
+    def strategy_table_obj(self):
+        return mpy.ObjectView(self.strategy_table_dict)
                     
     @property
     def analysis_directory(self):
