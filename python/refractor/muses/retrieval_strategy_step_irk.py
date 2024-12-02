@@ -30,18 +30,12 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         This is currently only used by RetrievalStrategyStepIRK. We may move this
         function into that class, but for now go ahead and keep this separate because
         if its size'''
-        cstep = rs.current_strategy_step
-        if(len(cstep.instrument_name) != 1):
+        if(len(rs.current_strategy_step.instrument_name) != 1):
             raise RuntimeError("RetrievalStrategyStepIrk can only work with one instrument, we don't have handling for multiple.")
-        iname = cstep.instrument_name[0]
+        iname = rs.current_strategy_step.instrument_name[0]
         obs = rs.observation_handle_set.observation(
-            iname, None, cstep.spectral_window_dict[iname],None)
-        i_table = rs._strategy_executor.strategy._stable.strategy_table_obj
-        stateIn = rs.state_info.state_info_dict
-        retrieval_config = rs.retrieval_config
-        retrievalInfo = rs.retrieval_info.retrieval_info_obj
-        jacobian_speciesIn = rs.retrieval_info.species_names 
-        jacobian_specieslistIn =   rs.retrieval_info.species_list_fm
+            iname, None, rs.current_strategy_step.spectral_window_dict[iname], None)
+
         t = obs.radiance_all_extended(include_bad_sample=True)
         frq_l1b = np.array(t.spectral_domain.data)
         rad_l1b = np.array(t.spectral_range.data)
@@ -57,8 +51,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                 iname, rs.current_state, obs, fm_sv, rs.uip_func)
         fm_func = f1
         # If we are using AIRS, then replace with the TES forward model
-        if obs.instrument_name == 'AIRS':
-            tes_frequency_fname = f"{retrieval_config['spectralWindowDirectory']}/../../tes_frequency.nc"
+        if iname == 'AIRS':
+            tes_frequency_fname = f"{rs.retrieval_config['spectralWindowDirectory']}/../../tes_frequency.nc"
             obs = MusesTesObservation.create_fake_for_irk(tes_frequency_fname,
                                                           obs.spectral_window)
             def f2():
@@ -201,14 +195,14 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         o_results_irk['radiances'] = radInfo
     
         # calculate irk for each type
-        for ispecies in range(len(jacobian_speciesIn)):
-            species_name = retrievalInfo.species[ispecies]
-            ii = retrievalInfo.parameterStartFM[ispecies]
-            jj = retrievalInfo.parameterEndFM[ispecies]
-            vmr = retrievalInfo.initialGuessListFM[ii: jj+1]
-            if retrievalInfo.mapType[ispecies] == 'log':
+        for ispecies in range(len(rs.retrieval_info.species_names)):
+            species_name = rs.retrieval_info.species_names[ispecies]
+            ii = rs.retrieval_info.parameter_start_fm[ispecies]
+            jj = rs.retrieval_info.parameter_end_fm[ispecies]
+            vmr = rs.retrieval_info.initial_guess_list_fm[ii: jj+1]
+            if rs.retrieval_info.map_type[ispecies] == 'log':
                 vmr = np.exp(vmr)
-            pressure = retrievalInfo.pressureListFM[ii: jj+1]
+            pressure = rs.retrieval_info.pressure_list_fm[ii: jj+1]
     
             myirfk = copy.deepcopy(irk_array[ii:jj+1]);
             myirfk_segs = copy.deepcopy(irk_segs [ii:jj+1, :])

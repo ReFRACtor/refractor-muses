@@ -71,6 +71,23 @@ class RetrievalInfo:
     def initialGuessListFM(self):
         '''This is the initial guess for the FM state vector'''
         return self.retrieval_dict["initialGuessListFM"]
+
+    @property
+    def initial_guess_list_fm(self):
+        '''This is the initial guess for the FM state vector'''
+        return self.retrieval_dict["initialGuessListFM"]
+    
+    @property
+    def parameter_start_fm(self):
+        return self.retrieval_dict["parameterStartFM"]
+
+    @property
+    def parameter_end_fm(self):
+        return self.retrieval_dict["parameterEndFM"]
+
+    @property
+    def map_type(self):
+        return self.retrieval_dict["mapType"]
     
     @property
     def type(self):
