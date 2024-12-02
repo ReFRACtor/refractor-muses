@@ -102,101 +102,67 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                 slant_column = np.sum(ray_info["column_air"])
                 xi_list[iangle] = nadir_column / slant_column
     
+        rs.state_info.state_info_dict['current']['cris']['scanAng'] = t1
+        rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians'] = t2
+        rs.state_info.state_info_dict['current']['airs']['scanAng'] = t3
         freq_step = frequency[1:] - frequency[:-1]
-        
-        # missing one value
-        temp_freq = copy.deepcopy(freq_step) # Make a copy of freq_step because we will create a new memory for it.
-    
-        freq_step = [temp_freq[0]]  # Fetch the first element from temp_freq.
-        freq_step.extend(temp_freq) # Add all elements in temp_freq to the newly created freq_step.
-        freq_step = np.asarray(freq_step)
-    
-        # AT_LINE 207 src_ms-2018-12-10/run_irk.pro
+        freq_step = np.array([freq_step[0], *freq_step])
         n_l1b = len(frq_l1b)
         
         # need remove missing data in L1b radiance
         ifrq_missing = np.where(rad_l1b == 0.0)
         valid_indices = np.where(rad_l1b != 0.0)[0]  # Ensure 1-D array
-        interpolated_values = np.interp(ifrq_missing, valid_indices, rad_l1b[valid_indices])
-        rad_l1b[ifrq_missing]= interpolated_values
-    
+        rad_l1b[ifrq_missing] = np.interp(ifrq_missing, valid_indices, rad_l1b[valid_indices])
     
         freq_step_l1b_temp = (frq_l1b[2:] - frq_l1b[0:n_l1b-2]) / 2.  
         freq_step_l1b = np.concatenate((np.asarray([frq_l1b[1] - frq_l1b[0]]), freq_step_l1b_temp, np.asarray([frq_l1b[n_l1b-1] - frq_l1b[n_l1b-2]])), axis=0)
 
-        radianceWeighted = np.float64(2.0) * (np.float64(0.015748) * radiance[5] + \
-                                              np.float64(0.073909) * radiance[4] + \
-                                              np.float64(0.146387) * radiance[3] + \
-                                              np.float64(0.167175) * radiance[2] + \
-                                              np.float64(0.096782) * radiance[1])
+        radianceWeighted = 2.0 * (0.015748 * radiance[5] +
+                                  0.073909 * radiance[4] + 
+                                  0.146387 * radiance[3] + 
+                                  0.167175 * radiance[2] + 
+                                  0.096782 * radiance[1])
     
-        # AT_LINE 138 run_irk.pro
-        # AT_LINE 225 src_ms-2018-12-10/run_irk.pro
         radratio = radiance[0] / radianceWeighted
-    
-        # AT_LINE 140 run_irk.pro
-        # compute band flux (980:1080)
-    
-        # AT_LINE 228 src_ms-2018-12-10/run_irk.pro
         ifrq = self._find_bin(frequency, frq_l1b)
-        radratio = radratio[ifrq] # same dimension as _l1b frq and rad
-    
-        # compute FM band flux (980:1080)
-        # AT_LINE 236 src_ms-2018-12-10/run_irk.pro
+        radratio = radratio[ifrq]
         ifreq = np.where((frequency >= 980.) & (frequency <= 1080.))[0]
-    
-        # AT_LINE 237 src_ms-2018-12-10/run_irk.pro
         flux = 1e4 * np.pi * np.sum(freq_step[ifreq] * radianceWeighted[ifreq])
-    
-        # AT_LINE 240 src_ms-2018-12-10/run_irk.pro
-        # compute _l1b band flux (980:1080)
         ifreq_l1b = np.where((frq_l1b >= 980.) & (frq_l1b <= 1080.))[0]
         flux_l1b = 1e4 * np.pi * np.sum(freq_step_l1b[ifreq_l1b] * rad_l1b[ifreq_l1b]/radratio[ifreq_l1b])
-    
-        # AT_LINE 152 run_irk.pro
         minn = np.amin(frequency)
         maxx = np.amax(frequency)
         minn = 970.
         maxx = 1120.
-    
-        # AT_LINE 159 run_irk.pro
         nf = int((maxx-minn)/3)
         freqSegments = np.ndarray(shape=(nf), dtype=np.float32)
         freqSegments.fill(0) # It is import to start with 0 because not all elements will be calculated.
-        
         fluxSegments = np.ndarray(shape=(nf), dtype=np.float32)
         fluxSegments.fill(0) # It is import to start with 0 because not all elements will be calculated.
-        
         fluxSegments_l1b = np.ndarray(shape=(nf), dtype=np.float32)
         fluxSegments_l1b.fill(0) # It is import to start with 0 because not all elements will be calculated.
         
         # get split into 3 cm-1 segments
         for ii in range(nf):
             ind = np.where((frequency >= minn+ii*3) & (frequency < minn+ii*3+3))[0]
-            # AT_LINE 262 src_ms-2018-12-10/run_irk.pro
             ind_l1b = np.where((frq_l1b >= minn+ii*3) & ((frq_l1b < minn+ii*3+3) & (rad_l1b > 0.)))[0]
-    
             if len(ind_l1b) > 0:
                 fluxSegments_l1b[ii] = 1e4*np.pi*np.sum(freq_step_l1b[ind_l1b]*rad_l1b[ind_l1b]/radratio[ind_l1b])
-    
             if len(ind) > 0: # We only calculate fluxSegments, fluxSegments_l1b, and freqSegments if there is at least 1 value in ind vector.
                 fluxSegments[ii] = 1e4 * np.pi * np.sum(freq_step[ind]*radianceWeighted[ind])
                 freqSegments[ii] = np.mean(frequency[ind])
-        # end for ii in range(nf):
     
-        # AT_LINE 183 run_irk.pro
-        jacWeighted = np.float64(2.) * (np.float64(0.015748) * jacobian[5] + \
-                                        np.float64(0.073909) * jacobian[4] + \
-                                        np.float64(0.146387) * jacobian[3] + \
-                                        np.float64(0.167175) * jacobian[2] + \
-                                        np.float64(0.096782) * jacobian[1])
+        jacWeighted = 2.0 * (0.015748 * jacobian[5] +
+                             0.073909 * jacobian[4] +
+                             0.146387 * jacobian[3] +
+                             0.167175 * jacobian[2] +
+                             0.096782 * jacobian[1])
     
         # weight by freq_step
         nn = retrievalInfo.n_totalParametersFM
-        for jj in range(nn):
-            jacWeighted[jj, :] = jacWeighted[jj, :] * freq_step[:]
+        for jj in range(jacWeighted.shape[0]):
+            jacWeighted[jj, :] *= freq_step[:]
     
-        # AT_LINE 195 run_irk.pro
         o_results_irk = {
             'flux':flux,
             'flux_l1b': flux_l1b,                 
@@ -205,7 +171,6 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             'fluxSegments_l1b': fluxSegments_l1b 
         } 
     
-        # AT_LINE 197 run_irk.pro
         # smaller range for irk average 
         indf = np.where((frequency >= 979.99) & (frequency <= 1078.999))[0]
     
@@ -337,9 +302,6 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
     
             o_results_irk[species_name] = copy.deepcopy(result_per_species)  # o_results_irk
         # end for ispecies in range(len(jacobian_speciesIn)):
-        rs.state_info.state_info_dict['current']['cris']['scanAng'] = t1
-        rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians'] = t2
-        rs.state_info.state_info_dict['current']['airs']['scanAng'] = t3
         return o_results_irk
 
     def _find_bin(self, x, y):
