@@ -159,9 +159,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                              0.096782 * jacobian[1])
     
         # weight by freq_step
-        nn = retrievalInfo.n_totalParametersFM
-        for jj in range(jacWeighted.shape[0]):
-            jacWeighted[jj, :] *= freq_step[:]
+        jacWeighted *= freq_step[np.newaxis, :]
     
         o_results_irk = {
             'flux':flux,
@@ -180,7 +178,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         maxx = 1080.0
     
         nf = int((maxx-minn)/3)
-        irk_segs = np.zeros(shape=(nn, nf),dtype=np.float32)
+        irk_segs = np.zeros(shape=(jacWeighted.shape[0], nf),dtype=np.float32)
         freq_segs = np.zeros(shape=(nf),   dtype=np.float32)
     
         for ii in range(nf):
