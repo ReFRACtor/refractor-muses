@@ -121,7 +121,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             sr = rf.SpectralRange(rad[gmask], rf.Unit("sr^-1"))
         else:
             # jacobian is 1) on the forward model grid and
-            # 2) tranposed from the ReFRACtor convention of the
+            # 2) transposed from the ReFRACtor convention of the
             # column being the state vector variables. So
             # translate the oss jac to what we want from ReFRACtor
 

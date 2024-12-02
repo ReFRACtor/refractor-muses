@@ -36,60 +36,102 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         iname = cstep.instrument_name[0]
         obs = rs.observation_handle_set.observation(
             iname, None, cstep.spectral_window_dict[iname],None)
+        # We want to include bad samples, since this is what py-retrieve does
+        obs.spectral_window.include_bad_sample=True
         i_table = rs._strategy_executor.strategy._stable.strategy_table_obj
         stateIn = rs.state_info.state_info_dict
         retrieval_config = rs.retrieval_config
         retrievalInfo = rs.retrieval_info.retrieval_info_obj
         jacobian_speciesIn = rs.retrieval_info.species_names 
         jacobian_specieslistIn =   rs.retrieval_info.species_list_fm
-        t = obs.radiance_all_extended(include_bad_sample=True)
-        frq_l1b = np.array(t.spectral_domain.data)
-        rad_l1b = np.array(t.spectral_range.data)
+        radianceStep = mpy_radiance_from_observation_list(
+            [obs,], include_bad_sample=True)
+        o_xxx = {"AIRS" : None, "TES" : None, "CRIS" : None, "OMI" : None,
+                 "TROPOMI" : None, "OCO2" : None}
+        if hasattr(obs, "muses_py_dict"):
+            o_xxx[iname] = obs.muses_py_dict
+            
+        # Make a copy of stateIn so we won't affect it.
+        stateInfo = copy.deepcopy(stateIn)  
+    
         # in degree
         TES_angles = [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765] 
         CRIS_angles = [0.0, 14.2906, 31.8588, 46.9590, 57.3154, 61.5613]
         AIRS_angles = [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
         
         xi_list = [0.0,] * len(TES_angles)
-        def f1():
-            fm_sv = rf.StateVector()
-            return rs.forward_model_handle_set.forward_model(
-                iname, rs.current_state, obs, fm_sv, rs.uip_func)
-        fm_func = f1
+        fm_sv = rf.StateVector()
+        fm = rs.forward_model_handle_set.forward_model(
+            iname, rs.current_state, [obs,], fm_sv, rs.uip_func)
         # If we are using AIRS, then replace with the TES forward model
-        if obs.instrument_name == 'AIRS':
+        if obs.instrument_name == 'FAIRS':
             tes_frequency_fname = f"{retrieval_config['spectralWindowDirectory']}/../../tes_frequency.nc"
             obs = MusesTesObservation.create_fake_for_irk(tes_frequency_fname,
                                                           obs.spectral_window)
-            def f2():
-                fm_sv = rf.StateVector()
-                return rs.forward_model_handle_set.forward_model(
-                    "TES", rs.current_state, obs, fm_sv,
-                    functools.partial(rs.uip_func, obs_list=[obs,]))
-            fm_func = f2
-        t1 = rs.state_info.state_info_dict['current']['cris']['scanAng']
-        t2 = rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians']
-        t3 = rs.state_info.state_info_dict['current']['airs']['scanAng']        
+            o_xxx["TES"] = obs.muses_py_dict
+            fm_sv = rf.StateVector()
+            fm = rs.forward_model_handle_set.forward_model(
+                "TES", rs.current_state, obs, fm_sv,
+                functools.partial(rs.uip_func, obs_list=[obs,]))
+
+        start_state = copy.deepcopy(rs.state_info)
         for iangle in range(len(TES_angles)):
-            rs.state_info.state_info_dict['current']['cris']['scanAng'] = CRIS_angles[iangle]
-            rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians'] = TES_angles[iangle]
-            rs.state_info.state_info_dict['current']['airs']['scanAng'] = AIRS_angles[iangle]
-            if(obs.instrument_name == 'CRIS'):
-                gi_angle = CRIS_angles[iangle]
-            elif(obs.instrument_name == "AIRS"):
-                gi_angle = AIRS_angles[iangle]
+            stateInfo['current']['cris']['scanAng'] = CRIS_angles[iangle]
+            stateInfo['current']['tes']['boresightNadirRadians'] = TES_angles[iangle]
+            stateInfo['current']['airs']['scanAng'] = AIRS_angles[iangle]
+            #rs.state_info.state_info_dict['current']['cris']['scanAng'] = CRIS_angles[iangle]
+            #rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians'] = TES_angles[iangle]
+            #rs.state_info.state_info_dict['current']['airs']['scanAng'] = AIRS_angles[iangle]
+            fm.rf_uip = rs.uip_func(instrument=obs.instrument_name)
+            if(obs.instrument_name == "AIRS"):
+                ang = rf.DoubleWithUnit(AIRS_angles[iangle], "deg")
             elif(obs.instrument_name == "TES"):
-                gi_angle = TES_angles[iangle]
+                ang = rf.DoubleWithUnit(TES_angles[iangle], "deg")
+            elif(obs.instrument_name == "CRIS"):
+                ang = rf.DoubleWithUnit(CRIS_angles[iangle], "deg")
             else:
-                raise RuntimeError("Not implemented")
-            fm = fm_func()
-            with obs.modify_spectral_window(include_bad_sample=True):
-                r = fm.radiance_all(False)
-            uip_all = fm.rf_uip.uip_all(obs.instrument_name)
-            results = {'frequency' : r.spectral_domain.data,
-                       'radiance' : r.spectral_range.data[np.newaxis,:]}
-            jacobian = {'jacobian_data' : r.spectral_range.data_ad.jacobian.transpose()[np.newaxis,:,:]}
+                raise RuntimeError("Don't know angles of instrument")
+            #fm.rf_uip.set_pointing_angle(obs.instrument_name, ang)
+            uip_original = copy.deepcopy(fm.rf_uip)
+            (uip, radianceOut, jacobianOut) = mpy.run_forward_model(
+                i_table, stateInfo, obs.spectral_window.muses_microwindows(),
+                retrievalInfo,
+                jacobian_speciesIn, jacobian_specieslistIn, 
+                radianceStep,
+                o_xxx["AIRS"], o_xxx["CRIS"], o_xxx["TES"], o_xxx["OMI"],
+                None, o_xxx["OCO2"], None)
+
+            r = fm.radiance_all(False)
+            # Radiance it a bit off, we'll want to try to figure out why
+            my_results = {'frequency' : r.spectral_domain.data,
+                          'radiance' : r.spectral_range.data[np.newaxis,:]}
+            my_jacobianOut = {'jacobian_data' : r.spectral_range.data_ad.jacobian.transpose()[np.newaxis,:,:]}
             
+            #results = my_results
+            results=radianceOut
+            #jacobianOut = my_jacobianOut
+    
+            # uip is a dict.
+            if 'CRIS' in uip['instruments']:
+                gi_angle = CRIS_angles[iangle]
+                uip_all = {**uip,**uip['uip_CRIS']}
+    
+            # AT_LINE 129 src_ms-2018-12-10/run_irk.pro
+            if 'TES' in uip['instruments']:
+                gi_angle = TES_angles[iangle]
+                # uip_all = struct_combine(uip, uip['tesPars'])
+                uip_all = {**uip,**uip['uip_TES']}
+    
+            # AT_LINE 62 run_irk.pro
+            # AT_LINE 133 src_ms-2018-12-10/run_irk.pro
+            if 'AIRS' in uip['instruments']:
+                gi_angle = AIRS_angles[iangle]
+                uip_all = mpy.struct_combine(uip, uip['uip_AIRS'])
+    
+            # AT_LINE 141 src_ms-2018-12-10/run_irk.pro
+            if 'OMI' in uip['instruments']:
+                raise RuntimeError("Not implemented yet")
+    
             # AT_LINE 84 run_irk.pro
             # compute nadir_column and slant_column
             atmparams = mpy.atmosphere_level(uip_all)
@@ -116,7 +158,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             # Slow method for now.  Not sure why these are saved.
             if (iangle) == 0:
                 radiance0 = copy.deepcopy(results['radiance'])
-                jacobian0 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
+                jacobian0 = copy.deepcopy(jacobianOut['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
      
             #outfile = "lkuai/tmp.txt"
             #ifreq = 0
@@ -127,23 +169,23 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
     
             if (iangle) == 1:
                 radiance1 = copy.deepcopy(results['radiance'])
-                jacobian1 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
+                jacobian1 = copy.deepcopy(jacobianOut['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
             
             if (iangle) == 2:
                 radiance2 = copy.deepcopy(results['radiance'])
-                jacobian2 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
+                jacobian2 = copy.deepcopy(jacobianOut['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
             
             if (iangle) == 3:
                 radiance3 = copy.deepcopy(results['radiance'])
-                jacobian3 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
+                jacobian3 = copy.deepcopy(jacobianOut['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
             
             if (iangle) == 4:
                 radiance4 = copy.deepcopy(results['radiance'])
-                jacobian4 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
+                jacobian4 = copy.deepcopy(jacobianOut['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
             
             if (iangle) == 5:
                 radiance5 = copy.deepcopy(results['radiance'])
-                jacobian5 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
+                jacobian5 = copy.deepcopy(jacobianOut['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
         # end for iangle in range(lenTES_angles):
     
         # AT_LINE 124 run_irk.pro
@@ -157,19 +199,21 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         freq_step = np.asarray(freq_step)
     
         # AT_LINE 207 src_ms-2018-12-10/run_irk.pro
-        n_l1b = len(frq_l1b)
+        frqL1b = radianceStep['frequency']
+        radL1b = radianceStep['radiance']
+        nL1b = len(frqL1b)
         
         # need remove missing data in L1b radiance
-        ifrq_missing = np.where(rad_l1b == 0.0)
-        valid_indices = np.where(rad_l1b != 0.0)[0]  # Ensure 1-D array
-        interpolated_values = np.interp(ifrq_missing, valid_indices, rad_l1b[valid_indices])
-        rad_l1b[ifrq_missing]= interpolated_values
+        ifrq_missing = np.where(radL1b == 0.0)
+        valid_indices = np.where(radL1b != 0.0)[0]  # Ensure 1-D array
+        interpolated_values = np.interp(ifrq_missing, valid_indices, radL1b[valid_indices])
+        radL1b[ifrq_missing]= interpolated_values
     
     
         # Remember that in Python, the slice does not include the end.  
         # IDL_ CODE: (frqL1b[2:*] - frqL1b[0:nL1b-3])/2.
-        freq_step_l1b_temp = (frq_l1b[2:] - frq_l1b[0:n_l1b-2]) / 2.  
-        freq_step_l1b = np.concatenate((np.asarray([frq_l1b[1] - frq_l1b[0]]), freq_step_l1b_temp, np.asarray([frq_l1b[n_l1b-1] - frq_l1b[n_l1b-2]])), axis=0)
+        freq_stepL1b_temp = (frqL1b[2:] - frqL1b[0:nL1b-2]) / 2.  
+        freq_stepL1b = np.concatenate((np.asarray([frqL1b[1] - frqL1b[0]]), freq_stepL1b_temp, np.asarray([frqL1b[nL1b-1] - frqL1b[nL1b-2]])), axis=0)
     
         # Sometimes, the shape of the array is (1,zzz), we change it to 1-D (zzz)
         if radiance0.shape[0] == 1:
@@ -215,8 +259,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         # compute band flux (980:1080)
     
         # AT_LINE 228 src_ms-2018-12-10/run_irk.pro
-        ifrq = self._find_bin(frequency, frq_l1b)
-        radratio = radratio[ifrq] # same dimension as _l1b frq and rad
+        ifrq = self._find_bin(frequency, frqL1b)
+        radratio = radratio[ifrq] # same dimension as L1b frq and rad
     
         # compute FM band flux (980:1080)
         # AT_LINE 236 src_ms-2018-12-10/run_irk.pro
@@ -226,9 +270,9 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         flux = 1e4 * np.pi * np.sum(freq_step[ifreq] * radianceWeighted[ifreq])
     
         # AT_LINE 240 src_ms-2018-12-10/run_irk.pro
-        # compute _l1b band flux (980:1080)
-        ifreq_l1b = np.where((frq_l1b >= 980.) & (frq_l1b <= 1080.))[0]
-        flux_l1b = 1e4 * np.pi * np.sum(freq_step_l1b[ifreq_l1b] * rad_l1b[ifreq_l1b]/radratio[ifreq_l1b])
+        # compute L1b band flux (980:1080)
+        ifreqL1b = np.where((frqL1b >= 980.) & (frqL1b <= 1080.))[0]
+        flux_l1b = 1e4 * np.pi * np.sum(freq_stepL1b[ifreqL1b] * radL1b[ifreqL1b]/radratio[ifreqL1b])
     
         # AT_LINE 152 run_irk.pro
         minn = np.amin(frequency)
@@ -251,10 +295,10 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         for ii in range(nf):
             ind = np.where((frequency >= minn+ii*3) & (frequency < minn+ii*3+3))[0]
             # AT_LINE 262 src_ms-2018-12-10/run_irk.pro
-            ind_l1b = np.where((frq_l1b >= minn+ii*3) & ((frq_l1b < minn+ii*3+3) & (rad_l1b > 0.)))[0]
+            indL1b = np.where((frqL1b >= minn+ii*3) & ((frqL1b < minn+ii*3+3) & (radL1b > 0.)))[0]
     
-            if len(ind_l1b) > 0:
-                fluxSegments_l1b[ii] = 1e4*np.pi*np.sum(freq_step_l1b[ind_l1b]*rad_l1b[ind_l1b]/radratio[ind_l1b])
+            if len(indL1b) > 0:
+                fluxSegments_l1b[ii] = 1e4*np.pi*np.sum(freq_stepL1b[indL1b]*radL1b[indL1b]/radratio[indL1b])
     
             if len(ind) > 0: # We only calculate fluxSegments, fluxSegments_l1b, and freqSegments if there is at least 1 value in ind vector.
                 fluxSegments[ii] = 1e4 * np.pi * np.sum(freq_step[ind]*radianceWeighted[ind])
@@ -308,8 +352,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             'gi_angle'  : gi_angle,  
             'radarr_fm' : radarr_fm, 
             'freq_fm'   : frequency, 
-            'rad_L1b'   : rad_l1b,    
-            'freq_L1b'  : frq_l1b
+            'rad_L1b'   : radL1b,    
+            'freq_L1b'  : frqL1b
         }
         o_results_irk['freqSegments_irk'] = freq_segs
         o_results_irk['radiances'] = radInfo
@@ -414,9 +458,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
     
             o_results_irk[species_name] = copy.deepcopy(result_per_species)  # o_results_irk
         # end for ispecies in range(len(jacobian_speciesIn)):
-        rs.state_info.state_info_dict['current']['cris']['scanAng'] = t1
-        rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians'] = t2
-        rs.state_info.state_info_dict['current']['airs']['scanAng'] = t3
+
+        rs.state_info.state_info_dict = start_state.state_info_dict
         return o_results_irk
 
     def _find_bin(self, x, y):

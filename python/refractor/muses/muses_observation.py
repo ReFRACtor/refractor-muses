@@ -839,7 +839,8 @@ class MusesTesObservation(MusesObservationImp):
                 # Start with the 2nd index, subtract the 2nd index from the first to get the actual filter size for each filter.
                 actual_filter_sizes.append(my_file['filterSizes'][ii] - my_file['filterSizes'][ii-1])
             my_file['filterSizes'] = np.asarray(actual_filter_sizes)
- 
+        my_file["radiance"] = my_file["radiance"][:,0]
+        my_file["NESR"] = my_file["NESR"][:,0]
         tes_struct = {
             'radianceStruct': my_file
         }
@@ -852,7 +853,7 @@ class MusesTesObservation(MusesObservationImp):
         res = cls(tes_struct, sdesc)
         swin2 = copy.deepcopy(swin)
         swin2.instrument_name = "TES"
-        res.spectral_window = swin2
+        res.spectral_window = TesSpectralWindow(swin2, res)
         return res
 
     @classmethod
