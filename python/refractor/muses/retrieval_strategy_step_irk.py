@@ -69,7 +69,9 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             fm_func = f2
         t1 = rs.state_info.state_info_dict['current']['cris']['scanAng']
         t2 = rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians']
-        t3 = rs.state_info.state_info_dict['current']['airs']['scanAng']        
+        t3 = rs.state_info.state_info_dict['current']['airs']['scanAng']
+        radiance = []
+        jacobian = []
         for iangle in range(len(TES_angles)):
             rs.state_info.state_info_dict['current']['cris']['scanAng'] = CRIS_angles[iangle]
             rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians'] = TES_angles[iangle]
@@ -86,15 +88,10 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             with obs.modify_spectral_window(include_bad_sample=True):
                 r = fm.radiance_all(False)
             uip_all = fm.rf_uip.uip_all(obs.instrument_name)
-            results = {'frequency' : r.spectral_domain.data,
-                       'radiance' : r.spectral_range.data[np.newaxis,:]}
-            jacobian = {'jacobian_data' : r.spectral_range.data_ad.jacobian.transpose()[np.newaxis,:,:]}
+            frequency = r.spectral_domain.data
+            radiance.append(r.spectral_range.data)
+            jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
             
-            # AT_LINE 84 run_irk.pro
-            # compute nadir_column and slant_column
-            atmparams = mpy.atmosphere_level(uip_all)
-            rayInfo = mpy.raylayer_nadir(mpy.ObjectView(uip_all), mpy.ObjectView(atmparams))
-            rayInfo = mpy.ObjectView(rayInfo)
             ray_info = fm.rf_uip.ray_info(obs.instrument_name)
             if gi_angle == 0.0: 
                 nadir_column = np.sum(ray_info["column_air"])
@@ -102,46 +99,10 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                                                 set_cloud_extinction_one=True)
                 dEdOD = 1. / ray_info_2['cloud']['tau_total']
             else:
-                # AT_LINE 101 run_irk.pro
                 slant_column = np.sum(ray_info["column_air"])
                 xi_list[iangle] = nadir_column / slant_column
     
-            # AT_LINE 113 run_irk.pro
-            # Slow method for now.  Not sure why these are saved.
-            if (iangle) == 0:
-                radiance0 = copy.deepcopy(results['radiance'])
-                jacobian0 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
-     
-            #outfile = "lkuai/tmp.txt"
-            #ifreq = 0
-    
-            #np.savetxt(outfile, jacobian0[0, 0:64, ifreq])
-           
-    
-    
-            if (iangle) == 1:
-                radiance1 = copy.deepcopy(results['radiance'])
-                jacobian1 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
-            
-            if (iangle) == 2:
-                radiance2 = copy.deepcopy(results['radiance'])
-                jacobian2 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
-            
-            if (iangle) == 3:
-                radiance3 = copy.deepcopy(results['radiance'])
-                jacobian3 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
-            
-            if (iangle) == 4:
-                radiance4 = copy.deepcopy(results['radiance'])
-                jacobian4 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
-            
-            if (iangle) == 5:
-                radiance5 = copy.deepcopy(results['radiance'])
-                jacobian5 = copy.deepcopy(jacobian['jacobian_data']) # Note that we have chosen 'jacobian_data' as the key in jacobian dict
-        # end for iangle in range(lenTES_angles):
-    
-        # AT_LINE 124 run_irk.pro
-        freq_step = results['frequency'][1:] - results['frequency'][0:len(results['frequency'])-1]
+        freq_step = frequency[1:] - frequency[:-1]
         
         # missing one value
         temp_freq = copy.deepcopy(freq_step) # Make a copy of freq_step because we will create a new memory for it.
@@ -160,50 +121,18 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         rad_l1b[ifrq_missing]= interpolated_values
     
     
-        # Remember that in Python, the slice does not include the end.  
-        # IDL_ CODE: (frqL1b[2:*] - frqL1b[0:nL1b-3])/2.
         freq_step_l1b_temp = (frq_l1b[2:] - frq_l1b[0:n_l1b-2]) / 2.  
         freq_step_l1b = np.concatenate((np.asarray([frq_l1b[1] - frq_l1b[0]]), freq_step_l1b_temp, np.asarray([frq_l1b[n_l1b-1] - frq_l1b[n_l1b-2]])), axis=0)
-    
-        # Sometimes, the shape of the array is (1,zzz), we change it to 1-D (zzz)
-        if radiance0.shape[0] == 1:
-            radiance0 = np.reshape(radiance0, (radiance0.shape[1]))
-            radiance1 = np.reshape(radiance1, (radiance1.shape[1]))
-            radiance2 = np.reshape(radiance2, (radiance2.shape[1]))
-            radiance3 = np.reshape(radiance3, (radiance3.shape[1]))
-            radiance4 = np.reshape(radiance4, (radiance4.shape[1]))
-            radiance5 = np.reshape(radiance5, (radiance5.shape[1]))
-    
-        if jacobian0.shape[0] == 1 or jacobian0.shape[1] == 1:
-            # Sometimes, the shape of the array is (1,yyy,zzz), we change it to 2-D (yyy,zzz)
-            if jacobian0.shape[0] == 1:
-                jacobian0 = jacobian0[0, :, :]
-                jacobian1 = jacobian1[0, :, :]
-                jacobian2 = jacobian2[0, :, :]
-                jacobian3 = jacobian3[0, :, :]
-                jacobian4 = jacobian4[0, :, :]
-                jacobian5 = jacobian5[0, :, :]
-    
-            # Sometimes, the shape of the array is (yyy,1,zzz), we change it to 2-D (yyy,zzz)
-            if jacobian0.shape[1] == 1:
-                jacobian0 = jacobian0[:, 0, :]
-                jacobian1 = jacobian1[:, 0, :]
-                jacobian2 = jacobian2[:, 0, :]
-                jacobian3 = jacobian3[:, 0, :]
-                jacobian4 = jacobian4[:, 0, :]
-                jacobian5 = jacobian5[:, 0, :]
-    
-        # AT_LINE 132 run_irk.pro
-        radianceWeighted = np.float64(2.0) * (np.float64(0.015748) * radiance5 + \
-                                              np.float64(0.073909) * radiance4 + \
-                                              np.float64(0.146387) * radiance3 + \
-                                              np.float64(0.167175) * radiance2 + \
-                                              np.float64(0.096782) * radiance1)
+
+        radianceWeighted = np.float64(2.0) * (np.float64(0.015748) * radiance[5] + \
+                                              np.float64(0.073909) * radiance[4] + \
+                                              np.float64(0.146387) * radiance[3] + \
+                                              np.float64(0.167175) * radiance[2] + \
+                                              np.float64(0.096782) * radiance[1])
     
         # AT_LINE 138 run_irk.pro
         # AT_LINE 225 src_ms-2018-12-10/run_irk.pro
-        radratio = radiance0 / radianceWeighted
-        frequency = results['frequency'] # fm frequence
+        radratio = radiance[0] / radianceWeighted
     
         # AT_LINE 140 run_irk.pro
         # compute band flux (980:1080)
@@ -256,11 +185,11 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         # end for ii in range(nf):
     
         # AT_LINE 183 run_irk.pro
-        jacWeighted = np.float64(2.) * (np.float64(0.015748) * jacobian5 + \
-                                        np.float64(0.073909) * jacobian4 + \
-                                        np.float64(0.146387) * jacobian3 + \
-                                        np.float64(0.167175) * jacobian2 + \
-                                        np.float64(0.096782) * jacobian1)
+        jacWeighted = np.float64(2.) * (np.float64(0.015748) * jacobian[5] + \
+                                        np.float64(0.073909) * jacobian[4] + \
+                                        np.float64(0.146387) * jacobian[3] + \
+                                        np.float64(0.167175) * jacobian[2] + \
+                                        np.float64(0.096782) * jacobian[1])
     
         # weight by freq_step
         nn = retrievalInfo.n_totalParametersFM
@@ -297,7 +226,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         # end for ii in range(nf):
     
         # AT_LINE 333 src_ms-2018-12-10/run_irk.pro
-        radarr_fm = np.concatenate((radiance0, radiance1, radiance2, radiance3, radiance4, radiance5), axis=0)
+        radarr_fm = np.concatenate(radiance, axis=0)
         radInfo = {
             'gi_angle'  : gi_angle,  
             'radarr_fm' : radarr_fm, 
