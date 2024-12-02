@@ -16,33 +16,13 @@ import numpy as np
 
 class MusesForwardModelBase(rf.ForwardModel):
     '''Common behavior for the different MUSES forward models'''
-    def __init__(self, rf_uip_func : 'func->RefractorUip', instrument_name,
+    def __init__(self, rf_uip : RefractorUip, instrument_name,
                  obs, **kwargs):
         super().__init__()
         self.instrument_name = instrument_name
-        self.rf_uip_func = rf_uip_func
-        self.rf_uip = rf_uip_func(instrument=instrument_name)
+        self.rf_uip = rf_uip
         self.obs = obs
         self.kwargs = kwargs
-
-    def __getstate__(self):
-        # We have a bit of a chicken an egg issue. rf_uip_func is
-        # typically MusesStrategyExecutor.uip_func. This in turn
-        # is an object that has forward models in it. So this needs
-        # to get restored, but before the MusesForwardModelBase has
-        # been fully restored. We work around this by dropping the
-        # self.rf_uip_func when we pickle. I don't think this will
-        # matter much in practice, rf_uip_func is only used in the
-        # IRK stuff where we are creating the objects. We can revisit
-        # this if needed, but for now just accept the limitation so we
-        # can pickle this.
-        attributes = self.__dict__.copy()
-        del attributes['rf_uip_func']
-        return attributes
-
-    def __setstate__(self, state):
-        self.__dict__ = state
-        self.rf_uip_func = None
 
     def bad_sample_mask(self, sensor_index):
         bmask = self.obs.bad_sample_mask(sensor_index)
@@ -91,9 +71,9 @@ class RefractorForwardModel(rf.ForwardModel):
         
 class MusesOssForwardModelBase(MusesForwardModelBase):
     '''Common behavior for the OSS based forward models'''
-    def __init__(self, rf_uip_func : "func->RefractorUip", instrument_name, obs,
+    def __init__(self, rf_uip : RefractorUip, instrument_name, obs,
                  **kwargs):
-        super().__init__(rf_uip_func, instrument_name, obs, **kwargs)
+        super().__init__(rf_uip, instrument_name, obs, **kwargs)
         
     def radiance(self, sensor_index, skip_jacobian = False):
         if(sensor_index !=0):
@@ -142,12 +122,12 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
 
 class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
     '''Common behavior for the omi/tropomi based forward models'''
-    def __init__(self, rf_uip_func : "func->RefractorUip", instrument_name, obs,
+    def __init__(self, rf_uip : RefractorUip, instrument_name, obs,
                  vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
                  vlidort_nstokes=2,
                  vlidort_nstreams=4,
                  **kwargs):
-        MusesForwardModelBase.__init__(self, rf_uip_func, instrument_name, obs=None,
+        MusesForwardModelBase.__init__(self, rf_uip, instrument_name, obs=None,
                                        **kwargs)
         self.vlidort_nstreams = vlidort_nstreams
         self.vlidort_nstokes = vlidort_nstokes
@@ -193,27 +173,27 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
         return rf.Spectrum(sd, sr)
     
 class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
-    def __init__(self, rf_uip_func : "func->RefractorUip", obs, **kwargs):
-        super().__init__(rf_uip_func, "TROPOMI", obs, **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "TROPOMI", obs, **kwargs)
 
 class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
-    def __init__(self, rf_uip_func : "func->RefractorUip", obs, **kwargs):
-        super().__init__(rf_uip_func, "OMI", obs, **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "OMI", obs, **kwargs)
         
 class MusesCrisForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for CRiS instrument'''
-    def __init__(self, rf_uip_func : "func->RefractorUip", obs, **kwargs):
-        super().__init__(rf_uip_func, "CRIS", obs, **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "CRIS", obs, **kwargs)
 
 class MusesAirsForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for Airs instrument'''
-    def __init__(self, rf_uip_func : "func->RefractorUip", obs, **kwargs):
-        super().__init__(rf_uip_func, "AIRS", obs, **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "AIRS", obs, **kwargs)
 
 class MusesTesForwardModel(MusesOssForwardModelBase):
     '''Wrapper around fm_oss_stack call for TES instrument'''
-    def __init__(self, rf_uip_func : "func->RefractorUip", obs, **kwargs):
-        super().__init__(rf_uip_func, "TES", obs, **kwargs)
+    def __init__(self, rf_uip : RefractorUip, obs, **kwargs):
+        super().__init__(rf_uip, "TES", obs, **kwargs)
         
 class StateVectorPlaceHolder(rf.StateVectorObserver):
     '''Place holder for parts of the StateVector that ReFRACtor objects
@@ -252,7 +232,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
         if(instrument_name != self.instrument_name):
             return None
         logger.debug(f"Creating forward model {self.cls.__name__}")
-        return self.cls(rf_uip_func, obs, **kwargs)
+        return self.cls(rf_uip_func(instrument=instrument_name), obs, **kwargs)
 
 # The Muses code is the fallback, so add with the lowest priority
 ForwardModelHandleSet.add_default_handle(
