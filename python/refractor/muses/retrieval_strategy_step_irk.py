@@ -95,21 +95,15 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             atmparams = mpy.atmosphere_level(uip_all)
             rayInfo = mpy.raylayer_nadir(mpy.ObjectView(uip_all), mpy.ObjectView(atmparams))
             rayInfo = mpy.ObjectView(rayInfo)
-    
-            # AT_LINE 89 run_irk.pro
+            ray_info = fm.rf_uip.ray_info(obs.instrument_name)
             if gi_angle == 0.0: 
-                nadir_column = np.sum(rayInfo.column_air)
-                
-                uip_all1 = copy.deepcopy(uip_all)
-                uip_all1['cloud']['extinction'][:] = 1.
-                
-                atmparams1 = mpy.atmosphere_level(uip_all1)
-                ray1Info = mpy.raylayer_nadir(mpy.ObjectView(uip_all1), mpy.ObjectView(atmparams1))
-                
-                dEdOD = 1. / ray1Info['cloud']['tau_total']
+                nadir_column = np.sum(ray_info["column_air"])
+                ray_info_2 = fm.rf_uip.ray_info(obs.instrument_name,
+                                                set_cloud_extinction_one=True)
+                dEdOD = 1. / ray_info_2['cloud']['tau_total']
             else:
                 # AT_LINE 101 run_irk.pro
-                slant_column = np.sum(rayInfo.column_air)
+                slant_column = np.sum(ray_info["column_air"])
                 xi_list[iangle] = nadir_column / slant_column
     
             # AT_LINE 113 run_irk.pro
