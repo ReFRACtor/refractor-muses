@@ -407,6 +407,11 @@ class TesSpectralWindow(MusesSpectralWindow):
     we need to match this because otherwise our observation doesn't match the
     frequencies used in the OSS forward model.
 
+    This seems overly complicated, it seems like the same behavior could be
+    done with the regular MusesSpectralWindow with the edges of the microwindows
+    just set correctly. But to match the behavior of py-retrieve we want to do
+    the same thing here.
+
     We could probably duplicate this behavior but 1) it is complicated
     2) it only applies to TES, and 3) we aren't really going to be doing a lot
     of TES retrievals, this is just for backwards compatibility.

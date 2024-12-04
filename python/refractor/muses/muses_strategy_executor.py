@@ -285,13 +285,18 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def uip_func(self, obs_list : 'optional(list(MusesObservation))' = None,
                  instrument : str =None, do_systematic=False,
-                 jacobian_speciesIn=None):
+                 jacobian_speciesIn=None,
+                 pointing_angle : "optional(rf.DoubleWithUnit)" =None):
         '''To reduce coupling, you can give the instrument name to use. The default
         is None, which means to create all instruments used in this step.
 
         You can also pass in the observation list. Normally this function can just
         create this for you using our observation_handle_set. But the AIRS IRK
-        creates a fake TES observation, which we want to be able to pass in.'''
+        creates a fake TES observation, which we want to be able to pass in.
+
+        Also the pointing angle can be passed in, to use this instead of the 
+        pointing angle found in the state_info. Again, this is used by the IRK
+        calculation.'''
         logger.debug(f"Creating rf_uip for {instrument}")
         if(do_systematic):
             rinfo = self.retrieval_info.retrieval_info_systematic()
@@ -335,7 +340,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 o_xxx["AIRS"], o_xxx["TES"], o_xxx["CRIS"],
                 o_xxx["OMI"], o_xxx["TROPOMI"], o_xxx["OCO2"],
                 jacobian_speciesIn=jacobian_speciesIn,
-                only_create_instrument=instrument)
+                only_create_instrument=instrument,
+                pointing_angle=pointing_angle)
 
     def current_state(self, do_systematic=False, jacobian_speciesIn=None):
         return CurrentStateStateInfo(

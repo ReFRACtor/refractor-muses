@@ -1349,11 +1349,16 @@ class RefractorUip:
     def create_uip(cls, i_stateInfo, i_strategy_table, i_windows,     
                    i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi,
                    i_oco2, jacobian_speciesIn=None,
-                   only_create_instrument=None):
+                   only_create_instrument=None,
+                   pointing_angle : "optional(rf.DoubleWithUnit)" =None
+                   ):
         '''We duplicate what mpy.run_retrieval does to make the uip.
 
         To help reduce coupling, you can give the instrument you want, we'll create
         only that UIP. Default is None for everything found in the instrument windows.
+        You can supply the point angle to use for the boresight as a DoubleWithUnit.
+        This can be used instead of angles found in i_stateInfo. This is used
+        by the IRK calculation.
         '''
         i_windows = copy.deepcopy(i_windows)
         # Filter to only include the desired instrument
@@ -1402,6 +1407,26 @@ class RefractorUip:
             jacobian_speciesNames=jacobian_speciesIn
         else:
             jacobian_speciesNames = retrieval_info.species[0:retrieval_info.n_species]
+        # If requested, replace the pointing angle that is used. Note this
+        # really is mixed units down below, TES is in radians while others are
+        # in degrees. We have already copied i_state, so we don't need to worry
+        # about moving these back at the end of this function.
+        if(pointing_angle):
+            i_state.current["cris"]["scanAng"] = pointing_angle.convert("deg").value
+            i_state.current["airs"]["scanAng"] = pointing_angle.convert("deg").value
+            i_state.current["tes"]["boresightNadirRadians"] = pointing_angle.convert("rad").value
+            i_state.current["omi"]["vza_uv2"] = pointing_angle.convert("deg").value
+            i_state.current["tropomi"]["vza_BAND1"] =  pointing_angle.convert("deg").value
+            i_state.current["tropomi"]["vza_BAND2"] =  pointing_angle.convert("deg").value
+            i_state.current["tropomi"]["vza_BAND3"] =  pointing_angle.convert("deg").value
+            i_state.current["tropomi"]["vza_BAND4"] =  pointing_angle.convert("deg").value
+            i_state.current["tropomi"]["vza_BAND5"] =  pointing_angle.convert("deg").value
+            i_state.current["tropomi"]["vza_BAND6"] =  pointing_angle.convert("deg").value
+            i_state.current["tropomi"]["vza_BAND7"] =  pointing_angle.convert("deg").value
+            i_state.current["tropomi"]["vza_BAND8"] =  pointing_angle.convert("deg").value
+            # TODO Not sure what the OCO-2 equivalent is here, we'll leave that off
+            
+            
         uip = mpy.make_uip_master(i_state, i_state.current, i_table,
                                   i_windows, jacobian_speciesNames,
                                   i_cloudIndex=0, 
@@ -1504,6 +1529,9 @@ class RefractorUip:
                                               uip,
                                               i_tropomi)
         if "OCO2" in inst_to_window:
+            # Catch us not setting pointing angle for OCO-2
+            if(pointing_angle is not None):
+                raise RuntimeError("Don't currently support setting the pointing_angle for OCO-2, we just need to update the code to do that if needed.")
             uip["uip_OCO2"] = mpy.make_uip_oco2(i_state, i_state.current,
                                                 i_table,
                                                 inst_to_window["OCO2"],

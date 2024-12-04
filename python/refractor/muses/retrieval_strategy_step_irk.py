@@ -2,13 +2,9 @@ import refractor.muses.muses_py as mpy
 from .retrieval_strategy_step import (RetrievalStrategyStep,
                                       RetrievalStrategyStepSet)
 from .observation_handle import mpy_radiance_from_observation_list
-from .muses_observation import MusesTesObservation
-from .refractor_uip import RefractorUip
 import refractor.framework as rf
 from loguru import logger
-import copy
 import os
-import functools
 import numpy as np
 
 class RetrievalStrategyStepIRK(RetrievalStrategyStep):
@@ -19,300 +15,33 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             return (False,  None)
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         logger.info("Running run_irk ...")
-        self.results_irk = self.irk(rs)
+        obs = self.observation(rs)
+        fm = self.forward_model(rs, obs)
+        if(not hasattr(fm, "irk")):
+            raise RuntimeError(f"The forward model {fm.__class__.__name__} does not support calculating the irk")
+        # TODO Clean up this to make explicit what we are passing
+        self.results_irk = fm.irk(rs)
         rs.notify_update("IRK step", retrieval_strategy_step=self)
         return (True, None)
 
-    def irk(self, rs):
-        '''This was originally the run_irk.py code from py-retrieve. We
-        have our own copy of this so we can clean this code up a bit.
-    
-        This is currently only used by RetrievalStrategyStepIRK. We may move this
-        function into that class, but for now go ahead and keep this separate because
-        if its size'''
+    def observation(self, rs : 'RetrievalStrategy') -> 'MusesObservation':
         if(len(rs.current_strategy_step.instrument_name) != 1):
             raise RuntimeError("RetrievalStrategyStepIrk can only work with one instrument, we don't have handling for multiple.")
         iname = rs.current_strategy_step.instrument_name[0]
         obs = rs.observation_handle_set.observation(
             iname, None, rs.current_strategy_step.spectral_window_dict[iname], None)
-
-        t = obs.radiance_all_extended(include_bad_sample=True)
-        frq_l1b = np.array(t.spectral_domain.data)
-        rad_l1b = np.array(t.spectral_range.data)
-        # in degree
-        TES_angles = [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765] 
-        CRIS_angles = [0.0, 14.2906, 31.8588, 46.9590, 57.3154, 61.5613]
-        AIRS_angles = [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
+        return obs
+    
+    def forward_model(self, rs : 'RetrievalStrategy',
+                      obs : 'MusesObservation') -> rf.ForwardModel:
+        if(len(rs.current_strategy_step.instrument_name) != 1):
+            raise RuntimeError("RetrievalStrategyStepIrk can only work with one instrument, we don't have handling for multiple.")
+        iname = rs.current_strategy_step.instrument_name[0]
+        fm_sv = rf.StateVector()
+        return rs.forward_model_handle_set.forward_model(
+            iname, rs.current_state, obs, fm_sv, rs.uip_func)
         
-        xi_list = [0.0,] * len(TES_angles)
-        def f1():
-            fm_sv = rf.StateVector()
-            return rs.forward_model_handle_set.forward_model(
-                iname, rs.current_state, obs, fm_sv, rs.uip_func)
-        fm_func = f1
-        # If we are using AIRS, then replace with the TES forward model
-        if iname == 'AIRS':
-            tes_frequency_fname = f"{rs.retrieval_config['spectralWindowDirectory']}/../../tes_frequency.nc"
-            obs = MusesTesObservation.create_fake_for_irk(tes_frequency_fname,
-                                                          obs.spectral_window)
-            def f2():
-                fm_sv = rf.StateVector()
-                return rs.forward_model_handle_set.forward_model(
-                    "TES", rs.current_state, obs, fm_sv,
-                    functools.partial(rs.uip_func, obs_list=[obs,]))
-            fm_func = f2
-        t1 = rs.state_info.state_info_dict['current']['cris']['scanAng']
-        t2 = rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians']
-        t3 = rs.state_info.state_info_dict['current']['airs']['scanAng']
-        radiance = []
-        jacobian = []
-        for iangle in range(len(TES_angles)):
-            rs.state_info.state_info_dict['current']['cris']['scanAng'] = CRIS_angles[iangle]
-            rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians'] = TES_angles[iangle]
-            rs.state_info.state_info_dict['current']['airs']['scanAng'] = AIRS_angles[iangle]
-            if(obs.instrument_name == 'CRIS'):
-                gi_angle = CRIS_angles[iangle]
-            elif(obs.instrument_name == "AIRS"):
-                gi_angle = AIRS_angles[iangle]
-            elif(obs.instrument_name == "TES"):
-                gi_angle = TES_angles[iangle]
-            else:
-                raise RuntimeError("Not implemented")
-            fm = fm_func()
-            with obs.modify_spectral_window(include_bad_sample=True):
-                r = fm.radiance_all(False)
-            uip_all = fm.rf_uip.uip_all(obs.instrument_name)
-            frequency = r.spectral_domain.data
-            radiance.append(r.spectral_range.data)
-            jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
-            
-            ray_info = fm.rf_uip.ray_info(obs.instrument_name)
-            if gi_angle == 0.0: 
-                nadir_column = np.sum(ray_info["column_air"])
-                ray_info_2 = fm.rf_uip.ray_info(obs.instrument_name,
-                                                set_cloud_extinction_one=True)
-                dEdOD = 1. / ray_info_2['cloud']['tau_total']
-            else:
-                slant_column = np.sum(ray_info["column_air"])
-                xi_list[iangle] = nadir_column / slant_column
-    
-        rs.state_info.state_info_dict['current']['cris']['scanAng'] = t1
-        rs.state_info.state_info_dict['current']['tes']['boresightNadirRadians'] = t2
-        rs.state_info.state_info_dict['current']['airs']['scanAng'] = t3
-        freq_step = frequency[1:] - frequency[:-1]
-        freq_step = np.array([freq_step[0], *freq_step])
-        n_l1b = len(frq_l1b)
-        
-        # need remove missing data in L1b radiance
-        ifrq_missing = np.where(rad_l1b == 0.0)
-        valid_indices = np.where(rad_l1b != 0.0)[0]  # Ensure 1-D array
-        rad_l1b[ifrq_missing] = np.interp(ifrq_missing, valid_indices, rad_l1b[valid_indices])
-    
-        freq_step_l1b_temp = (frq_l1b[2:] - frq_l1b[0:n_l1b-2]) / 2.  
-        freq_step_l1b = np.concatenate((np.asarray([frq_l1b[1] - frq_l1b[0]]), freq_step_l1b_temp, np.asarray([frq_l1b[n_l1b-1] - frq_l1b[n_l1b-2]])), axis=0)
 
-        radianceWeighted = 2.0 * (0.015748 * radiance[5] +
-                                  0.073909 * radiance[4] + 
-                                  0.146387 * radiance[3] + 
-                                  0.167175 * radiance[2] + 
-                                  0.096782 * radiance[1])
-    
-        radratio = radiance[0] / radianceWeighted
-        ifrq = self._find_bin(frequency, frq_l1b)
-        radratio = radratio[ifrq]
-        ifreq = np.where((frequency >= 980.) & (frequency <= 1080.))[0]
-        flux = 1e4 * np.pi * np.sum(freq_step[ifreq] * radianceWeighted[ifreq])
-        ifreq_l1b = np.where((frq_l1b >= 980.) & (frq_l1b <= 1080.))[0]
-        flux_l1b = 1e4 * np.pi * np.sum(freq_step_l1b[ifreq_l1b] * rad_l1b[ifreq_l1b]/radratio[ifreq_l1b])
-        minn = np.amin(frequency)
-        maxx = np.amax(frequency)
-        minn = 970.
-        maxx = 1120.
-        nf = int((maxx-minn)/3)
-        freqSegments = np.ndarray(shape=(nf), dtype=np.float32)
-        freqSegments.fill(0) # It is import to start with 0 because not all elements will be calculated.
-        fluxSegments = np.ndarray(shape=(nf), dtype=np.float32)
-        fluxSegments.fill(0) # It is import to start with 0 because not all elements will be calculated.
-        fluxSegments_l1b = np.ndarray(shape=(nf), dtype=np.float32)
-        fluxSegments_l1b.fill(0) # It is import to start with 0 because not all elements will be calculated.
-        
-        # get split into 3 cm-1 segments
-        for ii in range(nf):
-            ind = np.where((frequency >= minn+ii*3) & (frequency < minn+ii*3+3))[0]
-            ind_l1b = np.where((frq_l1b >= minn+ii*3) & ((frq_l1b < minn+ii*3+3) & (rad_l1b > 0.)))[0]
-            if len(ind_l1b) > 0:
-                fluxSegments_l1b[ii] = 1e4*np.pi*np.sum(freq_step_l1b[ind_l1b]*rad_l1b[ind_l1b]/radratio[ind_l1b])
-            if len(ind) > 0: # We only calculate fluxSegments, fluxSegments_l1b, and freqSegments if there is at least 1 value in ind vector.
-                fluxSegments[ii] = 1e4 * np.pi * np.sum(freq_step[ind]*radianceWeighted[ind])
-                freqSegments[ii] = np.mean(frequency[ind])
-    
-        jacWeighted = 2.0 * (0.015748 * jacobian[5] +
-                             0.073909 * jacobian[4] +
-                             0.146387 * jacobian[3] +
-                             0.167175 * jacobian[2] +
-                             0.096782 * jacobian[1])
-    
-        # weight by freq_step
-        jacWeighted *= freq_step[np.newaxis, :]
-    
-        o_results_irk = {
-            'flux':flux,
-            'flux_l1b': flux_l1b,                 
-            'fluxSegments': fluxSegments,         
-            'freqSegments': freqSegments,         
-            'fluxSegments_l1b': fluxSegments_l1b 
-        } 
-    
-        # smaller range for irk average 
-        indf = np.where((frequency >= 979.99) & (frequency <= 1078.999))[0]
-    
-        irk_array = 1e4 * np.pi * mpy.my_total(jacWeighted[:,indf], 1)
-    
-        minn = 980.0
-        maxx = 1080.0
-    
-        nf = int((maxx-minn)/3)
-        irk_segs = np.zeros(shape=(jacWeighted.shape[0], nf),dtype=np.float32)
-        freq_segs = np.zeros(shape=(nf),   dtype=np.float32)
-    
-        for ii in range(nf):
-            ind = np.where((frequency >= minn+ii*3) & (frequency < minn+ii*3+3))[0]
-            if len(ind) > 1:  # We only calculate irk_segs and freq_segs if there are more than 1 values in ind vector.
-                irk_segs[:, ii] = 1e4 * np.pi * mpy.my_total(jacWeighted[:, ind], 1)
-                freq_segs[ii] = np.mean(frequency[ind])
-        # end for ii in range(nf):
-    
-        # AT_LINE 333 src_ms-2018-12-10/run_irk.pro
-        radarr_fm = np.concatenate(radiance, axis=0)
-        radInfo = {
-            'gi_angle'  : gi_angle,  
-            'radarr_fm' : radarr_fm, 
-            'freq_fm'   : frequency, 
-            'rad_L1b'   : rad_l1b,    
-            'freq_L1b'  : frq_l1b
-        }
-        o_results_irk['freqSegments_irk'] = freq_segs
-        o_results_irk['radiances'] = radInfo
-    
-        # calculate irk for each type
-        for ispecies in range(len(rs.retrieval_info.species_names)):
-            species_name = rs.retrieval_info.species_names[ispecies]
-            ii = rs.retrieval_info.parameter_start_fm[ispecies]
-            jj = rs.retrieval_info.parameter_end_fm[ispecies]
-            vmr = rs.retrieval_info.initial_guess_list_fm[ii: jj+1]
-            if rs.retrieval_info.map_type[ispecies] == 'log':
-                vmr = np.exp(vmr)
-            pressure = rs.retrieval_info.pressure_list_fm[ii: jj+1]
-    
-            myirfk = copy.deepcopy(irk_array[ii:jj+1]);
-            myirfk_segs = copy.deepcopy(irk_segs [ii:jj+1, :])
-    
-            # convert cloudext to cloudod
-            # dL/dod = dL/dext * dext/dod
-            if species_name == 'CLOUDEXT':
-                myirfk = np.multiply(myirfk, dEdOD)
-                for pp in range(dEdOD.shape[0]):
-                    myirfk_segs[pp, :] = myirfk_segs[pp, :] * dEdOD[pp]
-    
-                species_name = 'CLOUDOD'  
-                vmr = np.divide(vmr, dEdOD)
-    
-            mm = (jj-ii+1)
-            if species_name == 'TATM' or species_name == 'TSUR':
-                mylirfk = np.multiply(myirfk,vmr)
-                mylirfk_segs = copy.deepcopy(myirfk_segs)
-                for kk in range(mm):
-                    mylirfk_segs[kk, :] = mylirfk_segs[kk, :] * vmr[kk]
-            else:
-                mylirfk = copy.deepcopy(myirfk)
-                myirfk = np.divide(myirfk, vmr)
-                mylirfk_segs = copy.deepcopy(myirfk_segs)
-                # myirfk_segs  = myirfk_segs;  This line doesn't do anything.  Is it a bug?
-                for kk in range(mm):
-                    myirfk_segs[kk, :] = myirfk_segs[kk, :] / vmr[kk]
-    
-            mult_factor = 1.0
-            unit = ' '  # Set to one space just in case nobody below sets it.
-            if species_name == 'O3':
-                mult_factor = 1.0/1e9 # W/m2/ppb
-                unit = 'W/m2/ppb'
-            elif species_name == 'O3':
-                mult_factor = 1.0
-                unit = 'W/m2/ppb'
-            elif species_name == 'H2O':
-                mult_factor = 1.0/1e6  # W/m2/ppm
-                unit = 'W/m2/ppm'
-            elif species_name == 'H2O':
-                mult_factor = 1.0
-                unit = 'W/m2/ppm'
-            elif species_name == 'TATM':
-                mult_factor = 1.0
-                unit = 'W/m2/K'
-            elif species_name == 'TSUR':
-                mult_factor = 1.0
-                unit = 'W/m2/K'
-            elif species_name == 'EMIS':
-                mult_factor = 1.0
-                unit = 'W/m2'
-            elif species_name == 'CLOUDDOD':
-                mult_factor = 1.0
-                unit = 'W/m2'
-            elif species_name == 'PCLOUD':
-                mult_factor = 1.0
-                unit = 'W/m2/hPa'
-            else:
-                # Fall back
-                mult_factor = 1.0
-                unit = ' '
-                
-            myirfk = np.multiply(myirfk, mult_factor)
-            myirfk_segs = np.multiply(myirfk_segs, mult_factor)
-    
-            # subset only freqs in range
-            if species_name == 'CLOUDOD':
-                myirfk_segs = myirfk_segs[:, 0]
-                myirfk_segs = np.reshape(myirfk_segs, (myirfk_segs.shape[0]))
-                    
-                mylirfk_segs = mylirfk_segs[:,0]
-                mylirfk_segs = np.reshape(mylirfk_segs, (mylirfk_segs.shape[0]))
-    
-            vmr = np.divide(vmr, mult_factor)
-    
-            # Build a structure of result for each species_name.
-            result_per_species = {
-                'irfk'      : myirfk,       
-                'lirfk'     : mylirfk,      
-                'pressure'  : pressure,     
-                'unit'      : unit,         
-                'irfk_segs' : myirfk_segs,  
-                'lirfk_segs': mylirfk_segs, 
-                'vmr'       : vmr
-            }
-    
-            # Add the result for each species_name to our structure to return.
-            # Note that the name of the species is the key for the dictionary structure.
-    
-            o_results_irk[species_name] = copy.deepcopy(result_per_species)  # o_results_irk
-        # end for ispecies in range(len(jacobian_speciesIn)):
-        return o_results_irk
-
-    def _find_bin(self, x, y):
-        # IDL_LEGACY_NOTE: This function _find_bin is the same as findbin in run_irk.pro file.
-        #
-        # Returns the bin numbers for nearest value of x array to values of y
-        #       returns nearest bin for values outside the range of x
-        #
-        ny = len(y)
-    
-        o_bin = np.ndarray(shape=(ny), dtype=np.int32)
-        for iy in range(0, ny):
-            ix = np.argmin(abs(x - y[iy]))
-            o_bin[iy] = ix
-    
-        if (ny == 1):
-            o_bin = np.asarray([o_bin[0]])
-    
-        return o_bin
     
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepIRK())
     

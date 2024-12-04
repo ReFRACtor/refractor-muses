@@ -1,4 +1,5 @@
 from test_support import *
+import refractor.framework as rf
 from refractor.muses import RefractorUip
 import subprocess
 import pprint
@@ -93,7 +94,10 @@ def test_refractor_joint_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
     i_oco2 = rstep.params["i_oco2"]
     rf_uip = RefractorUip.create_uip(
         i_stateInfo, i_table, i_windows,     
-        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2,
+        # Test for pointing angle
+        #pointing_angle=rf.DoubleWithUnit(45,"deg"))
+        )
     # aertype is some odd structure used for OCO-2, which doesn't seem to be set right. We
     # may need to eventually sort this out, but it doesn't actually seem to be used  for
     # anything. Remove just so it doesn't interfere with our check of everything else.
@@ -152,8 +156,12 @@ def test_refractor_joint_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
     i_omi = rstep.params["i_omi"]
     i_tropomi = rstep.params["i_tropomi"]
     i_oco2 = rstep.params["i_oco2"]
-    rf_uip = RefractorUip.create_uip(i_stateInfo, i_table, i_windows,     
-        i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi, i_oco2)
+    rf_uip = RefractorUip.create_uip(
+        i_stateInfo, i_table, i_windows, i_retrievalInfo, i_airs, i_tes,
+        i_cris, i_omi, i_tropomi, i_oco2,
+        # Test for pointing angle
+        #pointing_angle=rf.DoubleWithUnit(45,"deg"))
+        )
     # aertype is some odd structure used for OCO-2, which doesn't seem to be set right. We
     # may need to eventually sort this out, but it doesn't actually seem to be used  for
     # anything. Remove just so it doesn't interfere with our check of everything else.
