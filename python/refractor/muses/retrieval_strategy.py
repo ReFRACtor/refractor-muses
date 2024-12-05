@@ -243,10 +243,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         return self._strategy_executor
 
     @property
-    def uip_func(self) -> 'func->RefractorUip':
-        return self._strategy_executor.uip_func
-
-    @property
     def run_dir(self) -> str:
         '''Directory we are running in (e.g. where the strategy table and measurement id files
         are)'''

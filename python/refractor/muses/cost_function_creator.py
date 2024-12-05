@@ -45,9 +45,9 @@ class CostFunctionCreator:
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
 
-    def _rf_uip_func_wrap(self, instrument=None):
-        # TODO Not ready yet to make use of instrument to restrict UIP,
-        # so we ignore that. We'll need to come back to that in a bit
+    def _rf_uip_func_wrap(self, instrument):
+        '''We need to keep a copy of the UIP if it gets creates by a lower
+        level routine, so that we can attach this to the state vector.'''
         if(instrument not in self._rf_uip):
             self._rf_uip[instrument] = self._rf_uip_func(instrument=instrument)
         return self._rf_uip[instrument]
@@ -56,7 +56,7 @@ class CostFunctionCreator:
                       instrument_name_list : "list[str]",
                       current_state : CurrentState,
                       spec_win_dict : "Optional(dict(str, MusesSpectralWindow))",
-                      rf_uip_func, 
+                      rf_uip_func : "Optional(Callable[[str], RefractorUip])",
                       include_bad_sample=False,
                       obs_list : "Optional(list[MusesObservation])" =None,
                       **kwargs):
@@ -99,10 +99,11 @@ class CostFunctionCreator:
             self._rf_uip_func_wrap, include_bad_sample=include_bad_sample,
             obs_list=obs_list, **kwargs)
         cfunc = CostFunction(*args)
-        # If we have an UIP, then update this when the parameters get updated.
-        # Note the rf_uip.basis_matrix is None handles the degenerate case of when we
-        # have no parameters, for example for RetrievalStrategyStepBT. Any time we
-        # have parameters, the basis_matrix shouldn't be None.
+        # If we have an UIP, then update this when the parameters get
+        # updated.  Note the rf_uip.basis_matrix is None handles the
+        # degenerate case of when we have no parameters, for example
+        # for RetrievalStrategyStepBT. Any time we have parameters,
+        # the basis_matrix shouldn't be None.
         for uip in self._rf_uip.values():
             if(uip.basis_matrix is not None):
                 cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(uip))
@@ -113,7 +114,7 @@ class CostFunctionCreator:
                        instrument_name_list : "list[str]",
                        current_state : CurrentState,
                        spec_win_dict : "Optional(dict[str, MusesSpectralWindow])",
-                       rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
+                       rf_uip_func : "Optional(Callable[[str], RefractorUip])",
                        include_bad_sample=False,
                        obs_list : "Optional(list[MusesObservation])" =None,
                        **kwargs):

@@ -339,7 +339,7 @@ class OmiForwardModelHandle(ForwardModelHandle):
                       current_state : 'CurrentState',
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
-                      rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])",
+                      rf_uip_func : "Optional(Callable[[str], RefractorUip])",
                       **kwargs):
         if(instrument_name != "OMI"):
             return None

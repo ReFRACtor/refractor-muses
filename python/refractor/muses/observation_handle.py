@@ -7,17 +7,21 @@ import numpy as np
 
 def mpy_radiance_from_observation_list(obs_list : 'list(MusesObservation)',
                                        include_bad_sample=False, full_band=False):
-    '''There are various places where py-retrieve needs the radiance data in
-    a particular structure (e.g., its 'radianceStep' calculations.
+    '''There are various places where py-retrieve needs the radiance
+    data in a particular structure (e.g., its 'radianceStep'
+    calculations.
 
     This takes a list of MusesObservation and creates this structure.
 
-    Note that in some cases we want to be able to include bad samples or
-    do a full band. Right now, we restrict ourselves to MusesObservation. We
-    could probably extend this to a general Observation if that proves necessary -
-    we just need a way to specify if we are including bad samples or full band.
-    Right now we depend on the observation having the function 'modify_spectral_window',
-    but if we can do the same functionality in another way.
+    Note that in some cases we want to be able to include bad samples
+    or do a full band. Right now, we restrict ourselves to
+    MusesObservation. We could probably extend this to a general
+    Observation if that proves necessary - we just need a way to
+    specify if we are including bad samples or full band.  Right now
+    we depend on the observation having the function
+    'modify_spectral_window', but if we can do the same functionality
+    in another way.
+
     '''
     f = []
     d = []
@@ -78,19 +82,21 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
                     spec_win : "Optional(MusesSpectralWindow)",
                     fm_sv: "Optional(rf.StateVector)",
                     **kwargs):
-        '''Return Observation if we can process the given instrument_name, or
-        None if we can't. Add to fm_sv. If you don't need a StateVector (e.g., you are
-        just accessing the data, not doing a retrieval), you can pass this as None and
+        '''Return Observation if we can process the given
+        instrument_name, or None if we can't. Add to fm_sv. If you
+        don't need a StateVector (e.g., you are just accessing the
+        data, not doing a retrieval), you can pass this as None and
         adding the state vector is skipped.
 
-        If you don't need fm_sv, you can also optional set current_state to None, in which
-        case default values are used for any coefficients the Observation depends on.
+        If you don't need fm_sv, you can also optional set
+        current_state to None, in which case default values are used
+        for any coefficients the Observation depends on.
 
-        You can also leave spec_win off if you just want access to the full data, i.e.,
-        doing a full_band.
+        You can also leave spec_win off if you just want access to the
+        full data, i.e., doing a full_band.
 
-        The MusesSpectralWindow does not need to have the bad samples set, we add that
-        in when we create the Observation.
+        The MusesSpectralWindow does not need to have the bad samples
+        set, we add that in when we create the Observation.
         '''
         raise NotImplementedError()
 
@@ -109,4 +115,5 @@ class ObservationHandleSet(CreatorHandleSet):
         '''Create an Observation for the given instrument.'''
         return self.handle(instrument_name, current_state, spec_win, fm_sv, **kwargs)
                  
-__all__ = ["ObservationHandleSet", "ObservationHandle", "mpy_radiance_from_observation_list"]
+__all__ = ["ObservationHandleSet", "ObservationHandle",
+           "mpy_radiance_from_observation_list"]

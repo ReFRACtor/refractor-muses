@@ -283,12 +283,18 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         '''The RetrievalStrategyStepSet to use for getting RetrievalStrategyStep.'''
         return self._retrieval_strategy_step_set
 
-    def uip_func(self, obs_list : 'optional(list(MusesObservation))' = None,
-                 instrument : str =None, do_systematic=False,
-                 jacobian_speciesIn=None,
-                 pointing_angle : "optional(rf.DoubleWithUnit)" =None):
-        '''To reduce coupling, you can give the instrument name to use. The default
-        is None, which means to create all instruments used in this step.
+    def rf_uip_func_cost_function(self, do_systematic,
+            jacobian_speciesIn) -> "Callable[[str], RefractorUip]":
+        return functools.partial(self._rf_uip_func, do_systematic=do_systematic,
+                                 jacobian_speciesIn=jacobian_speciesIn)
+
+    def _rf_uip_func(self, instrument : str,
+                    obs_list : 'optional(list(MusesObservation))' = None,
+                    do_systematic=False,
+                    jacobian_speciesIn=None,
+                    pointing_angle : "optional(rf.DoubleWithUnit)" =None):
+        '''
+        To reduce coupling, you can give the instrument name to use. 
 
         You can also pass in the observation list. Normally this function can just
         create this for you using our observation_handle_set. But the AIRS IRK
@@ -367,8 +373,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.current_state(do_systematic=do_systematic,
                                jacobian_speciesIn=jacobian_speciesIn),
             self.current_strategy_step.spectral_window_dict,
-            functools.partial(self.uip_func, do_systematic=do_systematic,
-                              jacobian_speciesIn=jacobian_speciesIn),
+            self.rf_uip_func_cost_function(do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample, **self.rs._kwargs)
 
 class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrategyStep):

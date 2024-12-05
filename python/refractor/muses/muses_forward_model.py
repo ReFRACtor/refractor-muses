@@ -194,7 +194,8 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         return r, dEdOD
 
     
-    def irk(self, rs : 'RetrievalStrategy') -> 'dict':
+    def irk(self, retrieval_info : 'RetrievalInfo',
+            uip_func : 'func -> RefractorUip') -> 'dict':
         '''This was originally the run_irk.py code from py-retrieve. We
         have our own copy of this so we can clean this code up a bit.
         '''
@@ -206,11 +207,11 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         for gi_angle in self.irk_angle():
             if gi_angle == 0.0: 
                 r, dEdOD = self.irk_radiance(
-                    rf.DoubleWithUnit(0.0, "deg"), rs.uip_func)
+                    rf.DoubleWithUnit(0.0, "deg"), uip_func)
                 frequency = r.spectral_domain.data
             else:
                 r, _ = self.irk_radiance(
-                    rf.DoubleWithUnit(gi_angle, "deg"), rs.uip_func)
+                    rf.DoubleWithUnit(gi_angle, "deg"), uip_func)
             radiance.append(r.spectral_range.data)
             jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
             
@@ -305,14 +306,14 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         o_results_irk['radiances'] = radInfo
     
         # calculate irk for each type
-        for ispecies in range(len(rs.retrieval_info.species_names)):
-            species_name = rs.retrieval_info.species_names[ispecies]
-            ii = rs.retrieval_info.parameter_start_fm[ispecies]
-            jj = rs.retrieval_info.parameter_end_fm[ispecies]
-            vmr = rs.retrieval_info.initial_guess_list_fm[ii: jj+1]
-            if rs.retrieval_info.map_type[ispecies] == 'log':
+        for ispecies in range(len(retrieval_info.species_names)):
+            species_name = retrieval_info.species_names[ispecies]
+            ii = retrieval_info.parameter_start_fm[ispecies]
+            jj = retrieval_info.parameter_end_fm[ispecies]
+            vmr = retrieval_info.initial_guess_list_fm[ii: jj+1]
+            if retrieval_info.map_type[ispecies] == 'log':
                 vmr = np.exp(vmr)
-            pressure = rs.retrieval_info.pressure_list_fm[ii: jj+1]
+            pressure = retrieval_info.pressure_list_fm[ii: jj+1]
     
             myirfk = copy.deepcopy(irk_array[ii:jj+1]);
             myirfk_segs = copy.deepcopy(irk_segs [ii:jj+1, :])
@@ -577,14 +578,14 @@ class MusesForwardModelHandle(ForwardModelHandle):
                       current_state : 'CurrentState',
                       obs : 'MusesObservation',
                       fm_sv: rf.StateVector,
-                      rf_uip_func,
+                      rf_uip_func : "Optional(Callable[[str], RefractorUip])",
                       **kwargs):
         if(instrument_name != self.instrument_name):
             return None
         logger.debug(f"Creating forward model {self.cls.__name__}")
         # Note MeasurementId also has access to all the stuff in
         # RetrievalConfiguration
-        return self.cls(rf_uip_func(instrument=instrument_name), obs,
+        return self.cls(rf_uip_func(instrument_name), obs,
                         self.measurement_id, **kwargs)
 
 # The Muses code is the fallback, so add with the lowest priority

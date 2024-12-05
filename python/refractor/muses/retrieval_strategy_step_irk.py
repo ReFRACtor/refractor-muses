@@ -19,8 +19,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         fm = self.forward_model(rs, obs)
         if(not hasattr(fm, "irk")):
             raise RuntimeError(f"The forward model {fm.__class__.__name__} does not support calculating the irk")
-        # TODO Clean up this to make explicit what we are passing
-        self.results_irk = fm.irk(rs)
+        self.results_irk = fm.irk(rs.retrieval_info, rs.uip_func)
         rs.notify_update("IRK step", retrieval_strategy_step=self)
         return (True, None)
 
@@ -39,7 +38,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         iname = rs.current_strategy_step.instrument_name[0]
         fm_sv = rf.StateVector()
         return rs.forward_model_handle_set.forward_model(
-            iname, rs.current_state, obs, fm_sv, rs.uip_func)
+            iname, rs.current_state, obs, fm_sv, rs._strategy_executor.rf_uip_func_cost_function())
         
 
     

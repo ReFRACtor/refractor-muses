@@ -48,7 +48,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def __init__(self, current_state : 'CurrentState',
                  measurement_id : 'MeasurementId',
                  instrument_name: str, observation : 'MusesObservation',
-                 rf_uip_func : "Optional(Callable[{instrument:None}, RefractorUip])" = None,
+                 rf_uip_func : "Optional(Callable[[str], RefractorUip])" = None,
                  fm_sv : "Optional(rf.StateVector)" = None,
                  # Values, so we can flip between using pca and not
                  use_pca=True, use_lrad=False, lrad_second_order=False,
@@ -59,18 +59,24 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                  absorption_gases = ["O3",],
                  primary_absorber = "O3"
                  ):
-        '''Constructor. The StateVector to add things to can be passed in, or if this
-        isn't then we create a new StateVector.
+        '''Constructor. The StateVector to add things to can be passed
+        in, or if this isn't then we create a new StateVector.
 
-        There are a number of number of options for exactly how we construct the
-        ForwardModel.
+        There are a number of number of options for exactly how we
+        construct the ForwardModel.
 
-        match_py_retrieve - We have some classes that purposely mimic the way py-retrieves
-             forward model works. These may have only minor differences with standard
-             ReFRACtor classes, but for doing an initial comparison against py-retrieve
-             it can be useful to remove minor differences to uncover anything that might
-             be a real, unexpected difference. Normally you want to the default False
-             value, but for testing purposes you might want to turn this on.
+        match_py_retrieve - We have some classes that purposely mimic
+             the way py-retrieves forward model works. These may have
+             only minor differences with standard ReFRACtor classes,
+             but for doing an initial comparison against py-retrieve
+             it can be useful to remove minor differences to uncover
+             anything that might be a real, unexpected
+             difference. Normally you want to the default False value,
+             but for testing purposes you might want to turn this on.
+        rf_uip_func - To support all oy_retrieve code, we can take a function
+            to generate a UIP. This should take the instrument name as an
+            argument and return a RefractorUip. This is only called if we
+            need the UIP.
         '''
         self.use_pca = use_pca
         self.use_lrad = use_lrad
@@ -127,7 +133,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def ray_info(self):
         '''Return MusesRayInfo.'''
-        return MusesRayInfo(self.rf_uip_func(), self.instrument_name, self.pressure)
+        return MusesRayInfo(self.rf_uip_func(self.instrument_name), self.instrument_name, self.pressure)
 
     @property
     def spec_win(self):
@@ -354,7 +360,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         pgrid = self.pressure_fm.pressure_grid()
         pgrid_v = self.pressure_fm.pressure_grid().value.value
         if(self.match_py_retrieve):
-            rinfo = MusesRayInfo(self.rf_uip_func(), self.instrument_name, self.pressure_fm)
+            rinfo = MusesRayInfo(self.rf_uip_func(self.instrument_name), self.instrument_name, self.pressure_fm)
             ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure.value)
         else:
             # Calculate without MusesRayInfo. I'm not sure if this is ever actually

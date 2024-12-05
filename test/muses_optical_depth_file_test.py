@@ -17,7 +17,7 @@ def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp
     mid = MeasurementIdFile(f"{test_base_path}/tropomi/in/sounding_1/Measurement_ID.asc",
                             rconf, flist)
     return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_2), mid,
-                                  tropomi_obs_step_2, rf_uip_func=lambda **kwargs: tropomi_uip_step_2)
+                                  tropomi_obs_step_2, rf_uip_func=lambda instrument_name: tropomi_uip_step_2)
 
 
 @require_muses_py
