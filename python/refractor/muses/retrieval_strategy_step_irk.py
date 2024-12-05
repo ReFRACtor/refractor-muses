@@ -15,11 +15,11 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             return (False,  None)
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         logger.info("Running run_irk ...")
-        obs = self.observation(rs)
-        fm = self.forward_model(rs, obs)
+        fm = rs._strategy_executor.create_forward_model()
         if(not hasattr(fm, "irk")):
             raise RuntimeError(f"The forward model {fm.__class__.__name__} does not support calculating the irk")
-        self.results_irk = fm.irk(rs.retrieval_info, rs.uip_func)
+        self.results_irk = fm.irk(rs.retrieval_info,
+                                  rs._strategy_executor.rf_uip_irk)
         rs.notify_update("IRK step", retrieval_strategy_step=self)
         return (True, None)
 

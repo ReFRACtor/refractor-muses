@@ -11,6 +11,7 @@ from .qa_data_handle import QaDataHandleSet
 from .muses_strategy import MusesStrategyOldStrategyTable
 from .refractor_uip import RefractorUip
 import refractor.muses.muses_py as mpy
+import refractor.framework as rf
 import abc
 import copy
 from loguru import logger
@@ -288,6 +289,11 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return functools.partial(self._rf_uip_func, do_systematic=do_systematic,
                                  jacobian_speciesIn=jacobian_speciesIn)
 
+    def rf_uip_irk(self, obs : 'MusesObservation',
+                   pointing_angle : "rf.DoubleWithUnit"):
+        return self._rf_uip_func(obs.instrument_name, obs_list=[obs,],
+                                 pointing_angle=pointing_angle)
+
     def _rf_uip_func(self, instrument : str,
                     obs_list : 'optional(list(MusesObservation))' = None,
                     do_systematic=False,
@@ -355,6 +361,19 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             f"{self.rs.run_dir}/Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}",
             do_systematic=do_systematic,
             retrieval_state_element_override=jacobian_speciesIn)
+
+    def create_forward_model(self):
+        '''Create a forward model for the current step.'''
+        if(len(self.current_strategy_step.instrument_name) != 1):
+            raise RuntimeError("create_forward_model can only work with one instrument, we don't have handling for multiple.")
+        iname = self.current_strategy_step.instrument_name[0]
+        obs = self.rs.observation_handle_set.observation(
+            iname, None, self.current_strategy_step.spectral_window_dict[iname],
+            None)
+        fm_sv = rf.StateVector()
+        return self.rs.forward_model_handle_set.forward_model(
+            iname, self.current_state, obs, fm_sv,
+            self.rf_uip_func_cost_function(False, None))
 
     def create_cost_function(self, do_systematic=False, include_bad_sample=False,
                              fix_apriori_size=False, jacobian_speciesIn=None):

@@ -172,30 +172,29 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         return [0, 0.096782, 0.167175, 0.146387, 0.073909, 0.015748]
 
     def irk_radiance(self, pointing_angle : rf.DoubleWithUnit,
-                     uip_func):
+                     rf_uip_func : "Callable[[MusesObservation, rf.DoubleWithUnit], RefractorUip"):
         '''Calculate radiance/jacobian for the IRK calculation, for the
         given angle. If pointing_angle is 0, we also return dEdOD.'''
-        uip_pointing = uip_func(obs_list=[self.obs,],
-                                instrument=self.instrument_name,
-                                pointing_angle=pointing_angle)
-        uip_original = self.rf_uip
+        rf_uip_pointing = rf_uip_func(self.obs, pointing_angle)
+        rf_uip_original = self.rf_uip
         try:
-            self.rf_uip = uip_pointing
+            self.rf_uip = rf_uip_pointing
             with self.obs.modify_spectral_window(include_bad_sample=True):
                 r = self.radiance_all(False)
             if pointing_angle.value == 0.0: 
-                ray_info = uip_pointing.ray_info(self.obs.instrument_name,
-                                                 set_cloud_extinction_one=True)
+                ray_info = rf_uip_pointing.ray_info(self.obs.instrument_name,
+                                                    set_cloud_extinction_one=True)
                 dEdOD = 1. / ray_info['cloud']['tau_total']
             else:
                 dEdOD = None
         finally:
-            self.rf_uip = uip_original
+            self.rf_uip = rf_uip_original
         return r, dEdOD
 
     
     def irk(self, retrieval_info : 'RetrievalInfo',
-            uip_func : 'func -> RefractorUip') -> 'dict':
+            rf_uip_func : "Callable[[MusesObservation, rf.DoubleWithUnit], RefractorUip"
+            ) -> 'dict':
         '''This was originally the run_irk.py code from py-retrieve. We
         have our own copy of this so we can clean this code up a bit.
         '''
@@ -207,11 +206,11 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         for gi_angle in self.irk_angle():
             if gi_angle == 0.0: 
                 r, dEdOD = self.irk_radiance(
-                    rf.DoubleWithUnit(0.0, "deg"), uip_func)
+                    rf.DoubleWithUnit(0.0, "deg"), rf_uip_func)
                 frequency = r.spectral_domain.data
             else:
                 r, _ = self.irk_radiance(
-                    rf.DoubleWithUnit(gi_angle, "deg"), uip_func)
+                    rf.DoubleWithUnit(gi_angle, "deg"), rf_uip_func)
             radiance.append(r.spectral_range.data)
             jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
             
@@ -515,7 +514,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
                                                        self.obs.spectral_window)
 
     def irk_radiance(self, pointing_angle : rf.DoubleWithUnit,
-                     uip_func):
+                     rf_uip_func : "Callable[[MusesObservation, rf.DoubleWithUnit], RefractorUip"):
         '''Calculate radiance/jacobian for the IRK calculation, for the
         given angle. We also return the UIP we used for the calculation'''
         # For AIRS, we use the TES forward model instead. Based on comments in
@@ -525,7 +524,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         try:
             self.obs = self.irk_obs
             self.instrument_name = "TES"
-            return super().irk_radiance(pointing_angle, uip_func)
+            return super().irk_radiance(pointing_angle, rf_uip_func)
         finally:
             self.obs = obs_original
             self.instrument_name = "AIRS"
