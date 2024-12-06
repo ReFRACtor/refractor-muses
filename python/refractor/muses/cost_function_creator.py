@@ -48,9 +48,27 @@ class CostFunctionCreator:
     def _rf_uip_func_wrap(self, instrument):
         '''We need to keep a copy of the UIP if it gets creates by a lower
         level routine, so that we can attach this to the state vector.'''
+        if(None in self._rf_uip):
+            return self._rf_uip[None]
         if(instrument not in self._rf_uip):
-            self._rf_uip[instrument] = self._rf_uip_func(instrument=instrument)
-        return self._rf_uip[instrument]
+            # If we have multiple instruments that need the UIP (e..g,
+            # a py-retrieve like retrieval with a joint AIRS OMI step), then
+            # recreate the UIP for all the instruments. This is needed to
+            # have the update happen correctly - we can't update just half
+            # of the UIP.
+            if(len(self._rf_uip) > 0):
+                new_uip =  self._rf_uip_func(None)
+                k = list(self._rf_uip.keys())[0]
+                v = self._rf_uip[k]
+                v.uip = new_uip.uip
+                self._rf_uip = {}
+                self._rf_uip[None] = v
+            else:
+                self._rf_uip[instrument] = self._rf_uip_func(instrument)
+        if(None in self._rf_uip):
+            return self._rf_uip[None]
+        else:
+            return self._rf_uip[instrument]
         
     def cost_function(self,
                       instrument_name_list : "list[str]",
