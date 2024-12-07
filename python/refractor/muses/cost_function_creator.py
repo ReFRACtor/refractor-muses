@@ -204,7 +204,7 @@ class CostFunctionCreator:
         '''
         cstate = CurrentStateUip(rf_uip, ret_info)
         return self.cost_function(rf_uip.instrument, cstate, None,
-                                  rf_uip_func=lambda **kwargs : rf_uip,
+                                  rf_uip_func=lambda instrument_name : rf_uip,
                                   obs_list=obs_list, **kwargs)
     
 __all__ = ["CostFunctionCreator"]
