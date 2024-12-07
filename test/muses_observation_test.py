@@ -100,6 +100,10 @@ def test_muses_tes_observation(isolated_dir, osp_dir, gmao_dir):
 
 def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir,
                                        vlidort_cli):
+    # This depends on files in Susan's OSP. Run if these are available, but
+    # don't fail if they aren't
+    if(not os.path.exists(f"{osp_dir}/Strategy_Tables/ssund")):
+        pytest.skip("Don't have support files in osp_dir for TES data.")
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go
     # ahead and set this up
