@@ -13,6 +13,9 @@ def test_qa_data_update_retrieval_results(isolated_dir, osp_dir, gmao_dir):
         osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=True)
     
     retrieval_result = pickle.load(open(f"{joint_tropomi_test_in_dir}/retrieval_result_10.pkl", "rb"))
+    retrieval_result.state_info.retrieval_config.osp_dir = osp_dir
+    retrieval_result.state_info.retrieval_config.base_dir = os.path.abspath(".")
+    
     # This gets figured out in MusesStrategyExecutor. To make a stand alone
     # unit test, we just hard code the results that MusesStrategyExecutor
     # calculates
