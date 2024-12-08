@@ -8,7 +8,6 @@ from .retrieval_debug_output import (RetrievalPickleResult,
                                      RetrievalPlotRadiance, RetrievalPlotResult)
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .retrieval_configuration import RetrievalConfiguration
-from .retrieval_result import PropagatedQA
 from .cost_function_creator import CostFunctionCreator
 from .muses_observation import MeasurementIdFile
 from .forward_model_handle import ForwardModelHandleSet
@@ -98,7 +97,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         
         self._state_info = StateInfo()
         self._state_element_handle_set = self._state_info.state_element_handle_set
-        self._propagated_qa = PropagatedQA()
         self.osp_dir = osp_dir
         if(self.osp_dir is None):
             self.osp_dir = os.environ.get("MUSES_OSP_PATH", None)
@@ -163,7 +161,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
                                                  self.retrieval_config,
                                                  self._strategy_executor.filter_list_dict)
         self._cost_function_creator.notify_update_target(self.measurement_id)
-        self._propagated_qa = PropagatedQA()
         self._strategy_executor.spectral_window_handle_set.notify_update_target(self.measurement_id)
         self._strategy_executor.qa_data_handle_set.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
@@ -215,11 +212,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     def vlidort_cli(self, v):
         self._vlidort_cli = v
         self._kwargs["vlidort_cli"] = v
-
-    @property
-    def propagated_qa(self) -> PropagatedQA:
-        '''QA data propagated from one retrieval step to the next.'''
-        return self._propagated_qa
 
     def retrieval_ms(self):
         '''This is script_retrieval_ms in muses-py'''

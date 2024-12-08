@@ -7,27 +7,31 @@ from .priority_handle_set import PriorityHandleSet
 from pprint import pprint, pformat
 from .muses_levmar_solver import MusesLevmarSolver
 from .observation_handle import mpy_radiance_from_observation_list
-from .retrieval_result import PropagatedQA, RetrievalResult
+from .retrieval_result import RetrievalResult
 import numpy as np
 import subprocess
 
-# TODO clean up the usage for various internal objects of RetrievalStrategy, we want to rework
-# this anyways as we introduce the MusesStrategyExecutor.
+# TODO clean up the usage for various internal objects of
+# RetrievalStrategy, we want to rework this anyways as we introduce
+# the MusesStrategyExecutor.
 
 class RetrievalStrategyStepSet(PriorityHandleSet):
-    '''This takes the retrieval_type and determines a RetrievalStrategyStep
-    to handle this. It then does the retrieval step.
+    '''This takes the retrieval_type and determines a
+    RetrievalStrategyStep to handle this. It then does the retrieval
+    step.
 
-    Note RetrievalStrategyStep can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next.'''
+    Note RetrievalStrategyStep can assume that they are called for the
+    same target, until notify_update_target is called. So if it makes
+    sense, these objects can do internal caching for things that don't
+    change when the target being retrieved is the same from one call
+    to the next.
+    '''
     def retrieval_step(self, retrieval_type : str, rs : 'RetrievalStrategy') -> None:
         self.handle(retrieval_type.lower(), rs)
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
-        '''Clear any caching associated with assuming the target being retrieved is fixed'''
-
+        '''Clear any caching associated with assuming the target being
+        retrieved is fixed'''
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
                 h.notify_update_target(rs)
@@ -39,16 +43,30 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
 class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
     '''Do the retrieval step indicated by retrieval_type
     
-    Note RetrievalStrategyStep can assume that they are called for the same target, until
-    notify_update_target is called. So if it makes sense, these objects can do internal
-    caching for things that don't change when the target being retrieved is the same from
-    one call to the next.'''
+    Note RetrievalStrategyStep can assume that they are called for the
+    same target, until notify_update_target is called. So if it makes
+    sense, these objects can do internal caching for things that don't
+    change when the target being retrieved is the same from one call
+    to the next.
+
+    We *only* maintain state between steps in CurrentState (other than possibly
+    internal caching for performance). If the same RetrievalStrategyStep is
+    called with the same CurrentState, it will produce the same output.
+
+    A RetrievalStrategyStep *only* modifies CurrentState and produces output
+    through side effects. Note that the RetrievalStrategyStep doesn't directly
+    produce output, instead we use the Observer/Observable pattern to decouple
+    generation of output. A RetrievalStrategyStep calls
+    RetrievalStrategy.notify_update_target at points during the processing, where
+    the Observer can do whatever with the processing (e.g, produce an output file).
+    '''
 
     def __init__(self):
         self._uip = None
         
     def notify_update_target(self, rs : 'RetrievalStrategy'):
-        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+        '''Clear any caching associated with assuming the target being
+        retrieved is fixed'''
         # Default is to do nothing
         pass
     
@@ -60,10 +78,12 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def radiance_step(self):
-        '''We have a few places that need the old py-retrieve dict version of our
-        observation data. This function calculates that - it is just a reformatting
-        of our observation data.'''
-        return mpy_radiance_from_observation_list(self.cfunc.obs_list, include_bad_sample=True)
+        '''We have a few places that need the old py-retrieve dict
+        version of our observation data. This function calculates 
+        that- it is just a reformatting of our observation data.
+        '''
+        return mpy_radiance_from_observation_list(
+            self.cfunc.obs_list, include_bad_sample=True)
 
     def radiance_full(self, rs):
         '''The full set of radiance, for all instruments and full band.'''
@@ -76,13 +96,14 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     py-retrieve. It might also be that we just don't have this implemented
     right in ReFRACtor, but in any case we don't have a test case for this.
 
-    Throw and exception to indicate this, we can look at implementing this in the
+    Throw an exception to indicate this, we can look at implementing this in the
     future - particularly if we have a test case to validate the code.'''
     def retrieval_step(self, retrieval_type : str,
                        rs : 'RetrievalStrategy') -> (bool, None):
         if retrieval_type not in ("forwardmodel", "omi_radiance_calibration"):
             return (False,  None)
-        raise RuntimeError(f"We don't currently support retrieval_type {retrieval_type}")
+        raise RuntimeError(
+            f"We don't currently support retrieval_type {retrieval_type}")
 
 class RetrievalStrategyStepBT(RetrievalStrategyStep):
     '''Brightness Temperature strategy step.'''
@@ -140,6 +161,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                        rs : 'RetrievalStrategy') -> (bool, None):
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         rs.notify_update("retrieval input")
+        cstate = rs.current_state()
         rs.retrieval_info.stepNumber = rs.step_number
         rs.retrieval_info.stepName = rs.step_name
         logger.info("Running run_retrieval ...")
@@ -159,17 +181,19 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         ret_res = self.run_retrieval(rs)
 
         self.results = RetrievalResult(
-            ret_res, rs.current_strategy_step, rs.retrieval_info, rs.state_info,
-            self.cfunc.obs_list, self.radiance_full(rs), rs.propagated_qa)
+            ret_res, rs.current_strategy_step, rs.retrieval_info,
+            cstate.state_info,
+            self.cfunc.obs_list, self.radiance_full(rs),
+            cstate.propagated_qa)
         logger.info('\n---')
         logger.info(f"Step: {rs.step_number}, Step Name: {rs.step_name}")
         logger.info(f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}")
         logger.info('---\n')
         
-        rs.state_info.update_state(rs.retrieval_info, self.results.results_list,
-                                   rs.current_strategy_step.do_not_update_list,
-                                   rs.retrieval_config,
-                                   rs.step_number)
+        cstate.update_state(rs.retrieval_info, self.results.results_list,
+                            rs.current_strategy_step.do_not_update_list,
+                            rs.retrieval_config,
+                            rs.step_number)
         # I don't think we actually want this in here. 1) we don't currently
         # support OCO2 and 2) we would just use a direct PressureSigma object
         # along with a new state element name if we did. But leave this commented
@@ -179,10 +203,13 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step", retrieval_strategy_step=self)
 
-        # TODO jacobian_sys is only used in error_analysis_wrapper and error_analysis.
-        # I think we can leave bad sample out, although I'm not positive. Would be
-        # nice not to have special handling to add bad samples if we turn around and
-        # weed them out. For right now, these are required, we would need to update
+        # TODO jacobian_sys is only used in error_analysis_wrapper and
+        # error_analysis.  I think we can leave bad sample out,
+        # although I'm not positive. Would be nice not to have special
+        # handling to add bad samples if we turn around and weed them
+        # out.
+        # 
+        # For right now, these are required, we would need to update
         # the error analysis to work without bad samples
         if(rs.retrieval_info.n_speciesSys > 0):
             cfunc_sys = rs.create_cost_function(
@@ -192,8 +219,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs.notify_update("systematic_jacobian", retrieval_strategy_step=self)
         rs.error_analysis.update_retrieval_result(self.results)
         rs.qa_data_handle_set.qa_update_retrieval_result(self.results)
-        rs.propagated_qa.update(rs.current_strategy_step.retrieval_elements,
-                                self.results.master_quality)
+        cstate.propagated_qa.update(rs.current_strategy_step.retrieval_elements,
+                                    self.results.master_quality)
         
         # The solver can't be pickled, because a few pieces of the cost function
         # can't be pickled. We could sort that out if it becomes an issue, but for
@@ -215,9 +242,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         maxIter = rs.current_strategy_step.max_num_iterations
         
         # Various thresholds from the input table
-        ConvTolerance_CostThresh = float(rs.retrieval_config["ConvTolerance_CostThresh"])
-        ConvTolerance_pThresh = float(rs.retrieval_config["ConvTolerance_pThresh"])
-        ConvTolerance_JacThresh = float(rs.retrieval_config["ConvTolerance_JacThresh"])
+        ConvTolerance_CostThresh = float(
+            rs.retrieval_config["ConvTolerance_CostThresh"])
+        ConvTolerance_pThresh = float(
+            rs.retrieval_config["ConvTolerance_pThresh"])
+        ConvTolerance_JacThresh = float(
+            rs.retrieval_config["ConvTolerance_JacThresh"])
         r = self.radiance_step()["NESR"]
         Chi2Tolerance = 2.0 / len(r) # theoretical value for tolerance
         if rs.retrieval_type == "bt_ig_refine":
@@ -225,7 +255,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             ConvTolerance_pThresh = 0.00001
             ConvTolerance_JacThresh = 0.00001
             Chi2Tolerance = 0.00001
-        ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh, ConvTolerance_JacThresh]
+        ConvTolerance = [ConvTolerance_CostThresh, ConvTolerance_pThresh,
+                         ConvTolerance_JacThresh]
         delta_str = rs.retrieval_config['LMDelta'] # 100 // original LM step size
         delta_value = int(delta_str.split()[0])  # We only need the first token sinc
         if rs.write_output:

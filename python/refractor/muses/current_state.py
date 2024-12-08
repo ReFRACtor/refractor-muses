@@ -92,6 +92,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self._fm_sv_loc = None
         self._fm_state_vector_size = None
 
+    @property
+    def property_qa(self):
+        raise NotImplementedError()
+
     def clear_cache(self):
         '''Clear cache, if an update has occurred'''
         self._fm_sv_loc = None
@@ -101,6 +105,19 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def initial_guess(self) -> np.array:
         '''Initial guess'''
         raise NotImplementedError()
+
+    def update_state(self, retrieval_info : "RetrievalInfo",
+                     results_list: np.array, do_not_update,
+                     retrieval_config : 'RetrievalConfigurationn', step:int):
+        '''Update the state info'''
+        raise NotImplementedError()
+
+    @property
+    def state_info(self) -> 'StateInfo':
+        '''Return StateInfo. We will move towards removing this, but for now
+        we need to have this available.'''
+        raise NotImplementedError()
+        
 
     @property
     def apriori_cov(self) -> np.array:
@@ -491,15 +508,18 @@ class CurrentStateStateInfo(CurrentState):
         The retrieval_state_element_override is an odd argument, it
         overrides the retrieval_state_element in RetrievalInfo with a
         different set. It isn't clear why this is handled this way -
-        why doesn't RetrievalInfo just figure out the right retrieval_state_element list?
-        But for now, do it the same way as py-retrieve. This seems to only be used in the
-        RetrievalStrategyStepBT - I'm guessing this was a kludge put in to support
-        this retrieval step.
+        why doesn't RetrievalInfo just figure out the right
+        retrieval_state_element list?  But for now, do it the same way
+        as py-retrieve. This seems to only be used in the
+        RetrievalStrategyStepBT - I'm guessing this was a kludge put
+        in to support this retrieval step.
 
-        In addition, the CurrentState can also be used when we are calculating the
-        "systematic" jacobian. This create a StateVector with a different set of state elements.
-        This isn't used to do a retrieval, but rather to just calculate a jacobian.
-        If do_systematic is set to True, we use this values instead.
+        In addition, the CurrentState can also be used when we are
+        calculating the "systematic" jacobian. This create a
+        StateVector with a different set of state elements.  This
+        isn't used to do a retrieval, but rather to just calculate a
+        jacobian.  If do_systematic is set to True, we use this values
+        instead.
         '''
         super().__init__()
         self._state_info = state_info
@@ -508,6 +528,12 @@ class CurrentStateStateInfo(CurrentState):
         self.do_systematic = do_systematic
         self._step_directory = step_directory
 
+    @property
+    def state_info(self) -> 'StateInfo':
+        '''Return StateInfo. We will move towards removing this, but for now
+        we need to have this available.'''
+        return self._state_info
+        
     @property
     def initial_guess(self) -> np.array:
         '''Initial guess'''
@@ -562,6 +588,17 @@ class CurrentStateStateInfo(CurrentState):
     @property
     def state_info(self) -> 'StateInfo':
         return self._state_info
+
+    @property
+    def propagated_qa(self) -> 'PropagatedQA':
+        return self.state_info.propagated_qa
+
+    def update_state(self, retrieval_info : "RetrievalInfo",
+                     results_list: np.array, do_not_update,
+                     retrieval_config : 'RetrievalConfigurationn', step:int):
+        '''Update the state info'''
+        self.state_info.update_state(retrieval_info, results_list,
+                                     do_not_update, retrieval_config, step)
 
     @state_info.setter
     def state_info(self, val : 'StateInfo'):
@@ -622,7 +659,8 @@ class CurrentStateStateInfo(CurrentState):
         selem = self.state_info.state_element(state_element_name)
         return selem.value
     
-__all__ = ["CurrentState", "CurrentStateUip", "CurrentStateDict", "CurrentStateStateInfo"]    
+__all__ = ["CurrentState", "CurrentStateUip", "CurrentStateDict",
+           "CurrentStateStateInfo"]    
         
         
 

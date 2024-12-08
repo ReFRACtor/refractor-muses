@@ -10,6 +10,38 @@ import refractor.framework as rf
 import numpy as np
 import numbers
 
+class PropagatedQA:
+    '''There are a few parameters that get propagated from one step to
+    the next. Not sure exactly what this gets looked for, it look just
+    like flags copied from one step to the next. But pull this
+    together into one place so we can track this.
+
+    TODO Note that we might just make this appear like any other StateElement,
+    but at least for now leave this as separate because that is how
+
+    '''
+    def __init__(self):
+        self.propagated_qa = {'TATM' : 1, 'H2O' : 1, 'O3' : 1}
+
+    @property
+    def tatm_qa(self):
+        return self.propagated_qa['TATM']
+    
+    @property
+    def h2o_qa(self):
+        return self.propagated_qa['H2O']
+
+    @property
+    def o3_qa(self):
+        return self.propagated_qa['O3']
+
+    def update(self, retrieval_state_element : 'list[str]', qa_flag : int):
+        '''Update the QA flags for items that we retrieved.'''
+        for state_element_name in retrieval_state_element:
+            if(state_element_name in self.propagated_qa):
+                self.propagated_qa[state_element_name] = qa_flag
+
+
 class StateElement(object, metaclass=abc.ABCMeta):
     '''Muses-py tends to call everything in its state "species",
     although in a few places things things are called
@@ -309,6 +341,8 @@ class StateInfo:
         self.next_state = {}
         self.next_state_dict = {}
         
+        self.propagated_qa = PropagatedQA()
+        
         # Odds and ends that are currently in the StateInfo. Doesn't exactly have
         # to do with the state, but we don't have another place for these.
         # Perhaps SoundingMetadata can migrate into its own thing, and these can
@@ -525,5 +559,5 @@ class StateInfo:
         
         
 __all__ = ["StateElement", "StateElementHandle", "RetrievableStateElement",
-           "StateElementHandleSet",
+           "StateElementHandleSet", "PropagatedQA", 
            "SoundingMetadata", "StateInfo"]
