@@ -105,48 +105,6 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
         raise RuntimeError(
             f"We don't currently support retrieval_type {retrieval_type}")
 
-class RetrievalStrategyStepBT(RetrievalStrategyStep):
-    '''Brightness Temperature strategy step.'''
-    def __init__(self):
-        super().__init__()
-        self.notify_update_target(None)
-
-    def notify_update_target(self, rs : 'RetrievalStrategy'):
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.BTstruct = [{'diff':0.0, 'obs':0.0, 'fit':0.0} for i in range(100)]
-        
-    def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy') -> (bool, None):
-        if retrieval_type != "bt":
-            return (False,  None)
-        logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
-        jacobian_speciesNames = ['H2O']
-        jacobian_specieslist = ['H2O']
-        jacobianOut = None
-        mytiming = None
-        logger.info("Running run_forward_model ...")
-        self.cfunc = rs.create_cost_function(
-            include_bad_sample=True, fix_apriori_size=True,
-            jacobian_speciesIn=jacobian_speciesNames)
-        radiance_fm = self.cfunc.max_a_posteriori.model
-        freq_fm = np.concatenate([fm.spectral_domain_all().data
-                                  for fm in self.cfunc.max_a_posteriori.forward_model])
-        # Put into structure expected by modify_from_bt
-        radiance_res = {"radiance" : radiance_fm,
-                        "frequency" : freq_fm }
-        (rs._strategy_executor.strategy._stable.strategy_table_dict, rs._state_info.state_info_dict) = mpy.modify_from_bt(
-            mpy.ObjectView(rs._strategy_executor.strategy._stable.strategy_table_dict), rs.step_number,
-            self.radiance_step(),
-            radiance_res,
-            {},
-            rs._state_info.state_info_dict,
-            self.BTstruct,
-            writeOutputFlag=False)
-        rs._strategy_executor.strategy._stable.strategy_table_dict = rs._strategy_executor.strategy._stable.strategy_table_dict.__dict__
-        logger.info(f"Step: {rs.step_number},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
-        rs.state_info.next_state_dict = copy.deepcopy(rs.state_info.state_info_dict["current"])
-        return (True, None)
-
 class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     '''Strategy step that does a retrieval (e.g., the default strategy step).'''
     def __init__(self):
@@ -311,7 +269,6 @@ class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve
             rs.state_info.state_info_dict["current"]['tropomi']['cloud_fraction']
     
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepNotImplemented())
-RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStep_omicloud_ig_refine())
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStep_tropomicloud_ig_refine())
 # Anything that isn't one of the special types is a generic retrieval, so
@@ -321,7 +278,6 @@ RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepRetrieve(),
 
 __all__ = ["RetrievalStrategyStepSet", "RetrievalStrategyStep",
            "RetrievalStrategyStepNotImplemented",
-           "RetrievalStrategyStepBT",
            "RetrievalStrategyStepRetrieve",
            "RetrievalStrategyStep_omicloud_ig_refine",
            "RetrievalStrategyStep_tropomicloud_ig_refine",
