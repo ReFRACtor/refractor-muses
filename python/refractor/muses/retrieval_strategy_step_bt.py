@@ -2,6 +2,7 @@ import refractor.muses.muses_py as mpy
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_strategy_step import (RetrievalStrategyStep,
                                       RetrievalStrategyStepSet)
+from .tes_file import TesFile
 import refractor.framework as rf
 import numpy as np
 import os
@@ -32,94 +33,56 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         logger.info("Running run_forward_model ...")
         self.cfunc = rs.create_cost_function(
             fix_apriori_size=True, jacobian_speciesIn=jacobian_speciesNames)
-        radiance_fm = self.cfunc.max_a_posteriori.model
-        freq_fm = np.concatenate([fm.spectral_domain_all().data
-                                  for fm in self.cfunc.max_a_posteriori.forward_model])
-        # Put into structure expected by modify_from_bt
-        radiance_res = {"radiance" : radiance_fm,
-                        "frequency" : freq_fm }
         self.modify_from_bt(
+            rs.retrieval_config,
             rs._strategy_executor.strategy._stable,
             rs.step_number,
-            radiance_res,
             rs._state_info,
             self.BTstruct)
         logger.info(f"Step: {rs.step_number},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
         rs.state_info.next_state_dict = copy.deepcopy(rs.state_info.state_info_dict["current"])
         return (True, None)
 
-    def modify_from_bt(self, strategy_table, step, radianceModel, state_info,
+    def modify_from_bt(self, retrieval_config, strategy_table, step, state_info,
                        BTStruct):
         stateInfo = state_info.state_info_dict
     
-        # If the dimension of radianceModel['radiance'] is 2, we check to see if we can flatten it.
-        if (len(radianceModel['radiance'].shape) == 2) and (radianceModel['radiance'].shape[0] == 1): # As in the case of (1,14)
-            radianceModel['radiance'] = radianceModel['radiance'].flatten()
-    
         table_struct = strategy_table.strategy_table_obj
 
-        radianceStep = mpy_radiance_from_observation_list(
-            self.cfunc.obs_list, include_bad_sample=False)
-        
-        if isinstance(radianceModel, dict):
-            radianceModel = mpy.ObjectView(radianceModel)
+        # Note from py-retrieve: issue with negative radiances, so take mean
+        #
+        # I'm not actually sure that is true, we filter out bad samples. But
+        # regardless, use the mean like py-retrieve does.
+        frequency = np.concatenate([fm.spectral_domain_all().data
+                           for fm in self.cfunc.max_a_posteriori.forward_model])
+        radiance_bt_obs = mpy.bt(np.mean(frequency),
+                                 np.mean(self.cfunc.max_a_posteriori.measurement))
+        radiance_bt_fit = mpy.bt(np.mean(frequency),
+                                 np.mean(self.cfunc.max_a_posteriori.model))
     
-        filename = mpy.table_get_step_filename(table_struct, "observation")
-    
-        # issue with negative radiances, so take mean
-        frequency = radianceStep["frequency"]
-        radianceBtObs = mpy.bt(np.mean(frequency), np.mean(radianceStep["radiance"]))
-        radianceBtFit = mpy.bt(np.mean(frequency), np.mean(radianceModel.radiance))
-    
-        BTStruct[step]['diff'] = radianceBtFit[0] - radianceBtObs[0]
-        BTStruct[step]['obs'] = radianceBtObs[0]
-        BTStruct[step]['fit'] = radianceBtFit[0]
+        BTStruct[step]['diff'] = radiance_bt_fit[0] - radiance_bt_obs[0]
+        BTStruct[step]['obs'] = radiance_bt_obs[0]
+        BTStruct[step]['fit'] = radiance_bt_fit[0]
     
         bt_diff = BTStruct[step]['diff']
     
-        # If next step is NOT BT, evaluate what to do with "cloud" 
-        doo = False
-        if step == table_struct.numRows:
-            # only BT characterization for limb not nadir
-            pass
-        else:
-            nextStepRetrievalType = mpy.table_get_entry(table_struct, step+1, "retrievalType")
-            if nextStepRetrievalType != 'BT': 
-                doo = True
-
-        if not doo:
+        # If next step is NOT BT, evaluate what to do with "cloud". Otherwise,
+        # we are done.
+        if (step == table_struct.numRows or
+            mpy.table_get_entry(table_struct, step+1, "retrievalType") == 'BT'):
             return
-        
-        filename = mpy.table_get_pref(table_struct, "CloudParameterFilename")
-        (_, fileID) = mpy.read_all_tes_cache(filename, 'asc')
 
-        # The values returned from tes_file_get_column() are list of strings, we need to convert each to float and then to an array.
-        BTLow = [float(value) for ii, value in enumerate(mpy.tes_file_get_column(fileID, 0))]
-        BTLow = np.asarray(BTLow)
-        
-        BTHigh = [float(value) for ii, value in enumerate(mpy.tes_file_get_column(fileID, 1))]
-        BTHigh = np.asarray(BTHigh)
-        
-        tsurIG = [float(value) for ii, value in enumerate(mpy.tes_file_get_column(fileID, "TSUR_IG"))]
-        tsurIG = np.asarray(tsurIG)
-        
-        cloudIG = [float(value) for ii, value in enumerate(mpy.tes_file_get_column(fileID, "CLOUDEXT_IG"))]
-        cloudIG = np.asarray(cloudIG)
-
-        cloudPrefs = fileID['preferences']
-
-        x = mpy.tes_file_get_preference(fileID, 'note')
-        if x is None or x == '':
-            raise RuntimeError(f"Please update CloudParameterFilename: {filename} To be for fit-obs not obs-fit")
-
+        cfile = TesFile(retrieval_config["CloudParameterFilename"])
+        BTLow = np.array(cfile.table["BT_low"])
+        BTHigh = np.array(cfile.table["BT_high"])
+        tsurIG = np.array(cfile.table["TSUR_IG"])
+        cloudIG = np.array(cfile.table["CLOUDEXT_IG"])
         row = np.where((bt_diff >= BTLow) & (bt_diff <= BTHigh))[0]
         if row.size == 0:
             raise RuntimeError(f"No entry in file, {filename} For BT difference of {bt_diff}")
 
-        # AT_LINE 97 modify_from_bt.pro
         available = ""
-        col = mpy.tes_file_get_column(fileID, "SPECIES_IGR")
-        col = np.asarray(col)
+        col = np.array(cfile.table["SPECIES_IGR"])
         expected = col[row]
     
         # AT_LINE 101 modify_from_bt.pro
