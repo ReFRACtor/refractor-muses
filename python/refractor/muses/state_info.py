@@ -342,6 +342,7 @@ class StateInfo:
         self.next_state_dict = {}
         
         self.propagated_qa = PropagatedQA()
+        self.brightness_temperature_data = {}
         
         # Odds and ends that are currently in the StateInfo. Doesn't exactly have
         # to do with the state, but we don't have another place for these.

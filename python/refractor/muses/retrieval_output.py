@@ -90,6 +90,10 @@ class RetrievalOutput:
         return self.retrieval_strategy.state_info
 
     @property
+    def current_state(self):
+        return self.retrieval_strategy.current_state()
+
+    @property
     def radiance_full(self):
         return self.results.radiance_full
 

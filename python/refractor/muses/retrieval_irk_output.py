@@ -27,7 +27,7 @@ class RetrievalIrkOutput(RetrievalOutput):
 
     @property
     def propagated_qa(self) -> 'PropagatedQa':
-        return self.retrieval_strategy.propagated_qa
+        return self.current_state.propagated_qa
 
     @property
     def results_irk(self) -> 'ObjectView':

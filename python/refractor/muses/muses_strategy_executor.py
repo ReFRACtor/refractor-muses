@@ -372,7 +372,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             None)
         fm_sv = rf.StateVector()
         return self.rs.forward_model_handle_set.forward_model(
-            iname, self.current_state, obs, fm_sv,
+            iname, self.current_state(), obs, fm_sv,
             self.rf_uip_func_cost_function(False, None))
 
     def create_cost_function(self, do_systematic=False, include_bad_sample=False,
@@ -454,11 +454,11 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     def next_step(self):
         '''Advance to the next step'''
-        self.strategy._stable.table_step = self.strategy._stable.table_step+1
+        self.strategy._stable.next_step(self.current_state())
 
     def is_done(self):
         '''Return true if we are done, otherwise false.'''
-        return self.strategy._stable.table_step >= self.strategy._stable.number_table_step
+        return self.strategy._stable.is_done()
 
     @property
     def instrument_name_all_step(self):

@@ -83,10 +83,6 @@ class StrategyTable:
             res = "POSTCONV"
         return res
         
-    @property
-    def cloud_parameters_filename(self):
-        return self.abs_filename(self.preferences['CloudParameterFilename'])
-    
     def abs_filename(self, filename):
         '''Translate a relative path found in the StrategyTable to a
         absolute path.'''
@@ -136,6 +132,50 @@ class StrategyTable:
     def number_table_step(self):
         return self.strategy_table_dict["numRows"]
 
+    def is_done(self):
+        '''Return True if we are at the end of the table.'''
+        return self._table_step >= self.number_table_step
+
+    def next_step(self, current_state : 'CurrentState'):
+        '''Go to next step. We take the CurrentState in so we can handle any
+        conditional steps based on the state.'''
+        self._handle_bt(current_state)
+        self.table_step = self.table_step + 1
+
+    def _handle_bt(self, current_state : 'CurrentState'):
+        # We may introduce more complicated conditional steps, but at this
+        # point the only thing that gets this treatment is BT steps.
+        if(self.retrieval_type != "BT" or self.is_next_bt() or
+           self.table_step not in current_state.brightness_temperature_data):
+            return
+        species_igr = current_state.brightness_temperature_data[self.table_step]['species_igr']
+        found = False
+        available = ""
+        step = self.table_step
+        istep = step+1
+        while not self.is_done():
+            self.table_step = istep
+            if(self.retrieval_type.lower() != "bt_ig_refine"):
+                break
+            relem = ",".join(self.retrieval_elements())
+            if relem != species_igr:
+                available = available + relem + "   " 
+                mpy.table_delete_row(self.strategy_table_dict, istep)
+                istep = istep - 1
+            else:
+                found = True
+            istep += 1
+
+        if not found and species_igr is not None:
+            raise RuntimeError(f'''Specified IG refinement not found (MUST be retrievalType BT_IG_Refine AND species listed in correct order).
+   Expected retrieved species: {species_igr}
+   Available from table:       {available}''')
+
+        output_filename = f"{self.output_directory}/Table-final.asc"
+        mpy.table_write(self.strategy_table_dict, output_filename)
+        self.strategy_table_dict = mpy.table_read(output_filename)[1].__dict__
+        self.table_step = step
+    
     @property
     def step_name(self):
         return mpy.table_get_entry(self.strategy_table_dict,
@@ -168,6 +208,12 @@ class StrategyTable:
     @property
     def retrieval_type(self):
         return self.table_entry("retrievalType")
+
+    def is_next_bt(self):
+        '''This is a bit awkward, but it isn't clear exactly how we should get
+        this. Used In RetrievalStrategyStepBT, we should replace this once working
+        out what the interface to StrategyTable should be.'''
+        return self.table_entry("retrievalType", self.table_step + 1) == "BT"
 
     def retrieval_elements(self, stp=None):
         '''This is the retrieval elements for the given step, defaulting to

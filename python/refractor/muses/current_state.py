@@ -96,6 +96,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def property_qa(self):
         raise NotImplementedError()
 
+    @property
+    def brightness_temperature_data(self):
+        raise NotImplementedError()
+    
     def clear_cache(self):
         '''Clear cache, if an update has occurred'''
         self._fm_sv_loc = None
@@ -592,6 +596,10 @@ class CurrentStateStateInfo(CurrentState):
     @property
     def propagated_qa(self) -> 'PropagatedQA':
         return self.state_info.propagated_qa
+
+    @property
+    def brightness_temperature_data(self) -> 'dict':
+        return self.state_info.brightness_temperature_data
 
     def update_state(self, retrieval_info : "RetrievalInfo",
                      results_list: np.array, do_not_update,
