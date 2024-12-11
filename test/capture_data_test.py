@@ -3,7 +3,8 @@ from refractor.old_py_retrieve_wrapper import (RefractorMusesIntegration, MusesF
                                                RefractorTropOrOmiFmPyRetrieve)
 from refractor.muses import (MusesRunDir, RetrievalStrategy,
                              RetrievalStrategyCaptureObserver,
-                             RetrievalResultCaptureObserver)
+                             RetrievalResultCaptureObserver,
+                             StateInfoCaptureObserver)
 from refractor.tropomi import TropomiForwardModelHandle
 
 # This contains all the capture tests. Note that there is no requirement at
@@ -144,8 +145,8 @@ def test_capture_airs_irk(isolated_dir, osp_dir, gmao_dir,
     r = MusesRunDir(airs_irk_test_in_dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(None)
     rs.clear_observers()
-    rscap = RetrievalStrategyCaptureObserver(
-        f"{airs_irk_test_in_dir}/retrieval_strategy_retrieval_step",
+    rscap = StateInfoCaptureObserver(
+        f"{airs_irk_test_in_dir}/state_info_step",
         "starting run_step")
     rs.add_observer(rscap)
     rscap2 = RetrievalStrategyCaptureObserver(

@@ -452,6 +452,33 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.strategy._stable.table_step = 0
         self.spectral_window_dict = self.spectral_window_handle_set.spectral_window_dict(self.current_strategy_step)
 
+    def set_step(self, step_number):
+        '''Go to the given step. This is used by RetrievalStrategy.load_state_info
+        where we jump to a given step number.'''
+        self.state_info = self.rs._state_info
+        with muses_py_call(self.rs.run_dir,
+                           vlidort_cli=self.rs.vlidort_cli):
+            self._restart_and_error_analysis()
+            while self.current_strategy_step.step_number < step_number:
+                self.next_step()
+
+    def _restart_and_error_analysis(self):
+        '''Restart and recreate error analysis. Put together just for convenience,
+        so we can use with "set_step"'''
+        # List of state elements we need covariance from. This is all the elements
+        # we will retrieve, plus any interferents that get added in. This list
+        # is unique elements, sorted by the order_species sorting
+        covariance_state_element_name = order_species(
+            set(self.strategy._stable.retrieval_elements_all_step) |
+            set(self.strategy._stable.error_analysis_interferents_all_step))
+
+        self.restart()
+        self.error_analysis = ErrorAnalysis(
+            self.current_strategy_step,
+            self.state_info,
+            covariance_state_element_name)
+        
+
     def next_step(self):
         '''Advance to the next step'''
         self.strategy._stable.next_step(self.current_state())
@@ -548,20 +575,8 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                                        self.rs.observation_handle_set,
                                        self.instrument_name_all_step,
                                        self.rs.run_dir)
-            
-        # List of state elements we need covariance from. This is all the elements
-        # we will retrieve, plus any interferents that get added in. This list
-        # is unique elements, sorted by the order_species sorting
-        
-        covariance_state_element_name = order_species(
-            set(self.strategy._stable.retrieval_elements_all_step) |
-            set(self.strategy._stable.error_analysis_interferents_all_step))
 
-        self.restart()
-        self.error_analysis = ErrorAnalysis(
-            self.current_strategy_step,
-            self.state_info,
-            covariance_state_element_name)
+        self._restart_and_error_analysis()
         self.rs.notify_update("initial set up done")
         
         # Note the original muses-py ran through all the initial guess steps at

@@ -458,19 +458,19 @@ def test_only_airs_irk(osp_dir, gmao_dir, vlidort_cli,
 
     This checks Products_IRK.nc, but nothing else.'''
     subprocess.run("rm -r only_airs_irk", shell=True)
+    r = MusesRunDir(airs_irk_test_in_dir,
+                    osp_dir, gmao_dir, path_prefix="only_airs_irk")
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    ihandle = OmiForwardModelHandle(use_pca=True, use_lrad=False,
+                                    lrad_second_order=False, use_eof=False,
+                                    match_py_retrieve=match_py_retrieve)
+    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    rs.update_target(f"{r.run_dir}/Table.asc")
     step_number=6
-    rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
-        f"{airs_irk_test_in_dir}/retrieval_strategy_retrieval_step_{step_number}.pkl",
-        path="./only_airs_irk",
-        osp_dir=osp_dir, gmao_dir=gmao_dir)
-    # We turned off all the output when we saved, and we have the capture stuff
-    # still in. So remove our current observations, and add back in the output
-    rs.clear_observers()
-    rs.add_observer(RetrievalJacobianOutput())
-    rs.add_observer(RetrievalRadianceOutput())
-    rs.add_observer(RetrievalL2Output())
-    rs.add_observer(RetrievalIrkOutput())
-
+    rs.load_state_info(
+#        f"{airs_irk_test_in_dir}/state_info_step_{step_number}.json.gz",
+        f"{airs_irk_test_in_dir}/state_info_step_{step_number}.pkl",
+        step_number)
     try:
         lognum = logger.add("continue_airs_irk/retrieve.log")
         rs.continue_retrieval(stop_after_step=6)

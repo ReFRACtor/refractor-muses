@@ -21,6 +21,8 @@ import refractor.muses.muses_py as mpy
 import os
 import copy
 import pickle
+import jsonpickle
+import gzip
 from .state_info import StateInfo
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -79,8 +81,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     '''
     # TODO Add handling of writeOutput, writePlots, debug. I think we
     # can probably do that by just adding Observers
-    def __init__(self, filename, vlidort_cli=None, writeOutput=False, writePlots=False,
-                 osp_dir=None, **kwargs):
+    def __init__(self, filename, vlidort_cli=None, writeOutput=False,
+                 writePlots=False, osp_dir=None, **kwargs):
         logger.info(f"Strategy table filename {filename}")
         self._capture_directory = RefractorCaptureDirectory()
         self._observers = set()
@@ -361,6 +363,28 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._capture_directory.save_directory(self.run_dir, vlidort_input=None)
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
+    def save_state_info_pickle(self, save_pickle_file):
+        '''Dump a pickled version of the StateInfo object.
+        We may play with this, but currently we gzip this.
+        We would like to have something a bit more stable, not tied to the
+        object structure. But for now, just do a straight json dump of the object'''
+
+        # Doesn't work yet. Not overly important, looks like a bug in jsonpickle
+        # Just use normal pickle for now, we want to change what gets saved anyways
+        #with gzip.GzipFile(save_pickle_file, "wb") as fh:
+        #    fh.write(jsonpickle.encode(self.state_info).encode('utf-8'))
+        pickle.dump(self.state_info, open(save_pickle_file, "wb"))
+            
+    def load_state_info(self, state_info_pickle_file, step_number):
+        '''This pairs with save_state_info_pickle. Instead of pickling the entire
+        RetrievalStrategy, we just pickle the state. We then set up
+        to process the given target_filename with the given state, jumping to
+        the given retrieval step_number.'''
+        #self._state_info = jsonpickle.decode(
+        #    gzip.open(state_info_pickle_file, "rb").read())
+        self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
+        self._strategy_executor.set_step(step_number)
+
     @classmethod
     def load_retrieval_strategy(cls, save_pickle_file, path=".",
                                 change_to_dir = False,
@@ -412,6 +436,21 @@ class RetrievalStrategyCaptureObserver:
         retrieval_strategy.save_pickle(fname, **kwargs)
         retrieval_strategy.add_observer(self)
 
+class StateInfoCaptureObserver:
+    '''Helper class, pickles RetrievalStrategy.state_info at each time
+    notify_update is called. Intended for unit tests and other kinds of debugging.'''
+    def __init__(self, basefname, location_to_capture):
+        self.basefname = basefname
+        self.location_to_capture = location_to_capture
+
+    def notify_update(self, retrieval_strategy, location, **kwargs):
+        if(location != self.location_to_capture):
+            return
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        #fname = f"{self.basefname}_{retrieval_strategy.step_number}.json.gz"
+        fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
+        retrieval_strategy.save_state_info_pickle(fname)
+        
 class RetrievalStrategyMemoryUse:
     def __init__(self):
         self.tr = None
@@ -433,7 +472,7 @@ class RetrievalStrategyMemoryUse:
             
         
 __all__ = ["RetrievalStrategy", "RetrievalStrategyCaptureObserver",
-           "RetrievalStrategyMemoryUse"]    
+           "RetrievalStrategyMemoryUse", "StateInfoCaptureObserver"]    
 
     
 
