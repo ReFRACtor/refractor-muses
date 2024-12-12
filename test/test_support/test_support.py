@@ -461,6 +461,39 @@ def all_output_disabled():
     finally:
         logger.add(sys.stderr)
 
+def load_step(rs, step_number, dir, include_result=False):
+    '''Load in the state information and optional retrieval results for the given
+    step, and jump to that step.'''
+    rs.load_state_info(
+        f"{dir}/state_info_step_{step_number}.pkl",
+        step_number,
+        f"{dir}/retrieval_result_step_{step_number}.json" if include_result else None)
+
+def run_step_to_location(rs, step_number, dir, location):
+    '''Load in the given step, and run up to the location we notify at
+    (e.g., "retrieval step"). Return the retrieval_strategy_step'''
+    class CaptureRs:
+        def __init__(self):
+            self.retrieval_strategy_step = None
+        def notify_update(self, retrieval_strategy, loc,
+                          retrieval_strategy_step=None, **kwargs):
+            if(loc != location):
+                return
+            self.retrieval_strategy_step = retrieval_strategy_step
+            raise StopIteration()
+
+    try:
+        rcap = CaptureRs()
+        rs.add_observer(rcap)
+        load_step(rs, step_number, dir, include_result=True)
+        try:
+            rs.continue_retrieval(stop_after_step=step_number)
+        except StopIteration:
+            return rcap.retrieval_strategy_step
+    finally:
+        rs.remove_observer(rcap)
+    
+
 def struct_compare(s1, s2, skip_list=None, verbose=False):
     if(skip_list is None):
         skip_list = []

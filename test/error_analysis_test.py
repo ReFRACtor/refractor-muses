@@ -34,31 +34,15 @@ def test_error_analysis_init(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     
 
 def test_error_analysis_update_retrieval_results(isolated_dir, osp_dir, gmao_dir):
-    # Error analysis constructor depends on accessing "../OSP". We'll hopefully
-    # clean this up in the future, but for now just unpack the directory structure
-    # we have stored in retrieval_strategy_retrieval_step_10.pkl.
-    rs, kwargs = RetrievalStrategy.load_retrieval_strategy(
-        f"{joint_tropomi_test_in_dir}/retrieval_strategy_retrieval_step_10.pkl",
-        osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=True)
-    
-    retrieval_result = pickle.load(open(f"{joint_tropomi_test_in_dir}/retrieval_result_10.pkl", "rb"))
-    retrieval_result.state_info.retrieval_config.osp_dir = osp_dir
-    retrieval_result.state_info.retrieval_config.base_dir = os.path.abspath(".")
-    # This gets figured out in MusesStrategyExecutor. To make a stand alone
-    # unit test, we just hard code the results that MusesStrategyExecutor
-    # calculates
-    #covariance_state_element_name = order_species(
-    #        set(strategy_table.retrieval_elements_all_step) |
-    #        set(strategy_table.error_analysis_interferents_all_step))
-    covariance_state_element_name = ['TATM', 'H2O', 'O3', 'N2O', 'CO', 'CH4', 'NH3', 'TSUR', 'EMIS', 'CLOUDEXT', 'PCLOUD', 'HDO', 'CH3OH', 'PAN', 'TROPOMICLOUDFRACTION', 'TROPOMISURFACEALBEDOBAND3', 'TROPOMISURFACEALBEDOSLOPEBAND3', 'TROPOMISURFACEALBEDOSLOPEORDER2BAND3', 'TROPOMISOLARSHIFTBAND3', 'TROPOMIRADIANCESHIFTBAND3', 'TROPOMIRINGSFBAND3']
-    enalysis = ErrorAnalysis(retrieval_result.current_strategy_step,
-                             retrieval_result.state_info,
-                             covariance_state_element_name)
-    before = copy.deepcopy(retrieval_result)
-    enalysis.update_retrieval_result(retrieval_result)
+    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    rstep = run_step_to_location(rs, 10, joint_tropomi_test_in_dir,
+                                 "systematic_jacobian")
     # TODO Not really sure what the results are suppose to be, or even easily what
     # gets changed. So we just check that the call is successful.
     # Note we do check this indirectly by our end to end runs and comparison
     # to expected results, but it would be good to check this is more detail
     # in this test.
+    before = copy.deepcopy(rstep.results)
+    rs.error_analysis.update_retrieval_result(rstep.results)
     

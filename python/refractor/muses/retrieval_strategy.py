@@ -16,14 +16,16 @@ from .state_info import StateElementHandleSet
 from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
+from .muses_levmar_solver import MusesLevmarSolver
+from .state_info import StateInfo
 from loguru import logger
 import refractor.muses.muses_py as mpy
 import os
 import copy
 import pickle
 import jsonpickle
+import numpy as np
 import gzip
-from .state_info import StateInfo
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
@@ -215,6 +217,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._vlidort_cli = v
         self._kwargs["vlidort_cli"] = v
 
+    @property
+    def keyword_arguments(self):
+        '''Keyword arguments, which can be used to pass arguments down to
+        lower level classes (e.g., options for the forward model like use_lrad)'''
+        return self._kwargs
+
     def retrieval_ms(self):
         '''This is script_retrieval_ms in muses-py'''
         self._strategy_executor.execute_retrieval()
@@ -375,15 +383,25 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         #    fh.write(jsonpickle.encode(self.state_info).encode('utf-8'))
         pickle.dump(self.state_info, open(save_pickle_file, "wb"))
             
-    def load_state_info(self, state_info_pickle_file, step_number):
+    def load_state_info(self, state_info_pickle_file, step_number,
+                        ret_res_file=None):
         '''This pairs with save_state_info_pickle. Instead of pickling the entire
         RetrievalStrategy, we just pickle the state. We then set up
         to process the given target_filename with the given state, jumping to
-        the given retrieval step_number.'''
+        the given retrieval step_number.
+
+        Note for some tests in addition to the StateInfo we want the results
+        saved by RetrievalStepResultCaptureObserver (e.g., we want to test the
+        output writing). You can optionally pass in the json file for this and
+        we will also pass that information to the RetrievalStrategyStep.'''
         #self._state_info = jsonpickle.decode(
         #    gzip.open(state_info_pickle_file, "rb").read())
         self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
         self._strategy_executor.set_step(step_number)
+        if(ret_res_file is not None):
+            t = jsonpickle.decode(open(ret_res_file, "r").read())
+            self._kwargs['ret_res'] = MusesLevmarSolver.retrieval_results_fromlist(t["ret_res"])
+            self._kwargs['jacobian_sys'] = np.array(t['jacobian_sys'])
 
     @classmethod
     def load_retrieval_strategy(cls, save_pickle_file, path=".",

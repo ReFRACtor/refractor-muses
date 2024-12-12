@@ -6,21 +6,6 @@ from loguru import logger
 from pathlib import Path
 import pickle
 
-class RetrievalResultCaptureObserver:
-    '''Helper class, pickles RetrievalResult at each time notify_update is
-    called. Intended for unit tests and other kinds of debugging.'''
-    def __init__(self, basefname, location_to_capture):
-        self.basefname = basefname
-        self.location_to_capture = location_to_capture
-
-    def notify_update(self, retrieval_strategy, location,
-                      retrieval_strategy_step=None, **kwargs):
-        if(location != self.location_to_capture):
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
-        pickle.dump(retrieval_strategy_step.results, open(fname, "wb"))
-
 class RetrievalResult:
     '''There are a few top level functions that work with a structure called
     retrieval_results. Pull all this together into an object so we can clearly
@@ -53,7 +38,8 @@ class RetrievalResult:
                  retrieval_info : 'RetrievalInfo', state_info : 'StateInfo',
                  obs_list : 'list(MusesObservation)',
                  radiance_full : 'dict',
-                 propagated_qa : 'PropagatedQA'):
+                 propagated_qa : 'PropagatedQA',
+                 jacobian_sys = None):
         '''ret_res is what we get returned from MusesLevmarSolver'''
         self.rstep = mpy.ObjectView(mpy_radiance_from_observation_list(obs_list, include_bad_sample=True))
         self.radiance_full = radiance_full
@@ -64,6 +50,7 @@ class RetrievalResult:
         self.sounding_metadata = state_info.sounding_metadata()
         self.current_strategy_step = current_strategy_step
         self.ret_res = mpy.ObjectView(ret_res)
+        self.jacobianSys = jacobian_sys
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
         d = mpy.set_retrieval_results_derived(
@@ -373,4 +360,4 @@ len(o_results.LMResults_costThresh): {len(o_results.LMResults_costThresh)}
         return o_results
         
 
-__all__ = ["RetrievalResult", "RetrievalResultCaptureObserver"]    
+__all__ = ["RetrievalResult", ]    

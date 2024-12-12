@@ -7,6 +7,7 @@ import refractor.muses.muses_py as mpy
 from typing import Optional
 import subprocess
 import os
+import copy
 
 class MusesLevmarSolver:
     '''This is a wrapper around levmar_nllsq_elanor that makes it look like
@@ -35,6 +36,34 @@ class MusesLevmarSolver:
         self.stopCode = -1
         self.verbose = verbose
 
+    @classmethod
+    def retrieval_results_tolist(self, ret_res):
+        '''We want to save retrieval_results as a json, but json doesn't directly
+        support numpy arrays. We convert these to python lists, and then
+        retrieval_results_fromlist can be used to restore retrieval_results.'''
+        t = copy.deepcopy(ret_res)
+        t['jacobian']['jacobian_data'] = t['jacobian']['jacobian_data'].tolist()
+        t['radiance']['radiance'] = t['radiance']['radiance'].tolist()
+        for k in ('xret', 'xretFM', 'radianceIterations', 'xretIterations',
+                  'stopCriteria', 'resdiag', 'residualRMS',
+                  'delta', 'rho', 'lambda'):
+            t[k] = t[k].tolist()
+        return t
+
+    @classmethod
+    def retrieval_results_fromlist(self, tin):
+        '''We want to save retrieval_results as a json, but json doesn't directly
+        support numpy arrays. We convert these to python lists, and then
+        retrieval_results_fromlist can be used to restore retrieval_results.'''
+        t = copy.deepcopy(tin)
+        t['jacobian']['jacobian_data'] = np.array(t['jacobian']['jacobian_data'])
+        t['radiance']['radiance'] = np.array(t['radiance']['radiance'])
+        for k in ('xret', 'xretFM', 'radianceIterations', 'xretIterations',
+                  'stopCriteria', 'resdiag', 'residualRMS',
+                  'delta', 'rho', 'lambda'):
+            t[k] = np.array(t[k])
+        return t
+    
     def retrieval_results(self):
         '''Return the retrieval results dict. Hopefully this can go away, this
         is just used in mpy.set_retrieval_results (another function we would like

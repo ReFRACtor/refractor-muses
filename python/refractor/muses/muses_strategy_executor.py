@@ -1,4 +1,3 @@
-from .retrieval_strategy_step_new import RetrievalStrategyStepSetNew
 from .refractor_capture_directory import muses_py_call
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .retrieval_info import RetrievalInfo
@@ -544,7 +543,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.get_initial_guess()
         self.rs.notify_update("done get_initial_guess")
         logger.info(f"Step: {self.current_strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}")
-        self.rs._retrieval_strategy_step_set.retrieval_step(self.current_strategy_step.retrieval_type, self.rs)
+        self.rs._retrieval_strategy_step_set.retrieval_step(self.current_strategy_step.retrieval_type, self.rs, **self.rs._kwargs)
         self.rs.notify_update("done retrieval_step")
         self.rs._state_info.next_state_to_current()
         self.rs.notify_update("done next_state_to_current")

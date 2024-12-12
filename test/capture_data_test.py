@@ -3,7 +3,7 @@ from refractor.old_py_retrieve_wrapper import (RefractorMusesIntegration, MusesF
                                                RefractorTropOrOmiFmPyRetrieve)
 from refractor.muses import (MusesRunDir, RetrievalStrategy,
                              RetrievalStrategyCaptureObserver,
-                             RetrievalResultCaptureObserver,
+                             RetrievalStepResultCaptureObserver,
                              StateInfoCaptureObserver)
 from refractor.tropomi import TropomiForwardModelHandle
 
@@ -122,18 +122,14 @@ def test_capture_tropomi_cris_retrieval_strategy(isolated_dir, osp_dir, gmao_dir
                                         lrad_second_order=False)
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.clear_observers()
-    rscap = RetrievalStrategyCaptureObserver(
-        f"{joint_tropomi_test_in_dir}/retrieval_strategy_retrieval_step",
+    rscap = StateInfoCaptureObserver(
+        f"{joint_tropomi_test_in_dir}/state_info_step",
         "starting run_step")
     rs.add_observer(rscap)
-    rscap2 = RetrievalResultCaptureObserver(
-        f"{joint_tropomi_test_in_dir}/retrieval_result",
-        "systematic_jacobian")
-    rs.add_observer(rscap2)
-    rscap3 = RetrievalStrategyCaptureObserver(
-        f"{joint_tropomi_test_in_dir}/retrieval_ready_output",
+    rscap2 = RetrievalStepResultCaptureObserver(
+        f"{joint_tropomi_test_in_dir}/retrieval_result_step",
         "retrieval step")
-    rs.add_observer(rscap3)
+    rs.add_observer(rscap2)
     rs.update_target(f"{r.run_dir}/Table.asc")
     rs.retrieval_ms()
 

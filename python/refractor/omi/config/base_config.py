@@ -8,18 +8,17 @@ import refractor.framework as rf
 
 config_dir = os.path.dirname(__file__)
 
-# ILS and solar reference spectra used below, are within omi dir in refractor_test_data repo at same level as omi
+# ILS and solar reference spectra used below, are in the OSP directory
 # config_dir is at omi/config
-if("REFRACTOR_TEST_DATA" in os.environ):
-    test_in_dir = f"{os.environ['REFRACTOR_TEST_DATA']}/omi/in/"
+if("MUSES_OSP_PATH" in os.environ):
+    osp_dir = os.environ["MUSES_OSP_PATH"]
 else:
-    test_in_dir = os.path.abspath(f"{os.path.dirname(__file__)}/../../../../../refractor_test_data/omi/in")
-ils_path = f"{test_in_dir}/ils/normal"
+    osp_dir = os.path.expanduser("~/OSP")
+ils_path = f"{osp_dir}/OMI/OMI_ILS/NORMAL/"
 
 # Same file used by MUSES retrieval
 # Listed as a 3 year mean of solar spectra
-solar_ref_3yr_filename = f"{test_in_dir}/solar/omisol_v003_avg_nshi_backup.h5"
-
+solar_ref_3yr_filename = f"{osp_dir}/OMI/OMI_Solar/omisol_v003_avg_nshi_backup.h5"
 num_channels = 2
 channel_names = ['UV1', 'UV2']
 

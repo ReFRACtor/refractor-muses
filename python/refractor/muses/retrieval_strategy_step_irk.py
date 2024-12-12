@@ -10,7 +10,7 @@ import numpy as np
 class RetrievalStrategyStepIRK(RetrievalStrategyStep):
     '''IRK strategy step.'''
     def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy') -> (bool, None):
+                       rs : 'RetrievalStrategy', **kwargs) -> (bool, None):
         if retrieval_type != "irk":
             return (False,  None)
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")

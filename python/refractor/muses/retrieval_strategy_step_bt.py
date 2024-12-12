@@ -24,7 +24,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         
     def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy') -> (bool, None):
+                       rs : 'RetrievalStrategy', **kwargs) -> (bool, None):
         if retrieval_type != "bt":
             return (False,  None)
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
