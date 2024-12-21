@@ -4,9 +4,19 @@ from refractor.muses import RefractorUip
 import subprocess
 import pprint
 
+def load_muses_retrieval_step(dir_in, step_number=1, osp_dir=None,
+                              gmao_dir=None, change_to_dir=True):
+    '''This reads parameters that can be use to call the py-retrieve function
+    run_retrieval. See muses_capture in refractor-muses for collecting this.
+    '''
+    return MusesRetrievalStep.load_retrieval_step(
+        f"{dir_in}/run_retrieval_step_{step_number}.pkl",
+        osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=change_to_dir)
+
+
 @require_muses_py
 def test_refractor_omi_uip(isolated_dir):
-    m = RefractorUip.load_uip(f"{test_base_path}/omi/in/sounding_1/uip_step_1.pkl",
+    m = RefractorUip.load_uip(f"{test_base_path}/omi/in/sounding_1/uip_step_2.pkl",
                               change_to_dir=False)
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out

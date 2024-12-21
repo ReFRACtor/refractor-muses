@@ -10,7 +10,10 @@ from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
 import numpy as np
 import subprocess
-import json
+import jsonpickle
+# Handle numpy arrays in jsonpickle
+import jsonpickle.ext.numpy as jsonpickle_numpy
+jsonpickle_numpy.register_handlers()
 
 # TODO clean up the usage for various internal objects of
 # RetrievalStrategy, we want to rework this anyways as we introduce
@@ -141,7 +144,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         if(ret_res is None):
             # Skip this step if ret_res was passed in. This is to support
-            # unit testing where we used a precomputed result
+            # unit testing where we use a precomputed result
             ret_res = self.run_retrieval(rs)
         else:
             self.cfunc = rs.create_cost_function()
@@ -308,10 +311,10 @@ class RetrievalStepResultCaptureObserver:
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         fname = f"{self.basefname}_{retrieval_strategy.step_number}.json"
+        # Copy here is to make sure numpy arrays are contiguous in C order
         with open(fname, "w") as fh:
-            fh.write(json.dumps({"ret_res" :
-                                 MusesLevmarSolver.retrieval_results_tolist(ret_res),
-                                 "jacobian_sys" : jacobian_sys.tolist()}))
+            fh.write(jsonpickle.encode({"ret_res" : copy.deepcopy(ret_res),
+                                        "jacobian_sys" : copy.deepcopy(jacobian_sys)}))
 
 __all__ = ["RetrievalStrategyStepSet", "RetrievalStrategyStep",
            "RetrievalStrategyStepNotImplemented",

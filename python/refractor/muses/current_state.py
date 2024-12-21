@@ -107,8 +107,20 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @property
     def initial_guess(self) -> np.array:
-        '''Initial guess'''
+        '''Initial guess, on the retrieval grid.'''
         raise NotImplementedError()
+
+    @property
+    def initial_guess_fm(self) -> np.array:
+        '''Return the initial guess on for the forward model grid.
+        This isn't independent, it is directly calculated from the
+        initial_guess and basis_matrix. But convenient to supply this
+        (mostly as a help in unit testing).'''
+        if(self.basis_matrix is not None):
+            mapping = rf.StateMappingBasisMatrix(self.basis_matrix.transpose())
+        else:
+            mapping = rf.StateMappingLinear()
+        return mapping.mapped_state(rf.ArrayAd_double_1(self.initial_guess)).value
 
     def update_state(self, retrieval_info : "RetrievalInfo",
                      results_list: np.array, do_not_update,

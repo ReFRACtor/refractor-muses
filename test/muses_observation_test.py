@@ -34,14 +34,7 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
     fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
     obs = MusesAirsObservation.create_from_filename(fname, granule, xtrack, atrack,
                                                     channel_list, osp_dir=osp_dir)
-    step_number = 8
-    iteration = 2
-    rrefractor = muses_residual_fm_jac(joint_omi_test_in_dir,
-                                       step_number=step_number,
-                                       iteration=iteration,
-                                       osp_dir=osp_dir,
-                                       gmao_dir=gmao_dir,
-                                       path="refractor")
+    rrefractor = joint_omi_residual_fm_jac(path="refractor")
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
@@ -136,14 +129,7 @@ def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
     filter_list = ["BAND3",]
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
-    step_number = 12
-    iteration = 2
-    rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,
-                                       step_number=step_number,
-                                       iteration=iteration,
-                                       osp_dir=osp_dir,
-                                       gmao_dir=gmao_dir,
-                                       path="refractor")
+    rrefractor = joint_tropomi_residual_fm_jac(path="refractor")
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
@@ -252,14 +238,7 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
     obs = MusesOmiObservation.create_from_filename(
         filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
         ["UV1", "UV2"], cld_filename=cld_filename, osp_dir=osp_dir)
-    step_number = 8
-    iteration = 2
-    rrefractor = muses_residual_fm_jac(joint_omi_test_in_dir,
-                                       step_number=step_number,
-                                       iteration=iteration,
-                                       osp_dir=osp_dir,
-                                       gmao_dir=gmao_dir,
-                                       path="refractor")
+    rrefractor = joint_omi_residual_fm_jac(path="refractor")
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.omi_params["nradwav_uv1"] = 0.01

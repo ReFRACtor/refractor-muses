@@ -33,11 +33,9 @@ def test_error_analysis_init(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
                    skip_list=["preferences"], verbose=True)
     
 
-def test_error_analysis_update_retrieval_results(isolated_dir, osp_dir, gmao_dir):
-    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    rstep = run_step_to_location(rs, 10, joint_tropomi_test_in_dir,
-                                 "systematic_jacobian")
+def test_error_analysis_update_retrieval_results(isolated_dir):
+    rs, rstep, _ = set_up_run_to_location(joint_tropomi_test_in_dir, 10,
+                                          "systematic_jacobian")
     # TODO Not really sure what the results are suppose to be, or even easily what
     # gets changed. So we just check that the call is successful.
     # Note we do check this indirectly by our end to end runs and comparison

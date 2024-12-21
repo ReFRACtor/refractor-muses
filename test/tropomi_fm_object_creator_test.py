@@ -208,41 +208,6 @@ def test_species_basis(tropomi_uip_step_2):
                         tropomi_uip_step_2.species_basis_matrix_calc("O3"))
 
 
-@require_muses_py
-def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
-                                 joint_tropomi_obs_step_12):
-    '''Test out the CostFunction residual_fm_jacobian using our forward model. Note
-    that this just tests that we can make the call, to debug any problems there. The
-    actual comparison on results is done in full run tests below.'''
-    step_number = 12
-    iteration = 2
-    
-    curdir = os.path.curdir
-    rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,
-                                       step_number=step_number,
-                                       iteration=iteration,
-                                       osp_dir=osp_dir,
-                                       gmao_dir=gmao_dir,
-                                       path="refractor")
-    rf_uip = RefractorUip(rrefractor.params["uip"],
-                          rrefractor.params["ret_info"]["basis_matrix"])
-    rf_uip.run_dir = rrefractor.run_dir
-    creator = CostFunctionCreator()
-    ihandle = TropomiForwardModelHandle(use_pca=False, use_lrad=False,
-                                      lrad_second_order=False)
-    creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    obslist = joint_tropomi_obs_step_12
-    rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
-    flist = {'TROPOMI' : ['BAND3']}
-    mid = MeasurementIdFile(f"{joint_tropomi_test_in_dir}/Measurement_ID.asc",
-                            rconf, flist)
-    creator.notify_update_target(mid)
-    cfunc = creator.cost_function_from_uip(rf_uip, obslist,
-                                           rrefractor.params["ret_info"],
-                                           vlidort_cli=vlidort_cli)
-    (uip, o_residual, o_jacobian_ret, radiance_out,
-     o_jacobianOut, o_stop_flag) = cfunc.residual_fm_jacobian(**rrefractor.params)
 
 
 def test_compare_altitude(tropomi_fm_object_creator_step_1):

@@ -9,6 +9,46 @@ from refractor.old_py_retrieve_wrapper import (RefractorOmiFmMusesPy, RefractorO
                                                RefractorTropOrOmiFmPyRetrieve)
 import refractor.framework as rf
 
+@pytest.fixture(scope="function")
+def omi_obs_step_1(osp_dir):
+    # Observation going with step 1
+    xtrack_uv1 = 11
+    xtrack_uv2 = 23
+    atrack = 394
+    filename = f"{omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0414t2324-o62498_v003-2016m0415t050532.he4"
+    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
+    utc_time = "2016-04-14T23:59:46.000000Z"
+    filter_list = ["UV1", "UV2"]
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_OMICLOUDFRACTION_OMICLOUD_IG_Refine.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"OMI" : filter_list})
+    obs = MusesOmiObservation.create_from_filename(
+        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+        filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
+    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
+    return obs
+
+@pytest.fixture(scope="function")
+def omi_obs_step_2(osp_dir):
+    # Observation going with step 2
+    xtrack_uv1 = 11
+    xtrack_uv2 = 23
+    atrack = 394
+    filename = f"{omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0414t2324-o62498_v003-2016m0415t050532.he4"
+    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
+    utc_time = "2016-04-14T23:59:46.000000Z"
+    filter_list = ["UV1", "UV2"]
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_O3.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"OMI" : filter_list})
+    obs = MusesOmiObservation.create_from_filename(
+        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
+        filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
+    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
+    return obs
+
 #============================================================================
 # This set of classes replace the lower level call to omi_fm in
 # muses-py. This was used when initially comparing ReFRACtor and muses-py.

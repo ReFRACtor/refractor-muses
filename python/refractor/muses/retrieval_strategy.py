@@ -26,6 +26,9 @@ import pickle
 import jsonpickle
 import numpy as np
 import gzip
+# Handle numpy arrays in jsonpickle
+import jsonpickle.ext.numpy as jsonpickle_numpy
+jsonpickle_numpy.register_handlers()
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
@@ -384,7 +387,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         pickle.dump(self.state_info, open(save_pickle_file, "wb"))
             
     def load_state_info(self, state_info_pickle_file, step_number,
-                        ret_res_file=None):
+                        ret_res_file=None, irk_res_file=None):
         '''This pairs with save_state_info_pickle. Instead of pickling the entire
         RetrievalStrategy, we just pickle the state. We then set up
         to process the given target_filename with the given state, jumping to
@@ -400,8 +403,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._strategy_executor.set_step(step_number)
         if(ret_res_file is not None):
             t = jsonpickle.decode(open(ret_res_file, "r").read())
-            self._kwargs['ret_res'] = MusesLevmarSolver.retrieval_results_fromlist(t["ret_res"])
-            self._kwargs['jacobian_sys'] = np.array(t['jacobian_sys'])
+            self._kwargs['ret_res'] = t["ret_res"]
+            self._kwargs['jacobian_sys'] = t['jacobian_sys']
+        if(irk_res_file is not None):
+            t = jsonpickle.decode(open(irk_res_file, "r").read())
+            self._kwargs['irk_res'] = t
+            
 
     @classmethod
     def load_retrieval_strategy(cls, save_pickle_file, path=".",

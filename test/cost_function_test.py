@@ -1,12 +1,23 @@
 from test_support import *
 from refractor.muses import (CostFunctionCreator, CostFunction, muses_py_call,
-                             osswrapper)
+                             osswrapper, RetrievalConfiguration,
+                             MeasurementIdFile)
+from refractor.omi import OmiForwardModelHandle
+from refractor.tropomi import TropomiForwardModelHandle
 import refractor.muses.muses_py as mpy
 
 @require_muses_py
 def test_fm_wrapper_tropomi(joint_tropomi_uip_step_12, joint_tropomi_obs_step_12, vlidort_cli):
     '''Compare the results from our CostFunction with directly calling
-    mpy.fm_wrapper.'''
+    mpy.fm_wrapper.
+
+    This is the old py-retrieve function. We don't actually use this
+    anymore, but it is useful to make sure the old function works in case
+    we need to use this in the future to track down some problem.
+
+    We can probably eventually remove this - at some point it may be more
+    work to maintain this old compatibility function than it is worth.
+    '''
     rf_uip = joint_tropomi_uip_step_12
     creator = CostFunctionCreator()
     obs_cris, obs_tropomi = joint_tropomi_obs_step_12
@@ -40,6 +51,16 @@ def test_fm_wrapper_tropomi(joint_tropomi_uip_step_12, joint_tropomi_obs_step_12
 
 @require_muses_py
 def test_fm_wrapper_omi(joint_omi_uip_step_8, joint_omi_obs_step_8, vlidort_cli):
+    '''Compare the results from our CostFunction with directly calling
+    mpy.fm_wrapper.
+
+    This is the old py-retrieve function. We don't actually use this
+    anymore, but it is useful to make sure the old function works in case
+    we need to use this in the future to track down some problem.
+
+    We can probably eventually remove this - at some point it may be more
+    work to maintain this old compatibility function than it is worth.
+    '''
     rf_uip = joint_omi_uip_step_8
     obs_airs, obs_omi = joint_omi_obs_step_8
     creator = CostFunctionCreator()
@@ -75,17 +96,17 @@ def test_fm_wrapper_omi(joint_omi_uip_step_8, joint_omi_obs_step_8, vlidort_cli)
 def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
                                  joint_tropomi_obs_step_12):
     '''Compare the results from our CostFunction with directly calling
-    mpy.fm_wrapper.'''
-    step_number = 12
-    iteration = 2
+    mpy.residual_fm_jacobian
+    
+    This is the old py-retrieve function. We don't actually use this
+    anymore, but it is useful to make sure the old function works in case
+    we need to use this in the future to track down some problem.
 
+    We can probably eventually remove this - at some point it may be more
+    work to maintain this old compatibility function than it is worth.
+    '''
     curdir = os.path.curdir
-    rrefractor = muses_residual_fm_jac(joint_tropomi_test_in_dir,
-                                       step_number=step_number,
-                                       iteration=iteration,
-                                       osp_dir=osp_dir,
-                                       gmao_dir=gmao_dir,
-                                       path="refractor")
+    rrefractor = joint_tropomi_residual_fm_jac(path="refractor")
     rf_uip = RefractorUip(rrefractor.params["uip"],
                           rrefractor.params["ret_info"]["basis_matrix"])
     rf_uip.run_dir = rrefractor.run_dir
@@ -102,12 +123,7 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
      o_jacobianOut, o_stop_flag) = cfunc.residual_fm_jacobian(**rrefractor.params)
     
     os.chdir(curdir)
-    rmuses_py = muses_residual_fm_jac(joint_tropomi_test_in_dir,
-                                      step_number=step_number,
-                                      iteration=iteration,
-                                      osp_dir=osp_dir,
-                                      gmao_dir=gmao_dir,
-                                      path="muses_py")
+    rmuses_py = joint_tropomi_residual_fm_jac(path="muses_py")
     # Results to compare against
     (uip2, o_residual2, o_jacobian_ret2, radiance_out2,
      o_jacobianOut2, o_stop_flag2) = rmuses_py.residual_fm_jacobian(vlidort_cli=vlidort_cli)
@@ -129,16 +145,18 @@ def test_residual_fm_jac_tropomi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
 def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
                              joint_omi_obs_step_8):
     '''Compare the results from our CostFunction with directly calling
-    mpy.fm_wrapper.'''
-    step_number = 8
-    iteration = 2
+    mpy.residual_fm_jacobian
+    
+    This is the old py-retrieve function. We don't actually use this
+    anymore, but it is useful to make sure the old function works in case
+    we need to use this in the future to track down some problem.
+
+    We can probably eventually remove this - at some point it may be more
+    work to maintain this old compatibility function than it is worth.
+    '''
     curdir = os.path.curdir
-    rrefractor = muses_residual_fm_jac(joint_omi_test_in_dir,
-                                       step_number=step_number,
-                                       iteration=iteration,
-                                       osp_dir=osp_dir,
-                                       gmao_dir=gmao_dir,
-                                       path="refractor")
+    rrefractor = joint_omi_residual_fm_jac(path="refractor")
+    
     # Note OMI already has a number of bad pixels, so we don't need to
     # dummy any for testing
     rf_uip = RefractorUip(rrefractor.params["uip"],
@@ -160,12 +178,7 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
      o_jacobianOut, o_stop_flag) = cfunc.residual_fm_jacobian(**rrefractor.params)
 
     os.chdir(curdir)
-    rmuses_py = muses_residual_fm_jac(joint_omi_test_in_dir,
-                                      step_number=step_number,
-                                      iteration=iteration,
-                                      osp_dir=osp_dir,
-                                      gmao_dir=gmao_dir,
-                                      path="muses_py")
+    rmuses_py = joint_omi_residual_fm_jac(path="muses_py")
     # Results to compare against
     (uip2, o_residual2, o_jacobian_ret2, radiance_out2,
      o_jacobianOut2, o_stop_flag2) = rmuses_py.residual_fm_jacobian(vlidort_cli=vlidort_cli)
@@ -182,4 +195,77 @@ def test_residual_fm_jac_omi(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
                         rmuses_py.params["ret_info"]["obs_rad"])
     npt.assert_allclose(rrefractor.params["ret_info"]["meas_err"],
                         rmuses_py.params["ret_info"]["meas_err"])
+    
+def test_residual_fm_jac_omi2(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
+                              joint_omi_obs_step_8):
+    '''Test out the CostFunction residual_fm_jacobian using our
+    forward model. Note that this just tests that we can make the
+    call, to debug any problems there.
+
+    This is the old py-retrieve function. We don't actually use this
+    anymore, but it is useful to make sure the old function works in case
+    we need to use this in the future to track down some problem.
+
+    We can probably eventually remove this - at some point it may be more
+    work to maintain this old compatibility function than it is worth.
+    '''
+    curdir = os.path.curdir
+    rrefractor = joint_omi_residual_fm_jac(path="refractor")
+    rf_uip = RefractorUip(rrefractor.params["uip"],
+                          rrefractor.params["ret_info"]["basis_matrix"])
+    rf_uip.run_dir = rrefractor.run_dir
+    creator = CostFunctionCreator()
+    ihandle = OmiForwardModelHandle(use_pca=False, use_lrad=False,
+                                  lrad_second_order=False)
+    creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{test_base_path}/omi/in/sounding_1/Table.asc", osp_dir=osp_dir)
+    flist = {'OMI' : ['UV1', 'UV2']}
+    mid = MeasurementIdFile(f"{test_base_path}/omi/in/sounding_1/Measurement_ID.asc",
+                            rconf, flist)
+    creator.notify_update_target(mid)
+    cfunc = creator.cost_function_from_uip(rf_uip, joint_omi_obs_step_8,
+                                           rrefractor.params["ret_info"],
+                                           vlidort_cli=vlidort_cli)
+    (uip, o_residual, o_jacobian_ret, radiance_out,
+     o_jacobianOut, o_stop_flag) = cfunc.residual_fm_jacobian(**rrefractor.params)
+
+@require_muses_py
+def test_residual_fm_jac_tropomi2(isolated_dir, vlidort_cli, osp_dir, gmao_dir,
+                                 joint_tropomi_obs_step_12):
+    '''Test out the CostFunction residual_fm_jacobian using our
+    forward model. Note that this just tests that we can make the
+    call, to debug any problems there.
+
+    This is the old py-retrieve function. We don't actually use this
+    anymore, but it is useful to make sure the old function works in case
+    we need to use this in the future to track down some problem.
+
+    We can probably eventually remove this - at some point it may be more
+    work to maintain this old compatibility function than it is worth.
+    '''
+    step_number = 12
+    iteration = 2
+    
+    curdir = os.path.curdir
+    rrefractor = joint_tropomi_residual_fm_jac(path="refractor")
+    rf_uip = RefractorUip(rrefractor.params["uip"],
+                          rrefractor.params["ret_info"]["basis_matrix"])
+    rf_uip.run_dir = rrefractor.run_dir
+    creator = CostFunctionCreator()
+    ihandle = TropomiForwardModelHandle(use_pca=False, use_lrad=False,
+                                      lrad_second_order=False)
+    creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    obslist = joint_tropomi_obs_step_12
+    rconf = RetrievalConfiguration.create_from_strategy_file(
+        f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    flist = {'TROPOMI' : ['BAND3']}
+    mid = MeasurementIdFile(f"{joint_tropomi_test_in_dir}/Measurement_ID.asc",
+                            rconf, flist)
+    creator.notify_update_target(mid)
+    cfunc = creator.cost_function_from_uip(rf_uip, obslist,
+                                           rrefractor.params["ret_info"],
+                                           vlidort_cli=vlidort_cli)
+    (uip, o_residual, o_jacobian_ret, radiance_out,
+     o_jacobianOut, o_stop_flag) = cfunc.residual_fm_jacobian(**rrefractor.params)
     

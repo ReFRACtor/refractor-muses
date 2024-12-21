@@ -5,7 +5,8 @@ import pickle
 import pytest
 import refractor.muses.muses_py as mpy
 from refractor.muses import (RefractorUip, osswrapper,
-                             DictFilterMetadata,
+                             DictFilterMetadata, MusesRunDir,
+                             RetrievalStrategy,
                              MusesTropomiObservation, MusesOmiObservation,
                              MusesCrisObservation, MusesAirsObservation, MusesSpectralWindow)
 from refractor.framework import (load_config_module, find_config_function, PythonFpLogger,
@@ -158,16 +159,7 @@ def python_fp_logger(tmpdir):
     FpLogger.turn_on_logger()
     
         
-def load_muses_retrieval_step(dir_in, step_number=1, osp_dir=None,
-                              gmao_dir=None, change_to_dir=True):
-    '''This reads parameters that can be use to call the py-retrieve function
-    run_retrieval. See muses_capture in refractor-muses for collecting this.
-    '''
-    return MusesRetrievalStep.load_retrieval_step(
-        f"{dir_in}/run_retrieval_step_{step_number}.pkl",
-        osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=change_to_dir)
-
-def muses_residual_fm_jac(dir_in, step_number=1, iteration=1,
+def _muses_residual_fm_jac(dir_in, step_number=1, iteration=1,
                           osp_dir=None, gmao_dir=None,
                           path=".",
                           change_to_dir=True):
@@ -178,6 +170,41 @@ def muses_residual_fm_jac(dir_in, step_number=1, iteration=1,
         f"{dir_in}/residual_fm_jac_{step_number}_{iteration}.pkl",
         osp_dir=osp_dir, gmao_dir=gmao_dir,path=path,
         change_to_dir=change_to_dir)
+
+def joint_omi_residual_fm_jac(path="refractor"):
+    '''This returns the old MusesResidualFmJacobian. This is used for
+    backwards testing against py-retrieve code.
+
+    Directory is created given the path, and we change into that
+    directory.'''
+    step_number = 8
+    iteration = 2
+    osp_dir = os.environ.get("MUSES_OSP_PATH", None)
+    gmao_dir = os.environ.get("MUSES_GMAO_PATH", None)
+    return _muses_residual_fm_jac(joint_omi_test_in_dir,
+                                  step_number=step_number,
+                                  iteration=iteration,
+                                  osp_dir=osp_dir,
+                                  gmao_dir=gmao_dir,
+                                  path=path)
+
+def joint_tropomi_residual_fm_jac(path="refractor"):
+    '''This returns the old MusesResidualFmJacobian. This is used for
+    backwards testing against py-retrieve code.
+
+    Directory is created given the path, and we change into that
+    directory.'''
+    
+    step_number = 12
+    iteration = 2
+    osp_dir = os.environ.get("MUSES_OSP_PATH", None)
+    gmao_dir = os.environ.get("MUSES_GMAO_PATH", None)
+    return _muses_residual_fm_jac(joint_tropomi_test_in_dir,
+                                  step_number=step_number,
+                                  iteration=iteration,
+                                  osp_dir=osp_dir,
+                                  gmao_dir=gmao_dir,
+                                  path=path)
 
 def load_uip(dir_in, step_number=1, osp_dir=None, gmao_dir=None):
     return  RefractorUip.load_uip(
@@ -377,53 +404,6 @@ def omi_config_dir():
     yield os.path.abspath(os.path.dirname(__file__) + "/../../python/refractor/omi/config") + "/"
 
 @pytest.fixture(scope="function")
-def omi_uip_step_1(isolated_dir, osp_dir, gmao_dir):
-    '''Return a RefractorUip for strategy step 1, and also unpack all the 
-    support files into a directory'''
-    return load_uip(omi_test_in_dir, step_number=1,
-                    osp_dir=osp_dir, gmao_dir=gmao_dir)
-
-@pytest.fixture(scope="function")
-def omi_obs_step_1(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_uv1 = 11
-    xtrack_uv2 = 23
-    atrack = 394
-    filename = f"{omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0414t2324-o62498_v003-2016m0415t050532.he4"
-    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
-    utc_time = "2016-04-14T23:59:46.000000Z"
-    filter_list = ["UV1", "UV2"]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_OMICLOUDFRACTION_OMICLOUD_IG_Refine.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"OMI" : filter_list})
-    obs = MusesOmiObservation.create_from_filename(
-        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
-        filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
-    obs.spectral_window = swin_dict["OMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
-@pytest.fixture(scope="function")
-def omi_obs_step_2(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_uv1 = 11
-    xtrack_uv2 = 23
-    atrack = 394
-    filename = f"{omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0414t2324-o62498_v003-2016m0415t050532.he4"
-    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
-    utc_time = "2016-04-14T23:59:46.000000Z"
-    filter_list = ["UV1", "UV2"]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_O3.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"OMI" : filter_list})
-    obs = MusesOmiObservation.create_from_filename(
-        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
-        filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
-    obs.spectral_window = swin_dict["OMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
-@pytest.fixture(scope="function")
 def omi_uip_step_2(isolated_dir, osp_dir, gmao_dir):
     '''Return a RefractorUip for strategy step 2, and also unpack all the 
     support files into a directory'''
@@ -461,15 +441,30 @@ def all_output_disabled():
     finally:
         logger.add(sys.stderr)
 
-def load_step(rs, step_number, dir, include_result=False):
+def load_step(rs, step_number, dir, include_result=False, include_irk_result=False):
     '''Load in the state information and optional retrieval results for the given
     step, and jump to that step.'''
     rs.load_state_info(
         f"{dir}/state_info_step_{step_number}.pkl",
         step_number,
-        f"{dir}/retrieval_result_step_{step_number}.json" if include_result else None)
+        ret_res_file = f"{dir}/retrieval_result_step_{step_number}.json" if include_result else None,
+        irk_res_file = f"{dir}/retrieval_irk_result_step_{step_number}.json" if include_irk_result else None)
 
-def run_step_to_location(rs, step_number, dir, location):
+def set_up_run_to_location(dir, step_number, location, include_result=True,
+                           include_irk_result=False):
+    '''Set up directory and run the given step number to the given location.'''
+    osp_dir = os.environ.get("MUSES_OSP_PATH", None)
+    gmao_dir = os.environ.get("MUSES_GMAO_PATH", None)
+    vlidort_cli = os.environ.get("MUSES_VLIDORT_CLI", "~/muses/muses-vlidort/build/release/vlidort_cli")
+    r = MusesRunDir(dir, osp_dir, gmao_dir)
+    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    rstep, kwargs = run_step_to_location(rs, step_number, dir, location,
+                                         include_result=include_result,
+                                         include_irk_result=include_irk_result)
+    return rs,rstep,kwargs
+    
+def run_step_to_location(rs, step_number, dir, location, include_result=True,
+                         include_irk_result=False):
     '''Load in the given step, and run up to the location we notify at
     (e.g., "retrieval step"). Return the retrieval_strategy_step'''
     class CaptureRs:
@@ -480,16 +475,18 @@ def run_step_to_location(rs, step_number, dir, location):
             if(loc != location):
                 return
             self.retrieval_strategy_step = retrieval_strategy_step
+            self.kwargs = kwargs
             raise StopIteration()
 
     try:
         rcap = CaptureRs()
         rs.add_observer(rcap)
-        load_step(rs, step_number, dir, include_result=True)
+        load_step(rs, step_number, dir, include_result=include_result,
+                  include_irk_result=include_irk_result)
         try:
             rs.continue_retrieval(stop_after_step=step_number)
         except StopIteration:
-            return rcap.retrieval_strategy_step
+            return rcap.retrieval_strategy_step, rcap.kwargs
     finally:
         rs.remove_observer(rcap)
     
