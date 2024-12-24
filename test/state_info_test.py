@@ -1,15 +1,13 @@
 from test_support import *
-from refractor.muses import (StateInfo, RetrievalStrategy, MusesRunDir,
-                             RetrievalInfo, SingleSpeciesHandle,
-                             CurrentStrategyStepDict,
+from refractor.muses import (MusesRunDir, SingleSpeciesHandle,
                              OmiEofStateElement)
+import subprocess
 
 class RetrievalStrategyStop:
     def notify_update(self, retrieval_strategy, location, **kwargs):
         if(location == "initial set up done"):
             raise StopIteration()
 
-@require_muses_py
 def test_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # TODO - We should have a constructor for StateInfo. Don't currently,
     # so we just run RetrievalStrategy to the beginning and stop
@@ -43,7 +41,6 @@ def test_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     assert sinfo.state_element("TATM").value[0] == pytest.approx(293.28302002)
 
 
-@require_muses_py
 def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     '''Test updating OMICLOUDFRACTION. Nothing particularly special about this
     StateElement, it is just a good simple test case for checking the muses-py
@@ -138,7 +135,6 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # other steps. So the difference here is actually correct
     npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
 
-@require_muses_py
 def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     '''Repeat the previous test, but label the update as "do_not_update". This
     tests the handling of that case.'''
@@ -235,7 +231,6 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
     
     
-@require_muses_py
 def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     '''Repeat the tests for OMICLOUDFRACTION for our own ReFRACtor only
     StateElement. This is the OmiEofStateElement, but this should be pretty
@@ -336,7 +331,6 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.mapToParameters, np.eye(3))
     npt.assert_allclose(selement.constraintMatrix, np.diag([100,100,100]))
 
-@require_muses_py
 def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     '''Repeat the previous test, but label the update as "do_not_update". This
     tests the handling of that case.'''

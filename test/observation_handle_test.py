@@ -1,6 +1,5 @@
 from test_support import *
-from refractor.muses import (StateInfo, RetrievalStrategy, MusesRunDir,
-                             ObservationHandleSet, CostFunctionCreator,
+from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              mpy_radiance_from_observation_list)
 
 class RetrievalStrategyStop:
@@ -8,7 +7,6 @@ class RetrievalStrategyStop:
         if(location == "initial set up done"):
             raise StopIteration()
 
-@require_muses_py
 def test_radiance(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     # TODO - We should have a constructor for StateInfo. Don't currently,
     # so we just run RetrievalStrategy to the beginning and stop

@@ -1,14 +1,11 @@
 from test_support import *
 from refractor.muses import (RetrievalInfo, RetrievalStrategy, MusesRunDir)
 from refractor.old_py_retrieve_wrapper import RetrievalInfoOld
-import subprocess
-import glob
 import pickle
 
 # Temporary, depends on our test run
 @skip
 @pytest.mark.parametrize("step_number", [1,2,3,4,5,6,7,8,9,10,11,12])
-@require_muses_py
 def test_retrieval_info(isolated_dir, vlidort_cli, osp_dir, gmao_dir, step_number):
     r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
     pname = f"/home/smyth/Local/refractor-muses/retrieval_strategy_cris_tropomi/20190807_065_04_08_5/retrieval_step_{step_number}.pkl"

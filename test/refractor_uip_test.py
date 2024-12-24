@@ -1,5 +1,5 @@
 from test_support import *
-import refractor.framework as rf
+from test_support.old_py_retrieve_test_support import *
 from refractor.muses import RefractorUip
 import subprocess
 import pprint
@@ -14,80 +14,54 @@ def load_muses_retrieval_step(dir_in, step_number=1, osp_dir=None,
         osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=change_to_dir)
 
 
-@require_muses_py
-def test_refractor_omi_uip(isolated_dir):
-    m = RefractorUip.load_uip(f"{test_base_path}/omi/in/sounding_1/uip_step_2.pkl",
-                              change_to_dir=False)
+@old_py_retrieve_test
+def test_refractor_omi_uip(omi_uip_step_2):
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
     filter_name = "UV2"
-    print(m.atmosphere_column("O3"))
-    print(m.omi_params)
-    print(m.observation_zenith_with_unit(filter_name))
-    print(m.observation_azimuth_with_unit(filter_name))
-    print(m.solar_azimuth_with_unit(filter_name))
-    print(m.solar_zenith_with_unit(filter_name))
-    print(m.relative_azimuth_with_unit(filter_name))
-    print(m.latitude(filter_name))
-    print(m.longitude(filter_name))
-    print(m.surface_height(filter_name))
-    print(m.across_track_indexes(filter_name, "OMI"))
-    print(m.atm_params("OMI"))
-    print(m.ray_info("OMI"))
-    print(m.solar_irradiance(filter_name, "OMI"))
+    print(omi_uip_step_2.atmosphere_column("O3"))
+    print(omi_uip_step_2.omi_params)
+    print(omi_uip_step_2.observation_zenith_with_unit(filter_name))
+    print(omi_uip_step_2.observation_azimuth_with_unit(filter_name))
+    print(omi_uip_step_2.solar_azimuth_with_unit(filter_name))
+    print(omi_uip_step_2.solar_zenith_with_unit(filter_name))
+    print(omi_uip_step_2.relative_azimuth_with_unit(filter_name))
+    print(omi_uip_step_2.latitude(filter_name))
+    print(omi_uip_step_2.longitude(filter_name))
+    print(omi_uip_step_2.surface_height(filter_name))
+    print(omi_uip_step_2.across_track_indexes(filter_name, "OMI"))
+    print(omi_uip_step_2.atm_params("OMI"))
+    print(omi_uip_step_2.ray_info("OMI"))
+    print(omi_uip_step_2.solar_irradiance(filter_name, "OMI"))
 
-@require_muses_py
-def test_refractor_joint_uip(isolated_dir):
-    # UIP  that has both AIRS and OMI
-    m = RefractorUip.load_uip(f"{test_base_path}/airs_omi/in/sounding_1/uip_step_8.pkl",
-                              change_to_dir=False)
-    # We just want to make sure we can access everything, so just call
-    # each of the functions and print the results out
-    filter_name = "UV1"
-    print(m.atmosphere_column("O3"))
-    print(m.omi_params)
-    print(m.observation_zenith_with_unit(filter_name))
-    print(m.observation_azimuth_with_unit(filter_name))
-    print(m.solar_azimuth_with_unit(filter_name))
-    print(m.solar_zenith_with_unit(filter_name))
-    print(m.relative_azimuth_with_unit(filter_name))
-    print(m.latitude(filter_name))
-    print(m.longitude(filter_name))
-    print(m.surface_height(filter_name))
-    print(m.across_track_indexes(filter_name, "OMI"))
-    print(m.atm_params("OMI"))
-    print(m.ray_info("OMI"))
-    
-@require_muses_py
-def test_refractor_tropomi_uip(isolated_dir):
-    m = RefractorUip.load_uip(f"{test_base_path}/tropomi/in/sounding_1/uip_step_1.pkl",
-                              change_to_dir=False)
+@old_py_retrieve_test
+def test_refractor_tropomi_uip(tropomi_uip_step_2):
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
     filter_name = "BAND3"
-    print(m.atmosphere_column("O3"))
-    print(m.tropomi_params)
-    print(m.observation_zenith_with_unit(filter_name))
+    print(tropomi_uip_step_2.atmosphere_column("O3"))
+    print(tropomi_uip_step_2.tropomi_params)
+    print(tropomi_uip_step_2.observation_zenith_with_unit(filter_name))
     # For some reason, not actually in the tropomi UIP. Really
     # isn't there, not an error in our processing. I don't think
     # this actually matters though
-    # print(m.observation_azimuth_with_unit(filter_name))
-    print(m.solar_azimuth_with_unit(filter_name))
-    print(m.solar_zenith_with_unit(filter_name))
-    print(m.relative_azimuth_with_unit(filter_name))
-    print(m.latitude(filter_name))
-    print(m.longitude(filter_name))
-    print(m.surface_height(filter_name))
-    print(m.across_track_indexes(filter_name, "TROPOMI"))
-    print(m.atm_params("TROPOMI"))
-    print(m.ray_info("TROPOMI"))
+    # print(tropomi_uip_step_2.observation_azimuth_with_unit(filter_name))
+    print(tropomi_uip_step_2.solar_azimuth_with_unit(filter_name))
+    print(tropomi_uip_step_2.solar_zenith_with_unit(filter_name))
+    print(tropomi_uip_step_2.relative_azimuth_with_unit(filter_name))
+    print(tropomi_uip_step_2.latitude(filter_name))
+    print(tropomi_uip_step_2.longitude(filter_name))
+    print(tropomi_uip_step_2.surface_height(filter_name))
+    print(tropomi_uip_step_2.across_track_indexes(filter_name, "TROPOMI"))
+    print(tropomi_uip_step_2.atm_params("TROPOMI"))
+    print(tropomi_uip_step_2.ray_info("TROPOMI"))
 
-@require_muses_py
-def test_species_basis(tropomi_uip_step_2, clean_up_replacement_function):
+@old_py_retrieve_test
+def test_species_basis(tropomi_uip_step_2):
     npt.assert_allclose(tropomi_uip_step_2.species_basis_matrix("O3"),
                         tropomi_uip_step_2.species_basis_matrix_calc("O3"))
     
-@require_muses_py
+@old_py_retrieve_test
 def test_refractor_joint_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
                                             joint_tropomi_uip_step_12):
     rstep = load_muses_retrieval_step(joint_tropomi_test_in_dir, step_number=12,
@@ -121,7 +95,7 @@ def test_refractor_joint_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
                    check=True)
 
-@require_muses_py
+@old_py_retrieve_test
 def test_refractor_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
                                       tropomi_uip_step_2):
     rstep = load_muses_retrieval_step(tropomi_test_in_dir, step_number=2,
@@ -151,9 +125,9 @@ def test_refractor_tropomi_create_uip(isolated_dir, osp_dir, gmao_dir,
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
                    check=True)
     
-@require_muses_py
+@old_py_retrieve_test
 def test_refractor_joint_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
-                                            joint_omi_uip_step_8):
+                                        joint_omi_uip_step_8):
     rstep = load_muses_retrieval_step(joint_omi_test_in_dir, step_number=8,
                                       osp_dir=osp_dir,gmao_dir=gmao_dir)
     i_stateInfo = rstep.params["i_stateInfo"]
@@ -185,7 +159,7 @@ def test_refractor_joint_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"],
                    check=True)
 
-@require_muses_py
+@old_py_retrieve_test
 def test_refractor_omi_create_uip(isolated_dir, osp_dir, gmao_dir,
                                       omi_uip_step_2):
     rstep = load_muses_retrieval_step(omi_test_in_dir, step_number=2,

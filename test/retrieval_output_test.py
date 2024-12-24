@@ -1,14 +1,11 @@
 from test_support import *
-from refractor.muses import (RetrievalJacobianOutput, RetrievalStrategy,
-                             RetrievalL2Output, RetrievalRadianceOutput,
-                             RetrievalIrkOutput,
-                             MusesRunDir, RetrievalPickleResult, RetrievalPlotRadiance,
-                             RetrievalPlotResult, RetrievalInputOutput,
-                             RetrievalStrategy, RetrievalStrategyCaptureObserver,)
-from refractor.tropomi import TropomiForwardModelHandle
+from refractor.muses import (
+    RetrievalJacobianOutput, 
+    RetrievalL2Output, RetrievalRadianceOutput, RetrievalIrkOutput,
+    RetrievalPickleResult, RetrievalPlotRadiance, RetrievalPlotResult,
+    RetrievalInputOutput)
 import subprocess
 import glob
-
 
 #run_retrieval_output_test = False
 run_retrieval_output_test = True
@@ -55,7 +52,6 @@ def joint_tropomi_output(isolated_dir):
         
 @pytest.mark.skipif(not run_retrieval_output_test,
                     reason="skipped because retrieval_output_test is False")
-@require_muses_py
 def test_retrieval_radiance_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalRadianceOutput()
@@ -64,7 +60,6 @@ def test_retrieval_radiance_output(joint_tropomi_output):
 
 @pytest.mark.skipif(not run_retrieval_output_test,
                     reason="skipped because retrieval_output_test is False")
-@require_muses_py
 def test_retrieval_jacobian_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalJacobianOutput()
@@ -73,7 +68,6 @@ def test_retrieval_jacobian_output(joint_tropomi_output):
 
 @pytest.mark.skipif(not run_retrieval_output_test,
                     reason="skipped because retrieval_output_test is False")
-@require_muses_py
 def test_retrieval_l2_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalL2Output()
@@ -82,7 +76,6 @@ def test_retrieval_l2_output(joint_tropomi_output):
 
 @pytest.mark.skipif(not run_retrieval_output_test,
                     reason="skipped because retrieval_output_test is False")
-@require_muses_py
 def test_retrieval_pickle_results(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPickleResult()
@@ -94,7 +87,6 @@ def test_retrieval_pickle_results(joint_tropomi_output):
     
 @pytest.mark.skipif(not run_retrieval_output_test,
                     reason="skipped because retrieval_output_test is False")
-@require_muses_py
 def test_retrieval_plot_radiance(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPlotRadiance()
@@ -112,7 +104,6 @@ def test_retrieval_plot_radiance(joint_tropomi_output):
 @skip        
 @pytest.mark.skipif(not run_retrieval_output_test,
                     reason="skipped because retrieval_output_test is False")
-@require_muses_py
 def test_retrieval_input_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalInputOutput()
@@ -136,12 +127,9 @@ def test_retrieval_plot_results(joint_tropomi_output):
 
 @pytest.mark.skipif(not run_retrieval_output_test,
                     reason="skipped because retrieval_output_test is False")
-@require_muses_py
 def test_retrieval_irk_output(isolated_dir):
     rs, rstep, kwargs = set_up_run_to_location(airs_irk_test_in_dir, 6,
-                                               "IRK step",
-                                               include_result=False,
-                                               include_irk_result=True)
+                                               "IRK step")
     jout = RetrievalIrkOutput()
     jout.notify_update(rs, "IRK step", retrieval_strategy_step=rstep, **kwargs)
     compare_dir = airs_irk_test_expected_dir

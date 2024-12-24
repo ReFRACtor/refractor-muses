@@ -86,13 +86,16 @@ class RefractorUip:
 
     This is a light wrapper in ReFRACtor for working with the UIP.
 
-    Note the UIP is really just a reformatting of information found
-    in the StateInfo. We'd like to get away from using the UIP for
-    ReFRACtor, it is a needless complication. But we aren't ready to
-    abandon the uip because all the muses-py forward models depend on this.
-    We may have time at some point to figure out how to separate this out,
-    but for now just tack the state info on so we can use this in our
-    RefractorFmObjectCreator.
+    This class should be considered mostly deprecated. It creates a
+    tight coupling in py-retrieve, essentially we have everything depending
+    on everything else through the UIP.
+
+    We have replaced this class in ReFRACtor, and don't use it. The one
+    exception is in calling the old py-retrieve forward models.
+    MusesStrategyExecutor handles this, creating the UIP if we have a
+    forward model that needs this but otherwise not creating it. Perhaps
+    at some point we will completely drop the py-retrieve forward models
+    and this can go away. But for now, we provide support for this.
 
     We give a number of access routines to various pieces of the UIP we 
     are interested in. This 1) gives a cleaner interface and 2) protects

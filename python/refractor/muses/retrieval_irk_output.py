@@ -30,8 +30,8 @@ class RetrievalIrkOutput(RetrievalOutput):
         return self.current_state.propagated_qa
 
     @property
-    def results_irk(self) -> 'ObjectView':
-        return mpy.ObjectView(self.retrieval_strategy_step.results_irk)
+    def results_irk(self) -> 'ResultIrk':
+        return self.retrieval_strategy_step.results_irk
     
     def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
                       **kwargs):

@@ -1,5 +1,4 @@
 import numpy as np
-import os
 import math
 import refractor.framework as rf
 import refractor.muses.muses_py as mpy

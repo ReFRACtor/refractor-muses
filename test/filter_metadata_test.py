@@ -1,7 +1,6 @@
 from test_support import *
 from refractor.muses import (FileFilterMetadata)
 
-@require_muses_py
 def test_file_filter_metadata(osp_dir):
     default_fname = f"{osp_dir}/Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
     fmeta = FileFilterMetadata(default_fname)

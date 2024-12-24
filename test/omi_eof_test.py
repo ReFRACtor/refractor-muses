@@ -1,15 +1,10 @@
-import numpy as np
-import numpy.testing as npt
 from refractor.omi import OmiForwardModelHandle
 from test_support import *
-import refractor.framework as rf
-import glob
 from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              RetrievalStrategyCaptureObserver,
                              RetrievalL2Output,
                              OmiEofStateElement,
                              SingleSpeciesHandle,
-                             RetrievableStateElement,
                              RetrievalStrategyMemoryUse)
 import subprocess
 
@@ -19,9 +14,7 @@ class RetrievalStrategyStop:
             raise StopIteration()
         
 @long_test
-@require_muses_py
-def test_eof_omi(osp_dir, gmao_dir, vlidort_cli,
-                 clean_up_replacement_function):
+def test_eof_omi(osp_dir, gmao_dir, vlidort_cli):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -64,9 +57,7 @@ def test_eof_omi(osp_dir, gmao_dir, vlidort_cli,
         subprocess.run("h5dump -d OMI_EOF_UV2 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
 
 @long_test
-@require_muses_py
-def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli,
-                 clean_up_replacement_function):
+def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli):
     '''Full run of AIRS/OMI that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -120,7 +111,6 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli,
 # This depends on the previous test. We can skip this test in the future, this
 # is useful when we work out the initial output here
 @skip
-@require_muses_py
 def test_eof_l2_output(isolated_dir, vlidort_cli, osp_dir, gmao_dir):
     step_number = 1
     r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir)

@@ -49,6 +49,46 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                                  self.retrieval_sv_apriori,
                                  self.retrieval_sv_sqrt_constraint,
                                  self.basis_matrix))
+
+    def get_state(self):
+        '''Return a dictionary of values that can be used by set_state.
+        This allows us to skip running the forward model in unit tests. This
+        is similar to a pickle serialization (which we also support), but
+        only saves the things that change when we update the parameters.
+        
+        Useful for testing when we want to actually test creating this
+        CostFunction, but want to skip the solver/forward model step.'''
+        (msrmnt_is_const, m, k, msrmnt, msrmnt_jacobian, k_x,
+	 msrmnt_jacobian_x) = self.max_a_posteriori.get_state()
+        return {'parameters': self.parameters.tolist(),
+                'msrmnt_is_const' : msrmnt_is_const,
+                'm' : m.tolist(),
+                'k' : k.tolist(),
+                'msrmnt' : msrmnt.tolist(),
+                'msrmnt_jacobian' : msrmnt_jacobian.tolist(),
+                'k_x' : k_x.tolist(),
+	        'msrmnt_jacobian_x' : msrmnt_jacobian_x.tolist()}
+
+    def set_state(self, d):
+        '''Set the state previously saved by get_state'''
+        self.parameters = np.array(d['parameters'])
+        # Special handling for empty jacobians
+        k = np.array(d['k'])
+        msrmnt_jacobian = np.array(d['msrmnt_jacobian'])
+        k_x = np.array(d['k_x'])
+        msrmnt_jacobian_x = np.array(d['msrmnt_jacobian_x'])
+        if(k.size == 0):
+            k = np.zeros((0,0))
+        if(msrmnt_jacobian.size == 0):
+            msrmnt_jacobian = np.zeros((0,0))
+        if(k_x.size == 0):
+            k_x = np.zeros((0,0))
+        if(msrmnt_jacobian_x.size == 0):
+            msrmnt_jacobian_x = np.zeros((0,0))
+        self.max_a_posteriori.set_state(
+            d['msrmnt_is_const'], np.array(d['m']), k,
+            np.array(d['msrmnt']), msrmnt_jacobian, k_x,
+            msrmnt_jacobian_x)
         
     # ----------------------------------------------------------------------------------
     # All the functions past this point are just for testing with old py-retrieve code,

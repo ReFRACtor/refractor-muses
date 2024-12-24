@@ -1,14 +1,12 @@
 from __future__ import annotations # We can remove this when we upgrade to python 3.9
 import abc
 from .priority_handle_set import PriorityHandleSet
-from .current_state import CurrentStateDict
 from .observation_handle import mpy_radiance_from_observation_list
 import refractor.muses.muses_py as mpy
 from loguru import logger
 import copy
 import refractor.framework as rf
 import numpy as np
-import numbers
 
 class PropagatedQA:
     '''There are a few parameters that get propagated from one step to

@@ -5,11 +5,11 @@ The MUSE's pipeline is great for running large number of end to end soundings.
 But we want to extract out small pieces of this for local system and unit
 testing of ReFRACTor.
 
-We have separate code in each of the instrument repositories
-(e.g., omi, tropomi) for extracting out the capture tests. I'm not 100%
-sure this is right division here, but it is at least what we do for now.
-So MUSES pipepline stuff gets handled here, but instrument specific stuff
-gets handled in each of the instrument repositories.
+**Note that this code was used for the initial collection**. Now we have pytests
+in test/capture_data_test.py that can be run to duplicate this functionality.
+I find it easier to do updates through these capture tests. We'll leave the
+original muses-capture program here in case we need to come back to them, but
+this isn't usually run now.
 
 This directory uses MUSES's amuse-me tool to setup and run the target
 used for capturing data used in ReFRACtor unit testing. This runs the
@@ -22,21 +22,10 @@ is then used by the various capture tests mentioned below (and the
 
 To run:
 
-1. First set up the MUSES execution environment per the MUSES instructions
-   (e.g., use build_supplement, or run build.sh and 
-   build-python-programs.sh in amuse-me - both are needed).
+1. First set up the MUSES execution environment per the 
+   refactor/build_supplement directions (https://github.jpl.nasa.gov/refractor/build_supplement/blob/master/doc/scf_deployment.md)
 
-2. Make sure amuse-me in on your path (e.g.
-   export PATH=/home/smyth/muses/amuse-me/bin:$PATH )
-
-3. Make muses-vlidort (not currently part of build by amuse me)
-   
-        git clone git@github.jpl.nasa.gov:MUSES-Processing/muses-vlidort.git
-		cd muses-vlidort/build/release
-		cmake -DCMAKE_BUILD_TYPE=Release ../..
-		make
-
-4. While omi runs use the new muses-vlidort,  tropomi still uses a version
+2. While omi runs use the new muses-vlidort,  tropomi still uses a version
    in the OSP directory. For this one, there is a bug for libgfortran.so.4
    isn't in the path. Our capture code works around this, but if you want to
    run py_retrieve directly make sure you have
@@ -45,7 +34,7 @@ To run:
 
    (this is temporary, see https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079)
 
-5. Run 
+3. Run 
 
         ./muses_capture setup-targets <instrument>
 
@@ -54,7 +43,7 @@ To run:
    
    Use an instrument "all" to run all the instruments.
    
-6. Run
+4. Run
 
         ./muses_capture capture-run <instrument>
 		
@@ -66,7 +55,7 @@ To run:
 
    Use an instrument "all" to run all the instruments.
    
-7. Run
+5. Run
 
         ./muses_capture capture-test-data --number-cpu 10
 		
@@ -78,7 +67,7 @@ To run:
    directly with py-test as described below, it is just a convenience
    to run in muses_capture so you can do this the same way as capture-run
 
-8. Can optionally run the full retrieval by
+6. Can optionally run the full retrieval by
 
         ./muses_capture run-retrieval <instrument>
 
@@ -98,20 +87,3 @@ Currently (7/2023) the instruments we have are:
 
 You can use the name "all" to run for all instruments.
 
-In addtion to the muses capture, indivual repositories might have capture
-tests. We preface all the capture tests with "test_capture",
-so you can run the full set (in the instrument repository) with 
-
-    pytest -rxXs test/ -k test_capture --run-capture -n 10
-
-You can see all tests (without running them) by
-
-    pytest --collect-only test/*_test.py -k test_capture --run-capture
-
-OMI
----
-
-Individual tests (as of 1/2023, the list might grow).
-
-    pytest -rxXs test/radiance_test.py -k test_capture_atmposphere --run-capture
-    pytest -rxXs test/radiance_test.py -k test_capture_expected_xsec --run-capture

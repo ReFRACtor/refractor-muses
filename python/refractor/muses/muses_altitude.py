@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 import refractor.framework as rf
 
 class MusesAltitude(rf.Altitude):

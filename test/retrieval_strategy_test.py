@@ -1,19 +1,10 @@
 from test_support import *
 from refractor.muses import (MusesRunDir, RetrievalStrategy,
-                             RetrievalStrategyCaptureObserver,
-                             RetrievalJacobianOutput,
-                             RetrievalRadianceOutput,
-                             RetrievalL2Output,
-                             RetrievalIrkOutput,
-                             CurrentStateUip)
+                             RetrievalStrategyCaptureObserver)
 from refractor.omi import OmiForwardModelHandle
 from refractor.tropomi import TropomiForwardModelHandle
-import refractor.muses.muses_py as mpy
 import subprocess
-import pprint
 import glob
-import shutil
-import copy
 from loguru import logger
 
 # Use refractor forward model. We default to not, because we are
@@ -71,9 +62,7 @@ def compare_irk(expected_dir, run_dir, diff_is_error=True):
 # close.
 #@skip
 @long_test
-@require_muses_py
-def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
-                                         clean_up_replacement_function):
+def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -92,9 +81,7 @@ def test_original_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
     r.run_retrieval(vlidort_cli=vlidort_cli, debug=True, plots=True)
 
 @long_test
-@require_muses_py
 def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
-                                         clean_up_replacement_function,
                                          python_fp_logger):
     '''Full run, that we then compare the output files to expected results.
     This is not really a unit test, but for convenience we have it here.
@@ -137,7 +124,6 @@ def test_retrieval_strategy_cris_tropomi(osp_dir, gmao_dir, vlidort_cli,
                 diff_is_error=diff_is_error)
 
 @long_test
-@require_muses_py
 def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
     '''The test_retrieval_strategy_cris_tropomi already checks the results, but it is nice
     to have a stand alone run that just checks the results. Note that this depends on
@@ -160,9 +146,7 @@ def test_compare_retrieval_cris_tropomi(osp_dir, gmao_dir, vlidort_cli):
 # close.
 #@skip
 @long_test
-@require_muses_py
-def test_original_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli,
-                                         clean_up_replacement_function):
+def test_original_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -181,9 +165,7 @@ def test_original_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli,
     r.run_retrieval(vlidort_cli=vlidort_cli)
 
 @long_test
-@require_muses_py
 def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
-                                     clean_up_replacement_function,
                                      python_fp_logger):
     '''Full run, that we then compare the output files to expected results.
     This is not really a unit test, but for convenience we have it here.
@@ -223,7 +205,6 @@ def test_retrieval_strategy_airs_omi(osp_dir, gmao_dir, vlidort_cli,
                 diff_is_error=diff_is_error)
     
 @long_test
-@require_muses_py
 def test_compare_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli):
     '''The test_retrieval_strategy_airs_omi already checks the results, but it is nice
     to have a stand alone run that just checks the results. Note that this depends on
@@ -239,7 +220,6 @@ def test_compare_retrieval_airs_omi(osp_dir, gmao_dir, vlidort_cli):
                 diff_is_error=diff_is_error)
 
 @long_test
-@require_muses_py
 def test_two_tropomi(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     '''Run two soundings, using a single RetrievalStrategy. This is how the
     MPI version of py-retrieve works, and we need to make sure any caching
@@ -273,7 +253,6 @@ def test_run_fabiano_vlidort(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     
 
 @long_test
-@require_muses_py
 def test_original_retrieval_tes(osp_dir, gmao_dir, vlidort_cli):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -287,9 +266,7 @@ def test_original_retrieval_tes(osp_dir, gmao_dir, vlidort_cli):
     r.run_retrieval(vlidort_cli=vlidort_cli)
 
 @long_test
-@require_muses_py
 def test_retrieval_strategy_tes(osp_dir, gmao_dir, vlidort_cli,
-                                clean_up_replacement_function,
                                 python_fp_logger):
     '''Full run, that we then compare the output files to expected results.
     This is not really a unit test, but for convenience we have it here.
@@ -321,7 +298,6 @@ def test_retrieval_strategy_tes(osp_dir, gmao_dir, vlidort_cli,
                 diff_is_error=diff_is_error)
 
 @long_test
-@require_muses_py
 def test_compare_retrieval_tes(osp_dir, gmao_dir, vlidort_cli):
     '''The test_retrieval_strategy_tes already checks the results, but it is nice
     to have a stand alone run that just checks the results. Note that this depends on
@@ -338,7 +314,6 @@ def test_compare_retrieval_tes(osp_dir, gmao_dir, vlidort_cli):
 # Used to diagnose a few problems with TES. Leave here in case we need
 # to do this again in the future
 @skip
-@require_muses_py
 def test_failed_tes(osp_dir, gmao_dir, vlidort_cli,
                     python_fp_logger):
     '''Quick turn around at failing step for tes'''
@@ -356,7 +331,6 @@ def test_failed_tes(osp_dir, gmao_dir, vlidort_cli,
     
 @skip    
 @long_test
-@require_muses_py
 def test_original_retrieval_oco2(osp_dir, gmao_dir, vlidort_cli):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -378,7 +352,6 @@ def test_original_retrieval_oco2(osp_dir, gmao_dir, vlidort_cli):
     r.run_retrieval(vlidort_cli=vlidort_cli)
     
 @long_test
-@require_muses_py
 def test_original_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -394,7 +367,6 @@ def test_original_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
     r.run_retrieval(vlidort_cli=vlidort_cli)
 
 @long_test
-@require_muses_py
 def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,
                                      python_fp_logger):
     '''Full run, that we can compare the output files. This is not
@@ -434,7 +406,6 @@ def test_retrieval_strategy_airs_irk(osp_dir, gmao_dir, vlidort_cli,
 
 
 @long_test
-@require_muses_py
 def test_compare_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
     '''The test_retrieval_strategy_airs_irk already checks the results, but it is
     nice to have a stand alone run that just checks the results. Note that this
@@ -449,7 +420,6 @@ def test_compare_retrieval_airs_irk(osp_dir, gmao_dir, vlidort_cli):
                 diff_is_error=diff_is_error)
     
 @long_test
-@require_muses_py
 def test_only_airs_irk(osp_dir, gmao_dir, vlidort_cli,
                            python_fp_logger):
     '''Quick turn around, starts at IRK step and just runs it. Depends on

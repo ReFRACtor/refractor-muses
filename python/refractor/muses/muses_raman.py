@@ -1,4 +1,3 @@
-import numpy as np
 import refractor.framework as rf
 from loguru import logger
 import abc

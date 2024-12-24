@@ -1,13 +1,11 @@
 from test_support import *
+from test_support.old_py_retrieve_test_support import old_py_retrieve_test
 import numpy as np
 import pandas as pd
 import numpy.testing as npt
-import os
-import refractor.muses.muses_py as mpy
 from refractor.muses import (RetrievalConfiguration, MeasurementIdFile)
 from refractor.old_py_retrieve_wrapper import (RefractorOmiFmMusesPy, RefractorOmiFm,
                                                RefractorTropOrOmiFmPyRetrieve)
-import refractor.framework as rf
 
 @pytest.fixture(scope="function")
 def omi_obs_step_1(osp_dir):
@@ -52,14 +50,16 @@ def omi_obs_step_2(osp_dir):
 #============================================================================
 # This set of classes replace the lower level call to omi_fm in
 # muses-py. This was used when initially comparing ReFRACtor and muses-py.
-# This has been replaced with RefractorMusesIntegration which is higher
-# in the call chain and has a cleaner interface.
+#
+# This is no longer used, ReFRACtor has completely replaced the foward
+# model.
+#
 # We'll leave these classes here for now, since it can be useful to do
-# lower level comparisons. But these should largely be considered deprecated
+# lower level comparisons. But these should be considered deprecated
 #============================================================================
 
+@old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
-@require_muses_py
 def test_refractor_fm_muses_py(isolated_dir, step_number, osp_dir, gmao_dir,
                                vlidort_cli):
     # Just pick an iteration to use. Not sure that we care about looping
@@ -87,8 +87,8 @@ def test_refractor_fm_muses_py(isolated_dir, step_number, osp_dir, gmao_dir,
     assert np.abs(o_measured_radiance_omi["measured_nesr"] -
                   o_measured_radiance_omi2["measured_nesr"]).max() < 1e-15
     
+@old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
-@require_muses_py
 def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
                                 vlidort_cli, omi_obs_step_1, omi_obs_step_2):
     # Just pick an iteration to use. Not sure that we care about looping
@@ -128,7 +128,7 @@ def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
     # Just check to make sure this doesn't suddenly jump if we break something
     assert np.max(np.abs((o_radiance2-o_radiance) / o_radiance2 * 100.0)) < 0.1
 
-@require_muses_py
+@old_py_retrieve_test
 def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
                                          vlidort_cli, omi_obs_step_2):
     '''Look at each piece in detail, so make sure we are agreeing'''
@@ -247,7 +247,6 @@ def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
     if True:
         import seaborn as sns
         import matplotlib.pyplot as plt
-        import matplotlib
         sns.set_theme()
         sd = np.hstack([r.obj_creator.forward_model.spectral_domain(i).data for i in range(r.obj_creator.forward_model.num_channels)])
         d = pd.DataFrame({"Wavelength (nm)" : sd, "ReFRACtor Radiance" : o_radiance,

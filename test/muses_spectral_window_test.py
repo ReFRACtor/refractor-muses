@@ -1,6 +1,6 @@
-from refractor.muses import (MusesSpectralWindow, StrategyTable, MusesOmiObservation,
-                             MusesPySpectralWindowHandle, FileFilterMetadata)
-import refractor.framework as rf
+from refractor.muses import (
+    MusesSpectralWindow, StrategyTable, MusesOmiObservation,
+    FileFilterMetadata)
 from test_support import *
 
 def struct_compare(s1, s2):

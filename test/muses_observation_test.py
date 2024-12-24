@@ -2,16 +2,19 @@ from refractor.muses import (MusesRunDir, MusesAirsObservation,
                              MusesCrisObservation,
                              MusesTropomiObservation, MusesOmiObservation,
                              MusesTesObservation,
-                             ObservationHandleSet,
                              SimulatedObservation,
                              FileFilterMetadata,
                              MeasurementIdFile, RetrievalConfiguration,
                              CurrentStateDict, MusesSpectralWindow)
-from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
-                                               MusesCrisObservationOld, MusesAirsObservationOld)
+from refractor.old_py_retrieve_wrapper import (
+    TropomiRadiancePyRetrieve, OmiRadiancePyRetrieve,
+    MusesAirsObservationOld)
 import refractor.framework as rf
 from test_support import *
+from test_support.old_py_retrieve_test_support import *
 import copy
+import pickle
+import glob
 
 
 def test_measurement_id(isolated_dir, osp_dir, gmao_dir):
@@ -26,7 +29,15 @@ def test_measurement_id(isolated_dir, osp_dir, gmao_dir):
     assert os.path.basename(mid["OMI_Cloud_filename"]) == "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     assert mid["omi_calibrationFilename"] == f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
 
+@old_py_retrieve_test    
 def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir):
+    '''This compares MusesAirsObservation against the old py-retrieve code.
+    We don't actually use the old py-retrieve code anymore.
+
+    We'll leave this test in for now, in case we run into some issue. But
+    at some point we may remove this, the cost of maintaining the old
+    interface in MusesAirsObservationOld might not be worth the effort.
+    '''
     channel_list = ['1A1', '2A1', '1B2', '2B1']
     granule = 231
     xtrack = 29
@@ -118,7 +129,15 @@ def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir,
     print(obs.filter_data)
     
         
+@old_py_retrieve_test    
 def test_muses_tropomi_observation(isolated_dir, osp_dir, gmao_dir):
+    '''This compares MusesTropomiObservation against the old py-retrieve code.
+    We don't actually use the old py-retrieve code anymore.
+
+    We'll leave this test in for now, in case we run into some issue. But
+    at some point we may remove this, the cost of maintaining the old
+    interface in TropomiRadiancePyRetrieve might not be worth the effort.
+    '''
     xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
     atrack_dict = {"BAND3" : 2995, "CLOUD" : 2995}
     filename_dict = {}
@@ -227,7 +246,15 @@ def test_create_muses_cris_observation(isolated_dir, osp_dir, gmao_dir,
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
     
+@old_py_retrieve_test    
 def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir):
+    '''This compares MusesOmiObservation against the old py-retrieve code.
+    We don't actually use the old py-retrieve code anymore.
+
+    We'll leave this test in for now, in case we run into some issue. But
+    at some point we may remove this, the cost of maintaining the old
+    interface in OmiRadiancePyRetrieve might not be worth the effort.
+    '''
     xtrack_uv1 = 10
     xtrack_uv2 = 20
     atrack = 1139
@@ -352,11 +379,29 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir):
     # Check handling of data with bad samples. Should get set to -999
     print(obs.radiance(1).spectral_range.data)
 
-def test_simulated_obs(tropomi_obs_step_1):
-    rad = [copy.copy(tropomi_obs_step_1.radiance(0).spectral_range.data),]
+def test_simulated_obs(isolated_dir, osp_dir, gmao_dir):
+    r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(f"{r.run_dir}/Table.asc", osp_dir=osp_dir)
+    # Determined by looking a the full run
+    filter_list_dict = {'TROPOMI': ['BAND3'], 'CRIS': ['2B1', '1B2', '2A1', '1A1']}
+    measurement_id = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc",
+                                       rconfig, filter_list_dict)
+    # This is the microwindows file for step 12, determined by just running the full
+    # retrieval and noting the file used
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    cs = CurrentStateDict({"TROPOMISOLARSHIFTBAND3" : 0.1,
+                           "TROPOMIRADIANCESHIFTBAND3" : 0.2,
+                           "TROPOMIRADSQUEEZEBAND3" : 0.3,}
+                           , ["TROPOMISOLARSHIFTBAND3",])
+    obs = MusesTropomiObservation.create_from_id(measurement_id, None,
+                                                 cs, swin_dict["TROPOMI"], None,
+                                                 osp_dir=osp_dir,
+                                                 write_tropomi_radiance_pickle=True)
+    rad = [copy.copy(obs.radiance(0).spectral_range.data),]
     rad[0] *= 0.75
-    obs = SimulatedObservation(tropomi_obs_step_1, rad)
-    npt.assert_allclose(obs.spectral_domain(0).data, tropomi_obs_step_1.spectral_domain(0).data)
-    npt.assert_allclose(obs.radiance(0).spectral_range.data,
-                        tropomi_obs_step_1.radiance(0).spectral_range.data*0.75)
+    obssim = SimulatedObservation(obs, rad)
+    npt.assert_allclose(obssim.spectral_domain(0).data, obs.spectral_domain(0).data)
+    npt.assert_allclose(obssim.radiance(0).spectral_range.data,
+                        obs.radiance(0).spectral_range.data*0.75)
     

@@ -10,10 +10,8 @@ from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
 import numpy as np
 import subprocess
-import jsonpickle
-# Handle numpy arrays in jsonpickle
-import jsonpickle.ext.numpy as jsonpickle_numpy
-jsonpickle_numpy.register_handlers()
+import json
+import gzip
 
 # TODO clean up the usage for various internal objects of
 # RetrievalStrategy, we want to rework this anyways as we introduce
@@ -68,6 +66,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
     def __init__(self):
         self._uip = None
+        self._saved_state = None
         
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         '''Clear any caching associated with assuming the target being
@@ -75,13 +74,42 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         # Default is to do nothing
         pass
     
-    @abc.abstractmethod
     def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy', **kwargs) -> (bool, None):
+                       rs : 'RetrievalStrategy',
+                       ret_state = None,
+                       **kwargs) -> (bool, None):
         '''Returns (True, None) if we handle the retrieval step, (False, None)
         otherwise'''
-        raise NotImplementedError
+        self.set_state(ret_state)
+        was_handled = self.retrieval_step_body(retrieval_type, rs, **kwargs)
+        if(was_handled):
+            rs.notify_update("end_retrieval_step", retrieval_strategy_step=self)
+        return (was_handled, None)
 
+    @abc.abstractmethod
+    def retrieval_step_body(self, retrieval_type : str,
+                            rs : 'RetrievalStrategy', **kwargs) -> bool:
+        '''Returns True if we handle the retrieval step, False otherwise'''
+        raise NotImplementedError()
+
+    def get_state(self):
+        '''Return a dictionary of values that can be used by set_state.
+        This allows us to skip pieces of the retrieval step. This
+        is similar to a pickle serialization (which we also support), but
+        only saves the things that change when we update the parameters.
+        
+        This is useful for unit tests of side effects of doing the retrieval
+        step (e.g., generating output files) without needing to actually
+        run the retrieval.'''
+        # Default, no state
+        return {}
+
+    def set_state(self, d):
+        '''Set the state previously saved by get_state'''
+        # Default, just put this into the _saved_state for use
+        # in the rest of this object
+        self._saved_state = d
+        
     def radiance_step(self):
         '''We have a few places that need the old py-retrieve dict
         version of our observation data. This function calculates 
@@ -103,10 +131,11 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
 
     Throw an exception to indicate this, we can look at implementing this in the
     future - particularly if we have a test case to validate the code.'''
-    def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy', **kwargs) -> (bool, None):
+    def retrieval_step_body(self, retrieval_type : str,
+                       rs : 'RetrievalStrategy',
+                       **kwargs) -> bool:
         if retrieval_type not in ("forwardmodel", "omi_radiance_calibration"):
-            return (False,  None)
+            return False
         raise RuntimeError(
             f"We don't currently support retrieval_type {retrieval_type}")
 
@@ -115,14 +144,50 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     def __init__(self):
         super().__init__()
         self.notify_update_target(None)
+        self.slv = None
+        self.cfunc = None
+        self.cfunc_sys = None
 
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         # Nothing currently needed
+
+    def __getstate__(self):
+        # If we pickle, don't include slv and cfunc. Currently these can't
+        # be pickled, so we just leave them out. If this becomes a problem,
+        # we can just get these set up to pickle, but right now at least
+        # this isn't important and isn't worth the effort.
+        attributes = self.__dict__.copy()
+        del attributes['slv']
+        del attributes['cfunc']
+        del attributes['cfunc_sys']
+        return attributes
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self.slv = None
+        self.cfunc = None
+        self.cfunc_sys = None
+
+    def get_state(self):
+        '''Return a dictionary of values that can be used by set_state.
+        This allows us to skip pieces of the retrieval step. This
+        is similar to a pickle serialization (which we also support), but
+        only saves the things that change when we update the parameters.
         
-    def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy', ret_res=None, jacobian_sys=None,
-                       **kwargs) -> (bool, None):
+        This is useful for unit tests of side effects of doing the retrieval
+        step (e.g., generating output files) without needing to actually
+        run the retrieval.'''
+        res = {'slv' : None, 'cfunc_sys' : None }
+        if(self.slv is not None):
+            res['slv'] = self.slv.get_state()
+        if(self.cfunc_sys is not None):
+            res['cfunc_sys'] = self.cfunc_sys.get_state()
+        return res
+        
+    def retrieval_step_body(self, retrieval_type : str,
+                       rs : 'RetrievalStrategy',
+                       **kwargs) -> bool:
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         rs.notify_update("retrieval input", retrieval_strategy_step=self)
         cstate = rs.current_state()
@@ -142,12 +207,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         
         Path(f"{rs.run_dir}/-run_token.asc").touch()
 
-        if(ret_res is None):
-            # Skip this step if ret_res was passed in. This is to support
-            # unit testing where we use a precomputed result
-            ret_res = self.run_retrieval(rs)
-        else:
-            self.cfunc = rs.create_cost_function()
+        ret_res = self.run_retrieval(rs)
 
         self.results = RetrievalResult(
             ret_res, rs.current_strategy_step, rs.retrieval_info,
@@ -181,35 +241,21 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # For right now, these are required, we would need to update
         # the error analysis to work without bad samples
         if(rs.retrieval_info.n_speciesSys > 0):
-            if(jacobian_sys is not None):
-                # Use precomputed value, for unit testing where we skip the
-                # actual calculation
-                self.results.jacobianSys = jacobian_sys
-            else:
-                cfunc_sys = rs.create_cost_function(
-                    do_systematic=True, include_bad_sample=True,
-                    fix_apriori_size=True)
-                logger.info("Running run_forward_model for systematic jacobians ...")
-                self.results.update_jacobian_sys(cfunc_sys)
+            self.cfunc_sys = rs.create_cost_function(
+                do_systematic=True, include_bad_sample=True,
+                fix_apriori_size=True)
+            if(self._saved_state is not None):
+                # Skip forward model if we have a saved state.
+                self.cfunc_sys.set_state(self._saved_state["cfunc_sys"])
+            logger.info("Running run_forward_model for systematic jacobians ...")
+            self.results.update_jacobian_sys(self.cfunc_sys)
         rs.notify_update("systematic_jacobian", retrieval_strategy_step=self)
         rs.error_analysis.update_retrieval_result(self.results)
         rs.qa_data_handle_set.qa_update_retrieval_result(self.results)
         cstate.propagated_qa.update(rs.current_strategy_step.retrieval_elements,
                                     self.results.master_quality)
-        
-        # The solver can't be pickled, because a few pieces of the cost function
-        # can't be pickled. We could sort that out if it becomes an issue, but for
-        # now just delete the slv before we call notify_update. Note that it isn't
-        # actually required that things calling notify_update can be pickled, it is
-        # just convenient for testing. If clearing this becomes a problem, we can
-        # come back here to figure out what to do - probably just have a explicit
-        # pickle function for this class.
-        self.slv = None
-        self.cfunc = None
-        rs.notify_update("retrieval step", retrieval_strategy_step=self,
-                         ret_res=ret_res, jacobian_sys=self.results.jacobianSys)
-        
-        return (True, None)
+        rs.notify_update("retrieval step", retrieval_strategy_step=self)
+        return True
 
     def run_retrieval(self, rs):
         '''run_retrieval'''
@@ -247,8 +293,12 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                                      Chi2Tolerance,
                                      verbose=True,
                                      log_file=levmar_log_file)
-        if(maxIter > 0):
-            self.slv.solve()
+        if(self._saved_state is not None):
+            # Skip solve if we have a saved state.
+            self.slv.set_state(self._saved_state["slv"])
+        else:
+            if(maxIter > 0):
+                self.slv.solve()
         logger.info(f"Solved State vector:\n{self.cfunc.fm_sv}")
         return self.slv.retrieval_results()
     
@@ -262,11 +312,11 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
     '''This is a retreival, followed by using the results to update the
     OMI cloud fraction.'''
-    def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy', **kwargs) -> (bool, None):
+    def retrieval_step_body(self, retrieval_type : str,
+                       rs : 'RetrievalStrategy', **kwargs) -> bool:
         if retrieval_type != "omicloud_ig_refine":
-            return (False,  None)
-        return super().retrieval_step(retrieval_type, rs, **kwargs)
+            return False
+        return super().retrieval_step_body(retrieval_type, rs, **kwargs)
 
     def extra_after_run_retrieval_step(self, rs):
         rs.state_info.state_info_dict["constraint"]['omi']['cloud_fraction'] = \
@@ -276,11 +326,11 @@ class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
 class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve):
     '''This is a retreival, followed by using the results to update the
     TROPOMI cloud fraction.'''
-    def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy', **kwargs) -> (bool, None):
+    def retrieval_step_body(self, retrieval_type : str,
+                       rs : 'RetrievalStrategy', **kwargs) -> bool:
         if retrieval_type != "tropomicloud_ig_refine":
-            return (False,  None)
-        return super().retrieval_step(retrieval_type, rs, **kwargs)
+            return False
+        return super().retrieval_step_body(retrieval_type, rs, **kwargs)
 
     def extra_after_run_retrieval_step(self, rs):
         rs.state_info.state_info_dict["constraint"]['tropomi']['cloud_fraction'] = \
@@ -294,34 +344,45 @@ RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStep_tropomicloud_i
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepRetrieve(),
                                             priority_order = -1)
 
-class RetrievalStepResultCaptureObserver:
+class RetrievalStepCaptureObserver:
     '''Helper class, saves results of retrieval step so we can rerun skipping
-    the solver and systematic jacobian calculation when
-    notify_update is called. Intended for unit tests and other kinds of debugging.
+    much of the calculation. Data saved when notify_update is called.
+    Intended for unit tests and other kinds of debugging.
 
-    Note this only saves the retrieval results, not the state. You will probably
-    want to use this with something like StateInfoCaptureObserver.'''
-    def __init__(self, basefname, location_to_capture = "retrieval step"):
+    Note this only saves the RetrievalStepCapture.get_state(),
+    not the StateInfo. You will probably want to use this with
+    something like StateInfoCaptureObserver.
+
+    Note we can also save full pickles of the RetrievalStep, however
+    since we are modifying the code this tends to be fragile. This might
+    change in the future when things are more stable, but particularly for
+    unit tests the json state is more fundamental and should be more stable.
+    '''
+    def __init__(self, basefname,
+                 location_to_capture = "end_retrieval_step"):
         self.basefname = basefname
         self.location_to_capture = location_to_capture
 
-    def notify_update(self, retrieval_strategy, location, ret_res=None,
-                      jacobian_sys=None, **kwargs):
+    @classmethod
+    def load_retrieval_state(cls, fname):
+        return json.loads(gzip.open(fname, mode="rb").read().decode('utf-8'))
+
+    def notify_update(self, retrieval_strategy, location,
+                      retrieval_strategy_step=None, **kwargs):
         if(location != self.location_to_capture):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        fname = f"{self.basefname}_{retrieval_strategy.step_number}.json"
-        # Copy here is to make sure numpy arrays are contiguous in C order
-        with open(fname, "w") as fh:
-            fh.write(jsonpickle.encode({"ret_res" : copy.deepcopy(ret_res),
-                                        "jacobian_sys" : copy.deepcopy(jacobian_sys)}))
+        fname = f"{self.basefname}_{retrieval_strategy.step_number}.json.gz"
+        with gzip.open(fname, mode="wb") as fh:
+            fh.write(json.dumps(retrieval_strategy_step.get_state(),
+                                sort_keys=True, indent=4).encode('utf-8'))
 
 __all__ = ["RetrievalStrategyStepSet", "RetrievalStrategyStep",
            "RetrievalStrategyStepNotImplemented",
            "RetrievalStrategyStepRetrieve",
            "RetrievalStrategyStep_omicloud_ig_refine",
            "RetrievalStrategyStep_tropomicloud_ig_refine",
-           "RetrievalStepResultCaptureObserver"
+           "RetrievalStepCaptureObserver"
            ]
            
            

@@ -1,7 +1,6 @@
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .filter_metadata import FileFilterMetadata
 from .muses_spectral_window import MusesSpectralWindow
-import refractor.muses.muses_py as mpy
 from loguru import logger
 import abc
 

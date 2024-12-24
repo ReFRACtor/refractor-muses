@@ -1,15 +1,7 @@
-import numpy as np
 import numpy.testing as npt
-
 from test_support import *
 import refractor.framework as rf
-import glob
-from refractor.muses import (MusesRunDir, CostFunctionCreator, CostFunction, 
-                             RetrievalConfiguration, MeasurementIdFile)
-from refractor.omi import (OmiFmObjectCreator, OmiForwardModelHandle)
-from refractor.old_py_retrieve_wrapper import (RefractorMusesIntegration,
-                                               RefractorOmiFm,MusesForwardModelStep,)
-import subprocess
+from refractor.omi import OmiFmObjectCreator
 
 DEBUG = False
 
@@ -18,7 +10,7 @@ def omi_fm_object_creator_step_1(isolated_dir, osp_dir):
     '''Fixture for OmiFmObjectCreator, just so we don't need to repeat code
     in multiple tests'''
     rs, rstep, _ = set_up_run_to_location(omi_test_in_dir, 0, "retrieval input",
-                                          include_result=False)
+                                          include_ret_state=False)
     res = OmiFmObjectCreator(
         rs.current_state(), rs.measurement_id,
         rs.observation_handle_set.observation(
@@ -37,7 +29,7 @@ def omi_fm_object_creator_step_2(isolated_dir, osp_dir):
     '''Fixture for OmiFmObjectCreator, just so we don't need to repeat code
     in multiple tests'''
     rs, rstep, _ = set_up_run_to_location(omi_test_in_dir, 1, "retrieval input",
-                                          include_result=False)
+                                          include_ret_state=False)
     res = OmiFmObjectCreator(
         rs.current_state(), rs.measurement_id,
         rs.observation_handle_set.observation(
@@ -63,15 +55,12 @@ def test_spectrum_sampling(omi_fm_object_creator_step_1):
 def test_instrument(omi_fm_object_creator_step_1):
     print(omi_fm_object_creator_step_1.instrument)
 
-@require_muses_py
 def test_atmosphere(omi_fm_object_creator_step_1):
     print(omi_fm_object_creator_step_1.atmosphere)
 
-@require_muses_py
 def test_radiative_transfer(omi_fm_object_creator_step_1):
     print(omi_fm_object_creator_step_1.radiative_transfer)
 
-@require_muses_py
 def test_forward_model(omi_fm_object_creator_step_1):
     print(omi_fm_object_creator_step_1.forward_model)
 
@@ -101,7 +90,6 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
             pickle.dump(data, out)
 
 
-@require_muses_py
 def test_fm_run(omi_fm_object_creator_step_1):
     fm = omi_fm_object_creator_step_1.forward_model
     fm.add_observer_and_keep_reference(PrintSpectrum())
@@ -112,22 +100,18 @@ def test_state_vector(omi_fm_object_creator_step_1):
         omi_fm_object_creator_step_1.current_state.initial_guess_fm)
     print(omi_fm_object_creator_step_1.fm_sv)
 
-@require_muses_py
 def test_state_vector_step2(omi_fm_object_creator_step_2):
     omi_fm_object_creator_step_2.fm_sv.update_state(
         omi_fm_object_creator_step_2.current_state.initial_guess_fm)
     print(omi_fm_object_creator_step_2.fm_sv)
 
-@require_muses_py
 def test_raman_effect(omi_fm_object_creator_step_1):
     print(omi_fm_object_creator_step_1.raman_effect)
 
-@require_muses_py
 def test_forward_model_step2(omi_fm_object_creator_step_2):
     '''Step 2, which has two microwindows'''
     print(omi_fm_object_creator_step_2.forward_model)
 
-@require_muses_py
 def test_fm_run_step2(omi_fm_object_creator_step_2):
     omi_fm_object_creator_step_2.use_pca = False
     omi_fm_object_creator_step_2.use_lrad = False
@@ -151,6 +135,5 @@ def test_fm_run_step2(omi_fm_object_creator_step_2):
     npt.assert_allclose(spectrum_lidort.spectral_domain.data, spectrum_pca.spectral_domain.data, rtol=1e-10)
     npt.assert_allclose(spectrum_lidort.spectral_range.data, spectrum_pca.spectral_range.data, rtol=2e-2)
 
-@require_muses_py
     
     

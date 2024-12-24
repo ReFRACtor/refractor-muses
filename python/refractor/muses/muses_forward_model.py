@@ -12,6 +12,7 @@ import os
 import functools
 import numpy as np
 import copy
+from collections import UserDict
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
 # ForwardModel
@@ -129,6 +130,57 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
                 a = rf.ArrayAd_double_1(rad[gmask])
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
+
+class ResultIrk(UserDict):
+    '''This holds the results of IRK. This is basically just a dict,
+    with a few extra functions. We can perhaps create a proper class
+    at some point, but right now there isn't much of a need for this.
+    The old py-retrieve code that uses ResultIrk is expecting a dict.'''
+
+    def __getattr__(self, nm):
+        if(nm in self.data):
+            return self[nm]
+        raise AttributeError()
+
+    def __setattr__(self, nm, value):
+        if(nm in ("data",)):
+            super().__setattr__(nm, value)
+        if(nm in self.data):
+            self[nm] = value
+        else:
+            super().__setattr__(nm, value)
+    
+    def get_state(self):
+        res = dict(copy.deepcopy(self.data))
+        for k in res.keys():
+            if k in ('fluxSegments', 'freqSegments', 'fluxSegments_l1b',
+                     'freqSegments_irk'):
+                res[k] = res[k].tolist()
+            if k == 'radiances':
+                for k2 in ('radarr_fm','freq_fm','rad_L1b', 'freq_L1b'):
+                    res[k][k2] = res[k][k2].tolist()
+            if k not in ('flux', 'flux_l1b', 'fluxSegments', 'freqSegments',
+                         'fluxSegments_l1b', 'freqSegments_irk', 'radiances'):
+                for k2 in ('irfk', 'lirfk', 'pressure', 'irfk_segs',
+                           'lirfk_segs', 'vmr'):
+                    res[k][k2] = res[k][k2].tolist()
+        return res
+
+    def set_state(self, d):
+        self.data = d
+        for k in self.data.keys():
+            if k in ('fluxSegments', 'freqSegments', 'fluxSegments_l1b',
+                     'freqSegments_irk'):
+                self.data[k] = np.array(self.data[k])
+            if k == 'radiances':
+                for k2 in ('radarr_fm','freq_fm','rad_L1b', 'freq_L1b'):
+                    self.data[k][k2] = np.array(self.data[k][k2])
+            if k not in ('flux', 'flux_l1b', 'fluxSegments', 'freqSegments',
+                         'fluxSegments_l1b', 'freqSegments_irk', 'radiances'):
+                for k2 in ('irfk', 'lirfk', 'pressure', 'irfk_segs',
+                           'lirfk_segs', 'vmr'):
+                    self.data[k][k2] = np.array(self.data[k][k2])
+        
 
 class MusesForwardModelIrk(MusesOssForwardModelBase):
     '''This add the irk function to calculate the IRK. It seems like this
@@ -265,13 +317,13 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         # weight by freq_step
         jacWeighted *= freq_step[np.newaxis, :]
     
-        o_results_irk = {
+        o_results_irk = ResultIrk({
             'flux':flux,
             'flux_l1b': flux_l1b,                 
             'fluxSegments': fluxSegments,         
             'freqSegments': freqSegments,         
             'fluxSegments_l1b': fluxSegments_l1b 
-        } 
+        })
     
         # smaller range for irk average 
         indf = np.where((frequency >= self.irk_average_freq_range[0]) &
@@ -603,6 +655,7 @@ __all__ = [ "MusesCrisForwardModel",
             "MusesAirsForwardModel", 
             "MusesTesForwardModel", 
             "MusesTropomiForwardModel", 
-            "MusesOmiForwardModel", 
+            "MusesOmiForwardModel",
+            "ResultIrk"
            ]
 

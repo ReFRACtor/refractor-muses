@@ -1,7 +1,7 @@
 from test_support import *
 from refractor.muses import (StrategyTable, MusesRunDir, RetrievableStateElement,
                              RetrievalInfo, CurrentStrategyStep)
-from pprint import pprint
+import subprocess
 
 # Add a extra state element, just so we can make sure our StrategyTable functions
 # handles this correctly
@@ -54,7 +54,6 @@ class EofStateElement(RetrievableStateElement):
         # Not sure if the is covariance, or sqrt covariance
         self.constraintMatrix = 10*10
 
-@require_muses_py
 def test_strategy_table(isolated_dir, osp_dir, gmao_dir):
     r = MusesRunDir(f"{test_base_path}/omi/in/sounding_1",
                     osp_dir, gmao_dir)

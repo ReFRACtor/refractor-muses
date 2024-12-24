@@ -1,10 +1,8 @@
 from functools import cached_property
 import numpy as np
-import numpy.testing as npt
 from refractor.tropomi import TropomiFmObjectCreator
 from test_support import *
 import refractor.framework as rf
-import glob
 from refractor.muses import (RetrievalStrategy, MusesRunDir,
                              RetrievalStrategyCaptureObserver,
                              ForwardModelHandle,
@@ -138,9 +136,7 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
     
 
 @long_test
-@require_muses_py
-def test_tropomi_vrm_scaled(osp_dir, gmao_dir, vlidort_cli,
-                            clean_up_replacement_function):
+def test_tropomi_vrm_scaled(osp_dir, gmao_dir, vlidort_cli):
     '''Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.

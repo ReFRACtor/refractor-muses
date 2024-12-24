@@ -148,6 +148,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         with self.observation.modify_spectral_window(do_raman_ext=True,
                                                      include_bad_sample=True):
             t = self.observation.spectral_domain(sensor_index).data
+            if(len(t) < 2):
+                return 0
             return (t[0] + t[-1])/2
     
     @cached_property

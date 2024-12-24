@@ -34,7 +34,6 @@ def tropomi_co_step(tropomi_swir):
     return tropomi_swir
 
 @long_test
-@require_muses_py
 def test_band8_retrieval(tropomi_co_step, josh_osp_dir):
     '''Work through issues to do a band 8 retrieval, without making
     any py-retrieve modifications'''

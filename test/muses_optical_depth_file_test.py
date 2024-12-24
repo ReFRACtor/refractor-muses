@@ -1,33 +1,43 @@
 import numpy as np
 import numpy.testing as npt
-from refractor.muses import (MusesOpticalDepthFile, AbsorberVmrToUip, MusesRayInfo,
-                             RetrievalConfiguration, CurrentStateUip, MeasurementIdFile,
+from refractor.muses import (MusesOpticalDepthFile, AbsorberVmrToUip, 
                              MusesOpticalDepth)
 from refractor.tropomi import TropomiFmObjectCreator
 from test_support import *
 import refractor.framework as rf
 
 @pytest.fixture(scope="function")
-def tropomi_fm_object_creator_step_2(tropomi_uip_step_2, tropomi_obs_step_2, osp_dir):
+def tropomi_fm_object_creator_step_2(isolated_dir, osp_dir):
     '''Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
     in multiple tests'''
-    rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{test_base_path}/tropomi/in/sounding_1/Table.asc", osp_dir=osp_dir)
-    flist = {'TROPOMI' : ['BAND3']}
-    mid = MeasurementIdFile(f"{test_base_path}/tropomi/in/sounding_1/Measurement_ID.asc",
-                            rconf, flist)
-    return TropomiFmObjectCreator(CurrentStateUip(tropomi_uip_step_2), mid,
-                                  tropomi_obs_step_2, rf_uip_func=lambda instrument_name: tropomi_uip_step_2)
+    rs, rstep, _ = set_up_run_to_location(tropomi_test_in_dir, 1,
+                                          "retrieval input",
+                                          include_ret_state=False)
+    os.chdir(rs.run_dir)
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)("TROPOMI")
+    res = TropomiFmObjectCreator(
+        rs.current_state(), rs.measurement_id,
+        rs.observation_handle_set.observation(
+            "TROPOMI", rs.current_state(),
+            rs.current_strategy_step.spectral_window_dict["TROPOMI"],
+            None,osp_dir=osp_dir),
+        rf_uip_func=lambda instrument : uip,
+        osp_dir=osp_dir)
+    # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
+    # just for use in unit tests. We could set up a different way of passing
+    # this one, but shoving into the creator object is the easiest
+    res.rs = rs
+    res.rstep = rstep
+    return res
 
 
-@require_muses_py
-def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2,
-                                  tropomi_uip_step_2, osp_dir):
+def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2, osp_dir):
     obj_creator = tropomi_fm_object_creator_step_2
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
-    tropomi_uip_step_2.uip_tropomi["jacobians"] = ["O3",]
+    uip = tropomi_fm_object_creator_step_2.rf_uip_func("TROPOMI")
+    uip.uip_tropomi["jacobians"] = ["O3",]
     mod  = MusesOpticalDepthFile(obj_creator.ray_info,
                                  obj_creator.pressure,
                                  obj_creator.temperature, obj_creator.altitude,
@@ -47,11 +57,11 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2,
     obj_creator.fm_sv.remove_observer(obj_creator.absorber_vmr[0])
     sv.add_observer(obj_creator.absorber_vmr[0])
     sv_val = []
-    sv_val = np.log(tropomi_uip_step_2.atmosphere_column("O3"))
+    sv_val = np.log(uip.atmosphere_column("O3"))
     sv.update_state(sv_val)
     # Make sure update to sv gets reflected in UIP
-    tropomi_uip_step_2.refractor_cache["atouip_O3"] =  \
-        AbsorberVmrToUip(tropomi_uip_step_2, obj_creator.pressure,
+    uip.refractor_cache["atouip_O3"] =  \
+        AbsorberVmrToUip(uip, obj_creator.pressure,
                          obj_creator.absorber_vmr[0], "O3")
     
     # Pick a wavenumber in the forward model, but not at the edge. Pretty

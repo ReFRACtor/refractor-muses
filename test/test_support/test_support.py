@@ -1,31 +1,24 @@
 import os
-import shutil
 import sys
-import pickle
 import pytest
-import refractor.muses.muses_py as mpy
-from refractor.muses import (RefractorUip, osswrapper,
+from refractor.muses import (RefractorUip, 
                              DictFilterMetadata, MusesRunDir,
                              RetrievalStrategy,
                              MusesTropomiObservation, MusesOmiObservation,
-                             MusesCrisObservation, MusesAirsObservation, MusesSpectralWindow)
-from refractor.framework import (load_config_module, find_config_function, PythonFpLogger,
-                                 FpLogger)
-from refractor.framework.factory import process_config, creator
-from refractor.old_py_retrieve_wrapper import MusesResidualFmJacobian, MusesRetrievalStep
-from scipy.io import readsav
+                             MusesCrisObservation, MusesAirsObservation,
+                             MusesSpectralWindow)
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore",category=DeprecationWarning)
+    from refractor.framework import PythonFpLogger, FpLogger
 import netCDF4 as ncdf
-import glob
-import subprocess
 import numpy as np
 import numpy.testing as npt
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 from loguru import logger
 import io
-import subprocess
 import warnings
-import atexit
 
 #warnings to logger
 showwarning_ = warnings.showwarning
@@ -84,12 +77,8 @@ capture_test = pytest.mark.capture_test
 # Marker for initial capture tests. Only run with --run-initial-capture
 capture_initial_test = pytest.mark.capture_initial_test
 
-# Marker that skips a test if we don't have muses_py available
-require_muses_py = pytest.mark.skipif(not mpy.have_muses_py,
-      reason="need muses-py available to run")
-
-# Fake creation date used in muses-py file creation, to make comparing easier since
-# we don't get differences that are just the time of creation
+# Fake creation date used in muses-py file creation, to make comparing
+# easier since we don't get differences that are just the time of creation
 os.environ["MUSES_FAKE_CREATION_DATE"] = "FAKE_DATE"
 
 @pytest.fixture(scope="function")
@@ -139,18 +128,6 @@ def isolated_dir(tmpdir):
         os.chdir(curdir)
         
 @pytest.fixture(scope="function")
-def clean_up_replacement_function():
-    '''Remove any replacement functions that have been added when the
-    test ends'''
-    if not mpy.have_muses_py:
-        raise pytest.skip('test requires muses_py')
-    try:
-        yield
-    finally:
-        mpy.unregister_replacement_function_all()
-        osswrapper.register_with_muses_py()
-
-@pytest.fixture(scope="function")
 def python_fp_logger(tmpdir):
     '''Use PythonFpLogger to put the C++ logging stuff into the python logger.'''
     PythonFpLogger.turn_on_logger(logger)
@@ -159,235 +136,6 @@ def python_fp_logger(tmpdir):
     FpLogger.turn_on_logger()
     
         
-def _muses_residual_fm_jac(dir_in, step_number=1, iteration=1,
-                          osp_dir=None, gmao_dir=None,
-                          path=".",
-                          change_to_dir=True):
-    '''This reads parameters that can be use to call the py-retrieve function
-    residual_fm_jac. See muses_capture in refractor-muses for collecting this.
-    '''
-    return MusesResidualFmJacobian.load_residual_fm_jacobian(
-        f"{dir_in}/residual_fm_jac_{step_number}_{iteration}.pkl",
-        osp_dir=osp_dir, gmao_dir=gmao_dir,path=path,
-        change_to_dir=change_to_dir)
-
-def joint_omi_residual_fm_jac(path="refractor"):
-    '''This returns the old MusesResidualFmJacobian. This is used for
-    backwards testing against py-retrieve code.
-
-    Directory is created given the path, and we change into that
-    directory.'''
-    step_number = 8
-    iteration = 2
-    osp_dir = os.environ.get("MUSES_OSP_PATH", None)
-    gmao_dir = os.environ.get("MUSES_GMAO_PATH", None)
-    return _muses_residual_fm_jac(joint_omi_test_in_dir,
-                                  step_number=step_number,
-                                  iteration=iteration,
-                                  osp_dir=osp_dir,
-                                  gmao_dir=gmao_dir,
-                                  path=path)
-
-def joint_tropomi_residual_fm_jac(path="refractor"):
-    '''This returns the old MusesResidualFmJacobian. This is used for
-    backwards testing against py-retrieve code.
-
-    Directory is created given the path, and we change into that
-    directory.'''
-    
-    step_number = 12
-    iteration = 2
-    osp_dir = os.environ.get("MUSES_OSP_PATH", None)
-    gmao_dir = os.environ.get("MUSES_GMAO_PATH", None)
-    return _muses_residual_fm_jac(joint_tropomi_test_in_dir,
-                                  step_number=step_number,
-                                  iteration=iteration,
-                                  osp_dir=osp_dir,
-                                  gmao_dir=gmao_dir,
-                                  path=path)
-
-def load_uip(dir_in, step_number=1, osp_dir=None, gmao_dir=None):
-    return  RefractorUip.load_uip(
-        f"{dir_in}/uip_step_{step_number}.pkl",
-        change_to_dir=True,
-        osp_dir=osp_dir,gmao_dir=gmao_dir)
-
-@pytest.fixture(scope="function")
-def tropomi_uip_step_1(isolated_dir, osp_dir, gmao_dir):
-    '''Return a RefractorUip for strategy step 1, and also unpack all the 
-    support files into a directory'''
-    return load_uip(tropomi_test_in_dir, step_number=1,
-                    osp_dir=osp_dir, gmao_dir=gmao_dir)
-
-@pytest.fixture(scope="function")
-def tropomi_obs_step_1(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
-    atrack_dict = {"BAND3" : 359, "CLOUD" : 359}
-    filename_dict = {}
-    filename_dict["BAND3"] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc"
-    filename_dict['IRR_BAND_1to6'] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    filename_dict["CLOUD"]= f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
-    utc_time = "2019-08-07T00:46:06.179000Z"
-    filter_list = ["BAND3",]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_TROPOMICLOUDFRACTION_TROPOMICLOUD_IG_Refine.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"TROPOMI" : filter_list},
-        filter_metadata = DictFilterMetadata({"BAND3" : {"monoextend" : 2.0, "monoSpacing" : 0.01}})
-    )
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
-@pytest.fixture(scope="function")
-def tropomi_obs_sounding_2_band7(josh_osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND7" : 205, 'CLOUD' : 205, 'IRR_BAND_1to6' : 204}
-    atrack_dict = {"BAND7" : 2297, "CLOUD" : 2297}
-    filename_dict = {}
-    filename_dict["BAND7"] = f"{tropomi_test_in_dir2}/../S5P_RPRO_L1B_RA_BD7_20220628T185806_20220628T203935_24394_03_020100_20230104T092546.nc"
-    filename_dict["IRR_BAND_7to8"] = f"{tropomi_test_in_dir2}/../S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
-    filename_dict["CLOUD"] = f"{tropomi_test_in_dir2}/../S5P_RPRO_L2__CLOUD__20220628T171636_20220628T185806_24393_03_020401_20230119T091435.nc"
-    utc_time = "2022-06-28T18:07:51.984098Z"
-    filter_list = ["BAND7",]
-    mwfile = f"{josh_osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"TROPOMI" : filter_list},
-        filter_metadata = DictFilterMetadata({"BAND7" : {"monoextend" : 2.0, "monoSpacing" : 0.01}}))
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=josh_osp_dir)
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
-@pytest.fixture(scope="function")
-def tropomi_obs_step_2(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
-    atrack_dict = {"BAND3" : 359, "CLOUD" : 359}
-    filename_dict = {}
-    filename_dict["BAND3"] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc"
-    filename_dict['IRR_BAND_1to6'] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    filename_dict["CLOUD"]= f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
-    utc_time = "2019-08-07T00:46:06.179000Z"
-    filter_list = ["BAND3",]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_O3-Band3.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"TROPOMI" : filter_list},
-        filter_metadata = DictFilterMetadata({"BAND3" : {"monoextend" : 2.0, "monoSpacing" : 0.01}}))
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
-@pytest.fixture(scope="function")
-def joint_tropomi_obs_step_12(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
-    atrack_dict = {"BAND3" : 2995, "CLOUD" : 2995}
-    filename_dict = {}
-    filename_dict["BAND3"] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc"
-    filename_dict['IRR_BAND_1to6'] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    filename_dict["CLOUD"]= f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
-    utc_time = "2019-08-07T06:24:33.584090Z"
-    filter_list = ["BAND3",]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    granule = 65
-    xtrack = 8
-    atrack = 4
-    pixel_index = 5
-    fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
-    obscris = MusesCrisObservation.create_from_filename(
-        fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
-    obscris.spectral_window = swin_dict["CRIS"]
-    obscris.spectral_window.add_bad_sample_mask(obscris)
-    return [obscris, obs]
-
-@pytest.fixture(scope="function")
-def joint_omi_obs_step_8(osp_dir):
-    xtrack_uv1 = 10
-    xtrack_uv2 = 20
-    atrack = 1139
-    filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0401t2215-o62308_v003-2016m0402t041806.he4"
-    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
-    utc_time = "2016-04-01T23:07:33.676106Z"
-    filter_list = ["UV1", "UV2"]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
-    channel_list = ['1A1', '2A1', '1B2', '2B1']
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_list_dict={"OMI" : filter_list, "AIRS" : channel_list})
-    obs = MusesOmiObservation.create_from_filename(
-        filename, xtrack_uv1, xtrack_uv2, atrack, utc_time, calibration_filename,
-        filter_list, cld_filename=cld_filename, osp_dir=osp_dir)
-    obs.spectral_window = swin_dict["OMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    granule = 231
-    xtrack = 29
-    atrack = 49
-    fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
-    obs_airs = MusesAirsObservation.create_from_filename(
-        fname, granule, xtrack, atrack, channel_list, osp_dir=osp_dir)
-    obs_airs.spectral_window = swin_dict["AIRS"]
-    obs_airs.spectral_window.add_bad_sample_mask(obs_airs)
-    return [obs_airs, obs]
-    
-
-@pytest.fixture(scope="function")
-def tropomi_uip_step_2(isolated_dir, osp_dir, gmao_dir):
-    '''Return a RefractorUip for strategy step 2, and also unpack all the 
-    support files into a directory'''
-    return load_uip(tropomi_test_in_dir, step_number=2,
-                    osp_dir=osp_dir, gmao_dir=gmao_dir)
-                    
-@pytest.fixture(scope="function")
-def tropomi_uip_sounding_2_step_1(isolated_dir):
-    '''Return a RefractorUip for strategy step 1, and also unpack all the 
-    support files into a directory'''
-    return load_uip(tropomi_test_in_dir2, step_number=1)
-
-@pytest.fixture(scope="function")
-def tropomi_uip_band7_step_1(isolated_dir):
-    '''Return a RefractorUip for strategy step 1, and also unpack all the 
-    support files into a directory'''
-    return load_uip(tropomi_band7_test_in_dir, step_number=1)
-
-
-@pytest.fixture(scope="function")
-def tropomi_uip_band7_swir_step(isolated_dir):
-    '''Return a RefractorUip for step 1 of a test-only strategy table with
-    only the Band 7 SWIR step, and also unpack all the support files into a
-    directory'''
-    return load_uip(tropomi_band7_swir_step_test_in_dir, step_number=1)
-
-@pytest.fixture(scope="function")
-def tropomi_obs_band7_swir_step(josh_osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND7" : 108, 'CLOUD' : 108, 'IRR_BAND_7to8' : 108}
-    atrack_dict = {"BAND7" : 1008, "CLOUD" : 1008}
-    filename_dict = {}
-    filename_dict["BAND7"] = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_OFFL_L1B_RA_BD7_20220628T185806_20220628T203935_24394_02_020000_20220628T222834.nc"
-    filename_dict['IRR_BAND_7to8'] = f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L1B_IR_SIR_20220628T084907_20220628T103037_24388_03_020100_20230104T091244.nc"
-    filename_dict["CLOUD"]= f"{tropomi_band7_swir_step_test_in_dir}/../S5P_RPRO_L2__CLOUD__20220628T185806_20220628T203935_24394_03_020401_20230119T091438.nc"
-    utc_time = "2022-06-28T19:33:47.130000Z"
-    filter_list = ["BAND7",]
-    mwfile = f"{josh_osp_dir}/Strategy_Tables/laughner/OSP-CrIS-TROPOMI-swir-co-dev/MWDefinitions/Windows_Nadir_CO-Band7.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"TROPOMI" : filter_list},
-        filter_metadata = DictFilterMetadata({"BAND7" : {"monoextend" : 2.0, "monoSpacing" : 0.01}}))
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=josh_osp_dir)
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
 @pytest.fixture(scope="function")
 def tropomi_band7_simple_ils_test_data():
     simple_results_file = os.path.join(tropomi_band7_expected_results_dir, 'ils', 'simple_ils_test.nc')
@@ -402,28 +150,6 @@ def tropomi_band7_simple_ils_test_data():
 def omi_config_dir():
     '''Returns configuration directory'''
     yield os.path.abspath(os.path.dirname(__file__) + "/../../python/refractor/omi/config") + "/"
-
-@pytest.fixture(scope="function")
-def omi_uip_step_2(isolated_dir, osp_dir, gmao_dir):
-    '''Return a RefractorUip for strategy step 2, and also unpack all the 
-    support files into a directory'''
-    return load_uip(omi_test_in_dir, step_number=2,
-                    osp_dir=osp_dir, gmao_dir=gmao_dir)
-                    
-
-@pytest.fixture(scope="function")
-def joint_tropomi_uip_step_12(isolated_dir, osp_dir, gmao_dir):
-    '''Return a RefractorUip for strategy step 1, and also unpack all the 
-    support files into a directory'''
-    return load_uip(joint_tropomi_test_in_dir, step_number=12,
-                    osp_dir=osp_dir, gmao_dir=gmao_dir)
-
-@pytest.fixture(scope="function")
-def joint_omi_uip_step_8(isolated_dir, osp_dir, gmao_dir):
-    '''Return a RefractorUip for strategy step 1, and also unpack all the 
-    support files into a directory'''
-    return load_uip(joint_omi_test_in_dir, step_number=8,
-                    osp_dir=osp_dir, gmao_dir=gmao_dir)
 
 @pytest.fixture(scope="function")
 def vlidort_cli():
@@ -441,17 +167,15 @@ def all_output_disabled():
     finally:
         logger.add(sys.stderr)
 
-def load_step(rs, step_number, dir, include_result=False, include_irk_result=False):
+def load_step(rs, step_number, dir, include_ret_state=False):
     '''Load in the state information and optional retrieval results for the given
     step, and jump to that step.'''
     rs.load_state_info(
         f"{dir}/state_info_step_{step_number}.pkl",
         step_number,
-        ret_res_file = f"{dir}/retrieval_result_step_{step_number}.json" if include_result else None,
-        irk_res_file = f"{dir}/retrieval_irk_result_step_{step_number}.json" if include_irk_result else None)
+        ret_state_file = f"{dir}/retrieval_state_step_{step_number}.json.gz" if include_ret_state else None)
 
-def set_up_run_to_location(dir, step_number, location, include_result=True,
-                           include_irk_result=False):
+def set_up_run_to_location(dir, step_number, location, include_ret_state=True):
     '''Set up directory and run the given step number to the given location.'''
     osp_dir = os.environ.get("MUSES_OSP_PATH", None)
     gmao_dir = os.environ.get("MUSES_GMAO_PATH", None)
@@ -459,12 +183,11 @@ def set_up_run_to_location(dir, step_number, location, include_result=True,
     r = MusesRunDir(dir, osp_dir, gmao_dir)
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
     rstep, kwargs = run_step_to_location(rs, step_number, dir, location,
-                                         include_result=include_result,
-                                         include_irk_result=include_irk_result)
+                                         include_ret_state=include_ret_state)
     return rs,rstep,kwargs
     
-def run_step_to_location(rs, step_number, dir, location, include_result=True,
-                         include_irk_result=False):
+def run_step_to_location(rs, step_number, dir, location,
+                         include_ret_state=True):
     '''Load in the given step, and run up to the location we notify at
     (e.g., "retrieval step"). Return the retrieval_strategy_step'''
     class CaptureRs:
@@ -481,8 +204,7 @@ def run_step_to_location(rs, step_number, dir, location, include_result=True,
     try:
         rcap = CaptureRs()
         rs.add_observer(rcap)
-        load_step(rs, step_number, dir, include_result=include_result,
-                  include_irk_result=include_irk_result)
+        load_step(rs, step_number, dir, include_ret_state=include_ret_state)
         try:
             rs.continue_retrieval(stop_after_step=step_number)
         except StopIteration:
@@ -490,6 +212,20 @@ def run_step_to_location(rs, step_number, dir, location, include_result=True,
     finally:
         rs.remove_observer(rcap)
     
+
+@pytest.fixture(scope="function")
+def joint_omi_step_8(isolated_dir):
+    rs,rstep,kwargs =  set_up_run_to_location(joint_omi_test_in_dir, 8,
+                                              "retrieval input")
+    os.chdir(rs.run_dir)
+    return rs, rstep, kwargs
+
+@pytest.fixture(scope="function")
+def joint_tropomi_step_12(isolated_dir):
+    rs,rstep,kwargs =  set_up_run_to_location(joint_tropomi_test_in_dir, 12,
+                                              "retrieval input")
+    os.chdir(rs.run_dir)
+    return rs, rstep, kwargs
 
 def struct_compare(s1, s2, skip_list=None, verbose=False):
     if(skip_list is None):

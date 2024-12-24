@@ -1,12 +1,12 @@
-from .refractor_capture_directory import (RefractorCaptureDirectory,
-                                          muses_py_call)
+from .refractor_capture_directory import RefractorCaptureDirectory
 from .retrieval_l2_output import RetrievalL2Output
 from .retrieval_irk_output import RetrievalIrkOutput
 from .retrieval_radiance_output import RetrievalRadianceOutput
 from .retrieval_jacobian_output import RetrievalJacobianOutput
 from .retrieval_debug_output import (RetrievalPickleResult,
                                      RetrievalPlotRadiance, RetrievalPlotResult)
-from .retrieval_strategy_step import RetrievalStrategyStepSet
+from .retrieval_strategy_step import (
+    RetrievalStrategyStepSet, RetrievalStepCaptureObserver)
 from .retrieval_configuration import RetrievalConfiguration
 from .cost_function_creator import CostFunctionCreator
 from .muses_observation import MeasurementIdFile
@@ -16,19 +16,12 @@ from .state_info import StateElementHandleSet
 from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
-from .muses_levmar_solver import MusesLevmarSolver
 from .state_info import StateInfo
 from loguru import logger
 import refractor.muses.muses_py as mpy
 import os
 import copy
 import pickle
-import jsonpickle
-import numpy as np
-import gzip
-# Handle numpy arrays in jsonpickle
-import jsonpickle.ext.numpy as jsonpickle_numpy
-jsonpickle_numpy.register_handlers()
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
@@ -374,7 +367,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self._capture_directory.save_directory(self.run_dir, vlidort_input=None)
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
-    def save_state_info_pickle(self, save_pickle_file):
+    def state_state_info(self, save_pickle_file):
         '''Dump a pickled version of the StateInfo object.
         We may play with this, but currently we gzip this.
         We would like to have something a bit more stable, not tied to the
@@ -387,28 +380,25 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         pickle.dump(self.state_info, open(save_pickle_file, "wb"))
             
     def load_state_info(self, state_info_pickle_file, step_number,
-                        ret_res_file=None, irk_res_file=None):
-        '''This pairs with save_state_info_pickle. Instead of pickling the entire
-        RetrievalStrategy, we just pickle the state. We then set up
-        to process the given target_filename with the given state, jumping to
-        the given retrieval step_number.
+                        ret_state_file=None):
+        '''This pairs with state_state_info. Instead of pickling the
+        entire RetrievalStrategy, we just save the state. We then
+        set up to process the given target_filename with the given
+        state, jumping to the given retrieval step_number.
 
         Note for some tests in addition to the StateInfo we want the results
-        saved by RetrievalStepResultCaptureObserver (e.g., we want to test the
+        saved by RetrievalStepCaptureObserver (e.g., we want to test the
         output writing). You can optionally pass in the json file for this and
-        we will also pass that information to the RetrievalStrategyStep.'''
+        we will also pass that information to the RetrievalStrategyStep.
+        '''
         #self._state_info = jsonpickle.decode(
         #    gzip.open(state_info_pickle_file, "rb").read())
         self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
         self._strategy_executor.set_step(step_number)
-        if(ret_res_file is not None):
-            t = jsonpickle.decode(open(ret_res_file, "r").read())
-            self._kwargs['ret_res'] = t["ret_res"]
-            self._kwargs['jacobian_sys'] = t['jacobian_sys']
-        if(irk_res_file is not None):
-            t = jsonpickle.decode(open(irk_res_file, "r").read())
-            self._kwargs['irk_res'] = t
-            
+        if(ret_state_file is not None):
+            t = RetrievalStepCaptureObserver.load_retrieval_state(
+                ret_state_file)
+            self._kwargs['ret_state'] = t
 
     @classmethod
     def load_retrieval_strategy(cls, save_pickle_file, path=".",
@@ -474,7 +464,7 @@ class StateInfoCaptureObserver:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         #fname = f"{self.basefname}_{retrieval_strategy.step_number}.json.gz"
         fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
-        retrieval_strategy.save_state_info_pickle(fname)
+        retrieval_strategy.state_state_info(fname)
         
 class RetrievalStrategyMemoryUse:
     def __init__(self):

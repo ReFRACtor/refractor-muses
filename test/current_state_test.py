@@ -3,7 +3,6 @@ from refractor.muses import (CurrentStateDict, CurrentStateUip,
                              RetrievalStrategyStepRetrieve,
                              RetrievalStrategy, MusesRunDir,
                              CurrentStateStateInfo)
-import numpy as np
 
 class RetrievalStrategyStop:
     def notify_update(self, retrieval_strategy, location, **kwargs):
@@ -26,8 +25,9 @@ def test_current_state_dict():
     npt.assert_allclose(coeff, [1.0,2.0,3.0])
     npt.assert_allclose(mp.retrieval_indexes, [0,2])
 
-def test_current_state_uip(joint_tropomi_uip_step_12):
-    rf_uip = joint_tropomi_uip_step_12
+def test_current_state_uip(joint_tropomi_step_12):
+    rs, rstep, _ = joint_tropomi_step_12
+    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
     cs = CurrentStateUip(rf_uip)
     print(cs.fm_sv_loc)
     print(cs.fm_state_vector_size)

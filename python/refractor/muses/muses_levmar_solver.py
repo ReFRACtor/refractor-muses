@@ -1,13 +1,10 @@
 from .cost_function import CostFunction
-import pickle
 import numpy as np
-from .replace_function_helper import (suppress_replacement,
-                                      register_replacement_function_in_block)
+from .replace_function_helper import register_replacement_function_in_block
 import refractor.muses.muses_py as mpy
 from typing import Optional
 import subprocess
 import os
-import copy
 
 class MusesLevmarSolver:
     '''This is a wrapper around levmar_nllsq_elanor that makes it look like
@@ -26,16 +23,52 @@ class MusesLevmarSolver:
         self.log_file = log_file
         # Defaults, so if we skip solve we have what is needed for output
         self.success_flag = 1
-        self.bestIter = 0
-        self.residualRMS = np.asarray([0])
+        self.best_iter = 0
+        self.residual_rms = np.asarray([0])
+        self.x_iter = np.asarray([0])
         self.diag_lambda_rho_delta = np.zeros((1,3))
         self.stopcrit = np.zeros(shape=(1, 3), dtype=int)
         self.resdiag = np.zeros(shape=(1, 5), dtype=int)
         self.radiance_iter = np.zeros((1,1))
-        self.iterNum = 0
-        self.stopCode = -1
+        self.iter_num = 0
+        self.stop_code = -1
         self.verbose = verbose
 
+    def get_state(self):
+        '''Return a dictionary of values that can be used by set_state.
+        This allows us to skip running the solver in unit tests. This
+        is similar to a pickle serialization (which we also support), but
+        only saves the things that change when we update the parameters.
+        
+        Useful for testing when we want to actually test creating this
+        CostFunction, but want to skip the solver/forward model step.'''
+        return {'cfunc' : self.cfunc.get_state(),
+                'diag_lambda_rho_delta' : self.diag_lambda_rho_delta.tolist(),
+                'stopcrit' : self.stopcrit.tolist(),
+                'resdiag' : self.resdiag.tolist(),
+                'x_iter' : self.x_iter.tolist(),
+                'radiance_iter' : self.radiance_iter.tolist(),
+                'iter_num' : self.iter_num,
+                'stop_code' : self.stop_code,
+                'success_flag' : self.success_flag,
+                'best_iter' : self.best_iter,
+                'residual_rms' : self.residual_rms.tolist()
+                }
+
+    def set_state(self, d):
+        '''Set the state previously saved by get_state'''
+        self.cfunc.set_state(d['cfunc'])
+        self.diag_lambda_rho_delta = np.array(d['diag_lambda_rho_delta'])
+        self.stopcrit = np.array(d['stopcrit'])
+        self.resdiag = np.array(d['resdiag'])
+        self.x_iter = np.array(d['x_iter'])
+        self.radiance_iter = np.array(d['radiance_iter'])
+        self.iter_num = d['iter_num']
+        self.stop_code = d['stop_code']
+        self.success_flag = d['success_flag']
+        self.best_iter = d['best_iter']
+        self.residual_rms = np.array(d['residual_rms'])
+    
     def retrieval_results(self):
         '''Return the retrieval results dict. Hopefully this can go away, this
         is just used in mpy.set_retrieval_results (another function we would like
@@ -58,22 +91,22 @@ class MusesLevmarSolver:
         # Oddly, set_retrieval_results expects a different shape for num_iterations
         # = 0. Probably should change the code there, but for now just work around
         # this
-        if(self.iterNum == 0):
+        if(self.iter_num == 0):
             radianceOut2['radiance'] = radiance_fm[np.newaxis, :]
        
         return {
-            'bestIteration'  : int(self.bestIter), 
-            'num_iterations' : self.iterNum, 
-            'stopCode'       : self.stopCode, 
+            'bestIteration'  : int(self.best_iter), 
+            'num_iterations' : self.iter_num, 
+            'stopCode'       : self.stop_code, 
             'xret'           : self.cfunc.parameters,
             'xretFM'         : self.cfunc.parameters_fm(),
             'radiance'       : radianceOut2, 
             'jacobian'       : jacobianOut2, 
             'radianceIterations': self.radiance_iter[:,np.newaxis,:], 
-            'xretIterations' : self.cfunc.parameters if self.iterNum == 0 else self.x_iter, 
+            'xretIterations' : self.cfunc.parameters if self.iter_num == 0 else self.x_iter, 
             'stopCriteria'   : np.copy(self.stopcrit), 
             'resdiag'        : np.copy(self.resdiag), 
-            'residualRMS'    : self.residualRMS,
+            'residualRMS'    : self.residual_rms,
             'delta': self.diag_lambda_rho_delta[:, 2],
             'rho': self.diag_lambda_rho_delta[:, 1],
             'lambda': self.diag_lambda_rho_delta[:, 0],        
@@ -92,7 +125,7 @@ class MusesLevmarSolver:
             # We want some of these to go away
                 (xret, self.diag_lambda_rho_delta, self.stopcrit, self.resdiag, 
                  self.x_iter, res_iter, radiance_fm, self.radiance_iter,
-                 jacobian_fm, self.iterNum, self.stopCode, self.success_flag) =  \
+                 jacobian_fm, self.iter_num, self.stop_code, self.success_flag) =  \
                      mpy.levmar_nllsq_elanor(  
                          self.cfunc.parameters, 
                          None, 
@@ -113,9 +146,9 @@ class MusesLevmarSolver:
             self.cfunc.parameters = xret
             # Find iteration used, only keep the best iteration
             rms = np.array([np.sqrt(np.sum(res_iter[i,:]*res_iter[i,:])/
-                                    res_iter.shape[1]) for i in range(self.iterNum+1)])
-            self.bestIter = np.argmin(rms)
-            self.residualRMS = rms
+                                    res_iter.shape[1]) for i in range(self.iter_num+1)])
+            self.best_iter = int(np.argmin(rms))
+            self.residual_rms = rms
 
         
         

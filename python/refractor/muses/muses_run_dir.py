@@ -50,7 +50,7 @@ class MusesRunDir:
             if k in d['preferences']:
                 f = d['preferences'][k]
                 # If this starts with a ".", assume we want a file in the sounding director.
-                # otherwise we want the one in the input director.
+                # otherwise we want the one in the input directory.
                 if(os.path.dirname(f) == "."):
                     freplace = os.path.abspath(f"{refractor_sounding_dir}/{os.path.basename(f)}")
                 else:

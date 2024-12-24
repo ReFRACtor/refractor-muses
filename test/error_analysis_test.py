@@ -1,6 +1,5 @@
 from test_support import *
-from refractor.muses import (ErrorAnalysis, RetrievalStrategy, MusesRunDir,
-                             order_species)
+from refractor.muses import (ErrorAnalysis, RetrievalStrategy, MusesRunDir)
 import copy
 
 class RetrievalStrategyStop:
@@ -9,7 +8,6 @@ class RetrievalStrategyStop:
             raise StopIteration()
 
 @skip        
-@require_muses_py
 def test_error_analysis_init(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     if False:
         try:

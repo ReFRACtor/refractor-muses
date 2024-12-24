@@ -1,4 +1,5 @@
 from test_support import *
+from test_support.old_py_retrieve_test_support import *
 import numpy as np
 import numpy.testing as npt
 from refractor.old_py_retrieve_wrapper import (TropomiRadiancePyRetrieve,
@@ -8,6 +9,7 @@ import glob
 import pandas as pd
 import pickle
 
+@old_py_retrieve_test
 def test_tropomi_radiance(tropomi_uip_step_2):
     # The initial shift for everything is 0. Change to something so we can test that
     # this actually gets used.
@@ -63,6 +65,7 @@ def test_tropomi_radiance(tropomi_uip_step_2):
         print("   Summary relative difference")
         print(pd.DataFrame(np.abs((jfd-jcalc)/jcalc)).describe())
         
+@old_py_retrieve_test
 def test_bad_sample_tropomi_radiance(tropomi_uip_step_2):
     '''Test bad sample handling in TropomiRadiance.'''
     # Add some fake bad data

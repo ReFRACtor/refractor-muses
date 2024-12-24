@@ -1,23 +1,17 @@
 from test_support import *
 from refractor.muses import (MusesRunDir, RetrievalStrategy,
-                             RetrievalStrategyCaptureObserver,
                              RetrievableStateElement,
                              ForwardModelHandle,
                              SingleSpeciesHandle,
                              SimulatedObservation,
                              SimulatedObservationHandle,
                              StateInfo,
-                             RetrievalInfo,
-                             CurrentStateUip)
+                             RetrievalInfo)
 from refractor.tropomi import (TropomiSwirForwardModelHandle,
                                TropomiSwirFmObjectCreator)
-import refractor.muses.muses_py as mpy
 import refractor.framework as rf
 from functools import cached_property
 import subprocess
-import pprint
-import glob
-import shutil
 import copy
 from loguru import logger
 
@@ -34,7 +28,6 @@ def tropomi_co_step(tropomi_swir):
     return tropomi_swir
 
 @long_test
-@require_muses_py
 def test_retrieval(tropomi_co_step, josh_osp_dir):
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
     # Grab each step so we can separately test output
@@ -76,7 +69,6 @@ class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
     
 # Look just at the forward model        
 @long_test
-@require_muses_py
 def test_co_fm(tropomi_co_step, josh_osp_dir):
     '''Look just at the forward model'''
     # This is slightly convoluted, but we want to make sure we have the cost
@@ -156,7 +148,6 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
     #print((residual2-residual)[:112])
 
 @long_test
-@require_muses_py
 def test_simulated_retrieval(gmao_dir, josh_osp_dir):
     '''Do a simulation, and then a retrieval to get this result'''
     subprocess.run("rm -f -r swir_simulation", shell=True)
@@ -200,7 +191,6 @@ def test_simulated_retrieval(gmao_dir, josh_osp_dir):
     rs.retrieval_ms()
 
 @long_test
-@require_muses_py
 def test_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
     '''Use simulated data Josh generated'''
     subprocess.run("rm -f -r synth_alb_0_9", shell=True)
@@ -345,7 +335,6 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         return fm
 
 @long_test
-@require_muses_py
 def test_scaled_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
     '''Use simulated data Josh generated'''
     subprocess.run("rm -f -r synth_alb_0_9_scaled", shell=True)

@@ -1,26 +1,97 @@
 from test_support import *
+from test_support.old_py_retrieve_test_support import old_py_retrieve_test
 import numpy as np
 import pandas as pd
 import numpy.testing as npt
-import os
-import refractor.muses.muses_py as mpy
 from refractor.muses import (RetrievalConfiguration, MeasurementIdFile)
 from refractor.old_py_retrieve_wrapper import (RefractorTropOmiFm, RefractorTropOmiFmMusesPy,
                                                RefractorTropOrOmiFmPyRetrieve)
 from refractor.tropomi import TropomiFmObjectCreator
-import refractor.framework as rf
+
+@pytest.fixture(scope="function")
+def tropomi_obs_step_1(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
+    atrack_dict = {"BAND3" : 359, "CLOUD" : 359}
+    filename_dict = {}
+    filename_dict["BAND3"] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc"
+    filename_dict['IRR_BAND_1to6'] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    filename_dict["CLOUD"]= f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
+    utc_time = "2019-08-07T00:46:06.179000Z"
+    filter_list = ["BAND3",]
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_TROPOMICLOUDFRACTION_TROPOMICLOUD_IG_Refine.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, filter_list_dict={"TROPOMI" : filter_list},
+        filter_metadata = DictFilterMetadata({"BAND3" : {"monoextend" : 2.0, "monoSpacing" : 0.01}})
+    )
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
+    return obs
+
+@pytest.fixture(scope="function")
+def tropomi_obs_step_2(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
+    atrack_dict = {"BAND3" : 359, "CLOUD" : 359}
+    filename_dict = {}
+    filename_dict["BAND3"] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc"
+    filename_dict['IRR_BAND_1to6'] = f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    filename_dict["CLOUD"]= f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
+    utc_time = "2019-08-07T00:46:06.179000Z"
+    filter_list = ["BAND3",]
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_O3-Band3.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(
+        mwfile, filter_list_dict={"TROPOMI" : filter_list},
+        filter_metadata = DictFilterMetadata({"BAND3" : {"monoextend" : 2.0, "monoSpacing" : 0.01}}))
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
+    return obs
+
+@pytest.fixture(scope="function")
+def joint_tropomi_obs_step_12(osp_dir):
+    # Observation going with trompomi_uip_step_1
+    xtrack_dict = {"BAND3" : 226, 'CLOUD' : 226, 'IRR_BAND_1to6' : 226}
+    atrack_dict = {"BAND3" : 2995, "CLOUD" : 2995}
+    filename_dict = {}
+    filename_dict["BAND3"] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc"
+    filename_dict['IRR_BAND_1to6'] = f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+    filename_dict["CLOUD"]= f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
+    utc_time = "2019-08-07T06:24:33.584090Z"
+    filter_list = ["BAND3",]
+    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
+    obs = MusesTropomiObservation.create_from_filename(
+        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir)
+    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window.add_bad_sample_mask(obs)
+    granule = 65
+    xtrack = 8
+    atrack = 4
+    pixel_index = 5
+    fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
+    obscris = MusesCrisObservation.create_from_filename(
+        fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir)
+    obscris.spectral_window = swin_dict["CRIS"]
+    obscris.spectral_window.add_bad_sample_mask(obscris)
+    return [obscris, obs]
 
 #============================================================================
 # This set of classes replace the lower level call to tropomi_fm in
 # muses-py. This was used when initially comparing ReFRACtor and muses-py.
-# This has been replaced with RefractorMusesIntegration which is higher
-# in the call chain and has a cleaner interface.
+#
+# This is no longer used, ReFRACtor has completely replaced the foward
+# model.
+#
 # We'll leave these classes here for now, since it can be useful to do
-# lower level comparisons. But these should largely be considered deprecated
+# lower level comparisons. But these should be considered deprecated
 #============================================================================
 
+@old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
-@require_muses_py
 def test_refractor_fm_muses_py(isolated_dir, step_number, osp_dir, gmao_dir,
                                vlidort_cli):
     # Just pick an iteration to use. Not sure that we care about looping
@@ -48,8 +119,8 @@ def test_refractor_fm_muses_py(isolated_dir, step_number, osp_dir, gmao_dir,
     assert np.abs(o_measured_radiance_tropomi["measured_nesr"] -
                   o_measured_radiance_tropomi2["measured_nesr"]).max() < 1e-15
 
+@old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [12,])
-@require_muses_py
 def test_refractor_joint_fm_muses_py(isolated_dir, step_number, osp_dir,
                                      gmao_dir, vlidort_cli):
     # Note this is the TROPOMI part only, we save stuff after CrIS has been run
@@ -88,8 +159,8 @@ def test_refractor_joint_fm_muses_py(isolated_dir, step_number, osp_dir,
     assert np.abs(o_jacobian - o_jacobian2).max() < 1e-15
     
     
+@old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
-@require_muses_py
 def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
                                 vlidort_cli, tropomi_obs_step_1, tropomi_obs_step_2):
     # Just pick an iteration to use. Not sure that we care about looping
@@ -133,8 +204,8 @@ def test_refractor_fm_refractor(isolated_dir, step_number, osp_dir, gmao_dir,
     # Just check to make sure this doesn't suddenly jump if we break something
     assert np.max(np.abs((o_radiance2-o_radiance) / o_radiance2 * 100.0)) < 0.15
 
+@old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [12,])
-@require_muses_py
 def test_refractor_joint_fm_refractor(isolated_dir, step_number, osp_dir,
                                       gmao_dir, vlidort_cli,
                                       joint_tropomi_obs_step_12):
@@ -185,7 +256,6 @@ def test_refractor_joint_fm_refractor(isolated_dir, step_number, osp_dir,
     if True:
         import seaborn as sns
         import matplotlib.pyplot as plt
-        import matplotlib
         sns.set_theme()
         sd = r.obj_creator.forward_model.spectral_domain(0).data
         d = pd.DataFrame({"Wavelength (nm)" : sd, "ReFRACtor Radiance" : o_radiance,
@@ -205,7 +275,7 @@ def test_refractor_joint_fm_refractor(isolated_dir, step_number, osp_dir,
         plt.savefig("plot2.png", dpi=300)
     
 
-@require_muses_py
+@old_py_retrieve_test
 def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
                                          vlidort_cli, tropomi_obs_step_2):
     '''Look at each piece in detail, so make sure we are agreeing'''
@@ -323,7 +393,6 @@ def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
     if True:
         import seaborn as sns
         import matplotlib.pyplot as plt
-        import matplotlib
         sns.set_theme()
         sd = r.obj_creator.forward_model.spectral_domain(0).data
         d = pd.DataFrame({"Wavelength (nm)" : sd, "ReFRACtor Radiance" : o_radiance,
@@ -348,6 +417,7 @@ def test_refractor_detailed_fm_refractor(isolated_dir, osp_dir, gmao_dir,
 # - once we have things verified we can just check that the jacobian
 # doesn't change a lot.
 @skip    
+@old_py_retrieve_test
 @pytest.mark.parametrize("index", list(range(34)))
 @pytest.mark.parametrize("do_refractor", [True, False])
 def test_jac_fd(isolated_dir, osp_dir, gmao_dir, index, do_refractor,
@@ -410,7 +480,6 @@ def test_jac_fd(isolated_dir, osp_dir, gmao_dir, index, do_refractor,
     if True:
         import seaborn as sns
         import matplotlib.pyplot as plt
-        import matplotlib
         sns.set_theme()
         sd = TropomiFmObjectCreator(r.rf_uip).forward_model.spectral_domain(0).data
         d = pd.DataFrame({"Wavelength (nm)" : sd, "Jac FD" : jfd,
@@ -438,6 +507,7 @@ def test_jac_fd(isolated_dir, osp_dir, gmao_dir, index, do_refractor,
 # out the tropomi part vs. the joint. We don't have a strong reason to work that out,
 # so just skip for now
 @skip    
+@old_py_retrieve_test
 @pytest.mark.parametrize("index", list(range(32)))
 @pytest.mark.parametrize("do_refractor", [True, False])
 def test_jac_joint_fd(isolated_dir, osp_dir, gmao_dir, index, do_refractor,
@@ -496,7 +566,6 @@ def test_jac_joint_fd(isolated_dir, osp_dir, gmao_dir, index, do_refractor,
     if True:
         import seaborn as sns
         import matplotlib.pyplot as plt
-        import matplotlib
         sns.set_theme()
         sd = RefractorObjectCreator(r.rf_uip).forward_model.spectral_domain(0).data
         d = pd.DataFrame({"Wavelength (nm)" : sd, "Jac FD" : jfd,

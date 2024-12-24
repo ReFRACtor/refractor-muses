@@ -23,10 +23,10 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
     def notify_update_target(self, rs : 'RetrievalStrategy'):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         
-    def retrieval_step(self, retrieval_type : str,
-                       rs : 'RetrievalStrategy', **kwargs) -> (bool, None):
+    def retrieval_step_body(self, retrieval_type : str,
+                            rs : 'RetrievalStrategy', **kwargs) -> bool:
         if retrieval_type != "bt":
-            return (False,  None)
+            return False
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         jacobian_speciesNames = ['H2O']
         jacobian_specieslist = ['H2O']
@@ -43,7 +43,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             rs.current_state())
         logger.info(f"Step: {rs.step_number},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}")
         rs.state_info.next_state_dict = copy.deepcopy(rs.state_info.state_info_dict["current"])
-        return (True, None)
+        return True
 
     def modify_from_bt(self, retrieval_config, strategy_table, step, state_info,
                        cstate):
