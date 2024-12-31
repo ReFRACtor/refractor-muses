@@ -1,4 +1,4 @@
-from .muses_py_forward_model import (RefractorTropOrOmiFmMusesPy, RefractorTropOrOmiFm)
+from .muses_py_forward_model import RefractorTropOrOmiFmMusesPy, RefractorTropOrOmiFm
 from refractor.muses import CurrentStateUip, MeasurementIdDict
 from refractor.omi import OmiFmObjectCreator
 import refractor.muses.muses_py as mpy
@@ -10,14 +10,15 @@ import pickle
 from loguru import logger
 import copy
 
-#============================================================================
+# ============================================================================
 # This set of classes replace the lower level call to omi_fm in
 # muses-py. This was used when initially comparing ReFRACtor and muses-py.
 # This has been replaced with RefractorResidualFmJacobian which is higher
 # in the call chain and has a cleaner interface.
 # We'll leave these classes here for now, since it can be useful to do
 # lower level comparisons. But these should largely be considered deprecated
-#============================================================================
+# ============================================================================
+
 
 class RefractorOmiFmMusesPy(RefractorTropOrOmiFmMusesPy):
     def __init__(self, **kwargs):
@@ -25,10 +26,10 @@ class RefractorOmiFmMusesPy(RefractorTropOrOmiFmMusesPy):
 
 
 class RefractorOmiFm(RefractorTropOrOmiFm):
-    '''
+    """
     NOTE - this is deprecated
-    
-    Use a ReFRACtor ForwardModel as a replacement for omi_fm.'''
+
+    Use a ReFRACtor ForwardModel as a replacement for omi_fm."""
 
     def __init__(self, obs, measurement_id, **kwargs):
         super().__init__(func_name="omi_fm", **kwargs)
@@ -45,16 +46,18 @@ class RefractorOmiFm(RefractorTropOrOmiFm):
 
     @property
     def obj_creator(self):
-        '''Object creator using to generate forward model. You can use
-        this to get various pieces we use to create the forward model.'''
-        if("omi_fm_object_creator" not in self.rf_uip.refractor_cache):
-            self.rf_uip.refractor_cache["omi_fm_object_creator"] = \
-                OmiFmObjectCreator(
-                    CurrentStateUip(self.rf_uip), self.measurement_id,
-                    self._obs, rf_uip_func=lambda instrument_name: self.rf_uip,
-                    match_py_retrieve=True,
-                    **self.obj_creator_args)
+        """Object creator using to generate forward model. You can use
+        this to get various pieces we use to create the forward model."""
+        if "omi_fm_object_creator" not in self.rf_uip.refractor_cache:
+            self.rf_uip.refractor_cache["omi_fm_object_creator"] = OmiFmObjectCreator(
+                CurrentStateUip(self.rf_uip),
+                self.measurement_id,
+                self._obs,
+                rf_uip_func=lambda instrument_name: self.rf_uip,
+                match_py_retrieve=True,
+                **self.obj_creator_args
+            )
         return self.rf_uip.refractor_cache["omi_fm_object_creator"]
-        
-            
+
+
 __all__ = ["RefractorOmiFmMusesPy", "RefractorOmiFm"]
