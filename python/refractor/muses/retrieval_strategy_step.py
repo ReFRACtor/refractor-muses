@@ -152,23 +152,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         # Nothing currently needed
 
-    def __getstate__(self):
-        # If we pickle, don't include slv and cfunc. Currently these can't
-        # be pickled, so we just leave them out. If this becomes a problem,
-        # we can just get these set up to pickle, but right now at least
-        # this isn't important and isn't worth the effort.
-        attributes = self.__dict__.copy()
-        del attributes['slv']
-        del attributes['cfunc']
-        del attributes['cfunc_sys']
-        return attributes
-
-    def __setstate__(self, state):
-        self.__dict__ = state
-        self.slv = None
-        self.cfunc = None
-        self.cfunc_sys = None
-
     def get_state(self):
         '''Return a dictionary of values that can be used by set_state.
         This allows us to skip pieces of the retrieval step. This

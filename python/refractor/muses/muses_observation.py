@@ -158,6 +158,12 @@ class MusesObservation(rf.ObservationSvImpBase):
     We have all the normal rf.Observation stuff, plus what is found in this class.
     '''
 
+    def __init__(self, coeff, in_map=None):
+        if(in_map is None):
+            super().__init__(coeff)
+        else:
+            super().__init__(coeff, in_map)
+
     @property
     def instrument_name(self) -> str:
         '''Name of instrument observation is for.'''

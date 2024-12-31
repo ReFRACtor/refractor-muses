@@ -1,16 +1,8 @@
 import refractor.framework as rf
-from .refractor_uip import RefractorUip
-from . import muses_py as mpy
+import refractor.muses.muses_py as mpy
 from typing import List
 import numpy as np
 from loguru import logger
-
-def _new_from_init(cls, *args):
-    '''For use with pickle, covers common case where we just store the
-    arguments needed to create an object.'''
-    inst = cls.__new__(cls)
-    inst.__init__(*args)
-    return inst
 
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     '''This is the cost function we use to interface between ReFRACtor
@@ -28,8 +20,6 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                  retrieval_sv_sqrt_constraint: np.array,
                  basis_matrix):
         self.instrument_name_list = instrument_name_list
-        self.obs_list = obs_list
-        self.fm_list = fm_list
         self.fm_sv = fm_sv
         self.retrieval_sv_apriori = retrieval_sv_apriori
         self.retrieval_sv_sqrt_constraint = retrieval_sv_sqrt_constraint
@@ -43,12 +33,13 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                                   mapping)
         super().__init__(mstand)
 
-    def __reduce__(self):
-        return (_new_from_init, (self.__class__, self.instrument_name_list,
-                                 self.fm_list, self.obs_list, self.fm_sv,
-                                 self.retrieval_sv_apriori,
-                                 self.retrieval_sv_sqrt_constraint,
-                                 self.basis_matrix))
+    @property
+    def obs_list(self):
+        return [self.max_a_posteriori.observation_i(i) for i in range(self.max_a_posteriori.number_observation)]
+
+    @property
+    def fm_list(self):
+        return [self.max_a_posteriori.forward_model_i(i) for i in range(self.max_a_posteriori.number_forward_model)]
 
     def get_state(self):
         '''Return a dictionary of values that can be used by set_state.
@@ -90,15 +81,16 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             np.array(d['msrmnt']), msrmnt_jacobian, k_x,
             msrmnt_jacobian_x)
         
-    # ----------------------------------------------------------------------------------
-    # All the functions past this point are just for testing with old py-retrieve code,
-    # ReFRACtor retrieval doesn't need any of this.
-    # ----------------------------------------------------------------------------------
+    # -----------------------------------------------------------------
+    # All the functions past this point are just for testing with old
+    # py-retrieve code, ReFRACtor retrieval doesn't need any of this.
+    # -----------------------------------------------------------------
 
     
     def parameters_fm(self):
         '''Parameters on the full forward model grid.'''
-        return self.max_a_posteriori.mapping.mapped_state(rf.ArrayAd_double_1(self.parameters)).value
+        return self.max_a_posteriori.mapping.mapped_state(
+            rf.ArrayAd_double_1(self.parameters)).value
 
     def should_replace_function(self, func_name, parms):
         return True
@@ -112,8 +104,10 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             return self.update_uip(**parms)
 
     def update_uip(self, i_uip, i_ret_info, i_retrieval_vec):
-        '''This is an adapter that stubs out the updating of the UIP. We don't actually
-        need to do this, but levmar_nllsq_elanor expects a function here.'''
+        '''This is an adapter that stubs out the updating of the
+        UIP. We don't actually need to do this, but
+        levmar_nllsq_elanor expects a function here.
+        '''
         return (None, i_retrieval_vec)
     
     def fm_wrapper(self, i_uip, i_windows, oco_info):

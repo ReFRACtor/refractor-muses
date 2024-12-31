@@ -9,15 +9,17 @@ import copy
 from loguru import logger
 
 class CostFunctionCreator:
-    '''This creates the set of ForwardModel and Observation and then uses those to
-    create the CostFunction.
+    '''This creates the set of ForwardModel and Observation and then
+    uses those to create the CostFunction.
 
-    This uses CreatorHandleSet for creating the ForwardModel and Observation, see
-    that class for a discussion on using this.
+    This uses CreatorHandleSet for creating the ForwardModel and
+    Observation, see that class for a discussion on using this.
     '''
     def __init__(self, rs : 'Optional(RetrievalStategy)' = None):
-        self.forward_model_handle_set = copy.deepcopy(ForwardModelHandleSet.default_handle_set())
-        self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
+        self.forward_model_handle_set = copy.deepcopy(
+            ForwardModelHandleSet.default_handle_set())
+        self.observation_handle_set = copy.deepcopy(
+            ObservationHandleSet.default_handle_set())
         self.measurement_id = None
 
     def notify_update_target(self, measurement_id : 'MeasurementId'):
@@ -71,33 +73,42 @@ class CostFunctionCreator:
                       **kwargs):
         '''Return cost function for the RetrievalStrategy.
 
-        This takes the list of instrument names that make up this particular retrieval
-        step, the current state information (see CurrentState class for description), and
-        a dict going from the instrument name to the MusesSpectralWindow. Note that the the
-        MusesSpectralWindow should *not* exclude bad pixels at this point. We
-        generally need the Observation that we create as part of this function to determine
-        bad pixels, so we add that to the passed in MusesSpectralWindow. As a convenience,
-        None can be passed in which uses the full band. Normally you don't want this, but it
-        can be convenient for testing.
+        This takes the list of instrument names that make up this
+        particular retrieval step, the current state information (see
+        CurrentState class for description), and a dict going from the
+        instrument name to the MusesSpectralWindow. Note that the 
+        MusesSpectralWindow should *not* exclude bad pixels at this
+        point. We generally need the Observation that we create as
+        part of this function to determine bad pixels, so we add that
+        to the passed in MusesSpectralWindow. As a convenience, None
+        can be passed in which uses the full band. Normally you don't
+        want this, but it can be convenient for testing.
 
-        The muses-py versions of the ForwardModel depend on a RefractorUip structure. To
-        support these older ForwardModel, and function is passed in that can be called to
-        return the RefractorUip to use. We have this as a function, so we can avoid creating
-        the RefractorUip if we don't need it. The RefractorUip shouldn't be used otherwise,
-        it only has information that was needed by the old ForwardModel, and it is a
-        convoluted way to pass the information around. Basically the uip + muses-py code
-        is a old structural programming way to have a ForwardModel object.  We also don't
-        just generate the UIP internally when needed because it depends on other muses-py
-        structures that we don't have access to (by design, to reduce coupling in our code).
-        If you know you aren't using a muses-py ForwardModel, it is fine to just pass this as
-        None. It is possible that this argument will go away if we move far enough away from
-        the old muses-py code - however for the near future we want to be able maintain the
-        ability to run the old code to test against and diagnose any issues with ReFRACtor.
+        The muses-py versions of the ForwardModel depend on a
+        RefractorUip structure. To support these older ForwardModel,
+        and function is passed in that can be called to return the
+        RefractorUip to use. We have this as a function, so we can
+        avoid creating the RefractorUip if we don't need it. The
+        RefractorUip shouldn't be used otherwise, it only has
+        information that was needed by the old ForwardModel, and it is
+        a convoluted way to pass the information around. Basically the
+        uip + muses-py code is a old structural programming way to
+        have a ForwardModel object.  We also don't just generate the
+        UIP internally when needed because it depends on other
+        muses-py structures that we don't have access to (by design,
+        to reduce coupling in our code).  If you know you aren't using
+        a muses-py ForwardModel, it is fine to just pass this as
+        None. It is possible that this argument will go away if we
+        move far enough away from the old muses-py code - however for
+        the near future we want to be able maintain the ability to run
+        the old code to test against and diagnose any issues with
+        ReFRACtor.
 
-        It can also be useful in some testing scenarios to have the Observation created by
-        some other method, so you can optionally pass in the obs_list to use in place of
-        what the class would normally create. This isn't something you would normally use
-        for "real", this is just to support testing.
+        It can also be useful in some testing scenarios to have the
+        Observation created by some other method, so you can
+        optionally pass in the obs_list to use in place of what the
+        class would normally create. This isn't something you would
+        normally use for "real", this is just to support testing.
         '''
         # Keep track of this, in case we create one so we know to attach this to
         # the state vector
@@ -115,7 +126,8 @@ class CostFunctionCreator:
         # the basis_matrix shouldn't be None.
         for uip in self._rf_uip.values():
             if(uip.basis_matrix is not None):
-                cfunc.max_a_posteriori.add_observer_and_keep_reference(MaxAPosterioriSqrtConstraintUpdateUip(uip))
+                cfunc.max_a_posteriori.add_observer_and_keep_reference(
+                    MaxAPosterioriSqrtConstraintUpdateUip(uip))
         cfunc.parameters = current_state.initial_guess
         return cfunc
 
@@ -185,13 +197,14 @@ class CostFunctionCreator:
         useful to create all the pieces and just have dummy data for
         the missing parts.
 
-        This is entirely a matter of convenience, we could instead just
-        duplicate the stitching together part of our CostFunction and skip
-        this. But for now this seems like the easiest thing thing to do. We
-        can revisit this decision in the future if needed - it is never
-        great to have fake data but in this case seemed the easiest path
-        forward. Since this function is only used for backwards testing, the slightly
-        klunky design doesn't seem like much of a problem.
+        This is entirely a matter of convenience, we could instead
+        just duplicate the stitching together part of our CostFunction
+        and skip this. But for now this seems like the easiest thing
+        thing to do. We can revisit this decision in the future if
+        needed - it is never great to have fake data but in this case
+        seemed the easiest path forward. Since this function is only
+        used for backwards testing, the slightly klunky design doesn't
+        seem like much of a problem.
         '''
         cstate = CurrentStateUip(rf_uip, ret_info)
         return self.cost_function(rf_uip.instrument, cstate, None,

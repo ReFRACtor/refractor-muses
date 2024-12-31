@@ -5,6 +5,7 @@ from refractor.muses import (CostFunctionCreator, muses_py_call,
                              MeasurementIdFile)
 from refractor.omi import OmiForwardModelHandle
 from refractor.tropomi import TropomiForwardModelHandle
+import refractor.framework as rf
 import refractor.muses.muses_py as mpy
 
 @pytest.fixture(scope="function")
@@ -63,6 +64,20 @@ def joint_omi_obs_step_8(osp_dir):
     obs_airs.spectral_window.add_bad_sample_mask(obs_airs)
     return [obs_airs, obs]
 
+# Not working yet
+@skip
+def test_tropomi_pickle(isolated_dir, vlidort_cli, osp_dir):
+    rs,rstep,_ =  set_up_run_to_location(joint_tropomi_test_in_dir, 12,
+                                         "done get_initial_guess")
+    os.chdir(rs.run_dir)
+    ihandle = TropomiForwardModelHandle(use_pca=False, use_lrad=False,
+                                      lrad_second_order=False)
+    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    rs.update_target(f"{rs.run_dir}/Table.asc")
+    cfunc = rs.create_cost_function()
+    rf.write_shelve("cfunc.xml", cfunc)
+    cfunc2 = rf.read_shelve("cfunc.xml")
+    breakpoint()
 
 @old_py_retrieve_test    
 def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
