@@ -1,6 +1,6 @@
 from .refractor_uip import RefractorUip
 from .cost_function import CostFunction
-from .uip_updater import (MaxAPosterioriSqrtConstraintUpdateUip)
+from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 from .current_state import CurrentState, CurrentStateUip
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
@@ -8,22 +8,26 @@ import refractor.framework as rf
 import copy
 from loguru import logger
 
+
 class CostFunctionCreator:
-    '''This creates the set of ForwardModel and Observation and then
+    """This creates the set of ForwardModel and Observation and then
     uses those to create the CostFunction.
 
     This uses CreatorHandleSet for creating the ForwardModel and
     Observation, see that class for a discussion on using this.
-    '''
-    def __init__(self, rs : 'Optional(RetrievalStategy)' = None):
+    """
+
+    def __init__(self, rs: "Optional(RetrievalStategy)" = None):
         self.forward_model_handle_set = copy.deepcopy(
-            ForwardModelHandleSet.default_handle_set())
+            ForwardModelHandleSet.default_handle_set()
+        )
         self.observation_handle_set = copy.deepcopy(
-            ObservationHandleSet.default_handle_set())
+            ObservationHandleSet.default_handle_set()
+        )
         self.measurement_id = None
 
-    def notify_update_target(self, measurement_id : 'MeasurementId'):
-        '''Set up for processing a target.
+    def notify_update_target(self, measurement_id: "MeasurementId"):
+        """Set up for processing a target.
 
         Note we separate this out from the cost_function creator
         because we want to allow internal caching based on the
@@ -32,25 +36,25 @@ class CostFunctionCreator:
         passed to cost_function.
 
         We take measure_id, which is a MeasurementId.
-        '''
+        """
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
 
     def _rf_uip_func_wrap(self, instrument):
-        '''We need to keep a copy of the UIP if it gets creates by a lower
-        level routine, so that we can attach this to the state vector.'''
-        if(None in self._rf_uip):
+        """We need to keep a copy of the UIP if it gets creates by a lower
+        level routine, so that we can attach this to the state vector."""
+        if None in self._rf_uip:
             return self._rf_uip[None]
-        if(instrument not in self._rf_uip):
+        if instrument not in self._rf_uip:
             # If we have multiple instruments that need the UIP (e..g,
             # a py-retrieve like retrieval with a joint AIRS OMI step), then
             # recreate the UIP for all the instruments. This is needed to
             # have the update happen correctly - we can't update just half
             # of the UIP.
-            if(len(self._rf_uip) > 0):
-                new_uip =  self._rf_uip_func(None)
+            if len(self._rf_uip) > 0:
+                new_uip = self._rf_uip_func(None)
                 k = list(self._rf_uip.keys())[0]
                 v = self._rf_uip[k]
                 v.uip = new_uip.uip
@@ -58,25 +62,27 @@ class CostFunctionCreator:
                 self._rf_uip[None] = v
             else:
                 self._rf_uip[instrument] = self._rf_uip_func(instrument)
-        if(None in self._rf_uip):
+        if None in self._rf_uip:
             return self._rf_uip[None]
         else:
             return self._rf_uip[instrument]
-        
-    def cost_function(self,
-                      instrument_name_list : "list[str]",
-                      current_state : CurrentState,
-                      spec_win_dict : "Optional(dict(str, MusesSpectralWindow))",
-                      rf_uip_func : "Optional(Callable[[str], RefractorUip])",
-                      include_bad_sample=False,
-                      obs_list : "Optional(list[MusesObservation])" =None,
-                      **kwargs):
-        '''Return cost function for the RetrievalStrategy.
+
+    def cost_function(
+        self,
+        instrument_name_list: "list[str]",
+        current_state: CurrentState,
+        spec_win_dict: "Optional(dict(str, MusesSpectralWindow))",
+        rf_uip_func: "Optional(Callable[[str], RefractorUip])",
+        include_bad_sample=False,
+        obs_list: "Optional(list[MusesObservation])" = None,
+        **kwargs,
+    ):
+        """Return cost function for the RetrievalStrategy.
 
         This takes the list of instrument names that make up this
         particular retrieval step, the current state information (see
         CurrentState class for description), and a dict going from the
-        instrument name to the MusesSpectralWindow. Note that the 
+        instrument name to the MusesSpectralWindow. Note that the
         MusesSpectralWindow should *not* exclude bad pixels at this
         point. We generally need the Observation that we create as
         part of this function to determine bad pixels, so we add that
@@ -109,15 +115,20 @@ class CostFunctionCreator:
         optionally pass in the obs_list to use in place of what the
         class would normally create. This isn't something you would
         normally use for "real", this is just to support testing.
-        '''
+        """
         # Keep track of this, in case we create one so we know to attach this to
         # the state vector
         self._rf_uip = {}
         self._rf_uip_func = rf_uip_func
         args = self._forward_model(
-            instrument_name_list, current_state, spec_win_dict,
-            self._rf_uip_func_wrap, include_bad_sample=include_bad_sample,
-            obs_list=obs_list, **kwargs)
+            instrument_name_list,
+            current_state,
+            spec_win_dict,
+            self._rf_uip_func_wrap,
+            include_bad_sample=include_bad_sample,
+            obs_list=obs_list,
+            **kwargs,
+        )
         cfunc = CostFunction(*args)
         # If we have an UIP, then update this when the parameters get
         # updated.  Note the rf_uip.basis_matrix is None handles the
@@ -125,63 +136,87 @@ class CostFunctionCreator:
         # for RetrievalStrategyStepBT. Any time we have parameters,
         # the basis_matrix shouldn't be None.
         for uip in self._rf_uip.values():
-            if(uip.basis_matrix is not None):
+            if uip.basis_matrix is not None:
                 cfunc.max_a_posteriori.add_observer_and_keep_reference(
-                    MaxAPosterioriSqrtConstraintUpdateUip(uip))
+                    MaxAPosterioriSqrtConstraintUpdateUip(uip)
+                )
         cfunc.parameters = current_state.initial_guess
         return cfunc
 
-    def _forward_model(self,
-                       instrument_name_list : "list[str]",
-                       current_state : CurrentState,
-                       spec_win_dict : "Optional(dict[str, MusesSpectralWindow])",
-                       rf_uip_func : "Optional(Callable[[str], RefractorUip])",
-                       include_bad_sample=False,
-                       obs_list : "Optional(list[MusesObservation])" =None,
-                       **kwargs):
-        ret_info = { 
-            'sqrt_constraint': current_state.sqrt_constraint,
-            'const_vec': current_state.apriori,
+    def _forward_model(
+        self,
+        instrument_name_list: "list[str]",
+        current_state: CurrentState,
+        spec_win_dict: "Optional(dict[str, MusesSpectralWindow])",
+        rf_uip_func: "Optional(Callable[[str], RefractorUip])",
+        include_bad_sample=False,
+        obs_list: "Optional(list[MusesObservation])" = None,
+        **kwargs,
+    ):
+        ret_info = {
+            "sqrt_constraint": current_state.sqrt_constraint,
+            "const_vec": current_state.apriori,
         }
         self.obs_list = []
         fm_sv = rf.StateVector()
-        if(obs_list is not None):
+        if obs_list is not None:
             self.obs_list = obs_list
         else:
             for instrument_name in instrument_name_list:
                 obs = self.observation_handle_set.observation(
-                    instrument_name, current_state,
-                    spec_win_dict[instrument_name] if spec_win_dict is not None else None,
-                    fm_sv, **kwargs)
+                    instrument_name,
+                    current_state,
+                    (
+                        spec_win_dict[instrument_name]
+                        if spec_win_dict is not None
+                        else None
+                    ),
+                    fm_sv,
+                    **kwargs,
+                )
                 # TODO Would probably be good to remove
                 # include_bad_sample, it isn't clear that we ever want
                 # to run the forward model for bad samples. But right
                 # now the existing py-retrieve code requires this is a
                 # few places.
-                if(include_bad_sample):
-                    obs.spectral_window.include_bad_sample=include_bad_sample
+                if include_bad_sample:
+                    obs.spectral_window.include_bad_sample = include_bad_sample
                 self.obs_list.append(obs)
-                
+
         self.fm_list = []
         for i, instrument_name in enumerate(instrument_name_list):
-            fm =  self.forward_model_handle_set.forward_model(
-                instrument_name, current_state, self.obs_list[i],
-                fm_sv, rf_uip_func, **kwargs)
+            fm = self.forward_model_handle_set.forward_model(
+                instrument_name,
+                current_state,
+                self.obs_list[i],
+                fm_sv,
+                rf_uip_func,
+                **kwargs,
+            )
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         bmatrix = current_state.basis_matrix
-        retrieval_sv_apriori =  current_state.apriori
+        retrieval_sv_apriori = current_state.apriori
         retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
 
-        return (instrument_name_list,
-                self.fm_list, self.obs_list, fm_sv, retrieval_sv_apriori,
-                retrieval_sv_sqrt_constraint, bmatrix)
+        return (
+            instrument_name_list,
+            self.fm_list,
+            self.obs_list,
+            fm_sv,
+            retrieval_sv_apriori,
+            retrieval_sv_sqrt_constraint,
+            bmatrix,
+        )
 
-    def cost_function_from_uip(self, rf_uip : RefractorUip,
-                               obs_list : 'Optional(list(MusesObservation))',
-                               ret_info : 'Optional(dict)',
-                               **kwargs):
-        '''Create a cost function from a RefractorUip and a
+    def cost_function_from_uip(
+        self,
+        rf_uip: RefractorUip,
+        obs_list: "Optional(list(MusesObservation))",
+        ret_info: "Optional(dict)",
+        **kwargs,
+    ):
+        """Create a cost function from a RefractorUip and a
         ret_info. Note that this is really just for backwards testing,
         we are trying to get away from using the RefractorUip because
         it ties stuff too tightly together.
@@ -205,13 +240,16 @@ class CostFunctionCreator:
         seemed the easiest path forward. Since this function is only
         used for backwards testing, the slightly klunky design doesn't
         seem like much of a problem.
-        '''
+        """
         cstate = CurrentStateUip(rf_uip, ret_info)
-        return self.cost_function(rf_uip.instrument, cstate, None,
-                                  rf_uip_func=lambda instrument_name : rf_uip,
-                                  obs_list=obs_list, **kwargs)
-    
+        return self.cost_function(
+            rf_uip.instrument,
+            cstate,
+            None,
+            rf_uip_func=lambda instrument_name: rf_uip,
+            obs_list=obs_list,
+            **kwargs,
+        )
+
+
 __all__ = ["CostFunctionCreator"]
-        
-        
-        
