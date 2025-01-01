@@ -1,15 +1,7 @@
 from .tropomi_radiance import TropomiRadiancePyRetrieve
 from .muses_py_forward_model import RefractorTropOrOmiFmMusesPy, RefractorTropOrOmiFm
-from refractor.muses import CurrentStateUip, MeasurementIdDict
+from refractor.muses import CurrentStateUip
 from refractor.tropomi import TropomiFmObjectCreator
-import refractor.muses.muses_py as mpy
-import numpy as np
-import pandas as pd
-import os
-import refractor.framework as rf
-import pickle
-from loguru import logger
-import copy
 
 # ============================================================================
 # This set of classes replace the lower level call to tropomi_fm in
@@ -61,7 +53,7 @@ class RefractorTropOmiFm(RefractorTropOrOmiFm):
                     self._obs,
                     rf_uip_func=lambda instrument_name: self.rf_uip,
                     match_py_retrieve=True,
-                    **self.obj_creator_args
+                    **self.obj_creator_args,
                 )
             )
         return self.rf_uip.refractor_cache["tropomi_fm_object_creator"]

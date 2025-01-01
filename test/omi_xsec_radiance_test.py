@@ -10,10 +10,12 @@ from refractor.framework import load_config_module, find_config_function
 from refractor.framework.factory import process_config
 
 example_xsec_config_filename = "simulation_example_config.py"
-expected_xsec_results_filename = f"{omi_test_expected_results_dir}/radiance_comparison/expected_radiance_xsec.nc"
- 
-def compare_fm(config_filename, expt_results_filename):
+expected_xsec_results_filename = (
+    f"{omi_test_expected_results_dir}/radiance_comparison/expected_radiance_xsec.nc"
+)
 
+
+def compare_fm(config_filename, expt_results_filename):
     expt_data = netCDF4.Dataset(expt_results_filename)
 
     exc = ComparisonExecutor(config_filename)
@@ -25,9 +27,18 @@ def compare_fm(config_filename, expt_results_filename):
     if len(exc.captured_radiances.high_res_spectrum) == 0:
         raise Exception("No high resolution spectrum captured")
 
-    for spec_idx, (conv_spec, hr_spec) in enumerate(zip(exc.captured_radiances.convolved_spectrum, exc.captured_radiances.high_res_spectrum)):
-        expt_conv_rad = expt_data['Channel_{}/Convolved/radiance'.format(spec_idx+1)][:]
-        expt_hr_rad = expt_data['Channel_{}/Monochromatic/radiance'.format(spec_idx+1)][:]
+    for spec_idx, (conv_spec, hr_spec) in enumerate(
+        zip(
+            exc.captured_radiances.convolved_spectrum,
+            exc.captured_radiances.high_res_spectrum,
+        )
+    ):
+        expt_conv_rad = expt_data["Channel_{}/Convolved/radiance".format(spec_idx + 1)][
+            :
+        ]
+        expt_hr_rad = expt_data[
+            "Channel_{}/Monochromatic/radiance".format(spec_idx + 1)
+        ][:]
 
         calc_conv_rad = conv_spec.spectral_range.data
         calc_hr_rad = hr_spec.spectral_range.data
@@ -35,8 +46,8 @@ def compare_fm(config_filename, expt_results_filename):
         npt.assert_allclose(expt_conv_rad, calc_conv_rad, atol=1e-6)
         npt.assert_allclose(expt_hr_rad, calc_hr_rad, atol=1e-6)
 
-def write_expected(config_filename, expt_results_filename):
 
+def write_expected(config_filename, expt_results_filename):
     expt_data = netCDF4.Dataset(expt_results_filename, "w")
 
     exc = ComparisonExecutor(config_filename)
@@ -48,18 +59,29 @@ def write_expected(config_filename, expt_results_filename):
     if len(exc.captured_radiances.high_res_spectrum) == 0:
         raise Exception("No high resolution spectrum captured")
 
-    for spec_idx, (conv_spec, hr_spec) in enumerate(zip(exc.captured_radiances.convolved_spectrum, exc.captured_radiances.high_res_spectrum)):
+    for spec_idx, (conv_spec, hr_spec) in enumerate(
+        zip(
+            exc.captured_radiances.convolved_spectrum,
+            exc.captured_radiances.high_res_spectrum,
+        )
+    ):
         mono_grid_dim = f"monochromatic_grid_{spec_idx+1}"
         conv_grid_dim = f"convolved_grid_{spec_idx+1}"
 
         expt_data.createDimension(mono_grid_dim, hr_spec.spectral_domain.data.shape[0])
-        expt_data.createDimension(conv_grid_dim, conv_spec.spectral_domain.data.shape[0])
+        expt_data.createDimension(
+            conv_grid_dim, conv_spec.spectral_domain.data.shape[0]
+        )
 
         calc_conv_rad = conv_spec.spectral_range.data
         calc_hr_rad = hr_spec.spectral_range.data
 
-        mono_grid_var = expt_data.createVariable(f"Channel_{spec_idx+1}/Monochromatic/grid", float, mono_grid_dim)
-        mono_rad_var = expt_data.createVariable(f"Channel_{spec_idx+1}/Monochromatic/radiance", float, mono_grid_dim)
+        mono_grid_var = expt_data.createVariable(
+            f"Channel_{spec_idx+1}/Monochromatic/grid", float, mono_grid_dim
+        )
+        mono_rad_var = expt_data.createVariable(
+            f"Channel_{spec_idx+1}/Monochromatic/radiance", float, mono_grid_dim
+        )
 
         mono_grid_var[:] = hr_spec.spectral_domain.data
         mono_grid_var.units = hr_spec.spectral_domain.units.name
@@ -67,14 +89,19 @@ def write_expected(config_filename, expt_results_filename):
         mono_rad_var[:] = hr_spec.spectral_range.data
         mono_rad_var.units = hr_spec.spectral_range.units.name
 
-        conv_grid_var = expt_data.createVariable(f"Channel_{spec_idx+1}/Convolved/grid", float, conv_grid_dim)
-        conv_rad_var = expt_data.createVariable(f"Channel_{spec_idx+1}/Convolved/radiance", float, conv_grid_dim)
+        conv_grid_var = expt_data.createVariable(
+            f"Channel_{spec_idx+1}/Convolved/grid", float, conv_grid_dim
+        )
+        conv_rad_var = expt_data.createVariable(
+            f"Channel_{spec_idx+1}/Convolved/radiance", float, conv_grid_dim
+        )
 
         conv_grid_var[:] = conv_spec.spectral_domain.data
         conv_grid_var.units = conv_spec.spectral_domain.units.name
 
         conv_rad_var[:] = conv_spec.spectral_range.data
         conv_rad_var.units = conv_spec.spectral_range.units.name
+
 
 @capture_test
 def test_capture_atmosphere(omi_config_dir, osp_dir, gmao_dir):
@@ -90,6 +117,7 @@ def test_capture_atmosphere(omi_config_dir, osp_dir, gmao_dir):
     config_inst = exec_inst.file_config
 
     write_shelve(serialized_fn, config_inst.atmosphere)
+
 
 @long_test
 def test_multi_radiance(omi_config_dir):
@@ -117,13 +145,15 @@ def test_multi_radiance(omi_config_dir):
     print(f"Block of radiance calls took {repeat_block_diff:.2f}")
     print(f"Avg. time / call was {repeat_block_diff / num_repeats:.2f} ")
 
+
 @capture_test
 def test_capture_expected_xsec(omi_config_dir):
     "Overwrite expected results for example cross section radiance test"
 
     config_filename = os.path.join(omi_config_dir, example_xsec_config_filename)
     write_expected(config_filename, expected_xsec_results_filename)
- 
+
+
 def test_example_xsec(omi_config_dir):
     "Test running example simulation using cross section tables and compare to expected output"
 

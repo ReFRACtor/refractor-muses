@@ -1,22 +1,24 @@
 from test_support import *
 from test_support.old_py_retrieve_test_support import *
 import numpy as np
-from refractor.old_py_retrieve_wrapper import (
-    OmiRadiancePyRetrieve, OmiRadianceToUip)
+from refractor.old_py_retrieve_wrapper import OmiRadiancePyRetrieve, OmiRadianceToUip
 import refractor.framework as rf
 import pandas as pd
+
 
 @old_py_retrieve_test
 def test_omi_radiance(omi_uip_step_2):
     # The initial shift for everything is 0. Change to something so we can test that
     # this actually gets used.
-    print(omi_uip_step_2.uip_omi['jacobians'])
-    omi_uip_step_2.uip_omi['jacobians'] = ["OMINRADWAVUV1",
-                                       "OMINRADWAVUV2",
-                                       "OMIODWAVUV1",
-                                       "OMIODWAVUV2",
-                                       "OMIODWAVSLOPEUV1",
-                                       "OMIODWAVSLOPEUV2"]
+    print(omi_uip_step_2.uip_omi["jacobians"])
+    omi_uip_step_2.uip_omi["jacobians"] = [
+        "OMINRADWAVUV1",
+        "OMINRADWAVUV2",
+        "OMIODWAVUV1",
+        "OMIODWAVUV2",
+        "OMIODWAVSLOPEUV1",
+        "OMIODWAVSLOPEUV2",
+    ]
     mrad = OmiRadiancePyRetrieve(omi_uip_step_2)
     sv = rf.StateVector()
     sv.add_observer(mrad)
@@ -30,16 +32,18 @@ def test_omi_radiance(omi_uip_step_2):
         print(r.spectral_range.data_ad.jacobian)
     fdlist = [0.001, 0.001, 0.001, 0.001, 0.0001, 0.001]
     y0 = r.spectral_range.data
-    print("I think this is wrong for index 0 and 1 (the normwav_jac part). We'll come back to this.")
-    for i,fd in enumerate(fdlist):
+    print(
+        "I think this is wrong for index 0 and 1 (the normwav_jac part). We'll come back to this."
+    )
+    for i, fd in enumerate(fdlist):
         xdelta = x.copy()
         xdelta[i] += fd
         sv.update_state(xdelta)
         rdelta = mrad.radiance_all()
         yd = rdelta.spectral_range.data
         jfd = (yd - y0) / fd
-        jcalc = r.spectral_range.data_ad.jacobian[:,i]
-        reldiff = np.abs((jfd-jcalc)/jcalc)
+        jcalc = r.spectral_range.data_ad.jacobian[:, i]
+        reldiff = np.abs((jfd - jcalc) / jcalc)
         reldiff[jcalc == 0] = 0
         print(f"Find difference jacobian for index {i}")
         if False:
@@ -47,10 +51,6 @@ def test_omi_radiance(omi_uip_step_2):
             print("   Jac calculate: ", jcalc)
             print("   Jac relative difference: ", reldiff)
         print("   Summary abs difference")
-        print(pd.DataFrame(np.abs(jfd-jcalc)).describe())
+        print(pd.DataFrame(np.abs(jfd - jcalc)).describe())
         print("   Summary relative difference")
         print(pd.DataFrame(reldiff).describe())
-        
-        
-
-        

@@ -37,8 +37,8 @@ def _all_output_disabled():
     previous_level = logging.root.manager.disable
     try:
         logging.disable(logging.CRITICAL)
-        with redirect_stdout(io.StringIO()) as sout:
-            with redirect_stderr(io.StringIO()) as serr:
+        with redirect_stdout(io.StringIO()):
+            with redirect_stderr(io.StringIO()):
                 yield
     finally:
         logging.disable(previous_level)
@@ -96,7 +96,7 @@ class MusesForwardModelStep:
                     # This is pretty noisy, so suppress printing. We can revisit
                     # this if needed, but I think this is a good idea
                     if suppress_noisy_output:
-                        with _all_output_disabled() as f:
+                        with _all_output_disabled():
                             mpy.script_retrieval_ms(os.path.basename(strategy_table))
                     else:
                         mpy.script_retrieval_ms(os.path.basename(strategy_table))

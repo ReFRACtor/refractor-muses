@@ -6,17 +6,23 @@ from test_support import *
 
 import refractor.framework as rf
 
+
 class RingInputFile(object):
     def __init__(self, filename):
-        nw, nz, albedo, self.sza, self.vza, _, self.sca = np.loadtxt(filename, max_rows=1)
+        nw, nz, albedo, self.sza, self.vza, _, self.sca = np.loadtxt(
+            filename, max_rows=1
+        )
         self.num_grid, self.num_layers = int(nw), int(nz)
-        
-        self.temperature_layers, self.air_density = np.loadtxt(filename, skiprows=1, max_rows=2)
+
+        self.temperature_layers, self.air_density = np.loadtxt(
+            filename, skiprows=1, max_rows=2
+        )
 
         dat = np.loadtxt(filename, skiprows=3)
         self.grid = dat[:, 0]
         self.solar_irradiance = dat[:, 1]
         self.optical_depth = dat[:, 2:]
+
 
 class RingOutputFile(object):
     def __init__(self, filename):
@@ -25,6 +31,7 @@ class RingOutputFile(object):
         self.grid = rd[:, 0]
         self.spec = rd[:, 1]
 
+
 def test_raman_effect(omi_config_dir):
     config_filename = os.path.join(omi_config_dir, "muses_simulation_config.py")
     uip_filename = f"{omi_test_in_dir}/../raman/uip-FM.sav"
@@ -32,7 +39,7 @@ def test_raman_effect(omi_config_dir):
     config_module = rf.load_config_module(config_filename)
     config_func = rf.find_config_function(config_module)
     config_def = config_func(uip_filename)
-    config_inst = rf.process_config(config_def) 
+    config_inst = rf.process_config(config_def)
 
     fm = config_inst.forward_model
     atm = config_inst.atmosphere
@@ -40,10 +47,10 @@ def test_raman_effect(omi_config_dir):
     scale_factor = 1.9
     channel_index = 0
 
-    rf_scenario = config_def['scenario']
-    observation_zenith =  rf_scenario['observation_zenith'][channel_index]
-    solar_zenith =  rf_scenario['solar_zenith'][channel_index]
-    relative_azimuth =  rf_scenario['relative_azimuth'][channel_index]
+    rf_scenario = config_def["scenario"]
+    observation_zenith = rf_scenario["observation_zenith"][channel_index]
+    solar_zenith = rf_scenario["solar_zenith"][channel_index]
+    relative_azimuth = rf_scenario["relative_azimuth"][channel_index]
 
     # Use grid and solar irradiance from MUSES test case to match their results
     ring_inp_filename = f"{omi_test_in_dir}/../raman/Ring_input.asc"
@@ -52,25 +59,34 @@ def test_raman_effect(omi_config_dir):
     grid_sd = rf.SpectralDomain(raman_inputs.grid, rf.Unit("nm"))
 
     # Units of solar spectrum from SAO2010 Solar Irradiance Reference Spectrum file
-    sol_sr = rf.SpectralRange(raman_inputs.solar_irradiance, rf.Unit("Ph s^-1 cm^-2 nm^-1"))
+    sol_sr = rf.SpectralRange(
+        raman_inputs.solar_irradiance, rf.Unit("Ph s^-1 cm^-2 nm^-1")
+    )
     sol_spec = rf.Spectrum(grid_sd, sol_sr)
     solar_model = rf.SolarReferenceSpectrum(sol_spec, None)
-    
+
     do_upwelling = True
 
     # Here to complete interface so we can supply padding_fraction
     mapping = rf.StateMappingLinear()
 
-    raman_effect = rf.RamanSiorisEffect(grid_sd,
-                                        scale_factor, 
-                                        channel_index,
-                                        solar_zenith, 
-                                        observation_zenith, 
-                                        relative_azimuth,
-                                        atm, solar_model, mapping, do_upwelling)
+    raman_effect = rf.RamanSiorisEffect(
+        grid_sd,
+        scale_factor,
+        channel_index,
+        solar_zenith,
+        observation_zenith,
+        relative_azimuth,
+        atm,
+        solar_model,
+        mapping,
+        do_upwelling,
+    )
 
     # Create a spectrum of just ones so we get just the scaling effect from the Raman class
-    rad_spec = rf.Spectrum(grid_sd, rf.SpectralRange(np.ones(raman_inputs.grid.shape[0]), sol_sr.units))
+    rad_spec = rf.Spectrum(
+        grid_sd, rf.SpectralRange(np.ones(raman_inputs.grid.shape[0]), sol_sr.units)
+    )
 
     # Output will be scaling that would have been applied to a spectrum
     raman_effect.apply_effect(rad_spec, fm.spectral_grid)

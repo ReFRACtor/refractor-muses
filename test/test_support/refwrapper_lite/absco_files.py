@@ -1,14 +1,52 @@
 from pathlib import Path
 import refractor.framework as rf
 
+
 def absco_file_list(osp_dir: str):
     osp_dir = Path(osp_dir)
     return [
-        ('co', (osp_dir / 'ABSCO' / 'v1.0_SWIR_CO' / 'nc_ABSCO' / 'CO_04124-04385_v0.0_init.nc').as_posix()),
-        ('ch4', (osp_dir / 'ABSCO' / 'v1.0_SWIR_CH4' / 'nc_ABSCO' / 'CH4_04124-04385_v0.0_init.nc').as_posix()),
-        ('co', (osp_dir / 'ABSCO' / 'v1.0_SWIR_H2O' / 'nc_ABSCO' / 'H2O_04124-04385_v0.0_init.nc').as_posix()),
-        ('co', (osp_dir / 'ABSCO' / 'v1.0_SWIR_HDO' / 'nc_ABSCO' / 'HDO_04124-04385_v0.0_init.nc').as_posix()),
+        (
+            "co",
+            (
+                osp_dir
+                / "ABSCO"
+                / "v1.0_SWIR_CO"
+                / "nc_ABSCO"
+                / "CO_04124-04385_v0.0_init.nc"
+            ).as_posix(),
+        ),
+        (
+            "ch4",
+            (
+                osp_dir
+                / "ABSCO"
+                / "v1.0_SWIR_CH4"
+                / "nc_ABSCO"
+                / "CH4_04124-04385_v0.0_init.nc"
+            ).as_posix(),
+        ),
+        (
+            "co",
+            (
+                osp_dir
+                / "ABSCO"
+                / "v1.0_SWIR_H2O"
+                / "nc_ABSCO"
+                / "H2O_04124-04385_v0.0_init.nc"
+            ).as_posix(),
+        ),
+        (
+            "co",
+            (
+                osp_dir
+                / "ABSCO"
+                / "v1.0_SWIR_HDO"
+                / "nc_ABSCO"
+                / "HDO_04124-04385_v0.0_init.nc"
+            ).as_posix(),
+        ),
     ]
+
 
 class AbscoStub(rf.Absco):
     # JLL: this might be obsolete, this was something I got from an early example notebook
@@ -33,16 +71,16 @@ class AbscoStub(rf.Absco):
     # that was renamed in order for other C++ classes to be able
     # to use our functinality
     def _v_pressure_grid(self) -> rf.BlitzArray_double_1:
-       # Here we can still use the Python attribute version of the C++ method
-       return self.proxied.pressure_grid
+        # Here we can still use the Python attribute version of the C++ method
+        return self.proxied.pressure_grid
 
     # In SWIG this method is defined as a %python_attribute
     # In this director we must implement the underlying method
     # that was renamed in order for other C++ classes to be able
     # to use our functinality
     def _v_temperature_grid(self) -> rf.BlitzArray_double_2:
-       # Here we can still use the Python attribute version of the C++ method
-       return self.proxied.temperature_grid
+        # Here we can still use the Python attribute version of the C++ method
+        return self.proxied.temperature_grid
 
     # Tells ABSCO code native format of underlying data file to reduce conversion bottlenecks
     def is_float(self) -> bool:
@@ -77,7 +115,9 @@ class AbscoStub(rf.Absco):
     # The output class type should be selected based upon the input types:
     # - temp: DoubleWithUnit and broadener_vmr: ArrayWithUnit -> DoubleWithUnit
     # - temp: AutoDerivativeWithUnitDouble, broadener_vmr: ArrayAdWithUnit_double_1 -> AutoDerivativeWithUnitDouble
-    def absorption_cross_section(self, wn: float, press: rf.DoubleWithUnit, temp, broadener_vmr):
+    def absorption_cross_section(
+        self, wn: float, press: rf.DoubleWithUnit, temp, broadener_vmr
+    ):
         # If changing the implementation you need to be aware of the types as indicated above
         # But if we are just passing along values then SWIG will do that determination for us
         return self.proxied.absorption_cross_section(wn, press, temp, broadener_vmr)

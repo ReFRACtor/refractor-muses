@@ -3,6 +3,7 @@ from refractor.framework.test import dummy_env_var, check_config_loading
 import os
 import glob
 
+
 @dummy_env_var("MUSES_OSP_PATH")
 @dummy_env_var("ABSCO_PATH")
 @dummy_env_var("OMI_RUG_FILENAME")

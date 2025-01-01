@@ -1,9 +1,10 @@
 from contextlib import contextmanager
 import os
 
+
 @contextmanager
 def in_dir(p):
-    if p in {'', '.'}:
+    if p in {"", "."}:
         yield
     else:
         cwd = os.getcwd()

@@ -6,6 +6,9 @@ import glob
 import math
 from loguru import logger
 
+# This is old code, which we are checking against. We do *not* want to change
+# this based on ruff check, so mark everything here as ignored
+# ruff: noqa
 
 class RetrievalInfoOld:
     """Original version of this, so we can debug/compare issues with the new one."""
@@ -655,7 +658,6 @@ class RetrievalInfoOld:
 
                     # albedo
                     if (mapType == "linearpca") or (mapType == "logpca"):
-
                         # this is state vector of the form:
                         # current_fs = apriori_fs + mapToState @ current for linearpca
                         # or
@@ -722,7 +724,6 @@ class RetrievalInfoOld:
                     # end part of elif (mapType == 'linearpca') or (mapType == 'logpca'):
 
                     else:
-
                         if speciesInformationFile.constraintType == "Diagonal":
                             values = (speciesInformationFile.sSubaDiagonalValues).split(
                                 ","
@@ -828,7 +829,6 @@ class RetrievalInfoOld:
                         mapToState = maps["toState"]
 
                 elif "NIRAERX" in species_name:
-
                     # aerosol.  Match type
                     types = (speciesInformationFile.types).split(",")
                     myinds = []
@@ -1219,7 +1219,6 @@ class RetrievalInfoOld:
                     or (species_name == "CALSCALE")
                     or (species_name == "CALOFFSET")
                 ):
-
                     # IDL AT_LINE 243 Get_Species_Information:
                     microwindows = mpy.table_new_mw_from_step(i_table_struct, step)
 
@@ -1297,9 +1296,7 @@ class RetrievalInfoOld:
                                     ind1_arr
                                 )  # Convert a list of 1 element into an array of 1 element.
                             else:
-                                ind1 = (
-                                    []
-                                )  # An empty list since there are none that fit the criteria: freqRet < freq[kk]
+                                ind1 = []  # An empty list since there are none that fit the criteria: freqRet < freq[kk]
 
                             ind = np.where(freqRet > freq[kk])
                             if len(ind[0]) > 0:
@@ -1312,9 +1309,7 @@ class RetrievalInfoOld:
                                     ind2_arr
                                 )  # Convert a list of 1 element into an array of 1 element.
                             else:
-                                ind2 = (
-                                    []
-                                )  # An empty list since there are none that fit the criteria: freqRet > freq[kk]
+                                ind2 = []  # An empty list since there are none that fit the criteria: freqRet > freq[kk]
 
                             ind = np.where(np.absolute(freqRet - freq[kk]) < 0.001)
                             ind = ind[0]
@@ -1615,7 +1610,6 @@ class RetrievalInfoOld:
 
                 # AT_LINE 489 Get_Species_Information.pro
                 elif species_name == "PTGANG":
-
                     # AT_LINE 491 Get_Species_Information.pro
                     nn = 1
                     mm = 1
@@ -1698,7 +1692,6 @@ class RetrievalInfoOld:
                     constraintMatrix = 1 / constraintMatrix / constraintMatrix
 
                     if have_true:
-
                         # pick thickest cloud for cloud height
                         if stateInfo.true["num_clouds"] == 2:
                             # take larger cloud; then try to fold smaller cloud in
@@ -1899,7 +1892,6 @@ class RetrievalInfoOld:
                 # end part of elif (mapType == 'linearscale') or (mapType == 'logscale'):
 
                 elif (mapType == "linearpca") or (mapType == "logpca"):
-
                     # this is state vector of the form:
                     # current = apriori + mapToState @ currentGuess for linearpca
                     # or
@@ -2010,7 +2002,6 @@ class RetrievalInfoOld:
 
                     # maps
                     if (mapType == "linear") or (mapType == "log"):
-
                         # We read in the retrieval levels and modify for
                         # current pressure grid
                         # Because the value of speciesInformationFile.retrievalLevels is a long string of:

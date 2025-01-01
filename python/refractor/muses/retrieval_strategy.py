@@ -8,7 +8,6 @@ from .retrieval_debug_output import (RetrievalPickleResult,
 from .retrieval_strategy_step import (
     RetrievalStrategyStepSet, RetrievalStepCaptureObserver)
 from .retrieval_configuration import RetrievalConfiguration
-from .cost_function_creator import CostFunctionCreator
 from .muses_observation import MeasurementIdFile
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
@@ -81,6 +80,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     # can probably do that by just adding Observers
     def __init__(self, filename, vlidort_cli=None, writeOutput=False,
                  writePlots=False, osp_dir=None, **kwargs):
+        # Import here, to break circular import
+        from refractor.muses import CostFunctionCreator
         logger.info(f"Strategy table filename {filename}")
         self._capture_directory = RefractorCaptureDirectory()
         self._observers = set()

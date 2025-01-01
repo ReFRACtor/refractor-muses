@@ -1,12 +1,9 @@
 import refractor.muses.muses_py as mpy
-import refractor.framework as rf
 from refractor.muses import (
-    suppress_replacement,
     register_replacement_function_in_block,
     RefractorUip,
     RetrievalInfo,
     CostFunctionCreator,
-    CostFunction,
 )
 from .muses_retrieval_step import MusesRetrievalStep
 from .muses_forward_model_step import MusesForwardModelStep
@@ -15,7 +12,6 @@ import copy
 import os
 import pickle
 import sys
-from loguru import logger
 
 # ============================================================================
 # RefractorMusesIntegration was an earlier attempt at integrating ReFRACtor

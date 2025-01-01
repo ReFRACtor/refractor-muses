@@ -1,19 +1,22 @@
 from test_support import *
-from refractor.muses import (MusesRunDir, RetrievalStrategy,
-                             RetrievableStateElement,
-                             ForwardModelHandle,
-                             SingleSpeciesHandle,
-                             SimulatedObservation,
-                             SimulatedObservationHandle,
-                             StateInfo,
-                             RetrievalInfo)
-from refractor.tropomi import (TropomiSwirForwardModelHandle,
-                               TropomiSwirFmObjectCreator)
+from refractor.muses import (
+    MusesRunDir,
+    RetrievalStrategy,
+    RetrievableStateElement,
+    ForwardModelHandle,
+    SingleSpeciesHandle,
+    SimulatedObservation,
+    SimulatedObservationHandle,
+    StateInfo,
+    RetrievalInfo,
+)
+from refractor.tropomi import TropomiSwirForwardModelHandle, TropomiSwirFmObjectCreator
 import refractor.framework as rf
 from functools import cached_property
 import subprocess
 import copy
 from loguru import logger
+
 
 # Probably move this into test_support later, but for now keep here until
 # we have everything worked out
@@ -22,64 +25,78 @@ def tropomi_swir(isolated_dir, gmao_dir, josh_osp_dir):
     r = MusesRunDir(tropomi_band7_test_in_dir2, josh_osp_dir, gmao_dir)
     return r
 
+
 @pytest.fixture(scope="function")
 def tropomi_co_step(tropomi_swir):
-    subprocess.run(f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {tropomi_swir.run_dir}/Table.asc', shell=True)
+    subprocess.run(
+        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {tropomi_swir.run_dir}/Table.asc',
+        shell=True,
+    )
     return tropomi_swir
+
 
 @long_test
 def test_retrieval(tropomi_co_step, josh_osp_dir):
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
     # Grab each step so we can separately test output
-    #rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
-    #rs.add_observer(rscap)
-    ihandle = TropomiSwirForwardModelHandle(use_pca=True, use_lrad=False,
-                                            lrad_second_order=False,
-                                            osp_dir=josh_osp_dir)
+    # rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
+    # rs.add_observer(rscap)
+    ihandle = TropomiSwirForwardModelHandle(
+        use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+    )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(f"{tropomi_co_step.run_dir}/Table.asc")
     rs.retrieval_ms()
 
+
 class CostFunctionCapture:
-    '''Grab cost function, and then raise a exception to break out of retrieval.'''
+    """Grab cost function, and then raise a exception to break out of retrieval."""
+
     def __init__(self):
         self.location_to_capture = "create_cost_function"
 
-    def notify_update(self, retrieval_strategy, location, retrieval_strategy_step=None,
-                      **kwargs):
-        if(location != self.location_to_capture):
+    def notify_update(
+        self, retrieval_strategy, location, retrieval_strategy_step=None, **kwargs
+    ):
+        if location != self.location_to_capture:
             return
         self.cost_function = retrieval_strategy_step.cfunc
         raise StopIteration()
+
 
 class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
     def __init__(self):
         super().__init__()
         self.data = {}
-        
+
     def notify_update(self, o):
-        if(o.name not in self.data):
+        if o.name not in self.data:
             self.data[o.name] = []
-        self.data[o.name].append([o.spectral_domain.wavelength("nm"), o.spectral_range.data])
+        self.data[o.name].append(
+            [o.spectral_domain.wavelength("nm"), o.spectral_range.data]
+        )
         print("---------")
         print(o.name)
         print(o.spectral_domain.wavelength("nm"))
         print(o.spectral_range.data)
         print("---------")
-    
-# Look just at the forward model        
+
+
+# Look just at the forward model
 @long_test
 def test_co_fm(tropomi_co_step, josh_osp_dir):
-    '''Look just at the forward model'''
+    """Look just at the forward model"""
     # This is slightly convoluted, but we want to make sure we have the cost
-    # function/ForwardModel that is being used in the retrieval. So we 
+    # function/ForwardModel that is being used in the retrieval. So we
     # start running the retrieval, and then stop when have the cost function.
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
-    ihandle = TropomiSwirForwardModelHandle(use_pca=True, use_lrad=False,
-                                            lrad_second_order=False,
-                                            osp_dir=josh_osp_dir,
-                                            # absorption_gases=["CO",]
-                                            )
+    ihandle = TropomiSwirForwardModelHandle(
+        use_pca=True,
+        use_lrad=False,
+        lrad_second_order=False,
+        osp_dir=josh_osp_dir,
+        # absorption_gases=["CO",]
+    )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(f"{tropomi_co_step.run_dir}/Table.asc")
     cfcap = CostFunctionCapture()
@@ -90,83 +107,134 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
         pass
     cfunc = cfcap.cost_function
     # Save in case we want to access directly
-    pickle.dump(cfunc,open("cfunc.pkl", "wb"))    
+    pickle.dump(cfunc, open("cfunc.pkl", "wb"))
     fm_sv = cfunc.fm_sv
     fm = cfunc.fm_list[0]
     pspec = PrintSpectrum()
     fm.underlying_forward_model.add_observer(pspec)
     obs = cfunc.obs_list[0]
-    #spec = fm.radiance_all()
+    # spec = fm.radiance_all()
     p = cfunc.parameters
     print("p: ", p)
     atmosphere = fm.underlying_forward_model.radiative_transfer.lidort.atmosphere
     absorber = atmosphere.absorber
     # VMR values, we'll want to make sure this actually changes
     vmr_val = copy.copy(absorber.absorber_vmr("CO").vmr_profile)
-    #residual = copy.copy(cfunc.residual)
+    # residual = copy.copy(cfunc.residual)
     print("vmr_val: ", vmr_val)
     coeff = copy.copy(absorber.absorber_vmr("CO").coefficient.value)
     print("coeff: ", coeff)
-    hresgrid_wn = fm.underlying_forward_model.spectral_grid.high_resolution_grid(0).wavenumber()
-    od = np.vstack([np.vstack(absorber.optical_depth_each_layer(wn, 0).value)[np.newaxis,:,:] for wn in hresgrid_wn])
-    tod = np.vstack([atmosphere.optical_properties(wn,0).total_optical_depth().value for wn in hresgrid_wn])
-    
+    hresgrid_wn = fm.underlying_forward_model.spectral_grid.high_resolution_grid(
+        0
+    ).wavenumber()
+    od = np.vstack(
+        [
+            np.vstack(absorber.optical_depth_each_layer(wn, 0).value)[np.newaxis, :, :]
+            for wn in hresgrid_wn
+        ]
+    )
+    tod = np.vstack(
+        [
+            atmosphere.optical_properties(wn, 0).total_optical_depth().value
+            for wn in hresgrid_wn
+        ]
+    )
+
     # After the first step in levmar_nllsq, this is the parameter. We just got
     # this by setting a breakpoint in levmar_nllsq and looking. But this is enough
     # for us to try to figure out what is going on
-    p2 = [-15.74241805, -16.20146017, -16.16204205, -16.18824768, -16.24048363,
-          -16.3996463,  -16.59970071, -16.79074649, -16.9677597,  -17.49288014,
-          -17.79474739, -17.46974549, -17.36741773]
+    p2 = [
+        -15.74241805,
+        -16.20146017,
+        -16.16204205,
+        -16.18824768,
+        -16.24048363,
+        -16.3996463,
+        -16.59970071,
+        -16.79074649,
+        -16.9677597,
+        -17.49288014,
+        -17.79474739,
+        -17.46974549,
+        -17.36741773,
+    ]
     cfunc.parameters = p2
-    #residual2 = copy.copy(cfunc.residual)
-    print("p-p2: ", p-p2)
+    # residual2 = copy.copy(cfunc.residual)
+    print("p-p2: ", p - p2)
     vmr_val2 = copy.copy(absorber.absorber_vmr("CO").vmr_profile)
     # Very small change
-    print("vmr-vmr_val2: ", vmr_val-vmr_val2)
+    print("vmr-vmr_val2: ", vmr_val - vmr_val2)
     coeff2 = copy.copy(absorber.absorber_vmr("CO").coefficient.value)
-    print("coeff2-coeff: ", coeff2-coeff)
-    od2 = np.vstack([np.vstack(absorber.optical_depth_each_layer(wn, 0).value)[np.newaxis,:,:] for wn in hresgrid_wn])
-    tod2 = np.vstack([atmosphere.optical_properties(wn,0).total_optical_depth().value for wn in hresgrid_wn])
-    print("od-od2: ", np.abs(od-od2)[:,:,1].max())
+    print("coeff2-coeff: ", coeff2 - coeff)
+    od2 = np.vstack(
+        [
+            np.vstack(absorber.optical_depth_each_layer(wn, 0).value)[np.newaxis, :, :]
+            for wn in hresgrid_wn
+        ]
+    )
+    tod2 = np.vstack(
+        [
+            atmosphere.optical_properties(wn, 0).total_optical_depth().value
+            for wn in hresgrid_wn
+        ]
+    )
+    print("od-od2: ", np.abs(od - od2)[:, :, 1].max())
 
     # Make a big change
-    p3 = np.array(p2)*0.75
-    cfunc.parameters=p3
+    p3 = np.array(p2) * 0.75
+    cfunc.parameters = p3
     coeff3 = copy.copy(absorber.absorber_vmr("CO").coefficient.value)
-    print("coeff3 - coeff2: ", coeff3- coeff2)
+    print("coeff3 - coeff2: ", coeff3 - coeff2)
     vmr_val3 = copy.copy(absorber.absorber_vmr("CO").vmr_profile)
     print("vmr_val3 - vmr_val2: ", vmr_val3 - vmr_val2)
-    od3 = np.vstack([np.vstack(absorber.optical_depth_each_layer(wn, 0).value)[np.newaxis,:,:] for wn in hresgrid_wn])
-    tod3 = np.vstack([atmosphere.optical_properties(wn,0).total_optical_depth().value for wn in hresgrid_wn])
-    print("od3-od2: ", np.abs(od3-od2)[:,:,1].max())
-    #residual3 = copy.copy(cfunc.residual)
-    #print("residual3-residual: ", residual3-residual)
-    print("tod3-tod: ", np.abs(tod3-tod).max())
-    
+    od3 = np.vstack(
+        [
+            np.vstack(absorber.optical_depth_each_layer(wn, 0).value)[np.newaxis, :, :]
+            for wn in hresgrid_wn
+        ]
+    )
+    tod3 = np.vstack(
+        [
+            atmosphere.optical_properties(wn, 0).total_optical_depth().value
+            for wn in hresgrid_wn
+        ]
+    )
+    print("od3-od2: ", np.abs(od3 - od2)[:, :, 1].max())
+    # residual3 = copy.copy(cfunc.residual)
+    # print("residual3-residual: ", residual3-residual)
+    print("tod3-tod: ", np.abs(tod3 - tod).max())
 
     # This is the portion that isn't the parameter constraint
-    #print((residual2-residual)[:112])
+    # print((residual2-residual)[:112])
+
 
 @long_test
 def test_simulated_retrieval(gmao_dir, josh_osp_dir):
-    '''Do a simulation, and then a retrieval to get this result'''
+    """Do a simulation, and then a retrieval to get this result"""
     subprocess.run("rm -f -r swir_simulation", shell=True)
-    mrdir = MusesRunDir(tropomi_band7_test_in_dir2, josh_osp_dir, gmao_dir,
-                        path_prefix = "./swir_simulation")
-    subprocess.run(f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {mrdir.run_dir}/Table.asc', shell=True)
-    rs = RetrievalStrategy(None,osp_dir=josh_osp_dir)
-    ihandle = TropomiSwirForwardModelHandle(use_pca=True, use_lrad=False,
-                                            lrad_second_order=False,
-                                            osp_dir=josh_osp_dir)
+    mrdir = MusesRunDir(
+        tropomi_band7_test_in_dir2,
+        josh_osp_dir,
+        gmao_dir,
+        path_prefix="./swir_simulation",
+    )
+    subprocess.run(
+        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {mrdir.run_dir}/Table.asc',
+        shell=True,
+    )
+    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    ihandle = TropomiSwirForwardModelHandle(
+        use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+    )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(f"{mrdir.run_dir}/Table.asc")
-    
+
     # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
     # do the first retrieval step). We then grab the CostFunction for that step,
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
     cfunc = rs.strategy_executor.create_cost_function()
-    pickle.dump(cfunc,open("swir_simulation/cfunc_initial_guess.pkl","wb"))
+    pickle.dump(cfunc, open("swir_simulation/cfunc_initial_guess.pkl", "wb"))
 
     # Get the log vmr values set in the state vector. This is the initial guess.
     # For purposes of a simulation, we will say the "right" answer is to reduce the
@@ -179,55 +247,68 @@ def test_simulated_retrieval(gmao_dir, josh_osp_dir):
     cfunc.parameters = vmr_log_true
 
     # Run forward model and get "true" radiance.
-    rad_true = [cfunc.fm_list[0].radiance(0, True).spectral_range.data,]
+    rad_true = [
+        cfunc.fm_list[0].radiance(0, True).spectral_range.data,
+    ]
     obs_sim = SimulatedObservation(cfunc.obs_list[0], rad_true)
     pickle.dump(obs_sim, open("swir_simulation/obs_sim.pkl", "wb"))
 
     # Have simulated observation, and do retrieval
     ohandle = SimulatedObservationHandle(
-        "TROPOMI", pickle.load(open("swir_simulation/obs_sim.pkl", "rb")))
+        "TROPOMI", pickle.load(open("swir_simulation/obs_sim.pkl", "rb"))
+    )
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
     rs.update_target(f"{mrdir.run_dir}/Table.asc")
     rs.retrieval_ms()
 
+
 @long_test
 def test_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
-    '''Use simulated data Josh generated'''
+    """Use simulated data Josh generated"""
     subprocess.run("rm -f -r synth_alb_0_9", shell=True)
-    mrdir = MusesRunDir(f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
-                        josh_osp_dir, gmao_dir,
-                        path_prefix = "./synth_alb_0_9")
+    mrdir = MusesRunDir(
+        f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
+        josh_osp_dir,
+        gmao_dir,
+        path_prefix="./synth_alb_0_9",
+    )
     try:
         lognum = logger.add("synth_alb_0_9/retrieve.log")
-        rs = RetrievalStrategy(None,osp_dir=josh_osp_dir)
-        ihandle = TropomiSwirForwardModelHandle(use_pca=True, use_lrad=False,
-                                                lrad_second_order=False,
-                                                osp_dir=josh_osp_dir)
+        rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+        ihandle = TropomiSwirForwardModelHandle(
+            use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+        )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.update_target(f"{mrdir.run_dir}/Table.asc")
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)
-        
+
+
 class ScaledStateElement(RetrievableStateElement):
-    '''Note that we may rework this. Not sure how much we need specific
-    StateElement vs. handling a class of them. 
+    """Note that we may rework this. Not sure how much we need specific
+    StateElement vs. handling a class of them.
     We can use the SingleSpeciesHandle to add this in, e.g.,
 
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("H2O_SCALED", ScaledStateElement, pass_state=False, name="H2O_SCALED"))
-    '''
-    def __init__(self, state_info : StateInfo, name=None):
+    """
+
+    def __init__(self, state_info: StateInfo, name=None):
         super().__init__(state_info, name)
-        self._value = np.array([1.0,])
+        self._value = np.array(
+            [
+                1.0,
+            ]
+        )
         self._constraint = self._value.copy()
 
     def sa_covariance(self):
-        '''Return sa covariance matrix, and also pressure. This is what
-        ErrorAnalysis needs.'''
+        """Return sa covariance matrix, and also pressure. This is what
+        ErrorAnalysis needs."""
         # TODO, Double check this. Not sure of the connection between this
         # and the constraintMatrix. Note the pressure is right, this
         # indicates we aren't on levels so we don't need a pressure
-        return np.diag([10*10.0] * 1), [-999.0] * 1
+        return np.diag([10 * 10.0] * 1), [-999.0] * 1
 
     @property
     def value(self):
@@ -237,34 +318,40 @@ class ScaledStateElement(RetrievableStateElement):
         if "TROPOMI" in instruments:
             return True
         return False
-    
+
     def net_cdf_variable_name(self):
         # Want names like OMI_EOF_UV1
         return self.name
-    
-    def net_cdf_struct_units(self):
-        '''Returns the attributes attached to a netCDF write out of this
-        StateElement.'''
-        return {'Longname': "O3 VMR scale factor", 'Units': '', 'FillValue': '',
-                'MisingValue': ''}
 
-    def update_state_element(self, 
-                             retrieval_info: RetrievalInfo,
-                             results_list:np.array,
-                             update_next: bool,
-                             retrieval_config : 'RetrievalConfiguration',
-                             step : int,
-                             do_update_fm : np.array):
+    def net_cdf_struct_units(self):
+        """Returns the attributes attached to a netCDF write out of this
+        StateElement."""
+        return {
+            "Longname": "O3 VMR scale factor",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": "",
+        }
+
+    def update_state_element(
+        self,
+        retrieval_info: RetrievalInfo,
+        results_list: np.array,
+        update_next: bool,
+        retrieval_config: "RetrievalConfiguration",
+        step: int,
+        do_update_fm: np.array,
+    ):
         # If we are requested not to update the next step, then save a copy
         # of this to reset the value
-        if(not update_next):
+        if not update_next:
             self.state_info.next_state[self.name] = self.clone_for_other_state()
-        self._value = results_list[retrieval_info.species_list==self._name]
+        self._value = results_list[retrieval_info.species_list == self._name]
 
-    def update_initial_guess(self, current_strategy_step : 'CurrentStrategyStep'):
-        self.mapType = 'linear'
+    def update_initial_guess(self, current_strategy_step: "CurrentStrategyStep"):
+        self.mapType = "linear"
         self.pressureList = np.full((1,), -2.0)
-        self.altitudeList  = np.full((1,), -2.0)
+        self.altitudeList = np.full((1,), -2.0)
         self.pressureListFM = self.pressureList
         self.altitudeListFM = self.altitudeList
         # Apriori
@@ -284,79 +371,117 @@ class ScaledStateElement(RetrievableStateElement):
         # does not seem to the be the same as the Sa used in the error
         # analysis. I think muses-py uses the constraintMatrix sort of
         # like a weighting that is independent of apriori covariance.
-        self.constraintMatrix = np.diag(np.full((1,),10*10.0))
+        self.constraintMatrix = np.diag(np.full((1,), 10 * 10.0))
+
 
 class ScaledTropomiFmObjectCreator(TropomiSwirFmObjectCreator):
     @cached_property
     def absorber_vmr(self):
         vmrs = []
         for gas in self.absorption_gases:
-            selem = [gas,]
+            selem = [
+                gas,
+            ]
             coeff, mp = self.current_state.object_state(selem)
             # Need to get mp to be the log mapping in current_state, but for
             # now just work around this
             mp = rf.StateMappingLog()
             # Scaled retrievals other than CO
-            if(gas == "CO"):
+            if gas == "CO":
                 vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, gas, mp)
             else:
-                selem = [f"{gas}_SCALED",]
+                selem = [
+                    f"{gas}_SCALED",
+                ]
                 coeff2, _ = self.current_state.object_state(selem)
                 vmr = rf.AbsorberVmrLevelScaled(self.pressure_fm, coeff, coeff2[0], gas)
             self.current_state.add_fm_state_vector_if_needed(
-                self.fm_sv, selem, [vmr,])
+                self.fm_sv,
+                selem,
+                [
+                    vmr,
+                ],
+            )
             vmrs.append(vmr)
         return vmrs
-    
+
+
 class ScaledTropomiForwardModelHandle(ForwardModelHandle):
     def __init__(self, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         self.measurement_id = None
-        
-    def notify_update_target(self, measurement_id : 'MeasurementId'):
-        '''Clear any caching associated with assuming the target being retrieved is fixed'''
+
+    def notify_update_target(self, measurement_id: "MeasurementId"):
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
         self.measurement_id = measurement_id
-        
-    def forward_model(self, instrument_name : str,
-                      current_state : 'CurrentState',
-                      obs : 'MusesObservation',
-                      fm_sv: rf.StateVector,
-                      rf_uip_func,
-                      **kwargs):
-        if(instrument_name != "TROPOMI"):
+
+    def forward_model(
+        self,
+        instrument_name: str,
+        current_state: "CurrentState",
+        obs: "MusesObservation",
+        fm_sv: rf.StateVector,
+        rf_uip_func,
+        **kwargs,
+    ):
+        if instrument_name != "TROPOMI":
             return None
         obj_creator = ScaledTropomiFmObjectCreator(
-            current_state, self.measurement_id, obs,
+            current_state,
+            self.measurement_id,
+            obs,
             rf_uip_func=rf_uip_func,
             fm_sv=fm_sv,
-            **self.creator_kwargs)
+            **self.creator_kwargs,
+        )
         fm = obj_creator.forward_model
         logger.info(f"Scaled Tropomi Forward model\n{fm}")
         return fm
 
+
 @long_test
 def test_scaled_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
-    '''Use simulated data Josh generated'''
+    """Use simulated data Josh generated"""
     subprocess.run("rm -f -r synth_alb_0_9_scaled", shell=True)
-    mrdir = MusesRunDir(f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
-                        josh_osp_dir, gmao_dir,
-                        path_prefix = "./synth_alb_0_9_scaled")
+    mrdir = MusesRunDir(
+        f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
+        josh_osp_dir,
+        gmao_dir,
+        path_prefix="./synth_alb_0_9_scaled",
+    )
     # Change table to use scaled versions
-    subprocess.run(f'sed -i -e "s/H2O,/H2O_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True)
-    subprocess.run(f'sed -i -e "s/CH4,/CH4_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True)
-    subprocess.run(f'sed -i -e "s/HDO,/HDO_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True)
+    subprocess.run(
+        f'sed -i -e "s/H2O,/H2O_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True
+    )
+    subprocess.run(
+        f'sed -i -e "s/CH4,/CH4_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True
+    )
+    subprocess.run(
+        f'sed -i -e "s/HDO,/HDO_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True
+    )
     try:
         lognum = logger.add("synth_alb_0_9/retrieve.log")
-        rs = RetrievalStrategy(None,osp_dir=josh_osp_dir)
-        ihandle = ScaledTropomiForwardModelHandle(use_pca=True, use_lrad=False,
-                                                  lrad_second_order=False,
-                                                  osp_dir=josh_osp_dir)
+        rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+        ihandle = ScaledTropomiForwardModelHandle(
+            use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+        )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-        rs.state_element_handle_set.add_handle(SingleSpeciesHandle("H2O_SCALED", ScaledStateElement, pass_state=False, name="H2O_SCALED"))
-        rs.state_element_handle_set.add_handle(SingleSpeciesHandle("CH4_SCALED", ScaledStateElement, pass_state=False, name="CH4_SCALED"))
-        rs.state_element_handle_set.add_handle(SingleSpeciesHandle("HDO_SCALED", ScaledStateElement, pass_state=False, name="HDO_SCALED"))        
+        rs.state_element_handle_set.add_handle(
+            SingleSpeciesHandle(
+                "H2O_SCALED", ScaledStateElement, pass_state=False, name="H2O_SCALED"
+            )
+        )
+        rs.state_element_handle_set.add_handle(
+            SingleSpeciesHandle(
+                "CH4_SCALED", ScaledStateElement, pass_state=False, name="CH4_SCALED"
+            )
+        )
+        rs.state_element_handle_set.add_handle(
+            SingleSpeciesHandle(
+                "HDO_SCALED", ScaledStateElement, pass_state=False, name="HDO_SCALED"
+            )
+        )
         rs.update_target(f"{mrdir.run_dir}/Table.asc")
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)
-    

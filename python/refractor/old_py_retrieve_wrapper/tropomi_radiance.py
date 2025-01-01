@@ -2,7 +2,9 @@ import refractor.framework as rf
 import numpy as np
 import pickle
 
-
+# The "!= True" syntax is actually correct, although it looks wrong to
+# ruff. Turn this rule off so we pass
+# ruff: noqa: E712
 class TropomiRadiance(rf.ObservationSvImpBase):
     """This is the base class for TROPOMI measured radiance.
     Right now we only support BAND3, we can extend this but for now

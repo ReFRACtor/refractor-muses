@@ -10,13 +10,22 @@ from .absco_files import AbscoStub
 
 from typing import Optional, Sequence, Tuple
 
-class RtKind(Enum):
-    PCA = 'pca'
-    Lidort = 'lidort'
 
-def setup_atmosphere_from_tropomi(raw_tropomi_state: dict, absco_gases: Sequence[Tuple[str, str]], albedo_key: str = 'albedo_sim_band1',
-                                  n_alb_terms: int = 1, wl_beg_nm: float = 2390, wl_end_nm: float = 2300, wn_spacing: float = 0.01,
-                                  cloud_props: Optional[BasicCloudProperties] = None):
+class RtKind(Enum):
+    PCA = "pca"
+    Lidort = "lidort"
+
+
+def setup_atmosphere_from_tropomi(
+    raw_tropomi_state: dict,
+    absco_gases: Sequence[Tuple[str, str]],
+    albedo_key: str = "albedo_sim_band1",
+    n_alb_terms: int = 1,
+    wl_beg_nm: float = 2390,
+    wl_end_nm: float = 2300,
+    wn_spacing: float = 0.01,
+    cloud_props: Optional[BasicCloudProperties] = None,
+):
     """Set up an atmosphere and state vector component of Refractor from SRON TROPOMI atmosphere/land/orbit information
 
     Parameters
@@ -59,30 +68,40 @@ def setup_atmosphere_from_tropomi(raw_tropomi_state: dict, absco_gases: Sequence
         The units of ``grid_points``.
     """
     if n_alb_terms < 1:
-        raise ValueError(f'n_alb_terms must be >= 1, value given was {n_alb_terms}')
+        raise ValueError(f"n_alb_terms must be >= 1, value given was {n_alb_terms}")
 
-    raw_tropomi_orbit = raw_tropomi_state['ancillary']
-    raw_tropomi_atm = raw_tropomi_state['atm']
+    raw_tropomi_orbit = raw_tropomi_state["ancillary"]
+    raw_tropomi_atm = raw_tropomi_state["atm"]
 
     # Orbital and land parameters
-    latitude = rf.DoubleWithUnit(float(raw_tropomi_orbit['lat']), "deg")
-    surface_height = rf.DoubleWithUnit(float(raw_tropomi_orbit['surf_gph']), "m")
+    latitude = rf.DoubleWithUnit(float(raw_tropomi_orbit["lat"]), "deg")
+    surface_height = rf.DoubleWithUnit(float(raw_tropomi_orbit["surf_gph"]), "m")
 
     # This can stay a plain float. For now, use the albedo from the simulation file by default because that
     # gives results that match better with the SRON sims.
     albedo = raw_tropomi_orbit[albedo_key]
 
     # Atmospheric parameters
-    pressure = rf.PressureSigma(raw_tropomi_atm['pressure'], raw_tropomi_atm['pressure'][-1])
-    temperature = rf.TemperatureLevel(raw_tropomi_atm['temperature'], pressure)
+    pressure = rf.PressureSigma(
+        raw_tropomi_atm["pressure"], raw_tropomi_atm["pressure"][-1]
+    )
+    temperature = rf.TemperatureLevel(raw_tropomi_atm["temperature"], pressure)
     altitude = rf.AltitudeHydrostatic(pressure, temperature, latitude, surface_height)
     # James added the rf.StateMappingLog() inputs when he made this capable of running the retrieval.
     # I believe that tells the retrieval to treat these terms in log space.
     vmr_profs = {
-        'co': rf.AbsorberVmrLevel(pressure, raw_tropomi_atm['co'], "CO", rf.StateMappingLog()),
-        'ch4': rf.AbsorberVmrLevel(pressure, raw_tropomi_atm['ch4'], "CH4", rf.StateMappingLog()),
-        'h2o': rf.AbsorberVmrLevel(pressure, raw_tropomi_atm['h2o'], "H2O", rf.StateMappingLog()),
-        'hdo': rf.AbsorberVmrLevel(pressure, raw_tropomi_atm['hdo'], "HDO", rf.StateMappingLog())
+        "co": rf.AbsorberVmrLevel(
+            pressure, raw_tropomi_atm["co"], "CO", rf.StateMappingLog()
+        ),
+        "ch4": rf.AbsorberVmrLevel(
+            pressure, raw_tropomi_atm["ch4"], "CH4", rf.StateMappingLog()
+        ),
+        "h2o": rf.AbsorberVmrLevel(
+            pressure, raw_tropomi_atm["h2o"], "H2O", rf.StateMappingLog()
+        ),
+        "hdo": rf.AbsorberVmrLevel(
+            pressure, raw_tropomi_atm["hdo"], "HDO", rf.StateMappingLog()
+        ),
     }
 
     # ------------------- #
@@ -93,7 +112,7 @@ def setup_atmosphere_from_tropomi(raw_tropomi_state: dict, absco_gases: Sequence
     wn_beg = rf.DoubleWithUnit(wl_beg_nm, "nm").convert_wave(grid_units).value
     wn_end = rf.DoubleWithUnit(wl_end_nm, "nm").convert_wave(grid_units).value
     grid_points = rf.ArrayWithUnit(np.arange(wn_beg, wn_end, wn_spacing), grid_units)
-    band_center = grid_points[grid_points.rows // 2:grid_points.rows // 2+1]
+    band_center = grid_points[grid_points.rows // 2 : grid_points.rows // 2 + 1]
 
     table_scale = 1.0
     cache_size = 5000
@@ -108,7 +127,7 @@ def setup_atmosphere_from_tropomi(raw_tropomi_state: dict, absco_gases: Sequence
     sv = rf.StateVector()
     state_elements = []
 
-    for (gas, absco_file) in absco_gases:
+    for gas, absco_file in absco_gases:
         absco_obj = rf.AbscoAer(absco_file, table_scale, cache_size, interp_method)
         absco_stub_obj = AbscoStub(absco_obj)
         vmrs.push_back(vmr_profs[gas])
@@ -123,13 +142,15 @@ def setup_atmosphere_from_tropomi(raw_tropomi_state: dict, absco_gases: Sequence
 
     num_sub_layers = 10
 
-    absorber = rf.AbsorberAbsco(vmrs, pressure, temperature, altitudes, absorptions, constants, num_sub_layers)
+    absorber = rf.AbsorberAbsco(
+        vmrs, pressure, temperature, altitudes, absorptions, constants, num_sub_layers
+    )
 
     rayleigh = rf.RayleighBodhaine(pressure, altitudes, constants)
 
     relative_humidity = rf.RelativeHumidity(absorber, temperature, pressure)
 
-    albedo_array = [ albedo ] + (n_alb_terms - 1) * [0]
+    albedo_array = [albedo] + (n_alb_terms - 1) * [0]
     ground_poly = np.array([albedo_array])
 
     band_names = rf.vector_string()
@@ -138,12 +159,23 @@ def setup_atmosphere_from_tropomi(raw_tropomi_state: dict, absco_gases: Sequence
     ground = rf.GroundLambertian(ground_poly, band_center, band_names)
 
     if cloud_props is not None:
-        cld_pres_lev = cloud_props.cloud_pres_level(pressure.pressure_grid().value.value)
+        cld_pres_lev = cloud_props.cloud_pres_level(
+            pressure.pressure_grid().value.value
+        )
         pressure = rf.PressureWithCloudHandling(pressure, cld_pres_lev)
         cld_surface = cloud_props.cloud_albedo()
         ground = rf.GroundWithCloudHandling(ground, cld_surface)
 
-    atmosphere = rf.AtmosphereStandard(absorber, pressure, temperature, rayleigh, relative_humidity, ground, altitudes, constants)
+    atmosphere = rf.AtmosphereStandard(
+        absorber,
+        pressure,
+        temperature,
+        rayleigh,
+        relative_humidity,
+        ground,
+        altitudes,
+        constants,
+    )
 
     # ------------ #
     # STATE VECTOR #
@@ -159,29 +191,45 @@ def setup_atmosphere_from_tropomi(raw_tropomi_state: dict, absco_gases: Sequence
 
 def setup_tropomi_ils(xtrack_index: int, l1b_file: Path, isrf_file: Path, band=7):
     with Dataset(isrf_file) as ds:
-        band_group = ds.groups[f'band_{band}']
-        delta_wavelength = band_group['delta_wavelength'][:].filled(np.nan)
-        central_wavelength = band_group['central_wavelength'][:].filled(np.nan)
-        isrf = band_group['isrf'][xtrack_index].filled(np.nan)
+        band_group = ds.groups[f"band_{band}"]
+        delta_wavelength = band_group["delta_wavelength"][:].filled(np.nan)
+        central_wavelength = band_group["central_wavelength"][:].filled(np.nan)
+        isrf = band_group["isrf"][xtrack_index].filled(np.nan)
 
     with Dataset(l1b_file) as ds:
-        l1b_wavelengths = rf.ArrayWithUnit(ds['BAND7_RADIANCE/STANDARD_MODE/INSTRUMENT/nominal_wavelength'][0, xtrack_index, :], 'nm')
+        l1b_wavelengths = rf.ArrayWithUnit(
+            ds["BAND7_RADIANCE/STANDARD_MODE/INSTRUMENT/nominal_wavelength"][
+                0, xtrack_index, :
+            ],
+            "nm",
+        )
 
     return RefractorFmObjectCreator._construct_postconv_ils(
         central_wavelength=central_wavelength,
         delta_wavelength=delta_wavelength,
         isrf=isrf,
-        hwhm=rf.DoubleWithUnit(0.36, 'cm^-1'),
+        hwhm=rf.DoubleWithUnit(0.36, "cm^-1"),
         sample_grid_spectral_domain=rf.SpectralDomain(l1b_wavelengths),
-        band_name='BAND7',
-        obs_band_name='BAND7'
+        band_name="BAND7",
+        obs_band_name="BAND7",
     )
 
 
-def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, grid_points: rf.ArrayWithUnit, grid_units: str,
-                   primary_absorber: str = 'CO', band: str = 'NIR', rt_mode: RtKind = RtKind.PCA, num_streams = None,
-                   ils: Optional[rf.Ils] = None, compute_jacobians: bool = False, solar_model_file: Optional[str] = None,
-                   cloud_props: Optional[BasicCloudProperties] = None, no_sim: bool = False) -> Tuple[rf.Spectrum, dict]:
+def run_simulation(
+    raw_tropomi_state: dict,
+    atmosphere: rf.AtmosphereStandard,
+    grid_points: rf.ArrayWithUnit,
+    grid_units: str,
+    primary_absorber: str = "CO",
+    band: str = "NIR",
+    rt_mode: RtKind = RtKind.PCA,
+    num_streams=None,
+    ils: Optional[rf.Ils] = None,
+    compute_jacobians: bool = False,
+    solar_model_file: Optional[str] = None,
+    cloud_props: Optional[BasicCloudProperties] = None,
+    no_sim: bool = False,
+) -> Tuple[rf.Spectrum, dict]:
     """Run a radiative transfer simulation using Refractor.
 
     Parameters
@@ -239,13 +287,13 @@ def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, g
     """
     rt_mode = RtKind(rt_mode)
 
-    raw_tropomi_orbit = raw_tropomi_state['ancillary']
-    time = rf.Time.parse_time(str(raw_tropomi_orbit['time']))
-    latitude = rf.DoubleWithUnit(float(raw_tropomi_orbit['lat']), "deg")
-    surface_height = rf.DoubleWithUnit(float(raw_tropomi_orbit['surf_gph']), "m")
-    solar_zenith = rf.DoubleWithUnit(raw_tropomi_orbit['sza'], "deg")
-    observation_zenith = rf.DoubleWithUnit(raw_tropomi_orbit['vza'], "deg")
-    relative_azimuth = rf.DoubleWithUnit(raw_tropomi_orbit['raa'], "deg")
+    raw_tropomi_orbit = raw_tropomi_state["ancillary"]
+    time = rf.Time.parse_time(str(raw_tropomi_orbit["time"]))
+    latitude = rf.DoubleWithUnit(float(raw_tropomi_orbit["lat"]), "deg")
+    surface_height = rf.DoubleWithUnit(float(raw_tropomi_orbit["surf_gph"]), "m")
+    solar_zenith = rf.DoubleWithUnit(raw_tropomi_orbit["sza"], "deg")
+    observation_zenith = rf.DoubleWithUnit(raw_tropomi_orbit["vza"], "deg")
+    relative_azimuth = rf.DoubleWithUnit(raw_tropomi_orbit["raa"], "deg")
 
     band_names = rf.vector_string()
     band_names.push_back(band)
@@ -256,12 +304,12 @@ def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, g
     # RADIATIVE TRANSFER #
     # ------------------ #
 
-    num_mom = 2*8+1
+    num_mom = 2 * 8 + 1
     use_solar_sources = True
     use_thermal_emission = False
     do_3m_correction = False
 
-    #stokes = rf.StokesCoefficientConstant([[1.0, 0.0, 0.0, 0.0]])
+    # stokes = rf.StokesCoefficientConstant([[1.0, 0.0, 0.0, 0.0]])
     # This is what we use in MUSES I think so keeping the single element for now.
     stokes = rf.StokesCoefficientConstant([[1.0]])
 
@@ -275,17 +323,29 @@ def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, g
             num_streams = 4
             num_mom = 3
         else:
-            num_mom = 2*num_streams + 1
-        print(f'Using PCA RT with {num_streams} streams and {num_mom} moments')
+            num_mom = 2 * num_streams + 1
+        print(f"Using PCA RT with {num_streams} streams and {num_mom} moments")
         bin_method = rf.PCABinning.UVVSWIR_V4
         num_bins = 11
         num_eofs = 4
-        first_order_rt = None # Use built in
-        rt = rf.PCARt(atmosphere, primary_absorber,
-                      bin_method, num_bins, num_eofs,
-                      stokes, rt_sza, rt_oza, rt_raz,
-                      num_streams, num_mom, use_solar_sources,
-                      use_thermal_emission, do_3m_correction, first_order_rt)
+        first_order_rt = None  # Use built in
+        rt = rf.PCARt(
+            atmosphere,
+            primary_absorber,
+            bin_method,
+            num_bins,
+            num_eofs,
+            stokes,
+            rt_sza,
+            rt_oza,
+            rt_raz,
+            num_streams,
+            num_mom,
+            use_solar_sources,
+            use_thermal_emission,
+            do_3m_correction,
+            first_order_rt,
+        )
 
         # Copied these settings from MUSES code
         lid_interface = rt.lidort.rt_driver.lidort_interface
@@ -299,22 +359,33 @@ def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, g
     elif rt_mode == RtKind.Lidort:
         if num_streams is None:
             num_streams = 8
-        num_mom = 2*num_streams + 1
-        print(f'Using Lidort RT with {num_streams} streams and {num_mom} moments')
+        num_mom = 2 * num_streams + 1
+        print(f"Using Lidort RT with {num_streams} streams and {num_mom} moments")
         stokes = rf.StokesCoefficientConstant([[1.0, 0.0, 0.0, 0.0]])
         pure_nadir = False
         multiple_scattering_only = False
         # print(type(atmosphere), type(stokes), type(solar_zenith), type(observation_zenith), type(relative_azimuth), type(pure_nadir), type(num_streams), type(num_mom), type(multiple_scattering_only))
-        rt = rf.LidortRt(atmosphere, stokes, rt_sza, rt_oza, rt_raz,
-                         pure_nadir, num_streams, num_mom, multiple_scattering_only)
+        rt = rf.LidortRt(
+            atmosphere,
+            stokes,
+            rt_sza,
+            rt_oza,
+            rt_raz,
+            pure_nadir,
+            num_streams,
+            num_mom,
+            multiple_scattering_only,
+        )
     else:
-        raise NotImplementedError(f'{rt_mode=}')
+        raise NotImplementedError(f"{rt_mode=}")
 
     # ---------- #
     # INSTRUMENT #
     # ---------- #
     # Defines the low resolution / instrument grid
-    sample_grid = rf.SampleGridSpectralDomain(rf.SpectralDomain(grid_points), band_names[0])
+    sample_grid = rf.SampleGridSpectralDomain(
+        rf.SpectralDomain(grid_points), band_names[0]
+    )
 
     # Define the indentity ILS which doesn't apply a convolution
     if ils is None:
@@ -335,12 +406,24 @@ def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, g
         solar_model_data = rf.HdfFile(solar_model_file)
 
         do_doppler_shift = True
-        doppler = rf.SolarDopplerShiftPolynomial(time, latitude, solar_zenith, relative_azimuth, surface_height, constants, do_doppler_shift)
+        doppler = rf.SolarDopplerShiftPolynomial(
+            time,
+            latitude,
+            solar_zenith,
+            relative_azimuth,
+            surface_height,
+            constants,
+            do_doppler_shift,
+        )
 
-        absorption = rf.SolarAbsorptionTable(solar_model_data, "/Solar/Absorption/Absorption_1")
+        absorption = rf.SolarAbsorptionTable(
+            solar_model_data, "/Solar/Absorption/Absorption_1"
+        )
 
         convert_from_photon = False
-        continuum = rf.SolarContinuumTable(solar_model_data, "/Solar/Continuum/Continuum_1", convert_from_photon)
+        continuum = rf.SolarContinuumTable(
+            solar_model_data, "/Solar/Continuum/Continuum_1", convert_from_photon
+        )
 
         solar_model = rf.SolarAbsorptionAndContinuum(doppler, absorption, continuum)
     else:
@@ -351,11 +434,15 @@ def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, g
     # ---------- #
 
     # Defines the extents of the high resolution grid
-    win_bounds = np.array([np.min(grid_points.value), np.max(grid_points.value)])[np.newaxis, np.newaxis, :]
+    win_bounds = np.array([np.min(grid_points.value), np.max(grid_points.value)])[
+        np.newaxis, np.newaxis, :
+    ]
     spec_win = rf.SpectralWindowRange(rf.ArrayWithUnit(win_bounds, grid_points.units))
 
     # Defines the high resolution grid
-    spectrum_sampling = rf.SpectrumSamplingFixedSpacing(rf.ArrayWithUnit(np.array([0.01]), grid_units))
+    spectrum_sampling = rf.SpectrumSamplingFixedSpacing(
+        rf.ArrayWithUnit(np.array([0.01]), grid_units)
+    )
 
     # Add solar model as a specrtrum effect for use by the forward model
     spectrum_effect = rf.vector_vector_spectrum_effect()
@@ -366,11 +453,15 @@ def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, g
 
     spectrum_effect.push_back(per_channel_eff)
 
-    forward_model = rf.StandardForwardModel(instrument, spec_win, rt, spectrum_sampling, spectrum_effect)
+    forward_model = rf.StandardForwardModel(
+        instrument, spec_win, rt, spectrum_sampling, spectrum_effect
+    )
     forward_model.setup_grid()
 
     if cloud_props is not None:
-        forward_model = rf.ForwardModelWithCloudHandling(forward_model, cloud_props.cloud_fraction())
+        forward_model = rf.ForwardModelWithCloudHandling(
+            forward_model, cloud_props.cloud_fraction()
+        )
         forward_model.add_cloud_handling_object(atmosphere.pressure)
         forward_model.add_cloud_handling_object(atmosphere.ground)
 
@@ -378,5 +469,5 @@ def run_simulation(raw_tropomi_state: dict, atmosphere: rf.AtmosphereStandard, g
         spectrum = None
     else:
         spectrum = forward_model.radiance_all(compute_jacobians)
-    components = {'rt': rt, 'fm': forward_model, 'solar_model': solar_model}
+    components = {"rt": rt, "fm": forward_model, "solar_model": solar_model}
     return spectrum, components

@@ -4,9 +4,14 @@ from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 from .current_state import CurrentState, CurrentStateUip
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
+from .muses_observation import MusesObservation, MeasurementId
+from .muses_spectral_window import MusesSpectralWindow
+from .retrieval_strategy import RetrievalStrategy
 import refractor.framework as rf
 import copy
 from loguru import logger
+from typing import Optional
+from collections.abc import Callable
 
 
 class CostFunctionCreator:
@@ -17,7 +22,7 @@ class CostFunctionCreator:
     Observation, see that class for a discussion on using this.
     """
 
-    def __init__(self, rs: "Optional(RetrievalStategy)" = None):
+    def __init__(self, rs: "Optional(RetrievalStrategy)" = None):
         self.forward_model_handle_set = copy.deepcopy(
             ForwardModelHandleSet.default_handle_set()
         )
@@ -153,10 +158,6 @@ class CostFunctionCreator:
         obs_list: "Optional(list[MusesObservation])" = None,
         **kwargs,
     ):
-        ret_info = {
-            "sqrt_constraint": current_state.sqrt_constraint,
-            "const_vec": current_state.apriori,
-        }
         self.obs_list = []
         fm_sv = rf.StateVector()
         if obs_list is not None:

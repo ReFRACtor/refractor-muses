@@ -1,8 +1,12 @@
 import refractor.framework as rf
+from refractor.muses import RefractorUip
 import numpy as np
 
 # Older interface for observations, which wraps around muses-py code
 
+# The "!= True" syntax is actually correct, although it looks wrong to
+# ruff. Turn this rule off so we pass
+# ruff: noqa: E712
 
 class MusesObservationBaseOld(rf.ObservationSvImpBase):
     # Note the handling of include_bad_sample is important here. muses-py
@@ -20,7 +24,7 @@ class MusesObservationBaseOld(rf.ObservationSvImpBase):
         obs_rad,
         meas_err,
         include_bad_sample=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__([])
         self.rf_uip = rf_uip

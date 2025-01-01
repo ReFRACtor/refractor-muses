@@ -5,7 +5,6 @@ from refractor.muses import (
     muses_py_call,
     osswrapper,
 )
-import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
 import logging
@@ -37,8 +36,8 @@ def _all_output_disabled():
     previous_level = logging.root.manager.disable
     try:
         logging.disable(logging.CRITICAL)
-        with redirect_stdout(io.StringIO()) as sout:
-            with redirect_stderr(io.StringIO()) as serr:
+        with redirect_stdout(io.StringIO()):
+            with redirect_stderr(io.StringIO()):
                 yield
     finally:
         logging.disable(previous_level)
@@ -89,7 +88,7 @@ class MusesResidualFmJacobian:
                 # This is pretty noisy, so suppress printing. We can revisit
                 # this if needed, but I think this is a good idea
                 if suppress_noisy_output:
-                    with _all_output_disabled() as f:
+                    with _all_output_disabled():
                         rstep.run_retrieval(vlidort_cli=vlidort_cli)
                 else:
                     rstep.run_retrieval(vlidort_cli=vlidort_cli)

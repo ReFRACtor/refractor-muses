@@ -324,7 +324,6 @@ class RefractorTropOrOmiFmBase(
         """This goes with uip_from_muses_retrieval_step, it turns around
         and calls tropomi_fm/omi_fm with the saved data."""
         curdir = os.getcwd()
-        need_oss_delete = False
         try:
             rf_uip = RefractorUip.load_uip(
                 pickle_file,

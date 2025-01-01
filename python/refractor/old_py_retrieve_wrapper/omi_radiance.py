@@ -1,7 +1,9 @@
 import refractor.framework as rf
 import numpy as np
-import pickle
 
+# The "!= True" syntax is actually correct, although it looks wrong to
+# ruff. Turn this rule off so we pass
+# ruff: noqa: E712
 
 class OmiRadiance(rf.ObservationSvImpBase):
     """This is a wrapper for the py-retrieve function get_omi_radiance
