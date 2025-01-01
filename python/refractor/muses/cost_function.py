@@ -45,17 +45,11 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
 
     @property
     def obs_list(self):
-        return [
-            self.max_a_posteriori.observation_i(i)
-            for i in range(self.max_a_posteriori.number_observation)
-        ]
+        return self.max_a_posteriori.observation
 
     @property
     def fm_list(self):
-        return [
-            self.max_a_posteriori.forward_model_i(i)
-            for i in range(self.max_a_posteriori.number_forward_model)
-        ]
+        return self.max_a_posteriori.forward_model
 
     def get_state(self):
         """Return a dictionary of values that can be used by set_state.

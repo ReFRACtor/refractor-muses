@@ -77,7 +77,6 @@ def test_tropomi_pickle(isolated_dir, vlidort_cli, osp_dir):
     cfunc = rs.create_cost_function()
     rf.write_shelve("cfunc.xml", cfunc)
     cfunc2 = rf.read_shelve("cfunc.xml")
-    breakpoint()
 
 @old_py_retrieve_test    
 def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
