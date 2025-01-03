@@ -1,4 +1,4 @@
-from test_support import *
+from test_support import omi_test_in_dir, omi_config_dir
 from refractor.framework.test import dummy_env_var, check_config_loading
 import os
 import glob
