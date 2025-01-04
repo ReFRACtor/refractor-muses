@@ -83,3 +83,8 @@ def airs_irk_test_in_dir(test_base_path):
 @pytest.fixture(scope="session")
 def airs_irk_test_expected_dir(test_base_path):
     return test_base_path / "airs_omi/expected/sounding_1_irk"
+
+
+@pytest.fixture(scope="session")
+def omi_config_dir():
+    return Path(os.path.dirname(__file__)).parent.parent / "python/refractor/omi/config"

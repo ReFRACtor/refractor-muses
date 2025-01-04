@@ -1,8 +1,9 @@
-from test_support import *
 from refractor.old_py_retrieve_wrapper import ConstantDict
 import numpy as np
+import pytest
 
 
+@pytest.mark.old_py_retrieve_test
 def test_constant_dict():
     underlying_dict = {"k1": "v1", "k2": {"k2_k1": "v2"}, "k3": np.array([1, 2, 3])}
     cdict = ConstantDict(underlying_dict)

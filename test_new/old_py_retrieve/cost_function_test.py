@@ -1,115 +1,50 @@
-from test_support import *
-from test_support.old_py_retrieve_test_support import *
 from refractor.muses import (
     CostFunctionCreator,
+    MeasurementIdFile,
+    RefractorUip,
+    RetrievalConfiguration,
     muses_py_call,
     osswrapper,
-    RetrievalConfiguration,
-    MeasurementIdFile,
+)
+from fixtures.residual_fm import (
+    joint_omi_residual_fm_jac,
+    joint_tropomi_residual_fm_jac,
 )
 from refractor.omi import OmiForwardModelHandle
 from refractor.tropomi import TropomiForwardModelHandle
-import refractor.framework as rf
 import refractor.muses.muses_py as mpy
+import pytest
+import numpy as np
+import numpy.testing as npt
+import os
 
-
-@pytest.fixture(scope="function")
-def joint_tropomi_obs_step_12(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND3": 226, "CLOUD": 226, "IRR_BAND_1to6": 226}
-    atrack_dict = {"BAND3": 2995, "CLOUD": 2995}
-    filename_dict = {}
-    filename_dict["BAND3"] = (
-        f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc"
-    )
-    filename_dict["IRR_BAND_1to6"] = (
-        f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    )
-    filename_dict["CLOUD"] = (
-        f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
-    )
-    utc_time = "2019-08-07T06:24:33.584090Z"
-    filter_list = [
-        "BAND3",
-    ]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
-    )
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    granule = 65
-    xtrack = 8
-    atrack = 4
-    pixel_index = 5
-    fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
-    obscris = MusesCrisObservation.create_from_filename(
-        fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir
-    )
-    obscris.spectral_window = swin_dict["CRIS"]
-    obscris.spectral_window.add_bad_sample_mask(obscris)
-    return [obscris, obs]
-
-
-@pytest.fixture(scope="function")
-def joint_omi_obs_step_8(osp_dir):
-    xtrack_uv1 = 10
-    xtrack_uv2 = 20
-    atrack = 1139
-    filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0401t2215-o62308_v003-2016m0402t041806.he4"
-    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
-    utc_time = "2016-04-01T23:07:33.676106Z"
-    filter_list = ["UV1", "UV2"]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
-    channel_list = ["1A1", "2A1", "1B2", "2B1"]
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"OMI": filter_list, "AIRS": channel_list}
-    )
-    obs = MusesOmiObservation.create_from_filename(
-        filename,
-        xtrack_uv1,
-        xtrack_uv2,
-        atrack,
-        utc_time,
-        calibration_filename,
-        filter_list,
-        cld_filename=cld_filename,
-        osp_dir=osp_dir,
-    )
-    obs.spectral_window = swin_dict["OMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    granule = 231
-    xtrack = 29
-    atrack = 49
-    fname = f"{joint_omi_test_in_dir}/../AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
-    obs_airs = MusesAirsObservation.create_from_filename(
-        fname, granule, xtrack, atrack, channel_list, osp_dir=osp_dir
-    )
-    obs_airs.spectral_window = swin_dict["AIRS"]
-    obs_airs.spectral_window.add_bad_sample_mask(obs_airs)
-    return [obs_airs, obs]
+# The CostFunction is definitely a central object in the ReFRACtor
+# code. However these tests check support for the old py-retrieve
+# functions that we used in the initial development of the ReFRACtor
+# code where we compared against py-retrieve retrievals. Like all the
+# old_py_retrieve tests this may outlive its usefulness at some point
+# and not be worth maintaining. But for now, check that we still have
+# this functionality working.
 
 
 # Not working yet
-@skip
-def test_tropomi_pickle(isolated_dir, vlidort_cli, osp_dir):
-    rs, rstep, _ = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 12, "done get_initial_guess"
-    )
-    os.chdir(rs.run_dir)
-    ihandle = TropomiForwardModelHandle(
-        use_pca=False, use_lrad=False, lrad_second_order=False
-    )
-    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(f"{rs.run_dir}/Table.asc")
-    cfunc = rs.create_cost_function()
-    rf.write_shelve("cfunc.xml", cfunc)
-    cfunc2 = rf.read_shelve("cfunc.xml")
+# @pytest.mark.skip
+# def test_tropomi_pickle(isolated_dir, vlidort_cli, osp_dir):
+#     rs, rstep, _ = set_up_run_to_location(
+#         joint_tropomi_test_in_dir, 12, "done get_initial_guess"
+#     )
+#     os.chdir(rs.run_dir)
+#     ihandle = TropomiForwardModelHandle(
+#         use_pca=False, use_lrad=False, lrad_second_order=False
+#     )
+#     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+#     rs.update_target(f"{rs.run_dir}/Table.asc")
+#     cfunc = rs.create_cost_function()
+#     rf.write_shelve("cfunc.xml", cfunc)
+#     cfunc2 = rf.read_shelve("cfunc.xml")
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
@@ -178,7 +113,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
     # the target of our fm_wrapper.
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
@@ -247,9 +182,14 @@ def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
     # the target of our fm_wrapper.
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_tropomi(
-    isolated_dir, vlidort_cli, osp_dir, gmao_dir, joint_tropomi_obs_step_12
+    isolated_dir,
+    vlidort_cli,
+    osp_dir,
+    gmao_dir,
+    joint_tropomi_obs_step_12,
+    joint_tropomi_test_in_dir,
 ):
     """Compare the results from our CostFunction with directly calling
     mpy.residual_fm_jacobian
@@ -262,7 +202,9 @@ def test_residual_fm_jac_tropomi(
     work to maintain this old compatibility function than it is worth.
     """
     curdir = os.path.curdir
-    rrefractor = joint_tropomi_residual_fm_jac(path="refractor")
+    rrefractor = joint_tropomi_residual_fm_jac(
+        osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="refractor"
+    )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
@@ -288,7 +230,9 @@ def test_residual_fm_jac_tropomi(
     )
 
     os.chdir(curdir)
-    rmuses_py = joint_tropomi_residual_fm_jac(path="muses_py")
+    rmuses_py = joint_tropomi_residual_fm_jac(
+        osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="muses_py"
+    )
     # Results to compare against
     (
         uip2,
@@ -319,9 +263,14 @@ def test_residual_fm_jac_tropomi(
     )
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_omi(
-    isolated_dir, vlidort_cli, osp_dir, gmao_dir, joint_omi_obs_step_8
+    isolated_dir,
+    vlidort_cli,
+    osp_dir,
+    gmao_dir,
+    joint_omi_obs_step_8,
+    joint_omi_test_in_dir,
 ):
     """Compare the results from our CostFunction with directly calling
     mpy.residual_fm_jacobian
@@ -334,7 +283,9 @@ def test_residual_fm_jac_omi(
     work to maintain this old compatibility function than it is worth.
     """
     curdir = os.path.curdir
-    rrefractor = joint_omi_residual_fm_jac(path="refractor")
+    rrefractor = joint_omi_residual_fm_jac(
+        osp_dir, gmao_dir, joint_omi_test_in_dir, path="refractor"
+    )
 
     # Note OMI already has a number of bad pixels, so we don't need to
     # dummy any for testing
@@ -366,7 +317,9 @@ def test_residual_fm_jac_omi(
     )
 
     os.chdir(curdir)
-    rmuses_py = joint_omi_residual_fm_jac(path="muses_py")
+    rmuses_py = joint_omi_residual_fm_jac(
+        osp_dir, gmao_dir, joint_omi_test_in_dir, path="muses_py"
+    )
     # Results to compare against
     (
         uip2,
@@ -395,9 +348,14 @@ def test_residual_fm_jac_omi(
     )
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_omi2(
-    isolated_dir, vlidort_cli, osp_dir, gmao_dir, joint_omi_obs_step_8
+    isolated_dir,
+    vlidort_cli,
+    osp_dir,
+    gmao_dir,
+    joint_omi_obs_step_8,
+    joint_omi_test_in_dir,
 ):
     """Test out the CostFunction residual_fm_jacobian using our
     forward model. Note that this just tests that we can make the
@@ -410,8 +368,9 @@ def test_residual_fm_jac_omi2(
     We can probably eventually remove this - at some point it may be more
     work to maintain this old compatibility function than it is worth.
     """
-    curdir = os.path.curdir
-    rrefractor = joint_omi_residual_fm_jac(path="refractor")
+    rrefractor = joint_omi_residual_fm_jac(
+        osp_dir, gmao_dir, joint_omi_test_in_dir, path="refractor"
+    )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
@@ -422,12 +381,10 @@ def test_residual_fm_jac_omi2(
     )
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{test_base_path}/omi/in/sounding_1/Table.asc", osp_dir=osp_dir
+        joint_omi_test_in_dir / "Table.asc", osp_dir=osp_dir
     )
     flist = {"OMI": ["UV1", "UV2"]}
-    mid = MeasurementIdFile(
-        f"{test_base_path}/omi/in/sounding_1/Measurement_ID.asc", rconf, flist
-    )
+    mid = MeasurementIdFile(joint_omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
@@ -440,9 +397,14 @@ def test_residual_fm_jac_omi2(
     )
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_tropomi2(
-    isolated_dir, vlidort_cli, osp_dir, gmao_dir, joint_tropomi_obs_step_12
+    isolated_dir,
+    vlidort_cli,
+    osp_dir,
+    gmao_dir,
+    joint_tropomi_obs_step_12,
+    joint_tropomi_test_in_dir,
 ):
     """Test out the CostFunction residual_fm_jacobian using our
     forward model. Note that this just tests that we can make the
@@ -455,11 +417,9 @@ def test_residual_fm_jac_tropomi2(
     We can probably eventually remove this - at some point it may be more
     work to maintain this old compatibility function than it is worth.
     """
-    step_number = 12
-    iteration = 2
-
-    curdir = os.path.curdir
-    rrefractor = joint_tropomi_residual_fm_jac(path="refractor")
+    rrefractor = joint_tropomi_residual_fm_jac(
+        osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="refractor"
+    )
     rf_uip = RefractorUip(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
@@ -471,11 +431,11 @@ def test_residual_fm_jac_tropomi2(
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     obslist = joint_tropomi_obs_step_12
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir
+        joint_tropomi_test_in_dir / "Table.asc", osp_dir=osp_dir
     )
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(
-        f"{joint_tropomi_test_in_dir}/Measurement_ID.asc", rconf, flist
+        joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist
     )
     creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(

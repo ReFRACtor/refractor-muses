@@ -104,4 +104,8 @@ def pytest_collection_modifyitems(config, items):
 # Includes fixtures, made available to all tests.
 # ------------------------------------------
 
-pytest_plugins = ["fixtures.dir_fixture", "fixtures.misc_fixture"]
+pytest_plugins = [
+    "fixtures.dir_fixture",
+    "fixtures.misc_fixture",
+    "fixtures.retrieval_step_fixture",
+]
