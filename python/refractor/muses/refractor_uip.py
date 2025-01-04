@@ -1,6 +1,6 @@
 from . import muses_py as mpy
 from .replace_function_helper import register_replacement_function_in_block
-from .refractor_capture_directory import RefractorCaptureDirectory
+from .refractor_capture_directory import RefractorCaptureDirectory, muses_py_call
 from .osswrapper import osswrapper
 import refractor.framework as rf
 import os
@@ -253,31 +253,22 @@ class RefractorUip:
         #
         # A better long term solution it to get muses-py to add a function
         # call.
-        curdir = os.getcwd()
-        old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
-        mpy.cli_options.vlidort_cli=vlidort_cli
-        try:
-            os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.dirname(strategy_table)
-            os.chdir(os.path.dirname(strategy_table))
-            cfun = _CaptureUip(func_count=step)
-            with register_replacement_function_in_block("run_retrieval", cfun):
-                with register_replacement_function_in_block("levmar_nllsq_elanor", cfun):
-                    # This is pretty noisy, so suppress printing. We can revisit
-                    # this if needed, but I think this is a good idea
-                    if(suppress_noisy_output):
-                        with _all_output_disabled() as f:
+        with muses_py_call(os.path.dirname(strategy_table),
+                           vlidort_cli=vlidort_cli):
+            try:
+                cfun = _CaptureUip(func_count=step)
+                with register_replacement_function_in_block("run_retrieval", cfun):
+                    with register_replacement_function_in_block("levmar_nllsq_elanor", cfun):
+                        # This is pretty noisy, so suppress printing. We can revisit
+                        # this if needed, but I think this is a good idea
+                        if(suppress_noisy_output):
+                            with _all_output_disabled() as f:
+                                mpy.script_retrieval_ms(os.path.basename(strategy_table))
+                        else:
                             mpy.script_retrieval_ms(os.path.basename(strategy_table))
-                    else:
-                        mpy.script_retrieval_ms(os.path.basename(strategy_table))
-        except _FakeUipExecption as e:
-            res = cls(uip=e.uip,
-                      basis_matrix = e.ret_info["basis_matrix"])
-        finally:
-            if(old_run_dir):
-                os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
-            else:
-                del os.environ["MUSES_DEFAULT_RUN_DIR"]
-            os.chdir(curdir)
+            except _FakeUipExecption as e:
+                res = cls(uip=e.uip,
+                          basis_matrix = e.ret_info["basis_matrix"])
         if(capture_directory):
             res.tar_directory(strategy_table)
         if(save_pickle_file is not None):
