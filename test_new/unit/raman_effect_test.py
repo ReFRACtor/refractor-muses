@@ -1,9 +1,5 @@
-import os
-
 import numpy as np
 import numpy.testing as npt
-from test_support import *
-
 import refractor.framework as rf
 
 
@@ -32,9 +28,9 @@ class RingOutputFile(object):
         self.spec = rd[:, 1]
 
 
-def test_raman_effect(omi_config_dir):
-    config_filename = os.path.join(omi_config_dir, "muses_simulation_config.py")
-    uip_filename = f"{omi_test_in_dir}/../raman/uip-FM.sav"
+def test_raman_effect(omi_config_dir, omi_test_in_dir, omi_test_expected_results_dir):
+    config_filename = omi_config_dir / "muses_simulation_config.py"
+    uip_filename = omi_test_in_dir.parent / "raman/uip-FM.sav"
 
     config_module = rf.load_config_module(config_filename)
     config_func = rf.find_config_function(config_module)
@@ -53,7 +49,7 @@ def test_raman_effect(omi_config_dir):
     relative_azimuth = rf_scenario["relative_azimuth"][channel_index]
 
     # Use grid and solar irradiance from MUSES test case to match their results
-    ring_inp_filename = f"{omi_test_in_dir}/../raman/Ring_input.asc"
+    ring_inp_filename = omi_test_in_dir.parent / "raman/Ring_input.asc"
     raman_inputs = RingInputFile(ring_inp_filename)
 
     grid_sd = rf.SpectralDomain(raman_inputs.grid, rf.Unit("nm"))
@@ -91,7 +87,7 @@ def test_raman_effect(omi_config_dir):
     # Output will be scaling that would have been applied to a spectrum
     raman_effect.apply_effect(rad_spec, fm.spectral_grid)
 
-    ring_expt_filename = f"{omi_test_expected_results_dir}/raman/Ring.asc"
+    ring_expt_filename = omi_test_expected_results_dir / "raman/Ring.asc"
     ring_expt = RingOutputFile(ring_expt_filename)
 
     # Convert to scale factor just as the raman effect apply to our spectrum of ones

@@ -1,6 +1,14 @@
-from test_support import *
-from refractor.muses import MusesRunDir, SingleSpeciesHandle, OmiEofStateElement
+from refractor.muses import (
+    MusesRunDir,
+    SingleSpeciesHandle,
+    OmiEofStateElement,
+    RetrievalStrategy,
+)
 import subprocess
+from fixtures.misc_fixture import all_output_disabled
+import pytest
+import numpy as np
+import numpy.testing as npt
 
 
 class RetrievalStrategyStop:
@@ -9,16 +17,16 @@ class RetrievalStrategyStop:
             raise StopIteration()
 
 
-def test_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
-    # TODO - We should have a constructor for StateInfo. Don't currently,
-    # so we just run RetrievalStrategy to the beginning and stop
+def test_state_info(
+    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
+):
     try:
         with all_output_disabled():
-            # r = MusesRunDir(joint_omi_test_in_dir,
             r = MusesRunDir(
                 joint_tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix="."
             )
-            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs = RetrievalStrategy(r.run_dir / "Table.asc")
+            rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
             rs.retrieval_ms()
@@ -45,19 +53,11 @@ def test_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     assert sinfo.state_element("TATM").value[0] == pytest.approx(293.28302002)
 
 
-def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+def test_update_cloudfraction(omi_step_0):
     """Test updating OMICLOUDFRACTION. Nothing particularly special about this
     StateElement, it is just a good simple test case for checking the muses-py
     species handling."""
-    try:
-        with all_output_disabled():
-            r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, path_prefix=".")
-            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
-            rs.clear_observers()
-            rs.add_observer(RetrievalStrategyStop())
-            rs.retrieval_ms()
-    except StopIteration:
-        pass
+    rs, _, _ = omi_step_0
     sinfo = rs.state_info
     rs._strategy_executor.restart()
     selement = sinfo.state_element("OMICLOUDFRACTION")
@@ -228,18 +228,10 @@ def test_update_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
 
 
-def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+def test_noupdate_cloudfraction(omi_step_0):
     """Repeat the previous test, but label the update as "do_not_update". This
     tests the handling of that case."""
-    try:
-        with all_output_disabled():
-            r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, path_prefix=".")
-            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
-            rs.clear_observers()
-            rs.add_observer(RetrievalStrategyStop())
-            rs.retrieval_ms()
-    except StopIteration:
-        pass
+    rs, _, _ = omi_step_0
     sinfo = rs.state_info
     rs._strategy_executor.restart()
     selement = sinfo.state_element("OMICLOUDFRACTION")
@@ -411,7 +403,7 @@ def test_noupdate_cloudfraction(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
 
 
-def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir):
     """Repeat the tests for OMICLOUDFRACTION for our own ReFRACtor only
     StateElement. This is the OmiEofStateElement, but this should be pretty
     much the same for any other ReFRACtor only StateElement."""
@@ -427,7 +419,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
                 f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOFUV1,OMIEOFUV2/" {r.run_dir}/Table.asc',
                 shell=True,
             )
-            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs = RetrievalStrategy(r.run_dir / "Table.asc")
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
@@ -534,7 +526,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     npt.assert_allclose(selement.constraintMatrix, np.diag([100, 100, 100]))
 
 
-def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir):
     """Repeat the previous test, but label the update as "do_not_update". This
     tests the handling of that case."""
     try:
@@ -549,7 +541,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
                 f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOFUV1,OMIEOFUV2/" {r.run_dir}/Table.asc',
                 shell=True,
             )
-            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs = RetrievalStrategy(r.run_dir / "Table.asc")
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())

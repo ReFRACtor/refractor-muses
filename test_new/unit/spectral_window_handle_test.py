@@ -1,4 +1,3 @@
-from test_support import *
 from refractor.muses import (
     MusesRunDir,
     RetrievalConfiguration,
@@ -8,7 +7,9 @@ from refractor.muses import (
 )
 
 
-def test_muses_py_spectral_window_handle(osp_dir, isolated_dir, gmao_dir):
+def test_muses_py_spectral_window_handle(
+    osp_dir, isolated_dir, gmao_dir, joint_omi_test_in_dir
+):
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         f"{r.run_dir}/Table.asc", osp_dir=osp_dir
@@ -42,10 +43,13 @@ def test_muses_py_spectral_window_handle(osp_dir, isolated_dir, gmao_dir):
         }
     )
     swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
+    print(swin_dict)
 
 
-def test_muses_py_spectral_window_handle_empty_band(osp_dir, isolated_dir, gmao_dir):
-    """Test step 3, which has an empty OMI band, to make sure it is handled correcitly"""
+def test_muses_py_spectral_window_handle_empty_band(
+    osp_dir, isolated_dir, gmao_dir, joint_omi_test_in_dir
+):
+    """Test step 3, which has an empty OMI band, to make sure it is handled correctly"""
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         f"{r.run_dir}/Table.asc", osp_dir=osp_dir
@@ -66,4 +70,3 @@ def test_muses_py_spectral_window_handle_empty_band(osp_dir, isolated_dir, gmao_
     )
     swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
     print(swin_dict)
-    print(swin_dict["OMI"]._spec_win)

@@ -88,6 +88,15 @@ def joint_omi_step_8(
 
 
 @pytest.fixture(scope="function")
+def omi_step_0(isolated_dir, omi_test_in_dir, osp_dir, gmao_dir, vlidort_cli):
+    rs, rstep, kwargs = set_up_run_to_location(
+        omi_test_in_dir, 0, "retrieval input", osp_dir, gmao_dir, vlidort_cli
+    )
+    os.chdir(rs.run_dir)
+    return rs, rstep, kwargs
+
+
+@pytest.fixture(scope="function")
 def joint_tropomi_step_12(
     isolated_dir,
     joint_tropomi_test_in_dir,

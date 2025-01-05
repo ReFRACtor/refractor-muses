@@ -1,19 +1,22 @@
-from test_support import *
 from refractor.muses import (
     StrategyTable,
     MusesRunDir,
     RetrievableStateElement,
     RetrievalInfo,
     CurrentStrategyStep,
+    RetrievalConfiguration,
+    StateInfo,
 )
 import subprocess
+import os
+import numpy as np
 
 # Add a extra state element, just so we can make sure our StrategyTable functions
 # handles this correctly
 
 
 class EofStateElement(RetrievableStateElement):
-    def __init__(self, state_info: "StateInfo", name="OMIEOF1"):
+    def __init__(self, state_info: StateInfo, name="OMIEOF1"):
         super().__init__(state_info, name)
         self._value = None
 
@@ -31,11 +34,11 @@ class EofStateElement(RetrievableStateElement):
 
     def update_state_element(
         self,
-        state_info: "StateInfo",
+        state_info: StateInfo,
         retrieval_info: RetrievalInfo,
         results_list: np.array,
         update_next: bool,
-        retrieval_config: "RetrievalConfiguration",
+        retrieval_config: RetrievalConfiguration,
         step: int,
         do_update_fm: np.array,
     ):
@@ -116,16 +119,16 @@ class EofStateElement(RetrievableStateElement):
         self.constraintMatrix = 10 * 10
 
 
-def test_strategy_table(isolated_dir, osp_dir, gmao_dir):
-    r = MusesRunDir(f"{test_base_path}/omi/in/sounding_1", osp_dir, gmao_dir)
+def test_strategy_table(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
+    r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir)
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
     subprocess.run(
-        f'sed -i -e "s/OMINRADWAVUV1/OMINRADWAVUV1,OMIEOF1/" {r.run_dir}/Table.asc',
+        f'sed -i -e "s/OMINRADWAVUV1/OMINRADWAVUV1,OMIEOF1/" {str(r.run_dir /"Table.asc")}',
         shell=True,
     )
-    s = StrategyTable(f"{r.run_dir}/Table.asc")
+    s = StrategyTable(r.run_dir / "Table.asc")
     assert s.retrieval_elements_all_step == [
         "O3",
         "OMICLOUDFRACTION",
