@@ -45,7 +45,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         num_fwhm_srf=4.0
         wn, sindex = self.observation.wn_and_sindex(sensor_index)
         return mpy.get_omi_ils(
-            self.osp_dir, wn, sindex, self.observation.wavelength_filter, 
+            str(self.osp_dir), wn, sindex, self.observation.wavelength_filter, 
             self.observation.observation_table,
             num_fwhm_srf)
     
@@ -70,7 +70,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         sindex2 = np.arange(0,mono_list_length[sensor_index]) + startmw_fm
         
         return mpy.get_omi_ils_fastconv(
-            self.osp_dir, wn_list, sindex, wn_filter,
+            str(self.osp_dir), wn_list, sindex, wn_filter,
             self.observation.observation_table,
             num_fwhm_srf,
             i_monochromfreq=wn_list[sindex2],

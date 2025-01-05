@@ -1,5 +1,3 @@
-from test_support import *
-from test_support.old_py_retrieve_test_support import old_py_retrieve_test
 import numpy as np
 import pandas as pd
 import numpy.testing as npt
@@ -10,115 +8,7 @@ from refractor.old_py_retrieve_wrapper import (
     RefractorTropOrOmiFmPyRetrieve,
 )
 from refractor.tropomi import TropomiFmObjectCreator
-
-
-@pytest.fixture(scope="function")
-def tropomi_obs_step_1(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND3": 226, "CLOUD": 226, "IRR_BAND_1to6": 226}
-    atrack_dict = {"BAND3": 359, "CLOUD": 359}
-    filename_dict = {}
-    filename_dict["BAND3"] = (
-        f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc"
-    )
-    filename_dict["IRR_BAND_1to6"] = (
-        f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    )
-    filename_dict["CLOUD"] = (
-        f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
-    )
-    utc_time = "2019-08-07T00:46:06.179000Z"
-    filter_list = [
-        "BAND3",
-    ]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_TROPOMICLOUDFRACTION_TROPOMICLOUD_IG_Refine.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile,
-        filter_list_dict={"TROPOMI": filter_list},
-        filter_metadata=DictFilterMetadata(
-            {"BAND3": {"monoextend": 2.0, "monoSpacing": 0.01}}
-        ),
-    )
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
-    )
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
-
-@pytest.fixture(scope="function")
-def tropomi_obs_step_2(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND3": 226, "CLOUD": 226, "IRR_BAND_1to6": 226}
-    atrack_dict = {"BAND3": 359, "CLOUD": 359}
-    filename_dict = {}
-    filename_dict["BAND3"] = (
-        f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T001931_20190807T020100_09401_01_010000_20190807T034730.nc"
-    )
-    filename_dict["IRR_BAND_1to6"] = (
-        f"{tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    )
-    filename_dict["CLOUD"] = (
-        f"{tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T001931_20190807T020100_09401_01_010107_20190812T234805.nc"
-    )
-    utc_time = "2019-08-07T00:46:06.179000Z"
-    filter_list = [
-        "BAND3",
-    ]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-TROPOMI-v3/MWDefinitions/Windows_Nadir_O3-Band3.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile,
-        filter_list_dict={"TROPOMI": filter_list},
-        filter_metadata=DictFilterMetadata(
-            {"BAND3": {"monoextend": 2.0, "monoSpacing": 0.01}}
-        ),
-    )
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
-    )
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
-
-@pytest.fixture(scope="function")
-def joint_tropomi_obs_step_12(osp_dir):
-    # Observation going with trompomi_uip_step_1
-    xtrack_dict = {"BAND3": 226, "CLOUD": 226, "IRR_BAND_1to6": 226}
-    atrack_dict = {"BAND3": 2995, "CLOUD": 2995}
-    filename_dict = {}
-    filename_dict["BAND3"] = (
-        f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc"
-    )
-    filename_dict["IRR_BAND_1to6"] = (
-        f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
-    )
-    filename_dict["CLOUD"] = (
-        f"{joint_tropomi_test_in_dir}/../S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
-    )
-    utc_time = "2019-08-07T06:24:33.584090Z"
-    filter_list = [
-        "BAND3",
-    ]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
-    obs = MusesTropomiObservation.create_from_filename(
-        filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
-    )
-    obs.spectral_window = swin_dict["TROPOMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    granule = 65
-    xtrack = 8
-    atrack = 4
-    pixel_index = 5
-    fname = f"{joint_tropomi_test_in_dir}/../nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
-    obscris = MusesCrisObservation.create_from_filename(
-        fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir
-    )
-    obscris.spectral_window = swin_dict["CRIS"]
-    obscris.spectral_window.add_bad_sample_mask(obscris)
-    return [obscris, obs]
+import pytest
 
 
 # ============================================================================
@@ -133,15 +23,15 @@ def joint_tropomi_obs_step_12(osp_dir):
 # ============================================================================
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_muses_py(
-    isolated_dir, step_number, osp_dir, gmao_dir, vlidort_cli
+    isolated_dir, step_number, osp_dir, gmao_dir, vlidort_cli, tropomi_test_in_dir
 ):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
     iteration = 2
-    pfile = tropomi_test_in_dir + f"/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     r = RefractorTropOmiFmMusesPy()
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
@@ -188,7 +78,7 @@ def test_refractor_fm_muses_py(
     )
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize(
     "step_number",
     [
@@ -196,14 +86,14 @@ def test_refractor_fm_muses_py(
     ],
 )
 def test_refractor_joint_fm_muses_py(
-    isolated_dir, step_number, osp_dir, gmao_dir, vlidort_cli
+    isolated_dir, step_number, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
 ):
     # Note this is the TROPOMI part only, we save stuff after CrIS has been run
 
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
     iteration = 2
-    pfile = f"{joint_tropomi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = joint_tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     r = RefractorTropOmiFmMusesPy()
     (o_jacobian, o_radiance, o_measured_radiance_tropomi, o_success_flag) = (
         r.run_pickle_file(
@@ -258,7 +148,7 @@ def test_refractor_joint_fm_muses_py(
     assert np.abs(o_jacobian - o_jacobian2).max() < 1e-15
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_refractor(
     isolated_dir,
@@ -268,6 +158,7 @@ def test_refractor_fm_refractor(
     vlidort_cli,
     tropomi_obs_step_1,
     tropomi_obs_step_2,
+    tropomi_test_in_dir,
 ):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
@@ -275,17 +166,17 @@ def test_refractor_fm_refractor(
     # Get much better agreement with nstokes=1 for vlidort.
     # vlidort_nstokes=2
     vlidort_nstokes = 1
-    pfile = tropomi_test_in_dir + f"/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
     if step_number == 1:
         obs = tropomi_obs_step_1
     elif step_number == 2:
         obs = tropomi_obs_step_2
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir
+        tropomi_test_in_dir / "Table.asc", osp_dir=osp_dir
     )
     flist = {"TROPOMI": ["BAND3"]}
-    mid = MeasurementIdFile(f"{tropomi_test_in_dir}/Measurement_ID.asc", rconf, flist)
+    mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     r = RefractorTropOmiFm(
         obs, mid, use_pca=False, use_lrad=False, lrad_second_order=False
     )
@@ -326,7 +217,7 @@ def test_refractor_fm_refractor(
     assert np.max(np.abs((o_radiance2 - o_radiance) / o_radiance2 * 100.0)) < 0.15
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize(
     "step_number",
     [
@@ -334,7 +225,13 @@ def test_refractor_fm_refractor(
     ],
 )
 def test_refractor_joint_fm_refractor(
-    isolated_dir, step_number, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_obs_step_12
+    isolated_dir,
+    step_number,
+    osp_dir,
+    gmao_dir,
+    vlidort_cli,
+    joint_tropomi_obs_step_12,
+    joint_tropomi_test_in_dir,
 ):
     # Note this is the TROPOMI part only, we save stuff after CrIS has been run
 
@@ -344,15 +241,15 @@ def test_refractor_joint_fm_refractor(
     # Get much better agreement with nstokes=1 for vlidort.
     # vlidort_nstokes=2
     vlidort_nstokes = 1
-    pfile = f"{joint_tropomi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = joint_tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
     obs_cris, obs_tropomi = joint_tropomi_obs_step_12
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{joint_tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir
+        joint_tropomi_test_in_dir / "Table.asc", osp_dir=osp_dir
     )
     flist = {"TROPOMI": ["BAND3"]}
     mid = MeasurementIdFile(
-        f"{joint_tropomi_test_in_dir}/Measurement_ID.asc", rconf, flist
+        joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist
     )
     r = RefractorTropOmiFm(
         obs_tropomi, mid, use_pca=False, use_lrad=False, lrad_second_order=False
@@ -431,9 +328,14 @@ def test_refractor_joint_fm_refractor(
         plt.savefig("plot2.png", dpi=300)
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_refractor_detailed_fm_refractor(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_obs_step_2
+    isolated_dir,
+    osp_dir,
+    gmao_dir,
+    vlidort_cli,
+    tropomi_obs_step_2,
+    tropomi_test_in_dir,
 ):
     """Look at each piece in detail, so make sure we are agreeing"""
     step_number = 2
@@ -441,12 +343,12 @@ def test_refractor_detailed_fm_refractor(
     # Get much better agreement with nstokes=1 for vlidort.
     # vlidort_nstokes=2
     vlidort_nstokes = 1
-    pfile = tropomi_test_in_dir + f"/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{tropomi_test_in_dir}/Table.asc", osp_dir=osp_dir
+        tropomi_test_in_dir / "Table.asc", osp_dir=osp_dir
     )
     flist = {"TROPOMI": ["BAND3"]}
-    mid = MeasurementIdFile(f"{tropomi_test_in_dir}/Measurement_ID.asc", rconf, flist)
+    mid = MeasurementIdFile(tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     # Do a lidort run, just to leave PCA out of our checks
     r = RefractorTropOmiFm(
         tropomi_obs_step_2, mid, use_pca=False, use_lrad=False, lrad_second_order=False
@@ -621,18 +523,26 @@ def test_refractor_detailed_fm_refractor(
 # the rows. But this is useful to leave around for an initial look at this
 # - once we have things verified we can just check that the jacobian
 # doesn't change a lot.
-@skip
-@old_py_retrieve_test
+@pytest.mark.skip
+@pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("index", list(range(34)))
 @pytest.mark.parametrize("do_refractor", [True, False])
-def test_jac_fd(isolated_dir, osp_dir, gmao_dir, index, do_refractor, vlidort_cli):
+def test_jac_fd(
+    isolated_dir,
+    osp_dir,
+    gmao_dir,
+    index,
+    do_refractor,
+    vlidort_cli,
+    tropomi_test_in_dir,
+):
     """Look at each piece in detail, so make sure we are agreeing"""
 
     # Just pick a step and iteration. We could loop over these, but
     # I think looking at one point should be good for testing the jacobians
     step_number = 2
     iteration = 2
-    pfile = tropomi_test_in_dir + f"/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     # can check ReFRACtor or py-retrieve
     if do_refractor:
         r = RefractorTropOmiFm(use_pca=False, use_lrad=False, lrad_second_order=False)
@@ -745,12 +655,18 @@ def test_jac_fd(isolated_dir, osp_dir, gmao_dir, index, do_refractor, vlidort_cl
 # Also this one doesn't currently work. We haven't figured out the logic for separating
 # out the tropomi part vs. the joint. We don't have a strong reason to work that out,
 # so just skip for now
-@skip
-@old_py_retrieve_test
+@pytest.mark.skip
+@pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("index", list(range(32)))
 @pytest.mark.parametrize("do_refractor", [True, False])
 def test_jac_joint_fd(
-    isolated_dir, osp_dir, gmao_dir, index, do_refractor, vlidort_cli
+    isolated_dir,
+    osp_dir,
+    gmao_dir,
+    index,
+    do_refractor,
+    vlidort_cli,
+    joint_tropomi_test_in_dir,
 ):
     """Look at each piece in detail, so make sure we are agreeing"""
 
@@ -758,7 +674,10 @@ def test_jac_joint_fd(
     # I think looking at one point should be good for testing the jacobians
     step_number = 12
     iteration = 2
-    pfile = joint_test_in_dir + f"sounding_1/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = (
+        joint_tropomi_test_in_dir
+        / f"sounding_1/refractor_fm_{step_number}_{iteration}.pkl"
+    )
     # can check ReFRACtor or py-retrieve
     if do_refractor:
         r = RefractorTropOmiFm(use_pca=False, use_lrad=False, lrad_second_order=False)
@@ -837,7 +756,7 @@ def test_jac_joint_fd(
         import matplotlib.pyplot as plt
 
         sns.set_theme()
-        sd = RefractorObjectCreator(r.rf_uip).forward_model.spectral_domain(0).data
+        sd = TropomiFmObjectCreator(r.rf_uip).forward_model.spectral_domain(0).data
         d = pd.DataFrame({"Wavelength (nm)": sd, "Jac FD": jfd, "Jac calc": jcalc})
         sns.relplot(
             data=pd.melt(d, ["Wavelength (nm)"], value_name="Jac", var_name="Type"),

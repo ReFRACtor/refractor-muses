@@ -3,6 +3,43 @@ import pytest
 import os
 from loguru import logger
 from refractor.framework import PythonFpLogger, FpLogger
+from contextlib import redirect_stdout, redirect_stderr, contextmanager
+import io
+import sys
+import numpy as np
+import numpy.testing as npt
+
+
+@contextmanager
+def all_output_disabled():
+    """Suppress stdout, stderr, and logging, useful for some of the noisy output we
+    get running muses-py code."""
+    try:
+        logger.remove()
+        with redirect_stdout(io.StringIO()):
+            with redirect_stderr(io.StringIO()):
+                yield
+    finally:
+        logger.add(sys.stderr)
+
+
+def struct_compare(s1, s2, skip_list=None, verbose=False):
+    """Compare two structures/dicts to make sure they are the same."""
+    if skip_list is None:
+        skip_list = []
+    for k in s1.keys():
+        if k in skip_list:
+            if verbose:
+                print(f"Skipping {k}")
+            continue
+        if verbose:
+            print(k)
+        if isinstance(s1[k], np.ndarray) and np.can_cast(s1[k], np.float64):
+            npt.assert_allclose(s1[k], s2[k])
+        elif isinstance(s1[k], np.ndarray):
+            assert np.all(s1[k] == s2[k])
+        else:
+            assert s1[k] == s2[k]
 
 
 @pytest.fixture(scope="function")

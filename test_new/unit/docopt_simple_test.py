@@ -1,4 +1,3 @@
-from test_support import *
 from refractor.muses import docopt_simple
 import pickle
 
@@ -33,9 +32,9 @@ def test_docopt_simple():
     assert d.in1 == "a1"
     assert d.in2 == "a2"
     assert d.out == "o3"
-    assert d.my_underscore == False
+    assert not d.my_underscore
     d2 = docopt_simple(usage, argv=["--my_underscore", "a1", "a2", "o3"])
-    assert d2.my_underscore == True
+    assert d2.my_underscore
     assert d.my_string == ""
     d2 = docopt_simple(usage, argv=["--my-string=foo", "a1", "a2", "o3"])
     assert d2.my_string == "foo"

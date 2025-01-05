@@ -1,4 +1,3 @@
-from test_support import *
 from refractor.muses import (
     MusesCrisForwardModel,
     MusesAirsForwardModel,
@@ -18,14 +17,6 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
         rs.current_strategy_step.spectral_window_dict["CRIS"],
         None,
         osp_dir=osp_dir,
-    )
-    obs_tropomi = rs.observation_handle_set.observation(
-        "TROPOMI",
-        rs.current_state(),
-        rs.current_strategy_step.spectral_window_dict["TROPOMI"],
-        None,
-        osp_dir=osp_dir,
-        write_tropomi_radiance_pickle=True,
     )
     obs_cris.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
@@ -60,13 +51,6 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
 def test_muses_tropomi_forward_model(joint_tropomi_step_12, vlidort_cli, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
     rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
-    obs_cris = rs.observation_handle_set.observation(
-        "CRIS",
-        rs.current_state(),
-        rs.current_strategy_step.spectral_window_dict["CRIS"],
-        None,
-        osp_dir=osp_dir,
-    )
     obs_tropomi = rs.observation_handle_set.observation(
         "TROPOMI",
         rs.current_state(),
@@ -113,14 +97,6 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
         None,
         osp_dir=osp_dir,
     )
-    obs_omi = rs.observation_handle_set.observation(
-        "OMI",
-        rs.current_state(),
-        rs.current_strategy_step.spectral_window_dict["OMI"],
-        None,
-        osp_dir=osp_dir,
-        write_omi_radiance_pickle=True,
-    )
     obs_airs.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
     fm = MusesAirsForwardModel(rf_uip, obs_airs, mid)
@@ -152,13 +128,6 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
 def test_muses_omi_forward_model(joint_omi_step_8, vlidort_cli, osp_dir):
     rs, rstep, _ = joint_omi_step_8
     rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
-    obs_airs = rs.observation_handle_set.observation(
-        "AIRS",
-        rs.current_state(),
-        rs.current_strategy_step.spectral_window_dict["AIRS"],
-        None,
-        osp_dir=osp_dir,
-    )
     obs_omi = rs.observation_handle_set.observation(
         "OMI",
         rs.current_state(),

@@ -1,12 +1,11 @@
-from test_support import *
-from test_support.old_py_retrieve_test_support import *
 import numpy as np
 from refractor.old_py_retrieve_wrapper import OmiRadiancePyRetrieve, OmiRadianceToUip
 import refractor.framework as rf
 import pandas as pd
+import pytest
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_omi_radiance(omi_uip_step_2):
     # The initial shift for everything is 0. Change to something so we can test that
     # this actually gets used.
@@ -22,7 +21,7 @@ def test_omi_radiance(omi_uip_step_2):
     mrad = OmiRadiancePyRetrieve(omi_uip_step_2)
     sv = rf.StateVector()
     sv.add_observer(mrad)
-    omi_rad_to_uip = OmiRadianceToUip(omi_uip_step_2, mrad)
+    _ = OmiRadianceToUip(omi_uip_step_2, mrad)
     x = [0.01, 0.02, 0.03, 0.04, 0.001, 0.002]
     sv.update_state(x)
     r = mrad.radiance_all()

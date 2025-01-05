@@ -51,6 +51,11 @@ def tropomi_test_in_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def tes_test_in_dir(test_base_path):
+    return test_base_path / "tes/in/sounding_1"
+
+
+@pytest.fixture(scope="session")
 def tropomi_band7_test_in_dir(test_base_path):
     return test_base_path / "tropomi_band7/in/sounding_1"
 

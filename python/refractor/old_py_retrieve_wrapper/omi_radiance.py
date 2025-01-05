@@ -5,6 +5,7 @@ import numpy as np
 # ruff. Turn this rule off so we pass
 # ruff: noqa: E712
 
+
 class OmiRadiance(rf.ObservationSvImpBase):
     """This is a wrapper for the py-retrieve function get_omi_radiance
     to make it look like a Observation.

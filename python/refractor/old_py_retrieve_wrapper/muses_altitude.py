@@ -1,13 +1,20 @@
 import numpy as np
-import warnings
 import refractor.framework as rf
+from .muses_ray_info import MusesRayInfo
+
 
 class MusesAltitude(rf.Altitude):
+    """This uses the py-retrieve MusesRayInfo to calculate Altitude information.
 
-    def __init__(self, ray_info : 'MusesRayInfo',
-                 pressure : 'rf.Pressure',
-                 latitude : float):
+    This was used initially to match how py-retrieve did the calculation, so we could
+    compare the forward model runs with ReFRACtor without having the minor differences in
+    the altitude calculation enter into the differences.
 
+    This is not something we normally use, instead rf.AltitudeHydrostatic is used. But
+    this is class is useful if we want to compare against old py-retrieve results
+    """
+
+    def __init__(self, ray_info: MusesRayInfo, pressure: rf.Pressure, latitude: float):
         # Initialize director
         super().__init__()
 
@@ -26,18 +33,21 @@ class MusesAltitude(rf.Altitude):
 
         self.altitude_grid = self.ray_info.altitude_grid()
 
-    def altitude(self, pressure_value):
-
+    def altitude(self, pressure_value: rf.DoubleWithUnit):
         self.cache_altitude()
 
         pgrid_ad = self._pressure.pressure_grid().convert("Pa").value
         pgrid_val = pgrid_ad.value
 
-        alt_value = np.interp(pressure_value.convert("Pa").value.value, pgrid_val, self.altitude_grid)
+        alt_value = np.interp(
+            pressure_value.convert("Pa").value.value, pgrid_val, self.altitude_grid
+        )
 
-        return rf.AutoDerivativeWithUnitDouble(rf.AutoDerivativeDouble(alt_value, np.zeros(pgrid_ad.number_variable)), "m")
+        return rf.AutoDerivativeWithUnitDouble(
+            rf.AutoDerivativeDouble(alt_value, np.zeros(pgrid_ad.number_variable)), "m"
+        )
 
-    def gravity(self, pressure_value):
+    def gravity(self, pressure_value: rf.DoubleWithUnit):
         "Gravity as implemented by vlidort_cli"
 
         # constants
@@ -59,7 +69,12 @@ class MusesAltitude(rf.Altitude):
         # acceleration due to gravity
         alt = self.altitude(pressure_value).convert("m").value.value
 
-        grav = g0 - (a3 + a4 * cos2p) * alt + (a5 + a6 * cos2p) * alt ** 2 + (a7 + a8 * cos2p) * alt ** 3
+        grav = (
+            g0
+            - (a3 + a4 * cos2p) * alt
+            + (a5 + a6 * cos2p) * alt**2
+            + (a7 + a8 * cos2p) * alt**3
+        )
 
         # Convert from cm/s^2 to m/s^2
         grav *= 1e-2
@@ -72,4 +87,7 @@ class MusesAltitude(rf.Altitude):
     def desc(self):
         return "MusesAltitude"
 
-__all__ = ["MusesAltitude",]
+
+__all__ = [
+    "MusesAltitude",
+]

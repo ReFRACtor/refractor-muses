@@ -1,6 +1,7 @@
-from test_support import *
 from refractor.muses import ErrorAnalysis, RetrievalStrategy, MusesRunDir
-import copy
+from fixtures.retrieval_step_fixture import set_up_run_to_location
+from fixtures.misc_fixture import all_output_disabled, struct_compare
+import pytest
 
 
 class RetrievalStrategyStop:
@@ -9,8 +10,10 @@ class RetrievalStrategyStop:
             raise StopIteration()
 
 
-@skip
-def test_error_analysis_init(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+@pytest.mark.skip
+def test_error_analysis_init(
+    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
+):
     if False:
         try:
             with all_output_disabled():
@@ -43,14 +46,21 @@ def test_error_analysis_init(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
     )
 
 
-def test_error_analysis_update_retrieval_results(isolated_dir):
+def test_error_analysis_update_retrieval_results(
+    isolated_dir, joint_tropomi_test_in_dir, osp_dir, gmao_dir, vlidort_cli
+):
     rs, rstep, _ = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 10, "systematic_jacobian"
+        joint_tropomi_test_in_dir,
+        10,
+        "systematic_jacobian",
+        osp_dir,
+        gmao_dir,
+        vlidort_cli,
     )
     # TODO Not really sure what the results are suppose to be, or even easily what
     # gets changed. So we just check that the call is successful.
     # Note we do check this indirectly by our end to end runs and comparison
     # to expected results, but it would be good to check this is more detail
     # in this test.
-    before = copy.deepcopy(rstep.results)
+    # before = copy.deepcopy(rstep.results)
     rs.error_analysis.update_retrieval_result(rstep.results)

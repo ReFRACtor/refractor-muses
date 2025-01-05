@@ -1,5 +1,3 @@
-from test_support import *
-from test_support.old_py_retrieve_test_support import *
 import numpy as np
 import numpy.testing as npt
 from refractor.old_py_retrieve_wrapper import (
@@ -7,12 +5,13 @@ from refractor.old_py_retrieve_wrapper import (
     TropomiRadianceRefractor,
 )
 import refractor.framework as rf
-import glob
 import pandas as pd
 import pickle
+import pytest
+from pathlib import Path
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_tropomi_radiance(tropomi_uip_step_2):
     # The initial shift for everything is 0. Change to something so we can test that
     # this actually gets used.
@@ -33,7 +32,7 @@ def test_tropomi_radiance(tropomi_uip_step_2):
     ]
     sv.update_state(x)
     r = mrad.radiance(0)
-    fname = glob.glob(f"{rf_uip.run_dir}/Input/Radiance_TROPOMI*.pkl")[0]
+    fname = str(next((Path(rf_uip.run_dir) / "Input").glob("Radiance_TROPOMI*.pkl")))
     mrad2 = TropomiRadianceRefractor(
         rf_uip,
         [
@@ -82,16 +81,18 @@ def test_tropomi_radiance(tropomi_uip_step_2):
         print(pd.DataFrame(np.abs((jfd - jcalc) / jcalc)).describe())
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_bad_sample_tropomi_radiance(tropomi_uip_step_2):
     """Test bad sample handling in TropomiRadiance."""
     # Add some fake bad data
     rf_uip = tropomi_uip_step_2
-    rdata = pickle.load(open(rf_uip.run_dir + "/Input/Radiance_TROPOMI_.pkl", "rb"))
+    rdata = pickle.load(
+        open(Path(rf_uip.run_dir) / "Input/Radiance_TROPOMI_.pkl", "rb")
+    )
     rdata["Earth_Radiance"]["EarthRadianceNESR"][1::15] = -999
-    pickle.dump(rdata, open(rf_uip.run_dir + "/Input/Radiance_TROPOMI_.pkl", "wb"))
+    pickle.dump(rdata, open(Path(rf_uip.run_dir) / "Input/Radiance_TROPOMI_.pkl", "wb"))
     mrad = TropomiRadiancePyRetrieve(rf_uip)
-    fname = glob.glob(f"{rf_uip.run_dir}/Input/Radiance_TROPOMI*.pkl")[0]
+    fname = str(next((Path(rf_uip.run_dir) / "Input").glob("Radiance_TROPOMI*.pkl")))
     mrad2 = TropomiRadianceRefractor(
         rf_uip,
         [

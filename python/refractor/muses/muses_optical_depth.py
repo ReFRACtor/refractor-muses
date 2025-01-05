@@ -2,6 +2,7 @@ import numpy as np
 import math
 import refractor.framework as rf
 import refractor.muses.muses_py as mpy
+from pathlib import Path
 
 class MusesOpticalDepth(rf.AbsorberXSec):
     '''This is like MusesOpticalDepthFile, but we try to use as much of ReFRACtor
@@ -11,7 +12,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
                  altitude : "rf.Altitude", absorber_vmr : "rf:AbsorberVmr",
                  obs : "MusesObservation",
                  ils_params_list : "list[dict]",
-                 osp_dir : str):
+                 osp_dir : str | Path):
         '''We can hopefully get rid of using the input directory, for now we read
         from there. Note that this needs to have already been generated before we
         enter this function, so the UIP should have been created.'''
@@ -57,7 +58,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         o3_col = gas_col[::-1,0]
         wn, sindex = self.obs.wn_and_sindex(sensor_index)
         o3_xsec = mpy.get_tropomi_o3xsec(
-            self.osp_dir, self.ils_params_list[sensor_index], tatm,
+            str(self.osp_dir), self.ils_params_list[sensor_index], tatm,
             wn, sindex, uip, do_temp_shift, o3_col, no2_col, self.obs.muses_py_dict)
         xsect_grid = o3_xsec["X0"][o3_xsec['freqIndex']]
         xsect_data = o3_xsec["o3xsec"]
@@ -72,7 +73,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         o3_col = gas_col[::-1,0]
         wn, sindex = self.obs.wn_and_sindex(sensor_index)
         o3_xsec = mpy.get_omi_o3xsec(
-            self.osp_dir, self.ils_params_list[sensor_index], 
+            str(self.osp_dir), self.ils_params_list[sensor_index], 
             tatm, wn, sindex, o3_col, self.obs.muses_py_dict)
         xsect_grid = o3_xsec["X0"][o3_xsec['freqIndex']]
         xsect_data = o3_xsec["o3xsec"]

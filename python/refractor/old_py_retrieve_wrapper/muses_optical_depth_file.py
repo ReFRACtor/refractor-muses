@@ -1,36 +1,55 @@
 import numpy as np
-import os
 import math
 import refractor.framework as rf
+from .muses_ray_info import MusesRayInfo
+from pathlib import Path
+
 
 # Multiple inheritance works fine with swig, however our serialization currently
 # doesn't handle this. We should fix this at some point, but meanwhile we can
 # easily work around this by using composition instead of inheritance.
-#class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
+# class MusesOpticalDepthFile(rf.AbsorberXSec, rf.CacheInvalidatedObserver):
 class MusesOpticalDepthFile(rf.AbsorberXSec):
-    """
-    Returns the precomputed MUSES optical depth files in the misleadingly
-    named O3Xsec_MW???.asc files. Simply opens the files then returns
-    the nearest value to the wavenumber given to optical_depth_each_layer.
+    """Returns the precomputed MUSES optical depth files in the
+    misleadingly named O3Xsec_MW???.asc files. Simply opens the files
+    then returns the nearest value to the wavenumber given to
+    optical_depth_each_layer.
+
+    This was used initially to match how py-retrieve did the
+    calculation, so we could compare the forward model runs with
+    ReFRACtor without having the minor differences in the optical
+    depth calculation enter into the differences.
+
+    This is not something we normally use, instead MusesOpticalDepth
+    is used if we are using preconvoled optical depths, or
+    rf.AbsorberXSec if we are convolving with the ILS after the
+    forward model. But this is class is useful if we want to compare
+    against old py-retrieve results
+
     """
 
-    def __init__(self, ray_info : "MusesRayInfo",
-                 pressure : "rf.Pressure", temperature : "rf.Temperature",
-                 altitude : "rf.Altitude", absorber_vmr : "rf:AbsorberVmr",
-                 num_channel : int,
-                 input_dir : str):
-
+    def __init__(
+        self,
+        ray_info: MusesRayInfo,
+        pressure: rf.Pressure,
+        temperature: rf.Temperature,
+        altitude: rf.Altitude,
+        absorber_vmr: rf.AbsorberVmr,
+        num_channel: int,
+        input_dir: str | Path,
+    ):
         # Dummy since we are overwriting the optical_depth function
         xsec_tables = rf.vector_xsec_table()
 
         spec_grid = rf.ArrayWithUnit(np.array([1, 2]), "nm")
         xsec_values = rf.ArrayWithUnit(np.zeros((2, 1)), "cm^2")
-        cfac = rf.cross_section_file_conversion_factors.get("O3", 1.0)
         xsec_tables.push_back(rf.XSecTableSimple(spec_grid, xsec_values, 0.0))
 
         # Register base director class
-        rf.AbsorberXSec.__init__(self, absorber_vmr, pressure, temperature, altitude, xsec_tables)
-        #rf.CacheInvalidatedObserver.__init__(self)
+        rf.AbsorberXSec.__init__(
+            self, absorber_vmr, pressure, temperature, altitude, xsec_tables
+        )
+        # rf.CacheInvalidatedObserver.__init__(self)
         self.cache_observer = rf.CacheInvalidatedObserver()
 
         self.ray_info = ray_info
@@ -46,10 +65,10 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         self.do_temperature_shift = False
 
         # Where MUSES stores the computations it makes for VLIDORT we are leveraging
-        self.input_dir = input_dir
+        self.input_dir = Path(input_dir)
 
         self.map_vmr_l, self.map_vmr_u = self.ray_info.map_vmr()
-        
+
         # Initialize caches
         self.xsect_data = None
         self.xsect_data_temp = None
@@ -58,7 +77,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # Invalidate cache when absorber_vmr changes. This changes
         # self.cache_valid_flag to False
         for a in self._absorber_vmr:
-            #a.add_cache_invalidated_observer(self)
+            # a.add_cache_invalidated_observer(self)
             a.add_cache_invalidated_observer(self.cache_observer)
 
     # Target the renamed funciton due to use of %python_attribute
@@ -66,13 +85,12 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # By default number_species() in Absorber return 0
         return 1
 
-    def gas_name(self, species_index):
+    def gas_name(self, species_index: int):
         # All ozone all the time
         return "O3"
 
     def cache_xsect_data(self):
-        """Read optical depth values from MUSES written files.
-        """
+        """Read optical depth values from MUSES written files."""
         # Note, it is not a mistake that we don't check self.cache_valid_flag
         # here. The xsect data gets created once, as a side effect of
         # creating the uip. This object has a life span determined by the
@@ -88,12 +106,14 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # The UV1 and UV2 are separate files, but we combine them into
         # one cross section table
         # Note these files are generated once per strategy step
-        file_data = np.loadtxt(f"{self.input_dir}/O3Xsec_MW001.asc", skiprows=1)
+        file_data = np.loadtxt(self.input_dir / "O3Xsec_MW001.asc", skiprows=1)
         for mw_num in range(2, self.num_channel + 1):  # 1-based indexing
             # We may have more channels than we actually are running the forward model for
             # (e.g., channels with zero width spectral domain). In that case, just skip files
             try:
-                mw_file_data = np.loadtxt(f"{self.input_dir}/O3Xsec_MW{mw_num:03}.asc", skiprows=1)
+                mw_file_data = np.loadtxt(
+                    self.input_dir / f"O3Xsec_MW{mw_num:03}.asc", skiprows=1
+                )
                 file_data = np.concatenate([file_data, mw_file_data])
             except FileNotFoundError:
                 pass
@@ -102,21 +122,25 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # cryptic, but this sorts all the data by column 1
         file_data = file_data[file_data[:, 1].argsort()]
 
-
         # Note this doesn't currently work, we have do_temperature_shift hardcoded to
         # false to skip this. Leave in place in case we need to come back to this.
         # If we are doing temperature shifting, then we have a second file
         # of O3 data at a different temperature value. Grab that data. But
         # only do this if we need it to calculate a jacbian
         file_data_temp = None
-        if(os.path.exists(f"{self.input_dir}/O3Xsec_MW001_TEMP.asc") and
-           self.do_temperature_shift):
-            file_data_temp = np.loadtxt(f"{self.input_dir}/O3Xsec_MW001_TEMP.asc", skiprows=1)
+        if (
+            self.input_dir / "O3Xsec_MW001_TEMP.asc"
+        ).exists() and self.do_temperature_shift:
+            file_data_temp = np.loadtxt(
+                self.input_dir / "O3Xsec_MW001_TEMP.asc", skiprows=1
+            )
             for mw_num in range(2, self.num_channel + 1):  # 1-based indexing
                 # We may have more channels than we actually are running the forward model for
                 # (e.g., channels with zero width spectral domain). In that case, just skip files
                 try:
-                    mw_file_data = np.loadtxt(f"{self.input_dir}/O3Xsec_MW{mw_num:03}_TEMP.asc", skiprows=1)
+                    mw_file_data = np.loadtxt(
+                        self.input_dir / f"O3Xsec_MW{mw_num:03}_TEMP.asc", skiprows=1
+                    )
                     file_data_temp = np.concatenate([file_data_temp, mw_file_data])
                 except FileNotFoundError:
                     pass
@@ -124,47 +148,59 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
 
         self.xsect_grid = file_data[:, 1]
 
-        self.xsect_data = file_data[:, 2:nlay + 2]
-        if(file_data_temp is not None):
-            self.xsect_data_temp = file_data_temp[:, 2:nlay + 2]
+        self.xsect_data = file_data[:, 2 : nlay + 2]
+        if file_data_temp is not None:
+            self.xsect_data_temp = file_data_temp[:, 2 : nlay + 2]
         else:
             self.xsect_data_temp = None
-            
-    def total_air_number_density_layer(self, spec_index):
+
+    def total_air_number_density_layer(self, spec_index: int):
         # The output of this routine is used by RamanSioris
         # Return the MUSES value for consistency
         dry_air_density = self.ray_info.dry_air_density()
-        return rf.ArrayAdWithUnit_double_1(rf.ArrayAd_double_1(dry_air_density), rf.Unit("cm^-2")) 
+        return rf.ArrayAdWithUnit_double_1(
+            rf.ArrayAd_double_1(dry_air_density), rf.Unit("cm^-2")
+        )
 
     def cache_gas_number_density_layer(self):
-        """Computes the gas number density value per layer 
+        """Computes the gas number density value per layer
         The value is cached until recomputed due to AbsorberVmr changes.
         """
 
         nlay = self._pressure.number_layer
 
         # Recompute if value is undefined or if number of layers in pressure grid has changed
-        if self.cache_observer.cache_valid_flag and self.gas_density_lay is not None and self.gas_density_lay.shape[0] == nlay:
+        if (
+            self.cache_observer.cache_valid_flag
+            and self.gas_density_lay is not None
+            and self.gas_density_lay.shape[0] == nlay
+        ):
             return
 
         self.gas_density_lay = self.ray_info.gas_density_layer("O3")
         self.cache_observer.cache_valid_flag = True
 
-    def gas_number_density_layer(self, spec_index):
+    def gas_number_density_layer(self, spec_index: int):
         self.cache_xsect_data()
         self.cache_gas_number_density_layer()
-        return rf.ArrayAdWithUnit_double_2(rf.ArrayAd_double_2(self.gas_density_lay.reshape(-1,1)), "cm^-2")
+        return rf.ArrayAdWithUnit_double_2(
+            rf.ArrayAd_double_2(self.gas_density_lay.reshape(-1, 1)), "cm^-2"
+        )
 
     # We shouldn't be calling the level versions anywhere, but because of how
     # we calculate layer stuff the level isn't consistent. Throw an error just so
     # we don't mistakenly use this somewhere
     def _v_total_air_number_density_level(self):
-        raise NotImplementedError("We don't support level versions of functions in MusesOpticalDepthFile")
+        raise NotImplementedError(
+            "We don't support level versions of functions in MusesOpticalDepthFile"
+        )
 
     def _v_gas_number_density_level(self):
-        raise NotImplementedError("We don't support level versions of functions in MusesOpticalDepthFile")
-    
-    def optical_depth_each_layer(self, wn, spec_index):
+        raise NotImplementedError(
+            "We don't support level versions of functions in MusesOpticalDepthFile"
+        )
+
+    def optical_depth_each_layer(self, wn: float, spec_index: int):
         # Note that this has a pretty clumsy interface in py-retrieve.
         # We 1) Need to have print_omi_o3xsec called (part of make_uip_tropomi
         # or make_uip_omi) - i.e., this depends on side effects of calling
@@ -182,14 +218,15 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # is fine if the StateVector isn't in this order, the dlogvmr_dstate
         # will automatically shuffle stuff around to get the proper StateVector
         # order.
-        vgrid = self.absorber_vmr("O3").vmr_grid(self._pressure,
-                                         rf.Pressure.INCREASING_PRESSURE)
+        vgrid = self.absorber_vmr("O3").vmr_grid(
+            self._pressure, rf.Pressure.INCREASING_PRESSURE
+        )
         is_constant = vgrid.is_constant
-        if(not is_constant):
+        if not is_constant:
             dvmr_dstate = vgrid.jacobian
             dlogvmr_dvmr = np.diag(1 / vgrid.value)
             dlogvmr_dstate = np.matmul(dlogvmr_dvmr, dvmr_dstate)
-        
+
         # Ensure data is read if not already cached
         self.cache_xsect_data()
         self.cache_gas_number_density_layer()
@@ -201,54 +238,76 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
 
         # Find index of closest value
         od_index = np.searchsorted(self.xsect_grid, spec_point, side="left")
-        if od_index > 0 and \
-           (od_index == self.xsect_grid.shape[0] or
-            math.fabs(spec_point - self.xsect_grid[od_index - 1]) < math.fabs(spec_point - self.xsect_grid[od_index])):
+        if od_index > 0 and (
+            od_index == self.xsect_grid.shape[0]
+            or math.fabs(spec_point - self.xsect_grid[od_index - 1])
+            < math.fabs(spec_point - self.xsect_grid[od_index])
+        ):
             od_index -= 1
 
         # Extra axis is the species index, not used since we only know about ozone
         wn_xsect_data = self.xsect_data[od_index, :]
         wn_od_data = wn_xsect_data * self.gas_density_lay
         wn_od_data_jac = None
-        if(self.xsect_data_temp is not None):
+        if self.xsect_data_temp is not None:
             wn_xsect_data_temp = self.xsect_data_temp[od_index, :]
-            wn_od_data_jac_temp = (wn_xsect_data - wn_xsect_data_temp) * self.gas_density_lay / self._temperature.temperature_offset
-            wn_od_data_jac = wn_od_data_jac_temp[:,np.newaxis] * self._temperature.coefficient.jacobian
+            wn_od_data_jac_temp = (
+                (wn_xsect_data - wn_xsect_data_temp)
+                * self.gas_density_lay
+                / self._temperature.temperature_offset
+            )
+            wn_od_data_jac = (
+                wn_od_data_jac_temp[:, np.newaxis]
+                * self._temperature.coefficient.jacobian
+            )
 
         # We have the pieces from py_retrieve that gives us dod_dlogvmr
-        dod_dlogvmr = np.zeros((nlay, 1, nlay+1))
-        dod_dlogvmr[:,0,:-1] = np.diag(self.map_vmr_l[0,:wn_od_data.shape[0]] * wn_od_data)
-        dod_dlogvmr[:,0,1:] += np.diag(self.map_vmr_u[0,:wn_od_data.shape[0]] * wn_od_data)
-        if(wn_od_data_jac is not None):
+        dod_dlogvmr = np.zeros((nlay, 1, nlay + 1))
+        dod_dlogvmr[:, 0, :-1] = np.diag(
+            self.map_vmr_l[0, : wn_od_data.shape[0]] * wn_od_data
+        )
+        dod_dlogvmr[:, 0, 1:] += np.diag(
+            self.map_vmr_u[0, : wn_od_data.shape[0]] * wn_od_data
+        )
+        if wn_od_data_jac is not None:
             # Note I don't think this is working currently, so skip
-            #dod_dlogvmr[:,0,:] += wn_od_data_jac
+            # dod_dlogvmr[:,0,:] += wn_od_data_jac
             pass
         # Map this to relative to state vector
-        if(is_constant):
+        if is_constant:
             od_result = rf.ArrayAd_double_2(wn_od_data[:, np.newaxis])
         else:
             dod_dstate = np.matmul(dod_dlogvmr, dlogvmr_dstate)
             od_result = rf.ArrayAd_double_2(wn_od_data[:, np.newaxis], dod_dstate)
         return od_result
 
-    def absorber_vmr(self, gas_name):
+    def absorber_vmr(self, gas_name: str):
         # We can only handle ozone right now
         if gas_name != "O3":
-            raise Exception(f"Expected to handle O3 only but was asked to provide a value for {gas_name}")
+            raise Exception(
+                f"Expected to handle O3 only but was asked to provide a value for {gas_name}"
+            )
 
         return self._absorber_vmr[0]
 
     def clone(self):
-        return MusesOpticalDepthFile(self.ray_info, self._pressure, self._temperature,
-                                     self._altitude,
-                                     self._absorber_vmr, self.num_channel,
-                                     self.input_dir)
+        return MusesOpticalDepthFile(
+            self.ray_info,
+            self._pressure,
+            self._temperature,
+            self._altitude,
+            self._absorber_vmr,
+            self.num_channel,
+            self.input_dir,
+        )
 
     def desc(self):
         s = "MusesOpticalDepthFile"
         # TODO Come back to this
-        #s += rf.AbsorberXSec.__str__(self)
+        # s += rf.AbsorberXSec.__str__(self)
         return s
 
 
-__all__ = ["MusesOpticalDepthFile", ]
+__all__ = [
+    "MusesOpticalDepthFile",
+]

@@ -1,5 +1,3 @@
-from test_support import *
-from test_support.old_py_retrieve_test_support import old_py_retrieve_test
 import numpy as np
 import pandas as pd
 import numpy.testing as npt
@@ -9,71 +7,7 @@ from refractor.old_py_retrieve_wrapper import (
     RefractorOmiFm,
     RefractorTropOrOmiFmPyRetrieve,
 )
-
-
-@pytest.fixture(scope="function")
-def omi_obs_step_1(osp_dir):
-    # Observation going with step 1
-    xtrack_uv1 = 11
-    xtrack_uv2 = 23
-    atrack = 394
-    filename = f"{omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0414t2324-o62498_v003-2016m0415t050532.he4"
-    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
-    utc_time = "2016-04-14T23:59:46.000000Z"
-    filter_list = ["UV1", "UV2"]
-    mwfile = f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_OMICLOUDFRACTION_OMICLOUD_IG_Refine.asc"
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"OMI": filter_list}
-    )
-    obs = MusesOmiObservation.create_from_filename(
-        filename,
-        xtrack_uv1,
-        xtrack_uv2,
-        atrack,
-        utc_time,
-        calibration_filename,
-        filter_list,
-        cld_filename=cld_filename,
-        osp_dir=osp_dir,
-    )
-    obs.spectral_window = swin_dict["OMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
-
-@pytest.fixture(scope="function")
-def omi_obs_step_2(osp_dir):
-    # Observation going with step 2
-    xtrack_uv1 = 11
-    xtrack_uv2 = 23
-    atrack = 394
-    filename = f"{omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0414t2324-o62498_v003-2016m0415t050532.he4"
-    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    cld_filename = f"{omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
-    utc_time = "2016-04-14T23:59:46.000000Z"
-    filter_list = ["UV1", "UV2"]
-    mwfile = (
-        f"{osp_dir}/Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_O3.asc"
-    )
-    swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"OMI": filter_list}
-    )
-    obs = MusesOmiObservation.create_from_filename(
-        filename,
-        xtrack_uv1,
-        xtrack_uv2,
-        atrack,
-        utc_time,
-        calibration_filename,
-        filter_list,
-        cld_filename=cld_filename,
-        osp_dir=osp_dir,
-    )
-    obs.spectral_window = swin_dict["OMI"]
-    obs.spectral_window.add_bad_sample_mask(obs)
-    return obs
-
+import pytest
 
 # ============================================================================
 # This set of classes replace the lower level call to omi_fm in
@@ -87,15 +21,15 @@ def omi_obs_step_2(osp_dir):
 # ============================================================================
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_muses_py(
-    isolated_dir, step_number, osp_dir, gmao_dir, vlidort_cli
+    isolated_dir, step_number, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir
 ):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
     iteration = 2
-    pfile = f"{omi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = omi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     r = RefractorOmiFmMusesPy()
     (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag) = (
         r.run_pickle_file(
@@ -142,7 +76,7 @@ def test_refractor_fm_muses_py(
     )
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_refractor(
     isolated_dir,
@@ -152,6 +86,7 @@ def test_refractor_fm_refractor(
     vlidort_cli,
     omi_obs_step_1,
     omi_obs_step_2,
+    omi_test_in_dir,
 ):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
@@ -159,7 +94,7 @@ def test_refractor_fm_refractor(
     # Get much better agreement with nstokes=1 for vlidort.
     # vlidort_nstokes=2
     vlidort_nstokes = 1
-    pfile = f"{omi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = omi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
     if step_number == 1:
         obs = omi_obs_step_1
@@ -167,10 +102,10 @@ def test_refractor_fm_refractor(
         obs = omi_obs_step_2
     obs.spectral_window.include_bad_sample = True
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir
+        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
     )
     flist = {"OMI": ["UV1", "UV2"]}
-    mid = MeasurementIdFile(f"{omi_test_in_dir}/Measurement_ID.asc", rconf, flist)
+    mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     r = RefractorOmiFm(obs, mid, use_pca=False, use_lrad=False, lrad_second_order=False)
     (o_jacobian, o_radiance, o_measured_radiance_omi, o_success_flag) = (
         r.run_pickle_file(
@@ -204,9 +139,9 @@ def test_refractor_fm_refractor(
     assert np.max(np.abs((o_radiance2 - o_radiance) / o_radiance2 * 100.0)) < 0.1
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_refractor_detailed_fm_refractor(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_obs_step_2
+    isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_obs_step_2, omi_test_in_dir
 ):
     """Look at each piece in detail, so make sure we are agreeing"""
     step_number = 2
@@ -214,14 +149,14 @@ def test_refractor_detailed_fm_refractor(
     # Get much better agreement with nstokes=1 for vlidort.
     # vlidort_nstokes=2
     vlidort_nstokes = 1
-    pfile = f"{omi_test_in_dir}/refractor_fm_{step_number}_{iteration}.pkl"
+    pfile = omi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl"
     # Do a lidort run, just to leave PCA out of our checks
     omi_obs_step_2.spectral_window.include_bad_sample = True
     rconf = RetrievalConfiguration.create_from_strategy_file(
-        f"{omi_test_in_dir}/Table.asc", osp_dir=osp_dir
+        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
     )
     flist = {"OMI": ["UV1", "UV2"]}
-    mid = MeasurementIdFile(f"{omi_test_in_dir}/Measurement_ID.asc", rconf, flist)
+    mid = MeasurementIdFile(omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
     r = RefractorOmiFm(
         omi_obs_step_2, mid, use_pca=False, use_lrad=False, lrad_second_order=False
     )

@@ -4,7 +4,8 @@ from refractor.muses import (
     MusesOmiObservation,
     FileFilterMetadata,
 )
-from test_support import *
+import numpy as np
+import numpy.testing as npt
 
 
 def struct_compare(s1, s2):
@@ -29,16 +30,22 @@ def mw_compare(mw1, mw2):
         struct_compare(t1, t2)
 
 
-def test_muses_spectral_window(osp_dir):
+def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
     # This is an observation that has some bad samples in it.
     xtrack_uv1 = 10
     xtrack_uv2 = 20
     atrack = 1139
-    filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L1-OML1BRUG_2016m0401t2215-o62308_v003-2016m0402t041806.he4"
-    cld_filename = f"{joint_omi_test_in_dir}/../OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
+    filename = (
+        joint_omi_test_in_dir.parent
+        / "OMI-Aura_L1-OML1BRUG_2016m0401t2215-o62308_v003-2016m0402t041806.he4"
+    )
+    cld_filename = (
+        joint_omi_test_in_dir.parent
+        / "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
+    )
     utc_time = "2016-04-01T23:07:33.676106Z"
-    calibration_filename = f"{osp_dir}/OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
-    stable = StrategyTable(f"{joint_omi_test_in_dir}/Table.asc", osp_dir=osp_dir)
+    calibration_filename = osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+    stable = StrategyTable(joint_omi_test_in_dir / "Table.asc", osp_dir=osp_dir)
     obs = MusesOmiObservation.create_from_filename(
         filename,
         xtrack_uv1,
@@ -83,9 +90,12 @@ def test_muses_spectral_window_microwindows(osp_dir):
     """Test creating a spectral window dictionary and then creating the
     microwindows struct. Compare to using the old muses-py code."""
     # This is just a set of microwindows, sufficient for testing all the functionality.
-    default_fname = f"{osp_dir}/Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
+    default_fname = (
+        osp_dir
+        / "Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
+    )
     viewing_mode = "nadir"
-    spectral_dir = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
+    spectral_dir = osp_dir / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
     retrieval_elements = [
         "H2O",
         "O3",
@@ -104,7 +114,10 @@ def test_muses_spectral_window_microwindows(osp_dir):
     retrieval_type = "joint"
     # This is the file muses-py ends up with. We need to get that functionality in place,
     # but at a higher level. At this level, we just read "a given file"
-    spec_fname = f"{osp_dir}/Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    spec_fname = (
+        osp_dir
+        / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
+    )
     fmeta = FileFilterMetadata(default_fname)
     swin = MusesSpectralWindow.create_from_file(
         spec_fname,

@@ -1,4 +1,3 @@
-from test_support import *
 from refractor.muses import order_species
 
 

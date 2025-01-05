@@ -8,6 +8,7 @@ import numpy as np
 # ruff. Turn this rule off so we pass
 # ruff: noqa: E712
 
+
 class MusesObservationBaseOld(rf.ObservationSvImpBase):
     # Note the handling of include_bad_sample is important here. muses-py
     # expects to get all the samples in the forward model run in the routine

@@ -1,9 +1,11 @@
-from test_support import *
 from refractor.muses import FileFilterMetadata
 
 
 def test_file_filter_metadata(osp_dir):
-    default_fname = f"{osp_dir}/Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
+    default_fname = (
+        osp_dir
+        / "Strategy_Tables/ops/Defaults/Default_Spectral_Windows_Definition_File_Filters_CrIS_TROPOMI.asc"
+    )
     fmeta = FileFilterMetadata(default_fname)
     assert fmeta.filter_metadata(None) == {}
     assert fmeta.filter_metadata("FOO") == {}

@@ -1,4 +1,3 @@
-from test_support import *
 from refractor.muses import (
     CurrentStateDict,
     CurrentStateUip,
@@ -7,6 +6,10 @@ from refractor.muses import (
     MusesRunDir,
     CurrentStateStateInfo,
 )
+import os
+import pytest
+import numpy.testing as npt
+from fixtures.misc_fixture import all_output_disabled
 
 
 class RetrievalStrategyStop:
@@ -65,8 +68,10 @@ def test_current_state_uip(joint_tropomi_step_12):
 # The CurrentState is currently tightly coupled to a number of other pieces of code.
 # We are reworking this, and this test currently doesn't work. But once we have all
 # the pieces put back together, we will want to be able to rerun these tests.
-@skip
-def test_current_state_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
+@pytest.mark.skip
+def test_current_state_state_info(
+    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
+):
     # TODO - We should have a constructor for StateInfo. Don't currently,
     # so we just run RetrievalStrategy to the beginning and stop
     try:
@@ -75,7 +80,7 @@ def test_current_state_state_info(isolated_dir, osp_dir, gmao_dir, vlidort_cli):
             r = MusesRunDir(
                 joint_tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix="."
             )
-            rs = RetrievalStrategy(f"{r.run_dir}/Table.asc")
+            rs = RetrievalStrategy(r.run_dir / "Table.asc")
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
             rs.retrieval_ms()

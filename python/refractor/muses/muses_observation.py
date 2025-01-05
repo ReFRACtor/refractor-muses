@@ -792,10 +792,11 @@ class MusesAirsObservation(MusesObservationImp):
         self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
-    def _read_data(cls, filename, granule, xtrack, atrack, filter_list, osp_dir=None):
+    def _read_data(cls, filename : str | Path, granule, xtrack, atrack, filter_list,
+                   osp_dir=None):
         i_fileid = {}
         i_fileid["preferences"] = {
-            "AIRS_filename": os.path.abspath(filename),
+            "AIRS_filename": os.path.abspath(str(filename)),
             "AIRS_XTrack_Index": xtrack,
             "AIRS_ATrack_Index": atrack,
         }
@@ -821,7 +822,7 @@ class MusesAirsObservation(MusesObservationImp):
 
     @classmethod
     def create_from_filename(
-        cls, filename, granule, xtrack, atrack, filter_list, osp_dir=None
+        cls, filename : str | Path, granule, xtrack, atrack, filter_list, osp_dir=None
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -941,7 +942,7 @@ class MusesTesObservation(MusesObservationImp):
     @classmethod
     def _read_data(
         cls,
-        filename,
+        filename : str | Path,
         l1b_index,
         l1b_avgflag,
         run,
@@ -952,7 +953,7 @@ class MusesTesObservation(MusesObservationImp):
     ):
         i_fileid = {}
         i_fileid["preferences"] = {
-            "TES_filename_L1B": os.path.abspath(filename),
+            "TES_filename_L1B": os.path.abspath(str(filename)),
             "TES_filename_L1B_Index": l1b_index,
             "TES_L1B_Average_Flag": l1b_avgflag,
         }
@@ -1142,7 +1143,7 @@ class MusesTesObservation(MusesObservationImp):
     @classmethod
     def create_from_filename(
         cls,
-        filename,
+        filename : str | Path,
         l1b_index,
         l1b_avgflag,
         run,
@@ -1201,7 +1202,7 @@ class MusesTesObservation(MusesObservationImp):
             # Read the data from disk, because it doesn't already exist.
             filter_list = mid.filter_list_dict["TES"]
             filename = mid["TES_filename_L1B"]
-            l1b_index = mid["TES_filename_L1B_Index"]
+            l1b_index = mid["TES_filename_L1B_Index"].split(',')
             l1b_avgflag = int(mid["TES_L1B_Average_Flag"])
             run = int(mid["TES_Run"])
             sequence = int(mid["TES_Sequence"])
@@ -1292,14 +1293,15 @@ class MusesCrisObservation(MusesObservationImp):
         self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
-    def _read_data(cls, filename, granule, xtrack, atrack, pixel_index, osp_dir=None):
+    def _read_data(cls, filename : str | Path, granule, xtrack, atrack, pixel_index,
+                   osp_dir=None):
         i_fileid = {
-            "CRIS_filename": os.path.abspath(filename),
+            "CRIS_filename": os.path.abspath(str(filename)),
             "CRIS_XTrack_Index": xtrack,
             "CRIS_ATrack_Index": atrack,
             "CRIS_Pixel_Index": pixel_index,
         }
-        filename = os.path.abspath(filename)
+        filename = os.path.abspath(str(filename))
         with osp_setup(osp_dir):
             if cls.l1b_type_from_filename(filename) in ("snpp_fsr", "noaa_fsr"):
                 o_cris = mpy.read_noaa_cris_fsr(i_fileid)
@@ -1387,7 +1389,7 @@ class MusesCrisObservation(MusesObservationImp):
 
     @classmethod
     def create_from_filename(
-        cls, filename, granule, xtrack, atrack, pixel_index, osp_dir=None
+        cls, filename : str | Path, granule, xtrack, atrack, pixel_index, osp_dir=None
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -1926,7 +1928,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
     @classmethod
     def create_from_filename(
         cls,
-        filename_dict,
+        filename_dict : 'dict(str, str | Path)',
         xtrack_dict,
         atrack_dict,
         utc_time,
@@ -2120,7 +2122,7 @@ class MusesOmiObservation(MusesObservationReflectance):
     @classmethod
     def _read_data(
         cls,
-        filename,
+        filename : str | Path,
         xtrack_uv1,
         xtrack_uv2,
         atrack,
@@ -2131,7 +2133,7 @@ class MusesOmiObservation(MusesObservationReflectance):
     ):
         with osp_setup(osp_dir):
             o_omi = mpy.read_omi(
-                filename,
+                str(filename),
                 xtrack_uv2,
                 atrack,
                 utc_time,
@@ -2170,7 +2172,7 @@ class MusesOmiObservation(MusesObservationReflectance):
     @classmethod
     def create_from_filename(
         cls,
-        filename,
+        filename : str | Path,
         xtrack_uv1,
         xtrack_uv2,
         atrack,

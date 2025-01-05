@@ -1,12 +1,9 @@
 from functools import cached_property, lru_cache
-from .muses_optical_depth_file import MusesOpticalDepthFile
 from .muses_optical_depth import MusesOpticalDepth
-from .muses_altitude import MusesAltitude
 from .muses_spectrum_sampling import MusesSpectrumSampling
 from .muses_raman import MusesRaman
 from .refractor_uip import RefractorUip
 from .muses_forward_model import RefractorForwardModel
-from .muses_ray_info import MusesRayInfo
 import refractor.framework as rf
 import os
 from pathlib import Path
@@ -133,6 +130,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     @cached_property
     def ray_info(self):
         '''Return MusesRayInfo.'''
+        from refractor.old_py_retrieve_wrapper import MusesRayInfo
         return MusesRayInfo(self.rf_uip_func(self.instrument_name), self.instrument_name, self.pressure)
 
     @property
@@ -360,6 +358,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         pgrid = self.pressure_fm.pressure_grid()
         pgrid_v = self.pressure_fm.pressure_grid().value.value
         if(self.match_py_retrieve):
+            from refractor.old_py_retrieve_wrapper import MusesRayInfo
             rinfo = MusesRayInfo(self.rf_uip_func(self.instrument_name), self.instrument_name, self.pressure_fm)
             ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure.value)
         else:
@@ -413,6 +412,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         '''Uses MUSES O3 optical files, which are precomputed ahead
         of the forward model. They may include a convolution with the ILS.
         '''
+        from refractor.old_py_retrieve_wrapper import MusesOpticalDepthFile
         # TODO Note that MusesOpticalDepthFile reads files that get created
         # in make_uip_tropomi.py. This get read in by functions like
         # get_tropomi_o3xsec_without_ils and then written to file.
@@ -547,6 +547,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
 
     @cached_property
     def altitude_muses(self):
+        from refractor.old_py_retrieve_wrapper import MusesAltitude
         res = []
         for i in range(self.num_channels):
             chan_alt = MusesAltitude(self.ray_info, self.pressure,

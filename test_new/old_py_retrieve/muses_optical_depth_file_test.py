@@ -1,47 +1,18 @@
 import numpy as np
 import numpy.testing as npt
-from refractor.muses import MusesOpticalDepthFile, AbsorberVmrToUip, MusesOpticalDepth
-from refractor.tropomi import TropomiFmObjectCreator
-from test_support import *
+from refractor.muses import AbsorberVmrToUip, MusesOpticalDepth
+from refractor.old_py_retrieve_wrapper import MusesOpticalDepthFile
 import refractor.framework as rf
+import pytest
 
 
-@pytest.fixture(scope="function")
-def tropomi_fm_object_creator_step_2(isolated_dir, osp_dir):
-    """Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
-    in multiple tests"""
-    rs, rstep, _ = set_up_run_to_location(
-        tropomi_test_in_dir, 1, "retrieval input", include_ret_state=False
-    )
-    os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)("TROPOMI")
-    res = TropomiFmObjectCreator(
-        rs.current_state(),
-        rs.measurement_id,
-        rs.observation_handle_set.observation(
-            "TROPOMI",
-            rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict["TROPOMI"],
-            None,
-            osp_dir=osp_dir,
-        ),
-        rf_uip_func=lambda instrument: uip,
-        osp_dir=osp_dir,
-    )
-    # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
-    # just for use in unit tests. We could set up a different way of passing
-    # this one, but shoving into the creator object is the easiest
-    res.rs = rs
-    res.rstep = rstep
-    return res
-
-
-def test_muses_optical_depth_file(tropomi_fm_object_creator_step_2, osp_dir):
-    obj_creator = tropomi_fm_object_creator_step_2
+@pytest.mark.old_py_retrieve_test
+def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1, osp_dir):
+    obj_creator = tropomi_fm_object_creator_step_1
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
-    uip = tropomi_fm_object_creator_step_2.rf_uip_func("TROPOMI")
+    uip = tropomi_fm_object_creator_step_1.rf_uip_func("TROPOMI")
     uip.uip_tropomi["jacobians"] = [
         "O3",
     ]
