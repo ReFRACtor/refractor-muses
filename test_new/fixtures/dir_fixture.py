@@ -56,6 +56,11 @@ def tes_test_in_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def tes_test_expected_dir(test_base_path):
+    return test_base_path / "tes/expected/sounding_1"
+
+
+@pytest.fixture(scope="session")
 def tropomi_band7_test_in_dir(test_base_path):
     return test_base_path / "tropomi_band7/in/sounding_1"
 
@@ -66,8 +71,18 @@ def joint_tropomi_test_in_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def tropomi_test_in_dir3(test_base_path):
+    return test_base_path / "tropomi/in/sounding_3"
+
+
+@pytest.fixture(scope="session")
 def joint_tropomi_test_expected_dir(test_base_path):
     return test_base_path / "cris_tropomi/expected/sounding_1"
+
+
+@pytest.fixture(scope="session")
+def joint_tropomi_test_refractor_expected_dir(test_base_path):
+    return test_base_path / "cris_tropomi/expected/sounding_1_refractor"
 
 
 @pytest.fixture(scope="session")
@@ -78,6 +93,11 @@ def joint_omi_test_in_dir(test_base_path):
 @pytest.fixture(scope="session")
 def joint_omi_test_expected_dir(test_base_path):
     return test_base_path / "airs_omi/expected/sounding_1"
+
+
+@pytest.fixture(scope="session")
+def joint_omi_test_refractor_expected_dir(test_base_path):
+    return test_base_path / "airs_omi/expected/sounding_1_refractor"
 
 
 @pytest.fixture(scope="session")
@@ -93,3 +113,11 @@ def airs_irk_test_expected_dir(test_base_path):
 @pytest.fixture(scope="session")
 def omi_config_dir():
     return Path(os.path.dirname(__file__)).parent.parent / "python/refractor/omi/config"
+
+
+@pytest.fixture(scope="session")
+def end_to_end_run_dir():
+    res = Path(os.path.dirname(__file__)).parent.parent / "end_to_end_run"
+    # Create directory if it isn't already there
+    res.mkdir(parents=True, exist_ok=True)
+    return res

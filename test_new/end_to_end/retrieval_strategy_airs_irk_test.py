@@ -1,0 +1,72 @@
+import pytest
+import subprocess
+from fixtures.compare_run import compare_run
+from loguru import logger
+from refractor.muses import (
+    RetrievalStrategyCaptureObserver,
+    RetrievalStrategy,
+    MusesRunDir,
+)
+
+# Use refractor forward model, or use py-retrieve.
+# Note that there is a separate set of expected results for a refractor run.
+# run_refractor = False
+run_refractor = True
+
+# Can use the older py_retrieve matching objects
+match_py_retrieve = False
+# match_py_retrieve = True
+
+
+@pytest.mark.long_test
+def test_retrieval_strategy_airs_irk(
+    osp_dir,
+    gmao_dir,
+    vlidort_cli,
+    python_fp_logger,
+    end_to_end_run_dir,
+    airs_irk_test_in_dir,
+    airs_irk_test_expected_dir,
+):
+    """Full run, that we can compare the output files. This is not
+    really a unit test, but for convenience we have it here.
+
+    Note that a "failure" in the comparison might not actually
+    indicate a problem, just that the output changed. You may need to
+    look into detail and decide that the run was successful and we
+    just want to update the expected results.
+
+    Data goes in the local directory, rather than an isolated one. We
+    can change this in the future if desired, but for now it is useful
+    to be able to look into the directory if some kind of a problem
+    arises.
+
+    This is a version 8 IRK ocean retrieval.
+
+    """
+    dir = end_to_end_run_dir / "retrieval_strategy_airs_irk"
+    subprocess.run(["rm", "-r", str(dir)])
+    r = MusesRunDir(
+        airs_irk_test_in_dir,
+        osp_dir,
+        gmao_dir,
+        path_prefix=dir,
+    )
+    rs = RetrievalStrategy(r.run_dir / "Table.asc", vlidort_cli=vlidort_cli)
+    try:
+        lognum = logger.add(dir / "retrieve.log")
+        # Grab each step so we can separately test output
+        rscap = RetrievalStrategyCaptureObserver(
+            "retrieval_strategy_retrieval_step", "starting run_step"
+        )
+        rs.add_observer(rscap)
+        rscap2 = RetrievalStrategyCaptureObserver(
+            "retrieval_result", "systematic_jacobian"
+        )
+        rs.add_observer(rscap2)
+        compare_dir = airs_irk_test_expected_dir
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
+    diff_is_error = True
+    compare_run(compare_dir, dir, diff_is_error=diff_is_error)
