@@ -1,4 +1,55 @@
+import warnings
+from loguru import logger
 import pytest
+import os
+import re
+
+# ------------------------------------------
+# Set up to warnings go to the logger
+# ------------------------------------------
+showwarning_ = warnings.showwarning
+
+
+def showwarning(message, *args, **kwargs):
+    # Swig has numerous warning messages that we can't do anything about.
+    # There is a ticket for this (see https://github.com/swig/swig/issues/2881), and
+    # this might get fixed in swig 4.4. But for now at least, these are present. Strip
+    # these out, we can't do anything about these warnings and don't want to see them.
+    if not re.search(r"has no __module__ attribute", str(message)):
+        logger.warning(message)
+    # showwarning_(message, *args, **kwargs)
+
+
+warnings.showwarning = showwarning
+
+# ------------------------------------------
+# Various markers we use throughout the tests
+# ------------------------------------------
+
+# Short hand for marking as unconditional skipping. Good for tests we
+# don't normally run, but might want to comment out for a specific debugging
+# reason.
+skip = pytest.mark.skip
+
+# Marker for long tests. Only run with --run-long
+long_test = pytest.mark.long_test
+
+# Marker for capture tests. Only run with --run-capture
+capture_test = pytest.mark.capture_test
+
+# Marker for initial capture tests. Only run with --run-initial-capture
+capture_initial_test = pytest.mark.capture_initial_test
+
+# ------------------------------------------
+# Fake creation date used in muses-py file creation, to make comparing
+# easier since we don't get differences that are just the time of creation
+# ------------------------------------------
+
+os.environ["MUSES_FAKE_CREATION_DATE"] = "FAKE_DATE"
+
+# ------------------------------------------
+# Based on markers, we skip tests
+# ------------------------------------------
 
 
 def pytest_addoption(parser):
@@ -47,3 +98,14 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "capture_initial_test" in item.keywords:
                 item.add_marker(skip_capture_initial_test)
+
+
+# ------------------------------------------
+# Includes fixtures, made available to all tests.
+# ------------------------------------------
+
+pytest_plugins = [
+    "fixtures.dir_fixture",
+    "fixtures.misc_fixture",
+    "fixtures.retrieval_step_fixture",
+]

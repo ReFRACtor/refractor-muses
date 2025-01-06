@@ -1,7 +1,7 @@
 import os
 import pytest
 from refractor.muses import MusesRunDir, RetrievalStrategy
-from refractor.tropomi import TropomiFmObjectCreator
+from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
 from pathlib import Path
 
@@ -112,6 +112,36 @@ def joint_tropomi_step_12(
 
 
 @pytest.fixture(scope="function")
+def joint_tropomi_step_12_output(
+    isolated_dir,
+    joint_tropomi_test_in_dir,
+    osp_dir,
+    gmao_dir,
+    vlidort_cli,
+):
+    rs, rstep, kwargs = set_up_run_to_location(
+        joint_tropomi_test_in_dir, 12, "retrieval step", osp_dir, gmao_dir, vlidort_cli
+    )
+    os.chdir(rs.run_dir)
+    return rs, rstep, kwargs
+
+
+@pytest.fixture(scope="function")
+def airs_irk_step_6(
+    isolated_dir,
+    airs_irk_test_in_dir,
+    osp_dir,
+    gmao_dir,
+    vlidort_cli,
+):
+    rs, rstep, kwargs = set_up_run_to_location(
+        airs_irk_test_in_dir, 6, "IRK step", osp_dir, gmao_dir, vlidort_cli
+    )
+    os.chdir(rs.run_dir)
+    return rs, rstep, kwargs
+
+
+@pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_0(
     isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_test_in_dir
 ):
@@ -139,6 +169,44 @@ def tropomi_fm_object_creator_step_0(
         ),
         rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
+    )
+    # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
+    # just for use in unit tests. We could set up a different way of passing
+    # this one, but shoving into the creator object is the easiest
+    res.rs = rs
+    res.rstep = rstep
+    return res
+
+
+@pytest.fixture(scope="function")
+def tropomi_fm_object_creator_swir_step(
+    isolated_dir, josh_osp_dir, gmao_dir, vlidort_cli, tropomi_band7_test_in_dir
+):
+    """Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
+    in multiple tests"""
+    # Note this example is pretty hokey, and we don't even complete the first step. So
+    # skip the ret_info stuff
+    rs, rstep, _ = set_up_run_to_location(
+        tropomi_band7_test_in_dir,
+        0,
+        "retrieval input",
+        josh_osp_dir,
+        gmao_dir,
+        vlidort_cli,
+        include_ret_state=False,
+    )
+    res = TropomiSwirFmObjectCreator(
+        rs.current_state(),
+        rs.measurement_id,
+        rs.observation_handle_set.observation(
+            "TROPOMI",
+            rs.current_state(),
+            rs.current_strategy_step.spectral_window_dict["TROPOMI"],
+            None,
+            osp_dir=josh_osp_dir,
+        ),
+        rf_uip_func=rs.strategy_executor.rf_uip_func_cost_function(False, None),
+        osp_dir=josh_osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
     # just for use in unit tests. We could set up a different way of passing

@@ -1,36 +1,7 @@
 import numpy as np
 import numpy.testing as npt
-from test_support import *
 import refractor.framework as rf
-from refractor.tropomi import TropomiSwirFmObjectCreator
-
-
-@pytest.fixture(scope="function")
-def tropomi_fm_object_creator_swir_step(isolated_dir, josh_osp_dir):
-    """Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
-    in multiple tests"""
-    rs, rstep, _ = set_up_run_to_location(
-        tropomi_band7_test_in_dir, 0, "retrieval input", include_ret_state=False
-    )
-    res = TropomiSwirFmObjectCreator(
-        rs.current_state(),
-        rs.measurement_id,
-        rs.observation_handle_set.observation(
-            "TROPOMI",
-            rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict["TROPOMI"],
-            None,
-            osp_dir=josh_osp_dir,
-        ),
-        rf_uip_func=rs.strategy_executor.rf_uip_func_cost_function(False, None),
-        osp_dir=josh_osp_dir,
-    )
-    # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
-    # just for use in unit tests. We could set up a different way of passing
-    # this one, but shoving into the creator object is the easiest
-    res.rs = rs
-    res.rstep = rstep
-    return res
+import pytest
 
 
 def test_ground_albedo(tropomi_fm_object_creator_swir_step):
@@ -97,7 +68,7 @@ def test_vmr(tropomi_fm_object_creator_swir_step):
 
 
 # Doesn't currently work, I think a spectral window is missing here
-@skip
+@pytest.mark.skip
 def test_ils_simple(
     tropomi_fm_object_creator_swir_step, tropomi_band7_simple_ils_test_data
 ):

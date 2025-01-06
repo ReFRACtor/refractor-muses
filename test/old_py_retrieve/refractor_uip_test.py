@@ -1,25 +1,11 @@
-from test_support import *
-from test_support.old_py_retrieve_test_support import *
 from refractor.muses import RefractorUip
 import subprocess
 import pprint
+import pytest
+import numpy.testing as npt
 
 
-def load_muses_retrieval_step(
-    dir_in, step_number=1, osp_dir=None, gmao_dir=None, change_to_dir=True
-):
-    """This reads parameters that can be use to call the py-retrieve function
-    run_retrieval. See muses_capture in refractor-muses for collecting this.
-    """
-    return MusesRetrievalStep.load_retrieval_step(
-        f"{dir_in}/run_retrieval_step_{step_number}.pkl",
-        osp_dir=osp_dir,
-        gmao_dir=gmao_dir,
-        change_to_dir=change_to_dir,
-    )
-
-
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_refractor_omi_uip(omi_uip_step_2):
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
@@ -40,7 +26,7 @@ def test_refractor_omi_uip(omi_uip_step_2):
     print(omi_uip_step_2.solar_irradiance(filter_name, "OMI"))
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_refractor_tropomi_uip(tropomi_uip_step_2):
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
@@ -63,7 +49,7 @@ def test_refractor_tropomi_uip(tropomi_uip_step_2):
     print(tropomi_uip_step_2.ray_info("TROPOMI"))
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_species_basis(tropomi_uip_step_2):
     npt.assert_allclose(
         tropomi_uip_step_2.species_basis_matrix("O3"),
@@ -71,13 +57,11 @@ def test_species_basis(tropomi_uip_step_2):
     )
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_refractor_joint_tropomi_create_uip(
-    isolated_dir, osp_dir, gmao_dir, joint_tropomi_uip_step_12
+    joint_tropomi_muses_retrieval_step_12, joint_tropomi_uip_step_12
 ):
-    rstep = load_muses_retrieval_step(
-        joint_tropomi_test_in_dir, step_number=12, osp_dir=osp_dir, gmao_dir=gmao_dir
-    )
+    rstep = joint_tropomi_muses_retrieval_step_12
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
@@ -115,13 +99,12 @@ def test_refractor_joint_tropomi_create_uip(
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"], check=True)
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_refractor_tropomi_create_uip(
-    isolated_dir, osp_dir, gmao_dir, tropomi_uip_step_2
+    tropomi_muses_retrieval_step_2,
+    tropomi_uip_step_2,
 ):
-    rstep = load_muses_retrieval_step(
-        tropomi_test_in_dir, step_number=2, osp_dir=osp_dir, gmao_dir=gmao_dir
-    )
+    rstep = tropomi_muses_retrieval_step_2
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
@@ -157,13 +140,11 @@ def test_refractor_tropomi_create_uip(
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"], check=True)
 
 
-@old_py_retrieve_test
+@pytest.mark.old_py_retrieve_test
 def test_refractor_joint_omi_create_uip(
-    isolated_dir, osp_dir, gmao_dir, joint_omi_uip_step_8
+    joint_omi_muses_retrieval_step_8, joint_omi_uip_step_8
 ):
-    rstep = load_muses_retrieval_step(
-        joint_omi_test_in_dir, step_number=8, osp_dir=osp_dir, gmao_dir=gmao_dir
-    )
+    rstep = joint_omi_muses_retrieval_step_8
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
@@ -201,11 +182,9 @@ def test_refractor_joint_omi_create_uip(
     subprocess.run(["diff", "-u", "original_uip.txt", "our_uip.txt"], check=True)
 
 
-@old_py_retrieve_test
-def test_refractor_omi_create_uip(isolated_dir, osp_dir, gmao_dir, omi_uip_step_2):
-    rstep = load_muses_retrieval_step(
-        omi_test_in_dir, step_number=2, osp_dir=osp_dir, gmao_dir=gmao_dir
-    )
+@pytest.mark.old_py_retrieve_test
+def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2):
+    rstep = omi_muses_retrieval_step_2
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]

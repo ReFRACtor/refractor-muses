@@ -29,6 +29,20 @@ def osp_dir():
     return Path(osp_path)
 
 
+@pytest.fixture(scope="function")
+def josh_osp_dir():
+    """Location of Josh's newer OSP directory. Eventually stuff will get merged into
+    the real OSP directory, but for now keep this separate"""
+    osp_path = os.environ.get(
+        "MUSES_JOSH_OSP_PATH", "/tb/sandbox17/laughner/OSP-mine/OSP"
+    )
+    if osp_path is None or not os.path.exists(osp_path):
+        raise pytest.skip(
+            "test requires Josh's OSP directory set by through the MUSES_JOSH_OSP_PATH environment variable"
+        )
+    return Path(osp_path)
+
+
 @pytest.fixture(scope="session")
 def gmao_dir():
     """Location of GAMO directory."""
