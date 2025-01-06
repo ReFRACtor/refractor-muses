@@ -1,20 +1,25 @@
 from functools import cached_property
 import numpy as np
 from refractor.tropomi import TropomiFmObjectCreator
-from test_support import *
 import refractor.framework as rf
 from refractor.muses import (
-    RetrievalStrategy,
-    MusesRunDir,
-    RetrievalStrategyCaptureObserver,
+    CurrentState,
+    CurrentStrategyStep,
     ForwardModelHandle,
-    SingleSpeciesHandle,
+    MeasurementId,
+    MusesObservation,
+    MusesRunDir,
     RetrievableStateElement,
-    StateInfo,
     RetrievalInfo,
+    RetrievalConfiguration,
+    RetrievalStrategy,
+    RetrievalStrategyCaptureObserver,
+    SingleSpeciesHandle,
+    StateInfo,
 )
 import subprocess
 from loguru import logger
+import pytest
 
 
 class O3ScaledStateElement(RetrievableStateElement):
@@ -73,7 +78,7 @@ class O3ScaledStateElement(RetrievableStateElement):
         retrieval_info: RetrievalInfo,
         results_list: np.array,
         update_next: bool,
-        retrieval_config: "RetrievalConfiguration",
+        retrieval_config: RetrievalConfiguration,
         step: int,
         do_update_fm: np.array,
     ):
@@ -83,7 +88,7 @@ class O3ScaledStateElement(RetrievableStateElement):
             self.state_info.next_state[self.name] = self.clone_for_other_state()
         self._value = results_list[retrieval_info.species_list == self._name]
 
-    def update_initial_guess(self, current_strategy_step: "CurrentStrategyStep"):
+    def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"
         self.pressureList = np.full((1,), -2.0)
         self.altitudeList = np.full((1,), -2.0)
@@ -143,15 +148,15 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         self.creator_kwargs = creator_kwargs
         self.measurement_id = None
 
-    def notify_update_target(self, measurement_id: "MeasurementId"):
+    def notify_update_target(self, measurement_id: MeasurementId):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         self.measurement_id = measurement_id
 
     def forward_model(
         self,
         instrument_name: str,
-        current_state: "CurrentState",
-        obs: "MusesObservation",
+        current_state: CurrentState,
+        obs: MusesObservation,
         fm_sv: rf.StateVector,
         rf_uip_func,
         **kwargs,
@@ -171,41 +176,49 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         return fm
 
 
-@long_test
-def test_tropomi_vrm_scaled(osp_dir, gmao_dir, vlidort_cli):
+@pytest.mark.long_test
+def test_tropomi_vrm_scaled(
+    osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir, tropomi_test_in_dir
+):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
 
     Data goes in the local directory, rather than an isolated one."""
-    subprocess.run("rm -r tropomi_vmr_scaled", shell=True)
-    r = MusesRunDir(
-        tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix="tropomi_vmr_scaled"
-    )
-    lognum = logger.add("tropomi_vmr_scaled/retrieve.log")
-    # Modify the Table.asc to add a EOF element. This is just a short cut,
+    dir = end_to_end_run_dir / "tropomi_vmr_scaled"
+    subprocess.run(["rm", "-r", str(dir)])
+    r = MusesRunDir(tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir)
+    # Modify the Table.asc to add a scaled element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
-    subprocess.run(f'sed -i -e "s/O3,/O3_SCALED,/" {r.run_dir}/Table.asc', shell=True)
+    subprocess.run(
+        f'sed -i -e "s/O3,/O3_SCALED,/" {str(r.run_dir / "Table.asc")}', shell=True
+    )
     # For faster turn around time, set number of iterations to 1. We can test
     # everything, even though the final residual will be pretty high
-    subprocess.run(f'sed -i -e "s/15/1 /" {r.run_dir}/Table.asc', shell=True)
+    subprocess.run(f'sed -i -e "s/15/1 /" {str(r.run_dir / "Table.asc")}', shell=True)
 
     rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
-    # Save data so we can work on getting output in isolation
-    rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
-    rs.add_observer(rscap)
-    ihandle = ScaledTropomiForwardModelHandle(
-        use_pca=False, use_lrad=False, lrad_second_order=False
-    )
-    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.state_element_handle_set.add_handle(
-        SingleSpeciesHandle(
-            "O3_SCALED", O3ScaledStateElement, pass_state=False, name="O3_SCALED"
+    try:
+        lognum = logger.add("tropomi_vmr_scaled/retrieve.log")
+        # Save data so we can work on getting output in isolation
+        rscap = RetrievalStrategyCaptureObserver(
+            "retrieval_strategy_retrieval_step", "starting run_step"
         )
-    )
-    rs.update_target(f"{r.run_dir}/Table.asc")
-    rs.retrieval_ms()
+        rs.add_observer(rscap)
+        ihandle = ScaledTropomiForwardModelHandle(
+            use_pca=False, use_lrad=False, lrad_second_order=False
+        )
+        rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+        rs.state_element_handle_set.add_handle(
+            SingleSpeciesHandle(
+                "O3_SCALED", O3ScaledStateElement, pass_state=False, name="O3_SCALED"
+            )
+        )
+        rs.update_target(r.run_dir / "Table.asc")
+        rs.retrieval_ms()
+    finally:
+        logger.remove(lognum)
     if True:
         # The L2-O3 product doesn't get generated, since "O3-SCALED" isn't the "O3"
         # looked for in the code. Fixing this looks a bit involved, and we really should
@@ -214,4 +227,3 @@ def test_tropomi_vrm_scaled(osp_dir, gmao_dir, vlidort_cli):
         # Print out output of EOF, just so we have something to see
         # subprocess.run("h5dump -d OMI_EOF_UV1 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
         # subprocess.run("h5dump -d OMI_EOF_UV2 -A 0 omi_eof/20160414_23_394_11_23/Products/Products_L2-O3-0.nc", shell=True)
-    logger.remove(lognum)

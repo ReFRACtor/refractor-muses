@@ -85,6 +85,31 @@ def tropomi_band7_test_in_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def tropomi_band7_test_in_dir2(test_base_path):
+    return test_base_path / "tropomi_band7/in/sounding_2"
+
+
+@pytest.fixture(scope="session")
+def tropomi_band7_test_in_state_dir2(test_base_path):
+    return test_base_path / "tropomi_band7/in/sounding_2_state"
+
+
+@pytest.fixture(scope="session")
+def tropomi_band7_test_expected_results_dir(test_base_path):
+    return test_base_path / "tropomi_band7/expected"
+
+
+@pytest.fixture(scope="session")
+def tropomi_band7_swir_step_test_in_dir(test_base_path):
+    return test_base_path / "tropomi_band7/in/sounding_one_step"
+
+
+@pytest.fixture(scope="session")
+def tropomi_band7_sim_alb_dir(test_base_path):
+    return test_base_path / "tropomi_band7/in/synth_alb_0_9"
+
+
+@pytest.fixture(scope="session")
 def joint_tropomi_test_in_dir(test_base_path):
     return test_base_path / "cris_tropomi/in/sounding_1"
 

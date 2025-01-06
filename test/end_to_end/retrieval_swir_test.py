@@ -1,41 +1,31 @@
-from test_support import *
 from refractor.muses import (
-    MusesRunDir,
-    RetrievalStrategy,
-    RetrievableStateElement,
+    CurrentState,
+    CurrentStrategyStep,
     ForwardModelHandle,
-    SingleSpeciesHandle,
+    MeasurementId,
+    MusesObservation,
+    MusesRunDir,
+    RetrievableStateElement,
+    RetrievalConfiguration,
+    RetrievalInfo,
+    RetrievalStrategy,
     SimulatedObservation,
     SimulatedObservationHandle,
+    SingleSpeciesHandle,
     StateInfo,
-    RetrievalInfo,
 )
 from refractor.tropomi import TropomiSwirForwardModelHandle, TropomiSwirFmObjectCreator
 import refractor.framework as rf
 from functools import cached_property
 import subprocess
 import copy
+import pickle
 from loguru import logger
+import numpy as np
+import pytest
 
 
-# Probably move this into test_support later, but for now keep here until
-# we have everything worked out
-@pytest.fixture(scope="function")
-def tropomi_swir(isolated_dir, gmao_dir, josh_osp_dir):
-    r = MusesRunDir(tropomi_band7_test_in_dir2, josh_osp_dir, gmao_dir)
-    return r
-
-
-@pytest.fixture(scope="function")
-def tropomi_co_step(tropomi_swir):
-    subprocess.run(
-        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {tropomi_swir.run_dir}/Table.asc',
-        shell=True,
-    )
-    return tropomi_swir
-
-
-@long_test
+@pytest.mark.long_test
 def test_retrieval(tropomi_co_step, josh_osp_dir):
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
     # Grab each step so we can separately test output
@@ -83,7 +73,7 @@ class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
 
 
 # Look just at the forward model
-@long_test
+@pytest.mark.long_test
 def test_co_fm(tropomi_co_step, josh_osp_dir):
     """Look just at the forward model"""
     # This is slightly convoluted, but we want to make sure we have the cost
@@ -98,7 +88,7 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
         # absorption_gases=["CO",]
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(f"{tropomi_co_step.run_dir}/Table.asc")
+    rs.update_target(tropomi_co_step.run_dir / "Table.asc")
     cfcap = CostFunctionCapture()
     rs.add_observer(cfcap)
     try:
@@ -108,11 +98,9 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
     cfunc = cfcap.cost_function
     # Save in case we want to access directly
     pickle.dump(cfunc, open("cfunc.pkl", "wb"))
-    fm_sv = cfunc.fm_sv
     fm = cfunc.fm_list[0]
     pspec = PrintSpectrum()
     fm.underlying_forward_model.add_observer(pspec)
-    obs = cfunc.obs_list[0]
     # spec = fm.radiance_all()
     p = cfunc.parameters
     print("p: ", p)
@@ -172,12 +160,6 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
             for wn in hresgrid_wn
         ]
     )
-    tod2 = np.vstack(
-        [
-            atmosphere.optical_properties(wn, 0).total_optical_depth().value
-            for wn in hresgrid_wn
-        ]
-    )
     print("od-od2: ", np.abs(od - od2)[:, :, 1].max())
 
     # Make a big change
@@ -208,18 +190,21 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
     # print((residual2-residual)[:112])
 
 
-@long_test
-def test_simulated_retrieval(gmao_dir, josh_osp_dir):
+@pytest.mark.long_test
+def test_simulated_retrieval(
+    gmao_dir, josh_osp_dir, end_to_end_run_dir, tropomi_band7_test_in_dir2
+):
     """Do a simulation, and then a retrieval to get this result"""
-    subprocess.run("rm -f -r swir_simulation", shell=True)
+    dir = end_to_end_run_dir / "swir_simulation"
+    subprocess.run(["rm", "-r", str(dir)])
     mrdir = MusesRunDir(
         tropomi_band7_test_in_dir2,
         josh_osp_dir,
         gmao_dir,
-        path_prefix="./swir_simulation",
+        path_prefix=dir,
     )
     subprocess.run(
-        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {mrdir.run_dir}/Table.asc',
+        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {str(mrdir.run_dir / "Table.asc")}',
         shell=True,
     )
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
@@ -227,14 +212,14 @@ def test_simulated_retrieval(gmao_dir, josh_osp_dir):
         use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(f"{mrdir.run_dir}/Table.asc")
+    rs.update_target(mrdir.run_dir / "Table.asc")
 
     # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
     # do the first retrieval step). We then grab the CostFunction for that step,
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
     cfunc = rs.strategy_executor.create_cost_function()
-    pickle.dump(cfunc, open("swir_simulation/cfunc_initial_guess.pkl", "wb"))
+    pickle.dump(cfunc, open(dir / "cfunc_initial_guess.pkl", "wb"))
 
     # Get the log vmr values set in the state vector. This is the initial guess.
     # For purposes of a simulation, we will say the "right" answer is to reduce the
@@ -251,35 +236,42 @@ def test_simulated_retrieval(gmao_dir, josh_osp_dir):
         cfunc.fm_list[0].radiance(0, True).spectral_range.data,
     ]
     obs_sim = SimulatedObservation(cfunc.obs_list[0], rad_true)
-    pickle.dump(obs_sim, open("swir_simulation/obs_sim.pkl", "wb"))
+    pickle.dump(obs_sim, open(dir / "obs_sim.pkl", "wb"))
 
     # Have simulated observation, and do retrieval
     ohandle = SimulatedObservationHandle(
-        "TROPOMI", pickle.load(open("swir_simulation/obs_sim.pkl", "rb"))
+        "TROPOMI", pickle.load(open(dir / "obs_sim.pkl", "rb"))
     )
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
-    rs.update_target(f"{mrdir.run_dir}/Table.asc")
+    rs.update_target(mrdir.run_dir / "Table.asc")
     rs.retrieval_ms()
 
 
-@long_test
-def test_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
+@pytest.mark.long_test
+def test_sim_albedo_0_9_retrieval(
+    gmao_dir,
+    josh_osp_dir,
+    python_fp_logger,
+    end_to_end_run_dir,
+    tropomi_band7_sim_alb_dir,
+):
     """Use simulated data Josh generated"""
-    subprocess.run("rm -f -r synth_alb_0_9", shell=True)
+    dir = end_to_end_run_dir / "synth_alb_0_9"
+    subprocess.run(["rm", "-r", str(dir)])
     mrdir = MusesRunDir(
-        f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
+        tropomi_band7_sim_alb_dir,
         josh_osp_dir,
         gmao_dir,
-        path_prefix="./synth_alb_0_9",
+        path_prefix=dir,
     )
     try:
-        lognum = logger.add("synth_alb_0_9/retrieve.log")
+        lognum = logger.add(dir / "retrieve.log")
         rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
         ihandle = TropomiSwirForwardModelHandle(
             use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
         )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-        rs.update_target(f"{mrdir.run_dir}/Table.asc")
+        rs.update_target(mrdir.run_dir / "Table.asc")
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)
@@ -338,7 +330,7 @@ class ScaledStateElement(RetrievableStateElement):
         retrieval_info: RetrievalInfo,
         results_list: np.array,
         update_next: bool,
-        retrieval_config: "RetrievalConfiguration",
+        retrieval_config: RetrievalConfiguration,
         step: int,
         do_update_fm: np.array,
     ):
@@ -348,7 +340,7 @@ class ScaledStateElement(RetrievableStateElement):
             self.state_info.next_state[self.name] = self.clone_for_other_state()
         self._value = results_list[retrieval_info.species_list == self._name]
 
-    def update_initial_guess(self, current_strategy_step: "CurrentStrategyStep"):
+    def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"
         self.pressureList = np.full((1,), -2.0)
         self.altitudeList = np.full((1,), -2.0)
@@ -411,15 +403,15 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         self.creator_kwargs = creator_kwargs
         self.measurement_id = None
 
-    def notify_update_target(self, measurement_id: "MeasurementId"):
+    def notify_update_target(self, measurement_id: MeasurementId):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         self.measurement_id = measurement_id
 
     def forward_model(
         self,
         instrument_name: str,
-        current_state: "CurrentState",
-        obs: "MusesObservation",
+        current_state: CurrentState,
+        obs: MusesObservation,
         fm_sv: rf.StateVector,
         rf_uip_func,
         **kwargs,
@@ -439,28 +431,38 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         return fm
 
 
-@long_test
-def test_scaled_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logger):
+@pytest.mark.long_test
+def test_scaled_sim_albedo_0_9_retrieval(
+    gmao_dir,
+    josh_osp_dir,
+    python_fp_logger,
+    end_to_end_run_dir,
+    tropomi_band7_sim_alb_dir,
+):
     """Use simulated data Josh generated"""
-    subprocess.run("rm -f -r synth_alb_0_9_scaled", shell=True)
+    dir = end_to_end_run_dir / "synth_alb_0_9_scaled"
+    subprocess.run(["rm", "-r", str(dir)])
     mrdir = MusesRunDir(
-        f"{test_base_path}/tropomi_band7/in/synth_alb_0_9",
+        tropomi_band7_sim_alb_dir,
         josh_osp_dir,
         gmao_dir,
-        path_prefix="./synth_alb_0_9_scaled",
+        path_prefix=dir,
     )
     # Change table to use scaled versions
     subprocess.run(
-        f'sed -i -e "s/H2O,/H2O_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True
+        f'sed -i -e "s/H2O,/H2O_SCALED,/" {str(mrdir.run_dir / "Table.asc")}',
+        shell=True,
     )
     subprocess.run(
-        f'sed -i -e "s/CH4,/CH4_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True
+        f'sed -i -e "s/CH4,/CH4_SCALED,/" {str(mrdir.run_dir / "Table.asc")}',
+        shell=True,
     )
     subprocess.run(
-        f'sed -i -e "s/HDO,/HDO_SCALED,/" {mrdir.run_dir}/Table.asc', shell=True
+        f'sed -i -e "s/HDO,/HDO_SCALED,/" {str(mrdir.run_dir / "Table.asc")}',
+        shell=True,
     )
     try:
-        lognum = logger.add("synth_alb_0_9/retrieve.log")
+        lognum = logger.add(dir / "retrieve.log")
         rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
         ihandle = ScaledTropomiForwardModelHandle(
             use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
@@ -481,7 +483,7 @@ def test_scaled_sim_albedo_0_9_retrieval(gmao_dir, josh_osp_dir, python_fp_logge
                 "HDO_SCALED", ScaledStateElement, pass_state=False, name="HDO_SCALED"
             )
         )
-        rs.update_target(f"{mrdir.run_dir}/Table.asc")
+        rs.update_target(mrdir.run_dir / "Table.asc")
         rs.retrieval_ms()
     finally:
         logger.remove(lognum)
