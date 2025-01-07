@@ -36,7 +36,7 @@ class TesFile(collections.abc.Mapping):
         for now it is useful to test that we implement the reading
         correctly.
         """
-        self.file_name = fname
+        self.file_name = Path(fname)
         if use_mpy:
             _, d = mpy.read_all_tes(str(fname))
             self.mpy_d = d
@@ -108,7 +108,7 @@ class TesFile(collections.abc.Mapping):
         """
         return [int(i) for i in self["Data_Size"].split("x")]
 
-    def __getitem__(self, ky : str):
+    def __getitem__(self, ky: str):
         return self._d[ky]
 
     def __len__(self):
