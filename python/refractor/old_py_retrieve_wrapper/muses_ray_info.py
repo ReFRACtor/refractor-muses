@@ -1,3 +1,4 @@
+from __future__ import annotations
 from refractor.muses import RefractorUip
 import refractor.framework as rf
 import numpy as np
@@ -28,7 +29,7 @@ class MusesRayInfo:
         self,
         rf_uip: RefractorUip,
         instrument_name: str,
-        pressure: "rf.Pressure",
+        pressure: rf.Pressure,
         set_pointing_angle_zero=True,
     ):
         """Constructor.

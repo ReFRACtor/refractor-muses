@@ -128,7 +128,9 @@ def test_muses_spectral_window_microwindows(osp_dir):
     swin_dict = MusesSpectralWindow.create_dict_from_file(
         spec_fname, filter_metadata=fmeta
     )
-    assert str(spec_fname) == MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+    assert str(
+        spec_fname
+    ) == MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
         viewing_mode,
         spectral_dir,
         retrieval_elements,

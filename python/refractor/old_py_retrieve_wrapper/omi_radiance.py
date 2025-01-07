@@ -1,9 +1,6 @@
+from __future__ import annotations
 import refractor.framework as rf
 import numpy as np
-
-# The "!= True" syntax is actually correct, although it looks wrong to
-# ruff. Turn this rule off so we pass
-# ruff: noqa: E712
 
 
 class OmiRadiance(rf.ObservationSvImpBase):

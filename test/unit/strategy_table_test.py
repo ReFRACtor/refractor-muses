@@ -36,11 +36,11 @@ class EofStateElement(RetrievableStateElement):
         self,
         state_info: StateInfo,
         retrieval_info: RetrievalInfo,
-        results_list: np.array,
+        results_list: np.ndarray,
         update_next: bool,
         retrieval_config: RetrievalConfiguration,
         step: int,
-        do_update_fm: np.array,
+        do_update_fm: np.ndarray,
     ):
         self._value = results_list[retrieval_info.species_list == self._name]
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 import refractor.framework as rf
 from .muses_ray_info import MusesRayInfo

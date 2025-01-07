@@ -1,3 +1,4 @@
+from __future__ import annotations
 import refractor.muses.muses_py as mpy
 import collections.abc
 import re

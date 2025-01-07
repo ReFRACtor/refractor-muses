@@ -1,9 +1,9 @@
+from __future__ import annotations
 from . import muses_py as mpy
 from .refractor_capture_directory import muses_py_call
 from .tes_file import TesFile
 import shutil
 from loguru import logger
-import os
 import subprocess
 from pathlib import Path
 
@@ -19,10 +19,10 @@ class MusesRunDir:
 
     def __init__(
         self,
-        refractor_sounding_dir,
-        osp_dir,
-        gmao_dir,
-        path_prefix=".",
+        refractor_sounding_dir: str | Path,
+        osp_dir: str | Path,
+        gmao_dir: str | Path,
+        path_prefix: str | Path = ".",
         skip_sym_link=False,
     ):
         """Set up a run directory in the given path_prefix with the
@@ -37,8 +37,8 @@ class MusesRunDir:
         self.run_dir = path_prefix / f"{sid}"
         subprocess.run(["mkdir", "-p", str(self.run_dir)])
         if not skip_sym_link:
-            os.symlink(osp_dir, path_prefix / "OSP")
-            os.symlink(gmao_dir, path_prefix / "GMAO")
+            (path_prefix / "OSP").symlink_to(osp_dir)
+            (path_prefix / "GMAO").symlink_to(gmao_dir)
         for f in ("Table", "DateTime"):
             shutil.copy(refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc")
         for f in ("PRECONV_2STOKES", "rayTable-NADIR", "observationTable-NADIR"):
@@ -88,7 +88,7 @@ class MusesRunDir:
 
     def run_retrieval(
         self,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
+        vlidort_cli: str | Path = "~/muses/muses-vlidort/build/release/vlidort_cli",
         debug=False,
         plots=False,
     ):
@@ -100,7 +100,12 @@ class MusesRunDir:
             from py_retrieve.cli import cli
 
             try:
-                arg = ["--targets", str(self.run_dir), "--vlidort-cli", vlidort_cli]
+                arg = [
+                    "--targets",
+                    str(self.run_dir),
+                    "--vlidort-cli",
+                    str(vlidort_cli),
+                ]
                 if debug:
                     arg.append("--debug")
                 if plots:
@@ -116,7 +121,9 @@ class MusesRunDir:
                     )
 
     @classmethod
-    def save_run_directory(cls, amuse_me_run_dir, refractor_sounding_dir):
+    def save_run_directory(
+        cls, amuse_me_run_dir: str | Path, refractor_sounding_dir: str | Path
+    ):
         """Copy data from the amuse_me run directory (e.g.,
         ~/muses/refractor-muses/muses_capture/output/omi/2016-04-14/setup-targets/Global_Survey/20160414_23_394_11_23) to a sounding save directory
         (e.g., ~/muses/refractor_test_data/omi/sounding_1).

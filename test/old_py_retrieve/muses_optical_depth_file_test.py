@@ -1,9 +1,35 @@
 import numpy as np
 import numpy.testing as npt
-from refractor.muses import AbsorberVmrToUip, MusesOpticalDepth
+from refractor.muses import MusesOpticalDepth
 from refractor.old_py_retrieve_wrapper import MusesOpticalDepthFile
 import refractor.framework as rf
 import pytest
+
+
+class AbsorberVmrToUip(rf.CacheInvalidatedObserver):
+    def __init__(self, rf_uip, pressure, absorber_vmr, species_name):
+        super().__init__()
+        self.rf_uip = rf_uip
+        self.pressure = pressure
+        self.absorber_vmr = absorber_vmr
+        self.species_name = species_name
+        self.absorber_vmr.add_cache_invalidated_observer(self)
+        # Make sure data is synchronized initially
+        self.invalidate_cache()
+
+    def invalidate_cache(self):
+        """Called with self.absorber_vmr changes"""
+        # Get the VMR, and put into the right place in the UIP.
+        # Note that the UIP always has just the VMR, so even if absorber_vmr
+        # uses a state vector of log(vmr) or something like that we want
+        # the UIP to have the VMR.
+        # Note the UIP goes from surface to TOA, so we want
+        # the DECREASING_PRESSURE order here.
+        vgrid = self.absorber_vmr.vmr_grid(
+            self.pressure, rf.Pressure.DECREASING_PRESSURE
+        )
+        self.rf_uip.atmosphere_column(self.species_name)[:] = vgrid.value
+        self.cache_valid_flag = True
 
 
 @pytest.mark.old_py_retrieve_test

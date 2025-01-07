@@ -76,11 +76,11 @@ class O3ScaledStateElement(RetrievableStateElement):
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,
-        results_list: np.array,
+        results_list: np.ndarray,
         update_next: bool,
         retrieval_config: RetrievalConfiguration,
         step: int,
-        do_update_fm: np.array,
+        do_update_fm: np.ndarray,
     ):
         # If we are requested not to update the next step, then save a copy
         # of this to reset the value

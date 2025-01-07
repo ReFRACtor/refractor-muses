@@ -1,16 +1,21 @@
-from .refractor_uip import RefractorUip
+from __future__ import annotations
 from .cost_function import CostFunction
 from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 from .current_state import CurrentState, CurrentStateUip
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
-from .muses_observation import MusesObservation, MeasurementId
-from .muses_spectral_window import MusesSpectralWindow
-from .retrieval_strategy import RetrievalStrategy
 import refractor.framework as rf
 import copy
 from loguru import logger
 from collections.abc import Callable
+
+import typing
+
+if typing.TYPE_CHECKING:
+    from .muses_spectral_window import MusesSpectralWindow
+    from .muses_observation import MusesObservation, MeasurementId
+    from .refractor_uip import RefractorUip
+    from .retrieval_strategy import RetrievalStrategy
 
 
 class CostFunctionCreator:

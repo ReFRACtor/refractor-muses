@@ -6,10 +6,6 @@ import glob
 import math
 from loguru import logger
 
-# This is old code, which we are checking against. We do *not* want to change
-# this based on ruff check, so mark everything here as ignored
-# ruff: noqa
-
 
 class RetrievalInfoOld:
     """Original version of this, so we can debug/compare issues with the new one."""

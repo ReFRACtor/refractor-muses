@@ -1,14 +1,20 @@
+from __future__ import annotations
 import refractor.muses.muses_py as mpy
 import numpy as np
 from scipy.linalg import block_diag
-import copy
 import os
 import glob
-import math
-from loguru import logger
+import typing
+
+if typing.TYPE_CHECKING:
+    from .state_info import StateInfo
+    from .strategy_table import StrategyTable
+    from .error_analysis import ErrorAnalysis
+    from .muses_strategy_executor import CurrentStrategyStep
+
 
 class RetrievalInfo:
-    '''Not sure if we'll keep this or not, but pull out RetrievalInfo stuff so
+    """Not sure if we'll keep this or not, but pull out RetrievalInfo stuff so
     we can figure out the interface and if we should replace this.
 
     A few functions seem sort of like member functions, we'll just make a list
@@ -18,24 +24,31 @@ class RetrievalInfo:
     This seems like a kind of major side effect, but for now leave this in place.
     We should perhaps pull this out as a separate thing, it makes more sense for
     StateInfo to handle this perhaps, and have this update explicitly called.
-    '''
-    def __init__(self, error_analysis : "ErrorAnalysis",
-                 strategy_table : "StrategyTable",
-                 current_strategy_step: 'CurrentStrategyStep',
-                 state_info : "StateInfo"):
-        self.retrieval_dict = \
-            self.init_data(error_analysis,
-                           strategy_table,
-                           current_strategy_step,
-                           state_info)
+    """
+
+    def __init__(
+        self,
+        error_analysis: ErrorAnalysis,
+        strategy_table: StrategyTable,
+        current_strategy_step: CurrentStrategyStep,
+        state_info: StateInfo,
+    ):
+        self.retrieval_dict = self.init_data(
+            error_analysis, strategy_table, current_strategy_step, state_info
+        )
         self.retrieval_dict = self.retrieval_dict.__dict__
-        self._map_type_systematic = mpy.constraint_get_maptype(error_analysis.error_current, self.species_list_sys)
+        self._map_type_systematic = mpy.constraint_get_maptype(
+            error_analysis.error_current, self.species_list_sys
+        )
 
     @property
-    def basis_matrix(self):
-        '''Basis matrix to go from forward model grid to retrieval grid.
-        By convention, None if we don't actually have any retrieval parameters.'''
-        if(self.n_totalParameters == 0 or self.n_totalParametersFM == 0):
+    def basis_matrix(self) -> np.ndarray | None:
+        """Basis matrix to go from forward model grid to retrieval
+        grid.  By convention, None if we don't actually have any
+        retrieval parameters.
+
+        """
+        if self.n_totalParameters == 0 or self.n_totalParametersFM == 0:
             return None
         mmm = self.n_totalParameters
         nnn = self.n_totalParametersFM
@@ -47,36 +60,39 @@ class RetrievalInfo:
 
     @property
     def initial_guess_list(self):
-        '''This is the initial guess for the state vector (not the full state)'''
+        """This is the initial guess for the state vector (not the full state)"""
         return self.retrieval_dict["initialGuessList"]
 
     @property
     def constraint_vector(self):
-        '''This is the initial guess for the state vector (not the full state)'''
+        """This is the initial guess for the state vector (not the full state)"""
         return self.retrieval_dict["constraintVector"]
 
     def species_results(self, results, spcname, FM_Flag=True, INITIAL_Flag=False):
-        return mpy.get_vector(results.resultsList, self.retrieval_info_obj, spcname,
-                              FM_Flag, INITIAL_Flag)
+        return mpy.get_vector(
+            results.resultsList, self.retrieval_info_obj, spcname, FM_Flag, INITIAL_Flag
+        )
 
     def species_initial(self, spcname, FM_Flag=True):
-        return mpy.get_vector(self.initial_guess_list, self.retrieval_info_obj,
-                              spcname, FM_Flag, True)
+        return mpy.get_vector(
+            self.initial_guess_list, self.retrieval_info_obj, spcname, FM_Flag, True
+        )
 
     def species_constraint(self, spcname, FM_Flag=True):
-        return mpy.get_vector(self.constraint_vector, self.retrieval_info_obj,
-                              spcname, FM_Flag, True)
+        return mpy.get_vector(
+            self.constraint_vector, self.retrieval_info_obj, spcname, FM_Flag, True
+        )
 
     @property
     def initialGuessListFM(self):
-        '''This is the initial guess for the FM state vector'''
+        """This is the initial guess for the FM state vector"""
         return self.retrieval_dict["initialGuessListFM"]
 
     @property
     def initial_guess_list_fm(self):
-        '''This is the initial guess for the FM state vector'''
+        """This is the initial guess for the FM state vector"""
         return self.retrieval_dict["initialGuessListFM"]
-    
+
     @property
     def parameter_start_fm(self):
         return self.retrieval_dict["parameterStartFM"]
@@ -88,63 +104,76 @@ class RetrievalInfo:
     @property
     def map_type(self):
         return self.retrieval_dict["mapType"]
-    
+
     @property
     def type(self):
         return self.retrieval_dict["type"]
 
     @property
     def apriori_cov(self):
-        return self.retrieval_dict["Constraint"][0:self.n_totalParameters,0:self.n_totalParameters]
+        return self.retrieval_dict["Constraint"][
+            0 : self.n_totalParameters, 0 : self.n_totalParameters
+        ]
 
     @property
     def apriori(self):
-        return self.retrieval_dict["constraintVector"][0:self.n_totalParameters]
+        return self.retrieval_dict["constraintVector"][0 : self.n_totalParameters]
 
     @property
     def species_names(self):
-        return self.retrieval_dict["species"][0:self.retrieval_dict["n_species"]]
+        return self.retrieval_dict["species"][0 : self.retrieval_dict["n_species"]]
 
     @property
     def species_names_sys(self):
-        return self.retrieval_dict["speciesSys"][0:self.retrieval_dict["n_speciesSys"]]
-    
+        return self.retrieval_dict["speciesSys"][
+            0 : self.retrieval_dict["n_speciesSys"]
+        ]
+
     @property
     def species_list(self):
-        return np.array(self.retrieval_dict["speciesList"][0:self.n_totalParameters])
+        return np.array(self.retrieval_dict["speciesList"][0 : self.n_totalParameters])
 
     @property
     def species_list_sys(self):
-        return list(self.retrieval_dict["speciesListSys"][0:self.n_totalParametersSys])
+        return list(
+            self.retrieval_dict["speciesListSys"][0 : self.n_totalParametersSys]
+        )
 
     @property
     def map_type_systematic(self):
         return self._map_type_systematic
 
     def retrieval_info_systematic(self):
-        '''Version of retrieval info to use for a creating a systematic UIP'''
-        return mpy.ObjectView({
-                    'parameterStartFM': self.retrieval_info_obj.parameterStartSys,
-                    'parameterEndFM' : self.retrieval_info_obj.parameterEndSys,
-                    'species': self.species_names_sys,
-                    'n_species': self.n_totalParametersSys,
-                    'speciesList': self.species_list_sys,
-                    'speciesListFM': self.species_list_sys,
-                    'mapTypeListFM': self.map_type_systematic,
-                    'initialGuessListFM': np.zeros(shape=(self.n_totalParametersSys,), dtype=np.float32),
-                    'constraintVectorListFM': np.zeros(shape=(self.n_totalParametersSys,), dtype=np.float32),
-                    'initialGuessList': np.zeros(shape=(self.n_totalParametersSys,), dtype=np.float32),
-                    'n_totalParametersFM': self.n_totalParametersSys
-                })
-        
-    
+        """Version of retrieval info to use for a creating a systematic UIP"""
+        return mpy.ObjectView(
+            {
+                "parameterStartFM": self.retrieval_info_obj.parameterStartSys,
+                "parameterEndFM": self.retrieval_info_obj.parameterEndSys,
+                "species": self.species_names_sys,
+                "n_species": self.n_totalParametersSys,
+                "speciesList": self.species_list_sys,
+                "speciesListFM": self.species_list_sys,
+                "mapTypeListFM": self.map_type_systematic,
+                "initialGuessListFM": np.zeros(
+                    shape=(self.n_totalParametersSys,), dtype=np.float32
+                ),
+                "constraintVectorListFM": np.zeros(
+                    shape=(self.n_totalParametersSys,), dtype=np.float32
+                ),
+                "initialGuessList": np.zeros(
+                    shape=(self.n_totalParametersSys,), dtype=np.float32
+                ),
+                "n_totalParametersFM": self.n_totalParametersSys,
+            }
+        )
+
     @property
     def species_list_fm(self):
-        return self.retrieval_dict["speciesListFM"][0:self.n_totalParametersFM]
+        return self.retrieval_dict["speciesListFM"][0 : self.n_totalParametersFM]
 
     @property
     def pressure_list_fm(self):
-        return self.retrieval_dict["pressureListFM"][0:self.n_totalParametersFM]
+        return self.retrieval_dict["pressureListFM"][0 : self.n_totalParametersFM]
 
     @property
     def surface_type(self):
@@ -153,7 +182,7 @@ class RetrievalInfo:
     @property
     def is_ocean(self):
         return self.surface_type == "OCEAN"
-    
+
     # Synonyms used in the muses-py code.
     @property
     def speciesListFM(self):
@@ -162,23 +191,23 @@ class RetrievalInfo:
     @property
     def pressureListFM(self):
         return self.pressure_list_fm
-    
+
     @property
     def n_species(self):
         return len(self.species_names)
 
     @property
     def minimumList(self):
-        return self.retrieval_dict["minimumList"][0:self.n_totalParameters]
+        return self.retrieval_dict["minimumList"][0 : self.n_totalParameters]
 
     @property
     def maximumList(self):
-        return self.retrieval_dict["maximumList"][0:self.n_totalParameters]
+        return self.retrieval_dict["maximumList"][0 : self.n_totalParameters]
 
     @property
     def maximumChangeList(self):
-        return self.retrieval_dict["maximumChangeList"][0:self.n_totalParameters]
-    
+        return self.retrieval_dict["maximumChangeList"][0 : self.n_totalParameters]
+
     @property
     def n_totalParameters(self):
         # Might be a better place to get this, but start by getting from
@@ -192,65 +221,71 @@ class RetrievalInfo:
     @property
     def n_totalParametersFM(self):
         return self.retrieval_dict["n_totalParametersFM"]
-    
+
     @property
     def n_speciesSys(self):
         return self.retrieval_dict["n_speciesSys"]
-    
+
     @property
     def __doUpdateFM(self):
-        return self.retrieval_dict["doUpdateFM"][0:self.n_totalParametersFM]
+        return self.retrieval_dict["doUpdateFM"][0 : self.n_totalParametersFM]
 
     @property
     def __initialGuessListFM(self):
-        '''This is the initial guess for the FM state vector'''
+        """This is the initial guess for the FM state vector"""
         return self.retrieval_dict["initialGuessListFM"]
 
     @property
     def __species(self):
         # Not clear why these arrays are fixed size. Probably left over from IDL,
         # but go ahead and trim this
-        return self.retrieval_dict["species"][0:self.retrieval_dict["n_species"]]
+        return self.retrieval_dict["species"][0 : self.retrieval_dict["n_species"]]
 
     @property
     def __n_species(self):
         return len(self.species)
-        
+
     @property
     def __n_totalParametersFM(self):
         # Might be a better place to get this, but start by getting from
         # initial guess
         return self.initialGuessListFM.shape[0]
 
-    def init_interferents(self, strategy_table, state_info, o_retrievalInfo,
-                          error_analysis):
-        '''Update the various "Sys" stuff in o_retrievalInfo to add in
-        the error analysis interferents'''
+    def init_interferents(
+        self,
+        strategy_table: StrategyTable,
+        state_info: StateInfo,
+        o_retrievalInfo: dict,
+        error_analysis: ErrorAnalysis,
+    ):
+        """Update the various "Sys" stuff in o_retrievalInfo to add in
+        the error analysis interferents"""
         sys_tokens = strategy_table.error_analysis_interferents()
         o_retrievalInfo.n_speciesSys = len(sys_tokens)
         o_retrievalInfo.speciesSys.extend(sys_tokens)
-        if(len(sys_tokens) == 0):
+        if len(sys_tokens) == 0:
             return
-        myspec = list(mpy.constraint_get_species(error_analysis.error_initial,
-                                                 sys_tokens))
+        myspec = list(
+            mpy.constraint_get_species(error_analysis.error_initial, sys_tokens)
+        )
         o_retrievalInfo.n_totalParametersSys = len(myspec)
         for tk in sys_tokens:
             cnt = sum(t == tk for t in myspec)
             if cnt > 0:
                 pstart = myspec.index(tk)
                 o_retrievalInfo.parameterStartSys.append(pstart)
-                o_retrievalInfo.parameterEndSys.append(pstart+cnt-1)
+                o_retrievalInfo.parameterEndSys.append(pstart + cnt - 1)
                 o_retrievalInfo.speciesListSys.extend([tk] * cnt)
             else:
                 o_retrievalInfo.parameterStartSys.append(-1)
                 o_retrievalInfo.parameterEndSys.append(-1)
 
-        
-    def add_species(self, species_name, current_strategy_step, 
-                    state_info, o_retrievalInfo):
+    def add_species(
+        self, species_name, current_strategy_step, state_info, o_retrievalInfo
+    ):
         selem = state_info.state_element(species_name)
         selem.update_initial_guess(current_strategy_step)
-        
+
         row = o_retrievalInfo.n_totalParameters
         rowFM = o_retrievalInfo.n_totalParametersFM
         mm = len(selem.initialGuessList)
@@ -279,31 +314,31 @@ class RetrievalInfo:
         o_retrievalInfo.mapTypeList.extend([selem.mapType] * mm)
         o_retrievalInfo.mapTypeListFM.extend([selem.mapType] * nn)
         o_retrievalInfo.mapType.append(selem.mapType)
-        
-        o_retrievalInfo.Constraint[row:row + mm, row:row + mm] = selem.constraintMatrix
+
+        o_retrievalInfo.Constraint[row : row + mm, row : row + mm] = (
+            selem.constraintMatrix
+        )
         o_retrievalInfo.parameterStartFM.append(rowFM)
         o_retrievalInfo.parameterEndFM.append(rowFM + nn - 1)
         o_retrievalInfo.n_totalParameters = row + mm
         o_retrievalInfo.n_totalParametersFM = rowFM + nn
 
     def init_joint(self, o_retrievalInfo, strategy_table, state_info):
-        '''This should get cleaned up somehow'''
+        """This should get cleaned up somehow"""
         index_H2O = -1
         index_HDO = -1
-        if 'H2O' in o_retrievalInfo.species:
-            index_H2O = o_retrievalInfo.species.index('H2O')
+        if "H2O" in o_retrievalInfo.species:
+            index_H2O = o_retrievalInfo.species.index("H2O")
 
-        if 'HDO' in o_retrievalInfo.species:
-            index_HDO = o_retrievalInfo.species.index('HDO')
+        if "HDO" in o_retrievalInfo.species:
+            index_HDO = o_retrievalInfo.species.index("HDO")
 
         locs = [index_H2O, index_HDO]
 
-        hdo_h2o_flag = 0
         if locs[0] >= 0 and locs[1] >= 0:
             # HDO and H2O both retrieved in this step
             # only allow PREMADE type?
-            hdo_h2o_flag = 1
-            names = ['H2O', 'HDO']
+            names = ["H2O", "HDO"]
             species_dir = strategy_table.species_directory
 
             loop_count = 0
@@ -313,14 +348,17 @@ class RetrievalInfo:
                     specie1 = names[xx]
                     specie2 = names[yy]
 
-                    filename = species_dir + os.path.sep + specie1 + "_" + specie2 +'.asc'
+                    filename = (
+                        species_dir + os.path.sep + specie1 + "_" + specie2 + ".asc"
+                    )
                     files = glob.glob(filename)
                     if len(files) == 0:
                         # If cannot find file, look for one with the species names swapped.
-                        filename = species_dir + os.path.sep + specie2 + "_" + specie1 +'.asc'
+                        filename = (
+                            species_dir + os.path.sep + specie2 + "_" + specie1 + ".asc"
+                        )
 
-                    speciesInformationFilename = filename
-                    (_, fileID) = mpy.read_all_tes_cache(filename, 'asc')
+                    (_, fileID) = mpy.read_all_tes_cache(filename, "asc")
 
                     # AT_LINE 877 Get_Species_Information.pro
                     speciesInformationFile = mpy.tes_file_get_struct(fileID)
@@ -328,35 +366,37 @@ class RetrievalInfo:
                     # get indices of location of where to place this matrix
                     # AT_LINE 880 Get_Species_Information.pro
                     loc11 = o_retrievalInfo.parameterStart[locs[xx]]
-                    loc12 = o_retrievalInfo.parameterEnd[locs[xx]]   # Note the spelling of this key 'parameterEnd'
+                    loc12 = o_retrievalInfo.parameterEnd[
+                        locs[xx]
+                    ]  # Note the spelling of this key 'parameterEnd'
                     loc21 = o_retrievalInfo.parameterStart[locs[yy]]
                     loc22 = o_retrievalInfo.parameterEnd[locs[yy]]
-                    loc11FM = o_retrievalInfo.parameterStartFM[locs[xx]]
-                    loc12FM = o_retrievalInfo.parameterEndFM[locs[xx]] # Note the spelling of this key 'parameterEndFM'
 
                     # AT_LINE 887 Get_Species_Information.pro
-                    mm = o_retrievalInfo.n_parameters[locs[0]]    # Note the spelling of this key 'n_parameters'
-                    nn = o_retrievalInfo.n_parametersFM[locs[0]]  # Note the spelling of this key 'n_parametersFM'
-                    mapType = 'log'
-                    pressureListFM = o_retrievalInfo.pressureListFM[loc11FM:loc12FM]
-                    pressureList = o_retrievalInfo.pressureListFM[loc11:loc12]
+                    mm = o_retrievalInfo.n_parameters[
+                        locs[0]
+                    ]  # Note the spelling of this key 'n_parameters'
 
                     # We look for the tag 'constraintFilename' and it may not have the same case.
                     # So we will make everything lower case, find the index of that tag and use it to get to the value
                     # of 'constraintFilename' key in the tagNames.  Get the exact name of the tag using the index and then use
                     # that exact name to get to the value.
-                    preferences = fileID['preferences']
-                    tagNames = [x for x in preferences.keys()]  # Convert the dict keys into a regular list.
+                    preferences = fileID["preferences"]
+                    tagNames = [
+                        x for x in preferences.keys()
+                    ]  # Convert the dict keys into a regular list.
                     lowerTags = [x.lower() for x in tagNames]
                     ind_to_lower = -1
-                    if 'constraintFilename'.lower() in lowerTags:
-                        ind_to_lower = lowerTags.index('constraintFilename'.lower())
+                    if "constraintFilename".lower() in lowerTags:
+                        ind_to_lower = lowerTags.index("constraintFilename".lower())
                         actual_tag = tagNames[ind_to_lower]
 
                     if ind_to_lower < 0:
-                        raise RuntimeError(f"Name not found for constraintFilename. In file {speciesInformationFile}")
+                        raise RuntimeError(
+                            f"Name not found for constraintFilename. In file {speciesInformationFile}"
+                        )
 
-                    # AT_LINE 902 Get_Species_Information.pro 
+                    # AT_LINE 902 Get_Species_Information.pro
                     filename = preferences[actual_tag]
 
                     # At this point, the file name may not actually exist since it may contain the '_87' in the name.
@@ -365,44 +405,42 @@ class RetrievalInfo:
 
                     constraint_species = specie1 + "_" + specie2
 
-                    constraintMatrix, pressurex = mpy.supplier_constraint_matrix_premade(
-                        constraint_species, filename, mm,
-                        i_nh3type = state_info.nh3type, 
-                        i_ch3ohtype = state_info.ch3ohtype)
+                    constraintMatrix, pressurex = (
+                        mpy.supplier_constraint_matrix_premade(
+                            constraint_species,
+                            filename,
+                            mm,
+                            i_nh3type=state_info.nh3type,
+                            i_ch3ohtype=state_info.ch3ohtype,
+                        )
+                    )
                     # PYTHON_NOTE: We add 1 to the end of the slice since Python does not include the slice end value.
-                    o_retrievalInfo.Constraint[loc11:loc12+1, loc21:loc22+1] = constraintMatrix[:, :]
+                    o_retrievalInfo.Constraint[loc11 : loc12 + 1, loc21 : loc22 + 1] = (
+                        constraintMatrix[:, :]
+                    )
                     if loc11 != loc21:
-                        o_retrievalInfo.Constraint[loc21:loc22+1, loc11:loc12+1] = np.transpose(constraintMatrix)[:, :]
-                    species_name = 'HDOplusH2O' 
+                        o_retrievalInfo.Constraint[
+                            loc21 : loc22 + 1, loc11 : loc12 + 1
+                        ] = np.transpose(constraintMatrix)[:, :]
                 # end for yy in range(0,1):
                 # AT_LINE 921
             # end for xx in range(0,1):
             # AT_LINE 922
         # end if (locs[0] >= 0 and locs[1] >= 0):
 
-    def init_data(self, error_analysis : "ErrorAnalysis",
-                  strategy_table : "StrategyTable",
-                  current_strategy_step: 'CurrentStrategyStep',
-                  state_info : "StateInfo"):
+    def init_data(
+        self,
+        error_analysis: ErrorAnalysis,
+        strategy_table: StrategyTable,
+        current_strategy_step: CurrentStrategyStep,
+        state_info: StateInfo,
+    ):
         # This is a reworking of get_species_information in muses-py
-        utilLevels = mpy.UtilLevels()
-
-
-        o_retrievalInfo = None
-
-        found_omi_species_flag = False
-        found_tropomi_species_flag = False
-
-        stateInfo = mpy.ObjectView(state_info.state_info_dict)
-
-
-        # AT_LINE 13 Get_Species_Information.pro
-        step = current_strategy_step.step_number
 
         # errors propagated from step to step - possibly used as covariances
         #                                       but perhaps also as propagated
         #                                       constraints.
-        
+
         nn = len(state_info.pressure)
 
         # get retrieval parameters, including a list of retrieved species,
@@ -410,136 +448,180 @@ class RetrievalInfo:
         # constraints for all parameters, maps for each parameter
 
         smeta = state_info.sounding_metadata()
-        o_retrievalInfo = { 
+        o_retrievalInfo = {
             # Info by retrieval parameter
-            'surfaceType' : 'OCEAN' if smeta.is_ocean else 'LAND',
-
-            'speciesList' : [],
-            'pressureList': [],
-            'altitudeList': [],
-            'mapTypeList' : [],
-
-            'initialGuessList' : [],
-            'constraintVector' : [],
-            'trueParameterList': [],
-
+            "surfaceType": "OCEAN" if smeta.is_ocean else "LAND",
+            "speciesList": [],
+            "pressureList": [],
+            "altitudeList": [],
+            "mapTypeList": [],
+            "initialGuessList": [],
+            "constraintVector": [],
+            "trueParameterList": [],
             # optional allowed range and maximum stepsize during retrieval, set to -999 if not used
-            'minimumList' : [],
-            'maximumList' : [],
-            'maximumChangeList' : [],
-
-            'doUpdateFM'       : None,
-            'speciesListFM'    : [],  
-            'pressureListFM'     : [],
-            'altitudeListFM'     : [],
-            'initialGuessListFM' : [],
-            'constraintVectorListFM' : [],
-            'trueParameterListFM': [],
-
-            'n_totalParametersFM': 0,
-
-            'parameterStartFM': [],
-            'parameterEndFM'  : [],
-            'mapTypeListFM'   : [],
-
+            "minimumList": [],
+            "maximumList": [],
+            "maximumChangeList": [],
+            "doUpdateFM": None,
+            "speciesListFM": [],
+            "pressureListFM": [],
+            "altitudeListFM": [],
+            "initialGuessListFM": [],
+            "constraintVectorListFM": [],
+            "trueParameterListFM": [],
+            "n_totalParametersFM": 0,
+            "parameterStartFM": [],
+            "parameterEndFM": [],
+            "mapTypeListFM": [],
             # Info by species
-            'n_speciesSys'     : 0,
-            'speciesSys'       : [],
-            'parameterStartSys': [],
-            'parameterEndSys'  : [],
-            'speciesListSys'   : [],
-
-            'n_totalParametersSys': 0,
-            'n_species'           : 0,
-            'species'             : [],
-            'parameterStart'      : [],
-            'parameterEnd'        : [],
-
-            'n_parametersFM' : [],
-            'n_parameters'   : [],
-            'mapType'        : [],
-            'mapToState'     : [],
-            'mapToParameters': [],
-
+            "n_speciesSys": 0,
+            "speciesSys": [],
+            "parameterStartSys": [],
+            "parameterEndSys": [],
+            "speciesListSys": [],
+            "n_totalParametersSys": 0,
+            "n_species": 0,
+            "species": [],
+            "parameterStart": [],
+            "parameterEnd": [],
+            "n_parametersFM": [],
+            "n_parameters": [],
+            "mapType": [],
+            "mapToState": [],
+            "mapToParameters": [],
             # Constraint & SaTrue, & info for all parameters
-            'n_totalParameters': 0,
-            'Constraint'       : np.zeros(shape=(10*nn, 10*nn), dtype=np.float64),
-            'type'             : None,
+            "n_totalParameters": 0,
+            "Constraint": np.zeros(shape=(10 * nn, 10 * nn), dtype=np.float64),
+            "type": None,
         }
         # o_retrievalInfo OBJECT_TYPE dict
 
         # AT_LINE 83 Get_Species_Information.pro
-        o_retrievalInfo['type'] = current_strategy_step.retrieval_type
+        o_retrievalInfo["type"] = current_strategy_step.retrieval_type
 
-        o_retrievalInfo = mpy.ObjectView(o_retrievalInfo)  # Convert to object so we can use '.' to access member variables.
-
+        o_retrievalInfo = mpy.ObjectView(
+            o_retrievalInfo
+        )  # Convert to object so we can use '.' to access member variables.
 
         # map types for all species
         # now in strategy table
-       
-        if current_strategy_step.retrieval_type.lower() in ('bt', 'forwardmodel'):
+
+        if current_strategy_step.retrieval_type.lower() in ("bt", "forwardmodel"):
             pass
         else:
             o_retrievalInfo.species = current_strategy_step.retrieval_elements
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for species_name in o_retrievalInfo.species:
-                self.add_species(species_name, current_strategy_step, 
-                                 state_info, o_retrievalInfo)
+                self.add_species(
+                    species_name, current_strategy_step, state_info, o_retrievalInfo
+                )
 
-            self.init_interferents(strategy_table, state_info, o_retrievalInfo,
-                                   error_analysis)
+            self.init_interferents(
+                strategy_table, state_info, o_retrievalInfo, error_analysis
+            )
 
         self.init_joint(o_retrievalInfo, strategy_table, state_info)
-        
+
         # Convert to numpy arrays
-        for key in ("initialGuessList", "constraintVector",
-                    "trueParameterList", "trueParameterListFM",
-                    "pressureListFM", "altitudeListFM",
-                    "initialGuessListFM", "constraintVectorListFM",
-                    "minimumList", "maximumList", "maximumChangeList"):
-            if(len(o_retrievalInfo.__dict__[key]) > 0):
+        for key in (
+            "initialGuessList",
+            "constraintVector",
+            "trueParameterList",
+            "trueParameterListFM",
+            "pressureListFM",
+            "altitudeListFM",
+            "initialGuessListFM",
+            "constraintVectorListFM",
+            "minimumList",
+            "maximumList",
+            "maximumChangeList",
+        ):
+            if len(o_retrievalInfo.__dict__[key]) > 0:
                 o_retrievalInfo.__dict__[key] = np.concatenate(
-                    [a.flatten() for a in o_retrievalInfo.__dict__[key]])
+                    [a.flatten() for a in o_retrievalInfo.__dict__[key]]
+                )
             else:
                 o_retrievalInfo.__dict__[key] = np.zeros(0)
         # Few block diagonal matrixes
-        for key in ("mapToState","mapToParameters"):
+        for key in ("mapToState", "mapToParameters"):
             o_retrievalInfo.__dict__[key] = block_diag(*o_retrievalInfo.__dict__[key])
-        o_retrievalInfo.Constraint = \
-            o_retrievalInfo.Constraint[0:o_retrievalInfo.n_totalParameters,
-                                       0:o_retrievalInfo.n_totalParameters]
+        o_retrievalInfo.Constraint = o_retrievalInfo.Constraint[
+            0 : o_retrievalInfo.n_totalParameters, 0 : o_retrievalInfo.n_totalParameters
+        ]
         o_retrievalInfo.doUpdateFM = np.zeros(o_retrievalInfo.n_totalParametersFM)
         o_retrievalInfo.speciesListSys = np.array(o_retrievalInfo.speciesListSys)
         # Not sure if these empty values are important or not, but for now
         # match what the existing muses-py code does.
-        for k in ("speciesList","speciesListFM", "mapTypeList","speciesSys",
-                  "speciesListSys", "mapTypeListFM"):
-            if(len(o_retrievalInfo.__dict__[k]) == 0):
-                o_retrievalInfo.__dict__[k] = ['',]
-        for k in ('altitudeList','altitudeListFM','constraintVector',
-                  'constraintVectorListFM', 'initialGuessList',
-                  'initialGuessListFM','maximumChangeList','maximumList',
-                  'minimumList','pressureList','pressureListFM',
-                  'trueParameterList', 'trueParameterListFM'):
-            if(len(o_retrievalInfo.__dict__[k]) == 0):
-                o_retrievalInfo.__dict__[k] = np.array([0.0,])
-        for k in ("doUpdateFM", "parameterStartSys", "parameterEndSys",):
-            if(len(o_retrievalInfo.__dict__[k]) == 0):
-                o_retrievalInfo.__dict__[k] = np.array([0,])
-        for k in ('mapToParameters', 'mapToState', 'Constraint'):
-            if(o_retrievalInfo.__dict__[k].shape[1] == 0):
-                o_retrievalInfo.__dict__[k] = np.array([[0.0,]])
+        for k in (
+            "speciesList",
+            "speciesListFM",
+            "mapTypeList",
+            "speciesSys",
+            "speciesListSys",
+            "mapTypeListFM",
+        ):
+            if len(o_retrievalInfo.__dict__[k]) == 0:
+                o_retrievalInfo.__dict__[k] = [
+                    "",
+                ]
+        for k in (
+            "altitudeList",
+            "altitudeListFM",
+            "constraintVector",
+            "constraintVectorListFM",
+            "initialGuessList",
+            "initialGuessListFM",
+            "maximumChangeList",
+            "maximumList",
+            "minimumList",
+            "pressureList",
+            "pressureListFM",
+            "trueParameterList",
+            "trueParameterListFM",
+        ):
+            if len(o_retrievalInfo.__dict__[k]) == 0:
+                o_retrievalInfo.__dict__[k] = np.array(
+                    [
+                        0.0,
+                    ]
+                )
+        for k in (
+            "doUpdateFM",
+            "parameterStartSys",
+            "parameterEndSys",
+        ):
+            if len(o_retrievalInfo.__dict__[k]) == 0:
+                o_retrievalInfo.__dict__[k] = np.array(
+                    [
+                        0,
+                    ]
+                )
+        for k in ("mapToParameters", "mapToState", "Constraint"):
+            if o_retrievalInfo.__dict__[k].shape[1] == 0:
+                o_retrievalInfo.__dict__[k] = np.array(
+                    [
+                        [
+                            0.0,
+                        ]
+                    ]
+                )
 
         # Check the constaint vector for sanity.
         if np.all(np.isfinite(o_retrievalInfo.constraintVector)) == False:
-            raise RuntimeError(f"NaN's in constraint vector!! Constraint vector is: {o_retrievalInfo.constraintVector}. Check species {o_retrievalInfo.speciesList}")
+            raise RuntimeError(
+                f"NaN's in constraint vector!! Constraint vector is: {o_retrievalInfo.constraintVector}. Check species {o_retrievalInfo.speciesList}"
+            )
 
         # Check the constaint matrix for sanity.
         if np.all(np.isfinite(o_retrievalInfo.Constraint)) == False:
-            raise RuntimeError(f"NaN's in constraint matrix!! Constraint matrix is: {o_retrievalInfo.Constraint}. Check species {o_retrievalInfo.speciesList}")
+            raise RuntimeError(
+                f"NaN's in constraint matrix!! Constraint matrix is: {o_retrievalInfo.Constraint}. Check species {o_retrievalInfo.speciesList}"
+            )
 
         return o_retrievalInfo
-        
-    
-__all__ = ["RetrievalInfo",]
+
+
+__all__ = [
+    "RetrievalInfo",
+]

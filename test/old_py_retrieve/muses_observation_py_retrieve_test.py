@@ -22,9 +22,6 @@ import pytest
 import numpy as np
 
 
-# Our bad_sample != True looks funny to ruff, but is actually correct. Suppress reporting
-# this
-# ruff: noqa : E712
 @pytest.mark.old_py_retrieve_test
 def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
     """This compares MusesAirsObservation against the old py-retrieve code.

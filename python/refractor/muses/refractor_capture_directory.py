@@ -1,9 +1,11 @@
+from __future__ import annotations
 import os
 import io
 import tarfile
 from contextlib import contextmanager
 from . import muses_py as mpy
 from pathlib import Path
+
 
 @contextmanager
 def muses_py_call(

@@ -1,10 +1,13 @@
+from __future__ import annotations
 from contextlib import contextmanager
 import tempfile
 import os
+from pathlib import Path
+
 
 @contextmanager
-def osp_setup(osp_dir=None):
-    '''Some of the readers assume the OSP is available as "../OSP". We
+def osp_setup(osp_dir: str | Path | None = None):
+    """Some of the readers assume the OSP is available as "../OSP". We
     are trying to get away from assuming we are in a run directory
     whenever we do things, it limits using the code in various
     contexts.  So this handles things by taking the osp_dir and
@@ -13,11 +16,11 @@ def osp_setup(osp_dir=None):
 
     We can perhaps just move the muses-py code over at some point and
     handle this more cleanly, but for now we do this.
-    '''
-    if(osp_dir is None):
+    """
+    if osp_dir is None:
         dname = os.path.abspath("../OSP")
     else:
-        dname = os.path.abspath(osp_dir)
+        dname = os.path.abspath(str(osp_dir))
     curdir = os.path.abspath(os.path.curdir)
     try:
         with tempfile.TemporaryDirectory() as tname:

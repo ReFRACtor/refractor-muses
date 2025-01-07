@@ -16,6 +16,7 @@ from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
 from .state_info import StateInfo
+from .cost_function_creator import CostFunctionCreator
 from loguru import logger
 import refractor.muses.muses_py as mpy
 import os
@@ -80,8 +81,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     # can probably do that by just adding Observers
     def __init__(self, filename, vlidort_cli=None, writeOutput=False,
                  writePlots=False, osp_dir=None, **kwargs):
-        # Import here, to break circular import
-        from refractor.muses import CostFunctionCreator
         logger.info(f"Strategy table filename {filename}")
         self._capture_directory = RefractorCaptureDirectory()
         self._observers = set()

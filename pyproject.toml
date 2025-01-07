@@ -9,3 +9,27 @@
 [build-system]
 requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.ruff.lint.per-file-ignores]
+
+# __init__ includes things it doesn't use (e.g., __version__), which
+# is really its job. So don't warn about this.
+
+"__init__.py" = ["F401"]
+
+# We have various "np.array != True", which looks wrong to ruff but is
+# actually correct. Ignore these
+"muses_observation_old.py" = ["E712"]
+"omi_radiance.py" = ["E712"]
+"tropomi_radiance.py" = ["E712"]
+"muses_observation_py_retrieve_test.py" = ["E712"]
+"muses_forward_model.py" = ["E712"]
+"muses_observation.py" = ["E712"]
+"muses_spectral_window.py" = ["E712"]
+"retrieval_info.py" = ["E712"]
+
+[tool.ruff.lint]
+# Old code we are matching. We don't want to actually change
+# this code at all, the point is to compare our new code against
+# this old code
+exclude = ["retrieval_info_old.py"]

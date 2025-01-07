@@ -1,12 +1,9 @@
+from __future__ import annotations
 import refractor.framework as rf
 from refractor.muses import RefractorUip
 import numpy as np
 
 # Older interface for observations, which wraps around muses-py code
-
-# The "!= True" syntax is actually correct, although it looks wrong to
-# ruff. Turn this rule off so we pass
-# ruff: noqa: E712
 
 
 class MusesObservationBaseOld(rf.ObservationSvImpBase):
@@ -20,7 +17,7 @@ class MusesObservationBaseOld(rf.ObservationSvImpBase):
     # lets everything pass through.
     def __init__(
         self,
-        rf_uip: "RefractorUip",
+        rf_uip: RefractorUip,
         instrument_name,
         obs_rad,
         meas_err,
@@ -76,7 +73,7 @@ class MusesCrisObservationOld(MusesObservationBaseOld):
     """Wrapper that just returns the passed in measured radiance
     and uncertainty for CRIS"""
 
-    def __init__(self, rf_uip: "RefractorUip", obs_rad, meas_err, **kwargs):
+    def __init__(self, rf_uip: RefractorUip, obs_rad, meas_err, **kwargs):
         super().__init__(rf_uip, "CRIS", obs_rad, meas_err, **kwargs)
 
     def desc(self):
@@ -87,7 +84,7 @@ class MusesAirsObservationOld(MusesObservationBaseOld):
     """Wrapper that just returns the passed in measured radiance
     and uncertainty for AIRS"""
 
-    def __init__(self, rf_uip: "RefractorUip", obs_rad, meas_err, **kwargs):
+    def __init__(self, rf_uip: RefractorUip, obs_rad, meas_err, **kwargs):
         super().__init__(rf_uip, "AIRS", obs_rad, meas_err, **kwargs)
 
     def desc(self):

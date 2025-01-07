@@ -1,3 +1,4 @@
+from __future__ import annotations
 import refractor.muses.muses_py as mpy
 import refractor.framework as rf
 from refractor.muses import (

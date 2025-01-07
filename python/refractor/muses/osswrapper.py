@@ -1,3 +1,4 @@
+from __future__ import annotations
 from . import muses_py as mpy
 from .replace_function_helper import suppress_replacement
 import os
@@ -5,14 +6,15 @@ import copy
 from contextlib import contextmanager
 import sys
 
+
 @contextmanager
 def suppress_stdout():
-    '''A context manager to temporarily redirect stdout to /dev/null'''
+    """A context manager to temporarily redirect stdout to /dev/null"""
     oldstdchannel = None
     dest_file = None
     try:
         oldstdchannel = os.dup(sys.stdout.fileno())
-        dest_file = open(os.devnull, 'w')
+        dest_file = open(os.devnull, "w")
         os.dup2(dest_file.fileno(), sys.stdout.fileno())
         yield
     finally:
@@ -21,21 +23,26 @@ def suppress_stdout():
         if dest_file is not None:
             dest_file.close()
 
+
 class WatchOssInit(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
-    '''Helper object to update osswrapper.have_oss when py-retrieve calls
-    fm_oss_init.'''
-    def notify_function_call(self, func_name, parms):
+    """Helper object to update osswrapper.have_oss when py-retrieve calls
+    fm_oss_init."""
+
+    def notify_function_call(self, func_name: str, parms):
         osswrapper.have_oss = True
         osswrapper.first_oss_initialize = False
-        
+
+
 class WatchOssDelete(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
-    '''Helper object to update osswrapper.have_oss when py-retrieve calls
-    fm_oss_delete.'''
-    def notify_function_call(self, func_name, parms):
+    """Helper object to update osswrapper.have_oss when py-retrieve calls
+    fm_oss_delete."""
+
+    def notify_function_call(self, func_name: str, parms):
         osswrapper.have_oss = False
 
+
 class osswrapper:
-    '''The OSS library needs to be initialized, have windows set up,
+    """The OSS library needs to be initialized, have windows set up,
     and freed when done. But it is a global function, e.g., you can't
     have two window sets available (standard global variables in
     fortran code). Depending on how a function that needs the OSS is
@@ -64,11 +71,13 @@ class osswrapper:
     initialize + delete followed by a second initialization. This should
     probably get sorted out at some point, but for now we just work around
     this.
-    '''
+    """
+
     have_oss = False
     first_oss_initialize = True
-    def __init__(self, uip):
-        if(hasattr(uip, 'as_dict')): 
+
+    def __init__(self, uip: dict):
+        if hasattr(uip, "as_dict"):
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
@@ -79,12 +88,12 @@ class osswrapper:
     def register_with_muses_py(self):
         mpy.register_observer_function("fm_oss_init", WatchOssInit())
         mpy.register_observer_function("fm_oss_delete", WatchOssDelete())
-        
+
     def __enter__(self):
         uip_all = None
-        if(not osswrapper.have_oss):
-            for inst in ('CRIS','AIRS', 'TES'):
-                if(f'uip_{inst}' in self.uip):
+        if not osswrapper.have_oss:
+            for inst in ("CRIS", "AIRS", "TES"):
+                if f"uip_{inst}" in self.uip:
                     # Suppress warning message print out, it clutters output
                     with suppress_stdout():
                         os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
@@ -96,34 +105,42 @@ class osswrapper:
                         uip_all = mpy.struct_combine(self.uip, self.uip[f"uip_{inst}"])
                         # Special handling for the first time through, working
                         # around what is a bug or "feature" of the OSS code
-                        if(osswrapper.first_oss_initialize):
+                        if osswrapper.first_oss_initialize:
                             with suppress_replacement("fm_oss_init"):
-                                (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                                (uip_all, frequencyListFullOSS, jacobianList) = (
+                                    mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                                )
                             # This can potentially change oss_frequencyList.
                             # Neither py-retrieve or refractor is set up to handle
                             # that.
                             mpy.fm_oss_windows(mpy.ObjectView(uip_all))
                             flen = len(uip_all["frequencyList"])
                             flen2 = len(uip_all["oss_frequencyList"])
-                            if(flen != flen2):
-                                raise RuntimeError("fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this")
+                            if flen != flen2:
+                                raise RuntimeError(
+                                    "fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this"
+                                )
                             with suppress_replacement("fm_oss_delete"):
-                                mpy.fm_oss_delete()                        
+                                mpy.fm_oss_delete()
                             osswrapper.first_oss_initialize = False
                         with suppress_replacement("fm_oss_init"):
-                            (uip_all, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
-                            self.uip['oss_jacobianList'] = jacobianList
+                            (uip_all, frequencyListFullOSS, jacobianList) = (
+                                mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                            )
+                            self.uip["oss_jacobianList"] = jacobianList
                         # This can potentially change oss_frequencyList.
                         # Neither py-retrieve or refractor is set up to handle
                         # that.
                         mpy.fm_oss_windows(mpy.ObjectView(uip_all))
                         flen = len(uip_all["frequencyList"])
                         flen2 = len(uip_all["oss_frequencyList"])
-                        if(flen != flen2):
-                            raise RuntimeError("fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this")
+                        if flen != flen2:
+                            raise RuntimeError(
+                                "fm_oss_window changed the size of oss_frequencyList. Neither py-retrieve or refractor is set up to handle this"
+                            )
                         self.need_cleanup = True
-                        osswrapper.have_oss =  True
-        if(uip_all is not None):
+                        osswrapper.have_oss = True
+        if uip_all is not None:
             self.oss_dir_lut = uip_all["oss_dir_lut"]
             self.oss_jacobianList = uip_all["oss_jacobianList"]
             self.oss_frequencyList = uip_all["oss_frequencyList"]
@@ -136,13 +153,14 @@ class osswrapper:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if(self.need_cleanup):
+        if self.need_cleanup:
             with suppress_replacement("fm_oss_delete"):
                 mpy.fm_oss_delete()
             self.need_cleanup = False
             osswrapper.have_oss = False
 
-if(mpy.have_muses_py):
+
+if mpy.have_muses_py:
     osswrapper.register_with_muses_py()
-            
+
 __all__ = ["osswrapper"]

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .muses_py_forward_model import RefractorTropOrOmiFmMusesPy, RefractorTropOrOmiFm
 from refractor.muses import CurrentStateUip
 from refractor.omi import OmiFmObjectCreator

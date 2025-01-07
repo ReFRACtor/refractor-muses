@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import UserDict
 import numpy as np
 

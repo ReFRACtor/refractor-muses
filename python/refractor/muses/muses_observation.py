@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .misc import osp_setup
 from .observation_handle import ObservationHandle, ObservationHandleSet
 from .muses_spectral_window import MusesSpectralWindow, TesSpectralWindow
@@ -17,7 +18,11 @@ import itertools
 import collections.abc
 import re
 from pathlib import Path
-from .tes_file import TesFile
+import typing
+
+if typing.TYPE_CHECKING:
+    from .current_state import CurrentState
+
 
 def _new_from_init(cls, *args):
     """For use with pickle, covers common case where we just store the
@@ -57,7 +62,7 @@ class MeasurementId(collections.abc.Mapping):
     """
 
     @abc.abstractproperty
-    def filter_list_dict(self) -> "dict(str,list[str])":
+    def filter_list_dict(self) -> dict[str, list[str]]:
         """The complete list of filters we will be processing (so for
         all retrieval steps)
 
@@ -82,7 +87,7 @@ class MeasurementIdDict(MeasurementId):
         self._filter_list_dict = filter_list_dict
 
     @property
-    def filter_list_dict(self) -> "dict(str,list[str])":
+    def filter_list_dict(self) -> dict[str, list[str]]:
         """The complete list of filters we will be processing (so for
         all retrieval steps)
 
@@ -105,9 +110,9 @@ class MeasurementIdFile(MeasurementId):
 
     def __init__(
         self,
-        fname : str | Path,
+        fname: str | Path,
         retrieval_config: RetrievalConfiguration,
-        filter_list_dict: "dict(str, list(str))",
+        filter_list_dict: dict[str, list[str]],
     ):
         self.fname = fname
         self.base_dir = os.path.abspath(os.path.dirname(self.fname))
@@ -116,7 +121,7 @@ class MeasurementIdFile(MeasurementId):
         self._retrieval_config = retrieval_config
 
     @property
-    def filter_list_dict(self) -> "list[str]":
+    def filter_list_dict(self) -> list[str]:
         """The complete list of filters we will be processing (so for
         all retrieval steps)
 
@@ -206,7 +211,7 @@ class MusesObservation(rf.ObservationSvImpBase):
         raise NotImplementedError()
 
     @property
-    def filter_data(self) -> "list[list[str,int]]":
+    def filter_data(self) -> list[list[str, int]]:
         """This returns a list of filter names and sizes. This is used
         as metadata in the py-retrieve structure called
         "radianceStep".
@@ -248,7 +253,7 @@ class MusesObservation(rf.ObservationSvImpBase):
         """Set the SpectralWindow to apply to the observation data."""
         raise NotImplementedError()
 
-    def update_coeff_and_mapping(self, coeff: "np.array[float]", mp: "rf.StateMapping"):
+    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping):
         """Update the objects coefficients and state mapping. Useful
         if we create observation before we have a CurrentState and/or
         StateVector - which we often do in unit tests.
@@ -375,7 +380,7 @@ class MusesObservationImp(MusesObservation):
         return self.muses_py_dict["Earth_Radiance"]["EarthWavelength_Filter"]
 
     @property
-    def across_track(self) -> "list[int]":
+    def across_track(self) -> list[int]:
         res = []
         for i in range(self.num_channels):
             fname = self.filter_list[i]
@@ -406,7 +411,7 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
-    def solar_zenith(self) -> "np.array":
+    def solar_zenith(self) -> np.ndarray:
         return np.array(
             [
                 float(self._avg_obs("SolarZenithAngle", i))
@@ -415,7 +420,7 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
-    def observation_zenith(self) -> "np.array":
+    def observation_zenith(self) -> np.ndarray:
         return np.array(
             [
                 float(self._avg_obs("ViewingZenithAngle", i))
@@ -424,7 +429,7 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
-    def relative_azimuth(self) -> "np.array":
+    def relative_azimuth(self) -> np.ndarray:
         return np.array(
             [
                 float(self._avg_obs("RelativeAzimuthAngle", i))
@@ -433,25 +438,25 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
-    def latitude(self) -> "np.array":
+    def latitude(self) -> np.ndarray:
         return np.array(
             [float(self._avg_obs("Latitude", i)) for i in range(self.num_channels)]
         )
 
     @property
-    def surface_height(self) -> "np.array":
+    def surface_height(self) -> np.ndarray:
         return np.array(
             [float(self._avg_obs("TerrainHeight", i)) for i in range(self.num_channels)]
         )
 
     @property
-    def longitude(self) -> "np.array":
+    def longitude(self) -> np.ndarray:
         return np.array(
             [float(self._avg_obs("Longitude", i)) for i in range(self.num_channels)]
         )
 
     @property
-    def filter_data(self) -> "list[str,int]":
+    def filter_data(self) -> list[str, int]:
         res = []
         sd = self.spectral_domain_all()
         for i, fltname in enumerate(self._filter_data_name):
@@ -460,7 +465,7 @@ class MusesObservationImp(MusesObservation):
                 res.append([fltname, sz])
         return res
 
-    def update_coeff_and_mapping(self, coeff: "np.array[float]", mp: "rf.StateMapping"):
+    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping):
         """Update the objects coefficients and state mapping. Useful
         if we create observation before we have a CurrentState and/or
         StateVector - which we often do in unit tests.
@@ -569,7 +574,7 @@ class SimulatedObservation(MusesObservationImp):
     """
 
     def __init__(
-        self, obs: MusesObservationImp, replacement_spectrum: "list(np.array)"
+        self, obs: MusesObservationImp, replacement_spectrum: list[np.ndarray]
     ):
         # Note the muses_py_dict is needed here, although only for
         # generating a UIP. Right now we still need that functionality
@@ -620,7 +625,7 @@ class SimulatedObservation(MusesObservationImp):
         return self._obs.observation_table
 
     @property
-    def across_track(self) -> "list[int]":
+    def across_track(self) -> list[int]:
         return self._obs.across_track
 
     @property
@@ -628,30 +633,30 @@ class SimulatedObservation(MusesObservationImp):
         return self._obs.earth_sun_distance
 
     @property
-    def solar_zenith(self) -> "np.array":
+    def solar_zenith(self) -> np.ndarray:
         return self._obs.solar_zenith
 
     @property
-    def observation_zenith(self) -> "np.array":
+    def observation_zenith(self) -> np.ndarray:
         return self._obs.observation_zenith
 
     @property
-    def relative_azimuth(self) -> "np.array":
+    def relative_azimuth(self) -> np.ndarray:
         return self._obs.relative_azimuth
 
     @property
-    def latitude(self) -> "np.array":
+    def latitude(self) -> np.ndarray:
         return self._obs.latitude
 
     @property
-    def longitude(self) -> "np.array":
+    def longitude(self) -> np.ndarray:
         return self._obs.longitude
 
     @property
-    def filter_data(self) -> "list[str,int]":
+    def filter_data(self) -> list[str, int]:
         return self._obs.filter_data
 
-    def update_coeff_and_mapping(self, coeff: "np.array[float]", mp: "rf.StateMapping"):
+    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping):
         # We don't do any updating here, the observation stays fixed
         pass
 
@@ -703,10 +708,10 @@ class SimulatedObservationHandle(ObservationHandle):
     def observation(
         self,
         instrument_name: str,
-        current_state: "Optional(CurrentState)",
-        spec_win: "Optional(MusesSpectralWindow)",
-        fm_sv: "Optional(rf.StateVector)",
-        osp_dir=None,
+        current_state: CurrentState | None,
+        spec_win: MusesSpectralWindow | None,
+        fm_sv: rf.StateVector | None,
+        osp_dir: str | Path | None = None,
         **kwargs,
     ):
         if instrument_name != self.instrument_name:
@@ -748,10 +753,10 @@ class MusesObservationHandle(ObservationHandle):
     def observation(
         self,
         instrument_name: str,
-        current_state: "Optional(CurrentState)",
-        spec_win: "Optional(MusesSpectralWindow)",
-        fm_sv: "Optional(rf.StateVector)",
-        osp_dir=None,
+        current_state: CurrentState | None,
+        spec_win: MusesSpectralWindow | None,
+        fm_sv: rf.StateVector | None,
+        osp_dir: str | Path | None = None,
         **kwargs,
     ):
         if instrument_name != self.instrument_name:
@@ -792,8 +797,15 @@ class MusesAirsObservation(MusesObservationImp):
         self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
-    def _read_data(cls, filename : str | Path, granule, xtrack, atrack, filter_list,
-                   osp_dir=None):
+    def _read_data(
+        cls,
+        filename: str | Path,
+        granule,
+        xtrack,
+        atrack,
+        filter_list,
+        osp_dir: str | Path | None = None,
+    ):
         i_fileid = {}
         i_fileid["preferences"] = {
             "AIRS_filename": os.path.abspath(str(filename)),
@@ -822,7 +834,13 @@ class MusesAirsObservation(MusesObservationImp):
 
     @classmethod
     def create_from_filename(
-        cls, filename : str | Path, granule, xtrack, atrack, filter_list, osp_dir=None
+        cls,
+        filename: str | Path,
+        granule,
+        xtrack,
+        atrack,
+        filter_list,
+        osp_dir: str | Path | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -841,11 +859,11 @@ class MusesAirsObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: "cls",
-        current_state: "Optional(CurrentState)",
-        spec_win: "Optional(MusesSpectralWindow)",
-        fm_sv: "Optional(rf.StateVector)",
-        osp_dir=None,
+        existing_obs: MusesAirsObservation,
+        current_state: CurrentState | None,
+        spec_win: MusesSpectralWindow | None,
+        fm_sv: rf.StateVector | None,
+        osp_dir: str | Path | None = None,
         **kwargs,
     ):
         """Create from a MeasurementId. If this depends on any state
@@ -942,14 +960,14 @@ class MusesTesObservation(MusesObservationImp):
     @classmethod
     def _read_data(
         cls,
-        filename : str | Path,
+        filename: str | Path,
         l1b_index,
         l1b_avgflag,
         run,
         sequence,
         scan,
         filter_list,
-        osp_dir=None,
+        osp_dir: str | Path | None = None,
     ):
         i_fileid = {}
         i_fileid["preferences"] = {
@@ -1111,7 +1129,6 @@ class MusesTesObservation(MusesObservationImp):
             "BT10": "bt10",
             "BT11": "bt11",
             "SCANDIRECTION": "scanDirection",
-            "VALID": "valid",
         }
         return {translation_table.get(k, k): v for k, v in my_file.items()}
 
@@ -1143,14 +1160,14 @@ class MusesTesObservation(MusesObservationImp):
     @classmethod
     def create_from_filename(
         cls,
-        filename : str | Path,
+        filename: str | Path,
         l1b_index,
         l1b_avgflag,
         run,
         sequence,
         scan,
         filter_list,
-        osp_dir=None,
+        osp_dir: str | Path | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -1177,11 +1194,11 @@ class MusesTesObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: "cls",
-        current_state: "Optional(CurrentState)",
-        spec_win: "Optional(MusesSpectralWindow)",
-        fm_sv: "Optional(rf.StateVector)",
-        osp_dir=None,
+        existing_obs: MusesTesObservation,
+        current_state: CurrentState | None,
+        spec_win: MusesSpectralWindow | None,
+        fm_sv: rf.StateVector | None,
+        osp_dir: str | Path | None = None,
         **kwargs,
     ):
         """Create from a MeasurementId. If this depends on any state
@@ -1202,7 +1219,7 @@ class MusesTesObservation(MusesObservationImp):
             # Read the data from disk, because it doesn't already exist.
             filter_list = mid.filter_list_dict["TES"]
             filename = mid["TES_filename_L1B"]
-            l1b_index = mid["TES_filename_L1B_Index"].split(',')
+            l1b_index = mid["TES_filename_L1B_Index"].split(",")
             l1b_avgflag = int(mid["TES_L1B_Average_Flag"])
             run = int(mid["TES_Run"])
             sequence = int(mid["TES_Sequence"])
@@ -1293,8 +1310,15 @@ class MusesCrisObservation(MusesObservationImp):
         self._filter_data_swin = rf.SpectralWindowRange(mw_range)
 
     @classmethod
-    def _read_data(cls, filename : str | Path, granule, xtrack, atrack, pixel_index,
-                   osp_dir=None):
+    def _read_data(
+        cls,
+        filename: str | Path,
+        granule,
+        xtrack,
+        atrack,
+        pixel_index,
+        osp_dir: str | Path | None = None,
+    ):
         i_fileid = {
             "CRIS_filename": os.path.abspath(str(filename)),
             "CRIS_XTrack_Index": xtrack,
@@ -1369,7 +1393,7 @@ class MusesCrisObservation(MusesObservationImp):
             return "suomi_noaa_fsr"
         else:
             raise RuntimeError(
-                f"Don't recognize CRIS file type from path/filename {self.filename}"
+                f"Don't recognize CRIS file type from path/filename {filename}"
             )
 
     @property
@@ -1389,7 +1413,13 @@ class MusesCrisObservation(MusesObservationImp):
 
     @classmethod
     def create_from_filename(
-        cls, filename : str | Path, granule, xtrack, atrack, pixel_index, osp_dir=None
+        cls,
+        filename: str | Path,
+        granule,
+        xtrack,
+        atrack,
+        pixel_index,
+        osp_dir: str | Path | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -1408,11 +1438,11 @@ class MusesCrisObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: "cls",
-        current_state: "Optional(CurrentState)",
-        spec_win: "Optional(MusesSpectralWindow)",
-        fm_sv: "Optional(rf.StateVector)",
-        osp_dir=None,
+        existing_obs: MusesCrisObservation,
+        current_state: CurrentState | None,
+        spec_win: MusesSpectralWindow | None,
+        fm_sv: rf.StateVector | None,
+        osp_dir: str | Path | None = None,
         **kwargs,
     ):
         """Create from a MeasurementId. If this depends on any state
@@ -1430,7 +1460,6 @@ class MusesCrisObservation(MusesObservationImp):
                 num_channels=existing_obs.num_channels,
             )
         else:
-            filter_list = mid.filter_list_dict["CRIS"]
             filename = mid["CRIS_filename"]
             granule = mid["CRIS_Granule"]
             xtrack = int(mid["CRIS_XTrack_Index"])
@@ -1708,7 +1737,7 @@ class MusesObservationReflectance(MusesObservationImp):
         return "MusesObservationReflectance"
 
     @property
-    def filter_data(self) -> "list[list[str,int]]":
+    def filter_data(self) -> list[list[str, int]]:
         self._filter_data_name = self.filter_list
         self._filter_data_swin = self._spectral_window
         return super().filter_data
@@ -1861,13 +1890,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
     @classmethod
     def _read_data(
         cls,
-        filename_dict : "dict(str, str | Path)",
+        filename_dict: dict[str, str | Path],
         xtrack_dict,
         atrack_dict,
         utc_time,
         filter_list,
         calibration_filename=None,
-        osp_dir=None,
+        osp_dir: str | Path | None = None,
     ):
         # Filter list should be in the same order as filename_list,
         # and should be things like "BAND3"
@@ -1879,8 +1908,11 @@ class MusesTropomiObservation(MusesObservationReflectance):
         i_windows = [{"instrument": "TROPOMI", "filter": flt} for flt in filter_list]
         with osp_setup(osp_dir):
             o_tropomi = mpy.read_tropomi(
-                {k:str(v) for (k,v) in filename_dict.items()}, xtrack_dict,
-                atrack_dict, utc_time, i_windows
+                {k: str(v) for (k, v) in filename_dict.items()},
+                xtrack_dict,
+                atrack_dict,
+                utc_time,
+                i_windows,
             )
         sdesc = {
             "TROPOMI_ATRACK_INDEX_BAND1": np.int16(-999),
@@ -1904,7 +1936,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             "TROPOMI_ATRACK_INDEX_BAND7": np.int16(-999),
             "TROPOMI_XTRACK_INDEX_BAND7": np.int16(-999),
             "POINTINGANGLE_TROPOMI_BAND7": -999.0,
-            "TROPOMI_ATRACK_INDEX_BAND7": np.int16(-999),
+            "TROPOMI_ATRACK_INDEX_BAND8": np.int16(-999),
             "TROPOMI_XTRACK_INDEX_BAND8": np.int16(-999),
             "POINTINGANGLE_TROPOMI_BAND8": -999.0,
         }
@@ -1928,13 +1960,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
     @classmethod
     def create_from_filename(
         cls,
-        filename_dict : 'dict(str, str | Path)',
+        filename_dict: "dict(str, str | Path)",
         xtrack_dict,
         atrack_dict,
         utc_time,
         filter_list,
         calibration_filename=None,
-        osp_dir=None,
+        osp_dir: str | Path | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -1959,11 +1991,11 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: "cls",
-        current_state: "Optional(CurrentState)",
-        spec_win: "Optional(MusesSpectralWindow)",
-        fm_sv: "Optional(rf.StateVector)",
-        osp_dir=None,
+        existing_obs: MusesTropomiObservation,
+        current_state: CurrentState | None,
+        spec_win: MusesSpectralWindow | None,
+        fm_sv: rf.StateVector | None,
+        osp_dir: str | Path | None = None,
         write_tropomi_radiance_pickle=False,
         **kwargs,
     ):
@@ -2122,14 +2154,14 @@ class MusesOmiObservation(MusesObservationReflectance):
     @classmethod
     def _read_data(
         cls,
-        filename : str | Path,
+        filename: str | Path,
         xtrack_uv1,
         xtrack_uv2,
         atrack,
         utc_time,
         calibration_filename,
         cld_filename=None,
-        osp_dir=None,
+        osp_dir: str | Path | None = None,
     ):
         with osp_setup(osp_dir):
             o_omi = mpy.read_omi(
@@ -2172,7 +2204,7 @@ class MusesOmiObservation(MusesObservationReflectance):
     @classmethod
     def create_from_filename(
         cls,
-        filename : str | Path,
+        filename: str | Path,
         xtrack_uv1,
         xtrack_uv2,
         atrack,
@@ -2180,7 +2212,7 @@ class MusesOmiObservation(MusesObservationReflectance):
         calibration_filename,
         filter_list,
         cld_filename=None,
-        osp_dir=None,
+        osp_dir: str | Path | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -2207,11 +2239,11 @@ class MusesOmiObservation(MusesObservationReflectance):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: "cls",
-        current_state: "Optional(CurrentState)",
-        spec_win: "Optional(MusesSpectralWindow)",
-        fm_sv: "Optional(rf.StateVector)",
-        osp_dir=None,
+        existing_obs: MusesOmiObservation,
+        current_state: CurrentState | None,
+        spec_win: MusesSpectralWindow | None,
+        fm_sv: rf.StateVector | None,
+        osp_dir: str | Path | None = None,
         write_omi_radiance_pickle=False,
         **kwargs,
     ):

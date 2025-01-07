@@ -16,8 +16,8 @@ an error for "ruff check" to find something, and a file might not have
 been formatted with "ruff format". But we generally use these. 
 
 As a convention, we tend to put in directives for ruff to skip a check
-where it gets it wrong (e.g. muses_observation_test has "#ruff: noqa :
-E712" to silence an incorrect warning).
+where it gets it wrong. This is put in the pyproject.toml file (e.g. 
+"muses_observation_test.py" = ["E712"]) to silence an incorrect warning).
 
 This isn't because we consider the failing the ruff checking as an
 error (i.e., some projects have a git precommit hook to reject code

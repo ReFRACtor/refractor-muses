@@ -1,3 +1,4 @@
+from __future__ import annotations
 import refractor.framework as rf
 import refractor.muses.muses_py as mpy
 import numpy as np
@@ -43,14 +44,14 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         super().__init__(mstand)
 
     @property
-    def obs_list(self):
+    def obs_list(self) -> list[rf.Observation]:
         return self.max_a_posteriori.observation
 
     @property
-    def fm_list(self):
+    def fm_list(self) -> list[rf.ForwardModel]:
         return self.max_a_posteriori.forward_model
 
-    def get_state(self):
+    def get_state(self) -> dict:
         """Return a dictionary of values that can be used by set_state.
         This allows us to skip running the forward model in unit tests. This
         is similar to a pickle serialization (which we also support), but
@@ -61,6 +62,8 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         (msrmnt_is_const, m, k, msrmnt, msrmnt_jacobian, k_x, msrmnt_jacobian_x) = (
             self.max_a_posteriori.get_state()
         )
+        # Note we use the "tolist" to translate numpy to a python list. This is
+        # so we can dump this to json - json doesn't support np.ndarray types.
         return {
             "parameters": self.parameters.tolist(),
             "msrmnt_is_const": msrmnt_is_const,
@@ -72,10 +75,11 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             "msrmnt_jacobian_x": msrmnt_jacobian_x.tolist(),
         }
 
-    def set_state(self, d):
+    def set_state(self, d: dict):
         """Set the state previously saved by get_state"""
         self.parameters = np.array(d["parameters"])
-        # Special handling for empty jacobians
+        # Translate the lists back to np.ndarray, with
+        # special handling for empty jacobians
         k = np.array(d["k"])
         msrmnt_jacobian = np.array(d["msrmnt_jacobian"])
         k_x = np.array(d["k_x"])
