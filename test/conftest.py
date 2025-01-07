@@ -108,4 +108,8 @@ pytest_plugins = [
     "fixtures.dir_fixture",
     "fixtures.misc_fixture",
     "fixtures.retrieval_step_fixture",
+    # Fixtures only used in old_py_retrieve
+    "fixtures.stand_alone_obs_fixture",
+    "fixtures.rf_uip_fixture",
+    "fixtures.muses_retrieval_step_fixture",
 ]

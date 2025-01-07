@@ -10,7 +10,6 @@ from .retrieval_strategy import RetrievalStrategy
 import refractor.framework as rf
 import copy
 from loguru import logger
-from typing import Optional
 from collections.abc import Callable
 
 
@@ -22,7 +21,7 @@ class CostFunctionCreator:
     Observation, see that class for a discussion on using this.
     """
 
-    def __init__(self, rs: "Optional(RetrievalStrategy)" = None):
+    def __init__(self, rs: RetrievalStrategy | None = None):
         self.forward_model_handle_set = copy.deepcopy(
             ForwardModelHandleSet.default_handle_set()
         )
@@ -31,7 +30,7 @@ class CostFunctionCreator:
         )
         self.measurement_id = None
 
-    def notify_update_target(self, measurement_id: "MeasurementId"):
+    def notify_update_target(self, measurement_id: MeasurementId):
         """Set up for processing a target.
 
         Note we separate this out from the cost_function creator
@@ -74,12 +73,12 @@ class CostFunctionCreator:
 
     def cost_function(
         self,
-        instrument_name_list: "list[str]",
+        instrument_name_list: list[str],
         current_state: CurrentState,
-        spec_win_dict: "Optional(dict(str, MusesSpectralWindow))",
-        rf_uip_func: "Optional(Callable[[str], RefractorUip])",
+        spec_win_dict: dict[str, MusesSpectralWindow] | None,
+        rf_uip_func: Callable[[str], RefractorUip] | None,
         include_bad_sample=False,
-        obs_list: "Optional(list[MusesObservation])" = None,
+        obs_list: list[MusesObservation] | None = None,
         **kwargs,
     ):
         """Return cost function for the RetrievalStrategy.
@@ -150,12 +149,12 @@ class CostFunctionCreator:
 
     def _forward_model(
         self,
-        instrument_name_list: "list[str]",
+        instrument_name_list: list[str],
         current_state: CurrentState,
-        spec_win_dict: "Optional(dict[str, MusesSpectralWindow])",
-        rf_uip_func: "Optional(Callable[[str], RefractorUip])",
+        spec_win_dict: dict[str, MusesSpectralWindow] | None,
+        rf_uip_func: Callable[[str], RefractorUip] | None,
         include_bad_sample=False,
-        obs_list: "Optional(list[MusesObservation])" = None,
+        obs_list: list[MusesObservation] | None = None,
         **kwargs,
     ):
         self.obs_list = []
@@ -213,8 +212,8 @@ class CostFunctionCreator:
     def cost_function_from_uip(
         self,
         rf_uip: RefractorUip,
-        obs_list: "Optional(list(MusesObservation))",
-        ret_info: "Optional(dict)",
+        obs_list: list[MusesObservation] | None,
+        ret_info: dict | None,
         **kwargs,
     ):
         """Create a cost function from a RefractorUip and a
