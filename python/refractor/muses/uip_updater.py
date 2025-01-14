@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 from .refractor_uip import RefractorUip
 from loguru import logger
 

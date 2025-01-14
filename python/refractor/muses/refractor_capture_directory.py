@@ -3,14 +3,15 @@ import os
 import io
 import tarfile
 from contextlib import contextmanager
-from . import muses_py as mpy
+from . import muses_py as mpy  # type: ignore
 from pathlib import Path
 
 
 @contextmanager
 def muses_py_call(
-    rundir: str | Path,
-    vlidort_cli: str | Path = "~/muses/muses-vlidort/build/release/vlidort_cli",
+    rundir: str | os.PathLike[str],
+    vlidort_cli: str
+    | os.PathLike[str] = "~/muses/muses-vlidort/build/release/vlidort_cli",
     debug=False,
     vlidort_nstokes=2,
     vlidort_nstreams=4,
@@ -88,7 +89,9 @@ class RefractorCaptureDirectory:
         self.runbase = None
         self.rundir = Path(".")
 
-    def save_directory(self, dirbase: str | Path, vlidort_input: str | Path):
+    def save_directory(
+        self, dirbase: str | os.PathLike[str], vlidort_input: str | os.PathLike[str]
+    ):
         """Capture information from the run directory so we can recreate the
         directory later. This is only needed by muses-py which uses a
         lot of files as "hidden" arguments to functions.  ReFRACtor
@@ -123,10 +126,10 @@ class RefractorCaptureDirectory:
 
     def extract_directory(
         self,
-        path: str | Path = ".",
+        path: str | os.PathLike[str] = ".",
         change_to_dir=False,
-        osp_dir: str | Path | None = None,
-        gmao_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
+        gmao_dir: str | os.PathLike[str] | None = None,
     ):
         """Extract a directory that has been previously saved.
         This gets extracted into the directory passed in the path. You can

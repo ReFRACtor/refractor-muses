@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .current_state import CurrentState
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 import abc
 import numpy as np
 import typing

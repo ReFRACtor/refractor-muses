@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 
 _ordered_species_list = mpy.ordered_species_list()
 

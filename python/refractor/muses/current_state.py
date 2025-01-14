@@ -1,8 +1,9 @@
 from __future__ import annotations
-from . import muses_py as mpy
-import refractor.framework as rf
+from . import muses_py as mpy  # type: ignore
+import refractor.framework as rf  # type: ignore
 import numpy as np
 import abc
+from typing import Tuple
 import typing
 
 if typing.TYPE_CHECKING:
@@ -107,11 +108,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self._fm_state_vector_size = None
 
     @property
-    def property_qa(self):
+    def propagated_qa(self) -> PropagatedQA:
         raise NotImplementedError()
 
     @property
-    def brightness_temperature_data(self):
+    def brightness_temperature_data(self) -> dict:
         raise NotImplementedError()
 
     def clear_cache(self):
@@ -178,10 +179,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def fm_sv_loc(self) -> dict[str, int]:
-        """Dict that gives the starting location in the forward model state vector for a
-        particular state element name (state elements not being retrieved don't
-        get listed here)"""
+    def fm_sv_loc(self) -> dict[str, Tuple[int, int]]:
+        """Dict that gives the starting location in the forward model
+        state vector for a particular state element name (state
+        elements not being retrieved don't get listed here)
+
+        """
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
@@ -201,12 +204,16 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def object_state(
         self, state_element_name_list: list[str]
-    ) -> (np.ndarray, rf.StateMapping):
-        """Return a set of coefficients and a rf.StateMapping to get the full state values
-        used by an object. The object passes in the list of state element names it uses.
-        In general only a (possibly empty) subset of the state elements are actually retrieved.
-        This gets handled by the StateMapping, which might have a component like
-        rf.StateMappingAtIndexes to handle the subset that is in the fm_state_vector."""
+    ) -> Tuple[np.ndarray, rf.StateMapping]:
+        """Return a set of coefficients and a rf.StateMapping to get
+        the full state values used by an object. The object passes in
+        the list of state element names it uses.  In general only a
+        (possibly empty) subset of the state elements are actually
+        retrieved.  This gets handled by the StateMapping, which might
+        have a component like rf.StateMappingAtIndexes to handle the
+        subset that is in the fm_state_vector.
+
+        """
         # TODO put in handling of log/linear
         coeff = np.concatenate(
             [self.full_state_value(nm) for nm in state_element_name_list]
@@ -227,12 +234,15 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         state_element_name_list: list[str],
         obj_list: list[rf.SubStateVectorObserver],
     ):
-        """This takes an object and a list of the state element names that object
-        uses. This then adds the object to the forward model state vector if
-        some of the elements are being retrieved.  This is a noop if none of the
-        state elements are being retrieved. So objects don't need to try to figure
-        out if they are in the retrieved set or not, then can just call this function
-        to try adding themselves."""
+        """This takes an object and a list of the state element names
+        that object uses. This then adds the object to the forward
+        model state vector if some of the elements are being
+        retrieved.  This is a noop if none of the state elements are
+        being retrieved. So objects don't need to try to figure out if
+        they are in the retrieved set or not, then can just call this
+        function to try adding themselves.
+
+        """
         pstart = None
         for sname in state_element_name_list:
             if sname in self.fm_sv_loc:
@@ -251,17 +261,22 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def full_state_value(self, state_element_name) -> np.ndarray:
-        """Return the full state value for the given state element name.
-        Just as a convention we always return a np.array, so if there is only one value
-        put that in a length 1 np.array."""
+        """Return the full state value for the given state element
+        name.  Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+
+        """
         raise NotImplementedError()
 
     @property
     def step_directory(self) -> str:
-        """Return the step directory. This is a bit odd, but it is needed by
-        MusesOpticalDepthFile. Since the current state depends on the step we are
-        using, it isn't ridiculous to have this here. However if we find a better
-        home for or better still remove the need for this that would be good."""
+        """Return the step directory. This is a bit odd, but it is
+        needed by MusesOpticalDepthFile. Since the current state
+        depends on the step we are using, it isn't ridiculous to have
+        this here. However if we find a better home for or better
+        still remove the need for this that would be good.
+
+        """
         raise NotImplementedError()
 
 
@@ -269,15 +284,20 @@ class CurrentStateUip(CurrentState):
     """Implementation of CurrentState that uses a RefractorUip"""
 
     def __init__(self, rf_uip: RefractorUip, ret_info: dict | None = None):
-        """Get the CurrentState from a RefractorUip and ret_info. Note that this
-        is just for backwards testing, we don't use the UIP in our current processing
-        but rather something like CurrentStateStateInfo.
+        """Get the CurrentState from a RefractorUip and ret_info. Note
+        that this is just for backwards testing, we don't use the UIP
+        in our current processing but rather something like
+        CurrentStateStateInfo.
 
-        The RefractorUip doesn't have everything we need, specifically we don't have
-        the apriori and sqrt_constraint. We can get this from a ret_info, if available.
-        For testing we don't always have ret_info. This is fine if we don't actually
-        need the apriori and sqrt_constraint. We still need a value for this, so if
-        ret_info is None we return arrays of all zeros of the right size."""
+        The RefractorUip doesn't have everything we need, specifically
+        we don't have the apriori and sqrt_constraint. We can get this
+        from a ret_info, if available.  For testing we don't always
+        have ret_info. This is fine if we don't actually need the
+        apriori and sqrt_constraint. We still need a value for this,
+        so if ret_info is None we return arrays of all zeros of the
+        right size.
+
+        """
         super().__init__()
         self.rf_uip = rf_uip
         self._initial_guess = rf_uip.current_state_x
@@ -292,8 +312,9 @@ class CurrentStateUip(CurrentState):
     @property
     def apriori_cov(self) -> np.ndarray:
         """Apriori Covariance"""
-        # Don't think we need this. We can calculate something frm sqrt_constraint
-        # if needed, but for now just leave unimplemented
+        # Don't think we need this. We can calculate something frm
+        # sqrt_constraint if needed, but for now just leave
+        # unimplemented
         raise NotImplementedError()
 
     @property
@@ -302,17 +323,19 @@ class CurrentStateUip(CurrentState):
         if self.ret_info:
             return self.ret_info["sqrt_constraint"]
         else:
-            # Dummy value, of the right size. Useful when we need this, but
-            # don't actually care about the value (e.g., we are running the
-            # forward model only in the CostFunction).
+            # Dummy value, of the right size. Useful when we need
+            # this, but don't actually care about the value (e.g., we
+            # are running the forward model only in the CostFunction).
             #
-            # This is entirely a matter of convenience, we could instead just
-            # duplicate the stitching together part of our CostFunction and skip
-            # this. But for now this seems like the easiest thing thing to do. We
-            # can revisit this decision in the future if needed - it is never
-            # great to have fake data but in this case seemed the easiest path
-            # forward. Since this function is only used for backwards testing, the slightly
-            # klunky design doesn't seem like much of a problem.
+            # This is entirely a matter of convenience, we could
+            # instead just duplicate the stitching together part of
+            # our CostFunction and skip this. But for now this seems
+            # like the easiest thing thing to do. We can revisit this
+            # decision in the future if needed - it is never great to
+            # have fake data but in this case seemed the easiest path
+            # forward. Since this function is only used for backwards
+            # testing, the slightly klunky design doesn't seem like
+            # much of a problem.
             return np.eye(len(self.initial_guess))
 
     @property
@@ -321,30 +344,35 @@ class CurrentStateUip(CurrentState):
         if self.ret_info:
             return self.ret_info["const_vec"]
         else:
-            # Dummy value, of the right size. Useful when we need this, but
-            # don't actually care about the value (e.g., we are running the
-            # forward model only in the CostFunction).
+            # Dummy value, of the right size. Useful when we need
+            # this, but don't actually care about the value (e.g., we
+            # are running the forward model only in the CostFunction).
             #
-            # This is entirely a matter of convenience, we could instead just
-            # duplicate the stitching together part of our CostFunction and skip
-            # this. But for now this seems like the easiest thing thing to do. We
-            # can revisit this decision in the future if needed - it is never
-            # great to have fake data but in this case seemed the easiest path
-            # forward. Since this function is only used for backwards testing, the slightly
-            # klunky design doesn't seem like much of a problem.
+            # This is entirely a matter of convenience, we could
+            # instead just duplicate the stitching together part of
+            # our CostFunction and skip this. But for now this seems
+            # like the easiest thing thing to do. We can revisit this
+            # decision in the future if needed - it is never great to
+            # have fake data but in this case seemed the easiest path
+            # forward. Since this function is only used for backwards
+            # testing, the slightly klunky design doesn't seem like
+            # much of a problem.
             return np.zeros((len(self.initial_guess),))
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
-        """Basis matrix going from retrieval vector to full model vector.
-        We don't always have this, so we return None if there isn't a basis matrix.
+        """Basis matrix going from retrieval vector to full model
+        vector.  We don't always have this, so we return None if there
+        isn't a basis matrix.
+
         """
         return self._basis_matrix
 
-    # We don't have the other gas species working yet. Short term, just have a
-    # different implementation of fm_sv_loc. We should sort this out at some point.
+    # We don't have the other gas species working yet. Short term,
+    # just have a different implementation of fm_sv_loc. We should
+    # sort this out at some point.
     @property
-    def fm_sv_loc(self):
+    def fm_sv_loc(self) -> dict[str, Tuple[int, int]]:
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
@@ -363,9 +391,11 @@ class CurrentStateUip(CurrentState):
         return self.rf_uip.step_directory
 
     def full_state_value(self, state_element_name) -> np.ndarray:
-        """Return the full state value for the given state element name.
-        Just as a convention we always return a np.ndarray, so if there is only one value
-        put that in a length 1 np.ndarray."""
+        """Return the full state value for the given state element
+        name.  Just as a convention we always return a np.ndarray, so
+        if there is only one value put that in a length 1 np.ndarray.
+
+        """
         # We've extracted this logic out from update_uip
         o_uip = mpy.ObjectView(self.rf_uip.uip)
         if state_element_name == "TSUR":
@@ -503,16 +533,21 @@ class CurrentStateUip(CurrentState):
 
 
 class CurrentStateDict(CurrentState):
-    """Implementation of CurrentState that just takes a dictionary of state elements
-    and list of retrieval elements."""
+    """Implementation of CurrentState that just takes a dictionary of
+    state elements and list of retrieval elements.
+
+    """
 
     def __init__(self, state_element_dict: dict, retrieval_element: list):
-        """This takes a dictionary from state element name to value, and a list of
-        retrieval elements. This is useful for creating unit tests that don't depend
-        on other objects.
+        """This takes a dictionary from state element name to value,
+        and a list of retrieval elements. This is useful for creating
+        unit tests that don't depend on other objects.
 
-        Note both self.state_element_dict and self.retrieval_element can be updated
-        if desired, if for whatever reason we want to add/tweak the data."""
+        Note both self.state_element_dict and self.retrieval_element
+        can be updated if desired, if for whatever reason we want to
+        add/tweak the data.
+
+        """
         super().__init__()
         self._state_element_dict = state_element_dict
         self._retrieval_element = retrieval_element
@@ -538,9 +573,11 @@ class CurrentStateDict(CurrentState):
         self.clear_cache()
 
     def full_state_value(self, state_element_name) -> np.ndarray:
-        """Return the full state value for the given state element name.
-        Just as a convention we always return a np.ndarray, so if there is only one value
-        put that in a length 1 np.ndarray."""
+        """Return the full state value for the given state element
+        name.  Just as a convention we always return a np.ndarray, so
+        if there is only one value put that in a length 1 np.ndarray.
+
+        """
         v = self.state_element_dict[state_element_name]
         if isinstance(v, np.ndarray):
             return v
@@ -554,8 +591,10 @@ class CurrentStateDict(CurrentState):
 
 
 class CurrentStateStateInfo(CurrentState):
-    """Implementation of CurrentState that uses our StateInfo. This is the way
-    the actual full retrieval works."""
+    """Implementation of CurrentState that uses our StateInfo. This is
+    the way the actual full retrieval works.
+
+    """
 
     def __init__(
         self,
@@ -598,11 +637,17 @@ class CurrentStateStateInfo(CurrentState):
         we need to have this available."""
         return self._state_info
 
+    @state_info.setter
+    def state_info(self, val: StateInfo):
+        self._state_info = val
+        # Clear cache, we need to regenerate these after update
+        self.clear_cache()
+
     @property
     def initial_guess(self) -> np.ndarray:
         """Initial guess"""
-        # Not sure about systematic handling here. I think this is all zeros, not
-        # sure if that is right or not.
+        # Not sure about systematic handling here. I think this is all
+        # zeros, not sure if that is right or not.
         if self.do_systematic:
             return self._retrieval_info.retrieval_info_systematic().initialGuessList
         else:
@@ -613,7 +658,7 @@ class CurrentStateStateInfo(CurrentState):
         """Apriori Covariance"""
         # Not sure about systematic handling here.
         if self.do_systematic:
-            return None
+            return np.zeros((1, 1))
         else:
             return self._retrieval_info.apriori_cov
 
@@ -637,8 +682,10 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
-        """Basis matrix going from retrieval vector to full model vector.
-        We don't always have this, so we return None if there isn't a basis matrix.
+        """Basis matrix going from retrieval vector to full model
+        vector.  We don't always have this, so we return None if there
+        isn't a basis matrix.
+
         """
         if self.do_systematic:
             return None
@@ -670,12 +717,6 @@ class CurrentStateStateInfo(CurrentState):
             retrieval_info, results_list, do_not_update, retrieval_config, step
         )
 
-    @state_info.setter
-    def state_info(self, val: StateInfo):
-        self._state_info = val
-        # Clear cache, we need to regenerate these after update
-        self.clear_cache()
-
     @property
     def retrieval_info(self) -> RetrievalInfo:
         return self._retrieval_info
@@ -695,7 +736,7 @@ class CurrentStateStateInfo(CurrentState):
         return self.retrieval_info.species_names
 
     @property
-    def fm_sv_loc(self) -> dict[str, int]:
+    def fm_sv_loc(self) -> dict[str, Tuple[int, int]]:
         """Dict that gives the starting location in the forward model
         state vector for a particular state element name (state
         elements not being retrieved don't get listed here)

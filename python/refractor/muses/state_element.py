@@ -1,12 +1,12 @@
 from __future__ import annotations # We can remove this when we upgrade to python 3.9
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy # type: ignore
 from .state_info import (StateElement, StateElementHandle,
                          RetrievableStateElement,
                          StateElementHandleSet, StateInfo)
 from .order_species import order_species
 import numpy as np
 import numbers
-import refractor.framework as rf
+import refractor.framework as rf # type: ignore
 import copy
 import os
 import glob

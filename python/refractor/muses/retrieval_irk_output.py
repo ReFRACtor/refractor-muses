@@ -1,6 +1,6 @@
 from __future__ import annotations
 from loguru import logger
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
 import numpy as np
@@ -38,8 +38,12 @@ class RetrievalIrkOutput(RetrievalOutput):
         return self.current_state.propagated_qa
 
     @property
-    def results_irk(self) -> ResultIrk:
-        return self.retrieval_strategy_step.results_irk
+    def results_irk(self) -> ResultIrk | None:
+        if self.retrieval_strategy_step is not None and hasattr(
+            self.retrieval_strategy_step, "results_irk"
+        ):
+            return self.retrieval_strategy_step.results_irk
+        return None
 
     def notify_update(
         self,
@@ -58,12 +62,14 @@ class RetrievalIrkOutput(RetrievalOutput):
         self.write_irk()
 
     def write_irk(self):
+        if self.results_irk is None:
+            return
+
         # Copy of write_products_irk_one, so we can try cleaning this up a bit
         smeta = self.state_info.sounding_metadata()
 
         nobs = 1
         num_points = 67
-
         nfreqBandFM = len(self.results_irk.fluxSegments)
         nfreqBand = len(self.results_irk.TSUR["irfk_segs"][0, :])
         nfreqEmis = len(self.results_irk.EMIS["irfk"])

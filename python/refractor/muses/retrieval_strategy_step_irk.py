@@ -1,7 +1,7 @@
 from .retrieval_strategy_step import (RetrievalStrategyStep,
                                       RetrievalStrategyStepSet)
 from .muses_forward_model import ResultIrk
-import refractor.framework as rf
+import refractor.framework as rf # type: ignore
 from loguru import logger
 
 class RetrievalStrategyStepIRK(RetrievalStrategyStep):

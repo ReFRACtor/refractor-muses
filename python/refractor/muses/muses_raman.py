@@ -1,10 +1,11 @@
 from __future__ import annotations
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 import abc
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.old_py_retrieve_wrapper import MusesRayInfo
+    # Temp, we should get typing into old_py_retrieve_wrapper, but skip for now
+    from refractor.old_py_retrieve_wrapper import MusesRayInfo  # type: ignore
 
 
 class SurfaceAlbedo(object, metaclass=abc.ABCMeta):

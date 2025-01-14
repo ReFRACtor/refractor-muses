@@ -1,6 +1,6 @@
 from __future__ import annotations
 from builtins import object
-from docopt import docopt
+from docopt import docopt  # type: ignore
 import re
 
 

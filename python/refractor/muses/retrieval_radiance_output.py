@@ -1,7 +1,7 @@
 from __future__ import annotations
 from glob import glob
 from loguru import logger
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
 import numpy as np

@@ -2,7 +2,8 @@ from __future__ import annotations
 from .cost_function import CostFunction
 import numpy as np
 from .replace_function_helper import register_replacement_function_in_block
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
+import os
 from pathlib import Path
 
 
@@ -17,9 +18,9 @@ class MusesLevmarSolver:
         cfunc: CostFunction,
         max_iter: int,
         delta_value: float,
-        conv_tolerance: float,
+        conv_tolerance: list[float],
         chi2_tolerance: float,
-        log_file: str | Path | None = None,
+        log_file: str | os.PathLike[str] | None = None,
         verbose=False,
     ):
         self.cfunc = cfunc

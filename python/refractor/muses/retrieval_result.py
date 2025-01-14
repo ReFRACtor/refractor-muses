@@ -1,8 +1,9 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
 import numpy as np
 from loguru import logger
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -65,6 +66,7 @@ class RetrievalResult:
         self.current_strategy_step = current_strategy_step
         self.ret_res = mpy.ObjectView(ret_res)
         self.jacobianSys = jacobian_sys
+        self.num_iterations = 0
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
         d = mpy.set_retrieval_results_derived(
@@ -109,8 +111,12 @@ class RetrievalResult:
         return self.resultsList
 
     @property
-    def master_quality(self):
+    def master_quality(self) -> int:
         return self.masterQuality
+
+    @master_quality.setter
+    def master_quality(self, val: int):
+        self.masterQuality = val
 
     @property
     def jacobian_sys(self) -> np.ndarray | None:
@@ -228,8 +234,8 @@ class RetrievalResult:
             if len(ind1) > 0:
                 filter_index.append(ind2)
                 filter_list.append(filters[ind2])
-                filterStart.append(np.amin(ind1))
-                filterEnd.append(np.amax(ind1))
+                filterStart.append(int(np.amin(ind1)))
+                filterEnd.append(int(np.amax(ind1)))
 
         num_filters = len(filter_index)
         if num_filters == 1:
@@ -245,7 +251,7 @@ class RetrievalResult:
         if rowsSys == 0:
             rowsSys = 1
 
-        o_results = {
+        o_results: dict[str, Any] | mpy.ObjectView = {
             "retrieval": "",
             "is_ocean": self.retrieval_info.is_ocean,
             "badRetrieval": -999,
@@ -390,7 +396,7 @@ class RetrievalResult:
             "propagatedTATMQA": 0.0,
             "propagatedO3QA": 0.0,
             "propagatedH2OQA": 0.0,
-            "masterQuality": -999.0,
+            "masterQuality": -999,
             "tropopausePressure": -999.0,
             "columnAir": np.full((5), -999, dtype=np.float64),
             "column": np.full((5, 20), -999, dtype=np.float64),  # DBLARR(4, 20)-999.0

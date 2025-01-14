@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 import abc
 from typing import Callable
 import typing
@@ -107,24 +107,6 @@ class ForwardModelHandleSet(CreatorHandleSet):
         return self.handle(
             instrument_name, current_state, obs, fm_sv, rf_uip_func, **kwargs
         )
-
-    def handle_h(
-        self,
-        h: ForwardModelHandle,
-        instrument_name: str,
-        current_state: CurrentState,
-        obs: MusesObservation,
-        fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
-        **kwargs,
-    ) -> (bool, rf.ForwardModel | None):
-        """Process a registered function"""
-        fm = h.forward_model(
-            instrument_name, current_state, obs, fm_sv, rf_uip_func, **kwargs
-        )
-        if fm is None:
-            return (False, None)
-        return (True, fm)
 
 
 __all__ = [

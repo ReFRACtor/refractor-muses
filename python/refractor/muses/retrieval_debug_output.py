@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 from .retrieval_output import RetrievalOutput
 from loguru import logger
 import os
@@ -9,6 +9,8 @@ import typing
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .strategy_table import StrategyTable
+    from .retrieval_info import RetrievalInfo
 
 # We don't have all this in place yet, but put a few samples in place for output
 # triggered by having "writeOutput" which is controlled by the --debug flag set
@@ -19,12 +21,20 @@ class RetrievalInputOutput(RetrievalOutput):
     """Write out the retrieval inputs"""
 
     @property
-    def errorCurrent(self):
+    def error_current(self):
         return self.retrieval_strategy.error_analysis.error_current
 
     @property
     def windows(self):
         return self.retrieval_strategy.microwindows
+
+    @property
+    def retrieval_info(self) -> RetrievalInfo:
+        return self.retrieval_strategy.retrieval_info
+
+    @property
+    def strategy_table(self) -> StrategyTable:
+        return self.retrieval_strategy.strategy_table
 
     def notify_update(
         self,
@@ -45,13 +55,13 @@ class RetrievalInputOutput(RetrievalOutput):
             self.strategy_table.strategy_table_dict,
             self.state_info.state_info_obj,
             self.windows,
-            self.retrievalInfo.retrieval_info_obj,
+            self.retrieval_info.retrieval_info_obj,
             self.step_number,
-            self.errorCurrent.__dict__,
+            self.error_current.__dict__,
             detectorsUse,
         )
         mpy.cdf_write_dict(
-            self.retrievalInfo.retrieval_info_obj.__dict__,
+            self.retrieval_info.retrieval_info_obj.__dict__,
             f"{self.input_directory}/retrieval.nc",
         )
 

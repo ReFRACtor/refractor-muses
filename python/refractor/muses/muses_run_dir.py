@@ -1,10 +1,11 @@
 from __future__ import annotations
-from . import muses_py as mpy
+from . import muses_py as mpy  # type: ignore
 from .refractor_capture_directory import muses_py_call
 from .tes_file import TesFile
 import shutil
 from loguru import logger
 import subprocess
+import os
 from pathlib import Path
 
 
@@ -19,10 +20,10 @@ class MusesRunDir:
 
     def __init__(
         self,
-        refractor_sounding_dir: str | Path,
-        osp_dir: str | Path,
-        gmao_dir: str | Path,
-        path_prefix: str | Path = ".",
+        refractor_sounding_dir: str | os.PathLike[str],
+        osp_dir: str | os.PathLike[str],
+        gmao_dir: str | os.PathLike[str],
+        path_prefix: str | os.PathLike[str] = ".",
         skip_sym_link=False,
     ):
         """Set up a run directory in the given path_prefix with the
@@ -64,13 +65,13 @@ class MusesRunDir:
             "TROPOMI_Cloud_filename",
         ):
             if k in d["preferences"]:
-                f = Path(d["preferences"][k])
+                f2 = Path(d["preferences"][k])
                 # If this starts with a ".", assume we want a file in the sounding director.
                 # otherwise we want the one in the input directory.
-                if f.parent == Path("."):
-                    freplace = refractor_sounding_dir / f.name
+                if f2.parent == Path("."):
+                    freplace = refractor_sounding_dir / f2.name
                 else:
-                    freplace = refractor_sounding_dir.parent / f.name
+                    freplace = refractor_sounding_dir.parent / f2.name
                 # Special handling for CRIS_filename, it uses the
                 # string nasa_fsr normally found in the path to
                 # know the type of file. Since we are mucking with the
@@ -82,13 +83,14 @@ class MusesRunDir:
                 # available with this additional piece in the name -
                 # we manually added a symbolic link with this name.
                 if k == "CRIS_filename":
-                    freplace = refractor_sounding_dir.parent / f"nasa_fsr_{f.name}"
+                    freplace = refractor_sounding_dir.parent / f"nasa_fsr_{f2.name}"
                 d["preferences"][k] = str(freplace)
         mpy.write_all_tes(d, str(self.run_dir / "Measurement_ID.asc"))
 
     def run_retrieval(
         self,
-        vlidort_cli: str | Path = "~/muses/muses-vlidort/build/release/vlidort_cli",
+        vlidort_cli: str
+        | os.PathLike[str] = "~/muses/muses-vlidort/build/release/vlidort_cli",
         debug=False,
         plots=False,
     ):
@@ -97,7 +99,7 @@ class MusesRunDir:
         Note OMI, but not TROPOMI now uses a separate vlidort_cli, which
         can be passed in."""
         with muses_py_call(self.run_dir, vlidort_cli=vlidort_cli):
-            from py_retrieve.cli import cli
+            from py_retrieve.cli import cli  # type: ignore
 
             try:
                 arg = [
@@ -122,7 +124,9 @@ class MusesRunDir:
 
     @classmethod
     def save_run_directory(
-        cls, amuse_me_run_dir: str | Path, refractor_sounding_dir: str | Path
+        cls,
+        amuse_me_run_dir: str | os.PathLike[str],
+        refractor_sounding_dir: str | os.PathLike[str],
     ):
         """Copy data from the amuse_me run directory (e.g.,
         ~/muses/refractor-muses/muses_capture/output/omi/2016-04-14/setup-targets/Global_Survey/20160414_23_394_11_23) to a sounding save directory
@@ -152,10 +156,10 @@ class MusesRunDir:
             "TROPOMI_Cloud_filename",
         ):
             if k in d:
-                f = Path(d[k])
-                fdest = refractor_sounding_dir.parent / f.name
+                f2 = Path(d[k])
+                fdest = refractor_sounding_dir.parent / f2.name
                 if not fdest.exists():
-                    logger.info(f"Copying {f} to {fdest}")
-                    shutil.copy(f, fdest)
+                    logger.info(f"Copying {f2} to {fdest}")
+                    shutil.copy(f2, fdest)
                 else:
                     logger.info(f"{fdest} already exists")

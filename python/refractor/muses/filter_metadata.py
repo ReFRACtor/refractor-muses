@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .tes_file import TesFile
 import abc
+import os
 from pathlib import Path
 
 
@@ -59,7 +60,7 @@ class FileFilterMetadata(FilterMetadata):
 
     """
 
-    def __init__(self, filename: str | Path):
+    def __init__(self, filename: str | os.PathLike[str]):
         self.filename = Path(filename)
         f = TesFile.create(filename)
         self.metadata = {}

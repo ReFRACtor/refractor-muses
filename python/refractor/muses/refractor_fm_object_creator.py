@@ -4,7 +4,7 @@ from .muses_spectrum_sampling import MusesSpectrumSampling
 from .muses_raman import MusesRaman
 from .refractor_uip import RefractorUip
 from .muses_forward_model import RefractorForwardModel
-import refractor.framework as rf
+import refractor.framework as rf # type: ignore
 import os
 from pathlib import Path
 from loguru import logger

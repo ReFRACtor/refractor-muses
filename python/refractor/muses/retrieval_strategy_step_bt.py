@@ -1,9 +1,9 @@
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_strategy_step import (RetrievalStrategyStep,
                                       RetrievalStrategyStepSet)
 from .tes_file import TesFile
-import refractor.framework as rf
+import refractor.framework as rf # type: ignore
 import numpy as np
 import os
 import copy

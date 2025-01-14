@@ -1,10 +1,11 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 import collections.abc
 import re
 import pandas as pd
 from pathlib import Path
 import io
+import os
 from functools import lru_cache
 
 
@@ -24,7 +25,7 @@ class TesFile(collections.abc.Mapping):
     table content
     """
 
-    def __init__(self, fname: str | Path, use_mpy=False):
+    def __init__(self, fname: str | os.PathLike[str], use_mpy=False):
         """Open the given file, and read the keyword/value pairs plus
         the (possibly empty) table.
 
@@ -43,23 +44,27 @@ class TesFile(collections.abc.Mapping):
             self.mpy_d = d
             self._d = d["preferences"]
             if d["numRows"] > 0:
-                tbl = f"{d['labels1']}\n" + "\n".join(d["data"])
-                self.table = pd.read_table(io.StringIO(tbl), sep=r"\s+", header=0)
+                tbls = f"{d['labels1']}\n" + "\n".join(d["data"])
+                self.table: pd.DataFrame | None = pd.read_table(
+                    io.StringIO(tbls), sep=r"\s+", header=0
+                )
             else:
                 self.table = None
             return
 
-        t = open(fname).read()
+        fdata = open(fname).read()
 
         # Make sure we find the end of the header
         if not re.search(
-            r"^\s*end_of_header.*$", t, flags=re.MULTILINE | re.IGNORECASE
+            r"^\s*end_of_header.*$", fdata, flags=re.MULTILINE | re.IGNORECASE
         ):
             raise RuntimeError(f"Didn't find end_of_header in file {self.file_name}")
 
         # Split into header and table part. Note not all files have
         # table part, but should have a header part
-        t2 = re.split(r"^\s*end_of_header.*$", t, flags=re.MULTILINE | re.IGNORECASE)
+        t2 = re.split(
+            r"^\s*end_of_header.*$", fdata, flags=re.MULTILINE | re.IGNORECASE
+        )
         # Turns out there was a sample
         # (Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_TATM_H2O_N2O_CH4_HDO_BAR_LAND.asc)
         # where there is a copy of the file from a previous version at the end
@@ -70,7 +75,7 @@ class TesFile(collections.abc.Mapping):
         if len(t2) < 1:
             raise RuntimeError(f"Trouble parsing file {self.file_name}")
         hdr = t2[0]
-        tbl = t2[1] if len(t2) >= 2 else None
+        tbl: str | None = t2[1] if len(t2) >= 2 else None
 
         # Strip comments out
         hdr = re.sub(r"//(.*)$", "", hdr, flags=re.MULTILINE)
@@ -120,7 +125,7 @@ class TesFile(collections.abc.Mapping):
 
     @classmethod
     @lru_cache(maxsize=50)
-    def create(cls, fname: str | Path):
+    def create(cls, fname: str | os.PathLike[str]):
         """This creates a TesFile that reads the given file. Because we often
         open the same file multiple times in different contexts, this adds caching so
         open the same file a second time just returns the existing TesFile object.

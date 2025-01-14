@@ -66,7 +66,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         self.do_temperature_shift = False
 
         # Where MUSES stores the computations it makes for VLIDORT we are leveraging
-        self.input_dir = Path(input_dir)
+        self.input_dir = Path(input_dir).absolute()
 
         self.map_vmr_l, self.map_vmr_u = self.ray_info.map_vmr()
 

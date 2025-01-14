@@ -1,8 +1,8 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 import copy
 import numpy as np
-from scipy.linalg import block_diag
+from scipy.linalg import block_diag  # type: ignore
 import typing
 
 if typing.TYPE_CHECKING:
@@ -25,10 +25,10 @@ class ErrorAnalysis:
         state_info: StateInfo,
         covariance_state_element_name: list[str],
     ):
-        self.initialize_error_initial(
+        self.error_initial = self.initialize_error_initial(
             current_strategy_step, state_info, covariance_state_element_name
         )
-        self.error_current = copy.deepcopy(self.error_initial)
+        self.error_current: dict | mpy.ObjectView = copy.deepcopy(self.error_initial)
         # Code seems to assume these are object view.
         self.error_initial = mpy.ObjectView(self.error_initial)
         self.error_current = mpy.ObjectView(self.error_current)
@@ -38,7 +38,7 @@ class ErrorAnalysis:
         current_strategy_step: CurrentStrategyStep,
         state_info: StateInfo,
         covariance_state_element_name: list[str],
-    ):
+    ) -> dict | mpy.ObjectView:
         """covariance_state_element_name should be the list of state
         elements we need covariance from. This is all the elements we
         will retrieve, plus any interferents that get added in. This
@@ -90,9 +90,7 @@ class ErrorAnalysis:
                     initial[np.array(species_list) == selem2.name, :][
                         :, np.array(species_list) == selem1.name
                     ] = np.transpose(matrix)
-        self.error_initial = mpy.constraint_data(
-            initial, pressure_list, species_list, map_list
-        )
+        return mpy.constraint_data(initial, pressure_list, species_list, map_list)
 
     def update_retrieval_result(self, retrieval_result: RetrievalResult):
         """Update the retrieval_result and ErrorAnalysis. The retrieval_result

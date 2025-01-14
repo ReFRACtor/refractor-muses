@@ -1,6 +1,6 @@
 from __future__ import annotations
 from loguru import logger
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 import os
 import copy
 import numpy as np

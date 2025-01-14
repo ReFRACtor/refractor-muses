@@ -4,7 +4,7 @@ from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 from .current_state import CurrentState, CurrentStateUip
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 import copy
 from loguru import logger
 from collections.abc import Callable
@@ -33,7 +33,7 @@ class CostFunctionCreator:
         self.observation_handle_set = copy.deepcopy(
             ObservationHandleSet.default_handle_set()
         )
-        self.measurement_id = None
+        self.measurement_id: MeasurementId | None = None
 
     def notify_update_target(self, measurement_id: MeasurementId):
         """Set up for processing a target.

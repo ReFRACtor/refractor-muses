@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .strategy_table import StrategyTable
-from pathlib import Path
+import os
 
 
 class MusesStrategy:
@@ -32,7 +32,11 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
 
     """
 
-    def __init__(self, filename: str | Path, osp_dir: str | Path | None = None):
+    def __init__(
+        self,
+        filename: str | os.PathLike[str],
+        osp_dir: str | os.PathLike[str] | None = None,
+    ):
         self._stable = StrategyTable(filename, osp_dir=osp_dir)
 
 

@@ -15,7 +15,7 @@ build-backend = "setuptools.build_meta"
 # __init__ includes things it doesn't use (e.g., __version__), which
 # is really its job. So don't warn about this.
 
-"__init__.py" = ["F401"]
+"__init__.py" = ["F401", "F403"]
 
 # We have various "np.array != True", which looks wrong to ruff but is
 # actually correct. Ignore these

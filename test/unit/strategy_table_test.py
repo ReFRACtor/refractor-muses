@@ -145,17 +145,17 @@ def test_strategy_table(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
     s.table_step = 0
     print(s.spectral_filename)
     assert (
-        os.path.basename(s.spectral_filename)
+        s.spectral_filename.name
         == "Windows_Nadir_OMICLOUDFRACTION_OMICLOUD_IG_Refine.asc"
     )
     assert s.table_step == 0
     assert s.number_table_step == 2
     assert s.step_name == "OMICLOUDFRACTION"
-    assert s.output_directory == os.path.abspath("./20160414_23_394_11_23")
+    assert s.output_directory.name == "20160414_23_394_11_23"
 
     s.table_step = 1
-    assert os.path.basename(s.spectral_filename) == "Windows_Nadir_O3.asc"
+    assert s.spectral_filename.name == "Windows_Nadir_O3.asc"
     assert s.table_step == 1
     assert s.number_table_step == 2
     assert s.step_name == "O3_OMI"
-    assert s.output_directory == os.path.abspath("./20160414_23_394_11_23")
+    assert s.output_directory.name == "20160414_23_394_11_23"

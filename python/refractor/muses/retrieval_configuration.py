@@ -5,6 +5,7 @@ import re
 import copy
 from .tes_file import TesFile
 from pathlib import Path
+from typing import Any
 
 
 class RetrievalConfiguration(collections.abc.MutableMapping):
@@ -39,20 +40,22 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
 
     """
 
-    def __init__(self, base_dir: str | Path = ".", osp_dir: str | Path | None = None):
-        self._data = {}
+    def __init__(
+        self,
+        base_dir: str | os.PathLike[str] = ".",
+        osp_dir: str | os.PathLike[str] | None = None,
+    ):
+        self._data: dict[str, Any] = {}
         # These can be updated after the object is created, e.g. after
         # have a pickle file loaded. The relative paths in the our
         # data get converted based on these values.
         self.base_dir = Path(base_dir)
-        self.osp_dir = osp_dir
-        if self.osp_dir is not None:
-            self.osp_dir = Path(self.osp_dir)
+        self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         return self._abs_dir(self._data[key])
 
-    def __setitem__(self, key, val):
+    def __setitem__(self, key: str, val: Any):
         self._data[key] = val
 
     def __delitem__(self, key):
@@ -66,7 +69,9 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
 
     @classmethod
     def create_from_strategy_file(
-        cls, fname: str | Path, osp_dir: str | Path | None = None
+        cls,
+        fname: str | os.PathLike[str],
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         strategy_table_fname = Path(fname).absolute()
         strategy_table_dir = strategy_table_fname.parent

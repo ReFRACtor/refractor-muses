@@ -1,8 +1,8 @@
-from . import muses_py as mpy
+from . import muses_py as mpy # type: ignore
 from .replace_function_helper import register_replacement_function_in_block
 from .refractor_capture_directory import RefractorCaptureDirectory, muses_py_call
 from .osswrapper import osswrapper
-import refractor.framework as rf
+import refractor.framework as rf # type: ignore
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
@@ -1344,7 +1344,7 @@ class RefractorUip:
                    i_retrievalInfo, i_airs, i_tes, i_cris, i_omi, i_tropomi,
                    i_oco2, jacobian_speciesIn=None,
                    only_create_instrument=None,
-                   pointing_angle : "optional(rf.DoubleWithUnit)" =None
+                   pointing_angle : rf.DoubleWithUnit | None =None
                    ):
         '''We duplicate what mpy.run_retrieval does to make the uip.
 
@@ -1371,7 +1371,7 @@ class RefractorUip:
                     SPACING = np.unique(i_cris['SPACING'][tempind])
 
                     if len(MAXOPD) > 1 or len(SPACING) > 1:
-                        raise Running('ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!')
+                        raise RuntimeError('ERROR!!! Microwindowds across CrIS filter bands leading to spacing and OPD does not uniform in this MW!')
 
                     win['maxopd'] = np.float32(MAXOPD[0])
                     win['spacing'] = np.float32(SPACING[0])

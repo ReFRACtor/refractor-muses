@@ -1,9 +1,7 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 import numpy as np
-from scipy.linalg import block_diag
-import os
-import glob
+from scipy.linalg import block_diag  # type: ignore
 import typing
 
 if typing.TYPE_CHECKING:
@@ -255,7 +253,7 @@ class RetrievalInfo:
         self,
         strategy_table: StrategyTable,
         state_info: StateInfo,
-        o_retrievalInfo: dict,
+        o_retrievalInfo: mpy.ObjectView,
         error_analysis: ErrorAnalysis,
     ):
         """Update the various "Sys" stuff in o_retrievalInfo to add in
@@ -348,17 +346,12 @@ class RetrievalInfo:
                     specie1 = names[xx]
                     specie2 = names[yy]
 
-                    filename = (
-                        species_dir + os.path.sep + specie1 + "_" + specie2 + ".asc"
-                    )
-                    files = glob.glob(filename)
-                    if len(files) == 0:
+                    filename = species_dir / f"{specie1}_{specie2}.asc"
+                    if not filename.exists():
                         # If cannot find file, look for one with the species names swapped.
-                        filename = (
-                            species_dir + os.path.sep + specie2 + "_" + specie1 + ".asc"
-                        )
+                        filename = species_dir / f"{specie2}_{specie1}.asc"
 
-                    (_, fileID) = mpy.read_all_tes_cache(filename, "asc")
+                    (_, fileID) = mpy.read_all_tes_cache(str(filename), "asc")
 
                     # AT_LINE 877 Get_Species_Information.pro
                     speciesInformationFile = mpy.tes_file_get_struct(fileID)
@@ -448,7 +441,7 @@ class RetrievalInfo:
         # constraints for all parameters, maps for each parameter
 
         smeta = state_info.sounding_metadata()
-        o_retrievalInfo = {
+        o_retrievalInfo: dict | mpy.ObjectView = {
             # Info by retrieval parameter
             "surfaceType": "OCEAN" if smeta.is_ocean else "LAND",
             "speciesList": [],

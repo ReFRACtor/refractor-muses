@@ -1,9 +1,9 @@
 from __future__ import annotations
 import numpy as np
 import math
-import refractor.framework as rf
-import refractor.muses.muses_py as mpy
-from pathlib import Path
+import refractor.framework as rf  # type: ignore
+import refractor.muses.muses_py as mpy  # type: ignore
+import os
 import typing
 
 if typing.TYPE_CHECKING:
@@ -26,7 +26,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         absorber_vmr: rf.AbsorberVmr,
         obs: MusesObservation,
         ils_params_list: list[dict],
-        osp_dir: str | Path,
+        osp_dir: str | os.PathLike[str],
     ):
         """Creator"""
         # Dummy since we are overwriting the optical_depth function

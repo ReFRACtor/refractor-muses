@@ -5,10 +5,10 @@ from .muses_spectral_window import MusesSpectralWindow, TesSpectralWindow
 from .retrieval_configuration import RetrievalConfiguration
 from .tes_file import TesFile
 from contextlib import contextmanager
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 import os
 import numpy as np
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 import abc
 import copy
 from loguru import logger
@@ -17,7 +17,7 @@ import subprocess
 import itertools
 import collections.abc
 import re
-from pathlib import Path
+from typing import Tuple
 import typing
 
 if typing.TYPE_CHECKING:
@@ -110,7 +110,7 @@ class MeasurementIdFile(MeasurementId):
 
     def __init__(
         self,
-        fname: str | Path,
+        fname: str | os.PathLike[str],
         retrieval_config: RetrievalConfiguration,
         filter_list_dict: dict[str, list[str]],
     ):
@@ -121,7 +121,7 @@ class MeasurementIdFile(MeasurementId):
         self._retrieval_config = retrieval_config
 
     @property
-    def filter_list_dict(self) -> list[str]:
+    def filter_list_dict(self) -> dict[str, list[str]]:
         """The complete list of filters we will be processing (so for
         all retrieval steps)
 
@@ -211,7 +211,7 @@ class MusesObservation(rf.ObservationSvImpBase):
         raise NotImplementedError()
 
     @property
-    def filter_data(self) -> list[list[str, int]]:
+    def filter_data(self) -> list[Tuple[str, int]]:
         """This returns a list of filter names and sizes. This is used
         as metadata in the py-retrieve structure called
         "radianceStep".
@@ -456,13 +456,13 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
-    def filter_data(self) -> list[str, int]:
-        res = []
+    def filter_data(self) -> list[Tuple[str, int]]:
+        res: list[Tuple[str, int]] = []
         sd = self.spectral_domain_all()
         for i, fltname in enumerate(self._filter_data_name):
             sz = self._filter_data_swin.apply(sd, i).data.shape[0]
             if sz > 0:
-                res.append([fltname, sz])
+                res.append((fltname, sz))
         return res
 
     def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping):
@@ -653,7 +653,7 @@ class SimulatedObservation(MusesObservationImp):
         return self._obs.longitude
 
     @property
-    def filter_data(self) -> list[str, int]:
+    def filter_data(self) -> list[Tuple[str, int]]:
         return self._obs.filter_data
 
     def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping):
@@ -711,7 +711,7 @@ class SimulatedObservationHandle(ObservationHandle):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs,
     ):
         if instrument_name != self.instrument_name:
@@ -756,7 +756,7 @@ class MusesObservationHandle(ObservationHandle):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs,
     ):
         if instrument_name != self.instrument_name:
@@ -799,12 +799,12 @@ class MusesAirsObservation(MusesObservationImp):
     @classmethod
     def _read_data(
         cls,
-        filename: str | Path,
+        filename: str | os.PathLike[str],
         granule,
         xtrack,
         atrack,
         filter_list,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         i_fileid = {}
         i_fileid["preferences"] = {
@@ -835,12 +835,12 @@ class MusesAirsObservation(MusesObservationImp):
     @classmethod
     def create_from_filename(
         cls,
-        filename: str | Path,
+        filename: str | os.PathLike[str],
         granule,
         xtrack,
         atrack,
         filter_list,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -863,7 +863,7 @@ class MusesAirsObservation(MusesObservationImp):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs,
     ):
         """Create from a MeasurementId. If this depends on any state
@@ -960,14 +960,14 @@ class MusesTesObservation(MusesObservationImp):
     @classmethod
     def _read_data(
         cls,
-        filename: str | Path,
+        filename: str | os.PathLike[str],
         l1b_index,
         l1b_avgflag,
         run,
         sequence,
         scan,
         filter_list,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         i_fileid = {}
         i_fileid["preferences"] = {
@@ -1160,14 +1160,14 @@ class MusesTesObservation(MusesObservationImp):
     @classmethod
     def create_from_filename(
         cls,
-        filename: str | Path,
+        filename: str | os.PathLike[str],
         l1b_index,
         l1b_avgflag,
         run,
         sequence,
         scan,
         filter_list,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -1198,7 +1198,7 @@ class MusesTesObservation(MusesObservationImp):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs,
     ):
         """Create from a MeasurementId. If this depends on any state
@@ -1312,12 +1312,12 @@ class MusesCrisObservation(MusesObservationImp):
     @classmethod
     def _read_data(
         cls,
-        filename: str | Path,
+        filename: str | os.PathLike[str],
         granule,
         xtrack,
         atrack,
         pixel_index,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         i_fileid = {
             "CRIS_filename": os.path.abspath(str(filename)),
@@ -1414,12 +1414,12 @@ class MusesCrisObservation(MusesObservationImp):
     @classmethod
     def create_from_filename(
         cls,
-        filename: str | Path,
+        filename: str | os.PathLike[str],
         granule,
         xtrack,
         atrack,
         pixel_index,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -1442,7 +1442,7 @@ class MusesCrisObservation(MusesObservationImp):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs,
     ):
         """Create from a MeasurementId. If this depends on any state
@@ -1737,7 +1737,7 @@ class MusesObservationReflectance(MusesObservationImp):
         return "MusesObservationReflectance"
 
     @property
-    def filter_data(self) -> list[list[str, int]]:
+    def filter_data(self) -> list[Tuple[str, int]]:
         self._filter_data_name = self.filter_list
         self._filter_data_swin = self._spectral_window
         return super().filter_data
@@ -1890,13 +1890,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
     @classmethod
     def _read_data(
         cls,
-        filename_dict: dict[str, str | Path],
+        filename_dict: dict[str, str | os.PathLike[str]],
         xtrack_dict,
         atrack_dict,
         utc_time,
         filter_list,
         calibration_filename=None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         # Filter list should be in the same order as filename_list,
         # and should be things like "BAND3"
@@ -1960,13 +1960,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
     @classmethod
     def create_from_filename(
         cls,
-        filename_dict: "dict(str, str | Path)",
+        filename_dict: dict[str, str | os.PathLike[str]],
         xtrack_dict,
         atrack_dict,
         utc_time,
         filter_list,
         calibration_filename=None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -1995,7 +1995,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
         write_tropomi_radiance_pickle=False,
         **kwargs,
     ):
@@ -2154,14 +2154,14 @@ class MusesOmiObservation(MusesObservationReflectance):
     @classmethod
     def _read_data(
         cls,
-        filename: str | Path,
+        filename: str | os.PathLike[str],
         xtrack_uv1,
         xtrack_uv2,
         atrack,
         utc_time,
         calibration_filename,
         cld_filename=None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         with osp_setup(osp_dir):
             o_omi = mpy.read_omi(
@@ -2204,7 +2204,7 @@ class MusesOmiObservation(MusesObservationReflectance):
     @classmethod
     def create_from_filename(
         cls,
-        filename: str | Path,
+        filename: str | os.PathLike[str],
         xtrack_uv1,
         xtrack_uv2,
         atrack,
@@ -2212,7 +2212,7 @@ class MusesOmiObservation(MusesObservationReflectance):
         calibration_filename,
         filter_list,
         cld_filename=None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
     ):
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
@@ -2243,7 +2243,7 @@ class MusesOmiObservation(MusesObservationReflectance):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | Path | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
         write_omi_radiance_pickle=False,
         **kwargs,
     ):

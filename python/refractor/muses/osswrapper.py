@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import muses_py as mpy
+from . import muses_py as mpy  # type: ignore
 from .replace_function_helper import suppress_replacement
 import os
 import copy
@@ -24,7 +24,7 @@ def suppress_stdout():
             dest_file.close()
 
 
-class WatchOssInit(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
+class WatchOssInit(mpy.ObserveFunctionObject):
     """Helper object to update osswrapper.have_oss when py-retrieve calls
     fm_oss_init."""
 
@@ -33,7 +33,7 @@ class WatchOssInit(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
         osswrapper.first_oss_initialize = False
 
 
-class WatchOssDelete(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
+class WatchOssDelete(mpy.ObserveFunctionObject):
     """Helper object to update osswrapper.have_oss when py-retrieve calls
     fm_oss_delete."""
 

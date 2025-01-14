@@ -1,11 +1,12 @@
 from __future__ import annotations
 from .tes_file import TesFile
 from .filter_metadata import FilterMetadata, DictFilterMetadata
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 import copy
 import numpy as np
-import refractor.muses.muses_py as mpy
-from pathlib import Path
+import refractor.muses.muses_py as mpy  # type: ignore
+import os
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -107,14 +108,14 @@ class MusesSpectralWindow(rf.SpectralWindow):
         super().__init__()
         self.instrument_name = instrument_name
         if filter_metadata is None:
-            self.filter_metadata = DictFilterMetadata(metadata={})
+            self.filter_metadata: FilterMetadata = DictFilterMetadata(metadata={})
         else:
             self.filter_metadata = filter_metadata
         # Either take the values passed in, or fill in dummy values for this
         # metadata
-        self.filter_name = None
-        self.rt = None
-        self.species_list = None
+        self.filter_name: np.ndarray | None = None
+        self.rt: np.ndarray | None = None
+        self.species_list: np.ndarray | None = None
         for v, sv in (
             (filter_name, "filter_name"),
             (rt, "rt"),
@@ -184,7 +185,8 @@ class MusesSpectralWindow(rf.SpectralWindow):
         if self.do_raman_ext:
             return self._spec_win_raman_ext.grid_indexes(grid, spec_index)
         if self.include_bad_sample:
-            return self._spec_win_with_bad_sample.grid_indexes(grid, spec_index)
+            if self._spec_win_with_bad_sample is not None:
+                return self._spec_win_with_bad_sample.grid_indexes(grid, spec_index)
         return self._spec_win.grid_indexes(grid, spec_index)
 
     def muses_monochromatic(self):
@@ -244,24 +246,35 @@ class MusesSpectralWindow(rf.SpectralWindow):
                         "start": d[i, j, 0],
                         "endd": d[i, j, 1],
                         "instrument": self.instrument_name,
-                        "RT": self.rt[i, j] if self.rt[i, j] is not None else "None",
+                        "RT": self.rt[i, j]
+                        if self.rt is not None and self.rt[i, j] is not None
+                        else "None",
                         "filter": self.filter_name[i, j]
-                        if self.filter_name[i, j] is not None
+                        if self.filter_name is not None
+                        and self.filter_name[i, j] is not None
                         else "None",
                     }
-                    v2 = self.filter_metadata.filter_metadata(self.filter_name[i, j])
+                    v2 = self.filter_metadata.filter_metadata(
+                        self.filter_name[i, j] if self.filter_name is not None else None
+                    )
                     # Make a copy so we can update v2 without changing anything it might
                     # point to in self.filter_metadata
                     v2 = copy.deepcopy(v2)
                     # Prefer our species_list if found, but otherwise use the
                     # one in self.filter_metadata
-                    if self.species_list[i, j] is None or self.species_list[i, j] == "":
+                    if self.species_list is not None and (
+                        self.species_list[i, j] is None or self.species_list[i, j] == ""
+                    ):
                         if "speciesList" in v2:
                             v["speciesList"] = v2["speciesList"]
                         else:
                             v["speciesList"] = ""
                     else:
-                        v["speciesList"] = self.species_list[i, j]
+                        v["speciesList"] = (
+                            self.species_list[i, j]
+                            if self.species_list is not None
+                            else ""
+                        )
                     # Values in both v and v2 prefer the v one based on the rules for
                     # update.
                     v2.update(v)
@@ -295,7 +308,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
         return res
 
     @classmethod
-    def filter_list_dict_from_file(cls, spec_fname: str | Path) -> dict[str, list[str]]:
+    def filter_list_dict_from_file(
+        cls, spec_fname: str | os.PathLike[str]
+    ) -> dict[str, list[str]]:
         """Return a dictionary going from instrument name to the list
         of filters for that given instrument.
 
@@ -313,7 +328,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
     @classmethod
     def create_dict_from_file(
         cls,
-        spec_fname: str | Path,
+        spec_fname: str | os.PathLike[str],
         filter_list_dict: dict[str, list[str]] | None = None,
         filter_metadata: FilterMetadata | None = None,
     ):
@@ -347,7 +362,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
     @classmethod
     def create_from_file(
         cls,
-        spec_fname: str | Path,
+        spec_fname: str | os.PathLike[str],
         instrument_name: str,
         filter_list_all: list[str] | None = None,
         filter_metadata: FilterMetadata | None = None,
@@ -442,18 +457,18 @@ class MusesSpectralWindow(rf.SpectralWindow):
     def muses_microwindows_fname_from_muses_py(
         cls,
         viewing_mode: str,
-        spectral_window_directory: str | Path,
+        spectral_window_directory: str | os.PathLike[str],
         retrieval_elements: list[str],
         step_name: str,
         retrieval_type: str,
-        spec_file: str | Path | None = None,
+        spec_file: str | os.PathLike[str] | None = None,
     ):
         """For testing purposes, this calls the old mpy.table_get_spectral_filename to
         determine the microwindow file name use. This can be used to verify that
         we are finding the right name. This shouldn't be used for real code,
         instead use the SpectralWindowHandleSet."""
         # creates a dummy strategy_table dict with the values it expects to find
-        stable = {}
+        stable: dict[str, Any] = {}
         stable["preferences"] = {
             "viewingMode": viewing_mode,
             "spectralWindowDirectory": str(spectral_window_directory),
@@ -480,18 +495,18 @@ class MusesSpectralWindow(rf.SpectralWindow):
         cls,
         default_spectral_window_fname: str,
         viewing_mode: str,
-        spectral_window_directory: str | Path,
+        spectral_window_directory: str | os.PathLike[str],
         retrieval_elements: list[str],
         step_name: str,
         retrieval_type: str,
-        spec_file: str | Path | None = None,
+        spec_file: str | os.PathLike[str] | None = None,
     ):
         """For testing purposes, this calls the old mpy.table_new_mw_from_step. This can
         be used to verify that the microwindows we generate are correct. This shouldn't
         be used for real code, instead use the SpectralWindowHandleSet."""
         # Wrap arguments into format expected by table_new_mw_from_step. This
         # creates a dummy strategy_table dict with the values it expects to find
-        stable = {}
+        stable: dict[str, Any] = {}
         stable["preferences"] = {
             "defaultSpectralWindowsDefinitionFilename": default_spectral_window_fname,
             "viewingMode": viewing_mode,
@@ -546,7 +561,7 @@ class TesSpectralWindow(MusesSpectralWindow):
         )
         self._obs = obs
 
-    def desc(self) -> desc:
+    def desc(self) -> str:
         return "TesSpectralWindow"
 
     def grid_indexes(self, grid, spec_index: int):

@@ -1,6 +1,6 @@
 from __future__ import annotations
-import refractor.framework as rf
-import refractor.muses.muses_py as mpy
+import refractor.framework as rf  # type: ignore
+import refractor.muses.muses_py as mpy  # type: ignore
 import numpy as np
 from loguru import logger
 
@@ -20,8 +20,8 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         fm_list: list[rf.ForwardModel],
         obs_list: list[rf.Observation],
         fm_sv: rf.StateVector,
-        retrieval_sv_apriori: np.array,
-        retrieval_sv_sqrt_constraint: np.array,
+        retrieval_sv_apriori: np.ndarray,
+        retrieval_sv_sqrt_constraint: np.ndarray,
         basis_matrix,
     ):
         self.instrument_name_list = instrument_name_list

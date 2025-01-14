@@ -1,6 +1,6 @@
 from __future__ import annotations
 from contextlib import contextmanager
-from . import muses_py as mpy
+from . import muses_py as mpy  # type: ignore
 
 # Some helper functions for managing the mpy.replace_function. We may migrate
 # some of this into muses-py, but for now we'll collect stuff here.

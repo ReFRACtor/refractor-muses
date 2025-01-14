@@ -1,17 +1,17 @@
 from __future__ import annotations
-from . import muses_py as mpy
+from . import muses_py as mpy  # type: ignore
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
 from .muses_observation import MusesTesObservation
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 from functools import cached_property
 from loguru import logger
 import numpy as np
 import copy
 from collections import UserDict
 import typing
-from typing import Callable
+from typing import Callable, Tuple
 
 if typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
@@ -249,21 +249,21 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         return []
 
     @property
-    def flux_freq_range(self) -> (float, float):
+    def flux_freq_range(self) -> Tuple[float, float]:
         # The original run_irk.py code had this hardcoded, but presumably
         # this would change with different instruments? In any case, pull
         # this out to make it clear we are using fixed numbers
         return (980.0, 1080.0)
 
     @property
-    def seg_freq_range(self) -> (float, float):
+    def seg_freq_range(self) -> Tuple[float, float]:
         # The original run_irk.py code had this hardcoded, but presumably
         # this would change with different instruments? In any case, pull
         # this out to make it clear we are using fixed numbers
         return (970.0, 1120.0)
 
     @property
-    def irk_average_freq_range(self) -> (float, float):
+    def irk_average_freq_range(self) -> Tuple[float, float]:
         # The original run_irk.py code had this hardcoded, but presumably
         # this would change with different instruments? In any case, pull
         # this out to make it clear we are using fixed numbers
@@ -307,7 +307,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         self,
         retrieval_info: RetrievalInfo,
         rf_uip_func: Callable[[MusesObservation, rf.DoubleWithUnit], RefractorUip],
-    ) -> dict:
+    ) -> ResultIrk:
         """This was originally the run_irk.py code from py-retrieve. We
         have our own copy of this so we can clean this code up a bit.
         """
@@ -372,15 +372,15 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         maxx = np.amax(frequency)
         minn, maxx = self.seg_freq_range
         nf = int((maxx - minn) / 3)
-        freqSegments = np.ndarray(shape=(nf), dtype=np.float32)
+        freqSegments: np.ndarray = np.ndarray(shape=(nf), dtype=np.float32)
         freqSegments.fill(
             0
         )  # It is import to start with 0 because not all elements will be calculated.
-        fluxSegments = np.ndarray(shape=(nf), dtype=np.float32)
+        fluxSegments: np.ndarray = np.ndarray(shape=(nf), dtype=np.float32)
         fluxSegments.fill(
             0
         )  # It is import to start with 0 because not all elements will be calculated.
-        fluxSegments_l1b = np.ndarray(shape=(nf), dtype=np.float32)
+        fluxSegments_l1b: np.ndarray = np.ndarray(shape=(nf), dtype=np.float32)
         fluxSegments_l1b.fill(
             0
         )  # It is import to start with 0 because not all elements will be calculated.
@@ -805,6 +805,8 @@ class MusesForwardModelHandle(ForwardModelHandle):
         **kwargs,
     ):
         if instrument_name != self.instrument_name:
+            return None
+        if rf_uip_func is None:
             return None
         logger.debug(f"Creating forward model {self.cls.__name__}")
         # Note MeasurementId also has access to all the stuff in

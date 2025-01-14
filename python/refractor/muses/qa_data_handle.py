@@ -2,7 +2,7 @@ from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .muses_spectral_window import MusesSpectralWindow
 from .tes_file import TesFile
-import refractor.muses.muses_py as mpy
+import refractor.muses.muses_py as mpy  # type: ignore
 from loguru import logger
 import abc
 import os
@@ -43,7 +43,7 @@ class QaFlagValue(object, metaclass=abc.ABCMeta):
 class QaFlagValueFile(QaFlagValue):
     """Implementation that uses a file to get the values."""
 
-    def __init__(self, fname: str | Path):
+    def __init__(self, fname: str | os.PathLike[str]):
         self.d = TesFile(fname)
 
     @property
@@ -102,7 +102,7 @@ class QaDataHandleSet(CreatorHandleSet):
     ) -> str | None:
         """This does the QA calculation, and updates the given RetrievalResult.
         Returns the master quality flag results"""
-        self.handle(retrieval_result)
+        return self.handle(retrieval_result)
 
 
 class MusesPyQaDataHandle(QaDataHandle):
