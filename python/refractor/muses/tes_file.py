@@ -7,7 +7,7 @@ from pathlib import Path
 import io
 import os
 from functools import lru_cache
-
+import typing
 
 class TesFile(collections.abc.Mapping):
     """There are a number of files that are in the "TES File"
@@ -123,6 +123,13 @@ class TesFile(collections.abc.Mapping):
     def __iter__(self):
         return self._d.__iter__()
 
+    # _lru_cache_wrapper is not correctly typed, we get a spurious
+    # error message (see
+    # https://stackoverflow.com/questions/73517571/typevar-inference-broken-by-lru-cache-decorator)
+    # This might eventually get fixed - the error is in functools but
+    # at least as of python 3.11.10 this is still there. Just silence
+    # the error to reduce noise in the output.
+    @typing.no_type_check
     @classmethod
     @lru_cache(maxsize=50)
     def create(cls, fname: str | os.PathLike[str]):

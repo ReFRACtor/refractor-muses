@@ -78,3 +78,11 @@ supply whatever that function is expecting.
 But as a documentation of what we generally expect, typehints are
 useful.
 
+We do have mypy running cleanly with python 3.11.10 and mypy 1.14.1.
+The information mypy supplies is useful, and it is nice not to have
+spurious errors in the output. So we have this in place at this point
+in time. We may or may not maintain this, it is useful as long as this
+isn't too much work.  But static analysis does find some useful things
+(are the type hints wrong?  Are we handling "None" for an argument
+that can set to "None").
+

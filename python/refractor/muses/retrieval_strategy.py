@@ -258,7 +258,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             obs.notify_update(self, location, **kwargs)
 
     @property
-    def vlidort_cli(self) -> Path:
+    def vlidort_cli(self) -> Path | None:
         return self._vlidort_cli
 
     @vlidort_cli.setter
@@ -399,6 +399,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     def state_info(self) -> StateInfo:
         # Can hopefully replace this with CurrentState
         return self._state_info
+
+    @property
+    def cost_function_creator(self) -> CostFunctionCreator:
+        return self._cost_function_creator
 
     @property
     def error_analysis(self) -> ErrorAnalysis:

@@ -18,6 +18,7 @@ import time
 import functools
 import numpy as np
 import numpy.testing as npt
+from pathlib import Path
 import typing
 from typing import Callable
 
@@ -26,7 +27,11 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
     from .strategy_table import StrategyTable
     from .cost_function import CostFunction
-
+    from .retrieval_configuration import RetrievalConfiguration
+    from .state_info import StateInfo
+    from .cost_function_creator import CostFunctionCreator
+    from .observation_handle import ObservationHandleSet
+    
 
 def log_timing(f):
     """Decorator to log the timing of a function."""
@@ -261,10 +266,27 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def __init__(
         self,
-        retrieval_strategy_step_set=None,
-        spectral_window_handle_set=None,
-        qa_data_handle_set=None,
+        retrieval_config : RetrievalConfiguration,
+        run_dir : Path,
+        state_info : StateInfo,
+        cost_function_creator : CostFunctionCreator,
+        observation_handle_set : ObservationHandleSet | None =None,
+        retrieval_strategy_step_set : RetrievalStrategyStepSet | None=None,
+        spectral_window_handle_set : SpectralWindowHandleSet | None=None,
+        qa_data_handle_set : QaDataHandleSet | None =None,
+            vlidort_cli : Path | None = None,
+            **kwargs
     ):
+        self.retrieval_config = retrieval_config
+        self.vlidort_cli = vlidort_cli
+        self.run_dir = run_dir
+        self.state_info = state_info
+        self.cost_function_creator = cost_function_creator
+        self.kwargs = kwargs
+        if observation_handle_set is None:
+            self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
+        else:
+            self.observation_handle_set = observation_handle_set
         if retrieval_strategy_step_set is None:
             self._retrieval_strategy_step_set = copy.deepcopy(
                 RetrievalStrategyStepSet.default_handle_set()
@@ -357,16 +379,16 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
         """
         logger.debug(f"Creating rf_uip for {instrument}")
-        if do_systematic:
-            rinfo = self.retrieval_info.retrieval_info_systematic()
-        else:
-            rinfo = self.retrieval_info
         cstep = self.current_strategy_step
+        if do_systematic:
+            rinfo = cstep.retrieval_info.retrieval_info_systematic()
+        else:
+            rinfo = cstep.retrieval_info
         if obs_list is None:
             obs_list = []
             for iname in cstep.instrument_name:
                 if instrument is None or iname == instrument:
-                    obs = self.rs.observation_handle_set.observation(
+                    obs = self.observation_handle_set.observation(
                         iname, None, cstep.spectral_window_dict[iname], None
                     )
                     obs_list.append(obs)
@@ -382,7 +404,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         fake_table = {
             "preferences": self.retrieval_config,
             "vlidort_dir": str(
-                self.rs.run_dir
+                self.run_dir
                 / f"Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}/vlidort/"
             ),
             "numRows": cstep.step_number,
@@ -404,7 +426,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             if iname in o_xxx:
                 if hasattr(obs, "muses_py_dict"):
                     o_xxx[iname] = obs.muses_py_dict
-        with muses_py_call(self.rs.run_dir, vlidort_cli=self.rs.vlidort_cli):
+        with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             return RefractorUip.create_uip(
                 self.state_info,
                 fake_table,
@@ -425,7 +447,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return CurrentStateStateInfo(
             self.state_info,
             self.retrieval_info,
-            self.rs.run_dir
+            self.run_dir
             / f"Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}",
             do_systematic=do_systematic,
             retrieval_state_element_override=jacobian_speciesIn,
@@ -438,7 +460,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 "create_forward_model can only work with one instrument, we don't have handling for multiple."
             )
         iname = self.current_strategy_step.instrument_name[0]
-        obs = self.rs.observation_handle_set.observation(
+        obs = self.observation_handle_set.observation(
             iname, None, self.current_strategy_step.spectral_window_dict[iname], None
         )
         fm_sv = rf.StateVector()
@@ -469,7 +491,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         # isn't clear that we ever want to run the forward model for
         # bad samples. But right now the existing py-retrieve code
         # requires this is a few places.a
-        return self.rs._cost_function_creator.cost_function(
+        return self.cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,
             self.current_state(
                 do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn
@@ -477,7 +499,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.current_strategy_step.spectral_window_dict,
             self.rf_uip_func_cost_function(do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample,
-            **self.rs._kwargs,
+            **self.kwargs,
         )
 
 
@@ -498,16 +520,24 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         qa_data_handle_set=None,
     ):
         super().__init__(
+            rs.retrieval_config,
+            rs.run_dir,
+            rs.state_info,
+            rs._cost_function_creator,
             retrieval_strategy_step_set=retrieval_strategy_step_set,
             spectral_window_handle_set=spectral_window_handle_set,
             qa_data_handle_set=qa_data_handle_set,
+            vlidort_cli=rs.vlidort_cli,
+            **rs.kwargs
         )
         self.strategy = MusesStrategyOldStrategyTable(filename, osp_dir=osp_dir)
         self.rs = rs
-        self.retrieval_config = rs.retrieval_config
         self.retrieval_info = None
         self.spectral_window_dict = None
 
+    def notify_update(self, location: str, **kwargs):
+        self.rs.notify_update(location, **kwargs)
+        
     @property
     def strategy_table_filename(self):
         return self.strategy._stable.filename
@@ -556,8 +586,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     def set_step(self, step_number):
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
         where we jump to a given step number."""
-        self.state_info = self.rs._state_info
-        with muses_py_call(self.rs.run_dir, vlidort_cli=self.rs.vlidort_cli):
+        with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             self._restart_and_error_analysis()
             while self.current_strategy_step.step_number < step_number:
                 self.next_step()
@@ -656,23 +685,23 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                 self.current_strategy_step
             )
         )
-        self.rs._state_info.copy_current_initial()
+        self.state_info.copy_current_initial()
         logger.info("\n---")
         logger.info(
             f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.strategy._stable.number_table_step}"
         )
         logger.info("\n---")
         self.get_initial_guess()
-        self.rs.notify_update("done get_initial_guess")
+        self.notify_update("done get_initial_guess")
         logger.info(
             f"Step: {self.current_strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
         )
-        self.rs._retrieval_strategy_step_set.retrieval_step(
-            self.current_strategy_step.retrieval_type, self.rs, **self.rs._kwargs
+        self.retrieval_strategy_step_set.retrieval_step(
+            self.current_strategy_step.retrieval_type, self.rs, **self.kwargs
         )
-        self.rs.notify_update("done retrieval_step")
-        self.rs._state_info.next_state_to_current()
-        self.rs.notify_update("done next_state_to_current")
+        self.notify_update("done retrieval_step")
+        self.state_info.next_state_to_current()
+        self.notify_update("done next_state_to_current")
         logger.info(f"Done with step {self.current_strategy_step.step_number}")
 
     @log_timing
@@ -686,7 +715,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         """
         # Currently the initialization etc. code assumes we are in the run directory.
         # Hopefully we can remove this in the future, but for now we need this
-        with muses_py_call(self.rs.run_dir, vlidort_cli=self.rs.vlidort_cli):
+        with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             self.execute_retrieval_body(stop_at_step=stop_at_step)
 
     def execute_retrieval_body(self, stop_at_step=None):
@@ -697,17 +726,16 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         problems with an individual step, or to run a simulation at a
         particular step.
         """
-        self.state_info = self.rs._state_info
         with self.strategy._stable.chdir_run_dir():
             self.state_info.init_state(
                 self.strategy._stable,
-                self.rs.observation_handle_set,
+                self.observation_handle_set,
                 self.instrument_name_all_step,
-                self.rs.run_dir,
+                self.run_dir,
             )
 
         self._restart_and_error_analysis()
-        self.rs.notify_update("initial set up done")
+        self.notify_update("initial set up done")
 
         # Note the original muses-py ran through all the initial guess
         # steps at the beginning to make sure there weren't any
@@ -727,8 +755,8 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         # Not sure that this is needed or used anywhere, but for now
         # go ahead and this this until we know for sure it doesn't
         # matter.
-        self.rs._state_info.copy_current_initialInitial()
-        self.rs.notify_update("starting retrieval steps")
+        self.state_info.copy_current_initialInitial()
+        self.notify_update("starting retrieval steps")
         self.restart()
         while not self.is_done():
             if (
@@ -736,16 +764,16 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                 and stop_at_step == self.current_strategy_step.step_number
             ):
                 return
-            self.rs.notify_update("starting run_step")
+            self.notify_update("starting run_step")
             self.run_step()
             self.next_step()
 
     def continue_retrieval(self, stop_after_step=None) -> None:
         """After saving a pickled step, you can continue the processing starting
         at that step to diagnose a problem."""
-        with muses_py_call(self.rs.run_dir, vlidort_cli=self.rs.vlidort_cli):
+        with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             while not self.is_done():
-                self.rs.notify_update("starting run_step")
+                self.notify_update("starting run_step")
                 self.run_step()
                 if (
                     stop_after_step is not None
