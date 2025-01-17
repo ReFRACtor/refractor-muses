@@ -300,7 +300,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._strategy_executor.continue_retrieval(stop_after_step=stop_after_step)
 
     @property
-    def strategy_executor(self) -> MusesStrategyExecutor:
+    def strategy_executor(self) -> MusesStrategyExecutorOldStrategyTable:
         """The MusesStrategyExecutor used to run through the strategy"""
         return self._strategy_executor
 

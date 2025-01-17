@@ -254,7 +254,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # along with a new state element name if we did. But leave this commented
         # here to document that py-retrieve did this by we aren't
         # if 'OCO2' in rs.current_strategy_step.instrument_name:
-        #    rs._strategy_executor.stable.strategy_table_dict['pressureFM'] = rs._state_info.next_state_dict.pressure
+        #    rs.strategy_executor.stable.strategy_table_dict['pressureFM'] = rs.state_info.next_state_dict.pressure
         self.extra_after_run_retrieval_step(rs)
         rs.notify_update("run_retrieval_step", retrieval_strategy_step=self)
 
