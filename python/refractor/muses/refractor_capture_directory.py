@@ -10,8 +10,7 @@ from pathlib import Path
 @contextmanager
 def muses_py_call(
     rundir: str | os.PathLike[str],
-    vlidort_cli: str
-    | os.PathLike[str] = "~/muses/muses-vlidort/build/release/vlidort_cli",
+    vlidort_cli: str | os.PathLike[str] | None = None,
     debug=False,
     vlidort_nstokes=2,
     vlidort_nstreams=4,
@@ -33,6 +32,8 @@ def muses_py_call(
     of the diagnostics (e.g., RefractorTropOmiFmMusesPy.surface_albedo)."""
     curdir = os.getcwd()
     old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
+    if vlidort_cli is None:
+        vlidort_cli = "~/muses/muses-vlidort/build/release/vlidort_cli"
     # Temporary, make sure libgfortran.so.4 is in path. See
     # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
     # Note that currently omi uses muses-vlidort repository build, which
@@ -90,7 +91,9 @@ class RefractorCaptureDirectory:
         self.rundir = Path(".")
 
     def save_directory(
-        self, dirbase: str | os.PathLike[str], vlidort_input: str | os.PathLike[str]
+        self,
+        dirbase: str | os.PathLike[str],
+        vlidort_input: str | os.PathLike[str] | None,
     ):
         """Capture information from the run directory so we can recreate the
         directory later. This is only needed by muses-py which uses a
@@ -114,7 +117,7 @@ class RefractorCaptureDirectory:
                 "Input",
                 vlidort_input,
             ):
-                if f is not None and os.path.exists(f"{dirbase}/{f}"):
+                if f is not None and os.path.exists(dirbase / f):
                     tar.add(dirbase / f, relpath / f)
             for f in ("omi_rtm_driver", "ring", "ring_cli", "rayTable-NADIR.asc"):
                 tar.add(osp_src_path / f, relpath2 / f)

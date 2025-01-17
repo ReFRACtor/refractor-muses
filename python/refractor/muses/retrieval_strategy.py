@@ -26,6 +26,7 @@ import os
 import copy
 import pickle
 from pathlib import Path
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -42,7 +43,7 @@ if typing.TYPE_CHECKING:
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
-class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else object):
+class RetrievalStrategy(mpy.ReplaceFunctionObject):
     """This is a replacement for script_retrieval_ms, that tries to do
     a few things:
 
@@ -107,12 +108,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         vlidort_cli: str | os.PathLike[str] | None = None,
         writeOutput=False,
         writePlots=False,
-        osp_dir=None,
+        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs,
     ):
         logger.info(f"Strategy table filename {filename}")
         self._capture_directory = RefractorCaptureDirectory()
-        self._observers = set()
+        self._observers: set[Any] = set()
         self._vlidort_cli = Path(vlidort_cli) if vlidort_cli is not None else None
 
         self._retrieval_strategy_step_set = copy.deepcopy(
@@ -167,7 +168,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         """Register run_ms as a replacement for script_retrieval_ms"""
         mpy.register_replacement_function("script_retrieval_ms", self)
 
-    def should_replace_function(self, func_name: str, parms):
+    def should_replace_function(self, func_name: str, parms) -> bool:
         return True
 
     def replace_function(self, func_name: str, parms):
@@ -175,16 +176,21 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             return self.script_retrieval_ms(**parms)
 
     def update_target(self, filename: str | os.PathLike[str]):
-        """Set up to process a target, given the filename for the strategy table.
+        """Set up to process a target, given the filename for the
+        strategy table.
 
-        A number of objects related to this one might do caching based on the
-        target, e.g., read the input files once. py-retrieve can call script_retrieval_ms
-        multiple times with different targets, so we need to notify all the objects
-        when this changes in case they need to clear out any caching."""
+        A number of objects related to this one might do caching based
+        on the target, e.g., read the input files once. py-retrieve
+        can call script_retrieval_ms multiple times with different
+        targets, so we need to notify all the objects when this
+        changes in case they need to clear out any caching.
+
+        """
         if False:
-            # Clear any caching of files muses-py did.
-            # Don't exactly understand these caches, but this causes an error with
-            # threading. So just skip, I don't think we actually need this
+            # Clear any caching of files muses-py did.  Don't exactly
+            # understand these caches, but this causes an error with
+            # threading. So just skip, I don't think we actually need
+            # this
             mpy.clear_cache()
         filename = Path(filename)
         self._filename = filename.absolute()
@@ -229,7 +235,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self.update_target(filename)
         return self.retrieval_ms()
 
-    def add_observer(self, obs):
+    def add_observer(self, obs: Any):
         # Often we want weakref, so we don't prevent objects from
         # being deleted just because they are observing this. But in
         # this particular case, we actually do want to maintain the
@@ -241,14 +247,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         if hasattr(obs, "notify_add"):
             obs.notify_add(self)
 
-    def remove_observer(self, obs):
+    def remove_observer(self, obs: Any):
         self._observers.discard(obs)
         if hasattr(obs, "notify_remove"):
             obs.notify_remove(self)
 
     def clear_observers(self):
-        # We change self._observers, in our loop so grab a copy of the list
-        # before we start
+        # We change self._observers, in our loop so grab a copy of the
+        # list before we start
         lobs = list(self._observers)
         for obs in lobs:
             self.remove_observer(obs)
@@ -268,8 +274,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     @property
     def keyword_arguments(self) -> dict:
-        """Keyword arguments, which can be used to pass arguments down to
-        lower level classes (e.g., options for the forward model like use_lrad)"""
+        """Keyword arguments, which can be used to pass arguments down
+        to lower level classes (e.g., options for the forward model
+        like use_lrad)
+
+        """
         return self._kwargs
 
     def retrieval_ms(self) -> int:
@@ -283,9 +292,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         logger.info("\n---")
         return exitcode
 
-    def continue_retrieval(self, stop_after_step=None) -> None:
-        """After saving a pickled step, you can continue the processing starting
-        at that step to diagnose a problem."""
+    def continue_retrieval(self, stop_after_step: int | None = None) -> None:
+        """After saving a pickled step, you can continue the
+        processing starting at that step to diagnose a problem.
+
+        """
         self._strategy_executor.continue_retrieval(stop_after_step=stop_after_step)
 
     @property
@@ -296,7 +307,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     @property
     def strategy_table(self) -> StrategyTable:
         """The MusesStrategyExecutor used to run through the strategy"""
-        return self.strategy_executor.strategy_table
+        if hasattr(self.strategy_executor, "strategy_table"):
+            return self.strategy_executor.strategy_table
+        else:
+            raise NotImplementedError()
 
     @property
     def run_dir(self) -> Path:
@@ -321,12 +335,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     @property
     def forward_model_handle_set(self) -> ForwardModelHandleSet:
-        """The set of handles we use for mapping instrument name to a ForwardModel"""
+        """The set of handles we use for mapping instrument name to a
+        ForwardModel"""
         return self._forward_model_handle_set
 
     @property
     def observation_handle_set(self) -> ObservationHandleSet:
-        """The set of handles we use for mapping instrument name to a MusesObservation"""
+        """The set of handles we use for mapping instrument name to a
+        MusesObservation"""
         return self._observation_handle_set
 
     @property
@@ -373,11 +389,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         return self._strategy_executor.number_retrieval_step
 
     def number_steps_left(self, retrieval_element_name: str) -> int:
-        """This returns the number of retrieval steps left that contain a given
-        retrieval element name. This is an odd seeming function, but is used by
-        RetrievalL2Output to name files. So for example we have Products_L2-O3-0.nc
-        for the last step that retrieves O3, Products_L2-O3-1.nc for the previous step
-        retrieving O3, etc."""
+        """This returns the number of retrieval steps left that
+        contain a given retrieval element name. This is an odd seeming
+        function, but is used by RetrievalL2Output to name files. So
+        for example we have Products_L2-O3-0.nc for the last step that
+        retrieves O3, Products_L2-O3-1.nc for the previous step
+        retrieving O3, etc.
+
+        """
         return self._strategy_executor.number_steps_left(retrieval_element_name)
 
     @property
@@ -390,9 +409,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
     @property
     def retrieval_info(self) -> RetrievalInfo:
-        """RetrievalInfo for current retrieval step. Note it might be good to remove this
-        if possible, right now this is just used by RetrievalL2Output. But at least for now
-        we need this to get the required information for the output."""
+        """RetrievalInfo for current retrieval step. Note it might be
+        good to remove this if possible, right now this is just used
+        by RetrievalL2Output. But at least for now we need this to get
+        the required information for the output.
+
+        """
         return self.current_strategy_step.retrieval_info
 
     @property
@@ -407,13 +429,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     @property
     def error_analysis(self) -> ErrorAnalysis:
         """Error analysis"""
-        # TODO Not really clear what the coupling should be here. But for
-        # now, this is used by RetrievalStrategyStep. Perhaps we can just pass
-        # this in the constructor? Perhaps this can be handled like our
-        # QaDataHandleSet, where we have configuration to select this? Isn't clear
-        # that we would ever want this replaced with a different kind of
-        # ErrorAnalysis. For now, just make it clear that we have this coupling
-        # and we can figure out how this should be handled.
+        # TODO Not really clear what the coupling should be here. But
+        # for now, this is used by RetrievalStrategyStep. Perhaps we
+        # can just pass this in the constructor? Perhaps this can be
+        # handled like our QaDataHandleSet, where we have
+        # configuration to select this? Isn't clear that we would ever
+        # want this replaced with a different kind of
+        # ErrorAnalysis. For now, just make it clear that we have this
+        # coupling and we can figure out how this should be handled.
         return self._strategy_executor.error_analysis
 
     def create_cost_function(
@@ -424,9 +447,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         jacobian_speciesIn=None,
     ) -> CostFunction:
         """Create cost function"""
-        # Similiar to error_analysis, this gets uses in RetrievalStrategyStep and
-        # perhaps we should just pass the strategy_executor to the constructor.
-        # But for now, make explicit that we need this.
+        # Similiar to error_analysis, this gets uses in
+        # RetrievalStrategyStep and perhaps we should just pass the
+        # strategy_executor to the constructor.  But for now, make
+        # explicit that we need this.
         return self._strategy_executor.create_cost_function(
             do_systematic=do_systematic,
             include_bad_sample=include_bad_sample,
@@ -446,8 +470,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         We would like to have something a bit more stable, not tied to the
         object structure. But for now, just do a straight json dump of the object"""
 
-        # Doesn't work yet. Not overly important, looks like a bug in jsonpickle
-        # Just use normal pickle for now, we want to change what gets saved anyways
+        # Doesn't work yet. Not overly important, looks like a bug in
+        # jsonpickle Just use normal pickle for now, we want to change
+        # what gets saved anyways
+        #
         # with gzip.GzipFile(save_pickle_file, "wb") as fh:
         #    fh.write(jsonpickle.encode(self.state_info).encode('utf-8'))
         pickle.dump(self.state_info, open(save_pickle_file, "wb"))
@@ -456,25 +482,29 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
         self,
         state_info_pickle_file: str | os.PathLike[str],
         step_number: int,
-        ret_state_file=None,
+        ret_state_file: str | os.PathLike[str] | None = None,
     ):
         """This pairs with state_state_info. Instead of pickling the
         entire RetrievalStrategy, we just save the state. We then
         set up to process the given target_filename with the given
         state, jumping to the given retrieval step_number.
 
-        Note for some tests in addition to the StateInfo we want the results
-        saved by RetrievalStepCaptureObserver (e.g., we want to test the
-        output writing). You can optionally pass in the json file for this and
-        we will also pass that information to the RetrievalStrategyStep.
+        Note for some tests in addition to the StateInfo we want the
+        results saved by RetrievalStepCaptureObserver (e.g., we want
+        to test the output writing). You can optionally pass in the
+        json file for this and we will also pass that information to
+        the RetrievalStrategyStep.
+
         """
         # self._state_info = jsonpickle.decode(
         #    gzip.open(state_info_pickle_file, "rb").read())
         self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
+        self._strategy_executor.state_info = self._state_info
         self._strategy_executor.set_step(step_number)
         if ret_state_file is not None:
             t = RetrievalStepCaptureObserver.load_retrieval_state(ret_state_file)
             self._kwargs["ret_state"] = t
+            self.strategy_executor.kwargs["ret_state"] = t
 
     @classmethod
     def load_retrieval_strategy(
@@ -488,7 +518,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
     ):
         """This pairs with save_pickle.
 
-        This is pretty direct to use, but as an example we can  do something like:
+        This is pretty direct to use, but as an example we can do
+        something like:
 
         osp_dir = os.environ["MUSES_OSP_PATH"]
         gmao_dir = os.environ["MUSES_GMAO_PATH"]
@@ -500,6 +531,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
             path="./try_it",
             osp_dir=osp_dir, gmao_dir=gmao_dir,change_to_dir=True)
         rs.continue_retrieval()
+
         """
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
         res._capture_directory.rundir = (
@@ -519,8 +551,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject if mpy.have_muses_py else obje
 
 
 class RetrievalStrategyCaptureObserver:
-    """Helper class, pickles RetrievalStrategy at each time notify_update is
-    called. Intended for unit tests and other kinds of debugging."""
+    """Helper class, pickles RetrievalStrategy at each time
+    notify_update is called. Intended for unit tests and other kinds
+    of debugging.
+
+    """
 
     def __init__(self, basefname: str, location_to_capture: str):
         self.basefname = basefname
@@ -541,7 +576,10 @@ class RetrievalStrategyCaptureObserver:
 
 class StateInfoCaptureObserver:
     """Helper class, pickles RetrievalStrategy.state_info at each time
-    notify_update is called. Intended for unit tests and other kinds of debugging."""
+    notify_update is called. Intended for unit tests and other kinds
+    of debugging.
+
+    """
 
     def __init__(self, basefname: str, location_to_capture: str):
         self.basefname = basefname

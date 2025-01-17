@@ -9,10 +9,12 @@ from .current_state import CurrentStateStateInfo
 from .muses_spectral_window import MusesSpectralWindow
 from .qa_data_handle import QaDataHandleSet
 from .muses_strategy import MusesStrategyOldStrategyTable
+from .observation_handle import ObservationHandleSet
 from .refractor_uip import RefractorUip
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
+import os
 from loguru import logger
 import time
 import functools
@@ -30,8 +32,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .state_info import StateInfo
     from .cost_function_creator import CostFunctionCreator
-    from .observation_handle import ObservationHandleSet
-    
+
 
 def log_timing(f):
     """Decorator to log the timing of a function."""
@@ -266,16 +267,16 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def __init__(
         self,
-        retrieval_config : RetrievalConfiguration,
-        run_dir : Path,
-        state_info : StateInfo,
-        cost_function_creator : CostFunctionCreator,
-        observation_handle_set : ObservationHandleSet | None =None,
-        retrieval_strategy_step_set : RetrievalStrategyStepSet | None=None,
-        spectral_window_handle_set : SpectralWindowHandleSet | None=None,
-        qa_data_handle_set : QaDataHandleSet | None =None,
-            vlidort_cli : Path | None = None,
-            **kwargs
+        retrieval_config: RetrievalConfiguration,
+        run_dir: Path,
+        state_info: StateInfo,
+        cost_function_creator: CostFunctionCreator,
+        observation_handle_set: ObservationHandleSet | None = None,
+        retrieval_strategy_step_set: RetrievalStrategyStepSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        qa_data_handle_set: QaDataHandleSet | None = None,
+        vlidort_cli: Path | None = None,
+        **kwargs,
     ):
         self.retrieval_config = retrieval_config
         self.vlidort_cli = vlidort_cli
@@ -284,7 +285,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self.cost_function_creator = cost_function_creator
         self.kwargs = kwargs
         if observation_handle_set is None:
-            self.observation_handle_set = copy.deepcopy(ObservationHandleSet.default_handle_set())
+            self.observation_handle_set = copy.deepcopy(
+                ObservationHandleSet.default_handle_set()
+            )
         else:
             self.observation_handle_set = observation_handle_set
         if retrieval_strategy_step_set is None:
@@ -512,7 +515,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     def __init__(
         self,
-        filename: str,
+        filename: str | os.PathLike[str],
         rs: RetrievalStrategy,
         osp_dir=None,
         retrieval_strategy_step_set=None,
@@ -524,11 +527,11 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             rs.run_dir,
             rs.state_info,
             rs._cost_function_creator,
+            observation_handle_set=rs.observation_handle_set,
             retrieval_strategy_step_set=retrieval_strategy_step_set,
             spectral_window_handle_set=spectral_window_handle_set,
             qa_data_handle_set=qa_data_handle_set,
-            vlidort_cli=rs.vlidort_cli,
-            **rs.kwargs
+            **rs.keyword_arguments,
         )
         self.strategy = MusesStrategyOldStrategyTable(filename, osp_dir=osp_dir)
         self.rs = rs
@@ -537,14 +540,14 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     def notify_update(self, location: str, **kwargs):
         self.rs.notify_update(location, **kwargs)
-        
+
     @property
-    def strategy_table_filename(self):
+    def strategy_table_filename(self) -> Path:
         return self.strategy._stable.filename
 
     @strategy_table_filename.setter
-    def strategy_table_filename(self, v):
-        self.strategy._stable.filename = v
+    def strategy_table_filename(self, v: str | os.PathLike[str]):
+        self.strategy._stable.filename = Path(v)
 
     @property
     def filter_list_dict(self) -> dict[str, list[str]]:

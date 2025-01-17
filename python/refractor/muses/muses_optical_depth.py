@@ -4,6 +4,7 @@ import math
 import refractor.framework as rf  # type: ignore
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -43,8 +44,8 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         rf.AbsorberXSec.__init__(
             self, absorber_vmr, pressure, temperature, altitude, xsec_tables
         )
-        self.xsect_grid = []
-        self.xsect_data = []
+        self.xsect_grid: list[np.ndarray] = []
+        self.xsect_data: list[np.ndarray] = []
         for i in range(self.obs.num_channels):
             if self.obs.spectral_domain(i).data.shape[0] == 0:
                 t1 = []
@@ -57,15 +58,15 @@ class MusesOpticalDepth(rf.AbsorberXSec):
                 raise RuntimeError(
                     f"Unrecognized instrument name {self.obs.instrument_name}"
                 )
-            self.xsect_grid.append(t1)
-            self.xsect_data.append(t2)
+            self.xsect_grid.append(np.array(t1))
+            self.xsect_data.append(np.array(t2))
 
     def _xsect_tropomi_ils(self, sensor_index: int):
         uip = None
         do_temp_shift = False
         # I don't think we ever have no2_col. We can add this in if needed later,
         # this would just be gas_number_density_layer for no2.
-        no2_col = []
+        no2_col: list[Any] = []
         tatm = self.temperature.temperature_grid(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         ).value.value
