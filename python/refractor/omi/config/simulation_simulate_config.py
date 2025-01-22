@@ -1,8 +1,7 @@
-import numpy as np
-
-from refractor.framework import refractor_config
+from refractor.framework import refractor_config  # type: ignore
 
 from .retrieval_run_config import retrieval_run_config
+
 
 @refractor_config
 def simulation_config(**kwargs):
@@ -11,9 +10,9 @@ def simulation_config(**kwargs):
     config_def = retrieval_run_config(**kwargs)
 
     # Disable bad sample mask to conver full window range
-    del config_def['spec_win']['bad_sample_mask']
+    del config_def["spec_win"]["bad_sample_mask"]
 
     # Set windows to full range
-    config_def['spec_win']['micro_windows'] = config_def['spec_win']['full_ranges']
+    config_def["spec_win"]["micro_windows"] = config_def["spec_win"]["full_ranges"]
 
     return config_def

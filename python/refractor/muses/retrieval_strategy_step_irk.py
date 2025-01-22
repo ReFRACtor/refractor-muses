@@ -1,12 +1,10 @@
 from __future__ import annotations
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
 from .muses_forward_model import ResultIrk
-import refractor.framework as rf  # type: ignore
 from loguru import logger
 import typing
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import MusesObservation
     from .retrieval_strategy import RetrievalStrategy
 
 

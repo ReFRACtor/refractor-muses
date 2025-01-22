@@ -361,7 +361,7 @@ class MusesObservationImp(MusesObservation):
         return wn, sindex
 
     @property
-    def cloud_pressure(self):
+    def cloud_pressure(self) -> rf.DoubleWithUnit:
         """Cloud pressure. I think all the instrument types handle
         this the same way, if not we can push this down to omi and
         tropomi only.

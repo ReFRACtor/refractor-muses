@@ -2,18 +2,22 @@ import numpy as np
 import re
 
 # We must import all of these because otherwise pyhdf will complain about not finding some of the modules
-from pyhdf.HDF import *
-from pyhdf.V import *
-from pyhdf.VS import *
-from pyhdf.SD import *
+from pyhdf.HDF import *  # type: ignore
+from pyhdf.V import *  # type: ignore
+from pyhdf.VS import *  # type: ignore
+from pyhdf.SD import *  # type: ignore
 
-import refractor.framework as rf
-from refractor.framework.factory import param
+import refractor.framework as rf  # type: ignore
+
 
 class OmiLevel1File(object):
-
-    def __init__(self, filename, along_track_index, across_track_indexes, filter_invalid_samples=True):
-
+    def __init__(
+        self,
+        filename,
+        along_track_index,
+        across_track_indexes,
+        filter_invalid_samples=True,
+    ):
         # Need to open the HDF object to find vgroups from their names
         # Need to open SD to obtain the needed data
         self.hdf = HDF(filename)
@@ -36,7 +40,7 @@ class OmiLevel1File(object):
         # We need to traverse all the vgroups to figure out which are the root ones
         # Assumption here is that the first group found is one of the root groups and
         # that all other root groups have the same class.
-        # For OMI UV the root groups are the per channel information. 
+        # For OMI UV the root groups are the per channel information.
         # We need to figure this out because each of the channels have the same named
         # datasets making it useless to find vgroup.find since it will always just
         # return the first one.
@@ -50,7 +54,7 @@ class OmiLevel1File(object):
             try:
                 ref = self.vgroup.getid(ref)
                 vg = self.vgroup.attach(ref)
-                if(root_groups_class is None):
+                if root_groups_class is None:
                     root_groups_class = vg._class
                 if vg._class == root_groups_class:
                     self._channel_refs.append(ref)
@@ -61,7 +65,6 @@ class OmiLevel1File(object):
                 break
 
     def channel_group_ref(self, channel_index, group_name):
-
         chan_ref = self._channel_refs[channel_index]
         chan_vg = self.vgroup.attach(chan_ref)
 
@@ -73,14 +76,15 @@ class OmiLevel1File(object):
                     group_ref = ref
                     break
         if group_ref is None:
-            raise LookupError(f"Could not find group {group_name} in channel group {chan_vg._name}")
+            raise LookupError(
+                f"Could not find group {group_name} in channel group {chan_vg._name}"
+            )
 
         chan_vg.detach()
 
         return group_ref
 
     def channel_data(self, channel_index, group_name, data_name):
-
         group_ref = self.channel_group_ref(channel_index, group_name)
 
         group_vg = self.vgroup.attach(group_ref)
@@ -143,17 +147,12 @@ class OmiLevel1File(object):
 
         # Find dimensions vdata to get number of samples for the band
         ref = self.vdata.find("nWavel:" + self.channel_names[chan_index])
-    
+
         vd = self.vdata.attach(ref)
         num_samples = vd[0][0]
         vd.detach()
 
         return num_samples
-
-    def _valid_samples(self, chan_index):
-        "These are in the original data order, not the increasing order of sample_grid or _spectral_values"
-
-        return np.where(self.swath_data(chan_index, "PixelQualityFlags") == 0)
 
     def _valid_samples(self, chan_index):
         "These are in the original data order, not the increasing order of sample_grid or _spectral_values"
@@ -168,36 +167,49 @@ class OmiLevel1File(object):
 
     def _spectral_order(self, chan_index: int) -> int:
         # UV-1 radiances and grid is given in reverse of increasing order
-        if re.search('UV-1', self.channel_names[chan_index]):
+        if re.search("UV-1", self.channel_names[chan_index]):
             return -1
         else:
             return 1
 
-    def _spectral_value(self, chan_index: int, dataset_prefix: str, units: str) -> rf.SpectralRange:
-
-        mantissa = self.swath_data(chan_index, f"{dataset_prefix}Mantissa").astype(float)
-        precision_mantissa = self.swath_data(chan_index, f"{dataset_prefix}PrecisionMantissa").astype(float)
+    def _spectral_value(
+        self, chan_index: int, dataset_prefix: str, units: str
+    ) -> rf.SpectralRange:
+        mantissa = self.swath_data(chan_index, f"{dataset_prefix}Mantissa").astype(
+            float
+        )
+        precision_mantissa = self.swath_data(
+            chan_index, f"{dataset_prefix}PrecisionMantissa"
+        ).astype(float)
         exponent = self.swath_data(chan_index, f"{dataset_prefix}Exponent").astype(int)
 
         if self.filter_invalid_samples:
             # Ensure that we won't try to raise to a negative power by filtering valid
             # samples before running these computations
             valid_samples = self._valid_samples(chan_index)
-            spectral_value = mantissa[valid_samples]*10**exponent[valid_samples]
-            uncertainty = precision_mantissa[valid_samples]*10**exponent[valid_samples]
+            spectral_value = mantissa[valid_samples] * 10 ** exponent[valid_samples]
+            uncertainty = (
+                precision_mantissa[valid_samples] * 10 ** exponent[valid_samples]
+            )
         else:
-            spectral_value = mantissa*10**exponent
-            uncertainty = precision_mantissa*10**exponent
+            spectral_value = mantissa * 10**exponent
+            uncertainty = precision_mantissa * 10**exponent
 
         order = self._spectral_order(chan_index)
         return rf.SpectralRange(spectral_value[::order], units, uncertainty[::order])
 
-class OmiLevel1RadianceFile(rf.Level1bSampleCoefficient, OmiLevel1File):
 
+class OmiLevel1RadianceFile(rf.Level1bSampleCoefficient, OmiLevel1File):
     def __init__(self, filename, along_track_index, across_track_indexes):
         # This call is essential so the class gets connected to its director class
         rf.Level1bSampleCoefficient.__init__(self)
-        OmiLevel1File.__init__(self, filename, along_track_index, across_track_indexes, filter_invalid_samples=False)
+        OmiLevel1File.__init__(
+            self,
+            filename,
+            along_track_index,
+            across_track_indexes,
+            filter_invalid_samples=False,
+        )
 
     # Methods needed by rf.Level1b
 
@@ -217,22 +229,32 @@ class OmiLevel1RadianceFile(rf.Level1bSampleCoefficient, OmiLevel1File):
         return rf.DoubleWithUnit(self.geolocation_data(chan_index, "Longitude"), "deg")
 
     def sounding_zenith(self, chan_index: int) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(self.geolocation_data(chan_index, "ViewingZenithAngle"), "deg")
+        return rf.DoubleWithUnit(
+            self.geolocation_data(chan_index, "ViewingZenithAngle"), "deg"
+        )
 
     def sounding_azimuth(self, chan_index: int) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(self.geolocation_data(chan_index, "ViewingAzimuthAngle") % 360, "deg")
+        return rf.DoubleWithUnit(
+            self.geolocation_data(chan_index, "ViewingAzimuthAngle") % 360, "deg"
+        )
 
     def solar_zenith(self, chan_index: int) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(self.geolocation_data(chan_index, "SolarZenithAngle"), "deg")
+        return rf.DoubleWithUnit(
+            self.geolocation_data(chan_index, "SolarZenithAngle"), "deg"
+        )
 
     def solar_azimuth(self, chan_index: int) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(self.geolocation_data(chan_index, "SolarAzimuthAngle") % 360, "deg")
+        return rf.DoubleWithUnit(
+            self.geolocation_data(chan_index, "SolarAzimuthAngle") % 360, "deg"
+        )
 
     def stokes_coefficient(self, chan_index: int) -> np.ndarray:
         return np.array([1, 0, 0, 0], dtype=float)
 
     def altitude(self, chan_index: int) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(self.geolocation_data(chan_index, "TerrainHeight"), "m")
+        return rf.DoubleWithUnit(
+            self.geolocation_data(chan_index, "TerrainHeight"), "m"
+        )
 
     def relative_velocity(self, chan_index: int) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(0, "m/s")
@@ -260,20 +282,23 @@ class OmiLevel1RadianceFile(rf.Level1bSampleCoefficient, OmiLevel1File):
         vd = self.vdata.attach(ref)
         return rf.DoubleWithUnit(vd[:][0][0], "m")
 
+
 class OmiLevel1IrradianceFile(OmiLevel1File):
-
     def __init__(self, filename, across_track_indexes):
-
         # Only one value in the along track dimension for these files
         along_track_index = 0
 
-        super().__init__(filename, along_track_index, across_track_indexes, filter_invalid_samples=True)
+        super().__init__(
+            filename,
+            along_track_index,
+            across_track_indexes,
+            filter_invalid_samples=True,
+        )
 
     def irradiance(self, chan_index: int) -> rf.SpectralRange:
         return self._spectral_value(chan_index, "Irradiance", "ph / nm / s")
 
     def sample_grid(self, chan_index: int) -> rf.SpectralDomain:
-
         wave_coeff = self.swath_data(chan_index, "WavelengthCoefficient")
         wave_ref = self.swath_data(chan_index, "WavelengthReferenceColumn")[0]
         n_all_samp = self.number_all_sample(chan_index)
@@ -281,7 +306,7 @@ class OmiLevel1IrradianceFile(OmiLevel1File):
         wavelength = np.zeros(n_all_samp)
         for samp_idx in range(n_all_samp):
             for coeff_idx, coeff_val in enumerate(wave_coeff):
-                wavelength[samp_idx] += coeff_val * (samp_idx - wave_ref)**coeff_idx
+                wavelength[samp_idx] += coeff_val * (samp_idx - wave_ref) ** coeff_idx
 
         if self.filter_invalid_samples:
             valid_samples = self._valid_samples(chan_index)
@@ -290,9 +315,11 @@ class OmiLevel1IrradianceFile(OmiLevel1File):
         order = self._spectral_order(chan_index)
         return rf.SpectralDomain(rf.ArrayWithUnit(wavelength[::order], "nm"))
 
-class OmiLevel1Reflectance(OmiLevel1RadianceFile):
 
-    def __init__(self, l1b_filename, along_track_index, across_track_indexes, solar_models):
+class OmiLevel1Reflectance(OmiLevel1RadianceFile):
+    def __init__(
+        self, l1b_filename, along_track_index, across_track_indexes, solar_models
+    ):
         super().__init__(l1b_filename, along_track_index, across_track_indexes)
         self.solar_models = solar_models
 

@@ -1,8 +1,10 @@
 from __future__ import annotations
-from refractor.muses import RefractorUip
 import refractor.framework as rf
 import numpy as np
+import typing
 
+if typing.TYPE_CHECKING:
+    from refractor.muses import RefractorUip
 
 class MusesRayInfo:
     """There are a number of places where RefractorFmObjectCreator and
@@ -27,7 +29,7 @@ class MusesRayInfo:
 
     def __init__(
         self,
-        rf_uip: RefractorUip,
+        rf_uip: refractor.muses.RefractorUip,
         instrument_name: str,
         pressure: rf.Pressure,
         set_pointing_angle_zero=True,

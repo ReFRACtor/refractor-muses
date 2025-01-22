@@ -36,7 +36,7 @@ if typing.TYPE_CHECKING:
     from .state_info import StateElementHandleSet
     from .retrieval_info import RetrievalInfo
     from .current_state import CurrentState
-    from .muses_strategy_executor import CurrentStrategyStep, MusesStrategyExecutor
+    from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
     from .strategy_table import StrategyTable
 
@@ -535,9 +535,9 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         """
         res, kwargs = pickle.load(open(save_pickle_file, "rb"))
         res._capture_directory.rundir = (
-            f"{os.path.abspath(path)}/{res._capture_directory.runbase}"
+            Path(path).absolute() / res._capture_directory.runbase
         )
-        res._filename = f"{res.run_dir}/{os.path.basename(res.strategy_table_filename)}"
+        res._filename = res.run_dir / res.strategy_table_filename.name
         res._strategy_executor.strategy_table_filename = res._filename
         res._retrieval_config.osp_dir = osp_dir
         res._retrieval_config.base_dir = res.run_dir

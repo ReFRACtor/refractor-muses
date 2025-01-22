@@ -26,7 +26,9 @@ build-backend = "setuptools.build_meta"
 "muses_forward_model.py" = ["E712"]
 "muses_observation.py" = ["E712"]
 "muses_spectral_window.py" = ["E712"]
+"refractor_uip.py" = ["E712"]
 "retrieval_info.py" = ["E712"]
+"level1.py" = ["F403", "F405"]
 
 [tool.ruff.lint]
 # Old code we are matching. We don't want to actually change

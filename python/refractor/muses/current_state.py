@@ -3,6 +3,8 @@ from . import muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import abc
+from pathlib import Path
+import os
 from typing import Tuple
 import typing
 
@@ -269,7 +271,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def step_directory(self) -> str:
+    def step_directory(self) -> Path:
         """Return the step directory. This is a bit odd, but it is
         needed by MusesOpticalDepthFile. Since the current state
         depends on the step we are using, it isn't ridiculous to have
@@ -387,7 +389,7 @@ class CurrentStateUip(CurrentState):
         return self.rf_uip.jacobian_all
 
     @property
-    def step_directory(self) -> str:
+    def step_directory(self) -> Path:
         return self.rf_uip.step_directory
 
     def full_state_value(self, state_element_name) -> np.ndarray:
@@ -600,7 +602,7 @@ class CurrentStateStateInfo(CurrentState):
         self,
         state_info: StateInfo,
         retrieval_info: RetrievalInfo,
-        step_directory: str,
+        step_directory: str | os.PathLike[str],
         retrieval_state_element_override=None,
         do_systematic=False,
     ):
@@ -629,7 +631,7 @@ class CurrentStateStateInfo(CurrentState):
         self._retrieval_info = retrieval_info
         self.retrieval_state_element_override = retrieval_state_element_override
         self.do_systematic = do_systematic
-        self._step_directory = step_directory
+        self._step_directory = Path(step_directory)
 
     @property
     def state_info(self) -> StateInfo:
@@ -693,7 +695,7 @@ class CurrentStateStateInfo(CurrentState):
             return self.retrieval_info.basis_matrix
 
     @property
-    def step_directory(self) -> str:
+    def step_directory(self) -> Path:
         return self._step_directory
 
     @property

@@ -1,22 +1,28 @@
+from __future__ import annotations
 from functools import cached_property, lru_cache
 from .muses_optical_depth import MusesOpticalDepth
 from .muses_spectrum_sampling import MusesSpectrumSampling
-from .muses_raman import MusesRaman
-from .refractor_uip import RefractorUip
 from .muses_forward_model import RefractorForwardModel
-import refractor.framework as rf # type: ignore
+import refractor.framework as rf  # type: ignore
 import os
 from pathlib import Path
 from loguru import logger
 import numpy as np
-import glob
 import abc
 import copy
+from typing import Callable
+import typing
 
-from typing import Sequence
+if typing.TYPE_CHECKING:
+    from refractor.old_py_retrieve_wrapper import MusesRayInfo  # type: ignore
+    from .muses_spectral_window import MusesSpectralWindow
+    from .muses_observation import MusesObservation, MeasurementId
+    from .current_state import CurrentState
+    from refractor.muses.refractor_uip import RefractorUip
+
 
 class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
-    '''There are a lot of interrelated object needed to be created to
+    """There are a lot of interrelated object needed to be created to
     make a ForwardModel.
 
     This class provides a framework for a lot of the common pieces. It
@@ -33,30 +39,37 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     Take a look at TropomiFmObjectCreator and OmiObjectCreator for examples
     of modifying things.
 
-    A note for developers, the various @cached_property decorators are 
+    A note for developers, the various @cached_property decorators are
     important, this isn't just for performance (which is pretty minor
     for most of the objects). It is important that if two different
     piece of code access for example the pressure object, it gets the
-    *same* pressure object, not just two objects that have the same 
-    pressure levels. Because these objects get updated by for example the 
+    *same* pressure object, not just two objects that have the same
+    pressure levels. Because these objects get updated by for example the
     rf.StateVector, we need to have only one instance of them.
-    '''
+    """
 
-    def __init__(self, current_state : 'CurrentState',
-                 measurement_id : 'MeasurementId',
-                 instrument_name: str, observation : 'MusesObservation',
-                 rf_uip_func : "Optional(Callable[[str], RefractorUip])" = None,
-                 fm_sv : "Optional(rf.StateVector)" = None,
-                 # Values, so we can flip between using pca and not
-                 use_pca=True, use_lrad=False, lrad_second_order=False,
-                 use_raman=True,
-                 skip_observation_add=False,
-                 match_py_retrieve=False,
-                 osp_dir=None,
-                 absorption_gases = ["O3",],
-                 primary_absorber = "O3"
-                 ):
-        '''Constructor. The StateVector to add things to can be passed
+    def __init__(
+        self,
+        current_state: CurrentState,
+        measurement_id: MeasurementId,
+        instrument_name: str,
+        observation: MusesObservation,
+        rf_uip_func: Callable[[str], RefractorUip] | None = None,
+        fm_sv: rf.StateVector | None = None,
+        # Values, so we can flip between using pca and not
+        use_pca: bool = True,
+        use_lrad: bool = False,
+        lrad_second_order: bool = False,
+        use_raman: bool = True,
+        skip_observation_add: bool = False,
+        match_py_retrieve: bool = False,
+        osp_dir: str | os.PathLike[str] | None = None,
+        absorption_gases: list[str] = [
+            "O3",
+        ],
+        primary_absorber: str = "O3",
+    ):
+        """Constructor. The StateVector to add things to can be passed
         in, or if this isn't then we create a new StateVector.
 
         There are a number of number of options for exactly how we
@@ -70,11 +83,13 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
              anything that might be a real, unexpected
              difference. Normally you want to the default False value,
              but for testing purposes you might want to turn this on.
-        rf_uip_func - To support all oy_retrieve code, we can take a function
-            to generate a UIP. This should take the instrument name as an
-            argument and return a RefractorUip. This is only called if we
-            need the UIP.
-        '''
+
+        rf_uip_func - To support all oy_retrieve code, we can take a
+            function to generate a UIP. This should take the
+            instrument name as an argument and return a
+            RefractorUip. This is only called if we need the UIP.
+
+        """
         self.use_pca = use_pca
         self.use_lrad = use_lrad
         self.use_raman = use_raman
@@ -82,30 +97,42 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.lrad_second_order = lrad_second_order
         self.match_py_retrieve = match_py_retrieve
         self.observation = observation
-        # TODO This is needed by MusesOpticalDepthFile. It would be nice to
-        # move away from needing this. This is uses in make_uip_tropomi to
-        # write out the file, which we then read
+        # TODO This is needed by MusesOpticalDepthFile, it is
+        # otherwise unused. This is uses in make_uip_tropomi to write
+        # out the file, which we then read
         self.step_directory = current_state.step_directory
-        if(fm_sv):
+        if fm_sv:
             self.fm_sv = fm_sv
         else:
             self.fm_sv = rf.StateVector()
             self.fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         self.current_state = current_state
-        # Note MeasurementId also has access to all the stuff in RetrievalConfiguration
+        # Note MeasurementId also has access to all the stuff in
+        # RetrievalConfiguration
         self.measurement_id = measurement_id
 
-        # Depending on when the StateVector is created, the observation may or may
-        # not have been added. Note it is safe to add this multiple times, so we
-        # don't need to worry if it is already there. I don't think this will ever
-        # cause a problem, but we have a option to skip this if needed.
-        if(not skip_observation_add and len(self.observation.state_element_name_list()) > 0):
-            coeff,mp = self.current_state.object_state(self.observation.state_element_name_list())
-            self.observation.update_coeff_and_mapping(coeff,mp)
+        # Depending on when the StateVector is created, the
+        # observation may or may not have been added. Note it is safe
+        # to add this multiple times, so we don't need to worry if it
+        # is already there. I don't think this will ever cause a
+        # problem, but we have a option to skip this if needed.
+        if (
+            not skip_observation_add
+            and len(self.observation.state_element_name_list()) > 0
+        ):
+            coeff, mp = self.current_state.object_state(
+                self.observation.state_element_name_list()
+            )
+            self.observation.update_coeff_and_mapping(coeff, mp)
             self.current_state.add_fm_state_vector_if_needed(
-                self.fm_sv, self.observation.state_element_name_list(), [self.observation,])
-        
-        # We are moving away from this, but leave now as a reference
+                self.fm_sv,
+                self.observation.state_element_name_list(),
+                [
+                    self.observation,
+                ],
+            )
+
+        # This is only needed by the old py-retrieve forward models
         self.rf_uip_func = rf_uip_func
 
         self.filter_list = self.observation.filter_list
@@ -115,30 +142,39 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self.oza = self.observation.observation_zenith
         self.raz = self.observation.relative_azimuth
 
-        self.osp_dir = osp_dir if osp_dir is not None else os.environ.get('MUSES_OSP_PATH', '../OSP')
+        self.osp_dir = Path(
+            osp_dir
+            if osp_dir is not None
+            else os.environ.get("MUSES_OSP_PATH", "../OSP")
+        ).absolute()
         # We may put in logic to determine this, but for right now just
         # take the list of absorption species as a input list and the
         # primary absorber needed by PCA
         self.absorption_gases = copy.copy(absorption_gases)
         self.primary_absorber = primary_absorber
-        
-    def solar_model(self, sensor_index):
+
+    def solar_model(self, sensor_index: int) -> rf.SolarModel:
         with self.observation.modify_spectral_window(do_raman_ext=True):
             sol_rad = self.observation.solar_spectrum(sensor_index)
         return rf.SolarReferenceSpectrum(sol_rad, None)
 
     @cached_property
-    def ray_info(self):
-        '''Return MusesRayInfo.'''
+    def ray_info(self) -> MusesRayInfo:
+        """Return MusesRayInfo."""
         from refractor.old_py_retrieve_wrapper import MusesRayInfo
-        return MusesRayInfo(self.rf_uip_func(self.instrument_name), self.instrument_name, self.pressure)
+
+        if self.rf_uip_func is None:
+            raise RuntimeError("Need to supply rf_uip_func to get ray_info")
+        return MusesRayInfo(
+            self.rf_uip_func(self.instrument_name), self.instrument_name, self.pressure
+        )
 
     @property
-    def spec_win(self):
+    def spec_win(self) -> MusesSpectralWindow:
         return self.observation.spectral_window
 
     @cached_property
-    def spectrum_sampling(self):
+    def spectrum_sampling(self) -> rf.SpectrumSampling:
         # TODO
         # Note MusesSpectrumSampling doesn't have the logic in place to skip
         # highres wavelengths that we don't need - e.g., because of bad pixels.
@@ -147,12 +183,12 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # See comment in ils_params
         hres_spec = []
         for i in range(self.num_channels):
-            if(self.ils_method(i) in ("FASTCONV", "POSTCONV")):
-                if not self.ils_params(i).get('central_wavelength_is_mono_grid', False):
+            if self.ils_method(i) in ("FASTCONV", "POSTCONV"):
+                if not self.ils_params(i).get("central_wavelength_is_mono_grid", False):
                     raise NotImplementedError(
                         'Tried to use the "central_wavelength" array from self.ils_params '
-                        'as a monochromatic grid, but the ILS parameters either indicated '
-                        'that the central wavelengths cannot be used this way or did not '
+                        "as a monochromatic grid, but the ILS parameters either indicated "
+                        "that the central wavelengths cannot be used this way or did not "
                         'include the "central_wavelength_is_mono_grid" key at all.'
                     )
                 cwave = self.ils_params(i)["central_wavelength"]
@@ -171,16 +207,14 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # Not currently used
         return None
 
-    def ils_params(self, sensor_index : int):
-        '''ILS parameters'''
+    def ils_params(self, sensor_index: int):
+        """ILS parameters"""
         raise NotImplementedError
 
-    @property
-    def ils_method(self, sensor_index : int) -> str:
-        '''Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV.
-        '''
+    def ils_method(self, sensor_index: int) -> str:
+        """Return the ILS method to use. This is APPLY, POSTCONV, or FASTCONV."""
         raise NotImplementedError
-    
+
     @cached_property
     def ils_function(self):
         # This is the "real" ILS, but py-retrieve applies this to
@@ -196,10 +230,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return None
 
     @cached_property
-    def instrument_correction(self):
+    def instrument_correction(self) -> list[list[rf.InstrumentCorrection]]:
         res = []
         for i in range(self.num_channels):
-            v = []
+            v: list[rf.InstrumentCorrection] = []
             res.append(v)
         return res
 
@@ -210,68 +244,84 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return None
 
     @cached_property
-    def instrument(self):
+    def instrument(self) -> rf.Instrument:
         ils_vec = []
         for i in range(self.num_channels):
-            sg = rf.SampleGridSpectralDomain(self.observation.spectral_domain_full(i),
-                                             self.observation.filter_list[i])
+            sg = rf.SampleGridSpectralDomain(
+                self.observation.spectral_domain_full(i),
+                self.observation.filter_list[i],
+            )
             if self.ils_method(i) == "FASTCONV":
                 iparms = self.ils_params(i)
 
                 # High res extensions unused by IlsFastApply
                 high_res_ext = rf.DoubleWithUnit(0, rf.Unit("nm"))
 
-                ils_obj = rf.IlsFastApply(iparms["scaled_uh_isrf"].transpose(),
-                                          iparms["svh_isrf_fft_real"].transpose(),
-                                          iparms["svh_isrf_fft_imag"].transpose(),
-                                          iparms["where_extract"],
-                                          sg,
-                                          high_res_ext,
-                                          self.filter_list[i], self.filter_list[i])
+                ils_obj = rf.IlsFastApply(
+                    iparms["scaled_uh_isrf"].transpose(),
+                    iparms["svh_isrf_fft_real"].transpose(),
+                    iparms["svh_isrf_fft_imag"].transpose(),
+                    iparms["where_extract"],
+                    sg,
+                    high_res_ext,
+                    self.filter_list[i],
+                    self.filter_list[i],
+                )
             elif self.ils_method(i) == "POSTCONV":
                 iparms = self.ils_params(i)
                 ils_obj = self._construct_postconv_ils(
-                    central_wavelength=iparms['central_wavelength'],
-                    delta_wavelength=iparms['delta_wavelength'],
-                    isrf=iparms['isrf'],
+                    central_wavelength=iparms["central_wavelength"],
+                    delta_wavelength=iparms["delta_wavelength"],
+                    isrf=iparms["isrf"],
                     hwhm=self.instrument_hwhm(i),
-                    sample_grid_spectral_domain=self.observation.spectral_domain_full(i),
+                    sample_grid_spectral_domain=self.observation.spectral_domain_full(
+                        i
+                    ),
                     band_name=self.filter_list[i],
-                    obs_band_name=self.observation.filter_list[i]
+                    obs_band_name=self.observation.filter_list[i],
                 )
             else:
                 ils_obj = rf.IdentityIls(sg)
 
             ils_vec.append(ils_obj)
         return rf.IlsInstrument(ils_vec, self.instrument_correction)
-    
+
     @staticmethod
     def _construct_postconv_ils(
-            central_wavelength: np.ndarray,
-            delta_wavelength: np.ndarray,
-            isrf: np.ndarray,
-            hwhm: rf.DoubleWithUnit,
-            sample_grid_spectral_domain: rf.SpectralDomain,
-            band_name: str,
-            obs_band_name: str,
-        ):
-        response_wavelength = central_wavelength.reshape(-1,1) + delta_wavelength
+        central_wavelength: np.ndarray,
+        delta_wavelength: np.ndarray,
+        isrf: np.ndarray,
+        hwhm: rf.DoubleWithUnit,
+        sample_grid_spectral_domain: rf.SpectralDomain,
+        band_name: str,
+        obs_band_name: str,
+    ) -> rf.Ils:
+        response_wavelength = central_wavelength.reshape(-1, 1) + delta_wavelength
 
         # Convert to frequency-ordered wavenumber arrays. The
         # 2D arrays need flipped on both axes since the order
         # reverses in both
-        center_wn = np.flip(rf.ArrayWithUnit(central_wavelength, 'nm').convert_wave('cm^-1').value)
-        response_wn = np.flip(np.flip(rf.ArrayWithUnit(response_wavelength, 'nm').convert_wave('cm^-1').value, axis=1), axis=0)
+        center_wn = np.flip(
+            rf.ArrayWithUnit(central_wavelength, "nm").convert_wave("cm^-1").value
+        )
+        response_wn = np.flip(
+            np.flip(
+                rf.ArrayWithUnit(response_wavelength, "nm").convert_wave("cm^-1").value,
+                axis=1,
+            ),
+            axis=0,
+        )
         response = np.flip(np.flip(isrf, axis=1), axis=0)
 
         # Calculate the deltas in wavenumber space
-        delta_wn = response_wn - center_wn.reshape(-1,1)
+        delta_wn = response_wn - center_wn.reshape(-1, 1)
 
         # Build a table of ILSs at the sampled wavelengths/frequencies
         interp_wavenumber = True
-        ils_func = rf.IlsTableLinear(center_wn, delta_wn, response, band_name,
-                                        band_name, interp_wavenumber)
-        
+        ils_func = rf.IlsTableLinear(
+            center_wn, delta_wn, response, band_name, band_name, interp_wavenumber
+        )
+
         # That defines the ILS function, but now we need to
         # get the actual grating object.  Technically we've
         # conflating things here; POSTCONV doesn't necessarily
@@ -292,57 +342,67 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # produce a more accurate result. Converting HWHM to
         # wavenumber seems to fix that issue; once I did that
         # the 0.2 and 0.25 nm HWHM gave similar results.
-        if hwhm.units.name != 'cm^-1':
+        if hwhm.units.name != "cm^-1":
             # Don't try to convert non-wavenumber values -
             # remember, this is a delta, and delta wavelengths
             # can't be simply converted to delta wavenumbers
             # without knowing what wavelength we're working
             # at.
-            raise ValueError('Half width at half max values for POSTCONV ILSes must be given in wavenumbers')
+            raise ValueError(
+                "Half width at half max values for POSTCONV ILSes must be given in wavenumbers"
+            )
 
         # Needs to be in wavenumbers.
         sg2 = rf.SampleGridSpectralDomain(
-            rf.SpectralDomain(sample_grid_spectral_domain.convert_wave("cm^-1"),
-                              rf.Unit("cm^-1")),
-            obs_band_name)
+            rf.SpectralDomain(
+                sample_grid_spectral_domain.convert_wave("cm^-1"), rf.Unit("cm^-1")
+            ),
+            obs_band_name,
+        )
         return rf.IlsGrating(sg2, ils_func, hwhm)
-    
+
     @abc.abstractmethod
     def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
-        '''Grating spectrometers like OMI and TROPOMI require a fixed
+        """Grating spectrometers like OMI and TROPOMI require a fixed
         half width at half max for the IlsGrating object. This can
         vary from band to band. This function must return the HWHM in
         wavenumbers for the band indicated by `sensor_index`<`, which
         will be the index from `self.channel_list()` for the current
         band.
-        '''
+        """
         raise NotImplementedError
 
     @cached_property
-    def pressure_fm(self):
-        '''Pressure grid. Note this is always on the full forward model
+    def pressure_fm(self) -> rf.Pressure:
+        """Pressure grid. Note this is always on the full forward model
         grid. Various objects (e.g. AbsorberVmrLevel) may take a state
         vector on a subset of the pressure grid (the "retrieval grid"), but
         this is handled by having StateMapping for those objects. In all
         cases, this pressure object is what is needed by the ForwardModel,
-        which is the pressure on the forward model grid.'''
+        which is the pressure on the forward model grid."""
         # 100 is to convert hPa used by py-retrieve to Pa we use here.
-        plev_fm, _ = self.current_state.object_state(["pressure",])
+        plev_fm, _ = self.current_state.object_state(
+            [
+                "pressure",
+            ]
+        )
         # 100 is to convert hPa used by py-retrieve to Pa we use here.
         plev_fm *= 100.0
 
         surface_pressure = plev_fm[0]
-        return rf.PressureSigma(plev_fm, surface_pressure,
-                                rf.Pressure.PREFER_DECREASING_PRESSURE)
+        return rf.PressureSigma(
+            plev_fm, surface_pressure, rf.Pressure.PREFER_DECREASING_PRESSURE
+        )
 
     @property
-    def cloud_pressure(self):
-        '''Pressure to use for cloud top'''
+    def cloud_pressure(self) -> rf.DoubleWithUnit:
+        """Pressure to use for cloud top"""
         return self.observation.cloud_pressure
 
     @cached_property
-    def pressure(self):
-        # We sometimes get negative cloud pressure (e.g. -32767), which later shows as bad_alloc errors
+    def pressure(self) -> rf.PressureWithCloudHandling:
+        # We sometimes get negative cloud pressure (e.g. -32767),
+        # which later shows as bad_alloc errors
         if self.cloud_pressure.value < 0:
             raise RuntimeError(f"Invalid cloud pressure: {self.cloud_pressure.value}.")
 
@@ -357,9 +417,16 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # much point.
         pgrid = self.pressure_fm.pressure_grid()
         pgrid_v = self.pressure_fm.pressure_grid().value.value
-        if(self.match_py_retrieve):
+        if self.match_py_retrieve:
             from refractor.old_py_retrieve_wrapper import MusesRayInfo
-            rinfo = MusesRayInfo(self.rf_uip_func(self.instrument_name), self.instrument_name, self.pressure_fm)
+
+            if self.rf_uip_func is None:
+                raise RuntimeError("Need to supply rf_uip_func to get MusesRayInfo")
+            rinfo = MusesRayInfo(
+                self.rf_uip_func(self.instrument_name),
+                self.instrument_name,
+                self.pressure_fm,
+            )
             ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure.value)
         else:
             # Calculate without MusesRayInfo. I'm not sure if this is ever actually
@@ -367,87 +434,105 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             # isn't true. For MusesRayInfo, play isn't exactly half way between
             # the levels, so there may be edge cases where the MusesRayInfo
             # and ReFRACtor count are off by 1.
-            play = (pgrid_v[:-1] + pgrid_v[1:])/2
-            ncloud_lay = np.count_nonzero(play <= self.cloud_pressure.convert(pgrid.units).value)
-        if(ncloud_lay+1 < pgrid_v.shape[0]):
-            cloud_pressure_level = (pgrid_v[ncloud_lay] + pgrid_v[ncloud_lay+1]) / 2
+            play = (pgrid_v[:-1] + pgrid_v[1:]) / 2
+            ncloud_lay = np.count_nonzero(
+                play <= self.cloud_pressure.convert(pgrid.units).value
+            )
+        if ncloud_lay + 1 < pgrid_v.shape[0]:
+            cloud_pressure_level = (pgrid_v[ncloud_lay] + pgrid_v[ncloud_lay + 1]) / 2
         else:
             cloud_pressure_level = pgrid_v[ncloud_lay]
-            
+
         p = rf.PressureWithCloudHandling(self.pressure_fm, cloud_pressure_level)
         return p
 
     @cached_property
-    def temperature(self):
-        tlev_fm, _ = self.current_state.object_state(["TATM",])
+    def temperature(self) -> rf.Temperature:
+        tlev_fm, _ = self.current_state.object_state(
+            [
+                "TATM",
+            ]
+        )
         tlevel = rf.TemperatureLevel(tlev_fm, self.pressure_fm)
         return tlevel
 
     @cached_property
-    def constants(self):
+    def constants(self) -> rf.Constant:
         return rf.DefaultConstant()
 
     @cached_property
-    def rayleigh(self):
-        return rf.RayleighBodhaine(self.pressure, self.altitude,
-                                   self.constants)
+    def rayleigh(self) -> rf.Rayleigh:
+        return rf.RayleighBodhaine(self.pressure, self.altitude, self.constants)
 
     @cached_property
-    def absorber_vmr(self):
+    def absorber_vmr(self) -> list[rf.AbsorberVmr]:
         vmrs = []
         for gas in self.absorption_gases:
-            selem = [gas,]
+            selem = [
+                gas,
+            ]
             coeff, mp = self.current_state.object_state(selem)
             # Need to get mp to be the log mapping in current_state, but for
             # now just work around this
             mp = rf.StateMappingLog()
             vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, gas, mp)
             self.current_state.add_fm_state_vector_if_needed(
-                self.fm_sv, selem, [vmr,])
+                self.fm_sv,
+                selem,
+                [
+                    vmr,
+                ],
+            )
             vmrs.append(vmr)
         return vmrs
 
     @cached_property
-    def absorber_muses_file(self):
-        '''Uses MUSES O3 optical files, which are precomputed ahead
+    def absorber_muses_file(self) -> rf.Absorber:
+        """Uses MUSES O3 optical files, which are precomputed ahead
         of the forward model. They may include a convolution with the ILS.
-        '''
+        """
         from refractor.old_py_retrieve_wrapper import MusesOpticalDepthFile
+
         # TODO Note that MusesOpticalDepthFile reads files that get created
         # in make_uip_tropomi.py. This get read in by functions like
         # get_tropomi_o3xsec_without_ils and then written to file.
         # We should move this into MusesOpticalDepthFile without having
         # a file.
         # MusesOpticalDepthFile only support O3
-        vmr_list = [vmr for vmr in self.absorber_vmr if vmr.gas_name == "O3"]
-        return MusesOpticalDepthFile(self.ray_info,
-                                     self.pressure,
-                                     self.temperature, self.altitude,
-                                     self.absorber_vmr, self.num_channels,
-                                     f"{self.step_directory}/vlidort/input")
+        return MusesOpticalDepthFile(
+            self.ray_info,
+            self.pressure,
+            self.temperature,
+            self.altitude,
+            self.absorber_vmr,
+            self.num_channels,
+            self.step_directory / "vlidort/input",
+        )
 
     @cached_property
-    def absorber_muses(self):
-        '''Uses MUSES code for O3 absorption, which are precomputed ahead
+    def absorber_muses(self) -> rf.Absorber:
+        """Uses MUSES code for O3 absorption, which are precomputed ahead
         of the forward model. They may include a convolution with the ILS.
-        '''
-        vmr_list = [vmr for vmr in self.absorber_vmr if vmr.gas_name == "O3"]
+        """
         ils_params_list = []
         for i in range(self.num_channels):
             ils_params_list.append(self.ils_params(i))
-        return MusesOpticalDepth(self.pressure,
-                                 self.temperature, self.altitude,
-                                 self.absorber_vmr,
-                                 self.observation,
-                                 ils_params_list,
-                                 self.osp_dir)
-    
+        return MusesOpticalDepth(
+            self.pressure,
+            self.temperature,
+            self.altitude,
+            self.absorber_vmr,
+            self.observation,
+            ils_params_list,
+            self.osp_dir,
+        )
+
     @cached_property
-    def absorber_xsec(self):
-        '''Use the O3 cross section files for calculation absorption.
+    def absorber_xsec(self) -> rf.Absorber:
+        """Use the O3 cross section files for calculation absorption.
         This does not include the ILS at the absorption calculation level,
         so to get good results we should include an ILS with our forward
-        model.'''
+        model."""
         xsectable = []
         for gas in self.absorption_gases:
             xsec_data = np.loadtxt(rf.cross_section_filenames[gas])
@@ -455,63 +540,66 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             spec_grid = rf.ArrayWithUnit(xsec_data[:, 0], "nm")
             xsec_values = rf.ArrayWithUnit(xsec_data[:, 1:], "cm^2")
             if xsec_data.shape[1] >= 4:
-                xsectable.append(rf.XSecTableTempDep(spec_grid, xsec_values,
-                                                        cfac))
+                xsectable.append(rf.XSecTableTempDep(spec_grid, xsec_values, cfac))
             else:
-                xsectable.append(rf.XSecTableSimple(spec_grid, xsec_values,
-                                                       cfac))
-        return rf.AbsorberXSec(self.absorber_vmr, self.pressure,
-                               self.temperature, self.altitude,
-                               xsectable)
-    
+                xsectable.append(rf.XSecTableSimple(spec_grid, xsec_values, cfac))
+        return rf.AbsorberXSec(
+            self.absorber_vmr, self.pressure, self.temperature, self.altitude, xsectable
+        )
 
-    def find_absco_pattern(self, pattern, join_to_absco_base_path=True):
+    def find_absco_pattern(self, pattern: str, join_to_absco_base_path=True) -> Path:
         if join_to_absco_base_path:
-            fname_pat = f"{self.absco_base_path}/{pattern}"
+            flist = list(self.absco_base_path.glob(pattern))
         else:
-            fname_pat = pattern
-            
-        flist = glob.glob(fname_pat)
-        if(len(flist) > 1):
-            raise RuntimeError(f"Found more than one ABSCO file at {fname_pat}")
-        if(len(flist) == 0):
-            raise RuntimeError(f"No ABSCO files found at {fname_pat}")
+            p = Path(pattern)
+            flist = list(p.parent.glob(p.name))
+
+        if len(flist) > 1:
+            raise RuntimeError(f"Found more than one ABSCO file at {str(p)}/{pattern}")
+        if len(flist) == 0:
+            raise RuntimeError(f"No ABSCO files found at {str(p)}/{pattern}")
         return flist[0]
 
     @property
-    def absco_base_path(self):
-        return f"{self.osp_dir}/ABSCO/"
-    
+    def absco_base_path(self) -> Path:
+        return self.osp_dir / "ABSCO"
 
-    def absco_filename(self, gas):
-        if(gas != "O3"):
+    def absco_filename(self, gas) -> Path | None:
+        if gas != "O3":
             return None
         return self.find_absco_pattern("O3_*_v0.0_init.nc")
 
     @cached_property
-    def absorber_absco(self):
-        '''Use ABSCO tables to calculation absorption.'''
+    def absorber_absco(self) -> rf.Absorber:
+        """Use ABSCO tables to calculation absorption."""
         absorptions = []
         skipped_gases = []
         for gas in self.absorption_gases:
             fname = self.absco_filename(gas)
-            if(fname is not None):
-                absorptions.append(rf.AbscoAer(fname, 1.0, 5000,
-                                               rf.AbscoAer.NEAREST_NEIGHBOR_WN))
+            if fname is not None:
+                absorptions.append(
+                    rf.AbscoAer(str(fname), 1.0, 5000, rf.AbscoAer.NEAREST_NEIGHBOR_WN)
+                )
             else:
                 skipped_gases.append(gas)
         if len(skipped_gases) > 0:
-            logger.info(f"One or absorption_gases does not have a ABSCO file, so won't be include. Skipped gases: {', '.join(skipped_gases)}")
-        
-        return rf.AbsorberAbsco(self.absorber_vmr, self.pressure,
-                                self.temperature,
-                                self.altitude, absorptions, self.constants)
-            
-            
+            logger.info(
+                f"One or absorption_gases does not have a ABSCO file, so won't be include. Skipped gases: {', '.join(skipped_gases)}"
+            )
+
+        return rf.AbsorberAbsco(
+            self.absorber_vmr,
+            self.pressure,
+            self.temperature,
+            self.altitude,
+            absorptions,
+            self.constants,
+        )
+
     @cached_property
-    def absorber(self):
-        '''Absorber to use. This just gives us a simple place to switch
-        between absco and cross section.'''
+    def absorber(self) -> rf.Absorber:
+        """Absorber to use. This just gives us a simple place to switch
+        between absco and cross section."""
 
         # Use higher resolution xsec when not using APPLY (which means
         # pre convolve)
@@ -521,64 +609,73 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # work through the logic
         if self.ils_method(0) != "APPLY":
             return self.absorber_xsec
-        elif(self.match_py_retrieve):
+        elif self.match_py_retrieve:
             return self.absorber_muses_file
         else:
             return self.absorber_muses
 
     @abc.abstractproperty
     @cached_property
-    def ground_clear(self):
+    def ground_clear(self) -> rf.Ground:
         raise NotImplementedError
 
     @abc.abstractproperty
     @cached_property
-    def ground_cloud(self):
+    def ground_cloud(self) -> rf.Ground:
         raise NotImplementedError
 
     @cached_property
-    def ground(self):
-        return rf.GroundWithCloudHandling(self.ground_clear,self.ground_cloud)
+    def ground(self) -> rf.GroundWithCloudHandling:
+        return rf.GroundWithCloudHandling(self.ground_clear, self.ground_cloud)
 
     @cached_property
-    def relative_humidity(self):
-        return rf.RelativeHumidity(self.absorber, self.temperature,
-                                   self.pressure)
+    def relative_humidity(self) -> rf.RelativeHumidity:
+        return rf.RelativeHumidity(self.absorber, self.temperature, self.pressure)
 
     @cached_property
-    def altitude_muses(self):
+    def altitude_muses(self) -> list[rf.Altitude]:
         from refractor.old_py_retrieve_wrapper import MusesAltitude
+
         res = []
         for i in range(self.num_channels):
-            chan_alt = MusesAltitude(self.ray_info, self.pressure,
-                                     self.observation.latitude[i])
+            chan_alt = MusesAltitude(
+                self.ray_info, self.pressure, self.observation.latitude[i]
+            )
             res.append(chan_alt)
         return res
 
     @cached_property
-    def altitude_refractor(self):
+    def altitude_refractor(self) -> list[rf.Altitude]:
         res = []
         for i in range(self.num_channels):
             chan_alt = rf.AltitudeHydrostatic(
                 self.pressure,
                 self.temperature,
                 rf.DoubleWithUnit(self.observation.latitude[i], "deg"),
-                rf.DoubleWithUnit(self.observation.surface_height[i], "m"))
+                rf.DoubleWithUnit(self.observation.surface_height[i], "m"),
+            )
             res.append(chan_alt)
         return res
 
     @property
-    def altitude(self):
-        if(self.match_py_retrieve):
+    def altitude(self) -> list[rf.altitude]:
+        if self.match_py_retrieve:
             return self.altitude_muses
         else:
             return self.altitude_refractor
 
     @cached_property
-    def atmosphere(self):
-        atm = rf.AtmosphereStandard(self.absorber, self.pressure,
-            self.temperature, self.rayleigh, self.relative_humidity,
-            self.ground, self.altitude, self.constants)
+    def atmosphere(self) -> rf.AtmosphereStandard:
+        atm = rf.AtmosphereStandard(
+            self.absorber,
+            self.pressure,
+            self.temperature,
+            self.rayleigh,
+            self.relative_humidity,
+            self.ground,
+            self.altitude,
+            self.constants,
+        )
         # Atmosphere doesn't directly use state vector elements, but it needs
         # to know when this changes because the number of jacobian variables
         # might change, and we need to know that the cache should be cleared.
@@ -586,18 +683,18 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return atm
 
     @cached_property
-    def radiative_transfer(self):
-        '''RT to use. This just gives us a simple place to switch
-        between Lidort and PCA.'''
+    def radiative_transfer(self) -> rf.RadiativeTransfer:
+        """RT to use. This just gives us a simple place to switch
+        between Lidort and PCA."""
         # Not sure that PCA is working, right now we'll only run this if
         # use_pca is set to true
-        if(self.use_pca):
+        if self.use_pca:
             return self.radiative_transfer_pca
         else:
             return self.radiative_transfer_lidort
 
     @cached_property
-    def radiative_transfer_pca(self):
+    def radiative_transfer_pca(self) -> rf.RadiativeTransfer:
         # Can compare between original l_rad and optimized by changing
         # number of stokes from 4 to 1. Should actually be the same
         # value calculated
@@ -620,23 +717,36 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             num_stokes = 1  # Use optimized i_only second order correction
             pure_nadir = False  # Do we want any logic here to set this?
 
-            # Use the first order results since we are using l_rad for SS as well as
-            # the corrections
-            use_first_order_results = True
+            first_order_rt = rf.LRadRt(
+                stokes,
+                self.atmosphere,
+                self.spec_win.spectral_bound,
+                self.sza,
+                self.oza,
+                self.raz,
+                pure_nadir,
+                num_stokes,
+                self.lrad_second_order,
+                num_streams,
+            )
 
-            first_order_rt = rf.LRadRt(stokes,
-                                       self.atmosphere,
-                                       self.spec_win.spectral_bound,
-                                       self.sza, self.oza, self.raz,
-                                       pure_nadir, num_stokes,
-                                       self.lrad_second_order,
-                                       num_streams)
-
-        rt = rf.PCARt(self.atmosphere, self.primary_absorber,
-                      bin_method, num_bins, num_eofs,
-                      stokes, self.sza, self.oza, self.raz,
-                      num_streams, num_mom, use_solar_sources,
-                      use_thermal_emission, do_3m_correction, first_order_rt)
+        rt = rf.PCARt(
+            self.atmosphere,
+            self.primary_absorber,
+            bin_method,
+            num_bins,
+            num_eofs,
+            stokes,
+            self.sza,
+            self.oza,
+            self.raz,
+            num_streams,
+            num_mom,
+            use_solar_sources,
+            use_thermal_emission,
+            do_3m_correction,
+            first_order_rt,
+        )
 
         # Change RT flags to match py-retrieve
         lid_interface = rt.lidort.rt_driver.lidort_interface
@@ -651,7 +761,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return rt
 
     @cached_property
-    def radiative_transfer_lidort(self):
+    def radiative_transfer_lidort(self) -> rf.RadiativeTransfer:
         num_streams = 4
         num_mom = 2
         use_thermal_emission = False
@@ -673,11 +783,20 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         a[:, 0] = 1
         stokes = rf.StokesCoefficientConstant(a)
 
-        rt = rf.LidortRt(self.atmosphere, stokes,
-                         self.sza, self.oza, self.raz,
-                         pure_nadir, num_streams, num_mom,
-                         multiple_scattering_only, use_solar_sources,
-                         use_thermal_emission, use_thermal_scattering)
+        rt = rf.LidortRt(
+            self.atmosphere,
+            stokes,
+            self.sza,
+            self.oza,
+            self.raz,
+            pure_nadir,
+            num_streams,
+            num_mom,
+            multiple_scattering_only,
+            use_solar_sources,
+            use_thermal_emission,
+            use_thermal_scattering,
+        )
 
         # Change RT flags to match py-retrieve
         lid_interface = rt.rt_driver.lidort_interface
@@ -698,53 +817,67 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             # it more than once.
             use_first_order_results = True
 
-            rt = rf.LRadRt(rt, self.spec_win.spectral_bound,
-                           self.sza, self.oza, self.raz,
-                           pure_nadir, use_first_order_results, self.lrad_second_order)
+            rt = rf.LRadRt(
+                rt,
+                self.spec_win.spectral_bound,
+                self.sza,
+                self.oza,
+                self.raz,
+                pure_nadir,
+                use_first_order_results,
+                self.lrad_second_order,
+            )
 
         return rt
 
     @cached_property
-    def spectrum_effect(self):
+    def spectrum_effect(self) -> list[rf.SpectrumEffect]:
         res = []
         for i in range(self.num_channels):
             per_channel_eff = []
-            if(self.use_raman):
+            if self.use_raman:
                 reffect = self.raman_effect(i)
-                if(reffect is not None):
+                if reffect is not None:
                     per_channel_eff.append(reffect)
             res.append(per_channel_eff)
         return res
 
     @cached_property
-    def underlying_forward_model(self):
-        res = rf.StandardForwardModel(self.instrument, self.spec_win,
-                  self.radiative_transfer, self.spectrum_sampling,
-                  self.spectrum_effect)
+    def underlying_forward_model(self) -> rf.ForwardModel:
+        res = rf.StandardForwardModel(
+            self.instrument,
+            self.spec_win,
+            self.radiative_transfer,
+            self.spectrum_sampling,
+            self.spectrum_effect,
+        )
         res.setup_grid()
         return res
 
     @abc.abstractproperty
     @cached_property
-    def cloud_fraction(self):
+    def cloud_fraction(self) -> float:
         raise NotImplementedError
 
     @cached_property
-    def forward_model(self):
+    def forward_model(self) -> rf.ForwardModelWithCloudHandling:
         logger.debug(f"Creating forward model using {self.__class__.__name__}")
-        res = rf.ForwardModelWithCloudHandling(self.underlying_forward_model,
-                                               self.cloud_fraction)
+        res = rf.ForwardModelWithCloudHandling(
+            self.underlying_forward_model, self.cloud_fraction
+        )
         res.add_cloud_handling_object(self.pressure)
         res.add_cloud_handling_object(self.ground)
-        if(False):
+        if False:
             # Add a wrapper in python, so we can get timings include ReFRACtor
             res = RefractorForwardModel(res)
-        #logger.debug("Forward Model: %s", res)
+        # logger.debug("Forward Model: %s", res)
         return res
 
     @lru_cache(maxsize=None)
-    def raman_effect(self, i):
+    def raman_effect(self, i: int) -> rf.RamanSiorisEffect:
         raise NotImplementedError
 
 
-__all__ = ["RefractorFmObjectCreator", ]
+__all__ = [
+    "RefractorFmObjectCreator",
+]

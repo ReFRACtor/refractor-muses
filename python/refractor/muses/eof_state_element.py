@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .state_info import RetrievableStateElement, StateInfo
 import numpy as np
+from typing import Tuple
 import typing
 
 if typing.TYPE_CHECKING:
@@ -28,7 +29,7 @@ class OmiEofStateElement(RetrievableStateElement):
         self._constraint = self._value.copy()
         self.number_eof = number_eof
 
-    def sa_covariance(self) -> np.ndarray:
+    def sa_covariance(self) -> Tuple[np.ndarray, list[float]]:
         """Return sa covariance matrix, and also pressure. This is what
         ErrorAnalysis needs."""
         # TODO, Double check this. Not sure of the connection between this
@@ -62,11 +63,11 @@ class OmiEofStateElement(RetrievableStateElement):
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,
-        results_list: np.array,
+        results_list: np.ndarray,
         update_next: bool,
         retrieval_config: RetrievalConfiguration,
         step: int,
-        do_update_fm: np.array,
+        do_update_fm: np.ndarray,
     ):
         # If we are requested not to update the next step, then save a copy
         # of this to reset the value
