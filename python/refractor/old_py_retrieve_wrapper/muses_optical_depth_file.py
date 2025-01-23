@@ -1,7 +1,7 @@
 from __future__ import annotations
 import numpy as np
 import math
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 from .muses_ray_info import MusesRayInfo
 from pathlib import Path
 
@@ -71,9 +71,9 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         self.map_vmr_l, self.map_vmr_u = self.ray_info.map_vmr()
 
         # Initialize caches
-        self.xsect_data = None
-        self.xsect_data_temp = None
-        self.gas_density_lay = None
+        self.xsect_data: np.ndarray | None = None
+        self.xsect_data_temp: np.ndarray | None = None
+        self.gas_density_lay: np.ndarray | None = None
 
         # Invalidate cache when absorber_vmr changes. This changes
         # self.cache_valid_flag to False
@@ -184,6 +184,8 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
     def gas_number_density_layer(self, spec_index: int):
         self.cache_xsect_data()
         self.cache_gas_number_density_layer()
+        # Should always be true, but put in to make mypy happy
+        assert self.gas_density_lay is not None
         return rf.ArrayAdWithUnit_double_2(
             rf.ArrayAd_double_2(self.gas_density_lay.reshape(-1, 1)), "cm^-2"
         )
@@ -247,6 +249,8 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
             od_index -= 1
 
         # Extra axis is the species index, not used since we only know about ozone
+        # Should always be true, but put in to make mypy happy
+        assert self.xsect_data is not None
         wn_xsect_data = self.xsect_data[od_index, :]
         wn_od_data = wn_xsect_data * self.gas_density_lay
         wn_od_data_jac = None

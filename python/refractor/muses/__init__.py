@@ -33,9 +33,17 @@ if _typing.TYPE_CHECKING:
     from .refractor_fm_object_creator import RefractorFmObjectCreator
     from .forward_model_handle import ForwardModelHandle
     from .muses_raman import MusesRaman, SurfaceAlbedo
-    from .current_state import CurrentState
+    from .current_state import CurrentState, CurrentStateUip
     from .muses_observation import MeasurementId, MusesObservation
     from .refractor_uip import RefractorUip
+    from .replace_function_helper import (
+        suppress_replacement,
+        register_replacement_function_in_block,
+    )
+    from .refractor_capture_directory import muses_py_call
+    from .refractor_capture_directory import RefractorCaptureDirectory
+    from .retrieval_info import RetrievalInfo
+    from .cost_function_creator import CostFunctionCreator
 
 del _i
 del _re

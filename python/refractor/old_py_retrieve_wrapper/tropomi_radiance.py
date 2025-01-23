@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 import numpy as np
 import pickle
 

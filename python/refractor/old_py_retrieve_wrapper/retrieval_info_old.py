@@ -1,4 +1,7 @@
-import refractor.muses.muses_py as mpy
+# type: ignore
+# This is old code that we are trying to match. Don't bother getting types right here,
+# just skip this file
+import refractor.muses.muses_py as mpy  # type: ignore
 import numpy as np
 import copy
 import os

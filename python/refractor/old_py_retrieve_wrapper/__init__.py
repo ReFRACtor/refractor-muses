@@ -25,13 +25,13 @@ if _typing.TYPE_CHECKING:
     # is fragile (did you remember to update __init__ here when you added that new
     # class?). So just as much as it is useful we do a whack a mole here of quieting errors
     # we get in things like refractor.omi.
-    # 
+    #
     # Note we guard this with the standard "if typing.TYPE_CHECKING", so this code doesn't
     # appear in real python usage of this module.
     from .muses_ray_info import MusesRayInfo
     from .muses_altitude import MusesAltitude
     from .muses_optical_depth_file import MusesOpticalDepthFile
-    
+
 del _i
 del _re
 del _os

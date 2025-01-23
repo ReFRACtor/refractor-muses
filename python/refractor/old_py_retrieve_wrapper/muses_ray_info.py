@@ -1,10 +1,11 @@
 from __future__ import annotations
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.muses import RefractorUip
+    import refractor.muses
+
 
 class MusesRayInfo:
     """There are a number of places where RefractorFmObjectCreator and

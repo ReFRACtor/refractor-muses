@@ -1,7 +1,8 @@
 from __future__ import annotations
 import numpy as np
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 from .muses_ray_info import MusesRayInfo
+from typing import cast
 
 
 class MusesAltitude(rf.Altitude):
@@ -38,10 +39,12 @@ class MusesAltitude(rf.Altitude):
         self.cache_altitude()
 
         pgrid_ad = self._pressure.pressure_grid().convert("Pa").value
-        pgrid_val = pgrid_ad.value
+        pgrid_val: np.ndarray = pgrid_ad.value
 
         alt_value = np.interp(
-            pressure_value.convert("Pa").value.value, pgrid_val, self.altitude_grid
+            cast(float, pressure_value.convert("Pa").value.value),
+            pgrid_val,
+            cast(np.ndarray, self.altitude_grid),
         )
 
         return rf.AutoDerivativeWithUnitDouble(

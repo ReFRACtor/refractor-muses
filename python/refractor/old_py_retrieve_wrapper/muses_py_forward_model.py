@@ -1,6 +1,6 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy
-import refractor.framework as rf
+import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     RefractorUip,
     osswrapper,
@@ -37,7 +37,7 @@ from weakref import WeakSet
 # ============================================================================
 
 
-class WatchUipUpdate(mpy.ObserveFunctionObject if mpy.have_muses_py else object):
+class WatchUipUpdate(mpy.ObserveFunctionObject):
     """We  unfortunately can't just use the uip passed to tropomi_fm or
     omi_fm because we also need the basis_matrix to
     get the state vector update. So we watch calls to update_uip.
@@ -217,9 +217,7 @@ if mpy.have_muses_py:
             self.retrieval_vec = parms["i_retrieval_vec"]
 
 
-class RefractorTropOrOmiFmBase(
-    mpy.ReplaceFunctionObject if mpy.have_muses_py else object
-):
+class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
     """
     NOTE - this is deprecated
 

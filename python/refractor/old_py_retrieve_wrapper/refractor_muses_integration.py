@@ -27,9 +27,7 @@ import sys
 # ============================================================================
 
 
-class RefractorMusesIntegration(
-    mpy.ReplaceFunctionObject if mpy.have_muses_py else object
-):
+class RefractorMusesIntegration(mpy.ReplaceFunctionObject):
     """This handles the Refractor/Muses integration.
 
     Note that this should be largely replaced with RetrievalStrategy, which

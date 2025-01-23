@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.framework as rf
+import refractor.framework as rf  # type: ignore
 from refractor.muses import RefractorUip
 import numpy as np
 
