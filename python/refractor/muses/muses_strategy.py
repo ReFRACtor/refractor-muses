@@ -1,9 +1,10 @@
 from __future__ import annotations
 from .strategy_table import StrategyTable
 import os
+import abc
 
 
-class MusesStrategy:
+class MusesStrategy(object, metaclass=abc.ABCMeta):
     """A MusesStrategy is a list of steps to be executed by a
     MusesStrategyExecutor.  Each step is represented by a
     StrategyStep, which give the list of retrieval elements, spectral
@@ -20,6 +21,17 @@ class MusesStrategy:
     processing is handled.
 
     """
+
+    @abc.abstractmethod
+    def is_next_bt(self):
+        """Indicate if the next step is a BT step. This is a bit
+        awkward, perhaps we can come up with another interface
+        here. But RetrievalStrategyStepBT handles the calculation of the
+        brightness temperature step differently depending on if the next
+        step is a BT step or not."""
+        # TODO Possibly rework this interface by changing
+        # RetrievalStrategyStepBT
+        raise NotImplementedError()
 
     pass
 
@@ -38,6 +50,14 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
         osp_dir: str | os.PathLike[str] | None = None,
     ):
         self._stable = StrategyTable(filename, osp_dir=osp_dir)
+
+    def is_next_bt(self):
+        """Indicate if the next step is a BT step. This is a bit
+        awkward, perhaps we can come up with another interface
+        here. But RetrievalStrategyStepBT handles the calculation of the
+        brightness temperature step differently depending on if the next
+        step is a BT step or not."""
+        return self._stable.is_next_bt()
 
 
 __all__ = ["MusesStrategy", "MusesStrategyOldStrategyTable"]

@@ -41,4 +41,4 @@ format:
 # version. This is only for type checking, all our other tests/check use the pip installed
 # version.
 mypy:
-	PYTHONPATH=$(PWD)/python mypy python/refractor/muses
+	PYTHONPATH=$(PWD)/python mypy python/refractor

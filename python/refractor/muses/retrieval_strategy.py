@@ -38,7 +38,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
-    from .strategy_table import StrategyTable
+    from .muses_strategy import MusesStrategy
 
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -305,12 +305,9 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self._strategy_executor
 
     @property
-    def strategy_table(self) -> StrategyTable:
-        """The MusesStrategyExecutor used to run through the strategy"""
-        if hasattr(self.strategy_executor, "strategy_table"):
-            return self.strategy_executor.strategy_table
-        else:
-            raise NotImplementedError()
+    def strategy(self) -> MusesStrategy:
+        """The MusesStrategy used to describe the strategy"""
+        return self.strategy_executor.strategy
 
     @property
     def run_dir(self) -> Path:

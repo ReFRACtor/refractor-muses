@@ -542,14 +542,6 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.rs.notify_update(location, **kwargs)
 
     @property
-    def strategy_table_filename(self) -> Path:
-        return self.strategy._stable.filename
-
-    @strategy_table_filename.setter
-    def strategy_table_filename(self, v: str | os.PathLike[str]):
-        self.strategy._stable.filename = Path(v)
-
-    @property
     def filter_list_dict(self) -> dict[str, list[str]]:
         """The complete list of filters we will be processing (so for all retrieval steps)"""
         return self.strategy._stable.filter_list_all()

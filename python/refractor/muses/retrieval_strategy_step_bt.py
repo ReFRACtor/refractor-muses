@@ -9,6 +9,10 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
+    from .state_info import StateInfo
+    from .current_state import CurrentState
+    from .retrieval_configuration import RetrievalConfiguration
+    from .muses_strategy import MusesStrategy
 
 
 class RetrievalStrategyStepBT(RetrievalStrategyStep):
@@ -41,7 +45,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         )
         self.calculate_bt(
             rs.retrieval_config,
-            rs.strategy_executor.strategy._stable,
+            rs.strategy,
             rs.step_number,
             rs.state_info,
             rs.current_state(),
@@ -54,7 +58,14 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         )
         return True
 
-    def calculate_bt(self, retrieval_config, strategy_table, step, state_info, cstate):
+    def calculate_bt(
+        self,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        step: int,
+        state_info: StateInfo,
+        cstate: CurrentState,
+    ):
         """Calculate brightness temperature, and use to update
         cstate.brightness_temperature_data. We also TSUR and
         cloudEffExt in state_info."""
@@ -86,10 +97,14 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
 
         # If next step is NOT BT, evaluate what to do with "cloud". Otherwise,
         # we are done.
-        if strategy_table.is_next_bt():
+        if strategy.is_next_bt():
             return
 
         cfile = TesFile(retrieval_config["CloudParameterFilename"])
+        if cfile.table is None:
+            raise RuntimeError(
+                f"File {retrieval_config['CloudParameterFilename']} has no data table"
+            )
         BTLow = np.array(cfile.table["BT_low"])
         BTHigh = np.array(cfile.table["BT_high"])
         # This is either 0 (for don't update) or 1 (for update)
