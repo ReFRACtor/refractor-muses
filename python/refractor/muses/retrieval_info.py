@@ -2,11 +2,11 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
+from pathlib import Path
 import typing
 
 if typing.TYPE_CHECKING:
     from .state_info import StateInfo
-    from .strategy_table import StrategyTable
     from .error_analysis import ErrorAnalysis
     from .muses_strategy_executor import CurrentStrategyStep
 
@@ -27,12 +27,12 @@ class RetrievalInfo:
     def __init__(
         self,
         error_analysis: ErrorAnalysis,
-        strategy_table: StrategyTable,
+        species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
         state_info: StateInfo,
     ):
         self.retrieval_dict = self.init_data(
-            error_analysis, strategy_table, current_strategy_step, state_info
+            error_analysis, species_dir, current_strategy_step, state_info
         )
         self.retrieval_dict = self.retrieval_dict.__dict__
         self._map_type_systematic = mpy.constraint_get_maptype(
@@ -251,14 +251,14 @@ class RetrievalInfo:
 
     def init_interferents(
         self,
-        strategy_table: StrategyTable,
+        current_strategy_step: CurrentStrategyStep,
         state_info: StateInfo,
         o_retrievalInfo: mpy.ObjectView,
         error_analysis: ErrorAnalysis,
     ):
         """Update the various "Sys" stuff in o_retrievalInfo to add in
         the error analysis interferents"""
-        sys_tokens = strategy_table.error_analysis_interferents()
+        sys_tokens = current_strategy_step.error_analysis_interferents
         o_retrievalInfo.n_speciesSys = len(sys_tokens)
         o_retrievalInfo.speciesSys.extend(sys_tokens)
         if len(sys_tokens) == 0:
@@ -321,7 +321,7 @@ class RetrievalInfo:
         o_retrievalInfo.n_totalParameters = row + mm
         o_retrievalInfo.n_totalParametersFM = rowFM + nn
 
-    def init_joint(self, o_retrievalInfo, strategy_table, state_info):
+    def init_joint(self, o_retrievalInfo, species_dir: Path, state_info: StateInfo):
         """This should get cleaned up somehow"""
         index_H2O = -1
         index_HDO = -1
@@ -337,7 +337,6 @@ class RetrievalInfo:
             # HDO and H2O both retrieved in this step
             # only allow PREMADE type?
             names = ["H2O", "HDO"]
-            species_dir = strategy_table.species_directory
 
             loop_count = 0
             for xx in range(2):
@@ -424,7 +423,7 @@ class RetrievalInfo:
     def init_data(
         self,
         error_analysis: ErrorAnalysis,
-        strategy_table: StrategyTable,
+        species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
         state_info: StateInfo,
     ):
@@ -511,10 +510,10 @@ class RetrievalInfo:
                 )
 
             self.init_interferents(
-                strategy_table, state_info, o_retrievalInfo, error_analysis
+                current_strategy_step, state_info, o_retrievalInfo, error_analysis
             )
 
-        self.init_joint(o_retrievalInfo, strategy_table, state_info)
+        self.init_joint(o_retrievalInfo, species_dir, state_info)
 
         # Convert to numpy arrays
         for key in (

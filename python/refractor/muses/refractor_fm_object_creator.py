@@ -14,7 +14,7 @@ from typing import Callable
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.old_py_retrieve_wrapper import MusesRayInfo  # type: ignore
+    from refractor.old_py_retrieve_wrapper import MusesRayInfo
     from .muses_spectral_window import MusesSpectralWindow
     from .muses_observation import MusesObservation, MeasurementId
     from .current_state import CurrentState

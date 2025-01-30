@@ -50,9 +50,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             rs.state_info,
             rs.current_state(),
         )
-        logger.info(
-            f"Step: {rs.step_number},  Total Steps (after modify_from_bt): {rs.number_retrieval_step}"
-        )
+        logger.info(f"Step: {rs.step_number}")
         rs.state_info.next_state_dict = copy.deepcopy(
             rs.state_info.state_info_dict["current"]
         )

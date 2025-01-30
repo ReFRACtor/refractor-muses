@@ -86,10 +86,6 @@ class RetrievalOutput:
         return self.retrieval_strategy.step_name
 
     @property
-    def number_retrieval_step(self):
-        return self.retrieval_strategy.number_retrieval_step
-
-    @property
     def results(self):
         return self.retrieval_strategy_step.results
 

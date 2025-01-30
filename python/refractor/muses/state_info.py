@@ -3,6 +3,7 @@ import abc
 from .priority_handle_set import PriorityHandleSet
 from .observation_handle import mpy_radiance_from_observation_list
 from .tes_file import TesFile
+from .order_species import order_species
 import refractor.muses.muses_py as mpy  # type: ignore
 from loguru import logger
 import copy
@@ -396,7 +397,9 @@ class StateInfo:
         self,
         strategy_table: StrategyTable,
         observation_handle_set: ObservationHandleSet,
-        instrument_name_all: str,
+        retrieval_elements_all: list[str],
+        error_analysis_interferents_all: list[str],
+        instrument_name_all: list[str],
         run_dir: Path,
     ):
         (_, _, _, _, _, _, self.state_info_dict) = mpy.script_retrieval_setup_ms(
@@ -411,9 +414,10 @@ class StateInfo:
         ]
         rad = mpy_radiance_from_observation_list(olist, full_band=True)
 
+        fake_table = { "errorSpecies" : order_species(list(set(error_analysis_interferents_all) | set(retrieval_elements_all))) }
         self.state_info_dict = mpy.states_initial_update(
             self.state_info_dict,
-            strategy_table.strategy_table_dict,
+            fake_table,
             rad,
             instrument_name_all,
         )

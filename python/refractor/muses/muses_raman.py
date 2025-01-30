@@ -4,8 +4,7 @@ import abc
 import typing
 
 if typing.TYPE_CHECKING:
-    # Temp, we should get typing into old_py_retrieve_wrapper, but skip for now
-    from refractor.old_py_retrieve_wrapper import MusesRayInfo  # type: ignore
+    from refractor.old_py_retrieve_wrapper import MusesRayInfo
 
 
 class SurfaceAlbedo(object, metaclass=abc.ABCMeta):

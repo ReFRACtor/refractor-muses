@@ -208,13 +208,13 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._measurement_id = MeasurementIdFile(
             self.run_dir / "Measurement_ID.asc",
             self.retrieval_config,
-            self._strategy_executor.filter_list_dict,
+            self.strategy_executor.filter_list_dict,
         )
         self._cost_function_creator.notify_update_target(self.measurement_id)
-        self._strategy_executor.spectral_window_handle_set.notify_update_target(
+        self.strategy_executor.spectral_window_handle_set.notify_update_target(
             self.measurement_id
         )
-        self._strategy_executor.qa_data_handle_set.notify_update_target(
+        self.strategy_executor.qa_data_handle_set.notify_update_target(
             self.measurement_id
         )
         self._retrieval_strategy_step_set.notify_update_target(self)
@@ -283,7 +283,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
 
     def retrieval_ms(self) -> int:
         """This is script_retrieval_ms in muses-py"""
-        self._strategy_executor.execute_retrieval()
+        self.strategy_executor.execute_retrieval()
         exitcode = 37
         logger.info("Done")
         logger.info("\n---")
@@ -297,7 +297,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         processing starting at that step to diagnose a problem.
 
         """
-        self._strategy_executor.continue_retrieval(stop_after_step=stop_after_step)
+        self.strategy_executor.continue_retrieval(stop_after_step=stop_after_step)
 
     @property
     def strategy_executor(self) -> MusesStrategyExecutorOldStrategyTable:
@@ -368,22 +368,18 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
 
     @property
     def instrument_name_all_step(self) -> list[str]:
-        return self._strategy_executor.instrument_name_all_step
+        return self.strategy_executor.instrument_name_all_step
 
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:
-        return self._strategy_executor.current_strategy_step
+        return self.strategy_executor.current_strategy_step
 
     def current_state(
         self, do_systematic=False, jacobian_speciesIn=None
     ) -> CurrentState:
-        return self._strategy_executor.current_state(
+        return self.strategy_executor.current_state(
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn
         )
-
-    @property
-    def number_retrieval_step(self) -> int:
-        return self._strategy_executor.number_retrieval_step
 
     def number_steps_left(self, retrieval_element_name: str) -> int:
         """This returns the number of retrieval steps left that
@@ -394,7 +390,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         retrieving O3, etc.
 
         """
-        return self._strategy_executor.number_steps_left(retrieval_element_name)
+        return self.strategy_executor.number_steps_left(retrieval_element_name)
 
     @property
     def step_name(self) -> str:
@@ -434,7 +430,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         # want this replaced with a different kind of
         # ErrorAnalysis. For now, just make it clear that we have this
         # coupling and we can figure out how this should be handled.
-        return self._strategy_executor.error_analysis
+        return self.strategy_executor.error_analysis
 
     def create_cost_function(
         self,
@@ -448,7 +444,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         # RetrievalStrategyStep and perhaps we should just pass the
         # strategy_executor to the constructor.  But for now, make
         # explicit that we need this.
-        return self._strategy_executor.create_cost_function(
+        return self.strategy_executor.create_cost_function(
             do_systematic=do_systematic,
             include_bad_sample=include_bad_sample,
             fix_apriori_size=fix_apriori_size,
@@ -496,8 +492,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         # self._state_info = jsonpickle.decode(
         #    gzip.open(state_info_pickle_file, "rb").read())
         self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
-        self._strategy_executor.state_info = self._state_info
-        self._strategy_executor.set_step(step_number)
+        self.strategy_executor.state_info = self._state_info
+        self.strategy_executor.set_step(step_number)
         if ret_state_file is not None:
             t = RetrievalStepCaptureObserver.load_retrieval_state(ret_state_file)
             self._kwargs["ret_state"] = t

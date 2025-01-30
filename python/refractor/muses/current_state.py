@@ -601,7 +601,7 @@ class CurrentStateStateInfo(CurrentState):
     def __init__(
         self,
         state_info: StateInfo,
-        retrieval_info: RetrievalInfo,
+        retrieval_info: RetrievalInfo | None,
         step_directory: str | os.PathLike[str],
         retrieval_state_element_override=None,
         do_systematic=False,
@@ -650,6 +650,8 @@ class CurrentStateStateInfo(CurrentState):
         """Initial guess"""
         # Not sure about systematic handling here. I think this is all
         # zeros, not sure if that is right or not.
+        if self._retrieval_info is None:
+            raise RuntimeError("_retrieval_info is None")
         if self.do_systematic:
             return self._retrieval_info.retrieval_info_systematic().initialGuessList
         else:
@@ -662,6 +664,8 @@ class CurrentStateStateInfo(CurrentState):
         if self.do_systematic:
             return np.zeros((1, 1))
         else:
+            if self._retrieval_info is None:
+                raise RuntimeError("_retrieval_info is None")
             return self._retrieval_info.apriori_cov
 
     @property
@@ -680,6 +684,8 @@ class CurrentStateStateInfo(CurrentState):
         if self.do_systematic:
             return np.zeros((len(self.initial_guess),))
         else:
+            if self.retrieval_info is None:
+                raise RuntimeError("retrieval_info is None")
             return self.retrieval_info.apriori
 
     @property
@@ -692,6 +698,8 @@ class CurrentStateStateInfo(CurrentState):
         if self.do_systematic:
             return None
         else:
+            if self.retrieval_info is None:
+                raise RuntimeError("retrieval_info is None")
             return self.retrieval_info.basis_matrix
 
     @property
@@ -720,7 +728,7 @@ class CurrentStateStateInfo(CurrentState):
         )
 
     @property
-    def retrieval_info(self) -> RetrievalInfo:
+    def retrieval_info(self) -> RetrievalInfo | None:
         return self._retrieval_info
 
     @retrieval_info.setter
@@ -733,6 +741,8 @@ class CurrentStateStateInfo(CurrentState):
     def retrieval_state_element(self) -> list[str]:
         if self.retrieval_state_element_override is not None:
             return self.retrieval_state_element_override
+        if self.retrieval_info is None:
+            raise RuntimeError("retrieval_info is None")
         if self.do_systematic:
             return self.retrieval_info.species_names_sys
         return self.retrieval_info.species_names
@@ -744,6 +754,8 @@ class CurrentStateStateInfo(CurrentState):
         elements not being retrieved don't get listed here)
 
         """
+        if self.retrieval_info is None:
+            raise RuntimeError("retrieval_info is None")
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0

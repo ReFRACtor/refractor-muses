@@ -1,4 +1,6 @@
 from __future__ import annotations
+from .misc import osp_setup
+from contextlib import contextmanager
 from .refractor_capture_directory import muses_py_call
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .retrieval_info import RetrievalInfo
@@ -6,9 +8,12 @@ from .error_analysis import ErrorAnalysis
 from .order_species import order_species
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentStateStateInfo
-from .muses_spectral_window import MusesSpectralWindow
 from .qa_data_handle import QaDataHandleSet
-from .muses_strategy import MusesStrategyOldStrategyTable
+from .muses_strategy import (
+    MusesStrategyOldStrategyTable,
+    MusesStrategy,
+    CurrentStrategyStep,
+)
 from .observation_handle import ObservationHandleSet
 from .refractor_uip import RefractorUip
 import refractor.framework as rf  # type: ignore
@@ -27,11 +32,11 @@ from typing import Callable
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .muses_observation import MusesObservation
-    from .strategy_table import StrategyTable
     from .cost_function import CostFunction
     from .retrieval_configuration import RetrievalConfiguration
     from .state_info import StateInfo
     from .cost_function_creator import CostFunctionCreator
+    from .current_state import CurrentState
 
 
 def log_timing(f):
@@ -110,156 +115,6 @@ class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
     pass
 
 
-class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
-    """This contains information about the current strategy step. This
-    is little more than a dict giving several properties, but we
-    abstract this out so we can test things without needing to use a
-    full MusesStrategyExecutor, also so we document what information
-    is expected from a strategy step.
-
-    """
-
-    @abc.abstractproperty
-    def retrieval_elements(self) -> list[str]:
-        """List of retrieval elements that we retrieve for this step."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def instrument_name(self) -> list[str]:
-        """List of instruments used in this step."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def step_name(self) -> str:
-        """A name for the current strategy step."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def step_number(self) -> int:
-        """The number of the current strategy step, starting with 0."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def microwindow_file_name_override(self) -> str | None:
-        """The microwindows file to use, overriding the normal logic that was
-        in the old mpy.table_get_spectral_filename. If None, then we don't have
-        an override."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def max_num_iterations(self) -> int:
-        """Maximum number of iterations to used in a retrieval step."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def retrieval_type(self) -> str:
-        """The retrieval type."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def do_not_update_list(self) -> list[str]:
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def spectral_window_dict(self) -> dict[str, MusesSpectralWindow]:
-        """Return a dictionary that maps instrument name to the MusesSpectralWindow
-        to use for that."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def retrieval_info(self) -> RetrievalInfo:
-        """The RetrievalInfo."""
-        # Note it would probably be good to remove this if we can. Right now
-        # this is only used by RetrievalL2Output. But at least for now, we
-        # need to to generate the output
-        raise NotImplementedError()
-
-
-class CurrentStrategyStepDict(CurrentStrategyStep):
-    """Implementation of CurrentStrategyStep that uses a dict"""
-
-    def __init__(self, current_strategy_step_dict: dict):
-        self.current_strategy_step_dict = current_strategy_step_dict
-
-    @classmethod
-    def current_step(cls, strategy_table: StrategyTable):
-        """Create a current strategy step, leaving out the
-        RetrievalInfo stuff. Mostly meant for testing,
-        MusesStrategyExecutor will normally create the current_step
-        but testing at a lower level might not have a
-        MusesStrategyExecutor available.
-
-        """
-        return cls(
-            {
-                "retrieval_elements": strategy_table.retrieval_elements(),
-                "instrument_name": strategy_table.instrument_name(),
-                "step_name": strategy_table.step_name,
-                "step_number": strategy_table.table_step,
-                "max_num_iterations": int(strategy_table.max_num_iterations),
-                "retrieval_type": strategy_table.retrieval_type,
-                "do_not_update_list": strategy_table.do_not_update_list,
-                "spectral_window_dict": None,
-                "retrieval_info": None,
-            }
-        )
-
-    @property
-    def retrieval_elements(self) -> list[str]:
-        """List of retrieval elements that we retrieve for this step."""
-        return self.current_strategy_step_dict["retrieval_elements"]
-
-    @property
-    def instrument_name(self) -> list[str]:
-        """List of instruments used in this step."""
-        return self.current_strategy_step_dict["instrument_name"]
-
-    @property
-    def step_name(self) -> str:
-        """A name for the current strategy step."""
-        return self.current_strategy_step_dict["step_name"]
-
-    @property
-    def step_number(self) -> int:
-        """The number of the current strategy step, starting with 0."""
-        return self.current_strategy_step_dict["step_number"]
-
-    @property
-    def microwindow_file_name_override(self) -> str | None:
-        """The microwindows file to use, overriding the normal logic that was
-        in the old mpy.table_get_spectral_filename. If None, then we don't have
-        an override."""
-        return self.current_strategy_step_dict.get("microwindow_file_name_override")
-
-    @property
-    def max_num_iterations(self) -> int:
-        """Maximum number of iterations to used in a retrieval step."""
-        return self.current_strategy_step_dict["max_num_iterations"]
-
-    @property
-    def retrieval_type(self) -> str:
-        """The retrieval type."""
-        return self.current_strategy_step_dict["retrieval_type"]
-
-    @property
-    def do_not_update_list(self) -> list[str]:
-        return self.current_strategy_step_dict["do_not_update_list"]
-
-    @property
-    def spectral_window_dict(self) -> dict[str, MusesSpectralWindow]:
-        """Return a dictionary that maps instrument name to the MusesSpectralWindow
-        to use for that."""
-        return self.current_strategy_step_dict["spectral_window_dict"]
-
-    @property
-    def retrieval_info(self) -> RetrievalInfo:
-        """The RetrievalInfo."""
-        # Note it would probably be good to remove this if we can. Right now
-        # this is only used by RetrievalL2Output. But at least for now, we
-        # need to to generate the output
-        return self.current_strategy_step_dict["retrieval_info"]
-
-
 class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     """Much of the time our strategy is going to depend on having
     a RetrievalStrategyStepSet to get the RetrievalStrategyStep based
@@ -279,6 +134,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         **kwargs,
     ):
         self.retrieval_config = retrieval_config
+        self.retrieval_info: RetrievalInfo | None = None
         self.vlidort_cli = vlidort_cli
         self.run_dir = run_dir
         self.state_info = state_info
@@ -312,14 +168,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     @property
     def filter_list_dict(self) -> dict[str, list[str]]:
         """The complete list of filters we will be processing (so for all retrieval steps)"""
-        raise NotImplementedError
-
-    @property
-    def number_retrieval_step(self) -> int:
-        """Total number of retrieval steps. Note that this might change as
-        we work through the retrieval based off decisions from early steps."""
-        # I think this is only needed for logging messages, we might be
-        # able to remove this if it proves hard to calculate
         raise NotImplementedError
 
     @property
@@ -398,10 +246,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         mwin = []
         for obs in obs_list:
             mwin.extend(obs.spectral_window.muses_microwindows())
-        if False:
-            # Can check that we are getting the right microwindows, if needed
-            mwin2 = self.strategy._stable.microwindows()
-            array_compare(mwin, mwin2, skip_list=["THROW_AWAY_WINDOW_INDEX"])
         # Dummy strategy table, with the information needed by
         # RefractorUip.create_uip
         fake_table = {
@@ -446,7 +290,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 pointing_angle=pointing_angle,
             )
 
-    def current_state(self, do_systematic=False, jacobian_speciesIn=None):
+    def current_state(
+        self, do_systematic=False, jacobian_speciesIn=None
+    ) -> CurrentState:
         return CurrentStateStateInfo(
             self.state_info,
             self.retrieval_info,
@@ -533,9 +379,12 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             qa_data_handle_set=qa_data_handle_set,
             **rs.keyword_arguments,
         )
-        self.strategy = MusesStrategyOldStrategyTable(filename, osp_dir=osp_dir)
+        self.strategy: MusesStrategy = MusesStrategyOldStrategyTable(
+            filename, osp_dir=osp_dir
+        )
+        self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
         self.rs = rs
-        self.retrieval_info = None
+        self.retrieval_info: RetrievalInfo | None = None
         self.spectral_window_dict = None
 
     def notify_update(self, location: str, **kwargs):
@@ -544,41 +393,25 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     @property
     def filter_list_dict(self) -> dict[str, list[str]]:
         """The complete list of filters we will be processing (so for all retrieval steps)"""
-        return self.strategy._stable.filter_list_all()
-
-    @property
-    def number_retrieval_step(self) -> int:
-        """Total number of retrieval steps. Note that this might change as
-        we work through the retrieval based off decisions from early steps."""
-        return self.strategy._stable.number_table_step
+        return self.strategy.filter_list_dict
 
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
-        return CurrentStrategyStepDict(
-            {
-                "retrieval_elements": self.strategy._stable.retrieval_elements(),
-                "instrument_name": self.strategy._stable.instrument_name(),
-                "step_name": self.strategy._stable.step_name,
-                "step_number": self.strategy._stable.table_step,
-                "max_num_iterations": int(self.strategy._stable.max_num_iterations),
-                "retrieval_type": self.strategy._stable.retrieval_type,
-                "do_not_update_list": self.strategy._stable.do_not_update_list,
-                "spectral_window_dict": self.spectral_window_dict,
-                "retrieval_info": self.retrieval_info,
-            }
+        return self.strategy.current_strategy_step(
+            self.spectral_window_dict, self.retrieval_info
         )
 
-    def restart(self):
+    def restart(self) -> None:
         """Set step to the first one."""
-        self.strategy._stable.table_step = 0
+        self.strategy.restart()
         self.spectral_window_dict = (
             self.spectral_window_handle_set.spectral_window_dict(
                 self.current_strategy_step
             )
         )
 
-    def set_step(self, step_number):
+    def set_step(self, step_number: int) -> None:
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
         where we jump to a given step number."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
@@ -586,15 +419,17 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             while self.current_strategy_step.step_number < step_number:
                 self.next_step()
 
-    def _restart_and_error_analysis(self):
+    def _restart_and_error_analysis(self) -> None:
         '''Restart and recreate error analysis. Put together just for convenience,
         so we can use with "set_step"'''
         # List of state elements we need covariance from. This is all the elements
         # we will retrieve, plus any interferents that get added in. This list
         # is unique elements, sorted by the order_species sorting
         covariance_state_element_name = order_species(
-            set(self.strategy._stable.retrieval_elements_all_step)
-            | set(self.strategy._stable.error_analysis_interferents_all_step)
+            list(
+                set(self.strategy.retrieval_elements)
+                | set(self.strategy.error_analysis_interferents)
+            )
         )
 
         self.restart()
@@ -602,18 +437,26 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             self.current_strategy_step, self.state_info, covariance_state_element_name
         )
 
-    def next_step(self):
+    def next_step(self) -> None:
         """Advance to the next step"""
-        self.strategy._stable.next_step(self.current_state())
+        self.strategy.next_step(self.current_state())
 
-    def is_done(self):
+    def is_done(self) -> bool:
         """Return true if we are done, otherwise false."""
-        return self.strategy._stable.is_done()
+        return self.strategy.is_done()
 
     @property
     def instrument_name_all_step(self):
-        return self.strategy._stable.instrument_name(all_step=True)
+        return self.strategy.instrument_name
 
+    @property
+    def error_analysis_interferents_all_step(self):
+        return self.strategy.error_analysis_interferents
+
+    @property
+    def retrieval_elements_all_step(self):
+        return self.strategy.retrieval_elements
+    
     def get_initial_guess(self):
         """Set retrieval_info, errorInitial and errorCurrent for the current step."""
         # Temp, we'll want to get this update done automatically. But do this
@@ -625,7 +468,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         )
         self.retrieval_info = RetrievalInfo(
             self.error_analysis,
-            self.strategy._stable,
+            Path(self.retrieval_config["speciesDirectory"]),
             self.current_strategy_step,
             self.state_info,
         )
@@ -664,13 +507,14 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
         """
         step_number_start = self.current_strategy_step.step_number
+        state_start = self.current_state()
         res = 0
         self.next_step()
         while not self.is_done():
             if retrieval_element_name in self.current_strategy_step.retrieval_elements:
                 res += 1
             self.next_step()
-        self.strategy._stable.table_step = step_number_start
+        self.strategy.set_step(step_number_start, state_start)
         return res
 
     def run_step(self):
@@ -683,7 +527,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.state_info.copy_current_initial()
         logger.info("\n---")
         logger.info(
-            f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}, Total Steps: {self.strategy._stable.number_table_step}"
+            f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}"
         )
         logger.info("\n---")
         self.get_initial_guess()
@@ -721,10 +565,12 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         problems with an individual step, or to run a simulation at a
         particular step.
         """
-        with self.strategy._stable.chdir_run_dir():
+        with self.chdir_run_dir():
             self.state_info.init_state(
                 self.strategy._stable,
                 self.observation_handle_set,
+                self.retrieval_elements_all_step,
+                self.error_analysis_interferents_all_step,
                 self.instrument_name_all_step,
                 self.run_dir,
             )
@@ -777,11 +623,33 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                     return
                 self.next_step()
 
+    @contextmanager
+    def chdir_run_dir(self):
+        """A number of muses-py routines assume they are in the directory
+        that the strategy table lives in. This gives a nice way to ensure
+        that is the case. Uses this as a context manager
+        """
+        # If we have an osp_dir, then set up a temporary directory with the OSP
+        # set up.
+        # TODO Would be nice to remove this. I think we'll need to look into
+        # py-retrieval to do this, but this temporary directory is really an
+        # kludge - it would be nice to handle relative paths in the strategy
+        # table directly.
+        if self.osp_dir is not None:
+            with osp_setup(osp_dir=self.osp_dir):
+                yield
+        else:
+            # Otherwise we assume that this is in a run directory
+            curdir = os.getcwd()
+            try:
+                os.chdir(self.run_dir)
+                yield
+            finally:
+                os.chdir(curdir)
+
 
 __all__ = [
     "MusesStrategyExecutor",
-    "CurrentStrategyStep",
-    "CurrentStrategyStepDict",
     "MusesStrategyExecutorRetrievalStrategyStep",
     "MusesStrategyExecutorOldStrategyTable",
 ]

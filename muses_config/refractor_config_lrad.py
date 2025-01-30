@@ -1,5 +1,4 @@
 # These are the arguments passed to cli function that loads this code.
-from py_retrieve.cli import params
 from refractor.muses import RetrievalStrategy, RetrievalStrategyCaptureObserver
 from refractor.tropomi import TropomiForwardModelHandle
 from refractor.omi import OmiForwardModelHandle

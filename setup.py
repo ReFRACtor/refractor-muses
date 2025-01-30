@@ -1,4 +1,3 @@
-import os
 from setuptools import setup, find_namespace_packages
 
 # Version moved to python/refractor/muses/version.py so we have one place it is defined.

@@ -88,7 +88,9 @@ def test_current_state_state_info(
         pass
     os.chdir(r.run_dir)
     # Sets up retrieval_info
-    for i in range(rs.number_retrieval_step):
+    rs.strategy_executor.restart()
+    i = 0
+    while not rs.strategy_executor.is_done():
         rs.table_step = i
         rs.retrieval_info.stepNumber = rs.table_step
         rs.retrieval_info.stepName = rs.step_name
@@ -121,6 +123,8 @@ def test_current_state_state_info(
         if cssys is not None:
             assert cssys.fm_state_vector_size == csuipsys.fm_state_vector_size
             assert cssys.fm_sv_loc == csuipsys.fm_sv_loc
+        i += 1
+        rs.strategy_executor.next_step()
 
         # TODO
         # We need to add in the full_state_value testing, but we don't have that in place
@@ -128,7 +132,7 @@ def test_current_state_state_info(
 
     # For the BT step, we use the jacobian_speciesIn argument. Check that this work with
     # the new CurrentStateStateInfo
-    rs.table_step = 0
+    rs.strategy_executor.restart()
     rs.retrieval_info.stepNumber = rs.table_step
     rs.retrieval_info.stepName = rs.step_name
     rs.get_initial_guess()

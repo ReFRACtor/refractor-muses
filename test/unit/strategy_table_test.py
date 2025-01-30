@@ -8,7 +8,6 @@ from refractor.muses import (
     StateInfo,
 )
 import subprocess
-import os
 import numpy as np
 
 # Add a extra state element, just so we can make sure our StrategyTable functions
