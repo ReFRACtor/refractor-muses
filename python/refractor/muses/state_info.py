@@ -10,6 +10,8 @@ import copy
 from pathlib import Path
 import refractor.framework as rf  # type: ignore
 import numpy as np
+import os
+import pickle
 from typing import Any
 import typing
 
@@ -402,7 +404,7 @@ class StateInfo:
         instrument_name_all: list[str],
         run_dir: Path,
     ):
-        (_, _, _, _, _, _, self.state_info_dict) = mpy.script_retrieval_setup_ms(
+        (_, _, _, _, _, _, self.state_info_dict) = self.script_retrieval_setup_ms(
             strategy_table.strategy_table_dict, False
         )
         # state_initial_update needs radiance for some of the instruments. It used this
@@ -414,7 +416,11 @@ class StateInfo:
         ]
         rad = mpy_radiance_from_observation_list(olist, full_band=True)
 
-        fake_table = { "errorSpecies" : order_species(list(set(error_analysis_interferents_all) | set(retrieval_elements_all))) }
+        fake_table = {
+            "errorSpecies": order_species(
+                list(set(error_analysis_interferents_all) | set(retrieval_elements_all))
+            )
+        }
         self.state_info_dict = mpy.states_initial_update(
             self.state_info_dict,
             fake_table,
@@ -428,6 +434,1376 @@ class StateInfo:
         self._utc_time = f["UTC_Time"]
         self._sounding_id = TesFile(run_dir / "Measurement_ID.asc")["key"]
         self.next_state_dict = None
+
+    def script_retrieval_setup_ms(self, i_table_struct, i_writeOutput):
+        # IDL_LEGACY_NOTE: This function script_retrieval_setup_ms is the same as script_retrieval_setup_ms in script_retrieval_setup_ms.pro file.
+
+        utilDir = mpy.UtilDir()
+
+        o_airs = None
+        o_cris = None
+        o_omi = None
+        o_tropomi = None
+        o_tes = None
+        o_oco2 = None
+        o_stateInfo = None
+
+        # Open and read measurement ID file.
+        # AT_LINE 60 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+        instrument_file_name = "Measurement_ID.asc"
+
+        (_, o_file_content) = mpy.read_all_tes(instrument_file_name)
+        file_id = mpy.tes_file_get_struct(o_file_content)
+
+        # AT_LINE 61 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+        if "oceanFlag" in file_id["preferences"]:
+            oceanFlag = int(file_id["preferences"]["oceanFlag"])
+        elif "OCEANFLAG" in file_id["preferences"]:
+            oceanFlag = int(file_id["preferences"]["OCEANFLAG"])
+        else:
+            logger.info(
+                "ERROR: Could not find 'oceanflag' or 'OCEANFLAG' from preferences:",
+                file_id["preferences"],
+            )
+            assert False
+
+        # GMAO to be used in get_state_intial
+        gmao_path = "../GMAO/"
+        gmao_type = ""
+        if "GMAO" in file_id["preferences"] and "GMAO_TYPE" in file_id["preferences"]:
+            gmao_path = str(file_id["preferences"]["GMAO"])
+            gmao_type = str(file_id["preferences"]["GMAO_TYPE"])
+
+        # AT_LINE 62 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+        my_key = file_id[
+            "preferences"
+        ][
+            "key"
+        ]  # The token 'key' is a reserved word in Python.  We change the variable (left hand side) from key to my_key.
+
+        # AT_LINE 65 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+        # Open and read Retrieval Strategy Table.
+        # PYTHON_NOTE: There is a good chance that the strategy table would have already been read and parsed.  We don't need to do that
+        #              again.
+
+        directoryIG = mpy.table_get_pref(i_table_struct, "initialGuessDirectory")
+        directoryConstraint = mpy.table_get_pref(
+            i_table_struct, "constraintVectorDirectory"
+        )  # where state goes is specified by the Table
+
+        if i_writeOutput:
+            outdir = "." + os.path.sep + "Input"
+            directoryIG = "." + os.path.sep + directoryIG
+            directoryConstraint = "." + os.path.sep + directoryConstraint
+
+            # Make sure directories exist.
+            utilDir.make_dir(outdir)
+            utilDir.make_dir(directoryIG)
+            utilDir.make_dir(directoryConstraint)
+
+        # AT_LINE 84 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+
+        # First see what instruments are used in the retrieval. Read through all windows files and get instrument list
+
+        # Get micro windows from strategy table for all retrieval steps.
+        windows = mpy.table_new_mw_from_all_steps(i_table_struct)
+
+        # There may be more than one instruments in windows list.
+        instruments = []
+        for one_window in windows:
+            if one_window["instrument"] not in instruments:
+                instruments.append(one_window["instrument"])
+
+        instrument_name = "DUMMY_INSTRUMENT_NAME"
+
+        # AT_LINE 88 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
+
+        # Get lat/lon/time from appropriate instrument
+
+        if "TES" in instruments:
+            instrument_name = "TES"
+        elif "AIRS" in instruments:
+            instrument_name = "AIRS"
+        elif "CRIS" in instruments:
+            instrument_name = "CRIS"
+        elif "OMI" in instruments:
+            instrument_name = "OMI"
+        elif "TROPOMI" in instruments:
+            instrument_name = "TROPOMI"
+        elif "OCO2" in instruments:
+            instrument_name = "OCO2"
+        else:
+            logger.info(
+                "ERROR: Unknown instrument.  Must have TES, AIRS, CRIS, OMI, TROPOMI, OCO2 specified as instrument in windows files"
+            )
+            assert False
+
+        if instrument_name not in [
+            "TES",
+            "AIRS",
+            "CRIS",
+            "OMI",
+            "OMPS-NM",
+            "TROPOMI",
+            "OCO2",
+        ]:
+            logger.info(
+                "ERROR: Unknown instrument. Must have TES, AIRS, CRIS, OMI, OMPS-NM, TROPOMI or OCO2 specified as instrument in Measurement ID file"
+            )
+            assert False
+
+        # NOTE in this file, latitude and longitude are the ONLY things capitalized of all variables in this file...
+        # change this but accept capitalized also because of multiple users of this code.
+        # replaces code that tediously spells out everything instrument by instrument.
+        # add tofile_id['preferences'] as {instrument_name}_utcTime, {instrument_name}_longitude, {instrument_name}_latitude
+
+        o_latitude = 0
+        o_longitude = 0
+        o_dateStruct = {}
+
+        # allow utcTime or time (tai)
+        try:
+            dateStruct = mpy.utc_from_string(
+                file_id["preferences"][f"{instrument_name}_utcTime"]
+            )
+            o_dateStruct["dateStruct"] = dateStruct
+            o_dateStruct["year"] = dateStruct["utctime"].year
+            o_dateStruct["month"] = dateStruct["utctime"].month
+            o_dateStruct["day"] = dateStruct["utctime"].day
+            o_dateStruct["hour"] = dateStruct["utctime"].hour
+            o_dateStruct["minute"] = dateStruct["utctime"].minute
+            o_dateStruct["second"] = dateStruct["utctime"].second
+        except KeyError:
+            o_dateStruct = mpy.tai(
+                np.float64(file_id["preferences"][f"{instrument_name}_time"])
+            )
+            file_id["preferences"][f"{instrument_name}_utcTime"] = mpy.utc(
+                o_dateStruct, True
+            )
+
+        # allow capitalized or lower case latitude, longitude
+        try:
+            o_latitude = float(file_id["preferences"][f"{instrument_name}_latitude"])
+            o_longitude = float(file_id["preferences"][f"{instrument_name}_longitude"])
+        except KeyError:
+            o_latitude = float(file_id["preferences"][f"{instrument_name}_Latitude"])
+            o_longitude = float(file_id["preferences"][f"{instrument_name}_Longitude"])
+            file_id["preferences"][f"{instrument_name}_latitude"] = o_latitude
+            file_id["preferences"][f"{instrument_name}_longitude"] = o_longitude
+
+        # PYTHON_NOTE:  To keep this function from getting too big, parts specific to an instrument will be farmed out to specific class
+        #               to handle reading in calculated radiance from previous run or to calculate the radiance for the first time.
+
+        # Need to add capability to handle synthetic radiances
+        # See script_retrieval_setup_ms.pro line 150 in ssund branch
+
+        # if radianceSource is set to "Synthetic" then:
+        # get instrument info from Measurement_ID.asc, OCO_filename
+        # and use the initial guess and constraint from this location also.
+
+        # could add a new mode where generates radiances
+        # current synthetic assumes radiances are premade
+        if mpy.table_get_pref(i_table_struct, "radianceSource") == "Synthetic":
+            if "TES" in instruments:
+                logger.info(
+                    "ERROR: This section of the code for synthetic input is not implemented. instrument_name: ",
+                    instrument_name,
+                )
+                assert False
+
+            if "AIRS" in instruments:
+                logger.info(
+                    "ERROR: This section of the code for synthetic input is not implemented. instrument_name: ",
+                    instrument_name,
+                )
+                assert False
+            # end instrument_name == 'AIRS':
+
+            # AT_LINE 285 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            if "CRIS" in instruments:
+                logger.info(
+                    "ERROR: This section of the code for synthetic input is not implemented. instrument_name: ",
+                    instrument_name,
+                )
+                assert False
+            # end instrument_name == 'CRIS':
+
+            if "OMI" in instruments:
+                logger.info(
+                    "ERROR: This section of the code for synthetic input is not implemented. instrument_name: ",
+                    instrument_name,
+                )
+                assert False
+            # end instrument_name == 'OMI':
+
+            if "OMPS-NM" in instruments:
+                logger.info(
+                    "ERROR: This section of the code for synthetic input is not implemented. instrument_name: ",
+                    instrument_name,
+                )
+                assert False
+            # end instrument_name == 'OMPS-NM':
+
+            if "TROPOMI" in instruments:
+                logger.info(
+                    "ERROR: This section of the code for synthetic input is not implemented. instrument_name: ",
+                    instrument_name,
+                )
+                assert False
+            # end instrument_name == 'TROPOMI':
+
+            if "OCO2" in instruments:
+                # get info from pre-generated synthetic radiance and state
+                filename = file_id["preferences"]["OCO2_filename"]
+                file, dunno, dunno = mpy.cdf_read_dict(filename)
+
+                # convert from bytearray to strings
+                mpy.dict_convert_string(file)
+
+                o_stateInfo = file["state"]
+
+                # writer has issue that it writes single numbers as arrays, convert all single # arrays back to single #s
+                mpy.dict_convert_single(o_stateInfo)
+
+                o_oco2 = file["oco2"]
+                # set table.pressurefm to stateConstraint.pressure because OCO-2 is on sigma levels
+                i_table_struct["pressureFM"] = o_stateInfo["constraint"]["pressure"]
+
+                o_oco2["observation_id"] = file_id["preferences"]["OCO2_sounding_id"]
+
+                # check if radiance is 0 or NESR, if so, run
+                if np.mean(o_oco2["radianceStruct"]["radiance"]) < np.mean(
+                    o_oco2["radianceStruct"]["NESR"]
+                ):
+                    # uip, dunno, dunno = cdf_read_dict(Path(Path(filename).parent,Path('uip.nc')))
+                    uip = file["uip_true"]
+                    radiance, xx, xy, xz, xa = mpy.fm_wrapper_one(i_uip=uip)
+                    # add radiance + possibly noise
+                    o_oco2["radianceStruct"]["radiance"] = o_oco2["radiance_error"] + (
+                        radiance["radiance"]
+                    ).reshape(radiance["radiance"].size)
+                    # fm_wrapper_one(write_output=True)
+                    # os.chdir(cwd)
+
+                outputFilenameOCO2 = "./Input/Radiance_OCO2_" + my_key + ".nc"
+
+            if i_writeOutput:
+                # Because the write_state function modify the 'current' fields of stateInitial structure, we give it a copy.
+                stateConstraintCopy = copy.deepcopy(o_stateInfo["constraint"])
+                mpy.write_state(
+                    directoryConstraint,
+                    mpy.ObjectView(o_stateInfo),
+                    mpy.ObjectView(stateConstraintCopy),
+                    my_key="_" + my_key,
+                    writeAltitudes=0,
+                )
+                del stateConstraintCopy  # Delete the temporary object.
+
+                # Because the write_state function modify the 'current' fields of stateInitial structure, we give it a copy.
+                stateInitialCopy = copy.deepcopy(o_stateInfo["initial"])
+                mpy.write_state(
+                    directoryIG,
+                    mpy.ObjectView(o_stateInfo),
+                    mpy.ObjectView(stateInitialCopy),
+                    my_key="_" + my_key,
+                    writeAltitudes=0,
+                )
+                del stateInitialCopy  # Delete the temporary object.
+
+                utilDir.make_dir(outdir + "/True")
+                # Because the write_state function modify the 'current' fields of stateInitial structure, we give it a copy.
+                stateTrueCopy = copy.deepcopy(o_stateInfo["true"])
+                mpy.write_state(
+                    outdir + "/True/",
+                    mpy.ObjectView(o_stateInfo),
+                    mpy.ObjectView(stateTrueCopy),
+                    my_key="_" + my_key,
+                    writeAltitudes=0,
+                )
+                del stateTrueCopy  # Delete the temporary object.
+
+            # At this point, we have 5 separate fields in o_stateInfo with 5 separate memory locations.
+            return (
+                o_airs,
+                o_cris,
+                o_omi,
+                o_tropomi,
+                o_tes,
+                o_oco2,
+                o_stateInfo,
+            )  # More instrument data later.
+        else:
+            # get info from L1B
+
+            # PYTHON_NOTE:  To keep this function from getting too big, parts specific to an instrument will be farmed out to specific class
+            #               to handle reading in calculated radiance from previous run or to calculate the radiance for the first time.
+
+            ## FUTURE IMPROVEMENT NOTE - CONDENSE INTO FUNCTION CALLS, CURRENTLY UNCESSARILY OVERCOMPLEX IN DETAIL
+            if "TES" in instruments:
+                # outputFilenameTES = './Input/Radiance_TES_ ' + my_key + '.nc'
+                o_tes = mpy.read_tes_l1b(file_id, windows)
+
+                # apodize here if specified
+                mpy.table_get_pref(i_table_struct, "apodizationMethodObs")
+                mpy.table_get_pref(i_table_struct, "apodizationMethodFit")
+                mpy.table_get_pref(i_table_struct, "apodizationWindowCombineThreshold")
+                apodStrength = mpy.table_get_pref(
+                    i_table_struct, "NortonBeerApodizationStrength"
+                )
+                apodizationFunction = mpy.table_get_pref(
+                    i_table_struct, "apodizationFunction"
+                )
+
+                if apodizationFunction == "NORTON_BEER":
+                    status, file = mpy.read_all_tes(
+                        mpy.table_get_pref(
+                            i_table_struct, "defaultSpectralWindowsDefinitionFilename"
+                        ),
+                        "asc",
+                    )
+                    maxOPD = np.array(mpy.tes_file_get_column(file, "MAXOPD"))
+                    filter = np.array(mpy.tes_file_get_column(file, "FILTER"))
+                    spacing = np.array(mpy.tes_file_get_column(file, "RET_FRQ_SPC"))
+
+                    # apodization radiance and NESR
+                    # if this is synthetic data, need to modify additive noise also.
+                    radianceStruct = mpy.radiance_apodize(
+                        o_tes["radianceStruct"], apodStrength, filter, maxOPD, spacing
+                    )
+
+                    o_tes["radianceStruct"] = radianceStruct
+            # end: if 'TES' in instruments:
+
+            # AT_LINE 199 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            if "AIRS" in instruments:
+                # Get the radiance either from instrument data or from previous run.
+                # AT_LINE 199 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+
+                outputFilenameAIRS = "./Input/Radiance_AIRS_ " + my_key + ".nc"
+
+                if not os.path.isfile(outputFilenameAIRS):
+                    o_airs = mpy.read_airs(file_id, windows)
+
+                    if i_writeOutput:
+                        # TODO: Pickle radiance data
+                        # write_radiance_airs(o_airs)
+                        pass
+                else:
+                    # TODO: Unpickle radiance data
+                    # read_radiance_airs(o_airs)
+
+                    logger.info("ERROR: Not implemented", outputFilenameAIRS)
+                    assert False
+
+            # AT_LINE 285 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            if "CRIS" in instruments:
+                # AT_LINE 281-350 src_ms-2018-12-10/script_retrieval_setup_ms.pro
+                # AT_LINE 281-367 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+                outputFilenameCRIS = "./Input/Radiance_CRIS_" + my_key + ".nc"
+
+                if not os.path.isfile(outputFilenameCRIS):
+                    filename = file_id["preferences"]["CRIS_filename"]
+
+                    logger.info("CRIS_filename", filename)
+
+                    # AT_LINE 291 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+
+                    # check filename to see source
+                    # check filename to see source
+                    if "nasa_nsr" in filename:
+                        cris_type = "suomi_nasa_nsr"  # 0
+                        # uses fsr reader, same content format as fsr
+                        o_cris = mpy.read_nasa_cris_fsr(file_id["preferences"])
+                    elif "nasa_fsr" in filename:
+                        cris_type = "suomi_nasa_fsr"  # 1
+                        # add in type 2 with nomw based on date.
+                        # CrIS Suomi NPP (Full Spectral Resolution), L1B data is generated by NASA
+                        # /project/muses/input/cris/nasa_fsr
+                        o_cris = mpy.read_nasa_cris_fsr(file_id["preferences"])
+                    elif "jpss_1_fsr" in filename:
+                        cris_type = "jpss1_nasa_fsr"  # 3
+                        # CrIS JPSS-1 / NOAA-20 (Full Spectral Resolution), L1B data is generated by NASA
+                        # /project/muses/input/cris/jpss_1_fsr
+                        o_cris = mpy.read_nasa_cris_fsr(file_id["preferences"])
+                    elif "snpp_fsr" in filename:
+                        cris_type = "suomi_cspp_fsr"  # 4
+                        # CrIS Suomi NPP, L1B data is generated by CSPP (Community Satellite Processing Package)
+                        # /project/muses/input/cris_cspp/snpp_fsr
+                        o_cris = mpy.read_noaa_cris_fsr(file_id["preferences"])
+                    elif "noaa_fsr" in filename:
+                        cris_type = "suomi_noaa_fsr"  # 5
+                        # CrIS JPSS-1 / NOAA-20 (Full Spectral Resolution), L1B data is generated by CSPP (Community Satellite Processing Package)
+                        # /project/muses/input/cris_cspp/noaa_fsr
+                        o_cris = mpy.read_noaa_cris_fsr(file_id["preferences"])
+                    else:
+                        logger.info("ERROR: Add case for CRIS type", filename)
+                        assert False
+
+                    # AT_LINE 334 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+                    radiance = o_cris["radiance".upper()]
+                    frequency = o_cris["frequency".upper()]
+                    nesr = o_cris["nesr".upper()]
+
+                    filters = np.array(["CrIS-fsr-lw" for ii in range(len(nesr))])
+                    ind_arr = np.where(frequency > 1200)[0]
+                    if len(ind_arr) > 0:
+                        filters[ind_arr] = "CrIS-fsr-mw"
+                    ind_arr = np.where(frequency > 2145)[0]
+                    if len(ind_arr) > 0:
+                        filters[ind_arr] = "CrIS-fsr-sw"
+
+                    old = 0
+                    if old:
+                        filters = np.array(["2B1" for ii in range(len(nesr))])
+
+                        ind_arr = np.where(frequency > 950)[0]
+                        if len(ind_arr) > 0:
+                            filters[ind_arr] = (
+                                "1B2"  # All frequencies above 950 are '1B2'
+                            )
+
+                        ind_arr = np.where(frequency > 1119.8)[0]
+                        if len(ind_arr) > 0:
+                            filters[ind_arr] = (
+                                "2A1"  # All frequencies above 1119.8 are '2A1'
+                            )
+
+                        ind_arr = np.where(frequency > 1444)[0]
+                        if len(ind_arr) > 0:
+                            filters[ind_arr] = (
+                                "2A3"  # All frequencies above 1444 are '2A3'
+                            )
+
+                        ind_arr = np.where(frequency > 1890.8)[0]
+                        if len(ind_arr) > 0:
+                            filters[ind_arr] = (
+                                "1A1"  # All frequencies above 1890.8 are '1A1'
+                            )
+
+                    o_cris["radianceStruct".upper()] = mpy.radiance_data(
+                        radiance, nesr, [0], frequency, filters, "CRIS"
+                    )
+
+                    if i_writeOutput:
+                        # TODO: Pickle radiance data
+                        # write_radiance_cris(o_cris)
+                        pass
+                else:
+                    # TODO: Unpickle radiance data
+                    # read_radiance_cris(o_cris)
+
+                    logger.info("ERROR: Not implemented", outputFilenameCRIS)
+                    assert False
+            # end instrument_name == 'CRIS':
+
+            # AT_LINE 378 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            if "OMI" in instruments:
+                # AT_LINE 360-389 src_ms-2018-12-10/script_retrieval_setup_ms.pro
+                # AT_LINE 378-406 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+
+                outputFilenameOMI = "./Input/Radiance_OMI_" + my_key + ".pkl"
+
+                if not os.path.isfile(outputFilenameOMI):
+                    OMI_RAD_CALRUN_FLAG = 0
+                    if "OMI_Rad_calRun_flag" in file_id["preferences"]:
+                        OMI_RAD_CALRUN_FLAG = int(
+                            float(file_id["preferences"]["OMI_Rad_calRun_flag"])
+                        )
+
+                    filename = file_id["preferences"]["OMI_filename"]
+
+                    if "OMI_Cloud_filename" in file_id["preferences"]:
+                        cldFilename = file_id["preferences"]["OMI_Cloud_filename"]
+                    else:
+                        cldFilename = None
+
+                    if OMI_RAD_CALRUN_FLAG == 0:
+                        calibrationFilename = mpy.table_get_pref(
+                            i_table_struct, "omi_calibrationFilename"
+                        )
+                    else:
+                        calibrationFilename = None
+                    o_omi = mpy.read_omi(
+                        filename,
+                        int(file_id["preferences"]["OMI_XTrack_UV2_Index"]),
+                        int(file_id["preferences"]["OMI_ATrack_Index"]),
+                        file_id["preferences"]["OMI_utcTime"],
+                        calibrationFilename,
+                        cldFilename=cldFilename,
+                    )
+
+                    # If something goes wrong with read_omi() function, we return immediately.
+                    if o_omi is None:
+                        return (
+                            o_airs,
+                            o_cris,
+                            o_omi,
+                            o_tropomi,
+                            o_tes,
+                            o_oco2,
+                            o_stateInfo,
+                        )  # Return due to error.
+
+                    if i_writeOutput:
+                        # TODO:
+                        # Create directory if it doesn't already exist then write PICKLE file.
+                        # output_dir = os.path.dirname(outputFilenameOMI)
+                        # utilDir.make_dir(output_dir)
+
+                        # logger.info("PICKLE_ME", outputFilenameOMI)
+                        # with open(outputFilenameOMI, 'wb') as pickle_handle:
+                        #     pickle.dump(o_omi, pickle_handle, protocol=pickle.HIGHEST_PROTOCOL)
+                        pass
+                else:
+                    logger.info("ERROR: Not implemented", outputFilenameOMI)
+                    assert False
+
+                    # TODO:
+                    # logger.info("UNPICKLE_ME", outputFilenameOMI)
+
+                    # with open(outputFilenameOMI, 'rb') as pickle_handle:
+                    #     o_omi = pickle.load(pickle_handle)
+                # end else portion of if not (os.path.isfile(outputFilenameOMI)):
+
+                # modify the OMI NESR if year >= 2010
+                if o_dateStruct["year"] >= 2010:
+                    ind = np.where(o_omi["Earth_Radiance"]["EarthRadianceNESR"] > 0)[0]
+                    o_omi["Earth_Radiance"]["EarthRadianceNESR"][ind] = (
+                        o_omi["Earth_Radiance"]["EarthRadianceNESR"][ind] * 2
+                    )
+            # end: if 'OMI' in instruments:
+
+            if "OMPS-NM" in instruments:
+                ######### OMPS-NM
+                # EM NOTE - modlling after TROPOMI, keeping seperate for the time being as calibration should not be necessary, plus different
+                # L1b structures
+                # Only one OMPS band
+                outputFilenameTROPOMI = "./Input/Radiance_TROPOMI_" + my_key + ".pkl"
+                if (os.getenv("MUSES_DEFAULT_RUN_DIR", "") != "") and (
+                    not os.path.isabs(outputFilenameTROPOMI)
+                ):
+                    outputFilenameTROPOMI = (
+                        os.getenv("MUSES_DEFAULT_RUN_DIR", "")
+                        + os.path.sep
+                        + outputFilenameTROPOMI
+                    )
+
+                # EM - Depending on the type of retrieval for TROPOMI, the number of filenames will vary, therefore
+                # all filenames are fed in as a list, comma seperated. This is split in 'read_tropomi'.
+                filename = []
+                XTrack = []
+                for ii in (
+                    windows
+                ):  # There are 8 TROPOMI bands, check which windows are invoked
+                    if (
+                        ii["instrument"] == "TROPOMI"
+                    ):  # EM Need this check for duel band purposes
+                        if (
+                            file_id["preferences"][f"TROPOMI_filename_{ii['filter']}"]
+                            is None
+                        ):
+                            logger.info(
+                                "ERROR: TROPOMI L1B file for BAND not found",
+                                ii["filter"],
+                            )
+                            assert False
+                        else:
+                            filename.append(
+                                file_id["preferences"][
+                                    f"TROPOMI_filename_{ii['filter']}"
+                                ]
+                            )
+                            XTrack.append(
+                                file_id["preferences"][
+                                    f"TROPOMI_XTrack_Index_{ii['filter']}"
+                                ]
+                            )
+
+                irrFilename = file_id["preferences"]["TROPOMI_IRR_filename"]
+                cldFilename = file_id["preferences"]["TROPOMI_Cloud_filename"]
+
+                # if (os.getenv('MUSES_DEFAULT_RUN_DIR', '') != '') and (not os.path.isabs(filename)):
+                #    filename = os.getenv('MUSES_DEFAULT_RUN_DIR', '') + os.path.sep + filename
+
+                if not os.path.isfile(
+                    outputFilenameTROPOMI
+                ):  # THIS SHOULD BE IF NOT, REMOVED NOT SO PICKLE FILE ISN'T READ FOR TIME BEING
+                    TROPOMI_RAD_CALRUN_FLAG = 0
+                    if "TROPOMI_Rad_calRun_flag" in file_id["preferences"]:
+                        TROPOMI_RAD_CALRUN_FLAG = int(
+                            file_id["preferences"]["TROPOMI_Rad_calRun_flag"]
+                        )
+
+                    if TROPOMI_RAD_CALRUN_FLAG == 0:
+                        o_tropomi = mpy.read_tropomi(
+                            filename,
+                            irrFilename,
+                            cldFilename,
+                            XTrack,  # EM - Like filename, xtrack will be variable, so fed in as list
+                            int(file_id["preferences"]["TROPOMI_ATrack_Index"]),
+                            file_id["preferences"]["TROPOMI_utcTime"],
+                            windows,
+                            calibrationFilename,  # EM - Calibration to be implemented
+                        )
+                    else:
+                        o_tropomi = mpy.read_tropomi(
+                            filename,
+                            irrFilename,
+                            cldFilename,
+                            XTrack,  # EM - Like filename, xtrack will be variable, so fed in as list
+                            int(file_id["preferences"]["TROPOMI_ATrack_Index"]),
+                            file_id["preferences"]["TROPOMI_utcTime"],
+                            windows,
+                        )
+                    # end if OMI_RAD_CALRUN_FLAG == 0:
+
+                    # If something goes wrong with read_omi() function, we return immediately.
+                    if o_tropomi is None:
+                        return (
+                            o_airs,
+                            o_cris,
+                            o_omi,
+                            o_tropomi,
+                            o_tes,
+                            o_oco2,
+                            o_stateInfo,
+                        )  # Return due to error.
+
+                    if i_writeOutput:
+                        # Create directory if it doesn't already exist then write PICKLE file.
+                        output_dir = os.path.dirname(outputFilenameTROPOMI)
+                        utilDir.make_dir(output_dir)
+
+                        logger.info("PICKLE_ME", outputFilenameTROPOMI)
+
+                        with open(outputFilenameTROPOMI, "wb") as pickle_handle:
+                            pickle.dump(
+                                o_tropomi,
+                                pickle_handle,
+                                protocol=pickle.HIGHEST_PROTOCOL,
+                            )
+                else:
+                    logger.info("UNPICKLE_ME", outputFilenameTROPOMI)
+
+                    with open(outputFilenameTROPOMI, "rb") as pickle_handle:
+                        o_tropomi = pickle.load(pickle_handle)
+                # end else portion of if not (os.path.isfile(outputFilenameTROPOMI)):
+            # end: if 'OMPS-NM' in instruments:
+
+            ######### OMPS-NM
+
+            ################   TROPOMI
+            if "TROPOMI" in instruments:
+                # EM NOTE Retrievals must be set as 'fullfilter' if retrieving O3 or any other gas from multiple bands seperately
+                # This invokes the defaults spectral windows, which are specified in the OSP/Strategy_Tables/Defaults,
+                # with the TROPOMI bands defined in the *_CrIS_TROPOMI.asc and the *_TROPOMI.asc files.
+
+                # TODO: Here we need soft calibration for UV1 (BAND1), UV2 (BAND2) and UVIS (BAND3) for O3 retrieval, unclear if necessary for other bands.
+                # calibrationFilename = table_get_pref(i_table_struct,  'tropomi_calibrationFilename')
+
+                outputFilenameTROPOMI = "./Input/Radiance_TROPOMI_" + my_key + ".pkl"
+
+                # EM - Depending on the type of retrieval for TROPOMI, the number of filenames will vary, therefore
+                # all filenames are fed in as a list, comma seperated. This is split in 'read_tropomi'.
+                filename, XTrack, ATrack = mpy.get_tropomi_measurement_id_info(
+                    file_id, windows
+                )
+                tropomi_albedo_from_dler_db = (
+                    file_id["preferences"].get("TROPOMI_Initial_Albedo_DLER", "0")
+                    == "1"
+                )
+
+                if not os.path.isfile(
+                    outputFilenameTROPOMI
+                ):  # THIS SHOULD BE IF NOT, REMOVED NOT SO PICKLE FILE ISN'T READ FOR TIME BEING
+                    TROPOMI_RAD_CALRUN_FLAG = 0
+                    if "TROPOMI_Rad_calRun_flag" in file_id["preferences"]:
+                        TROPOMI_RAD_CALRUN_FLAG = int(
+                            file_id["preferences"]["TROPOMI_Rad_calRun_flag"]
+                        )
+
+                    if TROPOMI_RAD_CALRUN_FLAG == 0:
+                        o_tropomi = mpy.read_tropomi(
+                            filename,
+                            XTrack,
+                            ATrack,
+                            file_id["preferences"]["TROPOMI_utcTime"],
+                            windows,
+                            albedo_from_dler=tropomi_albedo_from_dler_db,
+                        )
+
+                        # EM - Calibration to be implemented
+                        # o_tropomi = read_tropomi(
+                        #     filename,
+                        #     irrFilename,
+                        #     cldFilename,
+                        #     XTrack,  # EM - Like filename, xtrack will be variable, so fed in as list
+                        #     int(file_id['preferences']['TROPOMI_ATrack_Index']),
+                        #     file_id['preferences']['TROPOMI_utcTime'],
+                        #     windows,
+                        #     calibrationFilename
+                        # )
+                    else:
+                        o_tropomi = mpy.read_tropomi(
+                            filename,
+                            XTrack,
+                            ATrack,
+                            file_id["preferences"]["TROPOMI_utcTime"],
+                            windows,
+                            albedo_from_dler=tropomi_albedo_from_dler_db,
+                        )
+                    # end if OMI_RAD_CALRUN_FLAG == 0:
+
+                    # If something goes wrong with read_omi() function, we return immediately.
+                    if o_tropomi is None:
+                        return (
+                            o_airs,
+                            o_cris,
+                            o_omi,
+                            o_tropomi,
+                            o_tes,
+                            o_oco2,
+                            o_stateInfo,
+                        )  # Return due to error.
+
+                    if i_writeOutput:
+                        # Create directory if it doesn't already exist then write PICKLE file.
+                        output_dir = os.path.dirname(outputFilenameTROPOMI)
+                        utilDir.make_dir(output_dir)
+
+                        logger.info("PICKLE_ME", outputFilenameTROPOMI)
+
+                        with open(outputFilenameTROPOMI, "wb") as pickle_handle:
+                            pickle.dump(
+                                o_tropomi,
+                                pickle_handle,
+                                protocol=pickle.HIGHEST_PROTOCOL,
+                            )
+                else:
+                    logger.info("UNPICKLE_ME", outputFilenameTROPOMI)
+
+                    with open(outputFilenameTROPOMI, "rb") as pickle_handle:
+                        o_tropomi = pickle.load(pickle_handle)
+                # end else portion of if not (os.path.isfile(outputFilenameTROPOMI)):
+            # end: if 'TROPOMI' in instruments:
+
+            if "OCO2" in instruments:
+                outputFilenameOCO2 = "./Input/Radiance_OCO2_" + my_key + ".nc"
+
+                if not os.path.isfile(outputFilenameOCO2):
+                    filename = file_id["preferences"]["OCO2_filename"]
+                    radianceSource = mpy.table_get_pref(
+                        i_table_struct, "radianceSource"
+                    )
+                    o_oco2 = mpy.oco2_read_radiance(
+                        file_id["preferences"], radianceSource
+                    )
+
+                    if i_writeOutput:
+                        # TODO: Pickle radiance data
+                        # write_radiance_cris(o_cris)
+                        pass
+                else:
+                    # TODO: Unpickle radiance data
+                    # read_radiance_cris(o_cris)
+
+                    logger.info("ERROR: Not implemented", outputFilenameCRIS)
+                    assert False
+            # end: if 'OCO2' in instruments:
+
+            # AT_LINE 411 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+            ##### end of radiance section ####
+
+            # AT_LINE 441 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+
+            # get surface altitude IN METERS
+            if "TES" in instruments:
+                surfaceAltitude = o_tes["surfaceElevation"]
+            elif "AIRS" in instruments:
+                surfaceAltitude = o_airs["surfaceAltitude"]
+            elif "CRIS" in instruments:
+                # A note about case of keys in o_cris.  All cases are upper to be less confusing.
+                surfaceAltitude = o_cris["surfaceAltitude".upper()]
+                if surfaceAltitude < 0.0:
+                    surfaceAltitude = 0
+            elif "OMI" in instruments:
+                surfaceAltitude = o_omi["Earth_Radiance"]["ObservationTable"][
+                    "TerrainHeight"
+                ][0]
+            elif "TROPOMI" in instruments:
+                for i in range(
+                    0, len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])
+                ):
+                    surfaceAltitude = mpy.read_tropomi_surface_altitude(
+                        o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
+                        o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
+                    )
+                    o_tropomi["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][
+                        i
+                    ] = surfaceAltitude
+            elif "OCO2" in instruments:
+                surfaceAltitude = np.mean(o_oco2["surface_altitude_m"])
+            else:
+                logger.info("instruments ~= TES, AIRS, OMI, CRIS, TROPOMI, OCO2")
+                logger.info("Need surface altitude.")
+                assert False
+            # end else part of if 'TES' in instruments:
+
+            # AT_LINE 460 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+            # initial guess
+            ospDirectory = "../OSP"
+            setupFilename = (
+                mpy.table_get_pref(i_table_struct, "initialGuessSetupDirectory")
+                + "/L2_Setup_Control_Initial.asc"
+            )
+
+            constraintFlag = False
+            stateInitial = mpy.get_state_initial(
+                setupFilename,
+                ospDirectory,
+                o_latitude,
+                o_longitude,
+                o_dateStruct,
+                file_id["preferences"],
+                constraintFlag,
+                surfaceAltitude,
+                oceanFlag,
+                gmao_path,
+                gmao_type,
+            )
+
+            # AT_LINE 479 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+            # constraint vector
+            ospDirectory = "../OSP"
+            setupFilename = (
+                mpy.table_get_pref(i_table_struct, "initialGuessSetupDirectory")
+                + "/L2_Setup_Control_Constraint.asc"
+            )
+
+            # state for constraint
+            constraintFlag = True
+            stateConstraint = mpy.get_state_initial(
+                setupFilename,
+                ospDirectory,
+                o_latitude,
+                o_longitude,
+                o_dateStruct,
+                file_id["preferences"],
+                constraintFlag,
+                surfaceAltitude,
+                oceanFlag,
+                gmao_path,
+                gmao_type,
+            )
+
+            # AT_LINE 489 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+            # get tes, omi, airs pars...
+            # tes: boresight angle.  OMI ring, cloud, albedo.
+            # airs: angle
+
+            # AT_LINE 492 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+            if "TES" in instruments:
+                # note:  o_tes should contain all the fields in stateInitial['current']['tes']
+                # boresightNadirRadians, orbitInclinationAngle, viewMode, instrumentAzimuth, instrumentLatitude, geoPointing, targetRadius, instrumentRadius, orbitAscending
+                (stateInitial, stateConstraint) = self._clean_up_dictionaries(
+                    instrument_name.lower(), stateInitial, stateConstraint, o_tes
+                )
+
+            # AT_LINE 518 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+            if "CRIS" in instruments:
+                o_cris["l1bType"] = cris_type
+                (stateInitial, stateConstraint) = self._clean_up_dictionaries(
+                    instrument_name.lower(), stateInitial, stateConstraint, o_cris
+                )
+
+            # AT_LINE 533 src_ms-2019-05-29/script_retrieval_setup_ms.pro
+            if "AIRS" in instruments:
+                (stateInitial, stateConstraint) = self._clean_up_dictionaries(
+                    instrument_name.lower(), stateInitial, stateConstraint, o_airs
+                )
+
+            # AT_LINE 548 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            if "OMI" in instruments:
+                # start parameters
+                temp_end = 2  # Dejian revised Nov 22, 2016 for adding the functionality of radiance calibration run
+                if int(file_id["preferences"]["OMI_Rad_calRun_flag"]) == 1:
+                    temp_end = 1
+
+                # PYTHON_NOTE: The keys in omi_pars should closely match the keys of omi dictionary in new_state_structures.py
+                omi_pars = {
+                    "surface_albedo_uv1": o_omi["SurfaceAlbedo"][
+                        "MonthlyMinimumSurfaceReflectance"
+                    ],
+                    "surface_albedo_uv2": o_omi["SurfaceAlbedo"][
+                        "MonthlyMinimumSurfaceReflectance"
+                    ],
+                    "surface_albedo_slope_uv2": np.float64(0.0),
+                    "nradwav_uv1": np.float64(0.0),
+                    "nradwav_uv2": np.float64(0.0),
+                    "odwav_uv1": np.float64(0.0),
+                    "odwav_uv2": np.float64(0.0),
+                    "odwav_slope_uv1": np.float64(0.0),
+                    "odwav_slope_uv2": np.float64(0.0),
+                    "ring_sf_uv1": np.float64(1.9),
+                    "ring_sf_uv2": np.float64(1.9),
+                    "cloud_fraction": o_omi["Cloud"]["CloudFraction"],
+                    "cloud_pressure": o_omi["Cloud"]["CloudPressure"],
+                    "cloud_Surface_Albedo": 0.8,  # Same key in 'omi' dict as in new_state_structures.py
+                    "xsecscaling": np.float64(1.0),
+                    "resscale_uv1": np.float64(0.0) - 999,
+                    "resscale_uv2": np.float64(0.0) - 999,
+                    "SPACECRAFTALTITUDE": np.mean(
+                        o_omi["Earth_Radiance"]["ObservationTable"][
+                            "SpacecraftAltitude"
+                        ]
+                    ),  # Same key in 'omi' dict as in new_state_structures.py
+                    "sza_uv1": o_omi["Earth_Radiance"]["ObservationTable"][
+                        "SolarZenithAngle"
+                    ][0],
+                    "raz_uv1": o_omi["Earth_Radiance"]["ObservationTable"][
+                        "RelativeAzimuthAngle"
+                    ][0],
+                    "vza_uv1": o_omi["Earth_Radiance"]["ObservationTable"][
+                        "ViewingZenithAngle"
+                    ][0],
+                    "sca_uv1": o_omi["Earth_Radiance"]["ObservationTable"][
+                        "ScatteringAngle"
+                    ][0],
+                    "sza_uv2": np.mean(
+                        o_omi["Earth_Radiance"]["ObservationTable"]["SolarZenithAngle"][
+                            1 : temp_end + 1
+                        ]
+                    ),
+                    "raz_uv2": np.mean(
+                        o_omi["Earth_Radiance"]["ObservationTable"][
+                            "RelativeAzimuthAngle"
+                        ][1 : temp_end + 1]
+                    ),
+                    "vza_uv2": np.mean(
+                        o_omi["Earth_Radiance"]["ObservationTable"][
+                            "ViewingZenithAngle"
+                        ][1 : temp_end + 1]
+                    ),
+                    "sca_uv2": np.mean(
+                        o_omi["Earth_Radiance"]["ObservationTable"]["ScatteringAngle"][
+                            1 : temp_end + 1
+                        ]
+                    ),
+                }
+
+                ttState = []
+                if stateConstraint is not None:
+                    ttState = list(stateConstraint["current"]["omi"].keys())
+
+                if stateInitial is not None:
+                    ttState = list(stateInitial["current"]["omi"].keys())
+
+                for ii in range(0, len(ttState)):
+                    if stateConstraint is not None:
+                        stateConstraint["current"]["omi"][ttState[ii]] = omi_pars[
+                            ttState[ii]
+                        ]
+
+                    if stateInitial is not None:
+                        stateInitial["current"]["omi"][ttState[ii]] = omi_pars[
+                            ttState[ii]
+                        ]
+                # end for ii in range(0, len(ttState)):
+            # end if 'OMI' in instruments:
+
+            if "TROPOMI" in instruments:
+                # start parameters, for TROPOMI, declaring them, and then fill them depending on how many
+                # bands are used. This is based on the OMI setup, but assuming variable number of bands
+                tropomi_pars = {
+                    "surface_albedo_BAND1": np.float64(0.0),
+                    "surface_albedo_BAND2": np.float64(0.0),
+                    "surface_albedo_BAND3": np.float64(0.0),
+                    "surface_albedo_BAND7": np.float64(0.0),
+                    "surface_albedo_slope_BAND1": np.float64(0.0),
+                    "surface_albedo_slope_BAND2": np.float64(0.0),
+                    "surface_albedo_slope_BAND3": np.float64(0.0),
+                    "surface_albedo_slope_BAND7": np.float64(0.0),
+                    "surface_albedo_slope_order2_BAND2": np.float64(0.0),
+                    "surface_albedo_slope_order2_BAND3": np.float64(0.0),
+                    "surface_albedo_slope_order2_BAND7": np.float64(0.0),
+                    "solarshift_BAND1": np.float64(0.0),
+                    "solarshift_BAND2": np.float64(0.0),
+                    "solarshift_BAND3": np.float64(0.0),
+                    "solarshift_BAND7": np.float64(0.0),
+                    "radianceshift_BAND1": np.float64(0.0),
+                    "radianceshift_BAND2": np.float64(0.0),
+                    "radianceshift_BAND3": np.float64(0.0),
+                    "radianceshift_BAND7": np.float64(0.0),
+                    "radsqueeze_BAND1": np.float64(0.0),
+                    "radsqueeze_BAND2": np.float64(0.0),
+                    "radsqueeze_BAND3": np.float64(0.0),
+                    "radsqueeze_BAND7": np.float64(0.0),
+                    "ring_sf_BAND1": np.float64(0.0),
+                    "ring_sf_BAND2": np.float64(0.0),
+                    "ring_sf_BAND3": np.float64(0.0),
+                    "ring_sf_BAND7": np.float64(0.0),
+                    "temp_shift_BAND3": np.float64(0.0),
+                    "temp_shift_BAND7": np.float64(0.0),
+                    "cloud_fraction": np.float64(0.0),
+                    "cloud_pressure": np.float64(0.0),
+                    "cloud_Surface_Albedo": np.float64(0.0),
+                    "xsecscaling": np.float64(0.0),
+                    "resscale_O0_BAND1": np.float64(0.0),
+                    "resscale_O1_BAND1": np.float64(0.0),
+                    "resscale_O2_BAND1": np.float64(0.0),
+                    "resscale_O0_BAND2": np.float64(0.0),
+                    "resscale_O1_BAND2": np.float64(0.0),
+                    "resscale_O2_BAND2": np.float64(0.0),
+                    "resscale_O0_BAND3": np.float64(0.0),
+                    "resscale_O1_BAND3": np.float64(0.0),
+                    "resscale_O2_BAND3": np.float64(0.0),
+                    "resscale_O0_BAND7": np.float64(0.0),
+                    "resscale_O1_BAND7": np.float64(0.0),
+                    "resscale_O2_BAND7": np.float64(0.0),
+                    "sza_BAND1": np.float64(0.0),
+                    "raz_BAND1": np.float64(0.0),
+                    "vza_BAND1": np.float64(0.0),
+                    "sca_BAND1": np.float64(0.0),
+                    "sza_BAND2": np.float64(0.0),
+                    "raz_BAND2": np.float64(0.0),
+                    "vza_BAND2": np.float64(0.0),
+                    "sca_BAND2": np.float64(0.0),
+                    "sza_BAND3": np.float64(0.0),
+                    "raz_BAND3": np.float64(0.0),
+                    "vza_BAND3": np.float64(0.0),
+                    "sca_BAND3": np.float64(0.0),
+                    "sza_BAND7": np.float64(0.0),
+                    "raz_BAND7": np.float64(0.0),
+                    "vza_BAND7": np.float64(0.0),
+                    "sca_BAND7": np.float64(0.0),
+                    "SPACECRAFTALTITUDE": np.float64(0.0),
+                }
+
+                # PYTHON_NOTE: The keys in tropomi_pars should closely match the keys of tropomi dictionary in new_state_structures.py
+                # These parameters are not band specific
+                if o_tropomi["Cloud"]["CloudFraction"] == 0.0:
+                    tropomi_pars["cloud_fraction"] = (
+                        0.01  # EM NOTE - So we can fit Cloud albedo, due to calibration errors.
+                    )
+                else:
+                    tropomi_pars["cloud_fraction"] = o_tropomi["Cloud"]["CloudFraction"]
+                tropomi_pars["cloud_pressure"] = o_tropomi["Cloud"]["CloudPressure"]
+                tropomi_pars["cloud_Surface_Albedo"] = (
+                    0.8  # (o_tropomi['Cloud']['CloudAlbedo']) # Same key in 'tropomi' dict as in new_state_structures.py
+                )
+                tropomi_pars["SPACECRAFTALTITUDE"] = np.mean(
+                    o_tropomi["Earth_Radiance"]["ObservationTable"][
+                        "SpacecraftAltitude"
+                    ]
+                )
+                tropomi_pars["xsecscaling"] = np.float64(1.0)
+
+                current_band = []
+                ii_tropomi = -1
+                for ii, band in enumerate(windows):  # 8 bands in TROPOMI
+                    # Assuming that values are appended to o_tropomi from UV to higher wavelengths
+                    if (
+                        band["instrument"] == "TROPOMI"
+                    ):  # EM - Necessary for dual band retrievals
+                        ii_tropomi += 1
+                        if current_band != band["filter"]:
+                            current_band = band["filter"]
+                            tropomi_pars[f"surface_albedo_{band['filter']}"] = (
+                                o_tropomi[
+                                    "SurfaceAlbedo"
+                                ][f"{band['filter']}_MonthlyMinimumSurfaceReflectance"]
+                            )
+                            tropomi_pars[f"surface_albedo_slope_{band['filter']}"] = (
+                                np.float64(0.0)
+                            )
+                            tropomi_pars[
+                                f"surface_albedo_slope_order2_{band['filter']}"
+                            ] = np.float64(0.0)
+                            tropomi_pars[f"solarshift_{band['filter']}"] = np.float64(
+                                0.0
+                            )
+                            tropomi_pars[f"radianceshift_{band['filter']}"] = (
+                                np.float64(0.0)
+                            )
+                            tropomi_pars[f"radsqueeze_{band['filter']}"] = np.float64(
+                                0.0
+                            )
+                            tropomi_pars[f"temp_shift_{band['filter']}"] = np.float64(
+                                1.0
+                            )
+                            tropomi_pars[f"ring_sf_{band['filter']}"] = np.float64(1.9)
+                            tropomi_pars[f"resscale_O0_{band['filter']}"] = np.float64(
+                                1.0
+                            )
+                            tropomi_pars[f"resscale_O1_{band['filter']}"] = np.float64(
+                                0.0
+                            )
+                            tropomi_pars[f"resscale_O2_{band['filter']}"] = np.float64(
+                                0.0
+                            )
+                            tropomi_pars[f"sza_{band['filter']}"] = o_tropomi[
+                                "Earth_Radiance"
+                            ]["ObservationTable"]["SolarZenithAngle"][ii_tropomi]
+                            tropomi_pars[f"raz_{band['filter']}"] = o_tropomi[
+                                "Earth_Radiance"
+                            ]["ObservationTable"]["RelativeAzimuthAngle"][ii_tropomi]
+                            tropomi_pars[f"vza_{band['filter']}"] = o_tropomi[
+                                "Earth_Radiance"
+                            ]["ObservationTable"]["ViewingZenithAngle"][ii_tropomi]
+                            tropomi_pars[f"sca_{band['filter']}"] = o_tropomi[
+                                "Earth_Radiance"
+                            ]["ObservationTable"]["ScatteringAngle"][ii_tropomi]
+                        else:
+                            current_band = band["filter"]
+                            continue
+                    else:
+                        continue
+
+                ttState = []
+                if stateConstraint is not None:
+                    ttState = list(stateConstraint["current"]["tropomi"].keys())
+
+                if stateInitial is not None:
+                    ttState = list(stateInitial["current"]["tropomi"].keys())
+
+                for ii in range(0, len(ttState)):
+                    if stateConstraint is not None:
+                        stateConstraint["current"]["tropomi"][ttState[ii]] = (
+                            tropomi_pars[ttState[ii]]
+                        )
+
+                    if stateInitial is not None:
+                        stateInitial["current"]["tropomi"][ttState[ii]] = tropomi_pars[
+                            ttState[ii]
+                        ]
+                # end for ii in range(0, len(ttState)):
+            # end if 'TROPOMI' in instruments:
+
+            # OCO-2
+            if "OCO2" in instruments:
+                ttState = []
+                if stateConstraint is not None:
+                    ttState = list(stateConstraint["current"]["oco2"].keys())
+
+                if stateInitial is not None:
+                    ttState = list(stateInitial["current"]["oco2"].keys())
+
+                for ii in range(0, len(ttState)):
+                    if stateConstraint is not None:
+                        stateConstraint["current"]["oco2"][ttState[ii]] = o_oco2[
+                            ttState[ii]
+                        ]
+
+                    if stateInitial is not None:
+                        stateInitial["current"]["oco2"][ttState[ii]] = o_oco2[
+                            ttState[ii]
+                        ]
+
+                # PRINT, 'Get OCO pars'
+                # ; get parameters specific to nir/3/...
+                # nir_pars = {footprint:fileid.oco2_footprint} # not sure what need yet
+
+                # copy angles/geolocation info to structures
+                # IF N_ELEMENTS(stateConstraint) GT 0 THEN ttState = tag_names(stateConstraint.current.nir)
+                # IF N_ELEMENTS(stateInitial) GT 0 THEN ttState = tag_names(stateInitial.current.nir)
+                # ttnir = tag_names(nir_pars)
+                # FOR ii = 0, N_ELEMENTS(ttState)-1 DO BEGIN
+                #     indnir = where(ttnir EQ ttState[ii])
+                #     IF N_ELEMENTS(stateConstraint) GT 0 and indnir[0] GE 0 THEN stateConstraint.current.nir.(ii) = nir_pars.(indnir)
+                #     IF N_ELEMENTS(stateInitial) GT 0 and indnir[0] GE 0 THEN stateInitial.current.nir.(ii) = nir_pars.(indnir)
+                # ENDFOR
+
+                # set table.pressurefm to stateConstraint.pressure because OCO-2 is on sigma levels
+                i_table_struct["pressureFM"] = stateInitial["current"]["pressure"]
+
+                # stateConstraint['current']['cloudPars']['use'] = 'no'
+                # stateInitial['current']['cloudPars']['use'] = 'no'
+            # ENDIF
+
+            # AT_LINE 593 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            if len(stateInitial) > 0:
+                # set surface type for products
+                oceanString = ["LAND", "OCEAN"]
+                stateInitial["surfaceType"] = oceanString[
+                    oceanFlag
+                ]  # The type of oceanFlag should be int here so we can use it as an index.
+                stateInitial["current"]["surfaceType"] = oceanString[oceanFlag]
+
+                if i_writeOutput:
+                    # Because the write_state function modify the 'current' fields of stateInitial structure, we give it a copy.
+                    stateCurrentCopy = copy.deepcopy(stateInitial["current"])
+                    mpy.write_state(
+                        directoryIG,
+                        mpy.ObjectView(stateInitial),
+                        mpy.ObjectView(stateCurrentCopy),
+                        my_key="_" + my_key,
+                        writeAltitudes=0,
+                    )
+                    del stateCurrentCopy  # Delete the temporary object.
+
+            # AT_LINE 577 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            # AT_LINE 610 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            if len(stateConstraint) > 0:
+                #  set surface type for products
+                oceanString = ["LAND", "OCEAN"]
+                stateConstraint["surfaceType"] = oceanString[oceanFlag]
+                stateConstraint["current"]["surfaceType"] = oceanString[oceanFlag]
+
+                if i_writeOutput:
+                    # Because the write_state function modify the 'current' fields of stateConstraint structure, we give it a copy.
+                    stateCurrentCopy = copy.deepcopy(stateConstraint["current"])
+                    mpy.write_state(
+                        directoryConstraint,
+                        mpy.ObjectView(stateConstraint),
+                        mpy.ObjectView(stateCurrentCopy),
+                        my_key="_" + my_key,
+                        writeAltitudes=0,
+                    )
+                    del stateCurrentCopy
+
+            # AT_LINE 595 script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            # AT_LINE 628 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
+            # set up state
+
+            o_stateInfo = stateInitial
+
+            # types are from a priori not initial.  ch3ohtype is needed for constraint selection
+            o_stateInfo["ch3ohtype"] = stateConstraint["ch3ohtype"]
+
+            # get type from
+
+            #  set surface type for products
+            oceanString = ["LAND", "OCEAN"]
+            o_stateInfo["surfaceType"] = oceanString[oceanFlag]
+
+            # Make a deepcopy of stateInitial['current'] and stateConstraint['current'] to o_stateInfo so each will have its own memory.
+
+            o_stateInfo["initialInitial"] = copy.deepcopy(stateInitial["current"])
+            o_stateInfo["initial"] = copy.deepcopy(stateInitial["current"])
+            o_stateInfo["current"] = copy.deepcopy(stateInitial["current"])
+            o_stateInfo["constraint"] = copy.deepcopy(stateConstraint["current"])
+
+        # o_airs['solazi'] = 52
+
+        # At this point, we have 5 separate fields in o_stateInfo with 5 separate memory locations.
+        return (
+            o_airs,
+            o_cris,
+            o_omi,
+            o_tropomi,
+            o_tes,
+            o_oco2,
+            o_stateInfo,
+        )  # More instrument data later.
+
+    def _clean_up_dictionaries(
+        self, i_instrument_name, stateInitial, stateConstraint, instrumentInfo
+    ):
+        ttState = []
+        if len(stateConstraint) > 0:
+            ttState = stateConstraint["current"][i_instrument_name].keys()
+
+        if len(stateInitial) > 0:
+            ttState = stateInitial["current"][i_instrument_name].keys()
+
+        tt_instrument = instrumentInfo.keys()
+
+        # Keep track of various dictionaries and list so we can try to remedy if a key was missed.
+        list_of_valid_state_constraint_keys = list(
+            stateConstraint["current"][i_instrument_name].keys()
+        )
+        list_of_valid_state_initial_keys = list(
+            stateInitial["current"][i_instrument_name].keys()
+        )
+        dict_of_state_set_with_normal_key = {}
+        dict_of_state_set_with_upper_key = {}
+        list_of_dict_keys_uppercased = []
+
+        if len(ttState) > 0:
+            for ii, dict_key in enumerate(tt_instrument):
+                indState = dict_key  # PYTHON_NOTE: The dict_key is the name of the key.  We don't need to know the index since dictionary just need the key.
+                indInstrument = dict_key  # PYTHON_NOTE: The dict_key is the name of the key.  We don't need to know the index since dictionary just need the key.
+                if len(stateConstraint) > 0:
+                    stateConstraint["current"][i_instrument_name][indState] = (
+                        instrumentInfo[indInstrument]
+                    )
+
+                if len(stateInitial) > 0:
+                    stateInitial["current"][i_instrument_name][indState] = (
+                        instrumentInfo[indInstrument]
+                    )
+                # Keep track of what we had set so we can inspect it later.
+                dict_of_state_set_with_normal_key[dict_key] = instrumentInfo[dict_key]
+                dict_of_state_set_with_upper_key[dict_key.upper()] = instrumentInfo[
+                    dict_key
+                ]
+                list_of_dict_keys_uppercased.append(dict_key.upper())
+
+        # Do a sanity check on the numbers of attributes set above.
+        # Due the way a dictionary key is set, it is not required to be in any case so sometimes the case is different which can cause a problem.
+
+        # Clean up stateInitial dictionary by reconciling any attributes that were not set.  Perhaps it was set with a different case.
+        # This is the list of optional valid keys.  If a key was set but it does not belong to this list, we can remove it.
+        optional_valid_keys = [
+            "latitude",
+            "longitude",
+            "time",
+            "radiance",
+            "DaytimeFlag",
+            "CalChanSummary",
+            "ExcludedChans",
+            "NESR",
+            "frequency",
+            "surfaceAltitude",
+            "state",
+            "valid",
+        ]
+
+        #
+        # Clean up stateInitial dictionary.
+        #
+        keys_to_delete = []
+        for ii, dict_key in enumerate(stateInitial["current"][i_instrument_name]):
+            if dict_key not in dict_of_state_set_with_normal_key:
+                stateInitial["current"][i_instrument_name][dict_key] = (
+                    dict_of_state_set_with_upper_key[dict_key.upper()]
+                )
+            else:
+                pass
+                if (
+                    dict_key not in list_of_valid_state_initial_keys
+                    and dict_key not in optional_valid_keys
+                ):
+                    keys_to_delete.append(dict_key)
+
+        # Delete any keys if there are keys to delete.
+        if len(keys_to_delete) > 0:
+            for ii, key_to_delete in enumerate(keys_to_delete):
+                stateInitial["current"][i_instrument_name].pop(key_to_delete, None)
+
+        #
+        # Clean up stateConstraint dictionary.
+        #
+        keys_to_delete = []
+        for ii, dict_key in enumerate(stateConstraint["current"][i_instrument_name]):
+            if dict_key not in dict_of_state_set_with_normal_key:
+                stateConstraint["current"][i_instrument_name][dict_key] = (
+                    dict_of_state_set_with_upper_key[dict_key.upper()]
+                )
+            else:
+                pass
+                if (
+                    dict_key not in list_of_valid_state_constraint_keys
+                    and dict_key not in optional_valid_keys
+                ):
+                    keys_to_delete.append(dict_key)
+
+        # Delete any keys if there are keys to delete.
+        if len(keys_to_delete) > 0:
+            for ii, key_to_delete in enumerate(keys_to_delete):
+                stateConstraint["current"][i_instrument_name].pop(key_to_delete, None)
+
+        return (stateInitial, stateConstraint)
 
     @property
     def state_info_obj(self):

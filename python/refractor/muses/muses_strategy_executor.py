@@ -456,7 +456,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     @property
     def retrieval_elements_all_step(self):
         return self.strategy.retrieval_elements
-    
+
     def get_initial_guess(self):
         """Set retrieval_info, errorInitial and errorCurrent for the current step."""
         # Temp, we'll want to get this update done automatically. But do this
