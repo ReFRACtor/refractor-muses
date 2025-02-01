@@ -145,9 +145,14 @@ def airs_irk_step_6(
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_0(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_test_in_dir
+    request, isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_test_in_dir
 ):
     """Fixture for TropomiFmObjectCreator, at the start of step 1"""
+
+    oss_param = getattr(request, "param", {})
+    use_oss = oss_param.get("use_oss", False)
+    oss_training_data = oss_param.get("oss_training_data", None)
+
     rs, rstep, _ = set_up_run_to_location(
         tropomi_test_in_dir,
         0,
@@ -169,6 +174,8 @@ def tropomi_fm_object_creator_step_0(
             None,
             osp_dir=osp_dir,
         ),
+        use_oss=use_oss,
+        oss_training_data=oss_training_data,
         rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
     )
