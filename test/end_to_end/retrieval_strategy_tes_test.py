@@ -14,7 +14,7 @@ match_py_retrieve = False
 
 
 @pytest.mark.long_test
-def test_retrieval_strategy_cris_tropomi(
+def test_retrieval_strategy_tes(
     osp_dir,
     gmao_dir,
     vlidort_cli,
