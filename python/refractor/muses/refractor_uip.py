@@ -1779,9 +1779,9 @@ class RefractorUip:
         for k in ("AIRS", "CRIS", "OMI", "TROPOMI", "TES"):
             if f"uip_{k}" in uip:
                 uip[f"uip_{k}"]["obs_table"]["pointing_angle_surface"] = (
-                    rf_uip.ray_info(
-                        k, set_pointing_angle_zero=False
-                    )["ray_angle_surface"]
+                    rf_uip.ray_info(k, set_pointing_angle_zero=False)[
+                        "ray_angle_surface"
+                    ]
                 )
 
         # Make jacobians entry only have unique element.

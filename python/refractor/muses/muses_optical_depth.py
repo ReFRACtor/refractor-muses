@@ -34,11 +34,11 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         self.osp_dir = osp_dir
         self.obs = obs
         self.ils_params_list = ils_params_list
-        xsec_tables = rf.vector_xsec_table()
+        xsec_tables = []
 
         spec_grid = rf.ArrayWithUnit(np.array([1, 2]), "nm")
         xsec_values = rf.ArrayWithUnit(np.zeros((2, 1)), "cm^2")
-        xsec_tables.push_back(rf.XSecTableSimple(spec_grid, xsec_values, 0.0))
+        xsec_tables.append(rf.XSecTableSimple(spec_grid, xsec_values, 0.0))
 
         # Register base director class
         rf.AbsorberXSec.__init__(

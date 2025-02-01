@@ -1509,9 +1509,9 @@ class StateInfo:
                         if current_band != band["filter"]:
                             current_band = band["filter"]
                             tropomi_pars[f"surface_albedo_{band['filter']}"] = (
-                                o_tropomi[
-                                    "SurfaceAlbedo"
-                                ][f"{band['filter']}_MonthlyMinimumSurfaceReflectance"]
+                                o_tropomi["SurfaceAlbedo"][
+                                    f"{band['filter']}_MonthlyMinimumSurfaceReflectance"
+                                ]
                             )
                             tropomi_pars[f"surface_albedo_slope_{band['filter']}"] = (
                                 np.float64(0.0)

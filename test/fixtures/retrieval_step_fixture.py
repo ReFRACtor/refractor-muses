@@ -35,7 +35,8 @@ def set_up_run_to_location(
 ):
     """Set up directory and run the given step number to the given location."""
     r = MusesRunDir(dir, osp_dir, gmao_dir)
-    rs = RetrievalStrategy(r.run_dir / "Table.asc", vlidort_cli=vlidort_cli)
+    rs = RetrievalStrategy(r.run_dir / "Table.asc", vlidort_cli=vlidort_cli,
+                           osp_dir=osp_dir)
     rstep, kwargs = run_step_to_location(
         rs, step_number, dir, location, include_ret_state=include_ret_state
     )

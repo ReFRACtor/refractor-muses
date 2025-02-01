@@ -364,7 +364,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
             )
         iteration = self.rf_uip.uip["iteration"]
         ii_mw = 0
-        return f"{self.vlidort_input}/Iter{iteration:02d}/MW{ii_mw+1:03d}/clear"
+        return f"{self.vlidort_input}/Iter{iteration:02d}/MW{ii_mw + 1:03d}/clear"
 
     @property
     def cloudy_in(self):
@@ -374,7 +374,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
             )
         iteration = self.rf_uip.uip["iteration"]
         ii_mw = 0
-        return f"{self.vlidort_input}/Iter{iteration:02d}/MW{ii_mw+1:03d}/cloudy"
+        return f"{self.vlidort_input}/Iter{iteration:02d}/MW{ii_mw + 1:03d}/cloudy"
 
     @property
     def clear_out(self):
@@ -384,7 +384,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
             )
         iteration = self.rf_uip.uip["iteration"]
         ii_mw = 0
-        return f"{self.vlidort_output}/Iter{iteration:02d}/MW{ii_mw+1:03d}/clear"
+        return f"{self.vlidort_output}/Iter{iteration:02d}/MW{ii_mw + 1:03d}/clear"
 
     @property
     def cloudy_out(self):
@@ -394,7 +394,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
             )
         iteration = self.rf_uip.uip["iteration"]
         ii_mw = 0
-        return f"{self.vlidort_output}/Iter{iteration:02d}/MW{ii_mw+1:03d}/cloudy"
+        return f"{self.vlidort_output}/Iter{iteration:02d}/MW{ii_mw + 1:03d}/cloudy"
 
     def in_dir(self, do_cloud):
         """Either cloudy_in or clear_in depending on do_cloud"""

@@ -778,7 +778,7 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
             "",
         ] * len(sv.state)
         for i in range(self.plen):
-            svnm[i + self.pstart] = f"{self.species_name} coefficient {i+1}"
+            svnm[i + self.pstart] = f"{self.species_name} coefficient {i + 1}"
         self.sv_name = svnm
         super().state_vector_name(sv, sv_namev)
 

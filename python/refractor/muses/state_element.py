@@ -462,9 +462,9 @@ class MusesPyStateElement(RetrievableStateElement):
             )
             if next_state is not None and update_next is True:
                 next_state.tes["boresightNadirRadians"] = (
-                    self.state_info.state_info_obj.current[
-                        "tes"
-                    ]["boresightNadirRadians"]
+                    self.state_info.state_info_obj.current["tes"][
+                        "boresightNadirRadians"
+                    ]
                 )
 
         elif self.name == "RESSCALE":
