@@ -1,4 +1,4 @@
-# Don't both typechecking the file. It is long an complicated, and we will replace most
+# Don't both typechecking the file. It is long and complicated, and we will replace most
 # of it in a bit. Silence mypy, just so we don't get a lot of noise in the output
 # type: ignore
 

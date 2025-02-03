@@ -152,7 +152,8 @@ def tropomi_fm_object_creator_step_0(
     oss_param = getattr(request, "param", {})
     use_oss = oss_param.get("use_oss", False)
     oss_training_data = oss_param.get("oss_training_data", None)
-
+    if(oss_training_data is not None):
+        oss_training_data = tropomi_test_in_dir / oss_training_data
     rs, rstep, _ = set_up_run_to_location(
         tropomi_test_in_dir,
         0,

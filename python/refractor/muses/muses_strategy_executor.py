@@ -31,9 +31,9 @@ from typing import Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
-    from .muses_observation import MusesObservation
+    from .muses_observation import MusesObservation, MeasurementId
     from .cost_function import CostFunction
-    from .retrieval_configuration import RetrievalConfiguration
+    from .retrieval_configuration import RetrievalConfiguration    
     from .state_info import StateInfo
     from .cost_function_creator import CostFunctionCreator
     from .current_state import CurrentState
@@ -568,6 +568,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         with self.chdir_run_dir():
             self.state_info.init_state(
                 self.strategy._stable,
+                self.rs.measurement_id,
                 self.observation_handle_set,
                 self.retrieval_elements_all_step,
                 self.error_analysis_interferents_all_step,

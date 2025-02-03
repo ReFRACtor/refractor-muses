@@ -122,7 +122,7 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
 
 @pytest.mark.parametrize("tropomi_fm_object_creator_step_0", [
     # TODO: Move sample training data to refractor_test_data
-    {"use_oss": True, "oss_training_data": "/home/mthill/muses/py-retrieve/mthill/refractor_example_notebooks/OSS_file_all_1243_0_1737006075.1163344.npz"},
+    {"use_oss": True, "oss_training_data": "../OSS_file_all_1243_0_1737006075.1163344.npz"},
     {"use_oss": False, "oss_training_data": None}
 ], indirect=True)
 def test_fm_run(tropomi_fm_object_creator_step_0):

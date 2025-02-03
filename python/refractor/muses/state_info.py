@@ -22,6 +22,7 @@ if typing.TYPE_CHECKING:
     from .strategy_table import StrategyTable
     from .retrieval_strategy import RetrievalStrategy
     from .muses_strategy_executor import CurrentStrategyStep
+    from .muses_observation import MeasurementId
 
 
 class PropagatedQA:
@@ -398,6 +399,7 @@ class StateInfo:
     def init_state(
         self,
         strategy_table: StrategyTable,
+        measurement_id: MeasurementId,
         observation_handle_set: ObservationHandleSet,
         retrieval_elements_all: list[str],
         error_analysis_interferents_all: list[str],
@@ -405,7 +407,7 @@ class StateInfo:
         run_dir: Path,
     ):
         (_, _, _, _, _, _, self.state_info_dict) = self.script_retrieval_setup_ms(
-            strategy_table.strategy_table_dict, False
+            strategy_table.strategy_table_dict, measurement_id
         )
         # state_initial_update needs radiance for some of the instruments. It used this
         # in the function calls like supplier_nh3_type_cris. We only need this for CRIS,
@@ -432,13 +434,16 @@ class StateInfo:
         f = TesFile(run_dir / "DateTime.asc")
         self._tai_time = float(f["TAI_Time_of_ZPD"])
         self._utc_time = f["UTC_Time"]
-        self._sounding_id = TesFile(run_dir / "Measurement_ID.asc")["key"]
+        self._sounding_id = measurement_id["key"]
         self.next_state_dict = None
 
-    def script_retrieval_setup_ms(self, i_table_struct, i_writeOutput):
+    # Ignore typing for now. This is a long complicated function that we will
+    # rewrite in a bit
+    @typing.no_type_check
+    def script_retrieval_setup_ms(self, i_table_struct, measurement_id: MeasurementId):
         # IDL_LEGACY_NOTE: This function script_retrieval_setup_ms is the same as script_retrieval_setup_ms in script_retrieval_setup_ms.pro file.
 
-        utilDir = mpy.UtilDir()
+        mpy.UtilDir()
 
         o_airs = None
         o_cris = None
@@ -486,20 +491,10 @@ class StateInfo:
         # PYTHON_NOTE: There is a good chance that the strategy table would have already been read and parsed.  We don't need to do that
         #              again.
 
-        directoryIG = mpy.table_get_pref(i_table_struct, "initialGuessDirectory")
-        directoryConstraint = mpy.table_get_pref(
+        mpy.table_get_pref(i_table_struct, "initialGuessDirectory")
+        mpy.table_get_pref(
             i_table_struct, "constraintVectorDirectory"
         )  # where state goes is specified by the Table
-
-        if i_writeOutput:
-            outdir = "." + os.path.sep + "Input"
-            directoryIG = "." + os.path.sep + directoryIG
-            directoryConstraint = "." + os.path.sep + directoryConstraint
-
-            # Make sure directories exist.
-            utilDir.make_dir(outdir)
-            utilDir.make_dir(directoryIG)
-            utilDir.make_dir(directoryConstraint)
 
         # AT_LINE 84 script_retrieval_setup_ms.pro script_retrieval_setup_ms
 
@@ -687,41 +682,6 @@ class StateInfo:
 
                 outputFilenameOCO2 = "./Input/Radiance_OCO2_" + my_key + ".nc"
 
-            if i_writeOutput:
-                # Because the write_state function modify the 'current' fields of stateInitial structure, we give it a copy.
-                stateConstraintCopy = copy.deepcopy(o_stateInfo["constraint"])
-                mpy.write_state(
-                    directoryConstraint,
-                    mpy.ObjectView(o_stateInfo),
-                    mpy.ObjectView(stateConstraintCopy),
-                    my_key="_" + my_key,
-                    writeAltitudes=0,
-                )
-                del stateConstraintCopy  # Delete the temporary object.
-
-                # Because the write_state function modify the 'current' fields of stateInitial structure, we give it a copy.
-                stateInitialCopy = copy.deepcopy(o_stateInfo["initial"])
-                mpy.write_state(
-                    directoryIG,
-                    mpy.ObjectView(o_stateInfo),
-                    mpy.ObjectView(stateInitialCopy),
-                    my_key="_" + my_key,
-                    writeAltitudes=0,
-                )
-                del stateInitialCopy  # Delete the temporary object.
-
-                utilDir.make_dir(outdir + "/True")
-                # Because the write_state function modify the 'current' fields of stateInitial structure, we give it a copy.
-                stateTrueCopy = copy.deepcopy(o_stateInfo["true"])
-                mpy.write_state(
-                    outdir + "/True/",
-                    mpy.ObjectView(o_stateInfo),
-                    mpy.ObjectView(stateTrueCopy),
-                    my_key="_" + my_key,
-                    writeAltitudes=0,
-                )
-                del stateTrueCopy  # Delete the temporary object.
-
             # At this point, we have 5 separate fields in o_stateInfo with 5 separate memory locations.
             return (
                 o_airs,
@@ -783,11 +743,6 @@ class StateInfo:
 
                 if not os.path.isfile(outputFilenameAIRS):
                     o_airs = mpy.read_airs(file_id, windows)
-
-                    if i_writeOutput:
-                        # TODO: Pickle radiance data
-                        # write_radiance_airs(o_airs)
-                        pass
                 else:
                     # TODO: Unpickle radiance data
                     # read_radiance_airs(o_airs)
@@ -883,11 +838,6 @@ class StateInfo:
                     o_cris["radianceStruct".upper()] = mpy.radiance_data(
                         radiance, nesr, [0], frequency, filters, "CRIS"
                     )
-
-                    if i_writeOutput:
-                        # TODO: Pickle radiance data
-                        # write_radiance_cris(o_cris)
-                        pass
                 else:
                     # TODO: Unpickle radiance data
                     # read_radiance_cris(o_cris)
@@ -944,16 +894,6 @@ class StateInfo:
                             o_stateInfo,
                         )  # Return due to error.
 
-                    if i_writeOutput:
-                        # TODO:
-                        # Create directory if it doesn't already exist then write PICKLE file.
-                        # output_dir = os.path.dirname(outputFilenameOMI)
-                        # utilDir.make_dir(output_dir)
-
-                        # logger.info("PICKLE_ME", outputFilenameOMI)
-                        # with open(outputFilenameOMI, 'wb') as pickle_handle:
-                        #     pickle.dump(o_omi, pickle_handle, protocol=pickle.HIGHEST_PROTOCOL)
-                        pass
                 else:
                     logger.info("ERROR: Not implemented", outputFilenameOMI)
                     assert False
@@ -1069,19 +1009,6 @@ class StateInfo:
                             o_stateInfo,
                         )  # Return due to error.
 
-                    if i_writeOutput:
-                        # Create directory if it doesn't already exist then write PICKLE file.
-                        output_dir = os.path.dirname(outputFilenameTROPOMI)
-                        utilDir.make_dir(output_dir)
-
-                        logger.info("PICKLE_ME", outputFilenameTROPOMI)
-
-                        with open(outputFilenameTROPOMI, "wb") as pickle_handle:
-                            pickle.dump(
-                                o_tropomi,
-                                pickle_handle,
-                                protocol=pickle.HIGHEST_PROTOCOL,
-                            )
                 else:
                     logger.info("UNPICKLE_ME", outputFilenameTROPOMI)
 
@@ -1166,19 +1093,6 @@ class StateInfo:
                             o_stateInfo,
                         )  # Return due to error.
 
-                    if i_writeOutput:
-                        # Create directory if it doesn't already exist then write PICKLE file.
-                        output_dir = os.path.dirname(outputFilenameTROPOMI)
-                        utilDir.make_dir(output_dir)
-
-                        logger.info("PICKLE_ME", outputFilenameTROPOMI)
-
-                        with open(outputFilenameTROPOMI, "wb") as pickle_handle:
-                            pickle.dump(
-                                o_tropomi,
-                                pickle_handle,
-                                protocol=pickle.HIGHEST_PROTOCOL,
-                            )
                 else:
                     logger.info("UNPICKLE_ME", outputFilenameTROPOMI)
 
@@ -1199,10 +1113,6 @@ class StateInfo:
                         file_id["preferences"], radianceSource
                     )
 
-                    if i_writeOutput:
-                        # TODO: Pickle radiance data
-                        # write_radiance_cris(o_cris)
-                        pass
                 else:
                     # TODO: Unpickle radiance data
                     # read_radiance_cris(o_cris)
@@ -1629,18 +1539,6 @@ class StateInfo:
                 ]  # The type of oceanFlag should be int here so we can use it as an index.
                 stateInitial["current"]["surfaceType"] = oceanString[oceanFlag]
 
-                if i_writeOutput:
-                    # Because the write_state function modify the 'current' fields of stateInitial structure, we give it a copy.
-                    stateCurrentCopy = copy.deepcopy(stateInitial["current"])
-                    mpy.write_state(
-                        directoryIG,
-                        mpy.ObjectView(stateInitial),
-                        mpy.ObjectView(stateCurrentCopy),
-                        my_key="_" + my_key,
-                        writeAltitudes=0,
-                    )
-                    del stateCurrentCopy  # Delete the temporary object.
-
             # AT_LINE 577 script_retrieval_setup_ms.pro script_retrieval_setup_ms
             # AT_LINE 610 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
             if len(stateConstraint) > 0:
@@ -1648,18 +1546,6 @@ class StateInfo:
                 oceanString = ["LAND", "OCEAN"]
                 stateConstraint["surfaceType"] = oceanString[oceanFlag]
                 stateConstraint["current"]["surfaceType"] = oceanString[oceanFlag]
-
-                if i_writeOutput:
-                    # Because the write_state function modify the 'current' fields of stateConstraint structure, we give it a copy.
-                    stateCurrentCopy = copy.deepcopy(stateConstraint["current"])
-                    mpy.write_state(
-                        directoryConstraint,
-                        mpy.ObjectView(stateConstraint),
-                        mpy.ObjectView(stateCurrentCopy),
-                        my_key="_" + my_key,
-                        writeAltitudes=0,
-                    )
-                    del stateCurrentCopy
 
             # AT_LINE 595 script_retrieval_setup_ms.pro script_retrieval_setup_ms
             # AT_LINE 628 src_ms-2019-05-29/script_retrieval_setup_ms.pro script_retrieval_setup_ms
