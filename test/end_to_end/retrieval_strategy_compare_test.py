@@ -11,7 +11,7 @@ from fixtures.compare_run import compare_run
 run_refractor = True
 
 
-@pytest.mark.long_test
+@pytest.mark.compare_test
 def test_compare_retrieval_cris_tropomi(
     osp_dir,
     gmao_dir,
@@ -34,7 +34,7 @@ def test_compare_retrieval_cris_tropomi(
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
 
 
-@pytest.mark.long_test
+@pytest.mark.compare_test
 def test_compare_retrieval_airs_omi(
     osp_dir,
     gmao_dir,
@@ -57,7 +57,7 @@ def test_compare_retrieval_airs_omi(
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
 
 
-@pytest.mark.long_test
+@pytest.mark.compare_test
 def test_compare_retrieval_tes(
     osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir, tes_test_expected_dir
 ):
@@ -73,7 +73,7 @@ def test_compare_retrieval_tes(
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
 
 
-@pytest.mark.long_test
+@pytest.mark.compare_test
 def test_compare_retrieval_airs_irk(
     osp_dir, gmao_dir, vlidort_cli, airs_irk_test_expected_dir, end_to_end_run_dir
 ):

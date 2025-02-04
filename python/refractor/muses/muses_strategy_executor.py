@@ -31,9 +31,9 @@ from typing import Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
-    from .muses_observation import MusesObservation, MeasurementId
+    from .muses_observation import MusesObservation
     from .cost_function import CostFunction
-    from .retrieval_configuration import RetrievalConfiguration    
+    from .retrieval_configuration import RetrievalConfiguration
     from .state_info import StateInfo
     from .cost_function_creator import CostFunctionCreator
     from .current_state import CurrentState

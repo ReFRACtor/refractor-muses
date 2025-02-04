@@ -34,6 +34,9 @@ skip = pytest.mark.skip
 # Marker for long tests. Only run with --run-long
 long_test = pytest.mark.long_test
 
+# Marker for long tests. Only run with --run-compare
+compare_test = pytest.mark.compare_test
+
 # Marker for capture tests. Only run with --run-capture
 capture_test = pytest.mark.capture_test
 
@@ -54,6 +57,7 @@ os.environ["MUSES_FAKE_CREATION_DATE"] = "FAKE_DATE"
 
 def pytest_addoption(parser):
     parser.addoption("--run-long", action="store_true", help="run long tests")
+    parser.addoption("--run-compare", action="store_true", help="run compare tests")
     parser.addoption(
         "--skip-old-py-retrieve-test",
         action="store_true",
@@ -77,6 +81,11 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "long_test" in item.keywords:
                 item.add_marker(skip_long_test)
+    if not config.getoption("--run-compare"):
+        skip_compare_test = pytest.mark.skip(reason="need --run-compare option to run")
+        for item in items:
+            if "compare_test" in item.keywords:
+                item.add_marker(skip_compare_test)
     if config.getoption("--skip-old-py-retrieve-test"):
         skip_old_py_retrieve_test = pytest.mark.skip(
             reason="--skip-old-py-retrieve-test option skips this test"

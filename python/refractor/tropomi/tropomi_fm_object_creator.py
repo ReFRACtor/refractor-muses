@@ -45,8 +45,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         measurement_id: MeasurementId,
         observation: MusesObservation,
         use_raman: bool = True,
-        use_oss : bool = False,
-        oss_training_data : str = None,
+        use_oss: bool = False,
+        oss_training_data: str | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -291,7 +291,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def ground_cloud(self) -> rf.Ground:
         albedo = np.zeros((self.num_channels, 1))
-        which_retrieved = np.full((self.num_channels, 1), False, dtype=bool)
+        np.full((self.num_channels, 1), False, dtype=bool)
         band_reference = np.zeros(self.num_channels)
         band_reference[:] = 1000
         selem = [
@@ -394,14 +394,23 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def underlying_forward_model(self):
         if self.use_oss:
-            res = rf.director.OSSForwardModel(self.instrument, self.spec_win,
-                  self.radiative_transfer, self.spectrum_sampling,
-                  self.spectrum_effect, self.oss_training_data)
+            res = rf.director.OSSForwardModel(
+                self.instrument,
+                self.spec_win,
+                self.radiative_transfer,
+                self.spectrum_sampling,
+                self.spectrum_effect,
+                self.oss_training_data,
+            )
             res.setup_grid()
         else:
-            res = rf.StandardForwardModel(self.instrument, self.spec_win,
-                  self.radiative_transfer, self.spectrum_sampling,
-                  self.spectrum_effect)
+            res = rf.StandardForwardModel(
+                self.instrument,
+                self.spec_win,
+                self.radiative_transfer,
+                self.spectrum_sampling,
+                self.spectrum_effect,
+            )
             res.setup_grid()
         return res
 
