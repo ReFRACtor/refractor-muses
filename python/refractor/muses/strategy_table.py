@@ -8,6 +8,7 @@ from .order_species import order_species
 import numpy as np
 from pathlib import Path
 import typing
+from .identifier import InstrumentIdentifier, FilterIdentifier
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
@@ -94,10 +95,10 @@ class StrategyTable:
                 )
             )
 
-    def ils_method(self, instrument_name):
-        if instrument_name == "OMI":
+    def ils_method(self, instrument_name : InstrumentIdentifier):
+        if str(instrument_name) == "OMI":
             res = self.preferences["ils_omi_xsection"].upper()
-        elif instrument_name == "TROPOMI":
+        elif str(instrument_name) == "TROPOMI":
             res = self.preferences["ils_tropomi_xsection"].upper()
         else:
             raise RuntimeError("instrument_name must be either 'OMI' or 'TROPOMI'")
@@ -301,7 +302,7 @@ class StrategyTable:
         res.discard("")
         return order_species(list(res))
 
-    def spectral_window(self, instrument_name, stp=None, all_step=False):
+    def spectral_window(self, instrument_name : InstrumentIdentifier, stp=None, all_step=False):
         """This creates a rf.SpectralWindowRange for the given instrument and
         step (defaults to self.table_step). Note that a SpectralWindow has a number of
         microwindows associated with it - RefRACtor doesn't really distinguish this and
@@ -313,7 +314,7 @@ class StrategyTable:
         # different filters as different sensor_index and for others we don't. For
         # now just hardcode this, and we can perhaps look for a way to handle this in
         # the future
-        if instrument_name in ("OMI", "TROPOMI"):
+        if str(instrument_name) in ("OMI", "TROPOMI"):
             different_filter_different_sensor_index = True
         else:
             different_filter_different_sensor_index = False
@@ -326,7 +327,7 @@ class StrategyTable:
         mwall = [
             mw
             for mw in self.microwindows(stp=stp, all_step=all_step)
-            if mw["instrument"] == instrument_name
+            if mw["instrument"] == str(instrument_name)
         ]
         nmw = []
         for flt in filter_list:
@@ -341,19 +342,19 @@ class StrategyTable:
         mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
         return rf.SpectralWindowRange(mw_range)
 
-    def filter_list(self, instrument_name):
+    def filter_list(self, instrument_name : InstrumentIdentifier):
         """Not sure if the order matters here or not. We keep the same order this appears in
         table_new_mw_from_all_steps. We can revisit this if needed. I'm also not sure how important
         the filter list is."""
-        return list(
+        return [FilterIdentifier(i) for i in
             dict.fromkeys(
                 [
                     m["filter"]
                     for m in self.microwindows(all_step=True)
-                    if m["instrument"] == instrument_name
+                    if m["instrument"] == str(instrument_name)
                 ]
             )
-        )
+        ]
 
     def filter_list_all(self):
         """Dict with all the instruments to the filter_list for that instrument."""
@@ -373,11 +374,11 @@ class StrategyTable:
     def instrument_name(self, stp=None, all_step=False):
         """The list of instruments for the given step, used self.table_step if not supplied.
         If all_step is True, then we return the list of instruments from all retrieval steps."""
-        return list(
+        return [InstrumentIdentifier(i) for i in
             dict.fromkeys(
                 [m["instrument"] for m in self.microwindows(stp=stp, all_step=all_step)]
             )
-        )
+        ]
 
     def microwindows(self, stp=None, all_step=False):
         """Microwindows for the given step, used self.table_step if not supplied.

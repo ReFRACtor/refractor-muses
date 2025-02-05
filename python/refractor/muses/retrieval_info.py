@@ -498,10 +498,10 @@ class RetrievalInfo:
         # map types for all species
         # now in strategy table
 
-        if current_strategy_step.retrieval_type.lower() in ("bt", "forwardmodel"):
+        if str(current_strategy_step.retrieval_type).lower() in ("bt", "forwardmodel"):
             pass
         else:
-            o_retrievalInfo.species = current_strategy_step.retrieval_elements
+            o_retrievalInfo.species = [str(i) for i in current_strategy_step.retrieval_elements]
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for species_name in o_retrievalInfo.species:

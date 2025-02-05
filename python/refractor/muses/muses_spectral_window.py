@@ -8,9 +8,11 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from typing import Any
 import typing
+from .identifier import InstrumentIdentifier, FilterIdentifier
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
+    from .identifier import StateElementIdentifier, RetrievalStepIdentifier
 
 
 class MusesSpectralWindow(rf.SpectralWindow):
@@ -67,7 +69,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         spec_win: rf.SpectralWindowRange | None,
         obs: MusesObservation | None,
         raman_ext=3.01,
-        instrument_name: str | None = None,
+        instrument_name: InstrumentIdentifier | None = None,
         filter_metadata: FilterMetadata | None = None,
         filter_name: np.ndarray | None = None,
         rt: np.ndarray | None = None,
@@ -245,7 +247,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                         "THROW_AWAY_WINDOW_INDEX": -1,
                         "start": d[i, j, 0],
                         "endd": d[i, j, 1],
-                        "instrument": self.instrument_name,
+                        "instrument": str(self.instrument_name),
                         "RT": self.rt[i, j]
                         if self.rt is not None and self.rt[i, j] is not None
                         else "None",
@@ -281,7 +283,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                     # In a truly kludgy way, mw_augment_default in py-retrieve
                     # overrides these values, for AIRS only. Duplicate this
                     # functionality.
-                    if self.instrument_name == "AIRS":
+                    if str(self.instrument_name) == "AIRS":
                         v2["maxopd"] = 0
                         v2["spacing"] = 0
                         freqs = np.array(
@@ -310,28 +312,28 @@ class MusesSpectralWindow(rf.SpectralWindow):
     @classmethod
     def filter_list_dict_from_file(
         cls, spec_fname: str | os.PathLike[str]
-    ) -> dict[str, list[str]]:
+    ) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """Return a dictionary going from instrument name to the list
         of filters for that given instrument.
 
         """
         fspec = TesFile.create(spec_fname)
         res = {}
-        for iname in list(dict.fromkeys(fspec.table["Instrument"].to_list())):
-            res[iname] = list(
+        for iname in [InstrumentIdentifier(i) for i in dict.fromkeys(fspec.table["Instrument"].to_list())]:
+            res[iname] = [FilterIdentifier(i) for i in
                 dict.fromkeys(
-                    fspec.table[fspec.table["Instrument"] == iname]["Filter"].to_list()
+                    fspec.table[fspec.table["Instrument"] == str(iname)]["Filter"].to_list()
                 )
-            )
+            ]
         return res
 
     @classmethod
     def create_dict_from_file(
         cls,
         spec_fname: str | os.PathLike[str],
-        filter_list_dict: dict[str, list[str]] | None = None,
+        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] | None = None,
         filter_metadata: FilterMetadata | None = None,
-    ):
+    ) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
         """Create a dict from instrument name to MusesSpectralWindow
         from the given microwindows file name. We also take an
         optional FilterMetadata which is used for additional metadata
@@ -346,7 +348,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
             # special handling here.
             # Temp, until we get this to work for AIRS and CRIS
             different_filter_different_sensor_index = True
-            if iname in ("AIRS", "CRIS", "TES"):
+            if str(iname) in ("AIRS", "CRIS", "TES"):
                 different_filter_different_sensor_index = False
             res[iname] = cls.create_from_file(
                 spec_fname,
@@ -363,11 +365,11 @@ class MusesSpectralWindow(rf.SpectralWindow):
     def create_from_file(
         cls,
         spec_fname: str | os.PathLike[str],
-        instrument_name: str,
-        filter_list_all: list[str] | None = None,
+        instrument_name: InstrumentIdentifier,
+        filter_list_all: list[FilterIdentifier] | None = None,
         filter_metadata: FilterMetadata | None = None,
         different_filter_different_sensor_index=True,
-    ):
+    ) -> MusesSpectralWindow:
         """Create a MusesSpectralWindow for the given instrument name
         from the given microwindow file name. We also take an optional
         FilterMetadata which is used for additional metadata in the
@@ -389,7 +391,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
 
         """
         fspec = TesFile.create(spec_fname)
-        rowlist = fspec.table[fspec.table["Instrument"] == instrument_name]
+        rowlist = fspec.table[fspec.table["Instrument"] == str(instrument_name)]
 
         flist = list(dict.fromkeys(rowlist["Filter"].to_list()))
         # I think it is ok to have this always True, but leave this knob in
@@ -418,7 +420,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         species_list = np.full(filter_name.shape, None, dtype=np.dtype(object))
         for i, flt in enumerate(flist):
             if filter_list_all is not None and flt is not None:
-                ind = filter_list_all.index(flt)
+                ind = filter_list_all.index(FilterIdentifier(flt))
             else:
                 ind = i
             if flt is None:
@@ -444,7 +446,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
 
     @classmethod
     def muses_microwindows_from_dict(
-        cls, spec_win_dict: dict[str, MusesSpectralWindow]
+        cls, spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow]
     ) -> list[dict]:
         """Create the muses-py microwindows list of dict structure
         from a dict going from instrument name to MusesSpectralWindow"""
@@ -458,9 +460,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
         cls,
         viewing_mode: str,
         spectral_window_directory: str | os.PathLike[str],
-        retrieval_elements: list[str],
+        retrieval_elements: list[StateElementIdentifier],
         step_name: str,
-        retrieval_type: str,
+        retrieval_type: RetrievalStepIdentifier,
         spec_file: str | os.PathLike[str] | None = None,
     ):
         """For testing purposes, this calls the old mpy.table_get_spectral_filename to
@@ -474,9 +476,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
             "spectralWindowDirectory": str(spectral_window_directory),
         }
         t1 = [
-            ",".join(retrieval_elements) if len(retrieval_elements) > 0 else "-",
+            ",".join([str(i) for i in retrieval_elements]) if len(retrieval_elements) > 0 else "-",
             step_name,
-            retrieval_type,
+            str(retrieval_type),
         ]
         t2 = ["retrievalElements", "stepName", "retrievalType"]
         if spec_file is not None:
@@ -496,9 +498,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
         default_spectral_window_fname: str,
         viewing_mode: str,
         spectral_window_directory: str | os.PathLike[str],
-        retrieval_elements: list[str],
+        retrieval_elements: list[StateElementIdentifier],
         step_name: str,
-        retrieval_type: str,
+        retrieval_type: RetrievalStepIdentifier,
         spec_file: str | os.PathLike[str] | None = None,
     ):
         """For testing purposes, this calls the old mpy.table_new_mw_from_step. This can
@@ -512,7 +514,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
             "viewingMode": viewing_mode,
             "spectralWindowDirectory": str(spectral_window_directory),
         }
-        t1 = [",".join(retrieval_elements), step_name, retrieval_type]
+        t1 = [",".join([str(i) for i in retrieval_elements]), step_name, str(retrieval_type)]
         t2 = ["retrievalElements", "stepName", "retrievalType"]
         if spec_file is not None:
             t1.append(str(spec_file))

@@ -9,7 +9,7 @@ import typing
 if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
     from .muses_strategy_executor import CurrentStrategyStep
-
+    from .identifier import InstrumentIdentifier, FilterIdentifier
 
 class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
     """Base class for SpectralWindowHandle. Note we use duck typing,
@@ -27,7 +27,7 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     def filter_name_dict(
         self, current_strategy_step: CurrentStrategyStep
-    ) -> dict[str, list[str]] | None:
+    ) -> dict[InstrumentIdentifier, list[FilterIdentifier]] | None:
         """Return a dictionary that goes from instrument name to a
         list of filter names.  This is needed when are initially
         reading the data. This can be gotten from
@@ -56,7 +56,7 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def spectral_window_dict(
         self, current_strategy_step: CurrentStrategyStep
-    ) -> dict[str, MusesSpectralWindow] | None:
+    ) -> dict[InstrumentIdentifier, MusesSpectralWindow] | None:
         """Return a dictionary that goes from instrument name to the
         MusesSpectralWindow for that instrument. Note because of the
         extra metadata and bad sample/full band handing we need we
@@ -85,7 +85,7 @@ class SpectralWindowHandleSet(CreatorHandleSet):
 
     def filter_name_dict(
         self, current_strategy_step: CurrentStrategyStep
-    ) -> dict[str, list[str]] | None:
+    ) -> dict[InstrumentIdentifier, list[FilterIdentifier]] | None:
         """Return a dictionary that goes from instrument name to a
         list of filter names.  This is needed when are initially
         reading the data. This can be gotten from
@@ -99,7 +99,7 @@ class SpectralWindowHandleSet(CreatorHandleSet):
 
     def spectral_window_dict(
         self, current_strategy_step: CurrentStrategyStep
-    ) -> dict[str, MusesSpectralWindow]:
+    ) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
         """Return a dictionary that goes from instrument name to the
         MusesSpectralWindow for that instrument. Note because of the
         extra metadata and bad sample/full band handing we need we
@@ -139,7 +139,7 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
 
     def spectral_window_dict(
         self, current_strategy_step: CurrentStrategyStep
-    ) -> dict[str, MusesSpectralWindow] | None:
+    ) -> dict[InstrumentIdentifier, MusesSpectralWindow] | None:
         """Return a dictionary that goes from instrument name to the MusesSpectralWindow
         for that instrument. Note because of the extra metadata and bad sample/full band
         handing we need we currently require a MusesSpectralWindow. We could perhaps

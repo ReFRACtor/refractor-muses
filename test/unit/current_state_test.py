@@ -5,6 +5,7 @@ from refractor.muses import (
     RetrievalStrategy,
     MusesRunDir,
     CurrentStateStateInfo,
+    StateElementIdentifier
 )
 import os
 import pytest
@@ -20,26 +21,28 @@ class RetrievalStrategyStop:
 
 def test_current_state_dict():
     d = {
-        "TROPOMISOLARSHIFTBAND3": 1.0,
-        "TROPOMIRADIANCESHIFTBAND3": 2.0,
-        "TROPOMIRADSQUEEZEBAND3": 3.0,
+        StateElementIdentifier("TROPOMISOLARSHIFTBAND3"): 1.0,
+        StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"): 2.0,
+        StateElementIdentifier("TROPOMIRADSQUEEZEBAND3"): 3.0,
     }
-    cs = CurrentStateDict(d, ["TROPOMISOLARSHIFTBAND3", "TROPOMIRADIANCESHIFTBAND3"])
+    cs = CurrentStateDict(d, [StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+                              StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3")])
     coeff, mp = cs.object_state(
         [
-            "TROPOMISOLARSHIFTBAND3",
-            "TROPOMIRADIANCESHIFTBAND3",
-            "TROPOMIRADSQUEEZEBAND3",
+            StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADSQUEEZEBAND3"),
         ]
     )
     npt.assert_allclose(coeff, [1.0, 2.0, 3.0])
     npt.assert_allclose(mp.retrieval_indexes, [0, 1])
-    cs = CurrentStateDict(d, ["TROPOMISOLARSHIFTBAND3", "TROPOMIRADSQUEEZEBAND3"])
+    cs = CurrentStateDict(d, [StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+                              StateElementIdentifier("TROPOMIRADSQUEEZEBAND3")])
     coeff, mp = cs.object_state(
         [
-            "TROPOMISOLARSHIFTBAND3",
-            "TROPOMIRADIANCESHIFTBAND3",
-            "TROPOMIRADSQUEEZEBAND3",
+            StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADSQUEEZEBAND3"),
         ]
     )
     npt.assert_allclose(coeff, [1.0, 2.0, 3.0])
@@ -54,9 +57,9 @@ def test_current_state_uip(joint_tropomi_step_12):
     print(cs.fm_state_vector_size)
     coeff, mp = cs.object_state(
         [
-            "TROPOMISOLARSHIFTBAND3",
-            "TROPOMIRADIANCESHIFTBAND3",
-            "TROPOMIRADSQUEEZEBAND3",
+            StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADSQUEEZEBAND3"),
         ]
     )
     print(coeff)

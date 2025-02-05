@@ -17,7 +17,6 @@ if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
     from .retrieval_configuration import RetrievalConfiguration
     from .observation_handle import ObservationHandleSet
-    from .strategy_table import StrategyTable
     from .retrieval_strategy import RetrievalStrategy
     from .muses_strategy_executor import CurrentStrategyStep
     from .muses_observation import MeasurementId, MusesObservation
@@ -396,20 +395,21 @@ class StateInfo:
 
     def init_state(
         self,
-        strategy_table: StrategyTable,
         measurement_id: MeasurementId,
         observation_handle_set: ObservationHandleSet,
         retrieval_elements_all: list[str],
         error_analysis_interferents_all: list[str],
         instrument_name_all: list[str],
         run_dir: Path,
+        osp_dir: Path | None = None,
     ):
         odict = {}
         for iname in instrument_name_all:
             odict[iname] = observation_handle_set.observation(iname, None, None, None)
-
+        if osp_dir is None:
+            osp_dir = run_dir.parent / "OSP"
         self.state_info_dict = self.script_retrieval_setup_ms(
-            strategy_table.strategy_table_dict, measurement_id, odict
+            measurement_id, odict, osp_dir
         )
         # state_initial_update needs radiance for some of the instruments. It used this
         # in the function calls like supplier_nh3_type_cris. We only need this for CRIS,
@@ -444,9 +444,9 @@ class StateInfo:
     @typing.no_type_check
     def script_retrieval_setup_ms(
         self,
-        i_table_struct,
         measurement_id: MeasurementId,
         odict: dict[str, MusesObservation],
+        osp_dir: Path,
     ):
         instruments = odict.keys()
         o_airs = None
@@ -480,11 +480,6 @@ class StateInfo:
 
         gmao_path = measurement_id.get("GMAO", "../GMAO/")
         gmao_type = measurement_id.get("GMAO_TYPE", "")
-
-        mpy.table_get_pref(i_table_struct, "initialGuessDirectory")
-        mpy.table_get_pref(
-            i_table_struct, "constraintVectorDirectory"
-        )  # where state goes is specified by the Table
 
         instrument_name = "DUMMY_INSTRUMENT_NAME"
         for ins in ("TES", "AIRS", "CRIS", "OMI", "TROPOMI", "OCO2"):
@@ -564,16 +559,15 @@ class StateInfo:
                 "instruments ~= TES, AIRS, OMI, CRIS, TROPOMI, OCO2, Need surface altitude."
             )
 
-        ospDirectory = "../OSP"
         setupFilename = (
-            mpy.table_get_pref(i_table_struct, "initialGuessSetupDirectory")
-            + "/L2_Setup_Control_Initial.asc"
+            Path(measurement_id["initialGuessSetupDirectory"])
+            / "L2_Setup_Control_Initial.asc"
         )
 
         constraintFlag = False
         stateInitial = mpy.get_state_initial(
-            setupFilename,
-            ospDirectory,
+            str(setupFilename),
+            str(osp_dir),
             o_latitude,
             o_longitude,
             o_dateStruct,
@@ -585,17 +579,16 @@ class StateInfo:
             gmao_type,
         )
 
-        ospDirectory = "../OSP"
         setupFilename = (
-            mpy.table_get_pref(i_table_struct, "initialGuessSetupDirectory")
-            + "/L2_Setup_Control_Constraint.asc"
+            Path(measurement_id["initialGuessSetupDirectory"])
+            / "L2_Setup_Control_Constraint.asc"
         )
 
         # state for constraint
         constraintFlag = True
         stateConstraint = mpy.get_state_initial(
-            setupFilename,
-            ospDirectory,
+            str(setupFilename),
+            str(osp_dir),
             o_latitude,
             o_longitude,
             o_dateStruct,
@@ -860,8 +853,6 @@ class StateInfo:
 
                 if stateInitial is not None:
                     stateInitial["current"]["oco2"][ttState[ii]] = o_oco2[ttState[ii]]
-
-            i_table_struct["pressureFM"] = stateInitial["current"]["pressure"]
         if len(stateInitial) > 0:
             # set surface type for products
             oceanString = ["LAND", "OCEAN"]

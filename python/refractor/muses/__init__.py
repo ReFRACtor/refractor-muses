@@ -33,8 +33,11 @@ if _typing.TYPE_CHECKING:
     from .refractor_fm_object_creator import RefractorFmObjectCreator
     from .forward_model_handle import ForwardModelHandle
     from .muses_raman import MusesRaman, SurfaceAlbedo
+    from .muses_spectral_window import MusesSpectralWindow
+    from .strategy_table import StrategyTable
     from .current_state import CurrentState, CurrentStateUip
-    from .muses_observation import MeasurementId, MusesObservation
+    from .muses_observation import MeasurementId, MusesObservation, MusesOmiObservation
+    from .filter_metadata import FileFilterMetadata
     from .refractor_uip import RefractorUip
     from .replace_function_helper import (
         suppress_replacement,

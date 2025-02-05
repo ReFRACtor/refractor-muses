@@ -8,6 +8,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
+    from .identifier import InstrumentIdentifier, StateElementIdentifier, RetrievalStepIdentifier, FilterIdentifier
 
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
@@ -20,12 +21,12 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     """
 
     @abc.abstractproperty
-    def retrieval_elements(self) -> list[str]:
+    def retrieval_elements(self) -> list[StateElementIdentifier]:
         """List of retrieval elements that we retrieve for this step."""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def instrument_name(self) -> list[str]:
+    def instrument_name(self) -> list[InstrumentIdentifier]:
         """List of instruments used in this step."""
         raise NotImplementedError()
 
@@ -52,22 +53,22 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def retrieval_type(self) -> str:
+    def retrieval_type(self) -> RetrievalStepIdentifier:
         """The retrieval type."""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def do_not_update_list(self) -> list[str]:
+    def do_not_update_list(self) -> list[StateElementIdentifier]:
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def spectral_window_dict(self) -> dict[str, MusesSpectralWindow]:
+    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
         """Return a dictionary that maps instrument name to the MusesSpectralWindow
         to use for that."""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def error_analysis_interferents(self) -> list[str]:
+    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
         """Return a list of the error analysis interferents."""
         raise NotImplementedError()
 
@@ -107,12 +108,12 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         )
 
     @property
-    def retrieval_elements(self) -> list[str]:
+    def retrieval_elements(self) -> list[StateElementIdentifier]:
         """List of retrieval elements that we retrieve for this step."""
         return self.current_strategy_step_dict["retrieval_elements"]
 
     @property
-    def instrument_name(self) -> list[str]:
+    def instrument_name(self) -> list[InstrumentIdentifier]:
         """List of instruments used in this step."""
         return self.current_strategy_step_dict["instrument_name"]
 
@@ -139,21 +140,21 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         return self.current_strategy_step_dict["max_num_iterations"]
 
     @property
-    def retrieval_type(self) -> str:
+    def retrieval_type(self) -> RetrievalStepIdentifier:
         """The retrieval type."""
         return self.current_strategy_step_dict["retrieval_type"]
 
     @property
-    def do_not_update_list(self) -> list[str]:
+    def do_not_update_list(self) -> list[StateElementIdentifier]:
         return self.current_strategy_step_dict["do_not_update_list"]
 
     @property
-    def error_analysis_interferents(self) -> list[str]:
+    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
         """Return a list of the error analysis interferents."""
         return self.current_strategy_step_dict["error_analysis_interferents"]
 
     @property
-    def spectral_window_dict(self) -> dict[str, MusesSpectralWindow]:
+    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
         """Return a dictionary that maps instrument name to the MusesSpectralWindow
         to use for that."""
         return self.current_strategy_step_dict["spectral_window_dict"]
@@ -197,26 +198,66 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def filter_list_dict(self) -> dict[str, list[str]]:
-        """The complete list of filters we will be processing (so for all retrieval steps)"""
+    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
+        """The complete list of filters we will be processing (so for
+        all retrieval steps)
+
+        Note that because we want to allow a strategy to be dynamic,
+        we don't really know in general what this list will be. Right
+        now, this is needed by other code - perhaps we can remove this
+        dependency. But for now this is required. I believe this can
+        be a super set - so if we have a item listed here that isn't
+        actually used that is ok.
+
+        """
         # TODO Can this go away?
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def retrieval_elements(self) -> list[str]:
-        """The complete list of retrieval elements (so for all retrieval steps)"""
+    def retrieval_elements(self) -> list[StateElementIdentifier]:
+        """The complete list of retrieval elements (so for all
+        retrieval steps)
+
+        Note that because we want to allow a strategy to be dynamic,
+        we don't really know in general what this list will be. Right
+        now, this is needed by other code - perhaps we can remove this
+        dependency. But for now this is required. I believe this can
+        be a super set - so if we have a item listed here that isn't
+        actually used that is ok.
+
+        """
         # TODO Can this go away?
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def error_analysis_interferents(self) -> list[str]:
-        """Complete list of error analysis interferents (so for all retrieval steps)"""
+    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
+        """Complete list of error analysis interferents (so for all
+        retrieval steps)
+
+        Note that because we want to allow a strategy to be dynamic,
+        we don't really know in general what this list will be. Right
+        now, this is needed by other code - perhaps we can remove this
+        dependency. But for now this is required. I believe this can
+        be a super set - so if we have a item listed here that isn't
+        actually used that is ok.
+
+        """
         # TODO Can this go away?
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def instrument_name(self) -> list[str]:
-        """Complete list of instrument names (so for all retrieval steps)"""
+    def instrument_name(self) -> list[InstrumentIdentifier]:
+        """Complete list of instrument names (so for all retrieval
+        steps)
+
+        Note that because we want to allow a strategy to be dynamic,
+        we don't really know in general what this list will be. Right
+        now, this is needed by other code - perhaps we can remove this
+        dependency. But for now this is required. I believe this can
+        be a super set - so if we have a item listed here that isn't
+        actually used that is ok.
+
+        """
         # TODO Can this go away?
         raise NotImplementedError()
 
@@ -245,7 +286,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def current_strategy_step(
         self,
-        spectral_window_dict: dict[str, MusesSpectralWindow] | None,
+        spectral_window_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
         retrieval_info: RetrievalInfo | None,
     ) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
@@ -276,25 +317,26 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
         return self._stable.is_next_bt()
 
     @property
-    def filter_list_dict(self) -> dict[str, list[str]]:
+    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for all retrieval steps)"""
         # TODO Can this go away?
         return self._stable.filter_list_all()
 
     @property
-    def retrieval_elements(self) -> list[str]:
-        """The complete list of retrieval elements (so for all retrieval steps)"""
+    def retrieval_elements(self) -> list[StateElementIdentifier]:
+        """The complete list of retrieval elements (so for all retrieval steps)
+        """
         # TODO Can this go away?
         return self._stable.retrieval_elements_all_step
 
     @property
-    def error_analysis_interferents(self) -> list[str]:
+    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
         """Complete list of error analysis interferents (so for all retrieval steps)"""
         # TODO Can this go away?
         return self._stable.error_analysis_interferents_all_step
 
     @property
-    def instrument_name(self) -> list[str]:
+    def instrument_name(self) -> list[InstrumentIdentifier]:
         """Complete list of instrument names (so for all retrieval steps)"""
         # TODO Can this go away?
         return self._stable.instrument_name(all_step=True)
@@ -313,7 +355,7 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
 
     def current_strategy_step(
         self,
-        spectral_window_dict: dict[str, MusesSpectralWindow] | None,
+        spectral_window_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
         retrieval_info: RetrievalInfo | None,
     ) -> CurrentStrategyStep:
         if self.is_done():

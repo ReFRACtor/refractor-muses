@@ -19,9 +19,11 @@ import collections.abc
 import re
 from typing import Tuple
 import typing
+from .identifier import InstrumentIdentifier
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
+    from .identifier import StateElementIdentifier, FilterIdentifier
 
 
 def _new_from_init(cls, *args):
@@ -62,7 +64,7 @@ class MeasurementId(collections.abc.Mapping):
     """
 
     @abc.abstractproperty
-    def filter_list_dict(self) -> dict[str, list[str]]:
+    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for
         all retrieval steps)
 
@@ -82,12 +84,12 @@ class MeasurementId(collections.abc.Mapping):
 class MeasurementIdDict(MeasurementId):
     """Implementation of MeasurementId that uses a dict"""
 
-    def __init__(self, measurement_dict: dict, filter_list_dict: dict):
+    def __init__(self, measurement_dict: dict, filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]]):
         self.measurement_dict = measurement_dict
         self._filter_list_dict = filter_list_dict
 
     @property
-    def filter_list_dict(self) -> dict[str, list[str]]:
+    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for
         all retrieval steps)
 
@@ -112,7 +114,7 @@ class MeasurementIdFile(MeasurementId):
         self,
         fname: str | os.PathLike[str],
         retrieval_config: RetrievalConfiguration,
-        filter_list_dict: dict[str, list[str]],
+        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
     ):
         self.fname = fname
         self.base_dir = os.path.abspath(os.path.dirname(self.fname))
@@ -121,7 +123,7 @@ class MeasurementIdFile(MeasurementId):
         self._retrieval_config = retrieval_config
 
     @property
-    def filter_list_dict(self) -> dict[str, list[str]]:
+    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for
         all retrieval steps)
 
@@ -206,7 +208,7 @@ class MusesObservation(rf.ObservationSvImpBase):
             super().__init__(coeff, in_map)
 
     @property
-    def instrument_name(self) -> str:
+    def instrument_name(self) -> InstrumentIdentifier:
         """Name of instrument observation is for."""
         raise NotImplementedError()
 
@@ -262,7 +264,7 @@ class MusesObservation(rf.ObservationSvImpBase):
         # Default is no coefficients changing observation
         pass
 
-    def state_element_name_list(self):
+    def state_element_name_list(self) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         # Default is no state element changing observation
         return []
@@ -613,7 +615,7 @@ class SimulatedObservation(MusesObservationImp):
         return self._obs.filter_list
 
     @property
-    def instrument_name(self):
+    def instrument_name(self) -> InstrumentIdentifier:
         return self._obs.instrument_name
 
     @property
@@ -697,7 +699,7 @@ class SimulatedObservationHandle(ObservationHandle):
 
     """
 
-    def __init__(self, instrument_name, obs: MusesObservation):
+    def __init__(self, instrument_name: InstrumentIdentifier, obs: MusesObservation):
         self.instrument_name = instrument_name
         self.obs = obs
 
@@ -707,7 +709,7 @@ class SimulatedObservationHandle(ObservationHandle):
 
     def observation(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
@@ -726,7 +728,7 @@ class MusesObservationHandle(ObservationHandle):
 
     """
 
-    def __init__(self, instrument_name, obs_cls):
+    def __init__(self, instrument_name : InstrumentIdentifier, obs_cls):
         self.instrument_name = instrument_name
         self.obs_cls = obs_cls
         # Keep the same observation around as long as the target doesn't
@@ -752,7 +754,7 @@ class MusesObservationHandle(ObservationHandle):
 
     def observation(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
@@ -829,8 +831,8 @@ class MusesAirsObservation(MusesObservationImp):
         return "MusesAirsObservation"
 
     @property
-    def instrument_name(self):
-        return "AIRS"
+    def instrument_name(self) -> InstrumentIdentifier:
+        return InstrumentIdentifier("AIRS")
 
     @classmethod
     def create_from_filename(
@@ -851,7 +853,8 @@ class MusesAirsObservation(MusesObservationImp):
 
         """
         o_airs, sdesc = cls._read_data(
-            str(filename), granule, xtrack, atrack, filter_list, osp_dir=osp_dir
+            str(filename), granule, xtrack, atrack, [str(i) for i in filter_list],
+            osp_dir=osp_dir
         )
         return cls(o_airs, sdesc)
 
@@ -882,13 +885,13 @@ class MusesAirsObservation(MusesObservationImp):
             )
         else:
             # Read the data from disk, because it doesn't already exist.
-            filter_list = mid.filter_list_dict["AIRS"]
+            filter_list = mid.filter_list_dict[InstrumentIdentifier("AIRS")]
             filename = mid["AIRS_filename"]
             granule = mid["AIRS_Granule"]
             xtrack = int(mid["AIRS_XTrack_Index"])
             atrack = int(mid["AIRS_ATrack_Index"])
             o_airs, sdesc = cls._read_data(
-                filename, granule, xtrack, atrack, filter_list, osp_dir=osp_dir
+                filename, granule, xtrack, atrack, [str(i) for i in filter_list], osp_dir=osp_dir
             )
             obs = cls(o_airs, sdesc)
         obs.spectral_window = (
@@ -1008,8 +1011,8 @@ class MusesTesObservation(MusesObservationImp):
         return "MusesTesObservation"
 
     @property
-    def instrument_name(self):
-        return "TES"
+    def instrument_name(self) -> InstrumentIdentifier:
+        return InstrumentIdentifier("TES")
 
     @classmethod
     def create_fake_for_irk(cls, tes_frequency_fname: str, swin: MusesSpectralWindow):
@@ -1090,7 +1093,7 @@ class MusesTesObservation(MusesObservationImp):
         }
         res = cls(tes_struct, sdesc)
         swin2 = copy.deepcopy(swin)
-        swin2.instrument_name = "TES"
+        swin2.instrument_name = InstrumentIdentifier("TES")
         res.spectral_window = TesSpectralWindow(swin2, res)
         return res
 
@@ -1185,7 +1188,7 @@ class MusesTesObservation(MusesObservationImp):
             run,
             sequence,
             scan,
-            filter_list,
+            [str(i) for i in filter_list],
             osp_dir=osp_dir,
         )
         return cls(o_tes, sdesc)
@@ -1217,7 +1220,7 @@ class MusesTesObservation(MusesObservationImp):
             )
         else:
             # Read the data from disk, because it doesn't already exist.
-            filter_list = mid.filter_list_dict["TES"]
+            filter_list = mid.filter_list_dict[InstrumentIdentifier("TES")]
             filename = mid["TES_filename_L1B"]
             l1b_index = mid["TES_filename_L1B_Index"].split(",")
             l1b_avgflag = int(mid["TES_L1B_Average_Flag"])
@@ -1231,7 +1234,7 @@ class MusesTesObservation(MusesObservationImp):
                 run,
                 sequence,
                 scan,
-                filter_list,
+                [str(i) for i in filter_list],
                 osp_dir=osp_dir,
             )
             func = mid["apodizationFunction"]
@@ -1408,8 +1411,8 @@ class MusesCrisObservation(MusesObservationImp):
         return "MusesCrisObservation"
 
     @property
-    def instrument_name(self):
-        return "CRIS"
+    def instrument_name(self) -> InstrumentIdentifier:
+        return InstrumentIdentifier("CRIS")
 
     @classmethod
     def create_from_filename(
@@ -1673,8 +1676,8 @@ class MusesObservationReflectance(MusesObservationImp):
             self._solar_spectrum = []
             erad = muses_py_dict["Earth_Radiance"]
             srad = muses_py_dict["Solar_Radiance"]
-            for i, flt in enumerate(filter_list):
-                flt_sub = erad["EarthWavelength_Filter"] == flt
+            for i, flt in enumerate([str(i) for i in filter_list]):
+                flt_sub = erad["EarthWavelength_Filter"] == str(flt)
                 self._freq_data.append(erad["Wavelength"][flt_sub])
                 self._nesr_data.append(erad["EarthRadianceNESR"][flt_sub])
                 self._bsamp.append(
@@ -1905,7 +1908,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             # the calibration_filename. This needs to get added before
             # we can use this
             raise RuntimeError("We don't support TROPOMI calibration yet")
-        i_windows = [{"instrument": "TROPOMI", "filter": flt} for flt in filter_list]
+        i_windows = [{"instrument": "TROPOMI", "filter": str(flt)} for flt in filter_list]
         with osp_setup(osp_dir):
             o_tropomi = mpy.read_tropomi(
                 {k: str(v) for (k, v) in filename_dict.items()},
@@ -1941,7 +1944,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             "POINTINGANGLE_TROPOMI_BAND8": -999.0,
         }
         # TODO Fill in POINTINGANGLE_TROPOMI
-        for i, flt in enumerate(filter_list):
+        for i, flt in enumerate([str(i) for i in filter_list]):
             sdesc[f"TROPOMI_XTRACK_INDEX_{flt}"] = np.int16(xtrack_dict[flt])
             sdesc[f"TROPOMI_ATRACK_INDEX_{flt}"] = np.int16(atrack_dict[flt])
             # Think this is right
@@ -1954,8 +1957,8 @@ class MusesTropomiObservation(MusesObservationReflectance):
         return "MusesTropomiObservation"
 
     @property
-    def instrument_name(self):
-        return "TROPOMI"
+    def instrument_name(self) -> InstrumentIdentifier:
+        return InstrumentIdentifier("TROPOMI")
 
     @classmethod
     def create_from_filename(
@@ -1981,7 +1984,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             xtrack_dict,
             atrack_dict,
             utc_time,
-            filter_list,
+            [str(i) for i in filter_list],
             calibration_filename=calibration_filename,
             osp_dir=osp_dir,
         )
@@ -2028,7 +2031,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
                 mp=mp,
             )
         else:
-            filter_list = mid.filter_list_dict["TROPOMI"]
+            filter_list = mid.filter_list_dict[InstrumentIdentifier("TROPOMI")]
             if current_state is not None:
                 coeff, mp = current_state.object_state(
                     cls.state_element_name_list_from_filter(filter_list)
@@ -2049,14 +2052,14 @@ class MusesTropomiObservation(MusesObservationReflectance):
             # sure if we don't have a band 3 here, but follow what that file does.
             xtrack_dict["CLOUD"] = mid["TROPOMI_XTrack_Index_BAND3"]
             atrack_dict["CLOUD"] = mid["TROPOMI_ATrack_Index"]
-            for flt in filter_list:
+            for flt in [str(i) for i in filter_list]:
                 filename_dict[flt] = mid[f"TROPOMI_filename_{flt}"]
                 xtrack_dict[flt] = mid[f"TROPOMI_XTrack_Index_{flt}"]
                 # We happen to have only one atrack in the file, but the
                 # mpy.read_tropomi doesn't assume that so we have one entry
                 # per filter here.
                 atrack_dict[flt] = mid["TROPOMI_ATrack_Index"]
-                if flt in ("BAND7", "BAND8"):
+                if str(flt) in ("BAND7", "BAND8"):
                     filename_dict["IRR_BAND_7to8"] = mid["TROPOMI_IRR_SIR_filename"]
                     xtrack_dict["IRR_BAND_7to8"] = xtrack_dict[flt]
                 else:
@@ -2068,7 +2071,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
                 xtrack_dict,
                 atrack_dict,
                 utc_time,
-                filter_list,
+                [str(i) for i in filter_list],
                 osp_dir=osp_dir,
             )
             obs = cls(o_tropomi, sdesc, filter_list, coeff=coeff, mp=mp)
@@ -2109,21 +2112,21 @@ class MusesTropomiObservation(MusesObservationReflectance):
         """List of state element names for this observation"""
         res = []
         for flt in filter_list:
-            res.append(f"TROPOMISOLARSHIFT{flt}")
+            res.append(f"TROPOMISOLARSHIFT{str(flt)}")
         for flt in filter_list:
-            res.append(f"TROPOMIRADIANCESHIFT{flt}")
+            res.append(f"TROPOMIRADIANCESHIFT{str(flt)}")
         for flt in filter_list:
-            res.append(f"TROPOMIRADSQUEEZE{flt}")
+            res.append(f"TROPOMIRADSQUEEZE{str(flt)}")
         return res
 
     def state_vector_name_i(self, i):
         res = []
         for flt in self.filter_list:
-            res.append(f"Solar Shift {flt}")
+            res.append(f"Solar Shift {str(flt)}")
         for flt in self.filter_list:
-            res.append(f"Radiance Shift {flt}")
+            res.append(f"Radiance Shift {str(flt)}")
         for flt in self.filter_list:
-            res.append(f"Radiance Squeeze {flt}")
+            res.append(f"Radiance Squeeze {str(flt)}")
         return res[i]
 
     def state_element_name_list(self):
@@ -2198,8 +2201,8 @@ class MusesOmiObservation(MusesObservationReflectance):
         return "MusesOmiObservation"
 
     @property
-    def instrument_name(self):
-        return "OMI"
+    def instrument_name(self) -> InstrumentIdentifier:
+        return InstrumentIdentifier("OMI")
 
     @classmethod
     def create_from_filename(
@@ -2270,7 +2273,7 @@ class MusesOmiObservation(MusesObservationReflectance):
                 mp=mp,
             )
         else:
-            filter_list = mid.filter_list_dict["OMI"]
+            filter_list = mid.filter_list_dict[InstrumentIdentifier("OMI")]
             if current_state is not None:
                 coeff, mp = current_state.object_state(
                     cls.state_element_name_list_from_filter(filter_list)
@@ -2346,11 +2349,11 @@ class MusesOmiObservation(MusesObservationReflectance):
     def state_vector_name_i(self, i):
         res = []
         for flt in self.filter_list:
-            res.append(f"Solar Shift {flt}")
+            res.append(f"Solar Shift {str(flt)}")
         for flt in self.filter_list:
-            res.append(f"Radiance Shift {flt}")
+            res.append(f"Radiance Shift {str(flt)}")
         for flt in self.filter_list:
-            res.append(f"Radiance Squeeze {flt}")
+            res.append(f"Radiance Squeeze {str(flt)}")
         return res[i]
 
     def state_element_name_list(self):
@@ -2359,19 +2362,19 @@ class MusesOmiObservation(MusesObservationReflectance):
 
 
 ObservationHandleSet.add_default_handle(
-    MusesObservationHandle("AIRS", MusesAirsObservation)
+    MusesObservationHandle(InstrumentIdentifier("AIRS"), MusesAirsObservation)
 )
 ObservationHandleSet.add_default_handle(
-    MusesObservationHandle("TES", MusesTesObservation)
+    MusesObservationHandle(InstrumentIdentifier("TES"), MusesTesObservation)
 )
 ObservationHandleSet.add_default_handle(
-    MusesObservationHandle("CRIS", MusesCrisObservation)
+    MusesObservationHandle(InstrumentIdentifier("CRIS"), MusesCrisObservation)
 )
 ObservationHandleSet.add_default_handle(
-    MusesObservationHandle("TROPOMI", MusesTropomiObservation)
+    MusesObservationHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiObservation)
 )
 ObservationHandleSet.add_default_handle(
-    MusesObservationHandle("OMI", MusesOmiObservation)
+    MusesObservationHandle(InstrumentIdentifier("OMI"), MusesOmiObservation)
 )
 
 __all__ = [

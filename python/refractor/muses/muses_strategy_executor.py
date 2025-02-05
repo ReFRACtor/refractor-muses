@@ -37,6 +37,7 @@ if typing.TYPE_CHECKING:
     from .state_info import StateInfo
     from .cost_function_creator import CostFunctionCreator
     from .current_state import CurrentState
+    from .identifier import InstrumentIdentifier, FilterIdentifier
 
 
 def log_timing(f):
@@ -166,7 +167,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self._qa_data_handle_set = qa_data_handle_set
 
     @property
-    def filter_list_dict(self) -> dict[str, list[str]]:
+    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for all retrieval steps)"""
         raise NotImplementedError
 
@@ -192,7 +193,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def rf_uip_func_cost_function(
         self, do_systematic, jacobian_speciesIn
-    ) -> Callable[[str], RefractorUip]:
+    ) -> Callable[[InstrumentIdentifier], RefractorUip]:
         return functools.partial(
             self._rf_uip_func,
             do_systematic=do_systematic,
@@ -210,7 +211,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def _rf_uip_func(
         self,
-        instrument: str,
+        instrument: InstrumentIdentifier,
         obs_list: list[MusesObservation] | None = None,
         do_systematic=False,
         jacobian_speciesIn=None,
@@ -270,9 +271,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         }
         for obs in obs_list:
             iname = obs.instrument_name
-            if iname in o_xxx:
+            if str(iname) in o_xxx:
                 if hasattr(obs, "muses_py_dict"):
-                    o_xxx[iname] = obs.muses_py_dict
+                    o_xxx[str(iname)] = obs.muses_py_dict
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             return RefractorUip.create_uip(
                 self.state_info,
@@ -567,13 +568,13 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         """
         with self.chdir_run_dir():
             self.state_info.init_state(
-                self.strategy._stable,
                 self.rs.measurement_id,
                 self.observation_handle_set,
                 self.retrieval_elements_all_step,
                 self.error_analysis_interferents_all_step,
                 self.instrument_name_all_step,
                 self.run_dir,
+                osp_dir=self.osp_dir,
             )
 
         self._restart_and_error_analysis()
