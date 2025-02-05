@@ -541,7 +541,7 @@ class CurrentStateDict(CurrentState):
 
     """
 
-    def __init__(self, state_element_dict: dict, retrieval_element: list[StateElementIdentifier]):
+    def __init__(self, state_element_dict: dict, retrieval_element: list[StateElementIdentifier | str]):
         """This takes a dictionary from state element name to value,
         and a list of retrieval elements. This is useful for creating
         unit tests that don't depend on other objects.
@@ -552,8 +552,8 @@ class CurrentStateDict(CurrentState):
 
         """
         super().__init__()
-        self._state_element_dict = state_element_dict
-        self._retrieval_element = retrieval_element
+        self._state_element_dict = {(k if isinstance(k, StateElementIdentifier) else StateElementIdentifier(k)):v for (k,v) in state_element_dict.items()}
+        self._retrieval_element = [i if isinstance(i, StateElementIdentifier) else StateElementIdentifier(i) for i in retrieval_element]
 
     @property
     def state_element_dict(self) -> dict:

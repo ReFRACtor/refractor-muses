@@ -9,16 +9,36 @@ class Identifier(object, metaclass=abc.ABCMeta):
     We abstract that. It is useful if nothing else to indicate what a
     particular str is for if nothing else. Plus we may find it useful to
     have other identifiers in the future.'''
+
+    # Not clear what all we want here. Right now, just the minimum we need
+    # to have a set that can be used in dict and converted to str that muses_py
+    # wants
     @abc.abstractmethod
     def __str__(self) -> str:
         '''And Identifier should be able to be printed out'''
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def __eq__(self, other):
+        '''Test for equality. Different Identifier objects that point to the same
+        Identifier should be equal (so default test that objects are the same isn't
+        what we want here).'''
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def __hash__(self):
+        '''Hash to go along with __eq__. We want Identifier objects that have the
+        same value with the same hash (so we can find in a dict for example, without
+        the default of the objects being identical)
+        '''
+        raise NotImplementedError
+    
     
 class IdentifierStr(Identifier):
     '''Right now, our identifiers are only str. We may extend this in the
     future, but this would prove a bit complicated and we would want to think
-    through the design'''
+    through the design. But we have all the Identifiers separated out from str, so any
+    future changes should have the plumbing in place to support.'''
     def __init__(self, s):
         self.s = s
 

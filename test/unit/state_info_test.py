@@ -3,6 +3,7 @@ from refractor.muses import (
     SingleSpeciesHandle,
     OmiEofStateElement,
     RetrievalStrategy,
+    StateElementIdentifier
 )
 import subprocess
 from fixtures.misc_fixture import all_output_disabled
@@ -34,8 +35,8 @@ def test_state_info(
         pass
     sinfo = rs.state_info
     assert sinfo.sounding_metadata().wrong_tai_time == pytest.approx(839312679.58409)
-    assert sinfo.state_element("emissivity").value[0] == pytest.approx(0.98081997)
-    assert sinfo.state_element("emissivity").wavelength[0] == pytest.approx(600)
+    assert sinfo.state_element(StateElementIdentifier("emissivity")).value[0] == pytest.approx(0.98081997)
+    assert sinfo.state_element(StateElementIdentifier("emissivity")).wavelength[0] == pytest.approx(600)
     assert sinfo.sounding_metadata().latitude.value == pytest.approx(62.8646)
     assert sinfo.sounding_metadata().longitude.value == pytest.approx(81.0379)
     assert sinfo.sounding_metadata().surface_altitude.convert(
@@ -44,13 +45,13 @@ def test_state_info(
     assert sinfo.sounding_metadata().tai_time == pytest.approx(839312683.58409)
     assert sinfo.sounding_metadata().sounding_id == "20190807_065_04_08_5"
     assert sinfo.sounding_metadata().is_land
-    assert sinfo.state_element("cloudEffExt").value[0, 0] == pytest.approx(1e-29)
-    assert sinfo.state_element("cloudEffExt").wavelength[0] == pytest.approx(600)
-    assert sinfo.state_element("PCLOUD").value[0] == pytest.approx(500.0)
-    assert sinfo.state_element("PSUR").value[0] == pytest.approx(0.0)
+    assert sinfo.state_element(StateElementIdentifier("cloudEffExt")).value[0, 0] == pytest.approx(1e-29)
+    assert sinfo.state_element(StateElementIdentifier("cloudEffExt")).wavelength[0] == pytest.approx(600)
+    assert sinfo.state_element(StateElementIdentifier("PCLOUD")).value[0] == pytest.approx(500.0)
+    assert sinfo.state_element(StateElementIdentifier("PSUR")).value[0] == pytest.approx(0.0)
     assert sinfo.sounding_metadata().local_hour == pytest.approx(11.40252685546875)
     assert sinfo.sounding_metadata().height.value[0] == 0
-    assert sinfo.state_element("TATM").value[0] == pytest.approx(293.28302002)
+    assert sinfo.state_element(StateElementIdentifier("TATM")).value[0] == pytest.approx(293.28302002)
 
 
 def test_update_cloudfraction(omi_step_0):
@@ -60,7 +61,7 @@ def test_update_cloudfraction(omi_step_0):
     rs, _, _ = omi_step_0
     sinfo = rs.state_info
     rs._strategy_executor.restart()
-    selement = sinfo.state_element("OMICLOUDFRACTION")
+    selement = sinfo.state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
@@ -174,7 +175,7 @@ def test_update_cloudfraction(omi_step_0):
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
     rs._strategy_executor.next_step()
-    selement = sinfo.state_element("OMICLOUDFRACTION")
+    selement = sinfo.state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"
@@ -234,7 +235,7 @@ def test_noupdate_cloudfraction(omi_step_0):
     rs, _, _ = omi_step_0
     sinfo = rs.state_info
     rs._strategy_executor.restart()
-    selement = sinfo.state_element("OMICLOUDFRACTION")
+    selement = sinfo.state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
@@ -348,7 +349,7 @@ def test_noupdate_cloudfraction(omi_step_0):
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
     rs._strategy_executor.next_step()
-    selement = sinfo.state_element("OMICLOUDFRACTION")
+    selement = sinfo.state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"
@@ -425,19 +426,19 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
             rs.add_observer(RetrievalStrategyStop())
             rs.state_element_handle_set.add_handle(
                 SingleSpeciesHandle(
-                    "OMIEOFUV1",
+                    StateElementIdentifier("OMIEOFUV1"),
                     OmiEofStateElement,
                     pass_state=False,
-                    name="OMIEOFUV1",
+                    name=StateElementIdentifier("OMIEOFUV1"),
                     number_eof=3,
                 )
             )
             rs.state_element_handle_set.add_handle(
                 SingleSpeciesHandle(
-                    "OMIEOFUV2",
+                    StateElementIdentifier("OMIEOFUV2"),
                     OmiEofStateElement,
                     pass_state=False,
-                    name="OMIEOFUV2",
+                    name=StateElementIdentifier("OMIEOFUV2"),
                     number_eof=3,
                 )
             )
@@ -446,7 +447,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
         pass
     sinfo = rs.state_info
     rs._strategy_executor.restart()
-    selement = sinfo.state_element("OMIEOFUV1")
+    selement = sinfo.state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
@@ -503,7 +504,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
     rs._strategy_executor.next_step()
-    selement = sinfo.state_element("OMIEOFUV1")
+    selement = sinfo.state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"
@@ -546,17 +547,17 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
             rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandle("OMIEOFUV1", OmiEofStateElement, pass_state=False)
+                SingleSpeciesHandle(StateElementIdentifier("OMIEOFUV1"), OmiEofStateElement, pass_state=False)
             )
             rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandle("OMIEOFUV2", OmiEofStateElement, pass_state=False)
+                SingleSpeciesHandle(StateElementIdentifier("OMIEOFUV2"), OmiEofStateElement, pass_state=False)
             )
             rs.retrieval_ms()
     except StopIteration:
         pass
     sinfo = rs.state_info
     rs._strategy_executor.restart()
-    selement = sinfo.state_element("OMIEOFUV1")
+    selement = sinfo.state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.mapType == "linear"
@@ -613,7 +614,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
     # Go to the next step, and check that the state element is updated
     sinfo.next_state_to_current()
     rs._strategy_executor.next_step()
-    selement = sinfo.state_element("OMIEOFUV1")
+    selement = sinfo.state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
     assert selement.mapType == "linear"

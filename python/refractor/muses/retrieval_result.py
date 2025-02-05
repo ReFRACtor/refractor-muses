@@ -147,7 +147,7 @@ class RetrievalResult:
         for i in range(len(self.rstep.filterNames)):
             ff0.append(
                 [
-                    self.rstep.filterNames[i],
+                    str(self.rstep.filterNames[i]),
                 ]
                 * self.rstep.filterSizes[i]
             )

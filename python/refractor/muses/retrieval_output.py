@@ -837,7 +837,7 @@ class CdfWriteTes:
             runs,
             starttai,
             endtai,
-            instrument,
+            [str(i) for i in instrument],
             directory,
             pressuresMax,
             qualityFilename,

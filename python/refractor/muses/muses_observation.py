@@ -19,11 +19,10 @@ import collections.abc
 import re
 from typing import Tuple
 import typing
-from .identifier import InstrumentIdentifier, StateElementIdentifier
+from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIdentifier
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .identifier import FilterIdentifier
 
 
 def _new_from_init(cls, *args):
@@ -388,7 +387,7 @@ class MusesObservationImp(MusesObservation):
             fname = self.filter_list[i]
             res.append(
                 np.asarray(self.observation_table["XTRACK"])[
-                    np.asarray(self.observation_table["Filter_Band_Name"]) == fname
+                    np.asarray(self.observation_table["Filter_Band_Name"]) == str(fname)
                 ][0]
             )
         return res
@@ -408,7 +407,7 @@ class MusesObservationImp(MusesObservation):
         fname = self.filter_list[sensor_index]
         return np.mean(
             np.asarray(self.observation_table[nm])[
-                np.asarray(self.observation_table["Filter_Band_Name"]) == fname
+                np.asarray(self.observation_table["Filter_Band_Name"]) == str(fname)
             ]
         )
 
@@ -2330,7 +2329,7 @@ class MusesOmiObservation(MusesObservationReflectance):
 
     def snr_uplimit(self, sensor_index):
         """Upper limit for SNR, we adjust uncertainty is we are greater than this."""
-        if self.filter_list[sensor_index] == "UV2":
+        if self.filter_list[sensor_index] == FilterIdentifier("UV2"):
             return 800.0
         return 500.0
 

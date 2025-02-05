@@ -5,7 +5,9 @@ from refractor.muses import (
     ForwardModelHandle,
     MusesRaman,
     SurfaceAlbedo,
-    InstrumentIdentifier
+    InstrumentIdentifier,
+    FilterIdentifier,
+    StateElementIdentifier
 )
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf  # type: ignore
@@ -159,10 +161,10 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         res: dict[str, list[rf.EmpiricalOrthogonalFunction]] = {}
         for i in range(self.num_channels):
             filter_name = self.observation.filter_list[i]
-            if filter_name not in ("UV1", "UV2"):
+            if str(filter_name) not in ("UV1", "UV2"):
                 continue
             selem = [
-                f"OMIEOF{filter_name}",
+                StateElementIdentifier(f"OMIEOF{filter_name}"),
             ]
             coeff, mp = self.current_state.object_state(selem)
             r = []
@@ -181,9 +183,9 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 uv1_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv1', uv1_index))}"
                 uv2_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv2', uv2_index))}"
 
-                if filter_name == "UV1":
+                if filter_name == FilterIdentifier("UV1"):
                     eof_fname = uv1_fname
-                elif filter_name == "UV2":
+                elif filter_name == FilterIdentifier("UV2"):
                     eof_fname = uv2_fname
 
                 # Note: We hit this code when retrieving cloud fraction which uses 7 freq. and 1 microwin
@@ -268,19 +270,19 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         band_reference = np.zeros(self.num_channels)
         selem_all = []
         for i in range(self.num_channels):
-            if self.filter_list[i] == "UV1":
+            if self.filter_list[i] == FilterIdentifier("UV1"):
                 band_reference[i] = (315 + 262) / 2.0
                 selem = [
-                    "OMISURFACEALBEDOUV1",
+                    StateElementIdentifier("OMISURFACEALBEDOUV1"),
                 ]
                 coeff, mp = self.current_state.object_state(selem)
                 albedo[i, 0:1] = coeff
                 which_retrieved[i, mp.retrieval_indexes] = True
                 selem_all.extend(selem)
-            elif self.filter_list[i] == "UV2":
+            elif self.filter_list[i] == FilterIdentifier("UV2"):
                 # Note this value is hardcoded in print_omi_surface_albedo
                 band_reference[i] = 320.0
-                selem = ["OMISURFACEALBEDOUV2", "OMISURFACEALBEDOSLOPEUV2"]
+                selem = [StateElementIdentifier("OMISURFACEALBEDOUV2"), StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2")]
                 coeff, mp = self.current_state.object_state(selem)
                 albedo[i, 0:2] = coeff
                 which_retrieved[i, mp.retrieval_indexes] = True
@@ -291,7 +293,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             albedo,
             rf.ArrayWithUnit(band_reference, "nm"),
             rf.Unit("nm"),
-            self.filter_list,
+            [str(i) for i in self.filter_list],
             rf.StateMappingAtIndexes(np.ravel(which_retrieved)),
         )
         self.current_state.add_fm_state_vector_if_needed(
@@ -327,7 +329,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def cloud_fraction(self) -> float:
         selem = [
-            "OMICLOUDFRACTION",
+            StateElementIdentifier("OMICLOUDFRACTION"),
         ]
         coeff, mp = self.current_state.object_state(selem)
         cf = rf.CloudFractionFromState(float(coeff[0]))

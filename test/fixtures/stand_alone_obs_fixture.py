@@ -9,6 +9,8 @@ from refractor.muses import (
     MusesOmiObservation,
     MusesAirsObservation,
     DictFilterMetadata,
+    FilterIdentifier,
+    InstrumentIdentifier
 )
 
 
@@ -42,7 +44,7 @@ def joint_tropomi_obs_step_12(osp_dir, joint_tropomi_test_in_dir):
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
     )
-    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("TROPOMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     granule = 65
     xtrack = 8
@@ -55,7 +57,7 @@ def joint_tropomi_obs_step_12(osp_dir, joint_tropomi_test_in_dir):
     obscris = MusesCrisObservation.create_from_filename(
         fname, granule, xtrack, atrack, pixel_index, osp_dir=osp_dir
     )
-    obscris.spectral_window = swin_dict["CRIS"]
+    obscris.spectral_window = swin_dict[InstrumentIdentifier("CRIS")]
     obscris.spectral_window.add_bad_sample_mask(obscris)
     return [obscris, obs]
 
@@ -75,14 +77,14 @@ def joint_omi_obs_step_8(osp_dir, joint_omi_test_in_dir):
         / "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
     )
     utc_time = "2016-04-01T23:07:33.676106Z"
-    filter_list = ["UV1", "UV2"]
+    filter_list = [FilterIdentifier("UV1"), FilterIdentifier("UV2")]
     mwfile = (
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    channel_list = ["1A1", "2A1", "1B2", "2B1"]
+    channel_list = [FilterIdentifier("1A1"), FilterIdentifier("2A1"), FilterIdentifier("1B2"), FilterIdentifier("2B1")]
     swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"OMI": filter_list, "AIRS": channel_list}
+        mwfile, filter_list_dict={InstrumentIdentifier("OMI"): filter_list, InstrumentIdentifier("AIRS"): channel_list}
     )
     obs = MusesOmiObservation.create_from_filename(
         filename,
@@ -95,7 +97,7 @@ def joint_omi_obs_step_8(osp_dir, joint_omi_test_in_dir):
         cld_filename=cld_filename,
         osp_dir=osp_dir,
     )
-    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("OMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     granule = 231
     xtrack = 29
@@ -107,7 +109,7 @@ def joint_omi_obs_step_8(osp_dir, joint_omi_test_in_dir):
     obs_airs = MusesAirsObservation.create_from_filename(
         fname, granule, xtrack, atrack, channel_list, osp_dir=osp_dir
     )
-    obs_airs.spectral_window = swin_dict["AIRS"]
+    obs_airs.spectral_window = swin_dict[InstrumentIdentifier("AIRS")]
     obs_airs.spectral_window.add_bad_sample_mask(obs_airs)
     return [obs_airs, obs]
 
@@ -148,7 +150,7 @@ def tropomi_obs_step_1(osp_dir, tropomi_test_in_dir):
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
     )
-    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("TROPOMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
@@ -189,7 +191,7 @@ def tropomi_obs_step_2(osp_dir, tropomi_test_in_dir):
     obs = MusesTropomiObservation.create_from_filename(
         filename_dict, xtrack_dict, atrack_dict, utc_time, filter_list, osp_dir=osp_dir
     )
-    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("TROPOMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
@@ -210,13 +212,13 @@ def omi_obs_step_1(osp_dir, omi_test_in_dir):
         / "OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
     )
     utc_time = "2016-04-14T23:59:46.000000Z"
-    filter_list = ["UV1", "UV2"]
+    filter_list = [FilterIdentifier("UV1"), FilterIdentifier("UV2")]
     mwfile = (
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_OMICLOUDFRACTION_OMICLOUD_IG_Refine.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"OMI": filter_list}
+        mwfile, filter_list_dict={InstrumentIdentifier("OMI"): filter_list}
     )
     obs = MusesOmiObservation.create_from_filename(
         filename,
@@ -229,7 +231,7 @@ def omi_obs_step_1(osp_dir, omi_test_in_dir):
         cld_filename=cld_filename,
         osp_dir=osp_dir,
     )
-    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("OMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs
 
@@ -250,12 +252,12 @@ def omi_obs_step_2(osp_dir, omi_test_in_dir):
         / "OMI-Aura_L2-OMCLDO2_2016m0414t2324-o62498_v003-2016m0415t051902.he5"
     )
     utc_time = "2016-04-14T23:59:46.000000Z"
-    filter_list = ["UV1", "UV2"]
+    filter_list = [FilterIdentifier("UV1"), FilterIdentifier("UV2")]
     mwfile = (
         osp_dir / "Strategy_Tables/ops/OSP-OMI-v2/MWDefinitions/Windows_Nadir_O3.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={"OMI": filter_list}
+        mwfile, filter_list_dict={InstrumentIdentifier("OMI"): filter_list}
     )
     obs = MusesOmiObservation.create_from_filename(
         filename,
@@ -268,6 +270,6 @@ def omi_obs_step_2(osp_dir, omi_test_in_dir):
         cld_filename=cld_filename,
         osp_dir=osp_dir,
     )
-    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("OMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     return obs

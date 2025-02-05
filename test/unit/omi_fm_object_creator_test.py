@@ -1,6 +1,7 @@
 import numpy.testing as npt
 import refractor.framework as rf
 from refractor.omi import OmiFmObjectCreator
+from refractor.muses import InstrumentIdentifier
 
 
 def test_solar_model(omi_fm_object_creator_step_0):
@@ -100,10 +101,10 @@ def test_fm_run_step2(omi_fm_object_creator_step_1):
         omi_fm_object_creator_step_1.current_state,
         omi_fm_object_creator_step_1.measurement_id,
         omi_fm_object_creator_step_1.rs.observation_handle_set.observation(
-            "OMI",
+            InstrumentIdentifier("OMI"),
             omi_fm_object_creator_step_1.current_state,
             omi_fm_object_creator_step_1.rs.current_strategy_step.spectral_window_dict[
-                "OMI"
+                InstrumentIdentifier("OMI")
             ],
             None,
             osp_dir=omi_fm_object_creator_step_1.osp_dir,

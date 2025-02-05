@@ -1,6 +1,6 @@
 import os
 import pytest
-from refractor.muses import MusesRunDir, RetrievalStrategy
+from refractor.muses import MusesRunDir, RetrievalStrategy, InstrumentIdentifier
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
 from pathlib import Path
@@ -164,14 +164,14 @@ def tropomi_fm_object_creator_step_0(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)("TROPOMI")
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(InstrumentIdentifier("TROPOMI"))
     res = TropomiFmObjectCreator(
         rs.current_state(),
         rs.measurement_id,
         rs.observation_handle_set.observation(
-            "TROPOMI",
+            InstrumentIdentifier("TROPOMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict["TROPOMI"],
+            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
             None,
             osp_dir=osp_dir,
         ),
@@ -209,9 +209,9 @@ def tropomi_fm_object_creator_swir_step(
         rs.current_state(),
         rs.measurement_id,
         rs.observation_handle_set.observation(
-            "TROPOMI",
+            InstrumentIdentifier("TROPOMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict["TROPOMI"],
+            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
             None,
             osp_dir=josh_osp_dir,
         ),
@@ -241,14 +241,14 @@ def tropomi_fm_object_creator_step_1(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)("TROPOMI")
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(InstrumentIdentifier("TROPOMI"))
     res = TropomiFmObjectCreator(
         rs.current_state(),
         rs.measurement_id,
         rs.observation_handle_set.observation(
-            "TROPOMI",
+            InstrumentIdentifier("TROPOMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict["TROPOMI"],
+            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
             None,
             osp_dir=osp_dir,
         ),
@@ -278,14 +278,14 @@ def omi_fm_object_creator_step_0(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)("OMI")
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(InstrumentIdentifier("OMI"))
     res = OmiFmObjectCreator(
         rs.current_state(),
         rs.measurement_id,
         rs.observation_handle_set.observation(
-            "OMI",
+            InstrumentIdentifier("OMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict["OMI"],
+            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
             None,
             osp_dir=osp_dir,
         ),
@@ -315,14 +315,14 @@ def omi_fm_object_creator_step_1(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)("OMI")
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(InstrumentIdentifier("OMI"))
     res = OmiFmObjectCreator(
         rs.current_state(),
         rs.measurement_id,
         rs.observation_handle_set.observation(
-            "OMI",
+            InstrumentIdentifier("OMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict["OMI"],
+            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
             None,
             osp_dir=osp_dir,
         ),

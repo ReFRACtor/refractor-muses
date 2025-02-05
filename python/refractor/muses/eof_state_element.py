@@ -1,5 +1,6 @@
 from __future__ import annotations
 from .state_info import RetrievableStateElement, StateInfo
+from .identifier import StateElementIdentifier, InstrumentIdentifier
 import numpy as np
 from typing import Tuple
 import typing
@@ -23,7 +24,8 @@ class OmiEofStateElement(RetrievableStateElement):
 
     """
 
-    def __init__(self, state_info: StateInfo, name="OMIEOFUV1", number_eof=3):
+    def __init__(self, state_info: StateInfo, name=StateElementIdentifier("OMIEOFUV1"),
+                 number_eof=3):
         super().__init__(state_info, name)
         self._value = np.zeros(number_eof)
         self._constraint = self._value.copy()
@@ -42,13 +44,13 @@ class OmiEofStateElement(RetrievableStateElement):
         return self._value
 
     def should_write_to_l2_product(self, instruments) -> bool:
-        if "OMI" in instruments:
+        if InstrumentIdentifier("OMI") in instruments:
             return True
         return False
 
     def net_cdf_variable_name(self) -> str:
         # Want names like OMI_EOF_UV1
-        return self.name.replace("EOF", "_EOF_")
+        return str(self.name).replace("EOF", "_EOF_")
 
     def net_cdf_struct_units(self) -> dict:
         """Returns the attributes attached to a netCDF write out of this
@@ -73,7 +75,7 @@ class OmiEofStateElement(RetrievableStateElement):
         # of this to reset the value
         if not update_next:
             self.state_info.next_state[self.name] = self.clone_for_other_state()
-        self._value = results_list[retrieval_info.species_list == self._name]
+        self._value = results_list[retrieval_info.species_list == str(self._name)]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"

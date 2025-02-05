@@ -7,7 +7,8 @@ from refractor.muses import (
     MusesRaman,
     CurrentState,
     SurfaceAlbedo,
-    InstrumentIdentifier
+    InstrumentIdentifier,
+    StateElementIdentifier
 )
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf  # type: ignore
@@ -175,7 +176,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         return self.measurement_id["ils_tropomi_xsection"]
 
     def instrument_hwhm(self, sensor_index: int) -> rf.DoubleWithUnit:
-        band_name = self.filter_list[sensor_index]
+        band_name = str(self.filter_list[sensor_index])
         if band_name == "BAND7":
             # JLL: testing different values of HWHM with the IlsGrating component,
             # this value (= a 0.2 nm difference at 2330 nm) gave output spectra that
@@ -208,15 +209,15 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             filter_name = self.filter_list[i]
 
             selem = [
-                f"TROPOMIRESSCALEO0{filter_name}",
-                f"TROPOMIRESSCALEO1{filter_name}",
-                f"TROPOMIRESSCALEO2{filter_name}",
+                StateElementIdentifier(f"TROPOMIRESSCALEO0{filter_name}"),
+                StateElementIdentifier(f"TROPOMIRESSCALEO1{filter_name}"),
+                StateElementIdentifier(f"TROPOMIRESSCALEO2{filter_name}"),
             ]
             coeff, mp = self.current_state.object_state(selem)
             rscale = rf.RadianceScalingSvMusesFit(
                 coeff,
                 rf.DoubleWithUnit(self.reference_wavelength(i), "nm"),
-                filter_name,
+                str(filter_name),
             )
             self.current_state.add_fm_state_vector_if_needed(
                 self.fm_sv,
@@ -232,11 +233,11 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     def temperature(self) -> rf.Temperature:
         tlev_fm, _ = self.current_state.object_state(
             [
-                "TATM",
+                StateElementIdentifier("TATM"),
             ]
         )
         selem = [
-            "TROPOMITEMPSHIFTBAND3",
+            StateElementIdentifier("TROPOMITEMPSHIFTBAND3"),
         ]
         coeff, _ = self.current_state.object_state(selem)
         tlevel = rf.TemperatureLevel(tlev_fm, self.pressure_fm)
@@ -259,13 +260,13 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         selem = []
         for i in range(self.num_channels):
             filt_name = self.filter_list[i]
-            if re.match(r"BAND\d$", filt_name) is not None:
+            if re.match(r"BAND\d$", str(filt_name)) is not None:
                 band_reference[i] = self.reference_wavelength(i)
                 selem.extend(
                     [
-                        f"TROPOMISURFACEALBEDO{filt_name}",
-                        f"TROPOMISURFACEALBEDOSLOPE{filt_name}",
-                        f"TROPOMISURFACEALBEDOSLOPEORDER2{filt_name}",
+                        StateElementIdentifier(f"TROPOMISURFACEALBEDO{filt_name}"),
+                        StateElementIdentifier(f"TROPOMISURFACEALBEDOSLOPE{filt_name}"),
+                        StateElementIdentifier(f"TROPOMISURFACEALBEDOSLOPEORDER2{filt_name}"),
                     ]
                 )
             else:
@@ -277,7 +278,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             albedo,
             rf.ArrayWithUnit(band_reference, "nm"),
             rf.Unit("nm"),
-            self.filter_list,
+            [str(i) for i in self.filter_list],
             mp,
         )
         self.current_state.add_fm_state_vector_if_needed(
@@ -296,7 +297,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         band_reference = np.zeros(self.num_channels)
         band_reference[:] = 1000
         selem = [
-            "TROPOMICLOUDSURFACEALBEDO",
+            StateElementIdentifier("TROPOMICLOUDSURFACEALBEDO"),
         ]
         coeff, mp = self.current_state.object_state(selem)
         albedo[:, 0] = coeff[0]
@@ -321,7 +322,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     @cached_property
     def cloud_fraction(self) -> float:
         selem = [
-            "TROPOMICLOUDFRACTION",
+            StateElementIdentifier("TROPOMICLOUDFRACTION"),
         ]
         coeff, mp = self.current_state.object_state(selem)
         cf = rf.CloudFractionFromState(float(coeff[0]))
@@ -350,12 +351,12 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # on the muses_fm_spectral_domain. But this is what muses-py
         # does, so we'll match that for now.
         selem = [
-            f"TROPOMIRINGSF{self.filter_list[i]}",
+            StateElementIdentifier(f"TROPOMIRINGSF{self.filter_list[i]}"),
         ]
-        if self.filter_list[i] in ("BAND1", "BAND2", "BAND3"):
+        if str(self.filter_list[i]) in ("BAND1", "BAND2", "BAND3"):
             coeff, mp = self.current_state.object_state(selem)
             scale_factor = float(coeff[0])
-        elif self.filter_list[i] in ("BAND7", "BAND8"):
+        elif str(self.filter_list[i]) in ("BAND7", "BAND8"):
             # JLL: The SWIR bands should not need to account for Raman scattering -
             # Vijay has never seen Raman scattering accounted for in the CO band.
             scale_factor = None
@@ -418,12 +419,12 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
     @lru_cache(maxsize=None)
     def raman_effect_refractor(self, i: int) -> rf.RamanSiorisEffect:
         selem = [
-            f"TROPOMIRINGSF{self.filter_list[i]}",
+            StateElementIdentifier(f"TROPOMIRINGSF{self.filter_list[i]}"),
         ]
-        if self.filter_list[i] in ("BAND1", "BAND2", "BAND3"):
+        if str(self.filter_list[i]) in ("BAND1", "BAND2", "BAND3"):
             coeff, mp = self.current_state.object_state(selem)
             scale_factor = float(coeff[0])
-        elif self.filter_list[i] in ("BAND7", "BAND8"):
+        elif str(self.filter_list[i]) in ("BAND7", "BAND8"):
             # JLL: The SWIR bands should not need to account for Raman scattering -
             # Vijay has never seen Raman scattering accounted for in the CO band.
             scale_factor = None

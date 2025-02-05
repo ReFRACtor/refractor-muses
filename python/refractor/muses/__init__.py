@@ -36,8 +36,9 @@ if _typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
     from .strategy_table import StrategyTable
     from .current_state import CurrentState, CurrentStateUip
-    from .muses_observation import MeasurementId, MusesObservation, MusesOmiObservation
-    from .filter_metadata import FileFilterMetadata
+    from .muses_observation import MeasurementId, MusesObservation, MusesOmiObservation, MusesTropomiObservation, MusesCrisObservation, MusesAirsObservation
+    from .identifier import FilterIdentifier, InstrumentIdentifier
+    from .filter_metadata import FileFilterMetadata, DictFilterMetadata
     from .refractor_uip import RefractorUip
     from .replace_function_helper import (
         suppress_replacement,

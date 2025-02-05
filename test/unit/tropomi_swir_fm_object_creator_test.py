@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 import refractor.framework as rf
+from refractor.muses import InstrumentIdentifier
 import pytest
 
 
@@ -11,7 +12,7 @@ def test_ground_albedo(tropomi_fm_object_creator_swir_step):
     This is to test that changes to add new bands do not cause it to
     accidentally get the wrong values.
     """
-    uip = tropomi_fm_object_creator_swir_step.rf_uip_func("TROPOMI")
+    uip = tropomi_fm_object_creator_swir_step.rf_uip_func(InstrumentIdentifier("TROPOMI"))
     obj_albedo_coeffs = (
         tropomi_fm_object_creator_swir_step.ground_clear.albedo_coefficients(0).value
     )
@@ -58,7 +59,7 @@ def test_absorber(tropomi_fm_object_creator_swir_step):
 
 
 def test_vmr(tropomi_fm_object_creator_swir_step):
-    uip = tropomi_fm_object_creator_swir_step.rf_uip_func("TROPOMI")
+    uip = tropomi_fm_object_creator_swir_step.rf_uip_func(InstrumentIdentifier("TROPOMI"))
     for i, name in enumerate(tropomi_fm_object_creator_swir_step.absorption_gases):
         obj_vmrs = tropomi_fm_object_creator_swir_step.absorber_vmr[i].vmr_profile
         uip_vmrs = uip.atmosphere_column(name)

@@ -4,6 +4,7 @@ from .priority_handle_set import PriorityHandleSet
 from .observation_handle import mpy_radiance_from_observation_list
 from .tes_file import TesFile
 from .order_species import order_species
+from .identifier import StateElementIdentifier
 import refractor.muses.muses_py as mpy  # type: ignore
 from loguru import logger
 import copy
@@ -1072,20 +1073,20 @@ class StateInfo:
         for the UIP. Note we are trying to move away from the UIP, it is just a shuffling around
         of data found in the StateInfo. But for now go ahead and support this."""
         return {
-            "surface_albedo_uv1": self.state_element("OMISURFACEALBEDOUV1").value[0],
-            "surface_albedo_uv2": self.state_element("OMISURFACEALBEDOUV2").value[0],
+            "surface_albedo_uv1": self.state_element(StateElementIdentifier("OMISURFACEALBEDOUV1")).value[0],
+            "surface_albedo_uv2": self.state_element(StateElementIdentifier("OMISURFACEALBEDOUV2")).value[0],
             "surface_albedo_slope_uv2": self.state_element(
-                "OMISURFACEALBEDOSLOPEUV2"
+                StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2")
             ).value[0],
-            "nradwav_uv1": self.state_element("OMINRADWAVUV1").value[0],
-            "nradwav_uv2": self.state_element("OMINRADWAVUV2").value[0],
-            "odwav_uv1": self.state_element("OMIODWAVUV1").value[0],
-            "odwav_uv2": self.state_element("OMIODWAVUV2").value[0],
-            "odwav_slope_uv1": self.state_element("OMIODWAVSLOPEUV1").value[0],
-            "odwav_slope_uv2": self.state_element("OMIODWAVSLOPEUV2").value[0],
-            "ring_sf_uv1": self.state_element("OMIRINGSFUV1").value[0],
-            "ring_sf_uv2": self.state_element("OMIRINGSFUV2").value[0],
-            "cloud_fraction": self.state_element("OMICLOUDFRACTION").value[0],
+            "nradwav_uv1": self.state_element(StateElementIdentifier("OMINRADWAVUV1")).value[0],
+            "nradwav_uv2": self.state_element(StateElementIdentifier("OMINRADWAVUV2")).value[0],
+            "odwav_uv1": self.state_element(StateElementIdentifier("OMIODWAVUV1")).value[0],
+            "odwav_uv2": self.state_element(StateElementIdentifier("OMIODWAVUV2")).value[0],
+            "odwav_slope_uv1": self.state_element(StateElementIdentifier("OMIODWAVSLOPEUV1")).value[0],
+            "odwav_slope_uv2": self.state_element(StateElementIdentifier("OMIODWAVSLOPEUV2")).value[0],
+            "ring_sf_uv1": self.state_element(StateElementIdentifier("OMIRINGSFUV1")).value[0],
+            "ring_sf_uv2": self.state_element(StateElementIdentifier("OMIRINGSFUV2")).value[0],
+            "cloud_fraction": self.state_element(StateElementIdentifier("OMICLOUDFRACTION")).value[0],
             "cloud_pressure": o_omi["Cloud"]["CloudPressure"],
             "cloud_Surface_Albedo": 0.8,
             "xsecscaling": 1.0,
@@ -1183,12 +1184,12 @@ class StateInfo:
         else:
             raise RuntimeError("step must be initialInitial, initial, or current")
 
-    def state_element(self, name : StateElementIdentifier, step="current"):
+    def state_element(self, name : StateElementIdentifier | str, step="current"):
         """Return the state element with the given name."""
         # We create the StateElement objects on first use
         if str(name) not in self.current:
             (self.initialInitial[str(name)], self.initial[str(name)], self.current[str(name)]) = (
-                self.state_element_handle_set.state_element_object(self, name)
+                self.state_element_handle_set.state_element_object(self, name if isinstance(name, StateElementIdentifier) else StateElementIdentifier(name))
             )
         if step == "initialInitial":
             return self.initialInitial[str(name)]

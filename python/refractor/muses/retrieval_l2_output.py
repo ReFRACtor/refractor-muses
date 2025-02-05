@@ -4,6 +4,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes
+from .identifier import InstrumentIdentifier
 import numpy as np
 import typing
 
@@ -125,7 +126,7 @@ class RetrievalL2Output(RetrievalOutput):
 
         if self.spcname == "H2O" and self.dataTATM is not None:
             self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-RH-{self.number_steps_left(self.spcname)}.nc"
-            if "OCO2" not in self.instruments:
+            if InstrumentIdentifier("OCO2") not in self.instruments:
                 t = CdfWriteTes()
                 t.write_lite(
                     self.step_number,
@@ -141,7 +142,7 @@ class RetrievalL2Output(RetrievalOutput):
                 )
 
         self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.number_steps_left(self.spcname)}.nc"
-        if "OCO2" not in self.instruments:
+        if InstrumentIdentifier("OCO2") not in self.instruments:
             t = CdfWriteTes()
             data2 = t.write_lite(
                 self.step_number,
@@ -226,7 +227,7 @@ class RetrievalL2Output(RetrievalOutput):
             logger.warning(
                 "There is a block of code in the muses-py for reporting true values. We don't have that code, because we don't have any test data for this. So skipping."
             )
-        if "OCO-2" in self.instruments:
+        if InstrumentIdentifier("OCO-2") in self.instruments:
             # TODO If we get sample data, we can put this back in
             logger.warning(
                 "There is a block of code in the muses-py for reporting OCO-2 values. We don't have that code, because we don't have any test data for this. So skipping."
@@ -465,7 +466,7 @@ class RetrievalL2Output(RetrievalOutput):
         )
 
         # ==============> Cleanup to this point
-        if "OMI" in self.instruments:
+        if InstrumentIdentifier("OMI") in self.instruments:
             # Make all names uppercased to make life easier.
             species_data.OMI_SZA_UV2 = self.state_info.state_info_obj.current["omi"][
                 "sza_uv2"
@@ -550,7 +551,7 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.OMI_RINGSFUV2 = self.state_info.state_info_obj.current["omi"][
                 "ring_sf_uv2"
             ]
-        if "TROPOMI" in self.instruments:
+        if InstrumentIdentifier("TROPOMI") in self.instruments:
             # As with OMI, make all names uppercased to make life easier.
             # EM NOTE - This will have to be expanded if additional tropomi bands are used
             species_data.TROPOMI_SZA_BAND1 = self.state_info.state_info_obj.current[

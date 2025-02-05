@@ -3,6 +3,7 @@ import numpy as np
 import math
 import refractor.framework as rf  # type: ignore
 import refractor.muses.muses_py as mpy  # type: ignore
+from .identifier import InstrumentIdentifier
 import os
 from typing import Any
 import typing
@@ -50,9 +51,9 @@ class MusesOpticalDepth(rf.AbsorberXSec):
             if self.obs.spectral_domain(i).data.shape[0] == 0:
                 t1 = []
                 t2 = []
-            elif self.obs.instrument_name == "TROPOMI":
+            elif self.obs.instrument_name == InstrumentIdentifier("TROPOMI"):
                 t1, t2 = self._xsect_tropomi_ils(i)
-            elif self.obs.instrument_name == "OMI":
+            elif self.obs.instrument_name == InstrumentIdentifier("OMI"):
                 t1, t2 = self._xsect_omi_ils(i)
             else:
                 raise RuntimeError(

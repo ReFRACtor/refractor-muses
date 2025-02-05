@@ -3,6 +3,7 @@ from functools import cached_property, lru_cache
 from .muses_optical_depth import MusesOpticalDepth
 from .muses_spectrum_sampling import MusesSpectrumSampling
 from .muses_forward_model import RefractorForwardModel
+from .identifier import StateElementIdentifier
 import refractor.framework as rf  # type: ignore
 import os
 from pathlib import Path
@@ -250,7 +251,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         for i in range(self.num_channels):
             sg = rf.SampleGridSpectralDomain(
                 self.observation.spectral_domain_full(i),
-                self.observation.filter_list[i],
+                str(self.observation.filter_list[i]),
             )
             if self.ils_method(i) == "FASTCONV":
                 iparms = self.ils_params(i)
@@ -265,8 +266,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     iparms["where_extract"],
                     sg,
                     high_res_ext,
-                    self.filter_list[i],
-                    self.filter_list[i],
+                    str(self.filter_list[i]),
+                    str(self.filter_list[i]),
                 )
             elif self.ils_method(i) == "POSTCONV":
                 iparms = self.ils_params(i)
@@ -278,8 +279,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                     sample_grid_spectral_domain=self.observation.spectral_domain_full(
                         i
                     ),
-                    band_name=self.filter_list[i],
-                    obs_band_name=self.observation.filter_list[i],
+                    band_name=str(self.filter_list[i]),
+                    obs_band_name=str(self.observation.filter_list[i]),
                 )
             else:
                 ils_obj = rf.IdentityIls(sg)
@@ -384,7 +385,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # 100 is to convert hPa used by py-retrieve to Pa we use here.
         plev_fm, _ = self.current_state.object_state(
             [
-                "pressure",
+                StateElementIdentifier("pressure"),
             ]
         )
         # 100 is to convert hPa used by py-retrieve to Pa we use here.
@@ -451,7 +452,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def temperature(self) -> rf.Temperature:
         tlev_fm, _ = self.current_state.object_state(
             [
-                "TATM",
+                StateElementIdentifier("TATM"),
             ]
         )
         tlevel = rf.TemperatureLevel(tlev_fm, self.pressure_fm)
@@ -470,7 +471,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         vmrs = []
         for gas in self.absorption_gases:
             selem = [
-                gas,
+                StateElementIdentifier(gas),
             ]
             coeff, mp = self.current_state.object_state(selem)
             # Need to get mp to be the log mapping in current_state, but for

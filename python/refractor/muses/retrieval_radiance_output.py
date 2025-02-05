@@ -58,7 +58,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
                 self.myobsrad = self.radiance_full
             for inst in ("OMI", "TROPOMI"):
                 if InstrumentIdentifier(inst) in self.radiance_step.instrumentNames:
-                    i = self.radiance_step.instrumentNames.index(inst)
+                    i = self.radiance_step.instrumentNames.index(InstrumentIdentifier(inst))
                     istart = sum(self.radiance_step.instrumentSizes[:i])
                     iend = istart + self.radiance_step.instrumentSizes[i]
                     r = range(istart, iend)
