@@ -331,11 +331,11 @@ class StrategyTable:
         ]
         nmw = []
         for flt in filter_list:
-            mwlist = [mw for mw in mwall if mw["filter"] == flt or flt is None]
+            mwlist = [mw for mw in mwall if mw["filter"] == str(flt) or flt is None]
             nmw.append(len(mwlist))
         mw_range = np.zeros((len(filter_list), max(nmw), 2))
         for i, flt in enumerate(filter_list):
-            mwlist = [mw for mw in mwall if mw["filter"] == flt or flt is None]
+            mwlist = [mw for mw in mwall if mw["filter"] == str(flt) or flt is None]
             for j, mw in enumerate(mwlist):
                 mw_range[i, j, 0] = mw["start"]
                 mw_range[i, j, 1] = mw["endd"]

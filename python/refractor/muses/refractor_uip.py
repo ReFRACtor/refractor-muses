@@ -480,15 +480,15 @@ class RefractorUip:
         return self.uip[f"uip_{instrument_name}"]["frequencyList"]
 
     @property
-    def instrument_list(self):
+    def instrument_list(self) -> list[InstrumentIdentifier]:
         """List of all the radiance data we are generating, identifying
         which instrument fills in that particular index"""
-        return self.uip["instrumentList"]
+        return [InstrumentIdentifier(i) for i in self.uip["instrumentList"]]
 
     @property
-    def instrument(self):
+    def instrument(self) -> list[InstrumentIdentifier]:
         """List of instruments that are part of the UIP"""
-        return self.uip["instruments"]
+        return [InstrumentIdentifier(i) for i in self.uip["instruments"]]
 
     def freq_index(self, instrument_name : InstrumentIdentifier | str):
         """Return frequency index for given instrument"""

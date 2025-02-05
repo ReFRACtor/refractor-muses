@@ -662,7 +662,7 @@ class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
         measurement_id: MeasurementId,
         **kwargs,
     ):
-        super().__init__(rf_uip, "TROPOMI", obs, measurement_id, **kwargs)
+        super().__init__(rf_uip, InstrumentIdentifier("TROPOMI"), obs, measurement_id, **kwargs)
 
 
 class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
@@ -673,7 +673,7 @@ class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
         measurement_id: MeasurementId,
         **kwargs,
     ):
-        super().__init__(rf_uip, "OMI", obs, measurement_id, **kwargs)
+        super().__init__(rf_uip, InstrumentIdentifier("OMI"), obs, measurement_id, **kwargs)
 
 
 class MusesCrisForwardModel(MusesForwardModelIrk):
@@ -686,7 +686,7 @@ class MusesCrisForwardModel(MusesForwardModelIrk):
         measurement_id: MeasurementId,
         **kwargs,
     ):
-        super().__init__(rf_uip, "CRIS", obs, measurement_id, **kwargs)
+        super().__init__(rf_uip, InstrumentIdentifier("CRIS"), obs, measurement_id, **kwargs)
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
@@ -703,7 +703,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         measurement_id: MeasurementId,
         **kwargs,
     ):
-        super().__init__(rf_uip, "AIRS", obs, measurement_id, **kwargs)
+        super().__init__(rf_uip, InstrumentIdentifier("AIRS"), obs, measurement_id, **kwargs)
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
@@ -751,7 +751,7 @@ class MusesTesForwardModel(MusesForwardModelIrk):
         measurement_id: MeasurementId,
         **kwargs,
     ):
-        super().__init__(rf_uip, "TES", obs, measurement_id, **kwargs)
+        super().__init__(rf_uip, InstrumentIdentifier("TES"), obs, measurement_id, **kwargs)
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""

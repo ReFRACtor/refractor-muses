@@ -10,6 +10,8 @@ from refractor.muses import (
     MusesOmiObservation,
     MusesSpectralWindow,
     RefractorUip,
+    InstrumentIdentifier,
+    FilterIdentifier
 )
 import refractor.framework as rf
 import pickle
@@ -61,7 +63,7 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
-    obs.spectral_window = swin_dict["AIRS"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("AIRS")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
@@ -149,7 +151,7 @@ def test_muses_tropomi_observation(
         / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
-    obs.spectral_window = swin_dict["TROPOMI"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("TROPOMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)
@@ -217,7 +219,7 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_i
         atrack,
         utc_time,
         calibration_filename,
-        ["UV1", "UV2"],
+        [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
         cld_filename=cld_filename,
         osp_dir=osp_dir,
     )
@@ -249,7 +251,7 @@ def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_i
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
-    obs.spectral_window = swin_dict["OMI"]
+    obs.spectral_window = swin_dict[InstrumentIdentifier("OMI")]
     obs.spectral_window.add_bad_sample_mask(obs)
     print(obs.spectral_domain(0).data)
     print(obs_old.spectral_domain(0).data)

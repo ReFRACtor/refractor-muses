@@ -134,7 +134,7 @@ def tropomi_obs_step_1(osp_dir, tropomi_test_in_dir):
     )
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = [
-        "BAND3",
+        FilterIdentifier("BAND3"),
     ]
     mwfile = (
         osp_dir
@@ -142,7 +142,7 @@ def tropomi_obs_step_1(osp_dir, tropomi_test_in_dir):
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
         mwfile,
-        filter_list_dict={"TROPOMI": filter_list},
+        filter_list_dict={InstrumentIdentifier("TROPOMI"): filter_list},
         filter_metadata=DictFilterMetadata(
             {"BAND3": {"monoextend": 2.0, "monoSpacing": 0.01}}
         ),
@@ -175,7 +175,7 @@ def tropomi_obs_step_2(osp_dir, tropomi_test_in_dir):
     )
     utc_time = "2019-08-07T00:46:06.179000Z"
     filter_list = [
-        "BAND3",
+        FilterIdentifier("BAND3"),
     ]
     mwfile = (
         osp_dir
@@ -183,7 +183,7 @@ def tropomi_obs_step_2(osp_dir, tropomi_test_in_dir):
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(
         mwfile,
-        filter_list_dict={"TROPOMI": filter_list},
+        filter_list_dict={InstrumentIdentifier("TROPOMI"): filter_list},
         filter_metadata=DictFilterMetadata(
             {"BAND3": {"monoextend": 2.0, "monoSpacing": 0.01}}
         ),

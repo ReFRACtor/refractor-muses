@@ -4,6 +4,8 @@ from refractor.muses import (
     SpectralWindowHandleSet,
     CurrentStrategyStepDict,
     MeasurementIdFile,
+    InstrumentIdentifier,
+    FilterIdentifier
 )
 
 
@@ -14,7 +16,7 @@ def test_muses_py_spectral_window_handle(
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         f"{r.run_dir}/Table.asc", osp_dir=osp_dir
     )
-    flist = {"OMI": ["UV1", "UV2"], "AIRS": ["2B1", "1B2", "2A1", "1A1"]}
+    flist = {InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")], InstrumentIdentifier("AIRS"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     swin_handle_set = SpectralWindowHandleSet.default_handle_set()
     swin_handle_set.notify_update_target(mid)
@@ -54,7 +56,7 @@ def test_muses_py_spectral_window_handle_empty_band(
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         f"{r.run_dir}/Table.asc", osp_dir=osp_dir
     )
-    flist = {"OMI": ["UV1", "UV2"], "AIRS": ["2B1", "1B2", "2A1", "1A1"]}
+    flist = {InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")], InstrumentIdentifier("AIRS"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
     mid = MeasurementIdFile(f"{r.run_dir}/Measurement_ID.asc", rconfig, flist)
     swin_handle_set = SpectralWindowHandleSet.default_handle_set()
     swin_handle_set.notify_update_target(mid)

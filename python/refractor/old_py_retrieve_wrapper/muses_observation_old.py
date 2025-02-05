@@ -43,7 +43,7 @@ class MusesObservationBaseOld(rf.ObservationSvImpBase):
         )
 
     def bad_sample_mask(self, sensor_index):
-        subset = [t == self.instrument_name for t in self.rf_uip.instrument_list]
+        subset = [str(t) == self.instrument_name for t in self.rf_uip.instrument_list]
         uncer = self.meas_err[subset]
         bmask = np.array(uncer < 0)
         if self.include_bad_sample:
@@ -60,7 +60,7 @@ class MusesObservationBaseOld(rf.ObservationSvImpBase):
         if inc_bad_sample:
             gmask[:] = True
         sd = self.spectral_domain(sensor_index, inc_bad_sample)
-        subset = [t == self.instrument_name for t in self.rf_uip.instrument_list]
+        subset = [str(t) == self.instrument_name for t in self.rf_uip.instrument_list]
         r = self.obs_rad[subset][gmask]
         uncer = self.meas_err[subset][gmask]
         sr = rf.SpectralRange(r, rf.Unit("sr^-1"), uncer)

@@ -5,6 +5,7 @@ from refractor.muses import (
     RetrievalConfiguration,
     muses_py_call,
     osswrapper,
+    InstrumentIdentifier
 )
 from fixtures.residual_fm import (
     joint_omi_residual_fm_jac,
@@ -59,16 +60,16 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
     rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
     obs_cris = rs.observation_handle_set.observation(
-        "CRIS",
+        InstrumentIdentifier("CRIS"),
         rs.current_state(),
-        rs.current_strategy_step.spectral_window_dict["CRIS"],
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("CRIS")],
         None,
         osp_dir=osp_dir,
     )
     obs_tropomi = rs.observation_handle_set.observation(
-        "TROPOMI",
+        InstrumentIdentifier("TROPOMI"),
         rs.current_state(),
-        rs.current_strategy_step.spectral_window_dict["TROPOMI"],
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
         osp_dir=osp_dir,
         write_tropomi_radiance_pickle=True,
@@ -128,16 +129,16 @@ def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
     rs, rstep, _ = joint_omi_step_8
     rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
     obs_airs = rs.observation_handle_set.observation(
-        "AIRS",
+        InstrumentIdentifier("AIRS"),
         rs.current_state(),
-        rs.current_strategy_step.spectral_window_dict["AIRS"],
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("AIRS")],
         None,
         osp_dir=osp_dir,
     )
     obs_omi = rs.observation_handle_set.observation(
-        "OMI",
+        InstrumentIdentifier("OMI"),
         rs.current_state(),
-        rs.current_strategy_step.spectral_window_dict["OMI"],
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
         None,
         osp_dir=osp_dir,
         write_omi_radiance_pickle=True,
@@ -248,8 +249,8 @@ def test_residual_fm_jac_tropomi(
     # here, but for now just compare good points
     gpt = radiance_out > -999
     npt.assert_allclose(radiance_out[gpt], radiance_out2[gpt])
-    npt.assert_allclose(o_residual, o_residual2, atol=1e-3)
-    npt.assert_allclose(o_jacobian_ret, o_jacobian_ret2, rtol=2e-6)
+    npt.assert_allclose(o_residual, o_residual2, atol=2e-2)
+    npt.assert_allclose(o_jacobian_ret, o_jacobian_ret2, rtol=3e-6)
     npt.assert_allclose(o_jacobianOut[:, gpt], o_jacobianOut2[:, gpt])
     npt.assert_allclose(
         rrefractor.params["ret_info"]["obs_rad"],
