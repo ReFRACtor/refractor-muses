@@ -19,11 +19,11 @@ import collections.abc
 import re
 from typing import Tuple
 import typing
-from .identifier import InstrumentIdentifier
+from .identifier import InstrumentIdentifier, StateElementIdentifier
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .identifier import StateElementIdentifier, FilterIdentifier
+    from .identifier import FilterIdentifier
 
 
 def _new_from_init(cls, *args):
@@ -2108,18 +2108,18 @@ class MusesTropomiObservation(MusesObservationReflectance):
         return 500.0
 
     @classmethod
-    def state_element_name_list_from_filter(cls, filter_list):
+    def state_element_name_list_from_filter(cls, filter_list) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         res = []
         for flt in filter_list:
-            res.append(f"TROPOMISOLARSHIFT{str(flt)}")
+            res.append(StateElementIdentifier(f"TROPOMISOLARSHIFT{str(flt)}"))
         for flt in filter_list:
-            res.append(f"TROPOMIRADIANCESHIFT{str(flt)}")
+            res.append(StateElementIdentifier(f"TROPOMIRADIANCESHIFT{str(flt)}"))
         for flt in filter_list:
-            res.append(f"TROPOMIRADSQUEEZE{str(flt)}")
+            res.append(StateElementIdentifier(f"TROPOMIRADSQUEEZE{str(flt)}"))
         return res
 
-    def state_vector_name_i(self, i):
+    def state_vector_name_i(self, i : int) -> str:
         res = []
         for flt in self.filter_list:
             res.append(f"Solar Shift {str(flt)}")
@@ -2129,7 +2129,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             res.append(f"Radiance Squeeze {str(flt)}")
         return res[i]
 
-    def state_element_name_list(self):
+    def state_element_name_list(self) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         return self.state_element_name_list_from_filter(self.filter_list)
 
@@ -2335,18 +2335,18 @@ class MusesOmiObservation(MusesObservationReflectance):
         return 500.0
 
     @classmethod
-    def state_element_name_list_from_filter(cls, filter_list):
+    def state_element_name_list_from_filter(cls, filter_list) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         res = []
         for flt in filter_list:
-            res.append(f"OMINRADWAV{flt}")
+            res.append(StateElementIdentifier(f"OMINRADWAV{flt}"))
         for flt in filter_list:
-            res.append(f"OMIODWAV{flt}")
+            res.append(StateElementIdentifier(f"OMIODWAV{flt}"))
         for flt in filter_list:
-            res.append(f"OMIODWAVSLOPE{flt}")
+            res.append(StateElementIdentifier(f"OMIODWAVSLOPE{flt}"))
         return res
 
-    def state_vector_name_i(self, i):
+    def state_vector_name_i(self, i : int) -> str:
         res = []
         for flt in self.filter_list:
             res.append(f"Solar Shift {str(flt)}")
@@ -2356,7 +2356,7 @@ class MusesOmiObservation(MusesObservationReflectance):
             res.append(f"Radiance Squeeze {str(flt)}")
         return res[i]
 
-    def state_element_name_list(self):
+    def state_element_name_list(self) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         return self.state_element_name_list_from_filter(self.filter_list)
 

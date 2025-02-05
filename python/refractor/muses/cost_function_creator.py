@@ -78,9 +78,9 @@ class CostFunctionCreator:
 
     def cost_function(
         self,
-        instrument_name_list: list[str],
+        instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
-        spec_win_dict: dict[str, MusesSpectralWindow] | None,
+        spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
         rf_uip_func: Callable[[str], RefractorUip] | None,
         include_bad_sample=False,
         obs_list: list[MusesObservation] | None = None,
@@ -154,9 +154,9 @@ class CostFunctionCreator:
 
     def _forward_model(
         self,
-        instrument_name_list: list[str],
+        instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
-        spec_win_dict: dict[str, MusesSpectralWindow] | None,
+        spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
         rf_uip_func: Callable[[str], RefractorUip] | None,
         include_bad_sample=False,
         obs_list: list[MusesObservation] | None = None,

@@ -23,7 +23,7 @@ class ErrorAnalysis:
         self,
         current_strategy_step: CurrentStrategyStep,
         state_info: StateInfo,
-        covariance_state_element_name: list[str],
+        covariance_state_element_name: list[StateElementIdentifier],
     ):
         self.error_initial = self.initialize_error_initial(
             current_strategy_step, state_info, covariance_state_element_name
@@ -37,7 +37,7 @@ class ErrorAnalysis:
         self,
         current_strategy_step: CurrentStrategyStep,
         state_info: StateInfo,
-        covariance_state_element_name: list[str],
+        covariance_state_element_name: list[StateElementIdentifier],
     ) -> dict | mpy.ObjectView:
         """covariance_state_element_name should be the list of state
         elements we need covariance from. This is all the elements we
@@ -90,7 +90,7 @@ class ErrorAnalysis:
                     initial[np.array(species_list) == selem2.name, :][
                         :, np.array(species_list) == selem1.name
                     ] = np.transpose(matrix)
-        return mpy.constraint_data(initial, pressure_list, species_list, map_list)
+        return mpy.constraint_data(initial, pressure_list, [str(i) for i in species_list], map_list)
 
     def update_retrieval_result(self, retrieval_result: RetrievalResult):
         """Update the retrieval_result and ErrorAnalysis. The retrieval_result

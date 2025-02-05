@@ -5,6 +5,7 @@ from refractor.muses import (
     ForwardModelHandle,
     MusesRaman,
     SurfaceAlbedo,
+    InstrumentIdentifier
 )
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf  # type: ignore
@@ -411,14 +412,14 @@ class OmiForwardModelHandle(ForwardModelHandle):
 
     def forward_model(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier], RefractorUip] | None,
         **kwargs,
     ) -> rf.ForwardModel:
-        if instrument_name != "OMI":
+        if instrument_name != InstrumentIdentifier("OMI"):
             return None
         obj_creator = OmiFmObjectCreator(
             current_state,

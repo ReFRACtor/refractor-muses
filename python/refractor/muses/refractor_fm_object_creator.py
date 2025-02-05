@@ -18,6 +18,7 @@ if typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
     from .muses_observation import MusesObservation, MeasurementId
     from .current_state import CurrentState
+    from .identifier import InstrumentIdentifier
     from refractor.muses.refractor_uip import RefractorUip
 
 
@@ -52,9 +53,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         self,
         current_state: CurrentState,
         measurement_id: MeasurementId,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         observation: MusesObservation,
-        rf_uip_func: Callable[[str], RefractorUip] | None = None,
+        rf_uip_func: Callable[[InstrumentIdentifier], RefractorUip] | None = None,
         fm_sv: rf.StateVector | None = None,
         # Values, so we can flip between using pca and not
         use_pca: bool = True,
@@ -166,7 +167,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         if self.rf_uip_func is None:
             raise RuntimeError("Need to supply rf_uip_func to get ray_info")
         return MusesRayInfo(
-            self.rf_uip_func(self.instrument_name), self.instrument_name, self.pressure
+            self.rf_uip_func(self.instrument_name), str(self.instrument_name), self.pressure
         )
 
     @property
@@ -424,7 +425,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 raise RuntimeError("Need to supply rf_uip_func to get MusesRayInfo")
             rinfo = MusesRayInfo(
                 self.rf_uip_func(self.instrument_name),
-                self.instrument_name,
+                str(self.instrument_name),
                 self.pressure_fm,
             )
             ncloud_lay = rinfo.number_cloud_layer(self.cloud_pressure.value)

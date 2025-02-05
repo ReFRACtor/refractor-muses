@@ -1,5 +1,6 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
+from .identifier import StateElementIdentifier
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
 from pathlib import Path
@@ -279,9 +280,9 @@ class RetrievalInfo:
                 o_retrievalInfo.parameterEndSys.append(-1)
 
     def add_species(
-        self, species_name, current_strategy_step, state_info, o_retrievalInfo
+        self, species_name : str, current_strategy_step, state_info, o_retrievalInfo
     ):
-        selem = state_info.state_element(species_name)
+        selem = state_info.state_element(StateElementIdentifier(species_name))
         selem.update_initial_guess(current_strategy_step)
 
         row = o_retrievalInfo.n_totalParameters

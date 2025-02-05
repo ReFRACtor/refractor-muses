@@ -16,7 +16,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
 
     def __init__(
         self,
-        instrument_name_list: list[str],
+        instrument_name_list: list[InstrumentIdentifier],
         fm_list: list[rf.ForwardModel],
         obs_list: list[rf.Observation],
         fm_sv: rf.StateVector,

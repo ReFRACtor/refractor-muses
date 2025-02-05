@@ -4,6 +4,7 @@ from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
 from .muses_observation import MusesTesObservation
+from .identifier import InstrumentIdentifier
 import refractor.framework as rf  # type: ignore
 from functools import cached_property
 from loguru import logger
@@ -32,7 +33,7 @@ class MusesForwardModelBase(rf.ForwardModel):
     def __init__(
         self,
         rf_uip: RefractorUip,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
         **kwargs,
@@ -97,7 +98,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
     def __init__(
         self,
         rf_uip: RefractorUip,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
         **kwargs,
@@ -587,7 +588,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
     def __init__(
         self,
         rf_uip: RefractorUip,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
         vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
@@ -611,11 +612,11 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
             vlidort_nstokes=self.vlidort_nstokes,
             vlidort_nstreams=self.vlidort_nstreams,
         ):
-            if self.instrument_name == "TROPOMI":
+            if self.instrument_name == InstrumentIdentifier("TROPOMI"):
                 jac, rad, _, success_flag = mpy.tropomi_fm(
                     self.rf_uip.uip_all(self.instrument_name)
                 )
-            elif self.instrument_name == "OMI":
+            elif self.instrument_name == InstrumentIdentifier("OMI"):
                 jac, rad, _, success_flag = mpy.omi_fm(
                     self.rf_uip.uip_all(self.instrument_name)
                 )
@@ -733,11 +734,11 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         obs_original = self.obs
         try:
             self.obs = self.irk_obs
-            self.instrument_name = "TES"
+            self.instrument_name = InstrumentIdentifier("TES")
             return super().irk_radiance(pointing_angle, rf_uip_func)
         finally:
             self.obs = obs_original
-            self.instrument_name = "AIRS"
+            self.instrument_name = InstrumentIdentifier("AIRS")
 
 
 class MusesTesForwardModel(MusesForwardModelIrk):
@@ -784,7 +785,7 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
 
 
 class MusesForwardModelHandle(ForwardModelHandle):
-    def __init__(self, instrument_name, cls, **creator_kwargs):
+    def __init__(self, instrument_name : InstrumentIdentifier, cls, **creator_kwargs):
         self.creator_kwargs = creator_kwargs
         self.instrument_name = instrument_name
         self.cls = cls
@@ -797,11 +798,11 @@ class MusesForwardModelHandle(ForwardModelHandle):
 
     def forward_model(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier], RefractorUip] | None,
         **kwargs,
     ):
         if instrument_name != self.instrument_name:
@@ -818,19 +819,19 @@ class MusesForwardModelHandle(ForwardModelHandle):
 
 # The Muses code is the fallback, so add with the lowest priority
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle("CRIS", MusesCrisForwardModel), priority_order=-1
+    MusesForwardModelHandle(InstrumentIdentifier("CRIS"), MusesCrisForwardModel), priority_order=-1
 )
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle("AIRS", MusesAirsForwardModel), priority_order=-1
+    MusesForwardModelHandle(InstrumentIdentifier("AIRS"), MusesAirsForwardModel), priority_order=-1
 )
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle("TES", MusesTesForwardModel), priority_order=-1
+    MusesForwardModelHandle(InstrumentIdentifier("TES"), MusesTesForwardModel), priority_order=-1
 )
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle("TROPOMI", MusesTropomiForwardModel), priority_order=-1
+    MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel), priority_order=-1
 )
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle("OMI", MusesOmiForwardModel), priority_order=-1
+    MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel), priority_order=-1
 )
 
 __all__ = [

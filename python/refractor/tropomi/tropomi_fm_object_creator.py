@@ -7,6 +7,7 @@ from refractor.muses import (
     MusesRaman,
     CurrentState,
     SurfaceAlbedo,
+    InstrumentIdentifier
 )
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf  # type: ignore
@@ -469,14 +470,14 @@ class TropomiForwardModelHandle(ForwardModelHandle):
 
     def forward_model(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier], RefractorUip] | None,
         **kwargs,
     ) -> rf.ForwardModel:
-        if instrument_name != "TROPOMI":
+        if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
         obj_creator = TropomiFmObjectCreator(
             current_state,

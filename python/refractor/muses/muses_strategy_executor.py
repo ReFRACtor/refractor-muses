@@ -16,6 +16,7 @@ from .muses_strategy import (
 )
 from .observation_handle import ObservationHandleSet
 from .refractor_uip import RefractorUip
+from .identifier import StateElementIdentifier
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
@@ -426,12 +427,12 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         # List of state elements we need covariance from. This is all the elements
         # we will retrieve, plus any interferents that get added in. This list
         # is unique elements, sorted by the order_species sorting
-        covariance_state_element_name = order_species(
+        covariance_state_element_name = [StateElementIdentifier(i) for i in order_species(
             list(
-                set(self.strategy.retrieval_elements)
-                | set(self.strategy.error_analysis_interferents)
+                set([str(i) for i in self.strategy.retrieval_elements])
+                | set([str(i) for i in self.strategy.error_analysis_interferents])
             )
-        )
+        )]
 
         self.restart()
         self.error_analysis = ErrorAnalysis(

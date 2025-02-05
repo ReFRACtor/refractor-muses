@@ -4,6 +4,7 @@ from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
+from .identifier import InstrumentIdentifier
 import numpy as np
 import typing
 
@@ -56,7 +57,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
             if self.myobsrad is None:
                 self.myobsrad = self.radiance_full
             for inst in ("OMI", "TROPOMI"):
-                if inst in self.radiance_step.instrumentNames:
+                if InstrumentIdentifier(inst) in self.radiance_step.instrumentNames:
                     i = self.radiance_step.instrumentNames.index(inst)
                     istart = sum(self.radiance_step.instrumentSizes[:i])
                     iend = istart + self.radiance_step.instrumentSizes[i]

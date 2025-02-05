@@ -70,16 +70,16 @@ class StateElement(object, metaclass=abc.ABCMeta):
     in the muses-py code. The StateInfo can be used to look these
     up."""
 
-    def __init__(self, state_info: StateInfo, name: str):
+    def __init__(self, state_info: StateInfo, name: StateElementIdentifier):
         self._name = name
         self.state_info = state_info
 
     @property
-    def name(self):
+    def name(self) -> StateElementIdentifier:
         return self._name
 
     @property
-    def retrieval_config(self):
+    def retrieval_config(self) -> RetrievalConfiguration:
         return self.state_info.retrieval_config
 
     def sa_covariance(self):
@@ -92,7 +92,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         if there is no cross covariance."""
         return None
 
-    def should_write_to_l2_product(self, instruments):
+    def should_write_to_l2_product(self, instruments : list[InstrumentIdentifier]) -> bool:
         """Give a list of instruments that a retrieval step operates on, return
         True if this should get written to a netCDF L2 Product and Lite file
         (in RetrievalL2Output).
@@ -225,7 +225,7 @@ class StateElementHandle(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def state_element_object(
-        self, state_info: StateInfo, name: str
+        self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
         raise NotImplementedError
 
@@ -240,7 +240,7 @@ class StateElementHandleSet(PriorityHandleSet):
     one call to the next."""
 
     def state_element_object(
-        self, state_info: StateInfo, name: str
+        self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[StateElement, StateElement, StateElement]:
         return self.handle(state_info, name)
 
@@ -251,7 +251,7 @@ class StateElementHandleSet(PriorityHandleSet):
                 h.notify_update_target(rs)
 
     def handle_h(
-        self, h: StateElementHandle, state_info: StateInfo, name: str
+        self, h: StateElementHandle, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
         return h.state_element_object(state_info, name)
 
@@ -397,15 +397,15 @@ class StateInfo:
         self,
         measurement_id: MeasurementId,
         observation_handle_set: ObservationHandleSet,
-        retrieval_elements_all: list[str],
-        error_analysis_interferents_all: list[str],
-        instrument_name_all: list[str],
+        retrieval_elements_all: list[StateElementIdentifier],
+        error_analysis_interferents_all: list[StateElementIdentifier],
+        instrument_name_all: list[InstrumentIdentifier],
         run_dir: Path,
         osp_dir: Path | None = None,
     ):
         odict = {}
         for iname in instrument_name_all:
-            odict[iname] = observation_handle_set.observation(iname, None, None, None)
+            odict[str(iname)] = observation_handle_set.observation(iname, None, None, None)
         if osp_dir is None:
             osp_dir = run_dir.parent / "OSP"
         self.state_info_dict = self.script_retrieval_setup_ms(
@@ -422,14 +422,14 @@ class StateInfo:
 
         fake_table = {
             "errorSpecies": order_species(
-                list(set(error_analysis_interferents_all) | set(retrieval_elements_all))
+                list(set([str(i) for i in error_analysis_interferents_all]) | set([str(i) for i in retrieval_elements_all]))
             )
         }
         self.state_info_dict = mpy.states_initial_update(
             self.state_info_dict,
             fake_table,
             rad,
-            instrument_name_all,
+            [str(i) for i in instrument_name_all],
         )
 
         # Read some metadata that isn't already available
@@ -1183,19 +1183,19 @@ class StateInfo:
         else:
             raise RuntimeError("step must be initialInitial, initial, or current")
 
-    def state_element(self, name, step="current"):
+    def state_element(self, name : StateElementIdentifier, step="current"):
         """Return the state element with the given name."""
         # We create the StateElement objects on first use
-        if name not in self.current:
-            (self.initialInitial[name], self.initial[name], self.current[name]) = (
+        if str(name) not in self.current:
+            (self.initialInitial[str(name)], self.initial[str(name)], self.current[str(name)]) = (
                 self.state_element_handle_set.state_element_object(self, name)
             )
         if step == "initialInitial":
-            return self.initialInitial[name]
+            return self.initialInitial[str(name)]
         elif step == "initial":
-            return self.initial[name]
+            return self.initial[str(name)]
         elif step == "current":
-            return self.current[name]
+            return self.current[str(name)]
         else:
             raise RuntimeError("step must be initialInitial, initial, or current")
 

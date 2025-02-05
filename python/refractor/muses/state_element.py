@@ -16,6 +16,7 @@ from .state_info import (
     StateInfo,
 )
 from .order_species import order_species
+from .identifier import StateElementIdentifier
 import numpy as np
 import numbers
 import refractor.framework as rf  # type: ignore
@@ -37,7 +38,7 @@ class MusesPyStateElement(RetrievableStateElement):
     this interface should look like. This doesn't match the other species
     we have created, so we'll need to get this worked out."""
 
-    def __init__(self, state_info: StateInfo, name: str, step: str):
+    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
         super().__init__(state_info, name)
         self.step = step
 
@@ -72,7 +73,7 @@ class MusesPyStateElement(RetrievableStateElement):
         # i_directory = "../OSP/Strategy_Tables/tropomi_nir/Covariance/"
         i_directory = None
         (matrix, pressureSa) = mpy.get_prior_covariance(
-            self.name,
+            str(self.name),
             smeta.latitude.value,
             self.state_info.pressure,
             surfacetype,
@@ -88,8 +89,8 @@ class MusesPyStateElement(RetrievableStateElement):
         smeta = self.state_info.sounding_metadata()
         surfacetype = "OCEAN" if smeta.is_ocean else "LAND"
         matrix, _ = mpy.get_prior_cross_covariance(
-            self.name,
-            selem2.name,
+            str(self.name),
+            str(selem2.name),
             smeta.latitude.value,
             self.state_info.pressure,
             surfacetype,
@@ -107,7 +108,7 @@ class MusesPyStateElement(RetrievableStateElement):
         step: int,
         do_update_fm: np.array,
     ):
-        ij = retrieval_info.species_names.index(self.name)
+        ij = retrieval_info.species_names.index(str(self.name))
         next_state = mpy.ObjectView(self.state_info.next_state_dict)
 
         FM_Flag = True
@@ -118,7 +119,7 @@ class MusesPyStateElement(RetrievableStateElement):
         result = mpy.get_vector(
             results_list,
             retrieval_info.retrieval_info_obj,
-            self.name,
+            str(self.name),
             FM_Flag,
             INITIAL_Flag,
             TRUE_Flag,
@@ -127,7 +128,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
         loc = []
         for ii in range(len(self.state_info.state_element_on_levels)):
-            if self.name == self.state_info.state_element_on_levels[ii]:
+            if str(self.name) == self.state_info.state_element_on_levels[ii]:
                 loc.append(ii)
 
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
@@ -176,7 +177,7 @@ class MusesPyStateElement(RetrievableStateElement):
         # Code already interpolates to missing emissivity via the mapping
 
         # AT_LINE 70 Update_State.pro
-        if self.name == "EMIS":
+        if str(self.name) == "EMIS":
             # only update non-zero emissivities.  Eventually move to
             # emis map
             # ind = where(result NE 0)
@@ -190,7 +191,7 @@ class MusesPyStateElement(RetrievableStateElement):
                     self.state_info.state_info_obj.current["emissivity"]
                 )
 
-        elif self.name == "CLOUDEXT":
+        elif str(self.name) == "CLOUDEXT":
             # Note that the variable ind is the list of frequencies that are retrieved
             # AT_LINE 85 Update_State.pro
             if retrieval_info.retrieval_info_obj.type.lower() != "bt_ig_refine":
@@ -296,7 +297,7 @@ class MusesPyStateElement(RetrievableStateElement):
                 )
         # end elif self.name == 'CLOUDEXT'
 
-        elif self.name == "CALSCALE":
+        elif str(self.name) == "CALSCALE":
             # Sanity check for zero size array.
             if ind.size > 0:
                 self.state_info.state_info_obj.current["calibrationScale"][ind] = (
@@ -308,17 +309,17 @@ class MusesPyStateElement(RetrievableStateElement):
                     self.state_info.state_info_obj.current["calibrationScale"]
                 )
 
-        elif self.name == "CALOFFSET":
+        elif str(self.name) == "CALOFFSET":
             if ind.size > 0:
                 self.state_info.state_info_obj.current["calibrationOffset"][ind] = (
                     result[ind]
                 )
         # AT_LINE 175 Update_State.pro
-        elif "TROPOMI" in self.name:
+        elif "TROPOMI" in str(self.name):
             # PYTHON_NOTE: Because within (self.state_info.state_info_obj.current['tropomi'] we want to replace all fields with actual value from results.
             #              Using the species_name, 'TROPOMICLOUDFRACTION', we look for 'cloud_fraction' in the keys of self.state_info.state_info_obj.current['tropomi'].
             #              So, given TROPOMICLOUDFRACTION, we return the actual_tropomi_key as 'cloud_fraction'.
-            species_name = self.name
+            species_name = str(self.name)
             tropomiInfo = mpy.ObjectView(
                 self.state_info.state_info_obj.current["tropomi"]
             )
@@ -336,13 +337,13 @@ class MusesPyStateElement(RetrievableStateElement):
                     ]
                 )
 
-        elif "NIR" in self.name[0:3]:
+        elif "NIR" in str(self.name)[0:3]:
             # tag_names_str = tag_names(state.current.nir)
             # ntag = n_elements(tag_names_str)
             # tag_names_str_new = strarr(ntag)
             # for tempi = 0,ntag-1 do tag_names_str_new[tempi] = 'NIR'+ replace(tag_names_str[tempi],'_','')
             # indtag = where(tag_names_str_new EQ retrieval.species[ij])
-            my_species = self.name[3:].lower()
+            my_species = str(self.name)[3:].lower()
             if my_species == "alblamb":
                 mult = 1
                 if self.state_info.state_info_obj.current["nir"]["albtype"] == 2:
@@ -406,7 +407,7 @@ class MusesPyStateElement(RetrievableStateElement):
                 ][my_species]
 
         # AT_LINE 175 Update_State.pro
-        elif self.name == "PCLOUD":
+        elif str(self.name) == "PCLOUD":
             # Note: Variable result is ndarray (sequence) of size 730
             #       The variable  self.state_info.state_info_obj.current['PCLOUD'][0] is an element.  We cannot assign an array element with a sequence
             # AT_LINE 284 Update_State.pro
@@ -441,11 +442,11 @@ class MusesPyStateElement(RetrievableStateElement):
                     0
                 ]
 
-        elif self.name == "TSUR":
+        elif str(self.name) == "TSUR":
             self.state_info.state_info_obj.current["TSUR"] = result
             if next_state is not None and update_next is True:
                 next_state.TSUR = result
-        elif self.name == "PSUR":
+        elif str(self.name) == "PSUR":
             # surface pressure
             # update sigma levels
 
@@ -456,7 +457,7 @@ class MusesPyStateElement(RetrievableStateElement):
                 next_state.pressure = mpy.pressure_sigma(
                     next_state.pressure[0], len(next_state.pressure), "surface"
                 )
-        elif self.name == "PTGANG":
+        elif str(self.name) == "PTGANG":
             self.state_info.state_info_obj.current["tes"]["boresightNadirRadians"] = (
                 result
             )
@@ -467,7 +468,7 @@ class MusesPyStateElement(RetrievableStateElement):
                     ]
                 )
 
-        elif self.name == "RESSCALE":
+        elif str(self.name) == "RESSCALE":
             self.state_info.state_info_obj.current.residualscale[step:] = result
             if next_state is not None and update_next is True:
                 next_state.residualScale = self.state_info.state_info_obj.current[
@@ -497,7 +498,7 @@ class MusesPyStateElement(RetrievableStateElement):
         locRetHDO = utilGeneral.WhereEqualIndices(
             retrieval_info.retrieval_info_obj.species, "HDO"
         )
-        if (self.name == "H2O") and (locHDO.size > 0) and (locRetHDO.size == 0):
+        if (str(self.name) == "H2O") and (locHDO.size > 0) and (locRetHDO.size == 0):
             # get initial guess ratio...
             initialRatio = (
                 self.state_info.state_info_obj.initial["values"][
@@ -526,7 +527,7 @@ class MusesPyStateElement(RetrievableStateElement):
         locRetH2O18 = utilGeneral.WhereEqualIndices(
             retrieval_info.retrieval_info_obj.species, "H2O18"
         )
-        if (self.name == "H2O") and (locH2O18.size > 0) and (locRetH2O18.size == 0):
+        if (str(self.name) == "H2O") and (locH2O18.size > 0) and (locRetH2O18.size == 0):
             # get initial guess ratio...
             initialRatio = (
                 self.state_info.state_info_obj.initial["values"][
@@ -550,7 +551,7 @@ class MusesPyStateElement(RetrievableStateElement):
         locRetH2O17 = utilGeneral.WhereEqualIndices(
             retrieval_info.retrieval_info_obj.species, "H2O17"
         )
-        if (self.name == "H2O") and (locH2O17.size > 0) and (locRetH2O17.size == 0):
+        if (str(self.name) == "H2O") and (locH2O17.size > 0) and (locRetH2O17.size == 0):
             # get initial guess ratio...
             initialRatio = (
                 self.state_info.state_info_obj.initial["values"][
@@ -573,13 +574,13 @@ class MusesPyStateElement(RetrievableStateElement):
             retrieval_type_v = ""
         species_directory = self.retrieval_config["speciesDirectory"]
         speciesInformationFilename = (
-            f"{species_directory}/{self.name}{retrieval_type_v}.asc"
+            f"{species_directory}/{str(self.name)}{retrieval_type_v}.asc"
         )
 
         files = glob.glob(speciesInformationFilename)
         if len(files) == 0:
             # Look for alternate file.
-            speciesInformationFilename = f"{species_directory}/{self.name}.asc"
+            speciesInformationFilename = f"{species_directory}/{str(self.name)}.asc"
         # Can turn this one if we want to see what gets read. A bit noisy to
         # have on in general though.
         # logger.debug(f"Reading file {speciesInformationFilename}")
@@ -589,7 +590,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         species_list = order_species(current_strategy_step.retrieval_elements)
-        species_name = self.name
+        species_name = str(self.name)
         pressure = self.state_info.pressure
         # user specifies the number of forward model levels
         nfm_levels = int(self.retrieval_config["num_FMLevels"])
@@ -2351,7 +2352,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
 class MusesPyStateElementHandle(StateElementHandle):
     def state_element_object(
-        self, state_info: StateInfo, name: str
+        self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
         return (
             True,
@@ -2373,10 +2374,10 @@ class MusesPyOmiStateElement(MusesPyStateElement):
     shouldn't use this class, there is no reason to store this information in
     a separate data structure."""
 
-    def __init__(self, state_info: StateInfo, name: str, step: str):
+    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
         super().__init__(state_info, name, step)
         omiInfo = mpy.ObjectView(self.state_info.state_info_obj.current["omi"])
-        self.omi_key = mpy.get_omi_key(omiInfo, self.name)
+        self.omi_key = mpy.get_omi_key(omiInfo, str(self.name))
 
     @property
     def value(self):
@@ -2399,8 +2400,8 @@ class MusesPyOmiStateElement(MusesPyStateElement):
     ):
         # Note we assume here that all the mappings are linear. I'm pretty
         # sure that is the case, we can put the extra logic in if needed.
-        self.value = results_list[retrieval_info.species_list == self.name]
-        ij = retrieval_info.species_names.index(self.name)
+        self.value = results_list[retrieval_info.species_list == str(self.name)]
+        ij = retrieval_info.species_names.index(str(self.name))
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
         do_update_fm[ind1:ind2] = 1
@@ -2460,9 +2461,9 @@ class MusesPyOmiStateElement(MusesPyStateElement):
 
 class MusesPyOmiStateElementHandle(StateElementHandle):
     def state_element_object(
-        self, state_info: StateInfo, name: str
+        self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
-        if name not in mpy.ordered_species_list() or not name.startswith("OMI"):
+        if str(name) not in mpy.ordered_species_list() or not str(name).startswith("OMI"):
             return (False, None)
         return (
             True,
@@ -2484,10 +2485,10 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
     shouldn't use this class, there is no reason to store this information in
     a separate data structure."""
 
-    def __init__(self, state_info: StateInfo, name: str, step: str):
+    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
         super().__init__(state_info, name, step)
         tropomiInfo = mpy.ObjectView(self.state_info.state_info_obj.current["tropomi"])
-        self.tropomi_key = mpy.get_tropomi_key(tropomiInfo, self.name)
+        self.tropomi_key = mpy.get_tropomi_key(tropomiInfo, str(self.name))
 
     @property
     def value(self):
@@ -2510,8 +2511,8 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
     ):
         # Note we assume here that all the mappings are linear. I'm pretty
         # sure that is the case, we can put the extra logic in if needed.
-        self.value = results_list[retrieval_info.species_list == self.name]
-        ij = retrieval_info.species_names.index(self.name)
+        self.value = results_list[retrieval_info.species_list == str(self.name)]
+        ij = retrieval_info.species_names.index(str(self.name))
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
         do_update_fm[ind1:ind2] = 1
@@ -2571,9 +2572,9 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
 
 class MusesPyTropomiStateElementHandle(StateElementHandle):
     def state_element_object(
-        self, state_info: StateInfo, name: str
+        self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
-        if name not in mpy.ordered_species_list() or not name.startswith("TROPOMI"):
+        if str(name) not in mpy.ordered_species_list() or not str(name).startswith("TROPOMI"):
             return (False, None)
         return (
             True,
@@ -2588,9 +2589,9 @@ class MusesPyTropomiStateElementHandle(StateElementHandle):
 class StateElementOnLevels(MusesPyStateElement):
     """These are things that are reported on our pressure levels."""
 
-    def __init__(self, state_info: StateInfo, name: str, step: str):
+    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
         super().__init__(state_info, name, step)
-        self._ind = self.state_info.state_element_on_levels.index(name)
+        self._ind = self.state_info.state_element_on_levels.index(str(name))
 
     @property
     def value(self):
@@ -2599,9 +2600,9 @@ class StateElementOnLevels(MusesPyStateElement):
 
 class StateElementOnLevelsHandle(StateElementHandle):
     def state_element_object(
-        self, state_info: StateInfo, name: str
+        self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
-        if name not in state_info.state_element_on_levels:
+        if str(name) not in state_info.state_element_on_levels:
             return (False, None)
         return (
             True,
@@ -2614,12 +2615,12 @@ class StateElementOnLevelsHandle(StateElementHandle):
 
 
 class StateElementInDict(MusesPyStateElement):
-    def __init__(self, state_info: StateInfo, name: str, step: str):
+    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
         super().__init__(state_info, name, step)
 
     @property
     def value(self):
-        v = self.state_info.state_info_dict[self.step][self.name]
+        v = self.state_info.state_info_dict[self.step][str(self.name)]
         # So we don't need special cases, always have a numpy array. A
         # single value is an array with one value.
         if isinstance(v, numbers.Number):
@@ -2633,9 +2634,9 @@ class StateElementInDict(MusesPyStateElement):
 
 class StateElementInDictHandle(StateElementHandle):
     def state_element_object(
-        self, state_info: StateInfo, name: str
+        self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
-        if name not in state_info.state_info_dict["current"]:
+        if str(name) not in state_info.state_info_dict["current"]:
             return (False, None)
         return (
             True,
@@ -2653,7 +2654,7 @@ class StateElementWithFrequency(MusesPyStateElement):
 
     TODO I'm pretty sure these are in nm, but this would be worth verifying."""
 
-    def __init__(self, state_info: "StateInfo", name: str, step: str):
+    def __init__(self, state_info: "StateInfo", name: StateElementIdentifier, step: str):
         super().__init__(state_info, name, step)
 
     @property
@@ -2668,7 +2669,7 @@ class StateElementWithFrequency(MusesPyStateElement):
 
 class EmissivityState(StateElementWithFrequency):
     def __init__(self, state_info, step):
-        super().__init__(state_info, "emissivity", step)
+        super().__init__(state_info, StateElementIdentifier("emissivity"), step)
 
     @property
     def spectral_range(self):
@@ -2699,7 +2700,7 @@ class EmissivityState(StateElementWithFrequency):
 
 class CloudState(StateElementWithFrequency):
     def __init__(self, state_info, step):
-        super().__init__(state_info, "cloudEffExt", step)
+        super().__init__(state_info, StateElementIdentifier("cloudEffExt"), step)
         self.step = step
 
     @property
@@ -2720,14 +2721,14 @@ class CloudState(StateElementWithFrequency):
 
 
 class SingleSpeciesHandle(StateElementHandle):
-    def __init__(self, specname, state_element_class, pass_state=True, **kwargs):
+    def __init__(self, specname : StateElementIdentifier, state_element_class, pass_state=True, **kwargs):
         self.name = specname
         self.state_element_class = state_element_class
         self.pass_state = pass_state
         self.kwargs = kwargs
 
     def state_element_object(
-        self, state_info: StateInfo, name: str
+        self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
         if name != self.name:
             return (False, None)
@@ -2754,10 +2755,10 @@ class SingleSpeciesHandle(StateElementHandle):
 
 
 StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle("emissivity", EmissivityState), priority_order=1
+    SingleSpeciesHandle(StateElementIdentifier("emissivity"), EmissivityState), priority_order=1
 )
 StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle("cloudEffExt", CloudState), priority_order=1
+    SingleSpeciesHandle(StateElementIdentifier("cloudEffExt"), CloudState), priority_order=1
 )
 StateElementHandleSet.add_default_handle(StateElementInDictHandle())
 StateElementHandleSet.add_default_handle(StateElementOnLevelsHandle())

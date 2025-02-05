@@ -3,6 +3,7 @@ from . import muses_py as mpy  # type: ignore
 from .replace_function_helper import register_replacement_function_in_block
 from .refractor_capture_directory import RefractorCaptureDirectory, muses_py_call
 from .osswrapper import osswrapper
+from .identifier import InstrumentIdentifier
 import refractor.framework as rf  # type: ignore
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
@@ -180,7 +181,7 @@ class RefractorUip:
     def __setstate__(self, state):
         self.__dict__.update(state)
 
-    def uip_all(self, instrument_name):
+    def uip_all(self, instrument_name : InstrumentIdentifier):
         """Add in the stuff for the given instrument name. This is
         used in a number of places in muses-py calls."""
         # Depending on where this comes from, it may or may not have the
@@ -354,7 +355,8 @@ class RefractorUip:
         )
         return uip
 
-    def instrument_sub_basis_matrix(self, instrument_name, use_full_state_vector=True):
+    def instrument_sub_basis_matrix(self, instrument_name : InstrumentIdentifier,
+                                    use_full_state_vector=True):
         """Return the portion of the basis matrix that includes jacobians
         for the given instrument. This is what the various muses-py forward
         models return - only the subset of jacobians actually relevant for
@@ -474,7 +476,7 @@ class RefractorUip:
         """Short cut for tropomiPars"""
         return self.uip.get("tropomiPars")
 
-    def frequency_list(self, instrument_name):
+    def frequency_list(self, instrument_name : InstrumentIdentifier):
         return self.uip[f"uip_{instrument_name}"]["frequencyList"]
 
     @property
@@ -488,28 +490,28 @@ class RefractorUip:
         """List of instruments that are part of the UIP"""
         return self.uip["instruments"]
 
-    def freq_index(self, instrument_name):
+    def freq_index(self, instrument_name : InstrumentIdentifier):
         """Return frequency index for given instrument"""
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             return self.uip_omi["freqIndex"]
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             return self.uip_tropomi["freqIndex"]
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def freqfilter(self, instrument_name, sensor_index):
+    def freqfilter(self, instrument_name : InstrumentIdentifier, sensor_index):
         """freq_index is subsetted by the microwindow. This version gives
         the full set of indices for a particular sensor index"""
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             return self.uip_omi["frequencyfilterlist"] == self.filter_name(sensor_index)
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             return self.uip_tropomi["frequencyfilterlist"] == self.filter_name(
                 sensor_index
             )
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def measured_radiance(self, instrument_name, sensor_index=None, full_freq=False):
+    def measured_radiance(self, instrument_name : InstrumentIdentifier, sensor_index=None, full_freq=False):
         """Note muses-py handles the radiance data in pretty much the reverse
         way that ReFRACtor does.
 
@@ -534,9 +536,9 @@ class RefractorUip:
         microwindows. You can request instead the full set of values for a given
         sensor index.
         """
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             rad = mpy.get_omi_radiance(self.omi_params)
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             rad = mpy.get_tropomi_radiance(self.tropomi_params)
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
@@ -546,7 +548,7 @@ class RefractorUip:
             offset = [
                 i
                 for i in range(len(self.uip["microwindows_all"]))
-                if self.uip["microwindows_all"][i]["instrument"] == instrument_name
+                if self.uip["microwindows_all"][i]["instrument"] == str(instrument_name)
             ][0]
             freqindex = self.freqfilter(instrument_name, sensor_index + offset)
         return {
@@ -558,21 +560,21 @@ class RefractorUip:
             "odwav_slope_jac": rad["odwav_slope_jac"][freqindex],
         }
 
-    def nfreq_mw(self, mw_index, instrument_name):
+    def nfreq_mw(self, mw_index, instrument_name : InstrumentIdentifier):
         """Number of frequencies for microwindow."""
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             # It is a bit odd that mw_index get used twice here, but this
             # really is how this is set up. So although this looks odd, it
             # is correct
             startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw"][mw_index]
             endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw"][mw_index]
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw"][mw_index]
             endmw_fm = self.uip_tropomi["microwindows"][mw_index]["enddmw"][mw_index]
 
         return endmw_fm - startmw_fm + 1
 
-    def atm_params(self, instrument_name, set_pointing_angle_zero=True):
+    def atm_params(self, instrument_name : InstrumentIdentifier, set_pointing_angle_zero=True):
         uall = self.uip_all(instrument_name)
         # tropomi_fm and omi_fm set this to zero before calling raylayer_nadir.
         # I'm not sure if always want to do this or not. Note that uall
@@ -583,7 +585,7 @@ class RefractorUip:
 
     def ray_info(
         self,
-        instrument_name,
+        instrument_name : InstrumentIdentifier,
         set_pointing_angle_zero=True,
         set_cloud_extinction_one=False,
     ):
@@ -629,9 +631,9 @@ class RefractorUip:
         except muses-py can retrieve multiple instruments."""
         return len(self.uip["microwindows_all"])
 
-    def instrument_name(self, ii_mw):
+    def instrument_name(self, ii_mw) -> InstrumentIdentifier:
         """Instrument name for the micro_window index ii_mw"""
-        return self.uip["microwindows_all"][ii_mw]["instrument"]
+        return InstrumentIdentifier(self.uip["microwindows_all"][ii_mw]["instrument"])
 
     def micro_windows(self, ii_mw):
         """Return start and end of microwindow"""
@@ -671,11 +673,11 @@ class RefractorUip:
             plen = list(self.uip["speciesListFM"]).count(species_name)
         return pstart, plen
 
-    def state_vector_params(self, instrument_name):
+    def state_vector_params(self, instrument_name : InstrumentIdentifier):
         """List of parameter types to include in the state vector."""
         return self.uip[f"uip_{instrument_name}"]["jacobians"]
 
-    def state_vector_names(self, instrument_name):
+    def state_vector_names(self, instrument_name : InstrumentIdentifier):
         """Full list of the name for each state vector list item"""
         sv_list = []
         for jac_name in self.uip["speciesListFM"]:
@@ -683,7 +685,7 @@ class RefractorUip:
                 sv_list.append(jac_name)
         return sv_list
 
-    def state_vector_update_indexes(self, instrument_name):
+    def state_vector_update_indexes(self, instrument_name : InstrumentIdentifier):
         """Indexes for this instrument's state vector element updates from the full update vector"""
         sv_extract_index = []
         for full_idx, jac_name in enumerate(self.uip["speciesListFM"]):
@@ -714,12 +716,12 @@ class RefractorUip:
         else:
             return output_map
 
-    def earth_sun_distance(self, instrument_name):
+    def earth_sun_distance(self, instrument_name : InstrumentIdentifier):
         """Earth sun distance, in meters. Right now this is OMI specific"""
         # Same value for all the bands, so just grab the first one
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             return self.omi_obs_table["EarthSunDistance"][0]
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             return self.tropomi_obs_table["EarthSunDistance"][0]
         else:
             RuntimeError("Didn't find a observation table")
@@ -735,10 +737,10 @@ class RefractorUip:
 
             return rf.SpectralDomain(ils_uip_info["central_wavelength"], rf.Unit("nm"))
         else:
-            if self.instrument_name(ii_mw) == "OMI":
+            if self.instrument_name(ii_mw) == InstrumentIdentifier("OMI"):
                 all_freq = self.uip_omi["fullbandfrequency"]
                 filt_loc = np.array(self.uip_omi["frequencyfilterlist"])
-            elif self.instrument_name(ii_mw) == "TROPOMI":
+            elif self.instrument_name(ii_mw) == InstrumentIdentifier("TROPOMI"):
                 all_freq = self.uip_tropomi["tropomiInfo"]["Earth_Radiance"][
                     "Wavelength"
                 ]
@@ -753,27 +755,27 @@ class RefractorUip:
                 all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm")
             )
 
-    def ils_params(self, mw_index, instrument_name):
+    def ils_params(self, mw_index, instrument_name : InstrumentIdentifier):
         """Returns ILS information for the given microwindow"""
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             return self.uip_omi["ils_%02d" % (mw_index + 1)]
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             # JLL: the TROPOMI UIP seems to use a different naming convention than the OMI UIP
             # (ils_mw_II, where II is the zero-based index - see end of make_uip_tropomi).
             return self.uip_tropomi["ils_mw_%02d" % (mw_index)]
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def ils_method(self, mw_index, instrument_name):
+    def ils_method(self, mw_index, instrument_name : InstrumentIdentifier):
         """Returns a string describing the ILS method configured by MUSES"""
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             return self.uip_omi["ils_omi_xsection"]
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             return self.uip_tropomi["ils_tropomi_xsection"]
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def radiance_info(self, instrument_name):
+    def radiance_info(self, instrument_name : InstrumentIdentifier):
         """This is a bit convoluted. It comes from a python pickle file that
         gets created before the retrieval starts. So this is
         "control coupling". On the other hand, most of the UIP is sort of
@@ -786,21 +788,21 @@ class RefractorUip:
         input_directory = self.run_dir / "Input"
         if not os.path.exists(input_directory):
             raise RuntimeError(f"Input directory {input_directory} not found.")
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             fname = next(input_directory.glob("Radiance_OMI*.pkl"))
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             fname = next(input_directory.glob("Radiance_TROPOMI*.pkl"))
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return pickle.load(open(fname, "rb"))
 
-    def mw_slice(self, filter_name, instrument_name):
+    def mw_slice(self, filter_name, instrument_name : InstrumentIdentifier):
         """Variation of mw_slice that uses startmw and endmw. I think these are
         the same if we aren't doing an ILS, but different if we are. Should track
         this through, but for now just try this out"""
         startmw_fm = 0
         endmw_fm = 0
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             for mw_index in range(len(self.uip_omi["microwindows"])):
                 if self.uip_omi["microwindows"][mw_index]["filter"] == filter_name:
                     startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw"][
@@ -809,7 +811,7 @@ class RefractorUip:
                     endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw"][
                         mw_index
                     ]
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             for mw_index in range(len(self.uip_tropomi["microwindows"])):
                 if self.uip_tropomi["microwindows"][mw_index]["filter"] == filter_name:
                     startmw_fm = self.uip_tropomi["microwindows"][mw_index]["startmw"][
@@ -822,7 +824,7 @@ class RefractorUip:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return slice(startmw_fm, endmw_fm + 1)
 
-    def mw_fm_slice(self, filter_name, instrument_name):
+    def mw_fm_slice(self, filter_name, instrument_name : InstrumentIdentifier):
         """This is the portion of the full microwindow frequencies that we are
         using in calculations such as RamanSioris. This is a bit
         bigger than the instrument_spectral_domain in
@@ -831,7 +833,7 @@ class RefractorUip:
         RamanSioris calculation"""
         startmw_fm = 0
         endmw_fm = 0
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             for mw_index in range(len(self.uip_omi["microwindows"])):
                 if self.uip_omi["microwindows"][mw_index]["filter"] == filter_name:
                     startmw_fm = self.uip_omi["microwindows"][mw_index]["startmw_fm"][
@@ -840,7 +842,7 @@ class RefractorUip:
                     endmw_fm = self.uip_omi["microwindows"][mw_index]["enddmw_fm"][
                         mw_index
                     ]
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             for mw_index in range(len(self.uip_tropomi["microwindows"])):
                 if self.uip_tropomi["microwindows"][mw_index]["filter"] == filter_name:
                     startmw_fm = self.uip_tropomi["microwindows"][mw_index][
@@ -853,19 +855,19 @@ class RefractorUip:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return slice(startmw_fm, endmw_fm + 1)
 
-    def full_band_frequency(self, instrument_name):
+    def full_band_frequency(self, instrument_name : InstrumentIdentifier):
         """This is the full frequency range for the instrument. I believe
         this is the same as the wavelengths found in the radiance pickle
         file (self.radiance_info), but this comes for a different source in
         the UIP object so we have this in case this is somehow different."""
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             return self.uip_omi["fullbandfrequency"]
-        elif instrument_name == "TROPOMI":
+        elif instrument_name == InstrumentIdentifier("TROPOMI"):
             return self.uip_tropomi["fullbandfrequency"]
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def rad_wavelength(self, filter_name, instrument_name):
+    def rad_wavelength(self, filter_name, instrument_name : InstrumentIdentifier):
         """This is the wavelengths that the L1B data was measured at, truncated
         to fit our microwindow"""
         slc = self.mw_fm_slice(filter_name, instrument_name)
@@ -874,7 +876,7 @@ class RefractorUip:
             rad_info["Earth_Radiance"]["Wavelength"][slc], rf.Unit("nm")
         )
 
-    def solar_irradiance(self, filter_name, instrument_name):
+    def solar_irradiance(self, filter_name, instrument_name : InstrumentIdentifier):
         """This is currently just used for the Raman calculation of the
         RefractorRtfOmi class. This has been adjusted for the
         """
@@ -905,12 +907,12 @@ class RefractorUip:
         # You would think this would just be an argument, but it
         # isn't. We need to get the filter name from one place, and
         # use that to look up the channel index in another.
-        if self.instrument_name(ii_mw) == "OMI":
+        if self.instrument_name(ii_mw) == InstrumentIdentifier("OMI"):
             return np.where(
                 np.asarray(self.omi_obs_table["Filter_Band_Name"])
                 == self.filter_name(ii_mw)
             )[0]
-        if self.instrument_name(ii_mw) == "TROPOMI":
+        if self.instrument_name(ii_mw) == InstrumentIdentifier("TROPOMI"):
             return np.where(
                 np.asarray(self.tropomi_obs_table["Filter_Band_Name"])
                 == self.filter_name(ii_mw)
@@ -1005,20 +1007,20 @@ class RefractorUip:
         """Surface height for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.surface_height(filter_name)), "m")
 
-    def across_track_indexes(self, filter_name, instrument_name):
+    def across_track_indexes(self, filter_name, instrument_name : InstrumentIdentifier):
         """Across track indexes for the microwindow index ii_mw.
 
         Right now this is omi specific"""
         # Can't really average these to have anything that makes sense.
         # So for now we just pick the first one that matches
-        if instrument_name == "OMI":
+        if instrument_name == InstrumentIdentifier("OMI"):
             cindex = np.where(
                 np.asarray(self.omi_obs_table["Filter_Band_Name"]) == filter_name
             )[0]
             if len(cindex) == 0:
                 raise RuntimeError(f"Bad filter name {filter_name}")
             return np.asarray(self.omi_obs_table["XTRACK"])[cindex]
-        if instrument_name == "TROPOMI":
+        if instrument_name == InstrumentIdentifier("TROPOMI"):
             cindex = np.where(
                 np.asarray(self.tropomi_obs_table["Filter_Band_Name"]) == filter_name
             )[0]
@@ -1503,7 +1505,7 @@ class RefractorUip:
         # Filter to only include the desired instrument
         if only_create_instrument is not None:
             i_windows = [
-                w for w in i_windows if w["instrument"] == only_create_instrument
+                w for w in i_windows if w["instrument"] == str(only_create_instrument)
             ]
         # Bit if a kludge here, but we adjust the windows for the CRIS instrument
         if i_cris is not None:
