@@ -8,7 +8,6 @@ import refractor.framework as rf  # type: ignore
 import copy
 from loguru import logger
 from collections.abc import Callable
-
 import typing
 
 if typing.TYPE_CHECKING:
@@ -16,6 +15,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .refractor_uip import RefractorUip
     from .retrieval_strategy import RetrievalStrategy
+    from .identifier import InstrumentIdentifier
 
 
 class CostFunctionCreator:
@@ -51,9 +51,13 @@ class CostFunctionCreator:
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
 
-    def _rf_uip_func_wrap(self, instrument):
+    def _rf_uip_func_wrap(
+        self, instrument: InstrumentIdentifier | None
+    ) -> RefractorUip:
         """We need to keep a copy of the UIP if it gets creates by a lower
         level routine, so that we can attach this to the state vector."""
+        if self._rf_uip_func is None:
+            raise RuntimeError("Need _rf_uip_func to not be None")
         if None in self._rf_uip:
             return self._rf_uip[None]
         if instrument not in self._rf_uip:
@@ -67,7 +71,7 @@ class CostFunctionCreator:
                 k = list(self._rf_uip.keys())[0]
                 v = self._rf_uip[k]
                 v.uip = new_uip.uip
-                self._rf_uip = {}
+                self._rf_uip: dict[None | InstrumentIdentifier, RefractorUip] = {}
                 self._rf_uip[None] = v
             else:
                 self._rf_uip[instrument] = self._rf_uip_func(instrument)
@@ -81,7 +85,7 @@ class CostFunctionCreator:
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         include_bad_sample=False,
         obs_list: list[MusesObservation] | None = None,
         **kwargs,
@@ -157,7 +161,7 @@ class CostFunctionCreator:
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         include_bad_sample=False,
         obs_list: list[MusesObservation] | None = None,
         **kwargs,

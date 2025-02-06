@@ -39,6 +39,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
     from .muses_strategy import MusesStrategy
+    from .identifier import RetrievalStepIdentifier, InstrumentIdentifier
 
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -367,7 +368,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self.current_strategy_step.step_number
 
     @property
-    def instrument_name_all_step(self) -> list[str]:
+    def instrument_name_all_step(self) -> list[InstrumentIdentifier]:
         return self.strategy_executor.instrument_name_all_step
 
     @property
@@ -397,8 +398,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self.current_strategy_step.step_name
 
     @property
-    def retrieval_type(self) -> str:
-        return self.current_strategy_step.retrieval_type.lower()
+    def retrieval_type(self) -> RetrievalStepIdentifier:
+        return self.current_strategy_step.retrieval_type
 
     @property
     def retrieval_info(self) -> RetrievalInfo:

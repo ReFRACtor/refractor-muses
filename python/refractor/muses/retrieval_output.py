@@ -739,14 +739,14 @@ class CdfWriteTes:
         # StateElement that weren't originally in muses-py.
 
         for selem in state_element_out:
-            structIn[selem.name] = selem.value
+            structIn[str(selem.name)] = selem.value
             # For simplicity, value is always a numpy array. If it is size 1,
             # we want to pull this out so the data is written in netcdf as
             # a scalar rather than a array of size 1
             if len(selem.value.shape) == 1 and selem.value.shape[0] == 1:
-                structIn[selem.name] = selem.value[0]
+                structIn[str(selem.name)] = selem.value[0]
             structUnits.append(selem.net_cdf_struct_units())
-            exact_cased_variable_names[selem.name] = selem.net_cdf_variable_name()
+            exact_cased_variable_names[str(selem.name)] = selem.net_cdf_variable_name()
             groupvarnames.append(
                 [selem.net_cdf_group_name(), selem.net_cdf_variable_name()]
             )

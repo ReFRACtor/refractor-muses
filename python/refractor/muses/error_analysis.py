@@ -10,6 +10,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
     from .retrieval_info import RetrievalInfo
     from .muses_strategy_executor import CurrentStrategyStep
+    from .identifier import StateElementIdentifier
 
 
 class ErrorAnalysis:
@@ -90,7 +91,9 @@ class ErrorAnalysis:
                     initial[np.array(species_list) == selem2.name, :][
                         :, np.array(species_list) == selem1.name
                     ] = np.transpose(matrix)
-        return mpy.constraint_data(initial, pressure_list, [str(i) for i in species_list], map_list)
+        return mpy.constraint_data(
+            initial, pressure_list, [str(i) for i in species_list], map_list
+        )
 
     def update_retrieval_result(self, retrieval_result: RetrievalResult):
         """Update the retrieval_result and ErrorAnalysis. The retrieval_result

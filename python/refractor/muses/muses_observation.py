@@ -83,7 +83,11 @@ class MeasurementId(collections.abc.Mapping):
 class MeasurementIdDict(MeasurementId):
     """Implementation of MeasurementId that uses a dict"""
 
-    def __init__(self, measurement_dict: dict, filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]]):
+    def __init__(
+        self,
+        measurement_dict: dict,
+        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
+    ):
         self.measurement_dict = measurement_dict
         self._filter_list_dict = filter_list_dict
 
@@ -727,13 +731,13 @@ class MusesObservationHandle(ObservationHandle):
 
     """
 
-    def __init__(self, instrument_name : InstrumentIdentifier, obs_cls):
+    def __init__(self, instrument_name: InstrumentIdentifier, obs_cls):
         self.instrument_name = instrument_name
         self.obs_cls = obs_cls
         # Keep the same observation around as long as the target doesn't
         # change - we just update the spectral windows.
-        self.existing_obs = None
-        self.measurement_id = None
+        self.existing_obs: obs_cls | None = None
+        self.measurement_id: MeasurementId | None = None
 
     def __getstate__(self):
         # If we pickle, don't include the stashed obs
@@ -852,8 +856,12 @@ class MusesAirsObservation(MusesObservationImp):
 
         """
         o_airs, sdesc = cls._read_data(
-            str(filename), granule, xtrack, atrack, [str(i) for i in filter_list],
-            osp_dir=osp_dir
+            str(filename),
+            granule,
+            xtrack,
+            atrack,
+            [str(i) for i in filter_list],
+            osp_dir=osp_dir,
         )
         return cls(o_airs, sdesc)
 
@@ -890,7 +898,12 @@ class MusesAirsObservation(MusesObservationImp):
             xtrack = int(mid["AIRS_XTrack_Index"])
             atrack = int(mid["AIRS_ATrack_Index"])
             o_airs, sdesc = cls._read_data(
-                filename, granule, xtrack, atrack, [str(i) for i in filter_list], osp_dir=osp_dir
+                filename,
+                granule,
+                xtrack,
+                atrack,
+                [str(i) for i in filter_list],
+                osp_dir=osp_dir,
             )
             obs = cls(o_airs, sdesc)
         obs.spectral_window = (
@@ -1907,7 +1920,9 @@ class MusesTropomiObservation(MusesObservationReflectance):
             # the calibration_filename. This needs to get added before
             # we can use this
             raise RuntimeError("We don't support TROPOMI calibration yet")
-        i_windows = [{"instrument": "TROPOMI", "filter": str(flt)} for flt in filter_list]
+        i_windows = [
+            {"instrument": "TROPOMI", "filter": str(flt)} for flt in filter_list
+        ]
         with osp_setup(osp_dir):
             o_tropomi = mpy.read_tropomi(
                 {k: str(v) for (k, v) in filename_dict.items()},
@@ -2107,7 +2122,9 @@ class MusesTropomiObservation(MusesObservationReflectance):
         return 500.0
 
     @classmethod
-    def state_element_name_list_from_filter(cls, filter_list) -> list[StateElementIdentifier]:
+    def state_element_name_list_from_filter(
+        cls, filter_list
+    ) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         res = []
         for flt in filter_list:
@@ -2118,7 +2135,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             res.append(StateElementIdentifier(f"TROPOMIRADSQUEEZE{str(flt)}"))
         return res
 
-    def state_vector_name_i(self, i : int) -> str:
+    def state_vector_name_i(self, i: int) -> str:
         res = []
         for flt in self.filter_list:
             res.append(f"Solar Shift {str(flt)}")
@@ -2334,7 +2351,9 @@ class MusesOmiObservation(MusesObservationReflectance):
         return 500.0
 
     @classmethod
-    def state_element_name_list_from_filter(cls, filter_list) -> list[StateElementIdentifier]:
+    def state_element_name_list_from_filter(
+        cls, filter_list
+    ) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         res = []
         for flt in filter_list:
@@ -2345,7 +2364,7 @@ class MusesOmiObservation(MusesObservationReflectance):
             res.append(StateElementIdentifier(f"OMIODWAVSLOPE{flt}"))
         return res
 
-    def state_vector_name_i(self, i : int) -> str:
+    def state_vector_name_i(self, i: int) -> str:
         res = []
         for flt in self.filter_list:
             res.append(f"Solar Shift {str(flt)}")

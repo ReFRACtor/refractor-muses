@@ -8,7 +8,12 @@ if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
-    from .identifier import InstrumentIdentifier, StateElementIdentifier, RetrievalStepIdentifier, FilterIdentifier
+    from .identifier import (
+        InstrumentIdentifier,
+        StateElementIdentifier,
+        RetrievalStepIdentifier,
+        FilterIdentifier,
+    )
 
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
@@ -324,8 +329,7 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
 
     @property
     def retrieval_elements(self) -> list[StateElementIdentifier]:
-        """The complete list of retrieval elements (so for all retrieval steps)
-        """
+        """The complete list of retrieval elements (so for all retrieval steps)"""
         # TODO Can this go away?
         return self._stable.retrieval_elements_all_step
 

@@ -10,6 +10,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .current_state import CurrentState
     from .muses_spectral_window import MusesSpectralWindow
+    from .identifier import InstrumentIdentifier
 
 
 def mpy_radiance_from_observation_list(
@@ -92,7 +93,7 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def observation(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
@@ -129,7 +130,7 @@ class ObservationHandleSet(CreatorHandleSet):
 
     def observation(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,

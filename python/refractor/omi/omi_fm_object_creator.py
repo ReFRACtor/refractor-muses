@@ -7,7 +7,7 @@ from refractor.muses import (
     SurfaceAlbedo,
     InstrumentIdentifier,
     FilterIdentifier,
-    StateElementIdentifier
+    StateElementIdentifier,
 )
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf  # type: ignore
@@ -60,7 +60,13 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         eof_dir=None,
         **kwargs,
     ):
-        super().__init__(current_state, measurement_id, "OMI", observation, **kwargs)
+        super().__init__(
+            current_state,
+            measurement_id,
+            InstrumentIdentifier("OMI"),
+            observation,
+            **kwargs,
+        )
         self.use_eof = use_eof
         self.eof_dir = eof_dir
 
@@ -282,7 +288,10 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             elif self.filter_list[i] == FilterIdentifier("UV2"):
                 # Note this value is hardcoded in print_omi_surface_albedo
                 band_reference[i] = 320.0
-                selem = [StateElementIdentifier("OMISURFACEALBEDOUV2"), StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2")]
+                selem = [
+                    StateElementIdentifier("OMISURFACEALBEDOUV2"),
+                    StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2"),
+                ]
                 coeff, mp = self.current_state.object_state(selem)
                 albedo[i, 0:2] = coeff
                 which_retrieved[i, mp.retrieval_indexes] = True
@@ -418,7 +427,7 @@ class OmiForwardModelHandle(ForwardModelHandle):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs,
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("OMI"):

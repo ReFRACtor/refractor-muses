@@ -95,7 +95,7 @@ class StrategyTable:
                 )
             )
 
-    def ils_method(self, instrument_name : InstrumentIdentifier):
+    def ils_method(self, instrument_name: InstrumentIdentifier):
         if str(instrument_name) == "OMI":
             res = self.preferences["ils_omi_xsection"].upper()
         elif str(instrument_name) == "TROPOMI":
@@ -302,7 +302,9 @@ class StrategyTable:
         res.discard("")
         return order_species(list(res))
 
-    def spectral_window(self, instrument_name : InstrumentIdentifier, stp=None, all_step=False):
+    def spectral_window(
+        self, instrument_name: InstrumentIdentifier, stp=None, all_step=False
+    ):
         """This creates a rf.SpectralWindowRange for the given instrument and
         step (defaults to self.table_step). Note that a SpectralWindow has a number of
         microwindows associated with it - RefRACtor doesn't really distinguish this and
@@ -342,12 +344,13 @@ class StrategyTable:
         mw_range = rf.ArrayWithUnit_double_3(mw_range, rf.Unit("nm"))
         return rf.SpectralWindowRange(mw_range)
 
-    def filter_list(self, instrument_name : InstrumentIdentifier):
+    def filter_list(self, instrument_name: InstrumentIdentifier):
         """Not sure if the order matters here or not. We keep the same order this appears in
         table_new_mw_from_all_steps. We can revisit this if needed. I'm also not sure how important
         the filter list is."""
-        return [FilterIdentifier(i) for i in
-            dict.fromkeys(
+        return [
+            FilterIdentifier(i)
+            for i in dict.fromkeys(
                 [
                     m["filter"]
                     for m in self.microwindows(all_step=True)
@@ -374,8 +377,9 @@ class StrategyTable:
     def instrument_name(self, stp=None, all_step=False):
         """The list of instruments for the given step, used self.table_step if not supplied.
         If all_step is True, then we return the list of instruments from all retrieval steps."""
-        return [InstrumentIdentifier(i) for i in
-            dict.fromkeys(
+        return [
+            InstrumentIdentifier(i)
+            for i in dict.fromkeys(
                 [m["instrument"] for m in self.microwindows(stp=stp, all_step=all_step)]
             )
         ]

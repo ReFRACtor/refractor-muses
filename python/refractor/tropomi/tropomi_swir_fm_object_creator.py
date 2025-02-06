@@ -4,7 +4,7 @@ from refractor.muses import (
     RefractorUip,
     ForwardModelHandle,
     CurrentState,
-    InstrumentIdentifier
+    InstrumentIdentifier,
 )
 import refractor.framework as rf  # type: ignore
 from .tropomi_fm_object_creator import TropomiFmObjectCreator
@@ -109,11 +109,11 @@ class TropomiSwirForwardModelHandle(ForwardModelHandle):
 
     def forward_model(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs,
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):

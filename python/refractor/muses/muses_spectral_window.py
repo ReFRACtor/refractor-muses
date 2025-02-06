@@ -319,10 +319,16 @@ class MusesSpectralWindow(rf.SpectralWindow):
         """
         fspec = TesFile.create(spec_fname)
         res = {}
-        for iname in [InstrumentIdentifier(i) for i in dict.fromkeys(fspec.table["Instrument"].to_list())]:
-            res[iname] = [FilterIdentifier(i) for i in
-                dict.fromkeys(
-                    fspec.table[fspec.table["Instrument"] == str(iname)]["Filter"].to_list()
+        for iname in [
+            InstrumentIdentifier(i)
+            for i in dict.fromkeys(fspec.table["Instrument"].to_list())
+        ]:
+            res[iname] = [
+                FilterIdentifier(i)
+                for i in dict.fromkeys(
+                    fspec.table[fspec.table["Instrument"] == str(iname)][
+                        "Filter"
+                    ].to_list()
                 )
             ]
         return res
@@ -331,7 +337,8 @@ class MusesSpectralWindow(rf.SpectralWindow):
     def create_dict_from_file(
         cls,
         spec_fname: str | os.PathLike[str],
-        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] | None = None,
+        filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]]
+        | None = None,
         filter_metadata: FilterMetadata | None = None,
     ) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
         """Create a dict from instrument name to MusesSpectralWindow
@@ -476,7 +483,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
             "spectralWindowDirectory": str(spectral_window_directory),
         }
         t1 = [
-            ",".join([str(i) for i in retrieval_elements]) if len(retrieval_elements) > 0 else "-",
+            ",".join([str(i) for i in retrieval_elements])
+            if len(retrieval_elements) > 0
+            else "-",
             step_name,
             str(retrieval_type),
         ]
@@ -514,7 +523,11 @@ class MusesSpectralWindow(rf.SpectralWindow):
             "viewingMode": viewing_mode,
             "spectralWindowDirectory": str(spectral_window_directory),
         }
-        t1 = [",".join([str(i) for i in retrieval_elements]), step_name, str(retrieval_type)]
+        t1 = [
+            ",".join([str(i) for i in retrieval_elements]),
+            step_name,
+            str(retrieval_type),
+        ]
         t2 = ["retrievalElements", "stepName", "retrievalType"]
         if spec_file is not None:
             t1.append(str(spec_file))

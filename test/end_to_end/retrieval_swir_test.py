@@ -1,3 +1,4 @@
+from __future__ import annotations
 from refractor.muses import (
     CurrentState,
     CurrentStrategyStep,
@@ -5,6 +6,7 @@ from refractor.muses import (
     MeasurementId,
     MusesObservation,
     MusesRunDir,
+    RefractorUip,
     RetrievableStateElement,
     RetrievalConfiguration,
     RetrievalInfo,
@@ -13,6 +15,8 @@ from refractor.muses import (
     SimulatedObservationHandle,
     SingleSpeciesHandle,
     StateInfo,
+    InstrumentIdentifier,
+    StateElementIdentifier
 )
 from refractor.tropomi import TropomiSwirForwardModelHandle, TropomiSwirFmObjectCreator
 import refractor.framework as rf
@@ -306,14 +310,14 @@ class ScaledStateElement(RetrievableStateElement):
     def value(self):
         return self._value
 
-    def should_write_to_l2_product(self, instruments):
-        if "TROPOMI" in instruments:
+    def should_write_to_l2_product(self, instruments: list[InstrumentIdentifier]):
+        if InstrumentIdentifier("TROPOMI") in instruments:
             return True
         return False
 
     def net_cdf_variable_name(self):
         # Want names like OMI_EOF_UV1
-        return self.name
+        return str(self.name)
 
     def net_cdf_struct_units(self):
         """Returns the attributes attached to a netCDF write out of this
@@ -337,8 +341,8 @@ class ScaledStateElement(RetrievableStateElement):
         # If we are requested not to update the next step, then save a copy
         # of this to reset the value
         if not update_next:
-            self.state_info.next_state[self.name] = self.clone_for_other_state()
-        self._value = results_list[retrieval_info.species_list == self._name]
+            self.state_info.next_state[str(self.name)] = self.clone_for_other_state()
+        self._value = results_list[retrieval_info.species_list == str(self._name)]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"
@@ -372,7 +376,7 @@ class ScaledTropomiFmObjectCreator(TropomiSwirFmObjectCreator):
         vmrs = []
         for gas in self.absorption_gases:
             selem = [
-                gas,
+                StateElementIdentifier(gas),
             ]
             coeff, mp = self.current_state.object_state(selem)
             # Need to get mp to be the log mapping in current_state, but for
@@ -383,7 +387,7 @@ class ScaledTropomiFmObjectCreator(TropomiSwirFmObjectCreator):
                 vmr = rf.AbsorberVmrLevel(self.pressure_fm, coeff, gas, mp)
             else:
                 selem = [
-                    f"{gas}_SCALED",
+                    StateElementIdentifier(f"{gas}_SCALED"),
                 ]
                 coeff2, _ = self.current_state.object_state(selem)
                 vmr = rf.AbsorberVmrLevelScaled(self.pressure_fm, coeff, coeff2[0], gas)
@@ -409,14 +413,14 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
 
     def forward_model(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func,
+        rf_uip_func: Callable[[InstrumentIdentifier|None], RefractorUip] | None,
         **kwargs,
     ):
-        if instrument_name != "TROPOMI":
+        if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
         obj_creator = ScaledTropomiFmObjectCreator(
             current_state,
@@ -470,17 +474,17 @@ def test_scaled_sim_albedo_0_9_retrieval(
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.state_element_handle_set.add_handle(
             SingleSpeciesHandle(
-                "H2O_SCALED", ScaledStateElement, pass_state=False, name="H2O_SCALED"
+                StateElementIdentifier("H2O_SCALED"), ScaledStateElement, pass_state=False, name=StateElementIdentifier("H2O_SCALED")
             )
         )
         rs.state_element_handle_set.add_handle(
             SingleSpeciesHandle(
-                "CH4_SCALED", ScaledStateElement, pass_state=False, name="CH4_SCALED"
+                StateElementIdentifier("CH4_SCALED"), ScaledStateElement, pass_state=False, name=StateElementIdentifier("CH4_SCALED")
             )
         )
         rs.state_element_handle_set.add_handle(
             SingleSpeciesHandle(
-                "HDO_SCALED", ScaledStateElement, pass_state=False, name="HDO_SCALED"
+                StateElementIdentifier("HDO_SCALED"), ScaledStateElement, pass_state=False, name=StateElementIdentifier("HDO_SCALED")
             )
         )
         rs.update_target(mrdir.run_dir / "Table.asc")

@@ -3,6 +3,10 @@ import refractor.framework as rf  # type: ignore
 import refractor.muses.muses_py as mpy  # type: ignore
 import numpy as np
 from loguru import logger
+import typing
+
+if typing.TYPE_CHECKING:
+    from .identifier import InstrumentIdentifier
 
 
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):

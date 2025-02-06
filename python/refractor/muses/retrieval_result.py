@@ -151,7 +151,7 @@ class RetrievalResult:
                 ]
                 * self.rstep.filterSizes[i]
             )
-        ff0 = np.concatenate(ff0)
+        ff1 = np.concatenate(ff0)
         # TODO Replace this logic
         filtersName = [
             "ALL",
@@ -222,14 +222,14 @@ class RetrievalResult:
         ]
         num_filters = len(filters)
         filterStart = [0]
-        filterEnd = [len(ff0) - 1]
+        filterEnd = [len(ff1) - 1]
         filter_index = [0]
         filter_list = ["ALL"]
 
         for jj in range(
             1, len(filtersName)
         ):  # Start jj with 1 since we are leaving the first value alone.
-            ind1 = np.where(ff0 == filtersName[jj])[0]
+            ind1 = np.where(ff1 == filtersName[jj])[0]
             ind2 = np.where(np.array(filters) == filtersMap[jj])[0][0]
             if len(ind1) > 0:
                 filter_index.append(ind2)
@@ -240,7 +240,7 @@ class RetrievalResult:
         num_filters = len(filter_index)
         if num_filters == 1:
             raise RuntimeError(
-                "Update set_retrieval_results.  Filter not found in list: ", ff0
+                "Update set_retrieval_results.  Filter not found in list: ", ff1
             )
 
         # get the total number of frequency points in all microwindows for the

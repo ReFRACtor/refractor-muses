@@ -527,7 +527,11 @@ class MusesPyStateElement(RetrievableStateElement):
         locRetH2O18 = utilGeneral.WhereEqualIndices(
             retrieval_info.retrieval_info_obj.species, "H2O18"
         )
-        if (str(self.name) == "H2O") and (locH2O18.size > 0) and (locRetH2O18.size == 0):
+        if (
+            (str(self.name) == "H2O")
+            and (locH2O18.size > 0)
+            and (locRetH2O18.size == 0)
+        ):
             # get initial guess ratio...
             initialRatio = (
                 self.state_info.state_info_obj.initial["values"][
@@ -551,7 +555,11 @@ class MusesPyStateElement(RetrievableStateElement):
         locRetH2O17 = utilGeneral.WhereEqualIndices(
             retrieval_info.retrieval_info_obj.species, "H2O17"
         )
-        if (str(self.name) == "H2O") and (locH2O17.size > 0) and (locRetH2O17.size == 0):
+        if (
+            (str(self.name) == "H2O")
+            and (locH2O17.size > 0)
+            and (locRetH2O17.size == 0)
+        ):
             # get initial guess ratio...
             initialRatio = (
                 self.state_info.state_info_obj.initial["values"][
@@ -2463,7 +2471,9 @@ class MusesPyOmiStateElementHandle(StateElementHandle):
     def state_element_object(
         self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
-        if str(name) not in mpy.ordered_species_list() or not str(name).startswith("OMI"):
+        if str(name) not in mpy.ordered_species_list() or not str(name).startswith(
+            "OMI"
+        ):
             return (False, None)
         return (
             True,
@@ -2574,7 +2584,9 @@ class MusesPyTropomiStateElementHandle(StateElementHandle):
     def state_element_object(
         self, state_info: StateInfo, name: StateElementIdentifier
     ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
-        if str(name) not in mpy.ordered_species_list() or not str(name).startswith("TROPOMI"):
+        if str(name) not in mpy.ordered_species_list() or not str(name).startswith(
+            "TROPOMI"
+        ):
             return (False, None)
         return (
             True,
@@ -2654,7 +2666,9 @@ class StateElementWithFrequency(MusesPyStateElement):
 
     TODO I'm pretty sure these are in nm, but this would be worth verifying."""
 
-    def __init__(self, state_info: "StateInfo", name: StateElementIdentifier, step: str):
+    def __init__(
+        self, state_info: "StateInfo", name: StateElementIdentifier, step: str
+    ):
         super().__init__(state_info, name, step)
 
     @property
@@ -2721,7 +2735,13 @@ class CloudState(StateElementWithFrequency):
 
 
 class SingleSpeciesHandle(StateElementHandle):
-    def __init__(self, specname : StateElementIdentifier, state_element_class, pass_state=True, **kwargs):
+    def __init__(
+        self,
+        specname: StateElementIdentifier,
+        state_element_class,
+        pass_state=True,
+        **kwargs,
+    ):
         self.name = specname
         self.state_element_class = state_element_class
         self.pass_state = pass_state
@@ -2755,10 +2775,12 @@ class SingleSpeciesHandle(StateElementHandle):
 
 
 StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle(StateElementIdentifier("emissivity"), EmissivityState), priority_order=1
+    SingleSpeciesHandle(StateElementIdentifier("emissivity"), EmissivityState),
+    priority_order=1,
 )
 StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle(StateElementIdentifier("cloudEffExt"), CloudState), priority_order=1
+    SingleSpeciesHandle(StateElementIdentifier("cloudEffExt"), CloudState),
+    priority_order=1,
 )
 StateElementHandleSet.add_default_handle(StateElementInDictHandle())
 StateElementHandleSet.add_default_handle(StateElementOnLevelsHandle())

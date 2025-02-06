@@ -280,7 +280,7 @@ class RetrievalInfo:
                 o_retrievalInfo.parameterEndSys.append(-1)
 
     def add_species(
-        self, species_name : str, current_strategy_step, state_info, o_retrievalInfo
+        self, species_name: str, current_strategy_step, state_info, o_retrievalInfo
     ):
         selem = state_info.state_element(StateElementIdentifier(species_name))
         selem.update_initial_guess(current_strategy_step)
@@ -502,7 +502,9 @@ class RetrievalInfo:
         if str(current_strategy_step.retrieval_type).lower() in ("bt", "forwardmodel"):
             pass
         else:
-            o_retrievalInfo.species = [str(i) for i in current_strategy_step.retrieval_elements]
+            o_retrievalInfo.species = [
+                str(i) for i in current_strategy_step.retrieval_elements
+            ]
             o_retrievalInfo.n_species = len(o_retrievalInfo.species)
 
             for species_name in o_retrievalInfo.species:

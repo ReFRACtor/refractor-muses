@@ -24,8 +24,12 @@ class OmiEofStateElement(RetrievableStateElement):
 
     """
 
-    def __init__(self, state_info: StateInfo, name=StateElementIdentifier("OMIEOFUV1"),
-                 number_eof=3):
+    def __init__(
+        self,
+        state_info: StateInfo,
+        name=StateElementIdentifier("OMIEOFUV1"),
+        number_eof=3,
+    ):
         super().__init__(state_info, name)
         self._value = np.zeros(number_eof)
         self._constraint = self._value.copy()

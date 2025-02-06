@@ -8,7 +8,7 @@ from refractor.muses import (
     CurrentState,
     SurfaceAlbedo,
     InstrumentIdentifier,
-    StateElementIdentifier
+    StateElementIdentifier,
 )
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf  # type: ignore
@@ -54,7 +54,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         super().__init__(
             current_state,
             measurement_id,
-            "TROPOMI",
+            InstrumentIdentifier("TROPOMI"),
             observation,
             use_raman=use_raman,
             **kwargs,
@@ -266,7 +266,9 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
                     [
                         StateElementIdentifier(f"TROPOMISURFACEALBEDO{filt_name}"),
                         StateElementIdentifier(f"TROPOMISURFACEALBEDOSLOPE{filt_name}"),
-                        StateElementIdentifier(f"TROPOMISURFACEALBEDOSLOPEORDER2{filt_name}"),
+                        StateElementIdentifier(
+                            f"TROPOMISURFACEALBEDOSLOPEORDER2{filt_name}"
+                        ),
                     ]
                 )
             else:
@@ -475,7 +477,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs,
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):

@@ -21,6 +21,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .muses_strategy_executor import CurrentStrategyStep
     from .muses_observation import MeasurementId, MusesObservation
+    from .identifier import InstrumentIdentifier
 
 
 class PropagatedQA:
@@ -49,7 +50,9 @@ class PropagatedQA:
     def o3_qa(self):
         return self.propagated_qa["O3"]
 
-    def update(self, retrieval_state_element: list[str], qa_flag: int):
+    def update(
+        self, retrieval_state_element: list[StateElementIdentifier], qa_flag: int
+    ):
         """Update the QA flags for items that we retrieved."""
         for state_element_name in retrieval_state_element:
             if state_element_name in self.propagated_qa:
@@ -93,7 +96,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
         if there is no cross covariance."""
         return None
 
-    def should_write_to_l2_product(self, instruments : list[InstrumentIdentifier]) -> bool:
+    def should_write_to_l2_product(
+        self, instruments: list[InstrumentIdentifier]
+    ) -> bool:
         """Give a list of instruments that a retrieval step operates on, return
         True if this should get written to a netCDF L2 Product and Lite file
         (in RetrievalL2Output).
@@ -406,7 +411,9 @@ class StateInfo:
     ):
         odict = {}
         for iname in instrument_name_all:
-            odict[str(iname)] = observation_handle_set.observation(iname, None, None, None)
+            odict[str(iname)] = observation_handle_set.observation(
+                iname, None, None, None
+            )
         if osp_dir is None:
             osp_dir = run_dir.parent / "OSP"
         self.state_info_dict = self.script_retrieval_setup_ms(
@@ -423,7 +430,10 @@ class StateInfo:
 
         fake_table = {
             "errorSpecies": order_species(
-                list(set([str(i) for i in error_analysis_interferents_all]) | set([str(i) for i in retrieval_elements_all]))
+                list(
+                    set([str(i) for i in error_analysis_interferents_all])
+                    | set([str(i) for i in retrieval_elements_all])
+                )
             )
         }
         self.state_info_dict = mpy.states_initial_update(
@@ -1073,20 +1083,42 @@ class StateInfo:
         for the UIP. Note we are trying to move away from the UIP, it is just a shuffling around
         of data found in the StateInfo. But for now go ahead and support this."""
         return {
-            "surface_albedo_uv1": self.state_element(StateElementIdentifier("OMISURFACEALBEDOUV1")).value[0],
-            "surface_albedo_uv2": self.state_element(StateElementIdentifier("OMISURFACEALBEDOUV2")).value[0],
+            "surface_albedo_uv1": self.state_element(
+                StateElementIdentifier("OMISURFACEALBEDOUV1")
+            ).value[0],
+            "surface_albedo_uv2": self.state_element(
+                StateElementIdentifier("OMISURFACEALBEDOUV2")
+            ).value[0],
             "surface_albedo_slope_uv2": self.state_element(
                 StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2")
             ).value[0],
-            "nradwav_uv1": self.state_element(StateElementIdentifier("OMINRADWAVUV1")).value[0],
-            "nradwav_uv2": self.state_element(StateElementIdentifier("OMINRADWAVUV2")).value[0],
-            "odwav_uv1": self.state_element(StateElementIdentifier("OMIODWAVUV1")).value[0],
-            "odwav_uv2": self.state_element(StateElementIdentifier("OMIODWAVUV2")).value[0],
-            "odwav_slope_uv1": self.state_element(StateElementIdentifier("OMIODWAVSLOPEUV1")).value[0],
-            "odwav_slope_uv2": self.state_element(StateElementIdentifier("OMIODWAVSLOPEUV2")).value[0],
-            "ring_sf_uv1": self.state_element(StateElementIdentifier("OMIRINGSFUV1")).value[0],
-            "ring_sf_uv2": self.state_element(StateElementIdentifier("OMIRINGSFUV2")).value[0],
-            "cloud_fraction": self.state_element(StateElementIdentifier("OMICLOUDFRACTION")).value[0],
+            "nradwav_uv1": self.state_element(
+                StateElementIdentifier("OMINRADWAVUV1")
+            ).value[0],
+            "nradwav_uv2": self.state_element(
+                StateElementIdentifier("OMINRADWAVUV2")
+            ).value[0],
+            "odwav_uv1": self.state_element(
+                StateElementIdentifier("OMIODWAVUV1")
+            ).value[0],
+            "odwav_uv2": self.state_element(
+                StateElementIdentifier("OMIODWAVUV2")
+            ).value[0],
+            "odwav_slope_uv1": self.state_element(
+                StateElementIdentifier("OMIODWAVSLOPEUV1")
+            ).value[0],
+            "odwav_slope_uv2": self.state_element(
+                StateElementIdentifier("OMIODWAVSLOPEUV2")
+            ).value[0],
+            "ring_sf_uv1": self.state_element(
+                StateElementIdentifier("OMIRINGSFUV1")
+            ).value[0],
+            "ring_sf_uv2": self.state_element(
+                StateElementIdentifier("OMIRINGSFUV2")
+            ).value[0],
+            "cloud_fraction": self.state_element(
+                StateElementIdentifier("OMICLOUDFRACTION")
+            ).value[0],
             "cloud_pressure": o_omi["Cloud"]["CloudPressure"],
             "cloud_Surface_Albedo": 0.8,
             "xsecscaling": 1.0,
@@ -1125,7 +1157,7 @@ class StateInfo:
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-        do_not_update: np.ndarray,
+        do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration,
         step: int,
     ):
@@ -1184,12 +1216,19 @@ class StateInfo:
         else:
             raise RuntimeError("step must be initialInitial, initial, or current")
 
-    def state_element(self, name : StateElementIdentifier | str, step="current"):
+    def state_element(self, name: StateElementIdentifier | str, step="current"):
         """Return the state element with the given name."""
         # We create the StateElement objects on first use
         if str(name) not in self.current:
-            (self.initialInitial[str(name)], self.initial[str(name)], self.current[str(name)]) = (
-                self.state_element_handle_set.state_element_object(self, name if isinstance(name, StateElementIdentifier) else StateElementIdentifier(name))
+            (
+                self.initialInitial[str(name)],
+                self.initial[str(name)],
+                self.current[str(name)],
+            ) = self.state_element_handle_set.state_element_object(
+                self,
+                name
+                if isinstance(name, StateElementIdentifier)
+                else StateElementIdentifier(name),
             )
         if step == "initialInitial":
             return self.initialInitial[str(name)]

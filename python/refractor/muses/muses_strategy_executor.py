@@ -194,7 +194,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def rf_uip_func_cost_function(
         self, do_systematic, jacobian_speciesIn
-    ) -> Callable[[InstrumentIdentifier], RefractorUip]:
+    ) -> Callable[[InstrumentIdentifier | None], RefractorUip]:
         return functools.partial(
             self._rf_uip_func,
             do_systematic=do_systematic,
@@ -393,7 +393,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.rs.notify_update(location, **kwargs)
 
     @property
-    def filter_list_dict(self) -> dict[str, list[str]]:
+    def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for all retrieval steps)"""
         return self.strategy.filter_list_dict
 
@@ -427,12 +427,15 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         # List of state elements we need covariance from. This is all the elements
         # we will retrieve, plus any interferents that get added in. This list
         # is unique elements, sorted by the order_species sorting
-        covariance_state_element_name = [StateElementIdentifier(i) for i in order_species(
-            list(
-                set([str(i) for i in self.strategy.retrieval_elements])
-                | set([str(i) for i in self.strategy.error_analysis_interferents])
+        covariance_state_element_name = [
+            StateElementIdentifier(i)
+            for i in order_species(
+                list(
+                    set([str(i) for i in self.strategy.retrieval_elements])
+                    | set([str(i) for i in self.strategy.error_analysis_interferents])
+                )
             )
-        )]
+        ]
 
         self.restart()
         self.error_analysis = ErrorAnalysis(

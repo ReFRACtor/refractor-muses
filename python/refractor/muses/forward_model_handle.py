@@ -9,6 +9,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId, MusesObservation
     from .current_state import CurrentState
     from .refractor_uip import RefractorUip
+    from .identifier import InstrumentIdentifier
 
 
 class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
@@ -41,11 +42,11 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def forward_model(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs,
     ) -> rf.ForwardModel | None:
         """Return ForwardModel if we can process the given
@@ -80,11 +81,11 @@ class ForwardModelHandleSet(CreatorHandleSet):
 
     def forward_model(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[str], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs,
     ) -> rf.ForwardModel | None:
         """Create a ForwardModel for the given instrument.

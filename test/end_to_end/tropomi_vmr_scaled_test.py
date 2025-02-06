@@ -1,3 +1,4 @@
+from __future__ import annotations
 from functools import cached_property
 import numpy as np
 from refractor.tropomi import TropomiFmObjectCreator
@@ -9,6 +10,7 @@ from refractor.muses import (
     MeasurementId,
     MusesObservation,
     MusesRunDir,
+    RefractorUip,
     RetrievableStateElement,
     RetrievalInfo,
     RetrievalConfiguration,
@@ -16,7 +18,10 @@ from refractor.muses import (
     RetrievalStrategyCaptureObserver,
     SingleSpeciesHandle,
     StateInfo,
+    InstrumentIdentifier,
+    StateElementIdentifier
 )
+from typing import Callable
 import subprocess
 from loguru import logger
 import pytest
@@ -33,7 +38,7 @@ class O3ScaledStateElement(RetrievableStateElement):
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("O3_SCALED", O3SCaledStateElement, pass_state=False))
     """
 
-    def __init__(self, state_info: StateInfo, name="O3_SCALED"):
+    def __init__(self, state_info: StateInfo, name=StateElementIdentifier("O3_SCALED")):
         super().__init__(state_info, name)
         self._value = np.array(
             [
@@ -54,14 +59,14 @@ class O3ScaledStateElement(RetrievableStateElement):
     def value(self):
         return self._value
 
-    def should_write_to_l2_product(self, instruments):
-        if "TROPOMI" in instruments:
+    def should_write_to_l2_product(self, instruments: list[InstrumentIdentifier]):
+        if InstrumentIdentifier("TROPOMI") in instruments:
             return True
         return False
 
     def net_cdf_variable_name(self):
         # Want names like OMI_EOF_UV1
-        return self.name
+        return str(self.name)
 
     def net_cdf_struct_units(self):
         """Returns the attributes attached to a netCDF write out of this
@@ -86,7 +91,7 @@ class O3ScaledStateElement(RetrievableStateElement):
         # of this to reset the value
         if not update_next:
             self.state_info.next_state[self.name] = self.clone_for_other_state()
-        self._value = results_list[retrieval_info.species_list == self._name]
+        self._value = results_list[retrieval_info.species_list == str(self._name)]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"
@@ -121,12 +126,12 @@ class ScaledTropomiFmObjectCreator(TropomiFmObjectCreator):
         # Get the VMR profile. This will remain at the initial guess
         vmr_profile, _ = self.current_state.object_state(
             [
-                "O3",
+                StateElementIdentifier("O3"),
             ]
         )
         # And get the scaling
         selem = [
-            "O3_SCALED",
+            StateElementIdentifier("O3_SCALED"),
         ]
         coeff, mp = self.current_state.object_state(selem)
         vmr_o3 = rf.AbsorberVmrLevelScaled(
@@ -154,14 +159,14 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
 
     def forward_model(
         self,
-        instrument_name: str,
+        instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func,
+        rf_uip_func: Callable[[InstrumentIdentifier|None], RefractorUip] | None,
         **kwargs,
     ):
-        if instrument_name != "TROPOMI":
+        if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
         obj_creator = ScaledTropomiFmObjectCreator(
             current_state,
@@ -212,7 +217,7 @@ def test_tropomi_vrm_scaled(
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.state_element_handle_set.add_handle(
             SingleSpeciesHandle(
-                "O3_SCALED", O3ScaledStateElement, pass_state=False, name="O3_SCALED"
+                StateElementIdentifier("O3_SCALED"), O3ScaledStateElement, pass_state=False, name=StateElementIdentifier("O3_SCALED")
             )
         )
         rs.update_target(r.run_dir / "Table.asc")

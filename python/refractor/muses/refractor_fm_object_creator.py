@@ -56,7 +56,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         measurement_id: MeasurementId,
         instrument_name: InstrumentIdentifier,
         observation: MusesObservation,
-        rf_uip_func: Callable[[InstrumentIdentifier], RefractorUip] | None = None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip]
+        | None = None,
         fm_sv: rf.StateVector | None = None,
         # Values, so we can flip between using pca and not
         use_pca: bool = True,
@@ -168,7 +169,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         if self.rf_uip_func is None:
             raise RuntimeError("Need to supply rf_uip_func to get ray_info")
         return MusesRayInfo(
-            self.rf_uip_func(self.instrument_name), str(self.instrument_name), self.pressure
+            self.rf_uip_func(self.instrument_name),
+            str(self.instrument_name),
+            self.pressure,
         )
 
     @property

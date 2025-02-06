@@ -11,6 +11,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy_executor import CurrentStrategyStep
     from .identifier import InstrumentIdentifier, FilterIdentifier
 
+
 class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
     """Base class for SpectralWindowHandle. Note we use duck typing,
     don't need to actually derive from this object. But it can be

@@ -146,7 +146,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-        do_not_update : list[StateElementIdentifier],
+        do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration,
         step: int,
     ):
@@ -263,7 +263,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_value(self, state_element_name : StateElementIdentifier) -> np.ndarray:
+    def full_state_value(
+        self, state_element_name: StateElementIdentifier
+    ) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -393,7 +395,9 @@ class CurrentStateUip(CurrentState):
     def step_directory(self) -> Path:
         return self.rf_uip.step_directory
 
-    def full_state_value(self, state_element_name : StateElementIdentifier) -> np.ndarray:
+    def full_state_value(
+        self, state_element_name: StateElementIdentifier
+    ) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
@@ -541,7 +545,11 @@ class CurrentStateDict(CurrentState):
 
     """
 
-    def __init__(self, state_element_dict: dict, retrieval_element: list[StateElementIdentifier | str]):
+    def __init__(
+        self,
+        state_element_dict: dict,
+        retrieval_element: list[StateElementIdentifier | str],
+    ):
         """This takes a dictionary from state element name to value,
         and a list of retrieval elements. This is useful for creating
         unit tests that don't depend on other objects.
@@ -552,8 +560,18 @@ class CurrentStateDict(CurrentState):
 
         """
         super().__init__()
-        self._state_element_dict = {(k if isinstance(k, StateElementIdentifier) else StateElementIdentifier(k)):v for (k,v) in state_element_dict.items()}
-        self._retrieval_element = [i if isinstance(i, StateElementIdentifier) else StateElementIdentifier(i) for i in retrieval_element]
+        self._state_element_dict = {
+            (
+                k
+                if isinstance(k, StateElementIdentifier)
+                else StateElementIdentifier(k)
+            ): v
+            for (k, v) in state_element_dict.items()
+        }
+        self._retrieval_element = [
+            i if isinstance(i, StateElementIdentifier) else StateElementIdentifier(i)
+            for i in retrieval_element
+        ]
 
     @property
     def state_element_dict(self) -> dict:
@@ -575,7 +593,9 @@ class CurrentStateDict(CurrentState):
         # Clear cache, we need to regenerate these after update
         self.clear_cache()
 
-    def full_state_value(self, state_element_name : StateElementIdentifier) -> np.ndarray:
+    def full_state_value(
+        self, state_element_name: StateElementIdentifier
+    ) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
@@ -604,7 +624,7 @@ class CurrentStateStateInfo(CurrentState):
         state_info: StateInfo,
         retrieval_info: RetrievalInfo | None,
         step_directory: str | os.PathLike[str],
-        retrieval_state_element_override : list[StateElementIdentifier] | None =None,
+        retrieval_state_element_override: list[StateElementIdentifier] | None = None,
         do_systematic=False,
     ):
         """I think we'll want to get some of the logic in
@@ -719,7 +739,7 @@ class CurrentStateStateInfo(CurrentState):
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-        do_not_update : list[StateElementIdentifier],
+        do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration,
         step: int,
     ):
@@ -745,7 +765,9 @@ class CurrentStateStateInfo(CurrentState):
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         if self.do_systematic:
-            return [StateElementIdentifier(i) for i in self.retrieval_info.species_names_sys]
+            return [
+                StateElementIdentifier(i) for i in self.retrieval_info.species_names_sys
+            ]
         return [StateElementIdentifier(i) for i in self.retrieval_info.species_names]
 
     @property
@@ -766,7 +788,9 @@ class CurrentStateStateInfo(CurrentState):
                         str(state_element_name)
                     )
                 else:
-                    plen = self.retrieval_info.species_list_fm.count(str(state_element_name))
+                    plen = self.retrieval_info.species_list_fm.count(
+                        str(state_element_name)
+                    )
 
                 # As a convention, if plen is 0 py-retrieve pads this
                 # to 1, although the state vector isn't actually used
@@ -784,7 +808,9 @@ class CurrentStateStateInfo(CurrentState):
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
 
-    def full_state_value(self, state_element_name : StateElementIdentifier) -> np.ndarray:
+    def full_state_value(
+        self, state_element_name: StateElementIdentifier
+    ) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so if
         there is only one value put that in a length 1 np.ndarray.
