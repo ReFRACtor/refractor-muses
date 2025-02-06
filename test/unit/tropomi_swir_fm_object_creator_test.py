@@ -67,6 +67,16 @@ def test_vmr(tropomi_fm_object_creator_swir_step):
         ), f"{name} VMRs differ in the object creator and UIP"
 
 
+@pytest.mark.parametrize("tropomi_fm_object_creator_swir_step", [
+    {"use_oss": True, "oss_training_data": "../OSS_file_all_1243_0_1737006075.1163344.npz"},
+    {"use_oss": False, "oss_training_data": None}
+], indirect=True)
+def test_fm_run(tropomi_fm_object_creator_swir_step):
+    fm = tropomi_fm_object_creator_swir_step.forward_model
+    # Radiance call fails with or without OSS
+    # print(fm.radiance(0, True).value)
+    print(fm)
+
 # Doesn't currently work, I think a spectral window is missing here
 @pytest.mark.skip
 def test_ils_simple(
