@@ -2,6 +2,7 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
 from .tes_file import TesFile
+from .identifier import RetrievalStepIdentifier
 import numpy as np
 import copy
 from loguru import logger
@@ -33,9 +34,9 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
 
     def retrieval_step_body(
-        self, retrieval_type: str, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalStepIdentifier, rs: RetrievalStrategy, **kwargs
     ) -> bool:
-        if retrieval_type != "bt":
+        if retrieval_type != RetrievalStepIdentifier("bt"):
             return False
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         jacobian_speciesNames = ["H2O"]

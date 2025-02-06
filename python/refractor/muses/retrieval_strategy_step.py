@@ -6,6 +6,7 @@ from .priority_handle_set import PriorityHandleSet
 from .muses_levmar_solver import MusesLevmarSolver
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
+from .identifier import RetrievalStepIdentifier
 import json
 import gzip
 from typing import Tuple
@@ -34,9 +35,9 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
     """
 
     def retrieval_step(
-        self, retrieval_type: str, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalStepIdentifier, rs: RetrievalStrategy, **kwargs
     ) -> None:
-        self.handle(retrieval_type.lower(), rs, **kwargs)
+        self.handle(retrieval_type, rs, **kwargs)
 
     def notify_update_target(self, rs: RetrievalStrategy):
         """Clear any caching associated with assuming the target being
@@ -48,7 +49,7 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
     def handle_h(
         self,
         h: RetrievalStrategyStep,
-        retrieval_type: str,
+        retrieval_type: RetrievalStepIdentifier,
         rs: RetrievalStrategy,
         **kwargs,
     ) -> Tuple[bool, None]:
@@ -90,7 +91,11 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         pass
 
     def retrieval_step(
-        self, retrieval_type: str, rs: RetrievalStrategy, ret_state=None, **kwargs
+        self,
+        retrieval_type: RetrievalStepIdentifier,
+        rs: RetrievalStrategy,
+        ret_state=None,
+        **kwargs,
     ) -> Tuple[bool, None]:
         """Returns (True, None) if we handle the retrieval step,
         (False, None) otherwise
@@ -104,7 +109,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def retrieval_step_body(
-        self, retrieval_type: str, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalStepIdentifier, rs: RetrievalStrategy, **kwargs
     ) -> bool:
         """Returns True if we handle the retrieval step, False otherwise"""
         raise NotImplementedError()
@@ -161,9 +166,12 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     """
 
     def retrieval_step_body(
-        self, retrieval_type: str, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalStepIdentifier, rs: RetrievalStrategy, **kwargs
     ) -> bool:
-        if retrieval_type not in ("forwardmodel", "omi_radiance_calibration"):
+        if retrieval_type not in (
+            RetrievalStepIdentifier("forwardmodel"),
+            RetrievalStepIdentifier("omi_radiance_calibration"),
+        ):
             return False
         raise RuntimeError(
             f"We don't currently support retrieval_type {retrieval_type}"
@@ -205,7 +213,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         return res
 
     def retrieval_step_body(
-        self, retrieval_type: str, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalStepIdentifier, rs: RetrievalStrategy, **kwargs
     ) -> bool:
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         rs.notify_update("retrieval input", retrieval_strategy_step=self)
@@ -298,7 +306,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         ConvTolerance_JacThresh = float(rs.retrieval_config["ConvTolerance_JacThresh"])
         r = self.radiance_step()["NESR"]
         Chi2Tolerance = 2.0 / len(r)  # theoretical value for tolerance
-        if rs.retrieval_type == "bt_ig_refine":
+        if rs.retrieval_type == RetrievalStepIdentifier("bt_ig_refine"):
             ConvTolerance_CostThresh = 0.00001
             ConvTolerance_pThresh = 0.00001
             ConvTolerance_JacThresh = 0.00001
@@ -345,9 +353,9 @@ class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
     OMI cloud fraction."""
 
     def retrieval_step_body(
-        self, retrieval_type: str, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalStepIdentifier, rs: RetrievalStrategy, **kwargs
     ) -> bool:
-        if retrieval_type != "omicloud_ig_refine":
+        if retrieval_type != RetrievalStepIdentifier("omicloud_ig_refine"):
             return False
         return super().retrieval_step_body(retrieval_type, rs, **kwargs)
 
@@ -362,9 +370,9 @@ class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve
     TROPOMI cloud fraction."""
 
     def retrieval_step_body(
-        self, retrieval_type: str, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalStepIdentifier, rs: RetrievalStrategy, **kwargs
     ) -> bool:
-        if retrieval_type != "tropomicloud_ig_refine":
+        if retrieval_type != RetrievalStepIdentifier("tropomicloud_ig_refine"):
             return False
         return super().retrieval_step_body(retrieval_type, rs, **kwargs)
 

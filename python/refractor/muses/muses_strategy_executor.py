@@ -260,7 +260,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             "numColumns": 1,
             "step": cstep.step_number,
             "labels1": "retrievalType",
-            "data": [cstep.retrieval_type] * cstep.step_number,
+            "data": [cstep.retrieval_type.lower()] * cstep.step_number,
         }
         o_xxx = {
             "AIRS": None,

@@ -6,6 +6,7 @@ from refractor.muses import (
     OmiEofStateElement,
     SingleSpeciesHandle,
     RetrievalStrategyMemoryUse,
+    StateElementIdentifier
 )
 import subprocess
 import pytest
@@ -41,19 +42,19 @@ def test_eof_omi(osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir, end_to_end_run
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.state_element_handle_set.add_handle(
         SingleSpeciesHandle(
-            "OMIEOFUV1",
+            StateElementIdentifier("OMIEOFUV1"),
             OmiEofStateElement,
             pass_state=False,
-            name="OMIEOFUV1",
+            name=StateElementIdentifier("OMIEOFUV1"),
             number_eof=3,
         )
     )
     rs.state_element_handle_set.add_handle(
         SingleSpeciesHandle(
-            "OMIEOFUV2",
+            StateElementIdentifier("OMIEOFUV2"),
             OmiEofStateElement,
             pass_state=False,
-            name="OMIEOFUV2",
+            name=StateElementIdentifier("OMIEOFUV2"),
             number_eof=3,
         )
     )
@@ -133,19 +134,19 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir):
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.state_element_handle_set.add_handle(
         SingleSpeciesHandle(
-            "OMIEOFUV1",
+            StateElementIdentifier("OMIEOFUV1"),
             OmiEofStateElement,
             pass_state=False,
-            name="OMIEOFUV1",
+            name=StateElementIdentifier("OMIEOFUV1"),
             number_eof=3,
         )
     )
     rs.state_element_handle_set.add_handle(
         SingleSpeciesHandle(
-            "OMIEOFUV2",
+            StateElementIdentifier("OMIEOFUV2"),
             OmiEofStateElement,
             pass_state=False,
-            name="OMIEOFUV2",
+            name=StateElementIdentifier("OMIEOFUV2"),
             number_eof=3,
         )
     )

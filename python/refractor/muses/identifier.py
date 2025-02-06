@@ -69,7 +69,15 @@ class StateElementIdentifier(IdentifierStr):
 class RetrievalStepIdentifier(IdentifierStr):
     '''Identify an retrieval step, e.g., "BG"'''
 
-    pass
+    def __eq__(self, other):
+        # Do case insensitive compare
+        return self.s.lower() == other.s.lower()
+
+    def __hash__(self):
+        return hash(self.s.lower())
+
+    def lower(self) -> str:
+        return self.s.lower()
 
 
 class StrategyStepIdentifier(IdentifierStr):

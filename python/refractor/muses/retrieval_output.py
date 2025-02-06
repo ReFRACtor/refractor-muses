@@ -1,6 +1,7 @@
 from __future__ import annotations
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
+from .identifier import RetrievalStepIdentifier
 import os
 import copy
 import numpy as np
@@ -62,8 +63,8 @@ class RetrievalOutput:
 
     @property
     def special_tag(self):
-        if self.retrieval_strategy.retrieval_type != "default":
-            return f"-{self.retrieval_strategy.retrieval_type}"
+        if self.retrieval_strategy.retrieval_type != RetrievalStepIdentifier("default"):
+            return f"-{self.retrieval_strategy.retrieval_type.lower()}"
         return ""
 
     @property

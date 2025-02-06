@@ -163,8 +163,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return res
 
     @cached_property
-    def eof(self) -> dict[str, list[rf.EmpiricalOrthogonalFunction]]:
-        res: dict[str, list[rf.EmpiricalOrthogonalFunction]] = {}
+    def eof(self) -> dict[FilterIdentifier, list[rf.EmpiricalOrthogonalFunction]]:
+        res: dict[FilterIdentifier, list[rf.EmpiricalOrthogonalFunction]] = {}
         for i in range(self.num_channels):
             filter_name = self.observation.filter_list[i]
             if str(filter_name) not in ("UV1", "UV2"):
@@ -196,7 +196,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
                 # Note: We hit this code when retrieving cloud fraction which uses 7 freq. and 1 microwin
                 if len(self.observation.filter_data) <= 1:
-                    res["UV2"] = []
+                    res[FilterIdentifier("UV2")] = []
                     continue
 
                 eof_path = "/eign_vector"
@@ -235,7 +235,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                 for i in range(len(coeff)):
                     r.append(
                         rf.EmpiricalOrthogonalFunction(
-                            coeff[i], wform, i + 1, filter_name
+                            coeff[i], wform, i + 1, str(filter_name)
                         )
                     )
                 res[filter_name] = r

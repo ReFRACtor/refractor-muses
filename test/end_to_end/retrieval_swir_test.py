@@ -244,7 +244,7 @@ def test_simulated_retrieval(
 
     # Have simulated observation, and do retrieval
     ohandle = SimulatedObservationHandle(
-        "TROPOMI", pickle.load(open(dir / "obs_sim.pkl", "rb"))
+        StateElementIdentifier("TROPOMI"), pickle.load(open(dir / "obs_sim.pkl", "rb"))
     )
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
     rs.update_target(mrdir.run_dir / "Table.asc")
