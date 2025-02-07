@@ -126,8 +126,7 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
 ], indirect=True)
 def test_fm_run(tropomi_fm_object_creator_step_0):
     fm = tropomi_fm_object_creator_step_0.forward_model
-    # TODO: serializatin works for StandardForwardModel but not for OSSForwardModel
-    # rf.write_shelve("fm.xml", fm)
+    rf.write_shelve("fm.xml", fm)
     fm.add_observer_and_keep_reference(PrintSpectrum())
     print(fm.radiance(0, True).value)
 
