@@ -192,8 +192,7 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
 
 @pytest.mark.long_test
 @pytest.mark.parametrize("use_oss,oss_training_data", [
-#    (True, "../OSS_file_all_1243_0_1737006075.1163344.npz"),
-#    # Fails with ValueError: shape mismatch: value array of shape (480,) could not be broadcast to indexing result of shape (112,)
+    (True, "../OSS_file_all_1243_0_1737006075.1163344.npz"),
     (False, None)
 ])
 def test_simulated_retrieval(
@@ -232,7 +231,7 @@ def test_simulated_retrieval(
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
     cfunc = rs.strategy_executor.create_cost_function()
-    # pickle.dump(cfunc, open(dir / "cfunc_initial_guess.pkl", "wb"))
+    pickle.dump(cfunc, open(dir / "cfunc_initial_guess.pkl", "wb"))
 
     # Get the log vmr values set in the state vector. This is the initial guess.
     # For purposes of a simulation, we will say the "right" answer is to reduce the

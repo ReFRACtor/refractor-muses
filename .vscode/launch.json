@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Python: Remote Attach",
+            "type": "python",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "/tb/sandbox17/sval/muses_conda_041824/muses/refractor-muses"
+                }
+            ],
+            "justMyCode": false
+        }
+    ]
+}
