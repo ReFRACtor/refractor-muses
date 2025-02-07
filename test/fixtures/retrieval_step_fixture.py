@@ -190,12 +190,18 @@ def tropomi_fm_object_creator_step_0(
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_swir_step(
-    isolated_dir, josh_osp_dir, gmao_dir, vlidort_cli, tropomi_band7_test_in_dir
+    request, isolated_dir, josh_osp_dir, gmao_dir, vlidort_cli, tropomi_band7_test_in_dir
 ):
     """Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
     in multiple tests"""
     # Note this example is pretty hokey, and we don't even complete the first step. So
     # skip the ret_info stuff
+
+    oss_param = getattr(request, "param", {})
+    use_oss = oss_param.get("use_oss", False)
+    oss_training_data = oss_param.get("oss_training_data", None)
+    if(oss_training_data is not None):
+        oss_training_data = tropomi_band7_test_in_dir / oss_training_data
     rs, rstep, _ = set_up_run_to_location(
         tropomi_band7_test_in_dir,
         0,
@@ -215,6 +221,8 @@ def tropomi_fm_object_creator_swir_step(
             None,
             osp_dir=josh_osp_dir,
         ),
+        use_oss=use_oss,
+        oss_training_data=oss_training_data,
         rf_uip_func=rs.strategy_executor.rf_uip_func_cost_function(False, None),
         osp_dir=josh_osp_dir,
     )

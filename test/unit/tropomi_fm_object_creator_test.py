@@ -121,13 +121,12 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
             pickle.dump(data, out)
 
 @pytest.mark.parametrize("tropomi_fm_object_creator_step_0", [
-    # TODO: Move sample training data to refractor_test_data
     {"use_oss": True, "oss_training_data": "../OSS_file_all_1243_0_1737006075.1163344.npz"},
     {"use_oss": False, "oss_training_data": None}
 ], indirect=True)
 def test_fm_run(tropomi_fm_object_creator_step_0):
     fm = tropomi_fm_object_creator_step_0.forward_model
-    # rf.write_shelve("fm.xml", fm)
+    rf.write_shelve("fm.xml", fm)
     fm.add_observer_and_keep_reference(PrintSpectrum())
     print(fm.radiance(0, True).value)
 

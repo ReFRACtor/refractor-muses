@@ -195,8 +195,12 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
 
 
 @pytest.mark.long_test
+@pytest.mark.parametrize("use_oss,oss_training_data", [
+    (True, "../OSS_file_all_1243_0_1737006075.1163344.npz"),
+    (False, None)
+])
 def test_simulated_retrieval(
-    gmao_dir, josh_osp_dir, end_to_end_run_dir, tropomi_band7_test_in_dir2
+    gmao_dir, josh_osp_dir, end_to_end_run_dir, tropomi_band7_test_in_dir2, use_oss, oss_training_data
 ):
     """Do a simulation, and then a retrieval to get this result"""
     dir = end_to_end_run_dir / "swir_simulation"
@@ -212,8 +216,16 @@ def test_simulated_retrieval(
         shell=True,
     )
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    if(oss_training_data is not None):
+        oss_training_data = tropomi_band7_test_in_dir2 / oss_training_data
+
     ihandle = TropomiSwirForwardModelHandle(
-        use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
+        use_pca=True,
+        use_lrad=False,
+        lrad_second_order=False,
+        osp_dir=josh_osp_dir,
+        use_oss=use_oss,
+        oss_training_data=oss_training_data
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(mrdir.run_dir / "Table.asc")
@@ -249,6 +261,50 @@ def test_simulated_retrieval(
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
     rs.update_target(mrdir.run_dir / "Table.asc")
     rs.retrieval_ms()
+
+@pytest.mark.long_test
+@pytest.mark.parametrize("use_oss,oss_training_data", [
+    (True, "../OSS_file_all_1243_0_1737006075.1163344.npz"),
+    (False, None)
+])
+def test_radiance(
+    gmao_dir, josh_osp_dir, tmpdir, tropomi_band7_test_in_dir2, use_oss, oss_training_data
+):
+    """Do a simulation, and then a retrieval to get this result"""
+    mrdir = MusesRunDir(
+        tropomi_band7_test_in_dir2,
+        josh_osp_dir,
+        gmao_dir,
+        path_prefix=tmpdir,
+    )
+    subprocess.run(
+        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {str(mrdir.run_dir / "Table.asc")}',
+        shell=True,
+    )
+    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    if(oss_training_data is not None):
+        oss_training_data = tropomi_band7_test_in_dir2 / oss_training_data
+
+    ihandle = TropomiSwirForwardModelHandle(
+        use_pca=True,
+        use_lrad=False,
+        lrad_second_order=False,
+        osp_dir=josh_osp_dir,
+        use_oss=use_oss,
+        oss_training_data=oss_training_data
+    )
+    rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
+    rs.update_target(mrdir.run_dir / "Table.asc")
+
+    # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
+    # do the first retrieval step). We then grab the CostFunction for that step,
+    # which we can use for simulation purposes.
+    rs.strategy_executor.execute_retrieval(stop_at_step=0)
+    cfunc = rs.strategy_executor.create_cost_function()
+
+    # Run forward model
+    rad_spectrum = cfunc.fm_list[0].radiance(0, True)
+    pickle.dump(rad_spectrum, open(tmpdir / f"radiance_oss_{use_oss}.pkl", "wb"))
 
 
 @pytest.mark.long_test
