@@ -12,7 +12,7 @@ from .identifier import InstrumentIdentifier, FilterIdentifier
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
-    from .identifier import StateElementIdentifier, RetrievalStepIdentifier
+    from .identifier import StateElementIdentifier, RetrievalType
 
 
 class MusesSpectralWindow(rf.SpectralWindow):
@@ -469,7 +469,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         spectral_window_directory: str | os.PathLike[str],
         retrieval_elements: list[StateElementIdentifier],
         step_name: str,
-        retrieval_type: RetrievalStepIdentifier,
+        retrieval_type: RetrievalType,
         spec_file: str | os.PathLike[str] | None = None,
     ):
         """For testing purposes, this calls the old mpy.table_get_spectral_filename to
@@ -509,7 +509,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         spectral_window_directory: str | os.PathLike[str],
         retrieval_elements: list[StateElementIdentifier],
         step_name: str,
-        retrieval_type: RetrievalStepIdentifier,
+        retrieval_type: RetrievalType,
         spec_file: str | os.PathLike[str] | None = None,
     ):
         """For testing purposes, this calls the old mpy.table_new_mw_from_step. This can

@@ -11,7 +11,7 @@ if typing.TYPE_CHECKING:
     from .identifier import (
         InstrumentIdentifier,
         StateElementIdentifier,
-        RetrievalStepIdentifier,
+        RetrievalType,
         FilterIdentifier,
     )
 
@@ -58,7 +58,7 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def retrieval_type(self) -> RetrievalStepIdentifier:
+    def retrieval_type(self) -> RetrievalType:
         """The retrieval type."""
         raise NotImplementedError()
 
@@ -145,7 +145,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         return self.current_strategy_step_dict["max_num_iterations"]
 
     @property
-    def retrieval_type(self) -> RetrievalStepIdentifier:
+    def retrieval_type(self) -> RetrievalType:
         """The retrieval type."""
         return self.current_strategy_step_dict["retrieval_type"]
 

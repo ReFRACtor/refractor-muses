@@ -8,8 +8,10 @@ class Identifier(object, metaclass=abc.ABCMeta):
     to give the list of what we are retrieving.
 
     We abstract that. It is useful if nothing else to indicate what a
-    particular str is for if nothing else. Plus we may find it useful to
-    have other identifiers in the future."""
+    particular str is for. Plus we may find it useful to have other
+    identifiers in the future.
+
+    """
 
     # Not clear what all we want here. Right now, just the minimum we need
     # to have a set that can be used in dict and converted to str that muses_py
@@ -36,9 +38,8 @@ class Identifier(object, metaclass=abc.ABCMeta):
 
 
 class IdentifierStr(Identifier):
-    """Right now, our identifiers are only str. We may extend this in the
-    future, but this would prove a bit complicated and we would want to think
-    through the design. But we have all the Identifiers separated out from str, so any
+    """Right now, most of our identifiers are only str. We may extend this in the
+    future. But we have all the Identifiers separated out from str, so any
     future changes should have the plumbing in place to support."""
 
     def __init__(self, s):
@@ -66,8 +67,8 @@ class StateElementIdentifier(IdentifierStr):
     pass
 
 
-class RetrievalStepIdentifier(IdentifierStr):
-    '''Identify an retrieval step, e.g., "BG"'''
+class RetrievalType(IdentifierStr):
+    '''Identify an retrieval step type, e.g., "BG"'''
 
     def __eq__(self, other):
         # Do case insensitive compare

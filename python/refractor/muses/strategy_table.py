@@ -8,7 +8,7 @@ from .order_species import order_species
 import numpy as np
 from pathlib import Path
 import typing
-from .identifier import InstrumentIdentifier, FilterIdentifier, RetrievalStepIdentifier
+from .identifier import InstrumentIdentifier, FilterIdentifier, RetrievalType
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
@@ -165,7 +165,7 @@ class StrategyTable:
         # We may introduce more complicated conditional steps, but at this
         # point the only thing that gets this treatment is BT steps.
         if (
-            self.retrieval_type != RetrievalStepIdentifier("BT")
+            self.retrieval_type != RetrievalType("BT")
             or self.is_next_bt()
             or self.table_step not in current_state.brightness_temperature_data
         ):
@@ -179,7 +179,7 @@ class StrategyTable:
         istep = step + 1
         while not self.is_done():
             self.table_step = istep
-            if self.retrieval_type != RetrievalStepIdentifier("bt_ig_refine"):
+            if self.retrieval_type != RetrievalType("bt_ig_refine"):
                 break
             relem = ",".join(self.retrieval_elements())
             if relem != species_igr:
@@ -233,8 +233,8 @@ class StrategyTable:
         return self.strategy_table_dict["errorMaptype"]
 
     @property
-    def retrieval_type(self) -> RetrievalStepIdentifier:
-        return RetrievalStepIdentifier(self.table_entry("retrievalType"))
+    def retrieval_type(self) -> RetrievalType:
+        return RetrievalType(self.table_entry("retrievalType"))
 
     def is_next_bt(self):
         """This is a bit awkward, but it isn't clear exactly how we should get

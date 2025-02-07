@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
 from .muses_forward_model import ResultIrk
-from .identifier import RetrievalStepIdentifier
+from .identifier import RetrievalType
 from loguru import logger
 import typing
 
@@ -18,12 +18,12 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
 
     def retrieval_step_body(
         self,
-        retrieval_type: RetrievalStepIdentifier,
+        retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
         irk_res=None,
         **kwargs,
     ) -> bool:
-        if retrieval_type != RetrievalStepIdentifier("irk"):
+        if retrieval_type != RetrievalType("irk"):
             return False
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         logger.info("Running run_irk ...")
