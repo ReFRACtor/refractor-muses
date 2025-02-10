@@ -22,12 +22,11 @@ class ErrorAnalysis:
 
     def __init__(
         self,
-        current_strategy_step: CurrentStrategyStep,
         state_info: StateInfo,
         covariance_state_element_name: list[StateElementIdentifier],
     ):
         self.error_initial = self.initialize_error_initial(
-            current_strategy_step, state_info, covariance_state_element_name
+            state_info, covariance_state_element_name
         )
         self.error_current: dict | mpy.ObjectView = copy.deepcopy(self.error_initial)
         # Code seems to assume these are object view.
@@ -36,7 +35,6 @@ class ErrorAnalysis:
 
     def initialize_error_initial(
         self,
-        current_strategy_step: CurrentStrategyStep,
         state_info: StateInfo,
         covariance_state_element_name: list[StateElementIdentifier],
     ) -> dict | mpy.ObjectView:
@@ -47,18 +45,9 @@ class ErrorAnalysis:
 
         """
         selem_list = []
-        # TODO
-        # Note clear why, but we get slightly different results if we
-        # update the original state_info. May want to track this down,
-        # but as a work around we just copy this. This is just needed
-        # to get the mapping type, I don't think anything else is
-        # needed. We should be able to pull that out from the full
-        # initial guess update at some point, so we don't need to do
-        # the full initial guess
-        sinfo = copy.deepcopy(state_info)
         for sname in covariance_state_element_name:
-            selem = sinfo.state_element(sname)
-            selem.update_initial_guess(current_strategy_step)
+            selem = state_info.state_element(sname)
+            #selem.update_initial_guess(current_strategy_step)
             selem_list.append(selem)
 
         # Note the odd seeming "capitalize" here. This is because

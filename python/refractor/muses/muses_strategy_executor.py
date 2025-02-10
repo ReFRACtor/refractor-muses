@@ -438,8 +438,20 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         ]
 
         self.restart()
+        # TODO
+        # Note clear why, but we get slightly different results if we
+        # update the original state_info. May want to track this down,
+        # but as a work around we just copy this. This is just needed
+        # to get the mapping type, I don't think anything else is
+        # needed. We should be able to pull that out from the full
+        # initial guess update at some point, so we don't need to do
+        # the full initial guess
+        sinfo = copy.deepcopy(self.state_info)
+        for sname in covariance_state_element_name:
+            selem = sinfo.state_element(sname)
+            selem.update_initial_guess(self.current_strategy_step)
         self.error_analysis = ErrorAnalysis(
-            self.current_strategy_step, self.state_info, covariance_state_element_name
+            sinfo, covariance_state_element_name
         )
 
     def next_step(self) -> None:
