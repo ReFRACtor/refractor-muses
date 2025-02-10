@@ -8,6 +8,7 @@ import typing
 if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
     from .retrieval_configuration import RetrievalConfiguration
+    from .muses_observation import MeasurementId
     from .muses_strategy_executor import CurrentStrategyStep
 
 
@@ -71,7 +72,7 @@ class OmiEofStateElement(RetrievableStateElement):
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         update_next: bool,
-        retrieval_config: RetrievalConfiguration,
+        retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.ndarray,
     ):

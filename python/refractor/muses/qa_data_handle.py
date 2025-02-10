@@ -83,7 +83,9 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def qa_update_retrieval_result(
-            self, retrieval_result: RetrievalResult, current_strategy_step : CurrentStrategyStep
+        self,
+        retrieval_result: RetrievalResult,
+        current_strategy_step: CurrentStrategyStep,
     ) -> str | None:
         """This does the QA calculation, and updates the given
         RetrievalResult.  Returns the master quality flag results
@@ -99,7 +101,9 @@ class QaDataHandleSet(CreatorHandleSet):
         super().__init__("qa_update_retrieval_result")
 
     def qa_update_retrieval_result(
-            self, retrieval_result: RetrievalResult, current_strategy_step: CurrentStrategyStep
+        self,
+        retrieval_result: RetrievalResult,
+        current_strategy_step: CurrentStrategyStep,
     ) -> str | None:
         """This does the QA calculation, and updates the given RetrievalResult.
         Returns the master quality flag results"""
@@ -136,7 +140,9 @@ class MusesPyQaDataHandle(QaDataHandle):
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
 
     def qa_update_retrieval_result(
-            self, retrieval_result: RetrievalResult, current_strategy_step: CurrentStrategyStep
+        self,
+        retrieval_result: RetrievalResult,
+        current_strategy_step: CurrentStrategyStep,
     ) -> str | None:
         """This does the QA calculation, and updates the given
         RetrievalResult.  Returns the master quality flag results

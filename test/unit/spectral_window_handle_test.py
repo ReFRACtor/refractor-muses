@@ -50,7 +50,8 @@ def test_muses_py_spectral_window_handle(
             "step_number": 8,
             "max_num_iterations": "15",
             "retrieval_type": "joint",
-        }
+        },
+        mid,
     )
     swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
     print(swin_dict)
@@ -84,7 +85,8 @@ def test_muses_py_spectral_window_handle_empty_band(
             "step_number": 3,
             "max_num_iterations": "10",
             "retrieval_type": "OMICLOUD_IG_Refine",
-        }
+        },
+        mid,
     )
     swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
     print(swin_dict)

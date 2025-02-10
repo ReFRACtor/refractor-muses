@@ -32,7 +32,7 @@ from typing import Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
-    from .muses_observation import MusesObservation
+    from .muses_observation import MusesObservation, MeasurementId
     from .cost_function import CostFunction
     from .retrieval_configuration import RetrievalConfiguration
     from .state_info import StateInfo
@@ -166,6 +166,13 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             )
         else:
             self._qa_data_handle_set = qa_data_handle_set
+        self.measurement_id: MeasurementId | None = None
+
+    def notify_update_target(self, measurement_id: MeasurementId):
+        """Have updated the target we are processing."""
+        self.measurement_id = measurement_id
+        self.spectral_window_handle_set.notify_update_target(self.measurement_id)
+        self.qa_data_handle_set.notify_update_target(self.measurement_id)
 
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
@@ -388,6 +395,11 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.rs = rs
         self.retrieval_info: RetrievalInfo | None = None
         self.spectral_window_dict = None
+        self.measurement_id: MeasurementId | None = None
+
+    def notify_update_target(self, measurement_id: MeasurementId):
+        super().notify_update_target(measurement_id)
+        self.strategy.notify_update_target(measurement_id)
 
     def notify_update(self, location: str, **kwargs):
         self.rs.notify_update(location, **kwargs)
@@ -580,9 +592,13 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         problems with an individual step, or to run a simulation at a
         particular step.
         """
+        if self.measurement_id is None:
+            raise RuntimeError(
+                "Need to call notify_update_target before calling this function"
+            )
         with self.chdir_run_dir():
             self.state_info.init_state(
-                self.rs.measurement_id,
+                self.measurement_id,
                 self.observation_handle_set,
                 self.retrieval_elements_all_step,
                 self.error_analysis_interferents_all_step,

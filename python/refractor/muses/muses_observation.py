@@ -53,13 +53,19 @@ class MeasurementId(collections.abc.Mapping):
        filters we will be working with, e.g., so we only read that
        data out of the sounding files.
 
+    3. We also want to bring in the RetrievalConfiguration data, the
+       separation between the two is pretty arbitrary and we tend to
+       need both together.
+
     This class brings this stuff together. It is mostly just a dict
-    mapping keyword to file, but with these extra handling included.
+    mapping keyword to file or configuration value, but with these
+    extra handling included.
 
     This class is an abstract interface, it is useful for testing to
     have a simple implementation that doesn't depend on the
     Measurement_ID.asc and strategy tables files (e.g., a hardcoded
     dict with the values).
+
     """
 
     @abc.abstractproperty

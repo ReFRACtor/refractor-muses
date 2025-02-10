@@ -3,8 +3,10 @@ from .strategy_table import StrategyTable
 import os
 import abc
 import typing
+import numpy as np
 
 if typing.TYPE_CHECKING:
+    from .muses_observation import MeasurementId
     from .retrieval_info import RetrievalInfo
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
@@ -17,13 +19,7 @@ if typing.TYPE_CHECKING:
 
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
-    """This contains information about the current strategy step. This
-    is little more than a dict giving several properties, but we
-    abstract this out so we can test things without needing to use a
-    full MusesStrategyExecutor, also so we document what information
-    is expected from a strategy step.
-
-    """
+    """This contains information about the current strategy step."""
 
     @abc.abstractproperty
     def retrieval_elements(self) -> list[StateElementIdentifier]:
@@ -33,6 +29,37 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """List of instruments used in this step."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def retrieval_type(self) -> RetrievalType:
+        """The retrieval type."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
+        """Return a dictionary that maps instrument name to the MusesSpectralWindow
+        to use for that."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
+        """Return a list of the error analysis interferents."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def retrieval_info(self) -> RetrievalInfo:
+        """The RetrievalInfo."""
+        # TODO Note it would probably be good to remove this if we can. This is
+        # currently fairly tightly coupled with RetrievalResults, so we'll need
+        # to do some work to get this removed
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def update_state(self, current_state: CurrentState, results_list: np.ndarray):
+        """Update the CurrentState with the results. We have this as part of
+        CurrentStrategyStep so we can support any sort of more complicated logic
+        for updating the state (e.g., update the apriori)"""
         raise NotImplementedError()
 
     @abc.abstractproperty
@@ -58,42 +85,21 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def retrieval_type(self) -> RetrievalType:
-        """The retrieval type."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
     def do_not_update_list(self) -> list[StateElementIdentifier]:
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
-        """Return a dictionary that maps instrument name to the MusesSpectralWindow
-        to use for that."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
-        """Return a list of the error analysis interferents."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def retrieval_info(self) -> RetrievalInfo:
-        """The RetrievalInfo."""
-        # Note it would probably be good to remove this if we can. Right now
-        # this is only used by RetrievalL2Output. But at least for now, we
-        # need to to generate the output
         raise NotImplementedError()
 
 
 class CurrentStrategyStepDict(CurrentStrategyStep):
     """Implementation of CurrentStrategyStep that uses a dict"""
 
-    def __init__(self, current_strategy_step_dict: dict):
+    def __init__(self, current_strategy_step_dict: dict, measurement_id: MeasurementId):
         self.current_strategy_step_dict = current_strategy_step_dict
+        self.measurement_id = measurement_id
 
     @classmethod
-    def current_step(cls, strategy_table: StrategyTable) -> CurrentStrategyStepDict:
+    def current_step(
+        cls, strategy_table: StrategyTable, measurement_id: MeasurementId
+    ) -> CurrentStrategyStepDict:
         """Create a current strategy step, leaving out the
         RetrievalInfo stuff.
         """
@@ -109,7 +115,8 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
                 "error_analysis_interferents": strategy_table.error_analysis_interferents(),
                 "spectral_window_dict": None,
                 "retrieval_info": None,
-            }
+            },
+            measurement_id,
         )
 
     @property
@@ -121,6 +128,18 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """List of instruments used in this step."""
         return self.current_strategy_step_dict["instrument_name"]
+
+    def update_state(self, current_state: CurrentState, results_list: np.ndarray):
+        """Update the CurrentState with the results. We have this as part of
+        CurrentStrategyStep so we can support any sort of more complicated logic
+        for updating the state (e.g., update the apriori)"""
+        current_state.update_state(
+            self.retrieval_info,
+            results_list,
+            self.do_not_update_list,
+            self.measurement_id,
+            self.step_number,
+        )
 
     @property
     def step_name(self) -> str:
@@ -190,6 +209,9 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
     processing is handled.
 
     """
+
+    def notify_update_target(self, measurement_id: MeasurementId):
+        pass
 
     @abc.abstractmethod
     def is_next_bt(self):
@@ -312,6 +334,14 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
         osp_dir: str | os.PathLike[str] | None = None,
     ):
         self._stable = StrategyTable(filename, osp_dir=osp_dir)
+        self._measurement_id: MeasurementId | None = None
+
+    def notify_update_target(self, measurement_id: MeasurementId):
+        self._measurement_id = measurement_id
+
+    @property
+    def measurement_id(self) -> MeasurementId | None:
+        return self._measurement_id
 
     def is_next_bt(self):
         """Indicate if the next step is a BT step. This is a bit
@@ -364,7 +394,11 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
     ) -> CurrentStrategyStep:
         if self.is_done():
             raise RuntimeError("Past end of strategy")
-        cstep = CurrentStrategyStepDict.current_step(self._stable)
+        if self.measurement_id is None:
+            raise RuntimeError(
+                "Need to call notify_update_target before calling this function."
+            )
+        cstep = CurrentStrategyStepDict.current_step(self._stable, self.measurement_id)
         cstep.current_strategy_step_dict["spectral_window_dict"] = spectral_window_dict
         cstep.current_strategy_step_dict["retrieval_info"] = retrieval_info
         return cstep

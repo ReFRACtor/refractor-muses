@@ -169,7 +169,7 @@ class RetrievableStateElement(StateElement):
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         update_next: bool,
-        retrieval_config: RetrievalConfiguration,
+        retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.ndarray,
     ):
@@ -1158,7 +1158,7 @@ class StateInfo:
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         do_not_update: list[StateElementIdentifier],
-        retrieval_config: RetrievalConfiguration,
+        retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
     ):
         """Note this updates the current state, and also creates a "next_state".

@@ -14,6 +14,7 @@ if typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
     from .retrieval_info import RetrievalInfo
     from .retrieval_configuration import RetrievalConfiguration
+    from .muses_observation import MeasurementId
 
 
 class CurrentState(object, metaclass=abc.ABCMeta):
@@ -147,7 +148,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         do_not_update: list[StateElementIdentifier],
-        retrieval_config: RetrievalConfiguration,
+        retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
     ):
         """Update the state info"""
@@ -740,7 +741,7 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         do_not_update: list[StateElementIdentifier],
-        retrieval_config: RetrievalConfiguration,
+        retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
     ):
         """Update the state info"""

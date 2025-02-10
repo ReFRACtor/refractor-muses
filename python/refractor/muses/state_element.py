@@ -31,6 +31,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .retrieval_info import RetrievalInfo
     from .muses_strategy_executor import CurrentStrategyStep
+    from .muses_observation import MeasurementId
 
 
 class MusesPyStateElement(RetrievableStateElement):
@@ -104,7 +105,7 @@ class MusesPyStateElement(RetrievableStateElement):
         retrieval_info: RetrievalInfo,
         results_list: np.array,
         update_next: bool,
-        retrieval_config: RetrievalConfiguration,
+        retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.array,
     ):
@@ -2402,7 +2403,7 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         retrieval_info: RetrievalInfo,
         results_list: np.array,
         update_next: bool,
-        retrieval_config: RetrievalConfiguration,
+        retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.array,
     ):
@@ -2515,7 +2516,7 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
         retrieval_info: RetrievalInfo,
         results_list: np.array,
         update_next: bool,
-        retrieval_config: RetrievalConfiguration,
+        retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.array,
     ):

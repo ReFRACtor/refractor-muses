@@ -249,13 +249,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         )
         logger.info("---\n")
 
-        cstate.update_state(
-            rs.retrieval_info,
-            self.results.results_list,
-            rs.current_strategy_step.do_not_update_list,
-            rs.retrieval_config,
-            rs.step_number,
-        )
+        rs.current_strategy_step.update_state(cstate, self.results.results_list)
+
         # I don't think we actually want this in here. 1) we don't currently
         # support OCO2 and 2) we would just use a direct PressureSigma object
         # along with a new state element name if we did. But leave this commented
@@ -284,7 +279,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             self.results.update_jacobian_sys(self.cfunc_sys)
         rs.notify_update("systematic_jacobian", retrieval_strategy_step=self)
         rs.error_analysis.update_retrieval_result(self.results)
-        rs.qa_data_handle_set.qa_update_retrieval_result(self.results, rs.current_strategy_step)
+        rs.qa_data_handle_set.qa_update_retrieval_result(
+            self.results, rs.current_strategy_step
+        )
         cstate.propagated_qa.update(
             rs.current_strategy_step.retrieval_elements, self.results.master_quality
         )

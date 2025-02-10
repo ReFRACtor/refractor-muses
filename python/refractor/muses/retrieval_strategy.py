@@ -212,12 +212,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
             self.strategy_executor.filter_list_dict,
         )
         self._cost_function_creator.notify_update_target(self.measurement_id)
-        self.strategy_executor.spectral_window_handle_set.notify_update_target(
-            self.measurement_id
-        )
-        self.strategy_executor.qa_data_handle_set.notify_update_target(
-            self.measurement_id
-        )
+        self.strategy_executor.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
         self._state_info.notify_update_target(self)
         self.notify_update("update target")
