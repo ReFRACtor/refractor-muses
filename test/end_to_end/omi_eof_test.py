@@ -6,7 +6,7 @@ from refractor.muses import (
     OmiEofStateElement,
     SingleSpeciesHandle,
     RetrievalStrategyMemoryUse,
-    StateElementIdentifier
+    StateElementIdentifier,
 )
 import subprocess
 import pytest
@@ -112,7 +112,7 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir):
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
     subprocess.run(
-        f'sed -i -e "s/OMINRADWAVUV1/OMINRADWAVUV1,OMIEOFUV1,OMIEOFUV2/" {str(r.run_dir /"Table.asc")}',
+        f'sed -i -e "s/OMINRADWAVUV1/OMINRADWAVUV1,OMIEOFUV1,OMIEOFUV2/" {str(r.run_dir / "Table.asc")}',
         shell=True,
     )
 

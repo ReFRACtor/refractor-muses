@@ -5,7 +5,7 @@ from refractor.muses import (
     RetrievalStrategy,
     MusesRunDir,
     CurrentStateStateInfo,
-    StateElementIdentifier
+    StateElementIdentifier,
 )
 import os
 import pytest
@@ -25,8 +25,13 @@ def test_current_state_dict():
         StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"): 2.0,
         StateElementIdentifier("TROPOMIRADSQUEEZEBAND3"): 3.0,
     }
-    cs = CurrentStateDict(d, [StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
-                              StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3")])
+    cs = CurrentStateDict(
+        d,
+        [
+            StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+        ],
+    )
     coeff, mp = cs.object_state(
         [
             StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
@@ -36,8 +41,13 @@ def test_current_state_dict():
     )
     npt.assert_allclose(coeff, [1.0, 2.0, 3.0])
     npt.assert_allclose(mp.retrieval_indexes, [0, 1])
-    cs = CurrentStateDict(d, [StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
-                              StateElementIdentifier("TROPOMIRADSQUEEZEBAND3")])
+    cs = CurrentStateDict(
+        d,
+        [
+            StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADSQUEEZEBAND3"),
+        ],
+    )
     coeff, mp = cs.object_state(
         [
             StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),

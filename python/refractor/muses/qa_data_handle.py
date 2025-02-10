@@ -11,6 +11,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
+    from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MeasurementId
 
 
@@ -82,7 +83,7 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def qa_update_retrieval_result(
-        self, retrieval_result: RetrievalResult
+            self, retrieval_result: RetrievalResult, current_strategy_step : CurrentStrategyStep
     ) -> str | None:
         """This does the QA calculation, and updates the given
         RetrievalResult.  Returns the master quality flag results
@@ -98,11 +99,11 @@ class QaDataHandleSet(CreatorHandleSet):
         super().__init__("qa_update_retrieval_result")
 
     def qa_update_retrieval_result(
-        self, retrieval_result: RetrievalResult
+            self, retrieval_result: RetrievalResult, current_strategy_step: CurrentStrategyStep
     ) -> str | None:
         """This does the QA calculation, and updates the given RetrievalResult.
         Returns the master quality flag results"""
-        return self.handle(retrieval_result)
+        return self.handle(retrieval_result, current_strategy_step)
 
 
 class MusesPyQaDataHandle(QaDataHandle):
@@ -135,7 +136,7 @@ class MusesPyQaDataHandle(QaDataHandle):
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
 
     def qa_update_retrieval_result(
-        self, retrieval_result: RetrievalResult
+            self, retrieval_result: RetrievalResult, current_strategy_step: CurrentStrategyStep
     ) -> str | None:
         """This does the QA calculation, and updates the given
         RetrievalResult.  Returns the master quality flag results
@@ -143,7 +144,6 @@ class MusesPyQaDataHandle(QaDataHandle):
         """
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         # Name is derived from the microwindows file name
-        current_strategy_step = retrieval_result.current_strategy_step
         mwfname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
             self.viewing_mode,
             self.spectral_window_directory,

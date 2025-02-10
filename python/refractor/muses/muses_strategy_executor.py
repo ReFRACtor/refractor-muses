@@ -450,9 +450,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         for sname in covariance_state_element_name:
             selem = sinfo.state_element(sname)
             selem.update_initial_guess(self.current_strategy_step)
-        self.error_analysis = ErrorAnalysis(
-            sinfo, covariance_state_element_name
-        )
+        self.error_analysis = ErrorAnalysis(sinfo, covariance_state_element_name)
 
     def next_step(self) -> None:
         """Advance to the next step"""

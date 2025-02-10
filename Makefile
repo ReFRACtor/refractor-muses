@@ -28,10 +28,10 @@ install2:
 # ------------------------------------------------------------------
 
 lint:
-	ruff check python/refractor
+	ruff check python/refractor test
 
 format:
-	ruff format python/refractor
+	ruff format python/refractor test
 
 # Note that PYTHONPATH is required, at least as of pip 24.3.1. The py.typed file needed to
 # tell mypy that our modules have types doesn't get translated through using

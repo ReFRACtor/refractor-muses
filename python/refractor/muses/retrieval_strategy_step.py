@@ -236,7 +236,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         self.results = RetrievalResult(
             ret_res,
-            rs.current_strategy_step,
             rs.retrieval_info,
             cstate.state_info,
             self.cfunc.obs_list,
@@ -285,7 +284,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             self.results.update_jacobian_sys(self.cfunc_sys)
         rs.notify_update("systematic_jacobian", retrieval_strategy_step=self)
         rs.error_analysis.update_retrieval_result(self.results)
-        rs.qa_data_handle_set.qa_update_retrieval_result(self.results)
+        rs.qa_data_handle_set.qa_update_retrieval_result(self.results, rs.current_strategy_step)
         cstate.propagated_qa.update(
             rs.current_strategy_step.retrieval_elements, self.results.master_quality
         )

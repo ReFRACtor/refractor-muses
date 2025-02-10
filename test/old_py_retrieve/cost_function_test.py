@@ -5,7 +5,7 @@ from refractor.muses import (
     RetrievalConfiguration,
     muses_py_call,
     osswrapper,
-    InstrumentIdentifier
+    InstrumentIdentifier,
 )
 from fixtures.residual_fm import (
     joint_omi_residual_fm_jac,

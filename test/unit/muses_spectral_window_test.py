@@ -4,7 +4,7 @@ from refractor.muses import (
     MusesOmiObservation,
     FileFilterMetadata,
     InstrumentIdentifier,
-    FilterIdentifier
+    FilterIdentifier,
 )
 import numpy as np
 import numpy.testing as npt
@@ -64,7 +64,9 @@ def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
     # be nice to straighten this out - this is actually kind of confusing. Might be better to
     # just have a way to skip steps - but this is at least how the code works. The
     # code mpy.modify_from_bt changes the number of steps
-    swin = MusesSpectralWindow(stable.spectral_window(InstrumentIdentifier("OMI"), stp=step_number + 1), obs)
+    swin = MusesSpectralWindow(
+        stable.spectral_window(InstrumentIdentifier("OMI"), stp=step_number + 1), obs
+    )
     spec = obs.spectrum_full(1)
     # Check number of good points
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 4

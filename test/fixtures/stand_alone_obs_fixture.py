@@ -10,7 +10,7 @@ from refractor.muses import (
     MusesAirsObservation,
     DictFilterMetadata,
     FilterIdentifier,
-    InstrumentIdentifier
+    InstrumentIdentifier,
 )
 
 
@@ -82,9 +82,18 @@ def joint_omi_obs_step_8(osp_dir, joint_omi_test_in_dir):
         osp_dir
         / "Strategy_Tables/ops/OSP-OMI-AIRS-v10/MWDefinitions/Windows_Nadir_H2O_O3_joint.asc"
     )
-    channel_list = [FilterIdentifier("1A1"), FilterIdentifier("2A1"), FilterIdentifier("1B2"), FilterIdentifier("2B1")]
+    channel_list = [
+        FilterIdentifier("1A1"),
+        FilterIdentifier("2A1"),
+        FilterIdentifier("1B2"),
+        FilterIdentifier("2B1"),
+    ]
     swin_dict = MusesSpectralWindow.create_dict_from_file(
-        mwfile, filter_list_dict={InstrumentIdentifier("OMI"): filter_list, InstrumentIdentifier("AIRS"): channel_list}
+        mwfile,
+        filter_list_dict={
+            InstrumentIdentifier("OMI"): filter_list,
+            InstrumentIdentifier("AIRS"): channel_list,
+        },
     )
     obs = MusesOmiObservation.create_from_filename(
         filename,

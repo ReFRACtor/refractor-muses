@@ -35,8 +35,9 @@ def set_up_run_to_location(
 ):
     """Set up directory and run the given step number to the given location."""
     r = MusesRunDir(dir, osp_dir, gmao_dir)
-    rs = RetrievalStrategy(r.run_dir / "Table.asc", vlidort_cli=vlidort_cli,
-                           osp_dir=osp_dir)
+    rs = RetrievalStrategy(
+        r.run_dir / "Table.asc", vlidort_cli=vlidort_cli, osp_dir=osp_dir
+    )
     rstep, kwargs = run_step_to_location(
         rs, step_number, dir, location, include_ret_state=include_ret_state
     )
@@ -152,7 +153,7 @@ def tropomi_fm_object_creator_step_0(
     oss_param = getattr(request, "param", {})
     use_oss = oss_param.get("use_oss", False)
     oss_training_data = oss_param.get("oss_training_data", None)
-    if(oss_training_data is not None):
+    if oss_training_data is not None:
         oss_training_data = tropomi_test_in_dir / oss_training_data
     rs, rstep, _ = set_up_run_to_location(
         tropomi_test_in_dir,
@@ -164,14 +165,18 @@ def tropomi_fm_object_creator_step_0(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(InstrumentIdentifier("TROPOMI"))
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(
+        InstrumentIdentifier("TROPOMI")
+    )
     res = TropomiFmObjectCreator(
         rs.current_state(),
         rs.measurement_id,
         rs.observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+            rs.current_strategy_step.spectral_window_dict[
+                InstrumentIdentifier("TROPOMI")
+            ],
             None,
             osp_dir=osp_dir,
         ),
@@ -211,7 +216,9 @@ def tropomi_fm_object_creator_swir_step(
         rs.observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+            rs.current_strategy_step.spectral_window_dict[
+                InstrumentIdentifier("TROPOMI")
+            ],
             None,
             osp_dir=josh_osp_dir,
         ),
@@ -241,14 +248,18 @@ def tropomi_fm_object_creator_step_1(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(InstrumentIdentifier("TROPOMI"))
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(
+        InstrumentIdentifier("TROPOMI")
+    )
     res = TropomiFmObjectCreator(
         rs.current_state(),
         rs.measurement_id,
         rs.observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+            rs.current_strategy_step.spectral_window_dict[
+                InstrumentIdentifier("TROPOMI")
+            ],
             None,
             osp_dir=osp_dir,
         ),
@@ -278,7 +289,9 @@ def omi_fm_object_creator_step_0(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(InstrumentIdentifier("OMI"))
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(
+        InstrumentIdentifier("OMI")
+    )
     res = OmiFmObjectCreator(
         rs.current_state(),
         rs.measurement_id,
@@ -315,7 +328,9 @@ def omi_fm_object_creator_step_1(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(InstrumentIdentifier("OMI"))
+    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(
+        InstrumentIdentifier("OMI")
+    )
     res = OmiFmObjectCreator(
         rs.current_state(),
         rs.measurement_id,
@@ -346,7 +361,7 @@ def tropomi_swir(isolated_dir, gmao_dir, josh_osp_dir, tropomi_band7_test_in_dir
 @pytest.fixture(scope="function")
 def tropomi_co_step(tropomi_swir):
     subprocess.run(
-        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {str(tropomi_swir.run_dir /"Table.asc")}',
+        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {str(tropomi_swir.run_dir / "Table.asc")}',
         shell=True,
     )
     return tropomi_swir

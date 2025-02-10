@@ -120,11 +120,19 @@ class SaveSpectrum(rf.ObserverPtrNamedSpectrum):
             }
             pickle.dump(data, out)
 
-@pytest.mark.parametrize("tropomi_fm_object_creator_step_0", [
-    # TODO: Move sample training data to refractor_test_data
-    {"use_oss": True, "oss_training_data": "../OSS_file_all_1243_0_1737006075.1163344.npz"},
-    {"use_oss": False, "oss_training_data": None}
-], indirect=True)
+
+@pytest.mark.parametrize(
+    "tropomi_fm_object_creator_step_0",
+    [
+        # TODO: Move sample training data to refractor_test_data
+        {
+            "use_oss": True,
+            "oss_training_data": "../OSS_file_all_1243_0_1737006075.1163344.npz",
+        },
+        {"use_oss": False, "oss_training_data": None},
+    ],
+    indirect=True,
+)
 def test_fm_run(tropomi_fm_object_creator_step_0):
     fm = tropomi_fm_object_creator_step_0.forward_model
     # rf.write_shelve("fm.xml", fm)
@@ -206,7 +214,7 @@ def test_compare_altitude(tropomi_fm_object_creator_step_0):
             f"gravity {i}: {alt1.gravity(p[i]).value.value} {alt2.gravity(p[i]).value.value} diff: {(alt1.gravity(p[i]).value.value - alt2.gravity(p[i]).value.value) / alt1.gravity(p[i]).value.value * 100} %"
         )
         print(
-            f"altitude {i}: {alt1.altitude(p[i]).value.value} {alt2.altitude(p[i]).value.value*1000} diff: {(alt1.altitude(p[i]).value.value - alt2.altitude(p[i]).value.value*1000) / max(alt1.altitude(p[i]).value.value,1) * 100} %"
+            f"altitude {i}: {alt1.altitude(p[i]).value.value} {alt2.altitude(p[i]).value.value * 1000} diff: {(alt1.altitude(p[i]).value.value - alt2.altitude(p[i]).value.value * 1000) / max(alt1.altitude(p[i]).value.value, 1) * 100} %"
         )
         gdifper.append(
             (alt1.gravity(p[i]).value.value - alt2.gravity(p[i]).value.value)

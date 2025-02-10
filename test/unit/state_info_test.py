@@ -3,7 +3,7 @@ from refractor.muses import (
     SingleSpeciesHandle,
     OmiEofStateElement,
     RetrievalStrategy,
-    StateElementIdentifier
+    StateElementIdentifier,
 )
 import subprocess
 from fixtures.misc_fixture import all_output_disabled
@@ -35,8 +35,12 @@ def test_state_info(
         pass
     sinfo = rs.state_info
     assert sinfo.sounding_metadata().wrong_tai_time == pytest.approx(839312679.58409)
-    assert sinfo.state_element(StateElementIdentifier("emissivity")).value[0] == pytest.approx(0.98081997)
-    assert sinfo.state_element(StateElementIdentifier("emissivity")).wavelength[0] == pytest.approx(600)
+    assert sinfo.state_element(StateElementIdentifier("emissivity")).value[
+        0
+    ] == pytest.approx(0.98081997)
+    assert sinfo.state_element(StateElementIdentifier("emissivity")).wavelength[
+        0
+    ] == pytest.approx(600)
     assert sinfo.sounding_metadata().latitude.value == pytest.approx(62.8646)
     assert sinfo.sounding_metadata().longitude.value == pytest.approx(81.0379)
     assert sinfo.sounding_metadata().surface_altitude.convert(
@@ -45,13 +49,23 @@ def test_state_info(
     assert sinfo.sounding_metadata().tai_time == pytest.approx(839312683.58409)
     assert sinfo.sounding_metadata().sounding_id == "20190807_065_04_08_5"
     assert sinfo.sounding_metadata().is_land
-    assert sinfo.state_element(StateElementIdentifier("cloudEffExt")).value[0, 0] == pytest.approx(1e-29)
-    assert sinfo.state_element(StateElementIdentifier("cloudEffExt")).wavelength[0] == pytest.approx(600)
-    assert sinfo.state_element(StateElementIdentifier("PCLOUD")).value[0] == pytest.approx(500.0)
-    assert sinfo.state_element(StateElementIdentifier("PSUR")).value[0] == pytest.approx(0.0)
+    assert sinfo.state_element(StateElementIdentifier("cloudEffExt")).value[
+        0, 0
+    ] == pytest.approx(1e-29)
+    assert sinfo.state_element(StateElementIdentifier("cloudEffExt")).wavelength[
+        0
+    ] == pytest.approx(600)
+    assert sinfo.state_element(StateElementIdentifier("PCLOUD")).value[
+        0
+    ] == pytest.approx(500.0)
+    assert sinfo.state_element(StateElementIdentifier("PSUR")).value[
+        0
+    ] == pytest.approx(0.0)
     assert sinfo.sounding_metadata().local_hour == pytest.approx(11.40252685546875)
     assert sinfo.sounding_metadata().height.value[0] == 0
-    assert sinfo.state_element(StateElementIdentifier("TATM")).value[0] == pytest.approx(293.28302002)
+    assert sinfo.state_element(StateElementIdentifier("TATM")).value[
+        0
+    ] == pytest.approx(293.28302002)
 
 
 def test_update_cloudfraction(omi_step_0):
@@ -547,10 +561,18 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
             rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandle(StateElementIdentifier("OMIEOFUV1"), OmiEofStateElement, pass_state=False)
+                SingleSpeciesHandle(
+                    StateElementIdentifier("OMIEOFUV1"),
+                    OmiEofStateElement,
+                    pass_state=False,
+                )
             )
             rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandle(StateElementIdentifier("OMIEOFUV2"), OmiEofStateElement, pass_state=False)
+                SingleSpeciesHandle(
+                    StateElementIdentifier("OMIEOFUV2"),
+                    OmiEofStateElement,
+                    pass_state=False,
+                )
             )
             rs.retrieval_ms()
     except StopIteration:

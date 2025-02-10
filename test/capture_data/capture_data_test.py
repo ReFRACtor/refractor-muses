@@ -52,6 +52,7 @@ def test_capture_tropomi_retrieval_strategy(
     rs.update_target(r.run_dir / "Table.asc")
     rs.retrieval_ms()
 
+
 @pytest.mark.capture_test
 def test_capture_tropomi_band7_retrieval_strategy(
     isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_band7_test_in_dir
@@ -67,7 +68,9 @@ def test_capture_tropomi_band7_retrieval_strategy(
         tropomi_band7_test_in_dir / "state_info_step", "starting run_step"
     )
     rs.add_observer(rscap)
-    rscap2 = RetrievalStepCaptureObserver(tropomi_band7_test_in_dir / "retrieval_state_step")
+    rscap2 = RetrievalStepCaptureObserver(
+        tropomi_band7_test_in_dir / "retrieval_state_step"
+    )
     rs.add_observer(rscap2)
     rs.update_target(r.run_dir / "Table.asc")
     rs.retrieval_ms()

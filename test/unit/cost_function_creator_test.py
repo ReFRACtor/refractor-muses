@@ -15,7 +15,9 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
         rs.observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
             rs.current_state(),
-            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+            rs.current_strategy_step.spectral_window_dict[
+                InstrumentIdentifier("TROPOMI")
+            ],
             None,
             osp_dir=osp_dir,
         ),

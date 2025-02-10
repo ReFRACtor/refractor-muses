@@ -11,7 +11,6 @@ if typing.TYPE_CHECKING:
     from .state_info import StateInfo, PropagatedQA
     from .muses_observation import MusesObservation
     from .retrieval_info import RetrievalInfo
-    from .muses_strategy_executor import CurrentStrategyStep
 
 
 class RetrievalResult:
@@ -45,7 +44,6 @@ class RetrievalResult:
     def __init__(
         self,
         ret_res: dict,
-        current_strategy_step: CurrentStrategyStep,
         retrieval_info: RetrievalInfo,
         state_info: StateInfo,
         obs_list: list[MusesObservation],
@@ -63,7 +61,6 @@ class RetrievalResult:
         self.retrieval_info = retrieval_info
         self.state_info = state_info
         self.sounding_metadata = state_info.sounding_metadata()
-        self.current_strategy_step = current_strategy_step
         self.ret_res = mpy.ObjectView(ret_res)
         self.jacobianSys = jacobian_sys
         self.num_iterations = 0

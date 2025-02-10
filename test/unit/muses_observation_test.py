@@ -12,8 +12,7 @@ from refractor.muses import (
     CurrentStateDict,
     MusesSpectralWindow,
     InstrumentIdentifier,
-    StateElementIdentifier,
-    FilterIdentifier
+    FilterIdentifier,
 )
 import refractor.framework as rf
 import copy
@@ -27,7 +26,15 @@ def test_measurement_id(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         r.run_dir / "Table.asc", osp_dir=osp_dir
     )
-    flist = {InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")], InstrumentIdentifier("AIRS"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
+    flist = {
+        InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
+        InstrumentIdentifier("AIRS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
     mid = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, flist)
     assert mid.filter_list_dict == flist
     assert float(mid["OMI_Longitude"]) == pytest.approx(-154.7512664794922)
@@ -52,7 +59,15 @@ def test_create_muses_airs_observation(
         r.run_dir / "Table.asc", osp_dir=osp_dir
     )
     # Determined by looking a the full run
-    filter_list_dict = {InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")], InstrumentIdentifier("AIRS"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
+    filter_list_dict = {
+        InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
+        InstrumentIdentifier("AIRS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
     measurement_id = MeasurementIdFile(
         r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
     )
@@ -64,7 +79,12 @@ def test_create_muses_airs_observation(
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile)
     obs = MusesAirsObservation.create_from_id(
-        measurement_id, None, None, swin_dict[InstrumentIdentifier("AIRS")], None, osp_dir=osp_dir
+        measurement_id,
+        None,
+        None,
+        swin_dict[InstrumentIdentifier("AIRS")],
+        None,
+        osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -72,7 +92,12 @@ def test_create_muses_airs_observation(
 
 
 def test_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
-    channel_list = [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]
+    channel_list = [
+        FilterIdentifier("2B1"),
+        FilterIdentifier("1B2"),
+        FilterIdentifier("2A1"),
+        FilterIdentifier("1A1"),
+    ]
     l1b_index = [54, 54, 54, 54]
     l1b_avgflag = 0
     run = 2147
@@ -109,7 +134,14 @@ def test_create_muses_tes_observation(
         r.run_dir / "Table.asc", osp_dir=osp_dir
     )
     # Determined by looking a the full run
-    filter_list_dict = {InstrumentIdentifier("TES"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
+    filter_list_dict = {
+        InstrumentIdentifier("TES"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ]
+    }
     measurement_id = MeasurementIdFile(
         r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
     )
@@ -125,7 +157,12 @@ def test_create_muses_tes_observation(
     )
     swin_dict = MusesSpectralWindow.create_dict_from_file(mwfile, filter_metadata=fmeta)
     obs = MusesTesObservation.create_from_id(
-        measurement_id, None, None, swin_dict[InstrumentIdentifier("TES")], None, osp_dir=osp_dir
+        measurement_id,
+        None,
+        None,
+        swin_dict[InstrumentIdentifier("TES")],
+        None,
+        osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -143,7 +180,15 @@ def test_create_muses_tropomi_observation(
         r.run_dir / "Table.asc", osp_dir=osp_dir
     )
     # Determined by looking a the full run
-    filter_list_dict = {InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")], InstrumentIdentifier("CRIS"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
+    filter_list_dict = {
+        InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")],
+        InstrumentIdentifier("CRIS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
     measurement_id = MeasurementIdFile(
         r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
     )
@@ -189,7 +234,15 @@ def test_create_muses_cris_observation(
         r.run_dir / "Table.asc", osp_dir=osp_dir
     )
     # Determined by looking a the full run
-    filter_list_dict = {InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")], InstrumentIdentifier("CRIS"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
+    filter_list_dict = {
+        InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")],
+        InstrumentIdentifier("CRIS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
     measurement_id = MeasurementIdFile(
         r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
     )
@@ -225,7 +278,15 @@ def test_create_muses_omi_observation(
         r.run_dir / "Table.asc", osp_dir=osp_dir
     )
     # Determined by looking a the full run
-    filter_list_dict = {InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")], InstrumentIdentifier("AIRS"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
+    filter_list_dict = {
+        InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
+        InstrumentIdentifier("AIRS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
     measurement_id = MeasurementIdFile(
         r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
     )
@@ -250,7 +311,12 @@ def test_create_muses_omi_observation(
         ],
     )
     obs = MusesOmiObservation.create_from_id(
-        measurement_id, None, cs, swin_dict[InstrumentIdentifier("OMI")], None, osp_dir=osp_dir
+        measurement_id,
+        None,
+        cs,
+        swin_dict[InstrumentIdentifier("OMI")],
+        None,
+        osp_dir=osp_dir,
     )
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
@@ -307,7 +373,15 @@ def test_simulated_obs(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
         r.run_dir / "Table.asc", osp_dir=osp_dir
     )
     # Determined by looking a the full run
-    filter_list_dict = {InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")], InstrumentIdentifier("CRIS"): [FilterIdentifier("2B1"), FilterIdentifier("1B2"), FilterIdentifier("2A1"), FilterIdentifier("1A1")]}
+    filter_list_dict = {
+        InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")],
+        InstrumentIdentifier("CRIS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
     measurement_id = MeasurementIdFile(
         r.run_dir / "Measurement_ID.asc", rconfig, filter_list_dict
     )

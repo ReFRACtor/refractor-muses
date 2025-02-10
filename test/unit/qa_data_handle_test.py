@@ -13,4 +13,4 @@ def test_qa_data_update_retrieval_results(
         vlidort_cli,
     )
     rs.error_analysis.update_retrieval_result(rstep.results)
-    rs.qa_data_handle_set.qa_update_retrieval_result(rstep.results)
+    rs.qa_data_handle_set.qa_update_retrieval_result(rstep.results, rs.current_strategy_step)

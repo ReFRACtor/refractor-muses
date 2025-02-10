@@ -4,7 +4,7 @@ from refractor.muses import (
     MusesTropomiForwardModel,
     MusesOmiForwardModel,
     MeasurementIdDict,
-    InstrumentIdentifier
+    InstrumentIdentifier,
 )
 import pickle
 

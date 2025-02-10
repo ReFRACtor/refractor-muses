@@ -9,7 +9,6 @@ if typing.TYPE_CHECKING:
     from .state_info import StateInfo
     from .retrieval_result import RetrievalResult
     from .retrieval_info import RetrievalInfo
-    from .muses_strategy_executor import CurrentStrategyStep
     from .identifier import StateElementIdentifier
 
 
@@ -47,7 +46,7 @@ class ErrorAnalysis:
         selem_list = []
         for sname in covariance_state_element_name:
             selem = state_info.state_element(sname)
-            #selem.update_initial_guess(current_strategy_step)
+            # selem.update_initial_guess(current_strategy_step)
             selem_list.append(selem)
 
         # Note the odd seeming "capitalize" here. This is because

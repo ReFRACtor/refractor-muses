@@ -11,7 +11,7 @@ from refractor.muses import (
     MusesSpectralWindow,
     RefractorUip,
     InstrumentIdentifier,
-    FilterIdentifier
+    FilterIdentifier,
 )
 import refractor.framework as rf
 import pickle

@@ -19,7 +19,7 @@ from refractor.muses import (
     SingleSpeciesHandle,
     StateInfo,
     InstrumentIdentifier,
-    StateElementIdentifier
+    StateElementIdentifier,
 )
 from typing import Callable
 import subprocess
@@ -163,7 +163,7 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier|None], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs,
     ):
         if instrument_name != InstrumentIdentifier("TROPOMI"):
@@ -217,7 +217,10 @@ def test_tropomi_vrm_scaled(
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.state_element_handle_set.add_handle(
             SingleSpeciesHandle(
-                StateElementIdentifier("O3_SCALED"), O3ScaledStateElement, pass_state=False, name=StateElementIdentifier("O3_SCALED")
+                StateElementIdentifier("O3_SCALED"),
+                O3ScaledStateElement,
+                pass_state=False,
+                name=StateElementIdentifier("O3_SCALED"),
             )
         )
         rs.update_target(r.run_dir / "Table.asc")

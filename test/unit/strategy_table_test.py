@@ -124,7 +124,7 @@ def test_strategy_table(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
     subprocess.run(
-        f'sed -i -e "s/OMINRADWAVUV1/OMINRADWAVUV1,OMIEOF1/" {str(r.run_dir /"Table.asc")}',
+        f'sed -i -e "s/OMINRADWAVUV1/OMINRADWAVUV1,OMIEOF1/" {str(r.run_dir / "Table.asc")}',
         shell=True,
     )
     s = StrategyTable(r.run_dir / "Table.asc")

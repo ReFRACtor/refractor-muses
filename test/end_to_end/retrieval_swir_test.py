@@ -16,7 +16,7 @@ from refractor.muses import (
     SingleSpeciesHandle,
     StateInfo,
     InstrumentIdentifier,
-    StateElementIdentifier
+    StateElementIdentifier,
 )
 from refractor.tropomi import TropomiSwirForwardModelHandle, TropomiSwirFmObjectCreator
 import refractor.framework as rf
@@ -27,6 +27,7 @@ import pickle
 from loguru import logger
 import numpy as np
 import pytest
+from typing import Callable
 
 
 @pytest.mark.long_test
@@ -417,7 +418,7 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier|None], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs,
     ):
         if instrument_name != InstrumentIdentifier("TROPOMI"):
@@ -474,17 +475,26 @@ def test_scaled_sim_albedo_0_9_retrieval(
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.state_element_handle_set.add_handle(
             SingleSpeciesHandle(
-                StateElementIdentifier("H2O_SCALED"), ScaledStateElement, pass_state=False, name=StateElementIdentifier("H2O_SCALED")
+                StateElementIdentifier("H2O_SCALED"),
+                ScaledStateElement,
+                pass_state=False,
+                name=StateElementIdentifier("H2O_SCALED"),
             )
         )
         rs.state_element_handle_set.add_handle(
             SingleSpeciesHandle(
-                StateElementIdentifier("CH4_SCALED"), ScaledStateElement, pass_state=False, name=StateElementIdentifier("CH4_SCALED")
+                StateElementIdentifier("CH4_SCALED"),
+                ScaledStateElement,
+                pass_state=False,
+                name=StateElementIdentifier("CH4_SCALED"),
             )
         )
         rs.state_element_handle_set.add_handle(
             SingleSpeciesHandle(
-                StateElementIdentifier("HDO_SCALED"), ScaledStateElement, pass_state=False, name=StateElementIdentifier("HDO_SCALED")
+                StateElementIdentifier("HDO_SCALED"),
+                ScaledStateElement,
+                pass_state=False,
+                name=StateElementIdentifier("HDO_SCALED"),
             )
         )
         rs.update_target(mrdir.run_dir / "Table.asc")
