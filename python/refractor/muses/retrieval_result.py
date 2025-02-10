@@ -39,7 +39,7 @@ class RetrievalResult:
     5. Run the QA analysis (QaDataHandleSet.qa_update_retrieval_result) and
        store the results in RetrievalResult
 
-    TODO Not sure how to unpack this, buy we'll work on it.
+    TODO Not sure how to unpack this, but we'll work on it.
     """
 
     def __init__(
@@ -133,9 +133,6 @@ class RetrievalResult:
         nfreqs = len(self.rstep.frequency)
 
         niter = len(self.ret_res.resdiag[:, 0])
-        # to standardize the size of maxIter, set it to maxIter from strategy table
-        maxIter = self.current_strategy_step.max_num_iterations
-        maxIter = int(maxIter) + 1  # Add 1 to account for initial.
 
         detectorsUsed = 0
         num_detectors = 1
@@ -300,19 +297,17 @@ class RetrievalResult:
             "jacobian": np.zeros(
                 shape=(num_detectors, rowsFM, nfreqs), dtype=np.float64
             ),
-            "jacobianSys": np.zeros(
-                shape=(num_detectors, rowsSys, nfreqs), dtype=np.float64
-            ),
+            "jacobianSys": None,
             #  radiances - for all steps + IG, true
             "frequency": np.zeros(shape=(num_detectors, nfreqs), dtype=np.float64),
-            "LMResults_costThresh": np.full((maxIter), -999, dtype=np.float32),
-            "LMResults_iterList": np.full((maxIter, rows), -999, dtype=np.float32),
-            "LMResults_resNorm": np.full((maxIter), -999, dtype=np.float32),
-            "LMResults_resNormNext": np.full((maxIter), -999, dtype=np.float32),
-            "LMResults_jacresNorm": np.full((maxIter), -999, dtype=np.float32),
-            "LMResults_jacResNormNext": np.full((maxIter), -999, dtype=np.float32),
-            "LMResults_pnorm": np.full((maxIter), -999, dtype=np.float32),
-            "LMResults_delta": np.full((maxIter,), -999, dtype=np.float64),
+            "LMResults_costThresh": np.full((niter), -999, dtype=np.float32),
+            "LMResults_iterList": np.full((niter, rows), -999, dtype=np.float32),
+            "LMResults_resNorm": np.full((niter), -999, dtype=np.float32),
+            "LMResults_resNormNext": np.full((niter), -999, dtype=np.float32),
+            "LMResults_jacresNorm": np.full((niter), -999, dtype=np.float32),
+            "LMResults_jacResNormNext": np.full((niter), -999, dtype=np.float32),
+            "LMResults_pnorm": np.full((niter), -999, dtype=np.float32),
+            "LMResults_delta": np.full((niter,), -999, dtype=np.float64),
             "radianceObserved": np.zeros(
                 shape=(num_detectors, nfreqs), dtype=np.float32
             ),  # fit
@@ -447,15 +442,6 @@ class RetrievalResult:
 
         # Convert to ObjectView from now on.
         o_results = mpy.ObjectView(o_results)
-
-        niter = len(self.ret_res.resdiag[:, 0])
-        if niter > maxIter:
-            raise RuntimeError(
-                f"""ERROR: Increase # iterations in Set_Retrieval_Result.  It is too small right now.
-niter: {niter}
-len(o_results.LMResults_costThresh): {len(o_results.LMResults_costThresh)}
-            """
-            )
 
         o_results.LMResults_costThresh[0:niter] = self.ret_res.stopCriteria[
             :, 0
