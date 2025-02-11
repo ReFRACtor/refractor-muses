@@ -88,5 +88,9 @@ class StrategyStepIdentifier(IdentifierStr):
         super().__init__(f"Step {i}")
 
 
+class ProcessLocation(IdentifierStr):
+    """Identify a process location, passed to RetrievalStrategy observers"""
+
+
 class FilterIdentifier(IdentifierStr):
     """Identify a filter in l1b data."""

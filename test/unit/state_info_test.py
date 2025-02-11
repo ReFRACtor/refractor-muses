@@ -4,6 +4,7 @@ from refractor.muses import (
     OmiEofStateElement,
     RetrievalStrategy,
     StateElementIdentifier,
+    ProcessLocation,
 )
 import subprocess
 from fixtures.misc_fixture import all_output_disabled
@@ -14,7 +15,7 @@ import numpy.testing as npt
 
 class RetrievalStrategyStop:
     def notify_update(self, retrieval_strategy, location, **kwargs):
-        if location == "initial set up done":
+        if location == ProcessLocation("initial set up done"):
             raise StopIteration()
 
 

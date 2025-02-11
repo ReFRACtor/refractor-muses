@@ -4,7 +4,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes
-from .identifier import InstrumentIdentifier
+from .identifier import InstrumentIdentifier, ProcessLocation
 import numpy as np
 import typing
 
@@ -53,7 +53,7 @@ class RetrievalL2Output(RetrievalOutput):
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
-        location: str,
+        location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs,
     ):
@@ -62,11 +62,14 @@ class RetrievalL2Output(RetrievalOutput):
         # Save these, used in later lite files. Note these actually get
         # saved between steps, so we initialize these for the first step but
         # then leave them alone
-        if location == "retrieval step" and "dataTATM" not in self.__dict__:
+        if (
+            location == ProcessLocation("retrieval step")
+            and "dataTATM" not in self.__dict__
+        ):
             self.dataTATM = None
             self.dataH2O = None
             self.dataN2O = None
-        if location != "retrieval step":
+        if location != ProcessLocation("retrieval step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         # Regenerate this for the current step

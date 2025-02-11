@@ -1,7 +1,7 @@
 from __future__ import annotations
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
-from .identifier import RetrievalType
+from .identifier import RetrievalType, ProcessLocation
 import os
 import copy
 import numpy as np
@@ -23,7 +23,7 @@ class RetrievalOutput:
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
-        location: str,
+        location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs,
     ):

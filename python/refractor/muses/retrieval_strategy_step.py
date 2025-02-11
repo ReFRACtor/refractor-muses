@@ -6,7 +6,7 @@ from .priority_handle_set import PriorityHandleSet
 from .muses_levmar_solver import MusesLevmarSolver
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
-from .identifier import RetrievalType
+from .identifier import RetrievalType, ProcessLocation
 import json
 import gzip
 from typing import Tuple
@@ -104,7 +104,9 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         self.set_state(ret_state)
         was_handled = self.retrieval_step_body(retrieval_type, rs, **kwargs)
         if was_handled:
-            rs.notify_update("end_retrieval_step", retrieval_strategy_step=self)
+            rs.notify_update(
+                ProcessLocation("end_retrieval_step"), retrieval_strategy_step=self
+            )
         return (was_handled, None)
 
     @abc.abstractmethod
@@ -216,7 +218,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs
     ) -> bool:
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
-        rs.notify_update("retrieval input", retrieval_strategy_step=self)
+        rs.notify_update(
+            ProcessLocation("retrieval input"), retrieval_strategy_step=self
+        )
         cstate = rs.current_state()
         logger.info("Running run_retrieval ...")
 
@@ -260,7 +264,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # if 'OCO2' in rs.current_strategy_step.instrument_name:
         #    rs.strategy_executor.stable.strategy_table_dict['pressureFM'] = rs.state_info.next_state_dict.pressure
         self.extra_after_run_retrieval_step(rs)
-        rs.notify_update("run_retrieval_step", retrieval_strategy_step=self)
+        rs.notify_update(
+            ProcessLocation("run_retrieval_step"), retrieval_strategy_step=self
+        )
 
         # TODO jacobian_sys is only used in error_analysis_wrapper and
         # error_analysis.  I think we can leave bad sample out,
@@ -279,7 +285,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                 self.cfunc_sys.set_state(self._saved_state["cfunc_sys"])
             logger.info("Running run_forward_model for systematic jacobians ...")
             self.results.update_jacobian_sys(self.cfunc_sys)
-        rs.notify_update("systematic_jacobian", retrieval_strategy_step=self)
+        rs.notify_update(
+            ProcessLocation("systematic_jacobian"), retrieval_strategy_step=self
+        )
         rs.error_analysis.update_retrieval_result(self.results)
         rs.qa_data_handle_set.qa_update_retrieval_result(
             self.results, rs.current_strategy_step
@@ -287,13 +295,17 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         cstate.propagated_qa.update(
             rs.current_strategy_step.retrieval_elements, self.results.master_quality
         )
-        rs.notify_update("retrieval step", retrieval_strategy_step=self)
+        rs.notify_update(
+            ProcessLocation("retrieval step"), retrieval_strategy_step=self
+        )
         return True
 
     def run_retrieval(self, rs: RetrievalStrategy, cost_function_params={}, **kwargs):
         """run_retrieval"""
         self.cfunc = rs.create_cost_function()
-        rs.notify_update("create_cost_function", retrieval_strategy_step=self)
+        rs.notify_update(
+            ProcessLocation("create_cost_function"), retrieval_strategy_step=self
+        )
         chi2_tolerance = cost_function_params["chi2_tolerance"]
         if chi2_tolerance is None:
             r = self.radiance_step()["NESR"]
@@ -391,16 +403,22 @@ class RetrievalStepCaptureObserver:
 
     def __init__(self, basefname, location_to_capture="end_retrieval_step"):
         self.basefname = basefname
-        self.location_to_capture = location_to_capture
+        self.location_to_capture = ProcessLocation(location_to_capture)
 
     @classmethod
     def load_retrieval_state(cls, fname):
         return json.loads(gzip.open(fname, mode="rb").read().decode("utf-8"))
 
     def notify_update(
-        self, retrieval_strategy, location, retrieval_strategy_step=None, **kwargs
+        self,
+        retrieval_strategy: RetrievalStrategy,
+        location: ProcessLocation,
+        retrieval_strategy_step: RetrievalStrategyStep | None = None,
+        **kwargs,
     ):
         if location != self.location_to_capture:
+            return
+        if retrieval_strategy_step is None:
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         fname = f"{self.basefname}_{retrieval_strategy.step_number}.json.gz"

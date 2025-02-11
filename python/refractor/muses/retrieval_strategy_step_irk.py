@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
 from .muses_forward_model import ResultIrk
-from .identifier import RetrievalType
+from .identifier import RetrievalType, ProcessLocation
 from loguru import logger
 import typing
 
@@ -41,7 +41,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             # unit testing where we use a precomputed result
             self.results_irk = ResultIrk()
             self.results_irk.set_state(self._saved_state["results_irk"])
-        rs.notify_update("IRK step", retrieval_strategy_step=self)
+        rs.notify_update(ProcessLocation("IRK step"), retrieval_strategy_step=self)
         return True
 
     def get_state(self):

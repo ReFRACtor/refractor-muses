@@ -1,6 +1,11 @@
 import os
 import pytest
-from refractor.muses import MusesRunDir, RetrievalStrategy, InstrumentIdentifier
+from refractor.muses import (
+    MusesRunDir,
+    RetrievalStrategy,
+    InstrumentIdentifier,
+    ProcessLocation,
+)
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
 from pathlib import Path
@@ -27,7 +32,7 @@ def load_step(
 def set_up_run_to_location(
     dir: str | Path,
     step_number: int,
-    location: str,
+    location: str | ProcessLocation,
     osp_dir: str | Path,
     gmao_dir: str | Path,
     vlidort_cli: str,
@@ -48,7 +53,7 @@ def run_step_to_location(
     rs: RetrievalStrategy,
     step_number: int,
     dir: str | Path,
-    location: str,
+    location: str | ProcessLocation,
     include_ret_state=True,
 ):
     """Load in the given step, and run up to the location we notify at
@@ -61,7 +66,7 @@ def run_step_to_location(
         def notify_update(
             self, retrieval_strategy, loc, retrieval_strategy_step=None, **kwargs
         ):
-            if loc != location:
+            if loc != ProcessLocation(location):
                 return
             self.retrieval_strategy_step = retrieval_strategy_step
             self.kwargs = kwargs

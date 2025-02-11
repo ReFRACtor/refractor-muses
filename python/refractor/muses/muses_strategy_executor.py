@@ -15,7 +15,7 @@ from .muses_strategy import (
 )
 from .observation_handle import ObservationHandleSet
 from .refractor_uip import RefractorUip
-from .identifier import StateElementIdentifier
+from .identifier import StateElementIdentifier, ProcessLocation
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
@@ -394,7 +394,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         super().notify_update_target(measurement_id)
         self.strategy.notify_update_target(measurement_id)
 
-    def notify_update(self, location: str, **kwargs):
+    def notify_update(self, location: str | ProcessLocation, **kwargs):
         self.rs.notify_update(location, **kwargs)
 
     @property
@@ -534,7 +534,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         )
         logger.info("\n---")
         self.get_initial_guess()
-        self.notify_update("done get_initial_guess")
+        self.notify_update(ProcessLocation("done get_initial_guess"))
         logger.info(
             f"Step: {self.current_strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
         )
@@ -544,9 +544,9 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             **self.current_strategy_step.retrieval_step_parameters,
             **self.kwargs,
         )
-        self.notify_update("done retrieval_step")
+        self.notify_update(ProcessLocation("done retrieval_step"))
         self.state_info.next_state_to_current()
-        self.notify_update("done next_state_to_current")
+        self.notify_update(ProcessLocation("done next_state_to_current"))
         logger.info(f"Done with step {self.current_strategy_step.step_number}")
 
     @log_timing
@@ -587,7 +587,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             )
 
         self._restart_and_error_analysis()
-        self.notify_update("initial set up done")
+        self.notify_update(ProcessLocation("initial set up done"))
 
         # Note the original muses-py ran through all the initial guess
         # steps at the beginning to make sure there weren't any
@@ -608,7 +608,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         # go ahead and this this until we know for sure it doesn't
         # matter.
         self.state_info.copy_current_initialInitial()
-        self.notify_update("starting retrieval steps")
+        self.notify_update(ProcessLocation("starting retrieval steps"))
         self.restart()
         while not self.is_done():
             if (
@@ -616,7 +616,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                 and stop_at_step == self.current_strategy_step.step_number
             ):
                 return
-            self.notify_update("starting run_step")
+            self.notify_update(ProcessLocation("starting run_step"))
             self.run_step()
             self.next_step()
 
@@ -625,7 +625,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         at that step to diagnose a problem."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             while not self.is_done():
-                self.notify_update("starting run_step")
+                self.notify_update(ProcessLocation("starting run_step"))
                 self.run_step()
                 if (
                     stop_after_step is not None

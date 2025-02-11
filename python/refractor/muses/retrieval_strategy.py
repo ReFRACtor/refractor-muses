@@ -20,6 +20,7 @@ from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
 from .state_info import StateInfo
 from .cost_function_creator import CostFunctionCreator
+from .identifier import ProcessLocation
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
@@ -215,7 +216,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self.strategy_executor.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
         self._state_info.notify_update_target(self)
-        self.notify_update("update target")
+        self.notify_update(ProcessLocation("update target"))
 
     def script_retrieval_ms(
         self,
@@ -255,9 +256,12 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         for obs in lobs:
             self.remove_observer(obs)
 
-    def notify_update(self, location: str, **kwargs):
+    def notify_update(self, location: ProcessLocation | str, **kwargs):
+        loc = location
+        if not isinstance(loc, ProcessLocation):
+            loc = ProcessLocation(loc)
         for obs in self._observers:
-            obs.notify_update(self, location, **kwargs)
+            obs.notify_update(self, loc, **kwargs)
 
     @property
     def vlidort_cli(self) -> Path | None:
@@ -552,12 +556,12 @@ class RetrievalStrategyCaptureObserver:
 
     """
 
-    def __init__(self, basefname: str, location_to_capture: str):
+    def __init__(self, basefname: str, location_to_capture: str | ProcessLocation):
         self.basefname = basefname
-        self.location_to_capture = location_to_capture
+        self.location_to_capture = ProcessLocation(location_to_capture)
 
     def notify_update(
-        self, retrieval_strategy: RetrievalStrategy, location: str, **kwargs
+        self, retrieval_strategy: RetrievalStrategy, location: ProcessLocation, **kwargs
     ):
         if location != self.location_to_capture:
             return
@@ -576,12 +580,12 @@ class StateInfoCaptureObserver:
 
     """
 
-    def __init__(self, basefname: str, location_to_capture: str):
+    def __init__(self, basefname: str, location_to_capture: str | ProcessLocation):
         self.basefname = basefname
-        self.location_to_capture = location_to_capture
+        self.location_to_capture = ProcessLocation(location_to_capture)
 
     def notify_update(
-        self, retrieval_strategy: RetrievalStrategy, location: str, **kwargs
+        self, retrieval_strategy: RetrievalStrategy, location: ProcessLocation, **kwargs
     ):
         if location != self.location_to_capture:
             return
@@ -596,14 +600,14 @@ class RetrievalStrategyMemoryUse:
         self.tr = None
 
     def notify_update(
-        self, retrieval_strategy: RetrievalStrategy, location: str, **kwargs
+        self, retrieval_strategy: RetrievalStrategy, location: ProcessLocation, **kwargs
     ):
         # Need pympler here, but don't generally need it. Include this
         # so this isn't a requirement, unless we are running with this
         # observer
         from pympler import tracker
 
-        if location == "starting retrieval steps":
+        if location == ProcessLocation("starting retrieval steps"):
             self.tr = tracker.SummaryTracker()
         elif location in (
             "done copy_current_initial",

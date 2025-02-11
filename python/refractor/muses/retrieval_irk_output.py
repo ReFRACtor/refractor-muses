@@ -3,6 +3,7 @@ from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
+from .identifier import ProcessLocation
 import numpy as np
 import math
 import typing
@@ -48,13 +49,13 @@ class RetrievalIrkOutput(RetrievalOutput):
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
-        location: str,
+        location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs,
     ):
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
-        if location != "IRK step":
+        if location != ProcessLocation("IRK step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.out_fname = f"{self.output_directory}/Products/Products_IRK.nc"

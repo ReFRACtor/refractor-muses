@@ -7,6 +7,7 @@ from refractor.muses import (
     RetrievalPlotRadiance,
     RetrievalPlotResult,
     RetrievalInputOutput,
+    ProcessLocation,
 )
 from fixtures.compare_run import compare_run
 import pytest
@@ -28,25 +29,33 @@ def joint_tropomi_output(
 def test_retrieval_radiance_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalRadianceOutput()
-    jout.notify_update(rs, "retrieval step", retrieval_strategy_step=rstep, **kwargs)
+    jout.notify_update(
+        rs, ProcessLocation("retrieval step"), retrieval_strategy_step=rstep, **kwargs
+    )
 
 
 def test_retrieval_jacobian_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalJacobianOutput()
-    jout.notify_update(rs, "retrieval step", retrieval_strategy_step=rstep, **kwargs)
+    jout.notify_update(
+        rs, ProcessLocation("retrieval step"), retrieval_strategy_step=rstep, **kwargs
+    )
 
 
 def test_retrieval_l2_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalL2Output()
-    jout.notify_update(rs, "retrieval step", retrieval_strategy_step=rstep, **kwargs)
+    jout.notify_update(
+        rs, ProcessLocation("retrieval step"), retrieval_strategy_step=rstep, **kwargs
+    )
 
 
 def test_retrieval_pickle_results(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPickleResult()
-    jout.notify_update(rs, "retrieval step", retrieval_strategy_step=rstep, **kwargs)
+    jout.notify_update(
+        rs, ProcessLocation("retrieval step"), retrieval_strategy_step=rstep, **kwargs
+    )
     # We just check that output exists, no easy way to check that it is the same.
     # Since this is diagnostic output we really don't need this the same
     assert (
@@ -57,7 +66,9 @@ def test_retrieval_pickle_results(joint_tropomi_output):
 def test_retrieval_plot_radiance(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPlotRadiance()
-    jout.notify_update(rs, "retrieval step", retrieval_strategy_step=rstep, **kwargs)
+    jout.notify_update(
+        rs, ProcessLocation("retrieval step"), retrieval_strategy_step=rstep, **kwargs
+    )
     # We just check that output exists, no easy way to check that it is the same.
     # Since this is diagnostic output we really don't need this the same
     for fname in (
@@ -79,14 +90,18 @@ def test_retrieval_plot_radiance(joint_tropomi_output):
 def test_retrieval_input_output(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalInputOutput()
-    jout.notify_update(rs, "retrieval step", retrieval_strategy_step=rstep, **kwargs)
+    jout.notify_update(
+        rs, ProcessLocation("retrieval step"), retrieval_strategy_step=rstep, **kwargs
+    )
     breakpoint()
 
 
 def test_retrieval_plot_results(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPlotResult()
-    jout.notify_update(rs, "retrieval step", retrieval_strategy_step=rstep, **kwargs)
+    jout.notify_update(
+        rs, ProcessLocation("retrieval step"), retrieval_strategy_step=rstep, **kwargs
+    )
     # We just check that output exists, no easy way to check that it is the same.
     # Since this is diagnostic output we really don't need this the same
     for fname in ("ak_full.png", "plot_H2O.png", "plot_O3.png"):
@@ -96,7 +111,9 @@ def test_retrieval_plot_results(joint_tropomi_output):
 def test_retrieval_irk_output(airs_irk_step_6, airs_irk_test_expected_dir):
     rs, rstep, kwargs = airs_irk_step_6
     jout = RetrievalIrkOutput()
-    jout.notify_update(rs, "IRK step", retrieval_strategy_step=rstep, **kwargs)
+    jout.notify_update(
+        rs, ProcessLocation("IRK step"), retrieval_strategy_step=rstep, **kwargs
+    )
     compare_dir = airs_irk_test_expected_dir
     diff_is_error = True
     compare_run(compare_dir, rs.run_dir, diff_is_error=diff_is_error, from_run_dir=True)

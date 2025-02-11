@@ -1,6 +1,7 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .retrieval_output import RetrievalOutput
+from .identifier import ProcessLocation
 from loguru import logger
 import os
 import pickle
@@ -39,13 +40,13 @@ class RetrievalInputOutput(RetrievalOutput):
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
-        location: str,
+        location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs,
     ):
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
-        if location != "retrieval step":
+        if location != ProcessLocation("retrieval step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(f"{self.step_directory}/ELANORInput", exist_ok=True)
@@ -70,13 +71,13 @@ class RetrievalPickleResult(RetrievalOutput):
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
-        location: str,
+        location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs,
     ):
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
-        if location != "retrieval step":
+        if location != ProcessLocation("retrieval step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.elanor_directory, exist_ok=True)
@@ -92,13 +93,13 @@ class RetrievalPlotResult(RetrievalOutput):
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
-        location: str,
+        location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs,
     ):
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
-        if location != "retrieval step":
+        if location != ProcessLocation("retrieval step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.step_directory, exist_ok=True)
@@ -114,13 +115,13 @@ class RetrievalPlotRadiance(RetrievalOutput):
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
-        location: str,
+        location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
         **kwargs,
     ):
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
-        if location != "retrieval step":
+        if location != ProcessLocation("retrieval step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.analysis_directory, exist_ok=True)
