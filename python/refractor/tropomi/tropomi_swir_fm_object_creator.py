@@ -37,6 +37,8 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         absorption_gases: list[str] = ["H2O", "CO", "CH4", "HDO"],
         primary_absorber: str = "CO",
         use_raman: bool = False,
+        use_oss: bool = False,
+        oss_training_data: str | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -48,6 +50,8 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
             use_raman=use_raman,
             **kwargs,
         )
+        self.use_oss = use_oss
+        self.oss_training_data = oss_training_data
 
     @cached_property
     def absorber(self) -> rf.Absorber:
@@ -95,6 +99,29 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         return rf.SpectrumSamplingFixedSpacing(
             rf.ArrayWithUnit(np.array([0.01]), "cm^-1")
         )
+
+    @cached_property
+    def underlying_forward_model(self):
+        if self.use_oss:
+            res = rf.director.OSSForwardModel(
+                self.instrument,
+                self.spec_win,
+                self.radiative_transfer,
+                self.spectrum_sampling,
+                self.spectrum_effect,
+                self.oss_training_data,
+            )
+            res.setup_grid()
+        else:
+            res = rf.StandardForwardModel(
+                self.instrument,
+                self.spec_win,
+                self.radiative_transfer,
+                self.spectrum_sampling,
+                self.spectrum_effect,
+            )
+            res.setup_grid()
+        return res
 
 
 class TropomiSwirForwardModelHandle(ForwardModelHandle):
