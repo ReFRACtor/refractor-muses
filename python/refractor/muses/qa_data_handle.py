@@ -1,6 +1,5 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
-from .muses_spectral_window import MusesSpectralWindow
 from .tes_file import TesFile
 import refractor.muses.muses_py as mpy  # type: ignore
 from loguru import logger
@@ -123,7 +122,6 @@ class MusesPyQaDataHandle(QaDataHandle):
 
     def __init__(self):
         self.viewing_mode = None
-        self.spectral_window_directory = None
         self.qa_flag_directory = None
 
     def notify_update_target(self, measurement_id: MeasurementId):
@@ -135,7 +133,6 @@ class MusesPyQaDataHandle(QaDataHandle):
         self.run_dir = Path(
             measurement_id["outputDirectory"], measurement_id["sessionID"]
         )
-        self.spectral_window_directory = measurement_id["spectralWindowDirectory"]
         self.viewing_mode = measurement_id["viewingMode"]
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
 
@@ -150,14 +147,7 @@ class MusesPyQaDataHandle(QaDataHandle):
         """
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         # Name is derived from the microwindows file name
-        mwfname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-            self.viewing_mode,
-            self.spectral_window_directory,
-            current_strategy_step.retrieval_elements,
-            current_strategy_step.step_name,
-            current_strategy_step.retrieval_type,
-            current_strategy_step.microwindow_file_name_override,
-        )
+        mwfname = current_strategy_step.muses_microwindows_fname()
         quality_fname = os.path.basename(mwfname)
         quality_fname = quality_fname.replace("Microwindows_", "QualityFlag_Spec_")
         quality_fname = quality_fname.replace("Windows_", "QualityFlag_Spec_")

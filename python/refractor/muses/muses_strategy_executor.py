@@ -6,7 +6,6 @@ from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .retrieval_info import RetrievalInfo
 from .error_analysis import ErrorAnalysis
 from .order_species import order_species
-from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentStateStateInfo
 from .qa_data_handle import QaDataHandleSet
 from .muses_strategy import (
@@ -130,7 +129,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         cost_function_creator: CostFunctionCreator,
         observation_handle_set: ObservationHandleSet | None = None,
         retrieval_strategy_step_set: RetrievalStrategyStepSet | None = None,
-        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         qa_data_handle_set: QaDataHandleSet | None = None,
         vlidort_cli: Path | None = None,
         **kwargs,
@@ -154,12 +152,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             )
         else:
             self._retrieval_strategy_step_set = retrieval_strategy_step_set
-        if spectral_window_handle_set is None:
-            self._spectral_window_handle_set = copy.deepcopy(
-                SpectralWindowHandleSet.default_handle_set()
-            )
-        else:
-            self._spectral_window_handle_set = spectral_window_handle_set
         if qa_data_handle_set is None:
             self._qa_data_handle_set = copy.deepcopy(
                 QaDataHandleSet.default_handle_set()
@@ -171,7 +163,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def notify_update_target(self, measurement_id: MeasurementId):
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
-        self.spectral_window_handle_set.notify_update_target(self.measurement_id)
         self.qa_data_handle_set.notify_update_target(self.measurement_id)
 
     @property
@@ -183,11 +174,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
         raise NotImplementedError()
-
-    @property
-    def spectral_window_handle_set(self):
-        """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
-        return self._spectral_window_handle_set
 
     @property
     def qa_data_handle_set(self):
@@ -239,6 +225,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
         """
         logger.debug(f"Creating rf_uip for {instrument}")
+        if self.retrieval_info is None:
+            raise RuntimeError("Need to have retrieval_info defined")
         if do_systematic:
             rinfo = self.retrieval_info.retrieval_info_systematic()
         else:
@@ -384,18 +372,23 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             rs._cost_function_creator,
             observation_handle_set=rs.observation_handle_set,
             retrieval_strategy_step_set=retrieval_strategy_step_set,
-            spectral_window_handle_set=spectral_window_handle_set,
             qa_data_handle_set=qa_data_handle_set,
             **rs.keyword_arguments,
         )
         self.strategy: MusesStrategy = MusesStrategyOldStrategyTable(
-            filename, osp_dir=osp_dir
+            filename,
+            osp_dir=osp_dir,
+            spectral_window_handle_set=spectral_window_handle_set,
         )
         self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
         self.rs = rs
         self.retrieval_info: RetrievalInfo | None = None
-        self.spectral_window_dict = None
         self.measurement_id: MeasurementId | None = None
+
+    @property
+    def spectral_window_handle_set(self):
+        """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
+        return self.strategy.spectral_window_handle_set
 
     def notify_update_target(self, measurement_id: MeasurementId):
         super().notify_update_target(measurement_id)
@@ -412,18 +405,11 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
-        return self.strategy.current_strategy_step(
-            self.spectral_window_dict
-        )
+        return self.strategy.current_strategy_step()
 
     def restart(self) -> None:
         """Set step to the first one."""
         self.strategy.restart()
-        self.spectral_window_dict = (
-            self.spectral_window_handle_set.spectral_window_dict(
-                self.current_strategy_step
-            )
-        )
 
     def set_step(self, step_number: int) -> None:
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
@@ -488,11 +474,6 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         """Set retrieval_info, errorInitial and errorCurrent for the current step."""
         # Temp, we'll want to get this update done automatically. But do this
         # to figure out issue
-        self.spectral_window_dict = (
-            self.spectral_window_handle_set.spectral_window_dict(
-                self.current_strategy_step
-            )
-        )
         self.retrieval_info = RetrievalInfo(
             self.error_analysis,
             Path(self.retrieval_config["speciesDirectory"]),
@@ -546,11 +527,6 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 
     def run_step(self):
         """Run a the current step."""
-        self.spectral_window_dict = (
-            self.spectral_window_handle_set.spectral_window_dict(
-                self.current_strategy_step
-            )
-        )
         self.state_info.copy_current_initial()
         logger.info("\n---")
         logger.info(
@@ -563,7 +539,10 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             f"Step: {self.current_strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
         )
         self.retrieval_strategy_step_set.retrieval_step(
-            self.current_strategy_step.retrieval_type, self.rs, **self.kwargs
+            self.current_strategy_step.retrieval_type,
+            self.rs,
+            **self.current_strategy_step.retrieval_step_parameters,
+            **self.kwargs,
         )
         self.notify_update("done retrieval_step")
         self.state_info.next_state_to_current()

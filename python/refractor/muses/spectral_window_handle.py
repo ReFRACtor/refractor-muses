@@ -123,16 +123,12 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
     """
 
     def __init__(self):
-        self.viewing_mode = None
-        self.spectral_window_directory = None
         self.filter_metadata = None
 
     def notify_update_target(self, measurement_id: MeasurementId):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.spectral_window_directory = measurement_id["spectralWindowDirectory"]
-        self.viewing_mode = measurement_id["viewingMode"]
         self.filter_metadata = FileFilterMetadata(
             measurement_id["defaultSpectralWindowsDefinitionFilename"]
         )
@@ -145,14 +141,7 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         for that instrument. Note because of the extra metadata and bad sample/full band
         handing we need we currently require a MusesSpectralWindow. We could perhaps
         relax this in the future if we have another way of handling this extra functionality."""
-        fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
-            self.viewing_mode,
-            self.spectral_window_directory,
-            current_strategy_step.retrieval_elements,
-            current_strategy_step.step_name,
-            current_strategy_step.retrieval_type,
-            current_strategy_step.microwindow_file_name_override,
-        )
+        fname = current_strategy_step.muses_microwindows_fname()
         logger.debug(
             f"Creating spectral_window_dict using MusesSpectralWindow by reading file {fname}"
         )

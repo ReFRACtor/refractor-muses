@@ -1,14 +1,19 @@
 from __future__ import annotations
 from .strategy_table import StrategyTable
+from .muses_spectral_window import MusesSpectralWindow
+from .identifier import RetrievalType
 import os
 import abc
 import typing
 import numpy as np
+import copy
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
+    from .spectral_window_handle import SpectralWindowHandleSet
+    from .retrieval_info import RetrievalInfo
     from .identifier import (
         InstrumentIdentifier,
         StateElementIdentifier,
@@ -47,10 +52,30 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def update_state(self, current_state: CurrentState, results_list: np.ndarray):
+    def update_state(
+        self,
+        current_state: CurrentState,
+        retrieval_info: RetrievalInfo,
+        results_list: np.ndarray,
+    ):
         """Update the CurrentState with the results. We have this as part of
         CurrentStrategyStep so we can support any sort of more complicated logic
         for updating the state (e.g., update the apriori)"""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def muses_microwindows_fname(self):
+        """This is very specific, but there is some complicated code used to generate the
+        microwindows file name. This is used to create the MusesSpectralWindow (by
+        one of the handlers). Also the QA data file name depends on this. It would be nice to
+        remove this dependency, but for now we can at least isolate this and make it clear where
+        we depend on this."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def retrieval_step_parameters(self) -> dict:
+        """Any keywords to pass on to the RetrievalStrategyStep retrieve_step (e.g
+        arguments for cost function"""
         raise NotImplementedError()
 
     @abc.abstractproperty
@@ -61,18 +86,6 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def step_number(self) -> int:
         """The number of the current strategy step, starting with 0."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def microwindow_file_name_override(self) -> str | None:
-        """The microwindows file to use, overriding the normal logic that was
-        in the old mpy.table_get_spectral_filename. If None, then we don't have
-        an override."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def max_num_iterations(self) -> int:
-        """Maximum number of iterations to used in a retrieval step."""
         raise NotImplementedError()
 
     @abc.abstractproperty
@@ -94,13 +107,32 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         """Create a current strategy step, leaving out the
         RetrievalInfo stuff.
         """
+        # Various convergence criteria for solver. This is the MusesLevmarSolver. Note the
+        # different convergence depending on the step type. The chi2_tolerance is calculated
+        # in RetrievalStrategyStepRetrieve if we don't fill it in - this depends on the
+        # size of the radiance data
+        cost_function_params = {
+            "max_iter": int(strategy_table.max_num_iterations),
+            "delta_value": int(measurement_id["LMDelta"].split()[0]),
+            "conv_tolerance": [
+                float(measurement_id["ConvTolerance_CostThresh"]),
+                float(measurement_id["ConvTolerance_pThresh"]),
+                float(measurement_id["ConvTolerance_JacThresh"]),
+            ],
+            "chi2_tolerance": None,  # Filled in by RetrievalStrategyStepRetrieve
+        }
+        if strategy_table.retrieval_type == RetrievalType("bt_ig_refine"):
+            cost_function_params["conv_tolerance"] = [0.00001, 0.00001, 0.00001]
+            cost_function_params["chi2_tolerance"] = 0.00001
         return cls(
             {
                 "retrieval_elements": strategy_table.retrieval_elements(),
                 "instrument_name": strategy_table.instrument_name(),
                 "step_name": strategy_table.step_name,
                 "step_number": strategy_table.table_step,
-                "max_num_iterations": int(strategy_table.max_num_iterations),
+                "retrieval_step_parameters": {
+                    "cost_function_params": cost_function_params,
+                },
                 "retrieval_type": strategy_table.retrieval_type,
                 "do_not_update_list": strategy_table.do_not_update_list,
                 "error_analysis_interferents": strategy_table.error_analysis_interferents(),
@@ -108,6 +140,10 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
             },
             measurement_id,
         )
+
+    @property
+    def retrieval_step_parameters(self) -> dict:
+        return self.current_strategy_step_dict["retrieval_step_parameters"]
 
     @property
     def retrieval_elements(self) -> list[StateElementIdentifier]:
@@ -119,8 +155,28 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         """List of instruments used in this step."""
         return self.current_strategy_step_dict["instrument_name"]
 
-    def update_state(self, current_state: CurrentState, retrieval_info: RetrievalInfo,
-                     results_list: np.ndarray):
+    @property
+    def retrieval_type(self) -> RetrievalType:
+        """The retrieval type."""
+        return self.current_strategy_step_dict["retrieval_type"]
+
+    @property
+    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
+        """Return a dictionary that maps instrument name to the MusesSpectralWindow
+        to use for that."""
+        return self.current_strategy_step_dict["spectral_window_dict"]
+
+    @property
+    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
+        """Return a list of the error analysis interferents."""
+        return self.current_strategy_step_dict["error_analysis_interferents"]
+
+    def update_state(
+        self,
+        current_state: CurrentState,
+        retrieval_info: RetrievalInfo,
+        results_list: np.ndarray,
+    ):
         """Update the CurrentState with the results. We have this as part of
         CurrentStrategyStep so we can support any sort of more complicated logic
         for updating the state (e.g., update the apriori)"""
@@ -130,6 +186,23 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
             self.do_not_update_list,
             self.measurement_id,
             self.step_number,
+        )
+
+    def muses_microwindows_fname(self):
+        """This is very specific, but there is some complicated code used to generate the
+        microwindows file name. This is used to create the MusesSpectralWindow (by
+        one of the handlers). Also the QA data file name depends on this. It would be nice to
+        remove this dependency, but for now we can at least isolate this and make it clear where
+        we depend on this."""
+        if self.measurement_id is None:
+            raise RuntimeError("Call notify_update_target before this function")
+        return MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+            self.measurement_id["viewingMode"],
+            self.measurement_id["spectralWindowDirectory"],
+            self.retrieval_elements,
+            self.step_name,
+            self.retrieval_type,
+            self.current_strategy_step_dict.get("microwindow_file_name_override"),
         )
 
     @property
@@ -143,36 +216,8 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         return self.current_strategy_step_dict["step_number"]
 
     @property
-    def microwindow_file_name_override(self) -> str | None:
-        """The microwindows file to use, overriding the normal logic that was
-        in the old mpy.table_get_spectral_filename. If None, then we don't have
-        an override."""
-        return self.current_strategy_step_dict.get("microwindow_file_name_override")
-
-    @property
-    def max_num_iterations(self) -> int:
-        """Maximum number of iterations to used in a retrieval step."""
-        return self.current_strategy_step_dict["max_num_iterations"]
-
-    @property
-    def retrieval_type(self) -> RetrievalType:
-        """The retrieval type."""
-        return self.current_strategy_step_dict["retrieval_type"]
-
-    @property
     def do_not_update_list(self) -> list[StateElementIdentifier]:
         return self.current_strategy_step_dict["do_not_update_list"]
-
-    @property
-    def error_analysis_interferents(self) -> list[StateElementIdentifier]:
-        """Return a list of the error analysis interferents."""
-        return self.current_strategy_step_dict["error_analysis_interferents"]
-
-    @property
-    def spectral_window_dict(self) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
-        """Return a dictionary that maps instrument name to the MusesSpectralWindow
-        to use for that."""
-        return self.current_strategy_step_dict["spectral_window_dict"]
 
 
 class MusesStrategy(object, metaclass=abc.ABCMeta):
@@ -294,15 +339,40 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def current_strategy_step(
-        self,
-        spectral_window_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None
-    ) -> CurrentStrategyStep:
+    def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
         raise NotImplementedError
 
 
-class MusesStrategyOldStrategyTable(MusesStrategy):
+class MusesStrategyImp(MusesStrategy):
+    """Base class for the way we generally implement a MusesStrategy"""
+
+    def __init__(
+        self, spectral_window_handle_set: SpectralWindowHandleSet | None = None
+    ):
+        self._measurement_id: MeasurementId | None = None
+        if spectral_window_handle_set is None:
+            self._spectral_window_handle_set = copy.deepcopy(
+                SpectralWindowHandleSet.default_handle_set()
+            )
+        else:
+            self._spectral_window_handle_set = spectral_window_handle_set
+
+    @property
+    def measurement_id(self) -> MeasurementId | None:
+        return self._measurement_id
+
+    @property
+    def spectral_window_handle_set(self):
+        """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
+        return self._spectral_window_handle_set
+
+    def notify_update_target(self, measurement_id: MeasurementId):
+        self._measurement_id = measurement_id
+        self.spectral_window_handle_set.notify_update_target(self.measurement_id)
+
+
+class MusesStrategyOldStrategyTable(MusesStrategyImp):
     """This wraps the old py-retrieve StrategyTable code as a
     MusesStrategy.  Note that this class has largely been replaced
     with MusesStrategyTable, but we leave this in place for backwards
@@ -314,16 +384,10 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
         self,
         filename: str | os.PathLike[str],
         osp_dir: str | os.PathLike[str] | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
     ):
+        super().__init__(spectral_window_handle_set)
         self._stable = StrategyTable(filename, osp_dir=osp_dir)
-        self._measurement_id: MeasurementId | None = None
-
-    def notify_update_target(self, measurement_id: MeasurementId):
-        self._measurement_id = measurement_id
-
-    @property
-    def measurement_id(self) -> MeasurementId | None:
-        return self._measurement_id
 
     def is_next_bt(self):
         """Indicate if the next step is a BT step. This is a bit
@@ -369,10 +433,7 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
         """True if we have reached the last step"""
         return self._stable.is_done()
 
-    def current_strategy_step(
-        self,
-        spectral_window_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None
-    ) -> CurrentStrategyStep:
+    def current_strategy_step(self) -> CurrentStrategyStep:
         if self.is_done():
             raise RuntimeError("Past end of strategy")
         if self.measurement_id is None:
@@ -380,7 +441,9 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
                 "Need to call notify_update_target before calling this function."
             )
         cstep = CurrentStrategyStepDict.current_step(self._stable, self.measurement_id)
-        cstep.current_strategy_step_dict["spectral_window_dict"] = spectral_window_dict
+        cstep.current_strategy_step_dict["spectral_window_dict"] = (
+            self.spectral_window_handle_set.spectral_window_dict(cstep)
+        )
         return cstep
 
 

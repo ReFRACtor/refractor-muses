@@ -404,6 +404,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         the required information for the output.
 
         """
+        if self.strategy_executor.retrieval_info is None:
+            raise RuntimeError("Need to have retrieval_info defined")
         return self.strategy_executor.retrieval_info
 
     @property
