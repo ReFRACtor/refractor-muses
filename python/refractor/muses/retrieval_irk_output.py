@@ -58,7 +58,7 @@ class RetrievalIrkOutput(RetrievalOutput):
         if location != ProcessLocation("IRK step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.out_fname = f"{self.output_directory}/Products/Products_IRK.nc"
+        self.out_fname = self.output_directory / "Products" / "Products_IRK.nc"
         os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
         self.write_irk()
 

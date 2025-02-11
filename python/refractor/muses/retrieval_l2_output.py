@@ -5,12 +5,14 @@ import os
 import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes
 from .identifier import InstrumentIdentifier, ProcessLocation
+from pathlib import Path
 import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .muses_strategy_executor import FileNumberHandle
 
 
 def _new_from_init(cls, *args):
@@ -31,8 +33,8 @@ class RetrievalL2Output(RetrievalOutput):
     def retrieval_info(self):
         return self.retrieval_strategy.retrieval_info
 
-    def number_steps_left(self, retrieval_element_name: str):
-        return self.retrieval_strategy.number_steps_left(retrieval_element_name)
+    def file_number_handle(self, basefname: Path) -> FileNumberHandle:
+        return self.retrieval_strategy.file_number_handle(basefname)
 
     @property
     def species_list(self):
@@ -82,7 +84,9 @@ class RetrievalL2Output(RetrievalOutput):
                 or self.spcname.startswith("NIR")
             ):
                 continue
-            self.out_fname = f"{self.output_directory}/Products/Products_L2-{self.spcname}-{self.number_steps_left(self.spcname)}.nc"
+            self.out_fname = self.file_number_handle(
+                self.output_directory / "Products" / f"Products_L2-{self.spcname}"
+            ).current_file_name()
             os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
             # Not sure about the logic here, but this is what script_retrieval_ms does
             if not os.path.exists(self.out_fname) or self.spcname in (
@@ -128,35 +132,35 @@ class RetrievalL2Output(RetrievalOutput):
         ]
 
         if self.spcname == "H2O" and self.dataTATM is not None:
-            self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-RH-{self.number_steps_left(self.spcname)}.nc"
+            self.out_fname = self.file_number_handle(
+                self.output_directory / "Products" / "Lite_Products_L2-RH"
+            ).current_file_name()
             if InstrumentIdentifier("OCO2") not in self.instruments:
                 t = CdfWriteTes()
                 t.write_lite(
                     self.step_number,
-                    self.out_fname,
+                    str(self.out_fname),
                     self.instruments,
-                    self.lite_directory,
+                    str(self.lite_directory) + "/",
                     dataInfo,
                     self.dataTATM,
                     "RH",
-                    step=self.number_steps_left(self.spcname),
-                    times_species_retrieved=self.number_steps_left(self.spcname),
                     state_element_out=state_element_out,
                 )
 
-        self.out_fname = f"{self.output_directory}/Products/Lite_Products_L2-{self.spcname}-{self.number_steps_left(self.spcname)}.nc"
+        self.out_fname = self.file_number_handle(
+            self.output_directory / "Products" / f"Lite_Products_L2-{self.spcname}"
+        ).current_file_name()
         if InstrumentIdentifier("OCO2") not in self.instruments:
             t = CdfWriteTes()
             data2 = t.write_lite(
                 self.step_number,
-                self.out_fname,
+                str(self.out_fname),
                 self.instruments,
-                self.lite_directory,
+                str(self.lite_directory) + "/",
                 dataInfo,
                 data2,
                 self.spcname,
-                step=self.number_steps_left(self.spcname),
-                times_species_retrieved=self.number_steps_left(self.spcname),
                 state_element_out=state_element_out,
             )
 
@@ -1218,7 +1222,7 @@ class RetrievalL2Output(RetrievalOutput):
         t = CdfWriteTes()
         t.write(
             o_data,
-            self.out_fname,
+            str(self.out_fname),
             runtimeAttributes=runtime_attributes,
             state_element_out=state_element_out,
         )

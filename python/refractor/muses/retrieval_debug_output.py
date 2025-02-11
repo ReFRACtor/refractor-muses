@@ -49,7 +49,7 @@ class RetrievalInputOutput(RetrievalOutput):
         if location != ProcessLocation("retrieval step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        os.makedirs(f"{self.step_directory}/ELANORInput", exist_ok=True)
+        os.makedirs(self.input_directory, exist_ok=True)
         # May need to extend this logic here
         detectorsUse = [1]
         mpy.write_retrieval_inputs(
@@ -63,7 +63,7 @@ class RetrievalInputOutput(RetrievalOutput):
         )
         mpy.cdf_write_dict(
             self.retrieval_info.retrieval_info_obj.__dict__,
-            f"{self.input_directory}/retrieval.nc",
+            str(self.input_directory / "retrieval.nc"),
         )
 
 
@@ -81,7 +81,7 @@ class RetrievalPickleResult(RetrievalOutput):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.elanor_directory, exist_ok=True)
-        with open(f"{self.elanor_directory}/results.pkl", "wb") as fh:
+        with open(self.elanor_directory / "results.pkl", "wb") as fh:
             pickle.dump(self.results.__dict__, fh)
 
 
@@ -104,7 +104,7 @@ class RetrievalPlotResult(RetrievalOutput):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.step_directory, exist_ok=True)
         mpy.plot_results(
-            f"{self.step_directory}/",
+            str(self.step_directory) + "/",
             self.results,
             self.retrieval_info.retrieval_info_obj,
             self.state_info.state_info_obj,
@@ -126,7 +126,10 @@ class RetrievalPlotRadiance(RetrievalOutput):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.analysis_directory, exist_ok=True)
         mpy.plot_radiance(
-            self.analysis_directory, self.results, self.radiance_step.__dict__, None
+            str(self.analysis_directory) + "/",
+            self.results,
+            self.radiance_step.__dict__,
+            None,
         )
 
 

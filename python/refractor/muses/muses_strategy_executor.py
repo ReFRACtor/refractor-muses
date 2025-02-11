@@ -88,6 +88,35 @@ def array_compare(s1, s2, skip_list=None, verbose=False):
         struct_compare(s1[i], s2[i], skip_list=skip_list, verbose=verbose)
 
 
+class FileNumberHandle:
+    """The RetrievalL2Output uses a numbering system to capture species from different
+    steps. The number convention is based on the number of files left, so files might
+    be names foo-2.nc, foo-1.nc, foo-0.nc (generated in that order). The original
+    code would count the number of species left in the strategy table.
+
+    The problem with this is that we don't want to assume that a strategy is fixed,
+    we want to allow for changes in the strategy based on results or whatever criteria.
+    So instead, we create the files within one name, foo-initial0.nc, foo-initial1.nc,
+    foo-initial2.nc etc. Then, at the end of processing a sounding we go back and
+    rename them."""
+
+    def __init__(self, basename: Path):
+        self.count = 0
+        self.basename = basename
+
+    def current_file_name(self) -> Path:
+        return Path(str(self.basename) + f"-initial-{self.count}.nc")
+
+    def next(self):
+        self.count += 1
+
+    def finalize(self):
+        '''Go back through and rename file to the final name'''
+        for i in range(self.count+1):
+            f1 = Path(str(self.basename) + f"-initial-{i}.nc")
+            f2 = Path(str(self.basename) + f"-{self.count-i}.nc")
+            os.rename(f1, f2)
+
 class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
     """This is the base class for executing a strategy.
 
@@ -159,11 +188,13 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         else:
             self._qa_data_handle_set = qa_data_handle_set
         self.measurement_id: MeasurementId | None = None
+        self.file_number_dict: dict[Path, FileNumberHandle] = {}
 
     def notify_update_target(self, measurement_id: MeasurementId):
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
         self.qa_data_handle_set.notify_update_target(self.measurement_id)
+        self.file_number_dict = {}
 
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
@@ -498,32 +529,20 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                 self.current_strategy_step.step_number,
             )
 
-    def number_steps_left(self, retrieval_element_name: str):
-        """This returns the number of retrieval steps left that
-        contain a given retrieval element name. This is an odd seeming
-        function, but is used by RetrievalL2Output to name files. So
-        for example we have Products_L2-O3-0.nc for the last step that
-        retrieves O3, Products_L2-O3-1.nc for the previous step
-        retrieving O3, etc.
+    def file_number_handle(self, basefname: Path) -> FileNumberHandle:
+        """Return the FileNumberHandle for working the basefname. This handles numbering
+        L2 output files if we have the same species in different strategy steps"""
+        if basefname in self.file_number_dict:
+            self.file_number_dict[basefname].next()
+        else:
+            self.file_number_dict[basefname] = FileNumberHandle(basefname)
+        return self.file_number_dict[basefname]
 
-        I'm not sure if this is something we can calculate in general
-        for a StrategyExecutor (what if some decision is added if a
-        future step is run or not?)  If this occurs, we can perhaps
-        come up with a different naming convention.  Right now, this
-        function is *only* used in RetrievalL2Output, so we can update
-        this if needed.
-
-        """
-        step_number_start = self.current_strategy_step.step_number
-        state_start = self.current_state()
-        res = 0
-        self.next_step()
-        while not self.is_done():
-            if retrieval_element_name in self.current_strategy_step.retrieval_elements:
-                res += 1
-            self.next_step()
-        self.strategy.set_step(step_number_start, state_start)
-        return res
+    def finalize_file_number(self):
+        '''Rename all the files that our FileNumberHandle is handling.'''
+        for fnum in self.file_number_dict.values():
+            fnum.finalize()
+        self.file_number_dict = {}
 
     def run_step(self):
         """Run a the current step."""
@@ -619,6 +638,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
             self.notify_update(ProcessLocation("starting run_step"))
             self.run_step()
             self.next_step()
+        self.finalize_file_number()
 
     def continue_retrieval(self, stop_after_step=None) -> None:
         """After saving a pickled step, you can continue the processing starting
@@ -633,6 +653,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                 ):
                     return
                 self.next_step()
+            self.finalize_file_number()
 
     @contextmanager
     def chdir_run_dir(self):
@@ -663,4 +684,5 @@ __all__ = [
     "MusesStrategyExecutor",
     "MusesStrategyExecutorRetrievalStrategyStep",
     "MusesStrategyExecutorOldStrategyTable",
+    "FileNumberHandle"
 ]

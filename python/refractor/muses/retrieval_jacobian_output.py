@@ -5,6 +5,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
+from pathlib import Path
 import numpy as np
 import typing
 
@@ -46,8 +47,12 @@ class RetrievalJacobianOutput(RetrievalOutput):
             logger.info(f"Found a jacobian product file: {self.out_fname}")
 
     @property
-    def out_fname(self):
-        return f"{self.output_directory}/Products/Products_Jacobian-{self.species_tag}{self.special_tag}.nc"
+    def out_fname(self) -> Path:
+        return (
+            self.output_directory
+            / "Products"
+            / f"Products_Jacobian-{self.species_tag}{self.special_tag}.nc"
+        )
 
     def write_jacobian(self):
         # this section is to make all pressure grids have a standard size,
@@ -138,7 +143,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
         my_data = my_data.__dict__
         mpy.cdf_write(
             my_data,
-            self.out_fname,
+            str(self.out_fname),
             [
                 {"UNITS": "()"},
             ]

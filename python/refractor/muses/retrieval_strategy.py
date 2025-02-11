@@ -15,7 +15,10 @@ from .retrieval_strategy_step import (
 )
 from .retrieval_configuration import RetrievalConfiguration
 from .muses_observation import MeasurementIdFile
-from .muses_strategy_executor import MusesStrategyExecutorOldStrategyTable
+from .muses_strategy_executor import (
+    MusesStrategyExecutorOldStrategyTable,
+    FileNumberHandle,
+)
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
 from .state_info import StateInfo
@@ -381,16 +384,9 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn
         )
 
-    def number_steps_left(self, retrieval_element_name: str) -> int:
-        """This returns the number of retrieval steps left that
-        contain a given retrieval element name. This is an odd seeming
-        function, but is used by RetrievalL2Output to name files. So
-        for example we have Products_L2-O3-0.nc for the last step that
-        retrieves O3, Products_L2-O3-1.nc for the previous step
-        retrieving O3, etc.
-
-        """
-        return self.strategy_executor.number_steps_left(retrieval_element_name)
+    def file_number_handle(self, basefname: Path) -> FileNumberHandle:
+        """Return the FileNumberHandle for working the basefname."""
+        return self.strategy_executor.file_number_handle(basefname)
 
     @property
     def step_name(self) -> str:

@@ -5,6 +5,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import InstrumentIdentifier, ProcessLocation
+from pathlib import Path
 import numpy as np
 import typing
 
@@ -76,8 +77,12 @@ class RetrievalRadianceOutput(RetrievalOutput):
             logger.info(f"Found a radiance product file: {self.out_fname}")
 
     @property
-    def out_fname(self):
-        return f"{self.output_directory}/Products/Products_Radiance-{self.species_tag}{self.special_tag}.nc"
+    def out_fname(self) -> Path:
+        return (
+            self.output_directory
+            / "Products"
+            / f"Products_Radiance-{self.species_tag}{self.special_tag}.nc"
+        )
 
     def write_radiance(self):
         if (
@@ -180,7 +185,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
         my_data = my_data.__dict__
         mpy.cdf_write(
             my_data,
-            self.out_fname,
+            str(self.out_fname),
             [
                 {"UNITS": "()"},
             ]

@@ -2,6 +2,7 @@ from __future__ import annotations
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 from .identifier import RetrievalType, ProcessLocation
+from pathlib import Path
 import os
 import copy
 import numpy as np
@@ -35,31 +36,34 @@ class RetrievalOutput:
         return self.retrieval_strategy.retrieval_config
 
     @property
-    def step_directory(self):
-        return f"{self.output_directory}/Step{self.step_number:02d}_{self.step_name}"
+    def step_directory(self) -> Path:
+        return self.output_directory / f"Step{self.step_number:02d}_{self.step_name}"
 
     @property
-    def input_directory(self):
-        return self.step_directory + "/ELANORInput/"
+    def input_directory(self) -> Path:
+        return self.step_directory / "ELANORInput"
 
     @property
-    def analysis_directory(self):
-        return self.step_directory + "/StepAnalysis/"
+    def analysis_directory(self) -> Path:
+        return self.step_directory / "StepAnalysis"
 
     @property
-    def elanor_directory(self):
-        return self.step_directory + "/Diagnostics/"
+    def elanor_directory(self) -> Path:
+        return self.step_directory / "Diagnostics"
 
     @property
-    def output_directory(self):
+    def output_directory(self) -> Path:
         # This is usually the same as the self.retrieval_strategy.run_dir, but
         # could in principle be different. So we calculate this the same way
         # muses-py does
-        return f"{self.retrieval_config['outputDirectory']}/{self.retrieval_config['sessionID']}/"
+        return (
+            Path(self.retrieval_config["outputDirectory"])
+            / self.retrieval_config["sessionID"]
+        )
 
     @property
-    def lite_directory(self):
-        return self.retrieval_config["liteDirectory"] + "/"
+    def lite_directory(self) -> Path:
+        return Path(self.retrieval_config["liteDirectory"])
 
     @property
     def special_tag(self):
@@ -780,7 +784,6 @@ class CdfWriteTes:
         data2=None,
         species_name="",
         step=0,
-        times_species_retrieved=0,
         state_element_out=None,
     ):
         """This is a lightly edited version of make_lite_casper_script_retrieval,
@@ -849,8 +852,8 @@ class CdfWriteTes:
             data1,
             data2,
             dataAnc,
-            step,
         )
+        step=0                  # Not actually used by called code, however we need to pass this
         tracer = species_name
         retrieval_pressures = pressuresMax
         version = version
