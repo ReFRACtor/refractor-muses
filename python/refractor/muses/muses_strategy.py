@@ -7,7 +7,6 @@ import numpy as np
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
-    from .retrieval_info import RetrievalInfo
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
     from .identifier import (
@@ -45,14 +44,6 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def error_analysis_interferents(self) -> list[StateElementIdentifier]:
         """Return a list of the error analysis interferents."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def retrieval_info(self) -> RetrievalInfo:
-        """The RetrievalInfo."""
-        # TODO Note it would probably be good to remove this if we can. This is
-        # currently fairly tightly coupled with RetrievalResults, so we'll need
-        # to do some work to get this removed
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -114,7 +105,6 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
                 "do_not_update_list": strategy_table.do_not_update_list,
                 "error_analysis_interferents": strategy_table.error_analysis_interferents(),
                 "spectral_window_dict": None,
-                "retrieval_info": None,
             },
             measurement_id,
         )
@@ -129,12 +119,13 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         """List of instruments used in this step."""
         return self.current_strategy_step_dict["instrument_name"]
 
-    def update_state(self, current_state: CurrentState, results_list: np.ndarray):
+    def update_state(self, current_state: CurrentState, retrieval_info: RetrievalInfo,
+                     results_list: np.ndarray):
         """Update the CurrentState with the results. We have this as part of
         CurrentStrategyStep so we can support any sort of more complicated logic
         for updating the state (e.g., update the apriori)"""
         current_state.update_state(
-            self.retrieval_info,
+            retrieval_info,
             results_list,
             self.do_not_update_list,
             self.measurement_id,
@@ -182,14 +173,6 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         """Return a dictionary that maps instrument name to the MusesSpectralWindow
         to use for that."""
         return self.current_strategy_step_dict["spectral_window_dict"]
-
-    @property
-    def retrieval_info(self) -> RetrievalInfo:
-        """The RetrievalInfo."""
-        # Note it would probably be good to remove this if we can. Right now
-        # this is only used by RetrievalL2Output. But at least for now, we
-        # need to to generate the output
-        return self.current_strategy_step_dict["retrieval_info"]
 
 
 class MusesStrategy(object, metaclass=abc.ABCMeta):
@@ -313,8 +296,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def current_strategy_step(
         self,
-        spectral_window_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
-        retrieval_info: RetrievalInfo | None,
+        spectral_window_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None
     ) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
         raise NotImplementedError
@@ -389,8 +371,7 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
 
     def current_strategy_step(
         self,
-        spectral_window_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
-        retrieval_info: RetrievalInfo | None,
+        spectral_window_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None
     ) -> CurrentStrategyStep:
         if self.is_done():
             raise RuntimeError("Past end of strategy")
@@ -400,7 +381,6 @@ class MusesStrategyOldStrategyTable(MusesStrategy):
             )
         cstep = CurrentStrategyStepDict.current_step(self._stable, self.measurement_id)
         cstep.current_strategy_step_dict["spectral_window_dict"] = spectral_window_dict
-        cstep.current_strategy_step_dict["retrieval_info"] = retrieval_info
         return cstep
 
 

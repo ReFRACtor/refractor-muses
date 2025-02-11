@@ -404,7 +404,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         the required information for the output.
 
         """
-        return self.current_strategy_step.retrieval_info
+        return self.strategy_executor.retrieval_info
 
     @property
     def state_info(self) -> StateInfo:

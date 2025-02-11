@@ -249,7 +249,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         )
         logger.info("---\n")
 
-        rs.current_strategy_step.update_state(cstate, self.results.results_list)
+        rs.current_strategy_step.update_state(cstate, rs.retrieval_info, self.results.results_list)
 
         # I don't think we actually want this in here. 1) we don't currently
         # support OCO2 and 2) we would just use a direct PressureSigma object

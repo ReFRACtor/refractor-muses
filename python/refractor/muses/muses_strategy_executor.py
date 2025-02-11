@@ -239,11 +239,11 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
         """
         logger.debug(f"Creating rf_uip for {instrument}")
-        cstep = self.current_strategy_step
         if do_systematic:
-            rinfo = cstep.retrieval_info.retrieval_info_systematic()
+            rinfo = self.retrieval_info.retrieval_info_systematic()
         else:
-            rinfo = cstep.retrieval_info
+            rinfo = self.retrieval_info
+        cstep = self.current_strategy_step
         if obs_list is None:
             obs_list = []
             for iname in cstep.instrument_name:
@@ -413,7 +413,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
         return self.strategy.current_strategy_step(
-            self.spectral_window_dict, self.retrieval_info
+            self.spectral_window_dict
         )
 
     def restart(self) -> None:
