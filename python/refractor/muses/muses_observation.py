@@ -7,6 +7,7 @@ from .tes_file import TesFile
 from contextlib import contextmanager
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
+from pathlib import Path
 import numpy as np
 import refractor.framework as rf  # type: ignore
 import abc
@@ -105,6 +106,10 @@ class MeasurementIdDict(MeasurementId):
         """
         return self._filter_list_dict
 
+    @filter_list_dict.setter
+    def filter_list_dict(self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]):
+        self._filter_list_dict = val
+
     def __getitem__(self, key):
         return self.measurement_dict[key]
 
@@ -125,8 +130,8 @@ class MeasurementIdFile(MeasurementId):
         retrieval_config: RetrievalConfiguration,
         filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
     ):
-        self.fname = fname
-        self.base_dir = os.path.abspath(os.path.dirname(self.fname))
+        self.fname = Path(fname)
+        self.base_dir = self.fname.parent.absolute()
         self._p = TesFile(self.fname)
         self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
@@ -138,6 +143,10 @@ class MeasurementIdFile(MeasurementId):
 
         """
         return self._filter_list_dict
+
+    @filter_list_dict.setter
+    def filter_list_dict(self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]):
+        self._filter_list_dict = val
 
     def __getitem__(self, key):
         if key in self._p:
@@ -159,7 +168,7 @@ class MeasurementIdFile(MeasurementId):
         v = copy.copy(v)
         v = os.path.expandvars(os.path.expanduser(v))
         if re.match(r"^\.\./", v) or re.match(r"^\./", v):
-            v = os.path.normpath(f"{self.base_dir}/{v}")
+            v = os.path.normpath(self.base_dir / v)
         return v
 
 

@@ -16,7 +16,7 @@ from .retrieval_strategy_step import (
 from .retrieval_configuration import RetrievalConfiguration
 from .muses_observation import MeasurementIdFile
 from .muses_strategy_executor import (
-    MusesStrategyExecutorOldStrategyTable,
+    MusesStrategyExecutorMusesStrategy,
     FileNumberHandle,
 )
 from .spectral_window_handle import SpectralWindowHandleSet
@@ -27,7 +27,6 @@ from .identifier import ProcessLocation
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
-import copy
 import pickle
 from pathlib import Path
 from typing import Any
@@ -42,7 +41,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
-    from .muses_strategy import MusesStrategy
+    from .muses_strategy import MusesStrategy, MusesStrategyHandleSet
     from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
 
 
@@ -121,13 +120,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._observers: set[Any] = set()
         self._vlidort_cli = Path(vlidort_cli) if vlidort_cli is not None else None
 
-        self._retrieval_strategy_step_set = copy.deepcopy(
-            RetrievalStrategyStepSet.default_handle_set()
-        )
-        self._spectral_window_handle_set = copy.deepcopy(
-            SpectralWindowHandleSet.default_handle_set()
-        )
-        self._qa_data_handle_set = copy.deepcopy(QaDataHandleSet.default_handle_set())
         self._cost_function_creator = CostFunctionCreator(rs=self)
         self._forward_model_handle_set = (
             self._cost_function_creator.forward_model_handle_set
@@ -143,6 +135,18 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self.osp_dir = osp_dir
         if self.osp_dir is None:
             self.osp_dir = os.environ.get("MUSES_OSP_PATH", None)
+
+        self._strategy_executor = MusesStrategyExecutorMusesStrategy(self)
+        self._retrieval_strategy_step_set = (
+            self.strategy_executor.retrieval_strategy_step_set
+        )
+        self._spectral_window_handle_set = (
+            self.strategy_executor.spectral_window_handle_set
+        )
+        self._muses_strategy_handle_set = (
+            self.strategy_executor.muses_strategy_handle_set
+        )
+        self._qa_data_handle_set = self.strategy_executor.qa_data_handle_set
 
         # Right now, we hardcode the output observers. Probably want to
         # rework this
@@ -199,24 +203,23 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
             mpy.clear_cache()
         filename = Path(filename)
         self._filename = filename.absolute()
-        self._capture_directory.rundir = self.strategy_table_filename.parent
+        self._capture_directory.rundir = filename.absolute().parent
         self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(
             self.strategy_table_filename, osp_dir=self.osp_dir
-        )
-        self._strategy_executor = MusesStrategyExecutorOldStrategyTable(
-            self.strategy_table_filename,
-            self,
-            retrieval_strategy_step_set=self._retrieval_strategy_step_set,
-            spectral_window_handle_set=self._spectral_window_handle_set,
-            qa_data_handle_set=self._qa_data_handle_set,
         )
         self._measurement_id = MeasurementIdFile(
             self.run_dir / "Measurement_ID.asc",
             self.retrieval_config,
-            self.strategy_executor.filter_list_dict,
+            # Chicken and egg problem for filter_list_dict. We need a MeasurementId
+            # to update the strategy_executor, and then need the strategy_executor to
+            # get the filter_list_dict. So we put a dummy in, and this fill this in
+            # in the next step.
+            {},
         )
-        self._cost_function_creator.notify_update_target(self.measurement_id)
         self.strategy_executor.notify_update_target(self.measurement_id)
+        self._measurement_id.filter_list_dict = self.strategy_executor.filter_list_dict
+        self.strategy_executor.notify_update_target(self.measurement_id)
+        self._cost_function_creator.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
         self._state_info.notify_update_target(self)
         self.notify_update(ProcessLocation("update target"))
@@ -303,13 +306,15 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self.strategy_executor.continue_retrieval(stop_after_step=stop_after_step)
 
     @property
-    def strategy_executor(self) -> MusesStrategyExecutorOldStrategyTable:
+    def strategy_executor(self) -> MusesStrategyExecutorMusesStrategy:
         """The MusesStrategyExecutor used to run through the strategy"""
         return self._strategy_executor
 
     @property
     def strategy(self) -> MusesStrategy:
         """The MusesStrategy used to describe the strategy"""
+        if self.strategy_executor.strategy is None:
+            raise RuntimeError("Call update_target before this function")
         return self.strategy_executor.strategy
 
     @property
@@ -359,6 +364,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
         """The set of handles for determining the MusesSpectralWindow."""
         return self._spectral_window_handle_set
+
+    @property
+    def muses_strategy_handle_set(self) -> MusesStrategyHandleSet:
+        """The set of handles for determining the MusesStrategy."""
+        return self._muses_strategy_handle_set
 
     @property
     def qa_data_handle_set(self) -> QaDataHandleSet:
@@ -490,7 +500,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._state_info.retrieval_config.osp_dir = (
             Path(self.osp_dir) if self.osp_dir is not None else None
         )
-        self.strategy_executor.state_info = self._state_info
         self.strategy_executor.set_step(step_number)
         if ret_state_file is not None:
             t = RetrievalStepCaptureObserver.load_retrieval_state(ret_state_file)

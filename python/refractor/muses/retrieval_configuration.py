@@ -104,6 +104,9 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # file.
         res["pressure_species_input"] = list(f.table["Pressure"])
 
+        # Make run dir available
+        res["run_dir"] = strategy_table_dir
+
         # There really should be a liteDirectory included here, but
         # for some reason muses-py treats this differently as a hard
         # coded value - probably the general problem of always solving

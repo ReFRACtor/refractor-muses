@@ -2,6 +2,7 @@ from __future__ import annotations
 from .strategy_table import StrategyTable
 from .muses_spectral_window import MusesSpectralWindow
 from .identifier import RetrievalType, StrategyStepIdentifier
+from .creator_handle import CreatorHandle, CreatorHandleSet
 import os
 import abc
 import typing
@@ -203,6 +204,55 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         return self.current_strategy_step_dict["strategy_step"]
 
 
+class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
+    """Base class for MusesStrategyHandle. Note we use duck typing, so
+    you don't need to actually derive from this object. But it can be
+    useful because it 1) provides the interface and 2) documents that
+    a class is intended for this.
+
+    This can do caching based on assuming the target is the same
+    between calls, see CreatorHandle for a discussion of this.
+    """
+
+    def notify_update_target(self, measurement_id: MeasurementId):
+        """Clear any caching associated with assuming the target being
+        retrieved is fixed"""
+        # Default is to do nothing
+        pass
+
+    @abc.abstractmethod
+    def muses_strategy(
+        self,
+        measurement_id: MeasurementId,
+        osp_dir: str | os.PathLike[str] | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        **kwargs,
+    ) -> MusesStrategy | None:
+        """Return MusesStrategy if we can process the given
+        measurement_id, or None if we can't.
+        """
+        raise NotImplementedError()
+
+
+class MusesStrategyHandleSet(CreatorHandleSet):
+    """This takes the MeasurementId and creates a MusesStrategy for processing it."""
+
+    def __init__(self):
+        super().__init__("muses_strategy")
+
+    def muses_strategy(
+        self,
+        measurement_id: MeasurementId,
+        osp_dir: str | os.PathLike[str] | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        **kwargs,
+    ) -> MusesStrategy:
+        """Create a MusesStrategy for the given measurement_id."""
+        return self.handle(
+            measurement_id, osp_dir, spectral_window_handle_set, **kwargs
+        )
+
+
 class MusesStrategy(object, metaclass=abc.ABCMeta):
     """A MusesStrategy is a list of steps to be executed by a
     MusesStrategyExecutor.  Each step is represented by a
@@ -355,6 +405,22 @@ class MusesStrategyImp(MusesStrategy):
         self.spectral_window_handle_set.notify_update_target(self.measurement_id)
 
 
+class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
+    def muses_strategy(
+        self,
+        measurement_id: MeasurementId,
+        osp_dir: str | os.PathLike[str] | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        **kwargs,
+    ) -> MusesStrategy | None:
+        """Return MusesStrategy if we can process the given
+        measurement_id, or None if we can't.
+        """
+        return MusesStrategyOldStrategyTable(
+            measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
+        )
+
+
 class MusesStrategyOldStrategyTable(MusesStrategyImp):
     """This wraps the old py-retrieve StrategyTable code as a
     MusesStrategy.  Note that this class has largely been replaced
@@ -430,8 +496,12 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         return cstep
 
 
+MusesStrategyHandleSet.add_default_handle(MusesStrategyOldStrategyTableHandle())
+
 __all__ = [
     "MusesStrategy",
+    "MusesStrategyHandle",
+    "MusesStrategyHandleSet",
     "MusesStrategyOldStrategyTable",
     "CurrentStrategyStep",
     "CurrentStrategyStepDict",

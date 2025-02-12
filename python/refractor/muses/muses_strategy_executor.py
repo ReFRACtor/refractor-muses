@@ -9,13 +9,14 @@ from .order_species import order_species
 from .current_state import CurrentStateStateInfo
 from .qa_data_handle import QaDataHandleSet
 from .muses_strategy import (
-    MusesStrategyOldStrategyTable,
     MusesStrategy,
     CurrentStrategyStep,
 )
 from .observation_handle import ObservationHandleSet
 from .refractor_uip import RefractorUip
 from .identifier import StateElementIdentifier, ProcessLocation
+from .muses_strategy import MusesStrategyHandleSet
+from .spectral_window_handle import SpectralWindowHandleSet
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
@@ -153,22 +154,18 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def __init__(
         self,
-        retrieval_config: RetrievalConfiguration,
-        run_dir: Path,
-        state_info: StateInfo,
-        cost_function_creator: CostFunctionCreator,
+        rs: RetrievalStrategy,
         observation_handle_set: ObservationHandleSet | None = None,
+        muses_strategy_handle_set: MusesStrategyHandleSet | None = None,
         retrieval_strategy_step_set: RetrievalStrategyStepSet | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         qa_data_handle_set: QaDataHandleSet | None = None,
         vlidort_cli: Path | None = None,
         **kwargs,
     ):
-        self.retrieval_config = retrieval_config
+        self.rs = rs
         self.retrieval_info: RetrievalInfo | None = None
         self.vlidort_cli = vlidort_cli
-        self.run_dir = run_dir
-        self.state_info = state_info
-        self.cost_function_creator = cost_function_creator
         self.kwargs = kwargs
         if observation_handle_set is None:
             self.observation_handle_set = copy.deepcopy(
@@ -176,9 +173,22 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             )
         else:
             self.observation_handle_set = observation_handle_set
+        if muses_strategy_handle_set is None:
+            self._muses_strategy_handle_set = copy.deepcopy(
+                MusesStrategyHandleSet.default_handle_set()
+            )
+        else:
+            self._muses_strategy_handle_set = muses_strategy_handle_set
         if retrieval_strategy_step_set is None:
             self._retrieval_strategy_step_set = copy.deepcopy(
                 RetrievalStrategyStepSet.default_handle_set()
+            )
+        else:
+            self._retrieval_strategy_step_set = retrieval_strategy_step_set
+
+        if spectral_window_handle_set is None:
+            self._spectral_window_handle_set = copy.deepcopy(
+                SpectralWindowHandleSet.default_handle_set()
             )
         else:
             self._retrieval_strategy_step_set = retrieval_strategy_step_set
@@ -198,6 +208,22 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self.file_number_dict = {}
 
     @property
+    def retrieval_config(self) -> RetrievalConfiguration:
+        return self.rs.retrieval_config
+
+    @property
+    def run_dir(self) -> Path:
+        return self.rs.run_dir
+
+    @property
+    def state_info(self) -> StateInfo:
+        return self.rs.state_info
+
+    @property
+    def cost_function_creator(self) -> CostFunctionCreator:
+        return self.rs.cost_function_creator
+
+    @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for all retrieval steps)"""
         raise NotImplementedError
@@ -208,14 +234,24 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         raise NotImplementedError()
 
     @property
-    def qa_data_handle_set(self):
+    def qa_data_handle_set(self) -> QaDataHandleSet:
         """The QaDataHandleSet to use to get the QA flag filename."""
         return self._qa_data_handle_set
 
     @property
-    def retrieval_strategy_step_set(self):
+    def muses_strategy_handle_set(self) -> MusesStrategyHandleSet:
+        """The MusesStrategyHandleSet used for getting MusesStrategy"""
+        return self._muses_strategy_handle_set
+
+    @property
+    def retrieval_strategy_step_set(self) -> RetrievalStrategyStepSet:
         """The RetrievalStrategyStepSet to use for getting RetrievalStrategyStep."""
         return self._retrieval_strategy_step_set
+
+    @property
+    def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
+        """The SpectralWindowHandleSet to use for getting MusesSpectralWindow."""
+        return self._spectral_window_handle_set
 
     def rf_uip_func_cost_function(
         self, do_systematic, jacobian_speciesIn
@@ -381,50 +417,53 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         )
 
 
-class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrategyStep):
-    """Placeholder that wraps the muses-py strategy table up, so we
-    can get the infrastructure in place before all the pieces are
-    ready
+class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyStep):
+    """This is a strategy executor that uses a MusesStrategy to determine the
+    strategy.
 
+    It isn't clear if we will ever need a different strategy executor, have different
+    MusesStrategy may be all the flexibility we need. But we go ahead and set up
+    the infrastructure here since it is fairly cheap to do so, just in case we need
+    a different implementation in the future.
     """
 
     def __init__(
         self,
-        filename: str | os.PathLike[str],
         rs: RetrievalStrategy,
         osp_dir=None,
+        muses_strategy_handle_set=None,
         retrieval_strategy_step_set=None,
         spectral_window_handle_set=None,
         qa_data_handle_set=None,
     ):
         super().__init__(
-            rs.retrieval_config,
-            rs.run_dir,
-            rs.state_info,
-            rs._cost_function_creator,
+            rs,
             observation_handle_set=rs.observation_handle_set,
+            muses_strategy_handle_set=muses_strategy_handle_set,
             retrieval_strategy_step_set=retrieval_strategy_step_set,
+            spectral_window_handle_set=spectral_window_handle_set,
             qa_data_handle_set=qa_data_handle_set,
             **rs.keyword_arguments,
         )
-        self.strategy: MusesStrategy = MusesStrategyOldStrategyTable(
-            filename,
-            osp_dir=osp_dir,
-            spectral_window_handle_set=spectral_window_handle_set,
-        )
+        self._strategy: MusesStrategy | None = None
         self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
-        self.rs = rs
         self.retrieval_info: RetrievalInfo | None = None
         self.measurement_id: MeasurementId | None = None
 
-    @property
-    def spectral_window_handle_set(self):
-        """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
-        return self.strategy.spectral_window_handle_set
-
     def notify_update_target(self, measurement_id: MeasurementId):
         super().notify_update_target(measurement_id)
+        self._strategy = self.muses_strategy_handle_set.muses_strategy(
+            measurement_id,
+            osp_dir=self.osp_dir,
+            spectral_window_handle_set=self.spectral_window_handle_set,
+        )
         self.strategy.notify_update_target(measurement_id)
+
+    @property
+    def strategy(self) -> MusesStrategy:
+        if self._strategy is None:
+            raise RuntimeError("Call update_target before this function")
+        return self._strategy
 
     def notify_update(self, location: str | ProcessLocation, **kwargs):
         self.rs.notify_update(location, **kwargs)
@@ -680,6 +719,6 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
 __all__ = [
     "MusesStrategyExecutor",
     "MusesStrategyExecutorRetrievalStrategyStep",
-    "MusesStrategyExecutorOldStrategyTable",
+    "MusesStrategyExecutorMusesStrategy",
     "FileNumberHandle",
 ]
