@@ -47,11 +47,11 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         self.calculate_bt(
             rs.retrieval_config,
             rs.strategy,
-            rs.step_number,
+            rs.strategy_step.step_number,
             rs.state_info,
             rs.current_state(),
         )
-        logger.info(f"Step: {rs.step_number}")
+        logger.info(f"Step: {rs.strategy_step}")
         rs.state_info.next_state_dict = copy.deepcopy(
             rs.state_info.state_info_dict["current"]
         )

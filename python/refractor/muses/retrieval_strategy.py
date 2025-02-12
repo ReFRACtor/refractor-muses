@@ -43,7 +43,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
     from .muses_strategy import MusesStrategy
-    from .identifier import RetrievalType, InstrumentIdentifier
+    from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
 
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -366,8 +366,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self._qa_data_handle_set
 
     @property
-    def step_number(self) -> int:
-        return self.current_strategy_step.step_number
+    def strategy_step(self) -> StrategyStepIdentifier:
+        return self.current_strategy_step.strategy_step
 
     @property
     def instrument_name_all_step(self) -> list[InstrumentIdentifier]:
@@ -387,10 +387,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname."""
         return self.strategy_executor.file_number_handle(basefname)
-
-    @property
-    def step_name(self) -> str:
-        return self.current_strategy_step.step_name
 
     @property
     def retrieval_type(self) -> RetrievalType:
@@ -562,7 +558,7 @@ class RetrievalStrategyCaptureObserver:
         if location != self.location_to_capture:
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
+        fname = f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
         # Don't want this class included in the pickle
         retrieval_strategy.remove_observer(self)
         retrieval_strategy.save_pickle(fname, **kwargs)
@@ -587,7 +583,7 @@ class StateInfoCaptureObserver:
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         # fname = f"{self.basefname}_{retrieval_strategy.step_number}.json.gz"
-        fname = f"{self.basefname}_{retrieval_strategy.step_number}.pkl"
+        fname = f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
         retrieval_strategy.state_state_info(fname)
 
 

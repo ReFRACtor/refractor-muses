@@ -1727,7 +1727,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
             tag_names = mpy.idl_tag_names(speciesInformationFile)
             upperTags = [x.upper() for x in tag_names]
-            step_name = current_strategy_step.step_name
+            step_name = current_strategy_step.strategy_step.step_name
             full_step_label = ("sSubaDiagonalValues-" + step_name).upper()
             if full_step_label in upperTags:
                 sSubaDiagonalValues = np.asarray(
@@ -1772,7 +1772,7 @@ class MusesPyStateElement(RetrievableStateElement):
 
             tag_names = mpy.idl_tag_names(speciesInformationFile)
             upperTags = [x.upper() for x in tag_names]
-            step_name = current_strategy_step.step_name
+            step_name = current_strategy_step.strategy_step.step_name
             full_step_label = ("sSubaDiagonalValues-" + step_name).upper()
             if full_step_label in upperTags:
                 sSubaDiagonalValues = np.asarray(

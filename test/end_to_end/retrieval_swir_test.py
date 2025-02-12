@@ -17,7 +17,7 @@ from refractor.muses import (
     StateInfo,
     InstrumentIdentifier,
     StateElementIdentifier,
-    ProcessLocation
+    ProcessLocation,
 )
 from refractor.tropomi import TropomiSwirForwardModelHandle, TropomiSwirFmObjectCreator
 import refractor.framework as rf
@@ -214,7 +214,7 @@ def test_simulated_retrieval(
     oss_training_data,
 ):
     """Do a simulation, and then a retrieval to get this result"""
-    dir = end_to_end_run_dir / "swir_simulation"
+    dir = end_to_end_run_dir / f"swir_simulation{'_oss' if use_oss else ''}"
     subprocess.run(["rm", "-r", str(dir)])
     mrdir = MusesRunDir(
         tropomi_band7_test_in_dir2,

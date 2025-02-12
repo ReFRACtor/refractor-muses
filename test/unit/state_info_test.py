@@ -136,7 +136,7 @@ def test_update_cloudfraction(omi_step_0):
         results_list,
         [],
         rs.retrieval_config,
-        rs.current_strategy_step.step_number,
+        rs.current_strategy_step.strategy_step.step_number,
     )
 
     assert selement.mapType == "linear"
@@ -310,7 +310,7 @@ def test_noupdate_cloudfraction(omi_step_0):
         results_list,
         ["OMICLOUDFRACTION"],
         rs.retrieval_config,
-        rs.current_strategy_step.step_number,
+        rs.current_strategy_step.strategy_step.step_number,
     )
 
     assert selement.mapType == "linear"
@@ -494,7 +494,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
         results_list,
         [],
         rs.retrieval_config,
-        rs.current_strategy_step.step_number,
+        rs.current_strategy_step.strategy_step.step_number,
     )
 
     assert selement.mapType == "linear"
@@ -612,7 +612,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
         results_list,
         ["OMIEOFUV1"],
         rs.retrieval_config,
-        rs.current_strategy_step.step_number,
+        rs.current_strategy_step.strategy_step.step_number,
     )
 
     assert selement.mapType == "linear"

@@ -247,7 +247,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             cstate.propagated_qa,
         )
         logger.info("\n---")
-        logger.info(f"Step: {rs.step_number}, Step Name: {rs.step_name}")
+        logger.info(str(rs.strategy_step))
         logger.info(
             f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}"
         )
@@ -311,7 +311,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             r = self.radiance_step()["NESR"]
             chi2_tolerance = 2.0 / len(r)  # theoretical value for tolerance
         if rs.write_output:
-            levmar_log_file = f"{rs.run_dir}/Step{rs.step_number:02d}_{rs.step_name}/LevmarSolver-{rs.step_name}.log"
+            levmar_log_file = f"{rs.run_dir}/Step{rs.strategy_step.step_number:02d}_{rs.strategy_step.step_name}/LevmarSolver-{rs.strategy_step.step_name}.log"
         else:
             levmar_log_file = None
         logger.info(f"Initial State vector:\n{self.cfunc.fm_sv}")

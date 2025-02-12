@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .strategy_table import StrategyTable
 from .muses_spectral_window import MusesSpectralWindow
-from .identifier import RetrievalType
+from .identifier import RetrievalType, StrategyStepIdentifier
 import os
 import abc
 import typing
@@ -79,17 +79,8 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def step_name(self) -> str:
-        """A name for the current strategy step."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def step_number(self) -> int:
-        """The number of the current strategy step, starting with 0."""
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def do_not_update_list(self) -> list[StateElementIdentifier]:
+    def strategy_step(self) -> StrategyStepIdentifier:
+        """Return the strategy step identifier"""
         raise NotImplementedError()
 
 
@@ -128,15 +119,16 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
             {
                 "retrieval_elements": strategy_table.retrieval_elements(),
                 "instrument_name": strategy_table.instrument_name(),
-                "step_name": strategy_table.step_name,
-                "step_number": strategy_table.table_step,
+                "strategy_step": StrategyStepIdentifier(
+                    strategy_table.table_step, strategy_table.step_name
+                ),
                 "retrieval_step_parameters": {
                     "cost_function_params": cost_function_params,
                 },
                 "retrieval_type": strategy_table.retrieval_type,
-                "do_not_update_list": strategy_table.do_not_update_list,
                 "error_analysis_interferents": strategy_table.error_analysis_interferents(),
                 "spectral_window_dict": None,
+                "do_not_update_list": strategy_table.do_not_update_list,
             },
             measurement_id,
         )
@@ -183,9 +175,9 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         current_state.update_state(
             retrieval_info,
             results_list,
-            self.do_not_update_list,
+            self.current_strategy_step_dict["do_not_update_list"],
             self.measurement_id,
-            self.step_number,
+            self.strategy_step.step_number,
         )
 
     def muses_microwindows_fname(self):
@@ -200,24 +192,15 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
             self.measurement_id["viewingMode"],
             self.measurement_id["spectralWindowDirectory"],
             self.retrieval_elements,
-            self.step_name,
+            self.strategy_step.step_name,
             self.retrieval_type,
             self.current_strategy_step_dict.get("microwindow_file_name_override"),
         )
 
     @property
-    def step_name(self) -> str:
-        """A name for the current strategy step."""
-        return self.current_strategy_step_dict["step_name"]
-
-    @property
-    def step_number(self) -> int:
-        """The number of the current strategy step, starting with 0."""
-        return self.current_strategy_step_dict["step_number"]
-
-    @property
-    def do_not_update_list(self) -> list[StateElementIdentifier]:
-        return self.current_strategy_step_dict["do_not_update_list"]
+    def strategy_step(self) -> StrategyStepIdentifier:
+        """Return the strategy step identifier"""
+        return self.current_strategy_step_dict["strategy_step"]
 
 
 class MusesStrategy(object, metaclass=abc.ABCMeta):

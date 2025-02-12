@@ -166,7 +166,7 @@ class MusesPyQaDataHandle(QaDataHandle):
         quality_fname = os.path.abspath(quality_fname)
         qa_outname = Path(
             self.run_dir,
-            f"Step{current_strategy_step.step_number:02d}_{current_strategy_step.step_name}",
+            f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}",
             "StepAnalysis",
             "QualityFlags.asc",
         )

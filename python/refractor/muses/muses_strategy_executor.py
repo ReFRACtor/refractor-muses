@@ -111,11 +111,12 @@ class FileNumberHandle:
         self.count += 1
 
     def finalize(self):
-        '''Go back through and rename file to the final name'''
-        for i in range(self.count+1):
+        """Go back through and rename file to the final name"""
+        for i in range(self.count + 1):
             f1 = Path(str(self.basename) + f"-initial-{i}.nc")
-            f2 = Path(str(self.basename) + f"-{self.count-i}.nc")
+            f2 = Path(str(self.basename) + f"-{self.count - i}.nc")
             os.rename(f1, f2)
+
 
 class MusesStrategyExecutor(object, metaclass=abc.ABCMeta):
     """This is the base class for executing a strategy.
@@ -280,13 +281,13 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             "preferences": self.retrieval_config,
             "vlidort_dir": str(
                 self.run_dir
-                / f"Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}/vlidort/"
+                / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}/vlidort/"
             ),
-            "numRows": cstep.step_number,
+            "numRows": cstep.strategy_step.step_number,
             "numColumns": 1,
-            "step": cstep.step_number,
+            "step": cstep.strategy_step.step_number,
             "labels1": "retrievalType",
-            "data": [cstep.retrieval_type.lower()] * cstep.step_number,
+            "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
         }
         o_xxx = {
             "AIRS": None,
@@ -325,7 +326,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.state_info,
             self.retrieval_info,
             self.run_dir
-            / f"Step{self.current_strategy_step.step_number:02d}_{self.current_strategy_step.step_name}",
+            / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}",
             do_systematic=do_systematic,
             retrieval_state_element_override=jacobian_speciesIn,
         )
@@ -447,7 +448,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         where we jump to a given step number."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             self._restart_and_error_analysis()
-            while self.current_strategy_step.step_number < step_number:
+            while self.current_strategy_step.strategy_step.step_number < step_number:
                 self.next_step()
 
     def _restart_and_error_analysis(self) -> None:
@@ -515,10 +516,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
         nparm = self.retrieval_info.n_totalParameters
-        logger.info(
-            f"Step: {self.current_strategy_step.step_number}, Total Parameters: {nparm}"
-        )
-
+        logger.info(str(self.current_strategy_step.strategy_step))
         if nparm > 0:
             xig = self.retrieval_info.initial_guess_list[0:nparm]
             self.state_info.update_state(
@@ -526,7 +524,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                 xig,
                 [],
                 self.retrieval_config,
-                self.current_strategy_step.step_number,
+                self.current_strategy_step.strategy_step.step_number,
             )
 
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
@@ -539,7 +537,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         return self.file_number_dict[basefname]
 
     def finalize_file_number(self):
-        '''Rename all the files that our FileNumberHandle is handling.'''
+        """Rename all the files that our FileNumberHandle is handling."""
         for fnum in self.file_number_dict.values():
             fnum.finalize()
         self.file_number_dict = {}
@@ -548,14 +546,12 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         """Run a the current step."""
         self.state_info.copy_current_initial()
         logger.info("\n---")
-        logger.info(
-            f"Step: {self.current_strategy_step.step_number}, Step Name: {self.current_strategy_step.step_name}"
-        )
+        logger.info(str(self.current_strategy_step.strategy_step))
         logger.info("\n---")
         self.get_initial_guess()
         self.notify_update(ProcessLocation("done get_initial_guess"))
         logger.info(
-            f"Step: {self.current_strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
+            f"Step: {self.current_strategy_step.strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
         )
         self.retrieval_strategy_step_set.retrieval_step(
             self.current_strategy_step.retrieval_type,
@@ -566,7 +562,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         self.notify_update(ProcessLocation("done retrieval_step"))
         self.state_info.next_state_to_current()
         self.notify_update(ProcessLocation("done next_state_to_current"))
-        logger.info(f"Done with step {self.current_strategy_step.step_number}")
+        logger.info(f"Done with {str(self.current_strategy_step.strategy_step)}")
 
     @log_timing
     def execute_retrieval(self, stop_at_step=None):
@@ -632,7 +628,7 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
         while not self.is_done():
             if (
                 stop_at_step is not None
-                and stop_at_step == self.current_strategy_step.step_number
+                and stop_at_step == self.current_strategy_step.strategy_step.step_number
             ):
                 return
             self.notify_update(ProcessLocation("starting run_step"))
@@ -649,7 +645,8 @@ class MusesStrategyExecutorOldStrategyTable(MusesStrategyExecutorRetrievalStrate
                 self.run_step()
                 if (
                     stop_after_step is not None
-                    and stop_after_step == self.current_strategy_step.step_number
+                    and stop_after_step
+                    == self.current_strategy_step.strategy_step.step_number
                 ):
                     return
                 self.next_step()
@@ -684,5 +681,5 @@ __all__ = [
     "MusesStrategyExecutor",
     "MusesStrategyExecutorRetrievalStrategyStep",
     "MusesStrategyExecutorOldStrategyTable",
-    "FileNumberHandle"
+    "FileNumberHandle",
 ]

@@ -6,6 +6,7 @@ from refractor.muses import (
     MeasurementIdFile,
     InstrumentIdentifier,
     FilterIdentifier,
+    StrategyStepIdentifier,
 )
 
 
@@ -46,8 +47,7 @@ def test_muses_py_spectral_window_handle(
                 "OMIODWAVUV1",
                 "OMIODWAVUV2",
             ],
-            "step_name": "H2O,O3_OMI",
-            "step_number": 8,
+            "strategy_step": StrategyStepIdentifier(8, "H2O,O3_OMI"),
             "max_num_iterations": "15",
             "retrieval_type": "joint",
         },
@@ -81,8 +81,7 @@ def test_muses_py_spectral_window_handle_empty_band(
     current_strategy_step = CurrentStrategyStepDict(
         {
             "retrieval_elements": ["OMICLOUDFRACTION"],
-            "step_name": "OMICLOUDFRACTION",
-            "step_number": 3,
+            "strategy_step": StrategyStepIdentifier(3, "OMICLOUDFRACTION"),
             "max_num_iterations": "10",
             "retrieval_type": "OMICLOUD_IG_Refine",
         },

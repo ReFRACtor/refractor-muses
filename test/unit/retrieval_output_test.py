@@ -50,6 +50,7 @@ def test_retrieval_l2_output(joint_tropomi_output):
     )
     rs.strategy_executor.finalize_file_number()
 
+
 def test_retrieval_pickle_results(joint_tropomi_output):
     rs, rstep, kwargs = joint_tropomi_output
     jout = RetrievalPickleResult()

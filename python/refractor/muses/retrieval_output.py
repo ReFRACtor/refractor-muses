@@ -73,7 +73,7 @@ class RetrievalOutput:
 
     @property
     def species_tag(self):
-        res = self.retrieval_strategy.step_name
+        res = self.step_name
         res = res.rstrip(", ")
         if "EMIS" in res and res.index("EMIS") > 0:
             res = res.replace("EMIS", "")
@@ -84,11 +84,11 @@ class RetrievalOutput:
 
     @property
     def step_number(self):
-        return self.retrieval_strategy.step_number
+        return self.retrieval_strategy.strategy_step.step_number
 
     @property
     def step_name(self):
-        return self.retrieval_strategy.step_name
+        return self.retrieval_strategy.strategy_step.step_name
 
     @property
     def results(self):
@@ -783,7 +783,6 @@ class CdfWriteTes:
         data1In,
         data2=None,
         species_name="",
-        step=0,
         state_element_out=None,
     ):
         """This is a lightly edited version of make_lite_casper_script_retrieval,
@@ -853,7 +852,6 @@ class CdfWriteTes:
             data2,
             dataAnc,
         )
-        step=0                  # Not actually used by called code, however we need to pass this
         tracer = species_name
         retrieval_pressures = pressuresMax
         version = version

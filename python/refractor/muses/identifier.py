@@ -81,11 +81,27 @@ class RetrievalType(IdentifierStr):
         return self.s.lower()
 
 
-class StrategyStepIdentifier(IdentifierStr):
-    '''Identify an step in a strategy, e.g. "Steo 0"'''
+class StrategyStepIdentifier(Identifier):
+    """Identify an step in a strategy, e.g. "Step 0"
+    Note we identify by the name and initial step number. The step_number can be updated
+    without changing this identifier, just the string it prints out gets updated"""
 
-    def __init__(self, i):
-        super().__init__(f"Step {i}")
+    def __init__(self, initial_step_number: int, step_name: str):
+        self.initial_step_number = initial_step_number
+        self.step_name = step_name
+        self.step_number = self.initial_step_number
+
+    def __eq__(self, other):
+        return (
+            self.initial_step_number == other.initial_step_number
+            and self.step_name == other.step_name
+        )
+
+    def __hash__(self):
+        return hash((self.initial_step_number, self.step_name))
+
+    def __str__(self) -> str:
+        return f"Step: {self.step_number}, Step Name: {self.step_name}"
 
 
 class ProcessLocation(IdentifierStr):
