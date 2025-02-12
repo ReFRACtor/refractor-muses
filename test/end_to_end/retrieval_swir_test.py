@@ -34,7 +34,7 @@ from typing import Callable
 # This actually runs ok, but it fails with a LIDORT error when one of the steps goes out of
 # range. Not really an error so much as we just need to work out what the strategy is and
 # possibly pick a different sounding. But skip for now so we don't have a failing unit test
-@pyest.mark.skip
+@pytest.mark.skip
 @pytest.mark.long_test
 def test_retrieval(tropomi_co_step, josh_osp_dir):
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
