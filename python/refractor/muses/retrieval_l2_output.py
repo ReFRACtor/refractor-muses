@@ -12,7 +12,6 @@ import typing
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-    from .muses_strategy_executor import FileNumberHandle
 
 
 def _new_from_init(cls, *args):
@@ -23,9 +22,45 @@ def _new_from_init(cls, *args):
     return inst
 
 
+class FileNumberHandle:
+    """The RetrievalL2Output uses a numbering system to capture species from different
+    steps. The number convention is based on the number of files left, so files might
+    be names foo-2.nc, foo-1.nc, foo-0.nc (generated in that order). The original
+    code would count the number of species left in the strategy table.
+
+    The problem with this is that we don't want to assume that a strategy is fixed,
+    we want to allow for changes in the strategy based on results or whatever criteria.
+    So instead, we create the files within one name, foo-initial0.nc, foo-initial1.nc,
+    foo-initial2.nc etc. Then, at the end of processing a sounding we go back and
+    rename them."""
+
+    def __init__(self, basename: Path):
+        self.count = 0
+        self.basename = basename
+
+    def current_file_name(self) -> Path:
+        return Path(str(self.basename) + f"-initial-{self.count}.nc")
+
+    def next(self):
+        self.count += 1
+
+    def finalize(self):
+        """Go back through and rename file to the final name"""
+        for i in range(self.count + 1):
+            f1 = Path(str(self.basename) + f"-initial-{i}.nc")
+            f2 = Path(str(self.basename) + f"-{self.count - i}.nc")
+            os.rename(f1, f2)
+
+
 class RetrievalL2Output(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_L2 files."""
 
+    def __init__(self):
+        self.dataTATM = None
+        self.dataH2O = None
+        self.dataN2O = None
+        self.file_number_dict = {}
+        
     def __reduce__(self):
         return (_new_from_init, (self.__class__,))
 
@@ -34,7 +69,13 @@ class RetrievalL2Output(RetrievalOutput):
         return self.retrieval_strategy.retrieval_info
 
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
-        return self.retrieval_strategy.file_number_handle(basefname)
+        """Return the FileNumberHandle for working the basefname. This handles numbering
+        L2 output files if we have the same species in different strategy steps"""
+        if basefname in self.file_number_dict:
+            self.file_number_dict[basefname].next()
+        else:
+            self.file_number_dict[basefname] = FileNumberHandle(basefname)
+        return self.file_number_dict[basefname]
 
     @property
     def species_list(self):
@@ -52,6 +93,13 @@ class RetrievalL2Output(RetrievalOutput):
                     self._species_list.insert(0, spc)
         return self._species_list
 
+    def finalize_file_number(self):
+        """Rename all the files that our FileNumberHandle is handling."""
+        logger.debug("Finalizing file number is output file names")
+        for fnum in self.file_number_dict.values():
+            fnum.finalize()
+        self.file_number_dict = {}
+
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
@@ -61,16 +109,17 @@ class RetrievalL2Output(RetrievalOutput):
     ):
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
-        # Save these, used in later lite files. Note these actually get
-        # saved between steps, so we initialize these for the first step but
-        # then leave them alone
-        if (
-            location == ProcessLocation("retrieval step")
-            and "dataTATM" not in self.__dict__
-        ):
+        # Start of a retrieval
+        if location == ProcessLocation("update target"):
+            # Save these, used in later lite files. Note these actually get
+            # saved between steps, so we initialize these for the first step but
+            # then leave them alone
             self.dataTATM = None
             self.dataH2O = None
             self.dataN2O = None
+            self.file_number_dict = {}
+        if location == ProcessLocation("retrieval done"):
+            self.finalize_file_number()
         if location != ProcessLocation("retrieval step"):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")

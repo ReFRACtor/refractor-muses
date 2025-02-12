@@ -48,7 +48,7 @@ def test_retrieval_l2_output(joint_tropomi_output):
     jout.notify_update(
         rs, ProcessLocation("retrieval step"), retrieval_strategy_step=rstep, **kwargs
     )
-    rs.strategy_executor.finalize_file_number()
+    jout.finalize_file_number()
 
 
 def test_retrieval_pickle_results(joint_tropomi_output):

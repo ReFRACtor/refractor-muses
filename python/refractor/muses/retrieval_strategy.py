@@ -17,7 +17,6 @@ from .retrieval_configuration import RetrievalConfiguration
 from .muses_observation import MeasurementIdFile
 from .muses_strategy_executor import (
     MusesStrategyExecutorMusesStrategy,
-    FileNumberHandle,
 )
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
@@ -393,10 +392,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self.strategy_executor.current_state(
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn
         )
-
-    def file_number_handle(self, basefname: Path) -> FileNumberHandle:
-        """Return the FileNumberHandle for working the basefname."""
-        return self.strategy_executor.file_number_handle(basefname)
 
     @property
     def retrieval_type(self) -> RetrievalType:
