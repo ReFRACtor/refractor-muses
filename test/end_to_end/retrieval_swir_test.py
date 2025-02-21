@@ -318,6 +318,12 @@ def test_radiance(
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
     cfunc = rs.strategy_executor.create_cost_function()
+    cstate = rs.current_state()
+    # Print out a description of the full state, so we can look at the problem
+    # with the albedo
+    print(cstate.full_state_desc())
+    print([str(sid) for sid in cstate.forward_model_state_vector_element_list])
+    breakpoint()
 
     # Run forward model
     rad_spectrum = cfunc.fm_list[0].radiance(0, True)
