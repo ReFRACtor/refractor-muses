@@ -323,7 +323,6 @@ def test_radiance(
     # with the albedo
     print(cstate.full_state_desc())
     print([str(sid) for sid in cstate.forward_model_state_vector_element_list])
-    breakpoint()
 
     # Run forward model
     rad_spectrum = cfunc.fm_list[0].radiance(0, True)
