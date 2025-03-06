@@ -420,6 +420,21 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
             measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
         )
 
+class MusesStrategyStrategyTableFileHandle(MusesStrategyHandle):
+    def muses_strategy(
+        self,
+        measurement_id: MeasurementId,
+        osp_dir: str | os.PathLike[str] | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+        **kwargs,
+    ) -> MusesStrategy | None:
+        """Return MusesStrategy if we can process the given
+        measurement_id, or None if we can't.
+        """
+        return MusesStrategyStrategyTableFile(
+            measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
+        )
+    
 
 class MusesStrategyOldStrategyTable(MusesStrategyImp):
     """This wraps the old py-retrieve StrategyTable code as a
@@ -496,7 +511,22 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         return cstep
 
 
-MusesStrategyHandleSet.add_default_handle(MusesStrategyOldStrategyTableHandle())
+class MusesStrategyStrategyTableFile(MusesStrategyOldStrategyTable):
+    """This implementation uses the old Table.asc that py-retrieve uses
+    """
+    # TOOD Note to get this working quickly, we have this derived from
+    # MusesStrategyOldStrategyTable. We'll get everything implemented, and then
+    # we'll remove the dependency on MusesStrategyOldStrategyTable.
+    def __init__(
+        self,
+        filename: str | os.PathLike[str],
+        osp_dir: str | os.PathLike[str] | None = None,
+        spectral_window_handle_set: SpectralWindowHandleSet | None = None,
+    ):
+        super().__init__(filename, osp_dir, spectral_window_handle_set)
+    
+MusesStrategyHandleSet.add_default_handle(MusesStrategyStrategyTableFileHandle())
+MusesStrategyHandleSet.add_default_handle(MusesStrategyOldStrategyTableHandle(), -100)
 
 __all__ = [
     "MusesStrategy",
