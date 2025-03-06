@@ -214,13 +214,13 @@ def test_simulated_retrieval(
     oss_training_data,
 ):
     """Do a simulation, and then a retrieval to get this result"""
-    dir = end_to_end_run_dir / f"swir_simulation{'_oss' if use_oss else ''}"
-    subprocess.run(["rm", "-r", str(dir)])
+    test_dir = end_to_end_run_dir / f"swir_simulation{'_oss' if use_oss else ''}"
+    subprocess.run(["rm", "-r", str(test_dir)])
     mrdir = MusesRunDir(
         tropomi_band7_test_in_dir2,
         josh_osp_dir,
         gmao_dir,
-        path_prefix=dir,
+        path_prefix=test_dir,
     )
     subprocess.run(
         f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {str(mrdir.run_dir / "Table.asc")}',
@@ -229,6 +229,7 @@ def test_simulated_retrieval(
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
     if oss_training_data is not None:
         oss_training_data = tropomi_band7_test_in_dir2 / oss_training_data
+        # oss_training_data = "/home/mthill/muses/py-retrieve/mthill/refractor_example_notebooks/OSS_file_all_1243_2486_2_1737006088.359634.npz"
 
     ihandle = TropomiSwirForwardModelHandle(
         use_pca=True,
@@ -246,7 +247,7 @@ def test_simulated_retrieval(
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
     cfunc = rs.strategy_executor.create_cost_function()
-    pickle.dump(cfunc, open(dir / "cfunc_initial_guess.pkl", "wb"))
+    pickle.dump(cfunc, open(test_dir / "cfunc_initial_guess.pkl", "wb"))
 
     # Get the log vmr values set in the state vector. This is the initial guess.
     # For purposes of a simulation, we will say the "right" answer is to reduce the
@@ -263,11 +264,11 @@ def test_simulated_retrieval(
         cfunc.fm_list[0].radiance(0, True).spectral_range.data,
     ]
     obs_sim = SimulatedObservation(cfunc.obs_list[0], rad_true)
-    pickle.dump(obs_sim, open(dir / "obs_sim.pkl", "wb"))
+    pickle.dump(obs_sim, open(test_dir / "obs_sim.pkl", "wb"))
 
     # Have simulated observation, and do retrieval
     ohandle = SimulatedObservationHandle(
-        StateElementIdentifier("TROPOMI"), pickle.load(open(dir / "obs_sim.pkl", "rb"))
+        StateElementIdentifier("TROPOMI"), pickle.load(open(test_dir / "obs_sim.pkl", "rb"))
     )
     rs.observation_handle_set.add_handle(ohandle, priority_order=100)
     rs.update_target(mrdir.run_dir / "Table.asc")

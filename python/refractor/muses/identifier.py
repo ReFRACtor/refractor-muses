@@ -64,7 +64,15 @@ class InstrumentIdentifier(IdentifierStr):
 class StateElementIdentifier(IdentifierStr):
     '''Identify an state element, e.g., "TROPOMIRINGSFBAND3"'''
 
-    pass
+    def __eq__(self, other):
+        # Allow for comparison to str without casting
+        if isinstance(other, str):
+            return self.s == other
+        return super().__eq__(other)
+
+    # unhashable type: 'StateElementIdentifier' if not defined even though same as super().__hash__
+    def __hash__(self):
+        return hash(self.s)
 
 
 class RetrievalType(IdentifierStr):
