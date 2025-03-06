@@ -70,9 +70,9 @@ class StateElementIdentifier(IdentifierStr):
             return self.s == other
         return super().__eq__(other)
 
-    # unhashable type: 'StateElementIdentifier' if not defined even though same as super().__hash__
+    # unhashable type: 'StateElementIdentifier' if not defined
     def __hash__(self):
-        return hash(self.s)
+        return super().__hash__()
 
 
 class RetrievalType(IdentifierStr):
