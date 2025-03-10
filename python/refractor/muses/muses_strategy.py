@@ -3,6 +3,7 @@ from .strategy_table import StrategyTable
 from .muses_spectral_window import MusesSpectralWindow
 from .identifier import RetrievalType, StrategyStepIdentifier
 from .creator_handle import CreatorHandle, CreatorHandleSet
+from .tes_file import TesFile
 import os
 import abc
 import typing
@@ -92,48 +93,6 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         self.current_strategy_step_dict = current_strategy_step_dict
         self.measurement_id = measurement_id
 
-    @classmethod
-    def current_step(
-        cls, strategy_table: StrategyTable, measurement_id: MeasurementId
-    ) -> CurrentStrategyStepDict:
-        """Create a current strategy step, leaving out the
-        RetrievalInfo stuff.
-        """
-        # Various convergence criteria for solver. This is the MusesLevmarSolver. Note the
-        # different convergence depending on the step type. The chi2_tolerance is calculated
-        # in RetrievalStrategyStepRetrieve if we don't fill it in - this depends on the
-        # size of the radiance data
-        cost_function_params = {
-            "max_iter": int(strategy_table.max_num_iterations),
-            "delta_value": int(measurement_id["LMDelta"].split()[0]),
-            "conv_tolerance": [
-                float(measurement_id["ConvTolerance_CostThresh"]),
-                float(measurement_id["ConvTolerance_pThresh"]),
-                float(measurement_id["ConvTolerance_JacThresh"]),
-            ],
-            "chi2_tolerance": None,  # Filled in by RetrievalStrategyStepRetrieve
-        }
-        if strategy_table.retrieval_type == RetrievalType("bt_ig_refine"):
-            cost_function_params["conv_tolerance"] = [0.00001, 0.00001, 0.00001]
-            cost_function_params["chi2_tolerance"] = 0.00001
-        return cls(
-            {
-                "retrieval_elements": strategy_table.retrieval_elements(),
-                "instrument_name": strategy_table.instrument_name(),
-                "strategy_step": StrategyStepIdentifier(
-                    strategy_table.table_step, strategy_table.step_name
-                ),
-                "retrieval_step_parameters": {
-                    "cost_function_params": cost_function_params,
-                },
-                "retrieval_type": strategy_table.retrieval_type,
-                "error_analysis_interferents": strategy_table.error_analysis_interferents(),
-                "spectral_window_dict": None,
-                "do_not_update_list": strategy_table.do_not_update_list,
-            },
-            measurement_id,
-        )
-
     @property
     def retrieval_step_parameters(self) -> dict:
         return self.current_strategy_step_dict["retrieval_step_parameters"]
@@ -202,6 +161,36 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     def strategy_step(self) -> StrategyStepIdentifier:
         """Return the strategy step identifier"""
         return self.current_strategy_step_dict["strategy_step"]
+
+    def __eq__(self, other):
+        # This is useful for unit tests. I don't think we in general need to check
+        # equality, but if so might want to check the logic here. This is set up so
+        # we can check that two CurrentStrategyStepDict will give the same results in
+        # a retrieval step
+        if list(self.current_strategy_step_dict.keys()) != list(
+            other.current_strategy_step_dict.keys()
+        ):
+            return False
+        for k in self.current_strategy_step_dict.keys():
+            # Special handling for spectral_window_dict
+            if k == "spectral_window_dict":
+                if list(self.spectral_window_dict.keys()) != list(
+                    other.spectral_window_dict.keys()
+                ):
+                    return False
+                for k2 in self.spectral_window_dict.keys():
+                    if (
+                        self.spectral_window_dict[k2].muses_microwindows()
+                        != other.spectral_window_dict[k2].muses_microwindows()
+                    ):
+                        return False
+            else:
+                if (
+                    self.current_strategy_step_dict[k]
+                    != other.current_strategy_step_dict[k]
+                ):
+                    return False
+        return True
 
 
 class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
@@ -420,6 +409,7 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
             measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
         )
 
+
 class MusesStrategyStrategyTableFileHandle(MusesStrategyHandle):
     def muses_strategy(
         self,
@@ -434,7 +424,7 @@ class MusesStrategyStrategyTableFileHandle(MusesStrategyHandle):
         return MusesStrategyStrategyTableFile(
             measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
         )
-    
+
 
 class MusesStrategyOldStrategyTable(MusesStrategyImp):
     """This wraps the old py-retrieve StrategyTable code as a
@@ -504,7 +494,39 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
             raise RuntimeError(
                 "Need to call notify_update_target before calling this function."
             )
-        cstep = CurrentStrategyStepDict.current_step(self._stable, self.measurement_id)
+
+        # Various convergence criteria for solver. This is the MusesLevmarSolver. Note the
+        # different convergence depending on the step type. The chi2_tolerance is calculated
+        # in RetrievalStrategyStepRetrieve if we don't fill it in - this depends on the
+        # size of the radiance data
+        cost_function_params = {
+            "max_iter": int(self._stable.max_num_iterations),
+            "delta_value": int(self.measurement_id["LMDelta"].split()[0]),
+            "conv_tolerance": [
+                float(self.measurement_id["ConvTolerance_CostThresh"]),
+                float(self.measurement_id["ConvTolerance_pThresh"]),
+                float(self.measurement_id["ConvTolerance_JacThresh"]),
+            ],
+            "chi2_tolerance": None,  # Filled in by RetrievalStrategyStepRetrieve
+        }
+        if self._stable.retrieval_type == RetrievalType("bt_ig_refine"):
+            cost_function_params["conv_tolerance"] = [0.00001, 0.00001, 0.00001]
+            cost_function_params["chi2_tolerance"] = 0.00001
+        cstepdict = {
+            "retrieval_elements": self._stable.retrieval_elements(),
+            "instrument_name": self._stable.instrument_name(),
+            "strategy_step": StrategyStepIdentifier(
+                self._stable.table_step, self._stable.step_name
+            ),
+            "retrieval_step_parameters": {
+                "cost_function_params": cost_function_params,
+            },
+            "retrieval_type": self._stable.retrieval_type,
+            "error_analysis_interferents": self._stable.error_analysis_interferents(),
+            "spectral_window_dict": None,
+            "do_not_update_list": self._stable.do_not_update_list,
+        }
+        cstep = CurrentStrategyStepDict(cstepdict, self.measurement_id)
         cstep.current_strategy_step_dict["spectral_window_dict"] = (
             self.spectral_window_handle_set.spectral_window_dict(cstep)
         )
@@ -512,8 +534,8 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
 
 
 class MusesStrategyStrategyTableFile(MusesStrategyOldStrategyTable):
-    """This implementation uses the old Table.asc that py-retrieve uses
-    """
+    """This implementation uses the old Table.asc that py-retrieve uses"""
+
     # TOOD Note to get this working quickly, we have this derived from
     # MusesStrategyOldStrategyTable. We'll get everything implemented, and then
     # we'll remove the dependency on MusesStrategyOldStrategyTable.
@@ -524,7 +546,11 @@ class MusesStrategyStrategyTableFile(MusesStrategyOldStrategyTable):
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
     ):
         super().__init__(filename, osp_dir, spectral_window_handle_set)
-    
+        f = TesFile(filename)
+        print(f.table)
+        # breakpoint()
+
+
 MusesStrategyHandleSet.add_default_handle(MusesStrategyStrategyTableFileHandle())
 MusesStrategyHandleSet.add_default_handle(MusesStrategyOldStrategyTableHandle(), -100)
 
@@ -533,6 +559,7 @@ __all__ = [
     "MusesStrategyHandle",
     "MusesStrategyHandleSet",
     "MusesStrategyOldStrategyTable",
+    "MusesStrategyStrategyTableFile",
     "CurrentStrategyStep",
     "CurrentStrategyStepDict",
 ]

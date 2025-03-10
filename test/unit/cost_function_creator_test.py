@@ -28,7 +28,6 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
     # call the creation function.
     cf = creator.cost_function_from_uip(rf_uip, obs, None)
     print(cf)
-    breakpoint()
 
 
 def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):

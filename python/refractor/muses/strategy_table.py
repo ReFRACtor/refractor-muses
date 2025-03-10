@@ -54,19 +54,19 @@ class StrategyTable:
 
     @property
     def analysis_directory(self) -> Path:
-        return self.abs_filename(self.strategy_table_dict["dirAnalysis"])
+        return self.filename.parent / self.strategy_table_dict["dirAnalysis"]
 
     @property
     def elanor_directory(self) -> Path:
-        return self.abs_filename(self.strategy_table_dict["dirELANOR"])
+        return self.filename.parent / self.strategy_table_dict["dirELANOR"]
 
     @property
     def step_directory(self) -> Path:
-        return self.abs_filename(self.strategy_table_dict["stepDirectory"])
+        return self.filename.parent / self.strategy_table_dict["stepDirectory"]
 
     @property
     def input_directory(self) -> Path:
-        return self.abs_filename(self.strategy_table_dict["dirInput"])
+        return self.filename.parent / self.strategy_table_dict["dirInput"]
 
     @property
     def pressure_fm(self):
@@ -214,7 +214,7 @@ class StrategyTable:
 
     @property
     def output_directory(self) -> Path:
-        return self.abs_filename(self.strategy_table_dict["outputDirectory"])
+        return self.filename.parent / self.strategy_table_dict["outputDirectory"]
 
     @property
     def species_directory(self) -> Path:

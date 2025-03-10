@@ -30,6 +30,9 @@ install2:
 lint:
 	ruff check python/refractor test
 
+lint-fix:
+	ruff check --fix python/refractor test
+
 format:
 	ruff format python/refractor test
 

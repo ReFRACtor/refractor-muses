@@ -200,14 +200,18 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @property
     def forward_model_state_vector_element_list(self) -> list[StateElementIdentifier]:
-        '''List of StateElementIdentifier for each entry in the state vector. This
+        """List of StateElementIdentifier for each entry in the state vector. This
         is the full size of the forward model state vector, so in general a
-        StateElementIdentifier may be listed multiple times.'''
-        res = [None,] * self.fm_state_vector_size
+        StateElementIdentifier may be listed multiple times."""
+        res = [
+            StateElementIdentifier("None"),
+        ] * self.fm_state_vector_size
         for sid, (pstart, plen) in self.fm_sv_loc.items():
-            res[pstart:(pstart+plen)] = [sid,]*plen
+            res[pstart : (pstart + plen)] = [
+                sid,
+            ] * plen
         return res
-    
+
     @property
     def fm_state_vector_size(self) -> int:
         """Full size of the forward model state vector."""
@@ -280,7 +284,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def full_state_desc(self) -> str:
-        '''Return a description of the full state.'''
+        """Return a description of the full state."""
         res = ""
         for selem in self.full_state_element:
             res += f"{str(selem)}:\n{self.full_state_value(selem)}\n"
@@ -422,7 +426,7 @@ class CurrentStateUip(CurrentState):
         # I think we could come up with something here if needed, but for now
         # just punt on this
         raise NotImplementedError()
-    
+
     @property
     def step_directory(self) -> Path:
         return self.rf_uip.step_directory
@@ -813,7 +817,7 @@ class CurrentStateStateInfo(CurrentState):
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element"""
         return [i.name for i in self.state_info.state_element_list()]
-    
+
     @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
         """Dict that gives the starting location in the forward model

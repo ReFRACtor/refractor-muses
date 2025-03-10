@@ -1,0 +1,55 @@
+from refractor.muses import (
+    MusesStrategyOldStrategyTable,
+    MusesStrategyStrategyTableFile,
+)
+
+
+def test_muses_strategy_old(joint_omi_step_8):
+    rs, rsetp, kwargs = joint_omi_step_8
+    stable = MusesStrategyOldStrategyTable(
+        rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
+    )
+    stable.notify_update_target(rs.measurement_id)
+    print(stable.filter_list_dict)
+    print(stable.retrieval_elements)
+    print(stable.error_analysis_interferents)
+    print(stable.instrument_name)
+    # In general, we need to use the right current_state in next_step below. However, for
+    # this particular unit test we know that only the cstate.brightness_temperature_data
+    # affects the MusesStrategyOldStrategyTable, so we get away with only using one
+    # cstate since brightness_temperature_data doesn't change after the step it is
+    # calculated.
+    cstate = rs.current_state()
+    stable.restart()
+    while not stable.is_done():
+        print(stable.current_strategy_step())
+        stable.next_step(cstate)
+
+
+def test_muses_strategy_file(joint_omi_step_8):
+    rs, rsetp, kwargs = joint_omi_step_8
+    # Comare with old py-retrieve code
+    stable = MusesStrategyStrategyTableFile(
+        rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
+    )
+    stable_old = MusesStrategyOldStrategyTable(
+        rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
+    )
+    stable.notify_update_target(rs.measurement_id)
+    stable_old.notify_update_target(rs.measurement_id)
+    assert stable.filter_list_dict == stable_old.filter_list_dict
+    assert stable.retrieval_elements == stable_old.retrieval_elements
+    assert stable.error_analysis_interferents == stable_old.error_analysis_interferents
+    assert stable.instrument_name == stable_old.instrument_name
+    # In general, we need to use the right current_state in next_step below. However, for
+    # this particular unit test we know that only the cstate.brightness_temperature_data
+    # affects the MusesStrategyOldStrategyTable, so we get away with only using one
+    # cstate since brightness_temperature_data doesn't change after the step it is
+    # calculated.
+    cstate = rs.current_state()
+    stable.restart()
+    stable_old.restart()
+    while not stable.is_done():
+        assert stable.current_strategy_step() == stable_old.current_strategy_step()
+        stable.next_step(cstate)
+        stable_old.next_step(cstate)

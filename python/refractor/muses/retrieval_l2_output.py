@@ -60,7 +60,7 @@ class RetrievalL2Output(RetrievalOutput):
         self.dataH2O = None
         self.dataN2O = None
         self.file_number_dict = {}
-        
+
     def __reduce__(self):
         return (_new_from_init, (self.__class__,))
 
