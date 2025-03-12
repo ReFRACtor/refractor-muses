@@ -1,17 +1,18 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
-from .misc import osp_setup
+from refractor.muses import (
+    osp_setup,
+    order_species,
+    InstrumentIdentifier,
+    FilterIdentifier,
+    RetrievalType,
+    CurrentState,
+)
 from contextlib import contextmanager
 import os
-from .order_species import order_species
 import numpy as np
 from pathlib import Path
-import typing
-from .identifier import InstrumentIdentifier, FilterIdentifier, RetrievalType
-
-if typing.TYPE_CHECKING:
-    from .current_state import CurrentState
 
 
 class StrategyTable:

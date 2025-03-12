@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
-from typing import Any
+from typing import Any, Tuple
 import typing
 from .identifier import InstrumentIdentifier, FilterIdentifier
 
@@ -180,6 +180,19 @@ class MusesSpectralWindow(rf.SpectralWindow):
 
     def desc(self) -> str:
         return "MusesSpectralWindow"
+
+    def filter_name_list(self) -> list[Tuple[FilterIdentifier, float]]:
+        """This returns the list of the filter names in this MusesSpectralWindow, and the
+        start wavenumber. This is needed because muses-py assumes the filter names are sorted
+        by the start wavenumber."""
+        res: list[Tuple[FilterIdentifier, float]] = []
+        if self.filter_name is None:
+            return res
+        d = self._spec_win.range_array.value
+        for i in range(self.filter_name.shape[0]):
+            for j in range(self.filter_name.shape[1]):
+                res.append((FilterIdentifier(self.filter_name[i, j]), d[i, j, 0]))
+        return res
 
     def grid_indexes(self, grid, spec_index: int):
         if self._spec_win is None or self.full_band:

@@ -15,7 +15,6 @@ from .state_info import (
     StateElementHandleSet,
     StateInfo,
 )
-from .order_species import order_species
 from .identifier import StateElementIdentifier
 import numpy as np
 import numbers
@@ -598,7 +597,7 @@ class MusesPyStateElement(RetrievableStateElement):
         return mpy.ObjectView(fileID["preferences"])
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
-        species_list = order_species(current_strategy_step.retrieval_elements)
+        species_list = [str(i) for i in current_strategy_step.retrieval_elements]
         species_name = str(self.name)
         pressure = self.state_info.pressure
         # user specifies the number of forward model levels

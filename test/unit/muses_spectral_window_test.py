@@ -1,11 +1,11 @@
 from refractor.muses import (
     MusesSpectralWindow,
-    StrategyTable,
     MusesOmiObservation,
     FileFilterMetadata,
     InstrumentIdentifier,
     FilterIdentifier,
 )
+from refractor.old_py_retrieve_wrapper import StrategyTable
 import numpy as np
 import numpy.testing as npt
 

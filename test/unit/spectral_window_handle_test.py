@@ -53,7 +53,9 @@ def test_muses_py_spectral_window_handle(
         },
         mid,
     )
-    swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
+    swin_dict = swin_handle_set.spectral_window_dict(
+        current_strategy_step, mid.filter_list_dict
+    )
     print(swin_dict)
 
 
@@ -87,5 +89,7 @@ def test_muses_py_spectral_window_handle_empty_band(
         },
         mid,
     )
-    swin_dict = swin_handle_set.spectral_window_dict(current_strategy_step)
+    swin_dict = swin_handle_set.spectral_window_dict(
+        current_strategy_step, mid.filter_list_dict
+    )
     print(swin_dict)

@@ -259,7 +259,7 @@ class RetrievalInfo:
     ):
         """Update the various "Sys" stuff in o_retrievalInfo to add in
         the error analysis interferents"""
-        sys_tokens = current_strategy_step.error_analysis_interferents
+        sys_tokens = [str(i) for i in current_strategy_step.error_analysis_interferents]
         o_retrievalInfo.n_speciesSys = len(sys_tokens)
         o_retrievalInfo.speciesSys.extend(sys_tokens)
         if len(sys_tokens) == 0:
@@ -490,7 +490,7 @@ class RetrievalInfo:
         # o_retrievalInfo OBJECT_TYPE dict
 
         # AT_LINE 83 Get_Species_Information.pro
-        o_retrievalInfo["type"] = current_strategy_step.retrieval_type
+        o_retrievalInfo["type"] = str(current_strategy_step.retrieval_type)
 
         o_retrievalInfo = mpy.ObjectView(
             o_retrievalInfo

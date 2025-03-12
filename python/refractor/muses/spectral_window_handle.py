@@ -39,7 +39,7 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
         """
         # Default is to get this from the spectral_window_dict.
-        swin_dict = self.spectral_window_dict(current_strategy_step)
+        swin_dict = self.spectral_window_dict(current_strategy_step, None)
         if swin_dict is None:
             return None
         res = {}
@@ -56,7 +56,9 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def spectral_window_dict(
-        self, current_strategy_step: CurrentStrategyStep
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        filter_list_all_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] | None,
     ) -> dict[InstrumentIdentifier, MusesSpectralWindow] | None:
         """Return a dictionary that goes from instrument name to the
         MusesSpectralWindow for that instrument. Note because of the
@@ -69,6 +71,13 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
         yet, because we create the MusesSpectralWindow before the
         MusesObservation, but the MusesObservation get passed the
         MusesSpectralWindow and update the bad pixel mask then.
+
+        The filter_list_all_dict is a mapping between an instrument
+        name and all the filters that we use for that in a full
+        retrieval (all steps).  MusesStrategy handles the coordination
+        of this. If we don't yet have this, it can be passed in as
+        None and the MusesSpectralWindow will just not include this
+        information.
 
         """
         raise NotImplementedError()
@@ -99,7 +108,9 @@ class SpectralWindowHandleSet(CreatorHandleSet):
         return self.handle("filter_name_dict", current_strategy_step)
 
     def spectral_window_dict(
-        self, current_strategy_step: CurrentStrategyStep
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        filter_list_all_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] | None,
     ) -> dict[InstrumentIdentifier, MusesSpectralWindow]:
         """Return a dictionary that goes from instrument name to the
         MusesSpectralWindow for that instrument. Note because of the
@@ -109,7 +120,9 @@ class SpectralWindowHandleSet(CreatorHandleSet):
         this extra functionality.
 
         """
-        return self.handle("spectral_window_dict", current_strategy_step)
+        return self.handle(
+            "spectral_window_dict", current_strategy_step, filter_list_all_dict
+        )
 
 
 class MusesPySpectralWindowHandle(SpectralWindowHandle):
@@ -132,10 +145,11 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
         self.filter_metadata = FileFilterMetadata(
             measurement_id["defaultSpectralWindowsDefinitionFilename"]
         )
-        self.filter_list_dict = measurement_id.filter_list_dict
 
     def spectral_window_dict(
-        self, current_strategy_step: CurrentStrategyStep
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        filter_list_all_dict: dict[InstrumentIdentifier, list[FilterIdentifier]] | None,
     ) -> dict[InstrumentIdentifier, MusesSpectralWindow] | None:
         """Return a dictionary that goes from instrument name to the MusesSpectralWindow
         for that instrument. Note because of the extra metadata and bad sample/full band
@@ -146,7 +160,7 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
             f"Creating spectral_window_dict using MusesSpectralWindow by reading file {fname}"
         )
         return MusesSpectralWindow.create_dict_from_file(
-            fname, self.filter_list_dict, self.filter_metadata
+            fname, filter_list_all_dict, self.filter_metadata
         )
 
 

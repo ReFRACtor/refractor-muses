@@ -1,5 +1,4 @@
 from refractor.muses import (
-    StrategyTable,
     MusesRunDir,
     RetrievableStateElement,
     RetrievalInfo,
@@ -7,8 +6,10 @@ from refractor.muses import (
     RetrievalConfiguration,
     StateInfo,
 )
+from refractor.old_py_retrieve_wrapper import StrategyTable
 import subprocess
 import numpy as np
+import pytest
 
 # Add a extra state element, just so we can make sure our StrategyTable functions
 # handles this correctly
@@ -118,6 +119,7 @@ class EofStateElement(RetrievableStateElement):
         self.constraintMatrix = 10 * 10
 
 
+@pytest.mark.old_py_retrieve_test
 def test_strategy_table(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
     r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir)
     # Modify the Table.asc to add a EOF element. This is just a short cut,

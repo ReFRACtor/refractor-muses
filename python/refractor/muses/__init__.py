@@ -34,8 +34,8 @@ if _typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandle
     from .muses_raman import MusesRaman, SurfaceAlbedo
     from .muses_spectral_window import MusesSpectralWindow
-    from .strategy_table import StrategyTable
     from .current_state import CurrentState, CurrentStateUip
+    from .misc import osp_setup
     from .muses_observation import (
         MeasurementId,
         MusesObservation,
@@ -44,10 +44,13 @@ if _typing.TYPE_CHECKING:
         MusesCrisObservation,
         MusesAirsObservation,
     )
+    from .muses_strategy import CurrentStrategyStep, CurrentStrategyStepDict, MusesStrategy, MusesStrategyHandle, MusesStrategyImp
     from .identifier import (
         FilterIdentifier,
         InstrumentIdentifier,
+        RetrievalType,
         StateElementIdentifier,
+        StrategyStepIdentifier
     )
     from .filter_metadata import FileFilterMetadata, DictFilterMetadata
     from .refractor_uip import RefractorUip
@@ -58,6 +61,7 @@ if _typing.TYPE_CHECKING:
     from .refractor_capture_directory import muses_py_call
     from .refractor_capture_directory import RefractorCaptureDirectory
     from .retrieval_info import RetrievalInfo
+    from .spectral_window_handle import SpectralWindowHandleSet
     from .cost_function_creator import CostFunctionCreator
 
 del _i

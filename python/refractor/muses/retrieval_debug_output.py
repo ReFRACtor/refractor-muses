@@ -10,7 +10,6 @@ import typing
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-    from .strategy_table import StrategyTable
     from .retrieval_info import RetrievalInfo
 
 # We don't have all this in place yet, but put a few samples in place for output
@@ -33,10 +32,6 @@ class RetrievalInputOutput(RetrievalOutput):
     def retrieval_info(self) -> RetrievalInfo:
         return self.retrieval_strategy.retrieval_info
 
-    @property
-    def strategy_table(self) -> StrategyTable:
-        return self.retrieval_strategy.strategy_table
-
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
@@ -53,7 +48,7 @@ class RetrievalInputOutput(RetrievalOutput):
         # May need to extend this logic here
         detectorsUse = [1]
         mpy.write_retrieval_inputs(
-            self.strategy_table.strategy_table_dict,
+            self.retrieval_strategy.rstrategy_table.strategy_table_dict,
             self.state_info.state_info_obj,
             self.windows,
             self.retrieval_info.retrieval_info_obj,

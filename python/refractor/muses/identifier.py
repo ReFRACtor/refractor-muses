@@ -1,4 +1,5 @@
 import abc
+from .order_species import order_species
 
 
 class Identifier(object, metaclass=abc.ABCMeta):
@@ -35,6 +36,12 @@ class Identifier(object, metaclass=abc.ABCMeta):
         the default of the objects being identical)
         """
         raise NotImplementedError
+
+    @classmethod
+    def sort_identifier(cls, lst: list) -> list:
+        """Take a list of Identifier, and apply any natural sort to it."""
+        # Default is just to sort by the str value.
+        return sorted(lst, key=cls.__str__)
 
 
 class IdentifierStr(Identifier):
@@ -73,6 +80,11 @@ class StateElementIdentifier(IdentifierStr):
     # unhashable type: 'StateElementIdentifier' if not defined
     def __hash__(self):
         return super().__hash__()
+
+    @classmethod
+    def sort_identifier(cls, lst: list) -> list:
+        """Take a list of Identifier, and apply any natural sort to it."""
+        return [cls(s) for s in order_species([str(s) for s in lst])]
 
 
 class RetrievalType(IdentifierStr):
@@ -118,3 +130,36 @@ class ProcessLocation(IdentifierStr):
 
 class FilterIdentifier(IdentifierStr):
     """Identify a filter in l1b data."""
+
+
+class IdentifierSortByWaveLength:
+    """muses-py assumes that InstrumentIdentifier and FilterIdentifier
+    are sorted by wavelength. I believe this is just used in some
+    output routines, it might be nice to relax this assumption. But
+    for now, provide for sorting.
+    """
+
+    def __init__(self):
+        self._d = {}
+
+    def add(self, id: Identifier, starting_wavelength: float) -> None:
+        if id not in self._d:
+            self._d[id] = starting_wavelength
+        self._d[id] = min(starting_wavelength, self._d[id])
+
+    def sorted_identifer(self) -> list[Identifier]:
+        lst = sorted(self._d.items(), key=lambda v: v[1])
+        return [v[0] for v in lst]
+
+
+__all__ = [
+    "Identifier",
+    "IdentifierStr",
+    "InstrumentIdentifier",
+    "StateElementIdentifier",
+    "RetrievalType",
+    "StrategyStepIdentifier",
+    "ProcessLocation",
+    "FilterIdentifier",
+    "IdentifierSortByWaveLength",
+]
