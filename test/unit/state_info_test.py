@@ -5,6 +5,7 @@ from refractor.muses import (
     RetrievalStrategy,
     StateElementIdentifier,
     ProcessLocation,
+    modify_strategy_table
 )
 import subprocess
 from fixtures.misc_fixture import all_output_disabled
@@ -426,16 +427,13 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
     try:
         with all_output_disabled():
             r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, path_prefix=".")
+            rs = RetrievalStrategy(None)
             # Modify the Table.asc to add a EOF element. This is just a short cut,
             # so we don't need to make a new strategy table. Eventually a new table
             # will be needed in the OSP directory, but it is too early for that.
-            # Extra space is so we change the retrieval list, not the retrieval
-            # step name (which is the same OMICLOUDFRACTION)
-            subprocess.run(
-                f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOFUV1,OMIEOFUV2/" {r.run_dir}/Table.asc',
-                shell=True,
-            )
-            rs = RetrievalStrategy(r.run_dir / "Table.asc")
+            modify_strategy_table(rs, 0, [StateElementIdentifier("OMICLOUDFRACTION"),
+                                          StateElementIdentifier("OMIEOFUV1"),
+                                          StateElementIdentifier("OMIEOFUV2")])
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
@@ -457,7 +455,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
                     number_eof=3,
                 )
             )
-            rs.retrieval_ms()
+            rs.script_retrieval_ms(r.run_dir / "Table.asc")
     except StopIteration:
         pass
     sinfo = rs.state_info
@@ -548,16 +546,13 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
     try:
         with all_output_disabled():
             r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, path_prefix=".")
+            rs = RetrievalStrategy(None)
             # Modify the Table.asc to add a EOF element. This is just a short cut,
             # so we don't need to make a new strategy table. Eventually a new table
             # will be needed in the OSP directory, but it is too early for that.
-            # Extra space is so we change the retrieval list, not the retrieval
-            # step name (which is the same OMICLOUDFRACTION)
-            subprocess.run(
-                f'sed -i -e "s/  OMICLOUDFRACTION/  OMICLOUDFRACTION,OMIEOFUV1,OMIEOFUV2/" {r.run_dir}/Table.asc',
-                shell=True,
-            )
-            rs = RetrievalStrategy(r.run_dir / "Table.asc")
+            modify_strategy_table(rs, 0, [StateElementIdentifier("OMICLOUDFRACTION"),
+                                          StateElementIdentifier("OMIEOFUV1"),
+                                          StateElementIdentifier("OMIEOFUV2")])
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
@@ -575,7 +570,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
                     pass_state=False,
                 )
             )
-            rs.retrieval_ms()
+            rs.script_retrieval_ms(r.run_dir / "Table.asc")
     except StopIteration:
         pass
     sinfo = rs.state_info
