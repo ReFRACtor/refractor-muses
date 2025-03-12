@@ -7,6 +7,7 @@ from refractor.muses import (
     SingleSpeciesHandle,
     RetrievalStrategyMemoryUse,
     StateElementIdentifier,
+    modify_strategy_table,
 )
 import subprocess
 import pytest
@@ -24,18 +25,29 @@ def test_eof_omi(osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir, end_to_end_run
     dir = end_to_end_run_dir / "omi_eof"
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir)
+    rs = RetrievalStrategy(None, vlidort_cli=vlidort_cli)
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
-    subprocess.run(
-        f"sed -i -e 's/OMINRADWAVUV1/OMINRADWAVUV1,OMIEOFUV1,OMIEOFUV2/' {str(r.run_dir / 'Table.asc')}",
-        shell=True,
+    # Also, set number of iterations to 1, just to run faster
+    modify_strategy_table(
+        rs,
+        1,
+        [
+            StateElementIdentifier("O3"),
+            StateElementIdentifier("OMICLOUDFRACTION"),
+            StateElementIdentifier("OMINRADWAVUV1"),
+            StateElementIdentifier("OMIEOFUV1"),
+            StateElementIdentifier("OMIEOFUV2"),
+            StateElementIdentifier("OMINRADWAVUV2"),
+            StateElementIdentifier("OMIODWAVUV1"),
+            StateElementIdentifier("OMIODWAVUV2"),
+            StateElementIdentifier("OMISURFACEALBEDOUV1"),
+            StateElementIdentifier("OMISURFACEALBEDOUV2"),
+            StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2"),
+        ],
+        max_iter=1,
     )
-    # For faster turn around time, set number of iterations to 1. We can test
-    # everything, even though the final residual will be pretty high
-    subprocess.run(f'sed -i -e "s/15/1 {str(r.run_dir / "Table.asc")}', shell=True)
-
-    rs = RetrievalStrategy(r.run_dir / "Table.asc", vlidort_cli=vlidort_cli)
     ihandle = OmiForwardModelHandle(
         use_pca=False, use_lrad=False, lrad_second_order=False, use_eof=True
     )
@@ -108,15 +120,27 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir):
     )
     # r = MusesRunDir('./eof_stuff/20221101_028_009_22',
     #                osp_dir, gmao_dir, path_prefix="airs_omi_eof")
+    rs = RetrievalStrategy(None, vlidort_cli=vlidort_cli)
     # Modify the Table.asc to add a EOF element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
-    subprocess.run(
-        f'sed -i -e "s/OMINRADWAVUV1/OMINRADWAVUV1,OMIEOFUV1,OMIEOFUV2/" {str(r.run_dir / "Table.asc")}',
-        shell=True,
+    modify_strategy_table(
+        rs,
+        1,
+        [
+            StateElementIdentifier("O3"),
+            StateElementIdentifier("OMICLOUDFRACTION"),
+            StateElementIdentifier("OMINRADWAVUV1"),
+            StateElementIdentifier("OMIEOFUV1"),
+            StateElementIdentifier("OMIEOFUV2"),
+            StateElementIdentifier("OMINRADWAVUV2"),
+            StateElementIdentifier("OMIODWAVUV1"),
+            StateElementIdentifier("OMIODWAVUV2"),
+            StateElementIdentifier("OMISURFACEALBEDOUV1"),
+            StateElementIdentifier("OMISURFACEALBEDOUV2"),
+            StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2"),
+        ],
     )
-
-    rs = RetrievalStrategy(r.run_dir / "Table.asc", vlidort_cli=vlidort_cli)
     # Save data so we can work on getting output in isolation
     rscap = RetrievalStrategyCaptureObserver("retrieval_step", "retrieval step")
     rs.add_observer(rscap)

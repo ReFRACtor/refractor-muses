@@ -5,9 +5,8 @@ from refractor.muses import (
     RetrievalStrategy,
     StateElementIdentifier,
     ProcessLocation,
-    modify_strategy_table
+    modify_strategy_table,
 )
-import subprocess
 from fixtures.misc_fixture import all_output_disabled
 import pytest
 import numpy as np
@@ -431,9 +430,15 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
             # Modify the Table.asc to add a EOF element. This is just a short cut,
             # so we don't need to make a new strategy table. Eventually a new table
             # will be needed in the OSP directory, but it is too early for that.
-            modify_strategy_table(rs, 0, [StateElementIdentifier("OMICLOUDFRACTION"),
-                                          StateElementIdentifier("OMIEOFUV1"),
-                                          StateElementIdentifier("OMIEOFUV2")])
+            modify_strategy_table(
+                rs,
+                0,
+                [
+                    StateElementIdentifier("OMICLOUDFRACTION"),
+                    StateElementIdentifier("OMIEOFUV1"),
+                    StateElementIdentifier("OMIEOFUV2"),
+                ],
+            )
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
@@ -550,9 +555,15 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
             # Modify the Table.asc to add a EOF element. This is just a short cut,
             # so we don't need to make a new strategy table. Eventually a new table
             # will be needed in the OSP directory, but it is too early for that.
-            modify_strategy_table(rs, 0, [StateElementIdentifier("OMICLOUDFRACTION"),
-                                          StateElementIdentifier("OMIEOFUV1"),
-                                          StateElementIdentifier("OMIEOFUV2")])
+            modify_strategy_table(
+                rs,
+                0,
+                [
+                    StateElementIdentifier("OMICLOUDFRACTION"),
+                    StateElementIdentifier("OMIEOFUV1"),
+                    StateElementIdentifier("OMIEOFUV2"),
+                ],
+            )
             rs.register_with_muses_py()
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())

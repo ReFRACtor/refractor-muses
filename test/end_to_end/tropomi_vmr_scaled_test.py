@@ -20,6 +20,7 @@ from refractor.muses import (
     StateInfo,
     InstrumentIdentifier,
     StateElementIdentifier,
+    modify_strategy_table,
 )
 from typing import Callable
 import subprocess
@@ -193,17 +194,26 @@ def test_tropomi_vrm_scaled(
     dir = end_to_end_run_dir / "tropomi_vmr_scaled"
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir)
+    rs = RetrievalStrategy(None, vlidort_cli=vlidort_cli)
     # Modify the Table.asc to add a scaled element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.
-    subprocess.run(
-        f'sed -i -e "s/O3,/O3_SCALED,/" {str(r.run_dir / "Table.asc")}', shell=True
-    )
-    # For faster turn around time, set number of iterations to 1. We can test
+    # Also for faster turn around time, set number of iterations to 1. We can test
     # everything, even though the final residual will be pretty high
-    subprocess.run(f'sed -i -e "s/15/1 /" {str(r.run_dir / "Table.asc")}', shell=True)
-
-    rs = RetrievalStrategy(f"{r.run_dir}/Table.asc", vlidort_cli=vlidort_cli)
+    modify_strategy_table(
+        rs,
+        1,
+        [
+            StateElementIdentifier("O3_SCALED"),
+            StateElementIdentifier("TROPOMIRINGSFBAND3"),
+            StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+            StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+            StateElementIdentifier("TROPOMISURFACEALBEDOBAND3"),
+            StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEBAND3"),
+            StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEORDER2BAND3"),
+        ],
+        max_iter=1,
+    )
     try:
         lognum = logger.add("tropomi_vmr_scaled/retrieve.log")
         # Save data so we can work on getting output in isolation

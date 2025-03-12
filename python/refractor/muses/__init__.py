@@ -44,13 +44,19 @@ if _typing.TYPE_CHECKING:
         MusesCrisObservation,
         MusesAirsObservation,
     )
-    from .muses_strategy import CurrentStrategyStep, CurrentStrategyStepDict, MusesStrategy, MusesStrategyHandle, MusesStrategyImp
+    from .muses_strategy import (
+        CurrentStrategyStep,
+        CurrentStrategyStepDict,
+        MusesStrategy,
+        MusesStrategyHandle,
+        MusesStrategyImp,
+    )
     from .identifier import (
         FilterIdentifier,
         InstrumentIdentifier,
         RetrievalType,
         StateElementIdentifier,
-        StrategyStepIdentifier
+        StrategyStepIdentifier,
     )
     from .filter_metadata import FileFilterMetadata, DictFilterMetadata
     from .refractor_uip import RefractorUip

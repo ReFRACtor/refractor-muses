@@ -18,6 +18,7 @@ from refractor.muses import (
     InstrumentIdentifier,
     StateElementIdentifier,
     ProcessLocation,
+    modify_strategy_table,
 )
 from refractor.tropomi import TropomiSwirForwardModelHandle, TropomiSwirFmObjectCreator
 import refractor.framework as rf
@@ -36,7 +37,7 @@ from typing import Callable
 # possibly pick a different sounding. But skip for now so we don't have a failing unit test
 @pytest.mark.skip
 @pytest.mark.long_test
-def test_retrieval(tropomi_co_step, josh_osp_dir):
+def test_retrieval(tropomi_swir, josh_osp_dir):
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
     # Grab each step so we can separately test output
     # rscap = RetrievalStrategyCaptureObserver("retrieval_step", "starting run_step")
@@ -45,7 +46,7 @@ def test_retrieval(tropomi_co_step, josh_osp_dir):
         use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(f"{tropomi_co_step.run_dir}/Table.asc")
+    rs.update_target(f"{tropomi_swir.run_dir}/Table.asc")
     rs.retrieval_ms()
 
 
@@ -84,12 +85,20 @@ class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
 
 # Look just at the forward model
 @pytest.mark.long_test
-def test_co_fm(tropomi_co_step, josh_osp_dir):
+def test_co_fm(tropomi_swir, josh_osp_dir):
     """Look just at the forward model"""
     # This is slightly convoluted, but we want to make sure we have the cost
     # function/ForwardModel that is being used in the retrieval. So we
     # start running the retrieval, and then stop when have the cost function.
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    # Just retrieve CO
+    modify_strategy_table(
+        rs,
+        0,
+        [
+            StateElementIdentifier("CO"),
+        ],
+    )
     ihandle = TropomiSwirForwardModelHandle(
         use_pca=True,
         use_lrad=False,
@@ -98,7 +107,7 @@ def test_co_fm(tropomi_co_step, josh_osp_dir):
         # absorption_gases=["CO",]
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.update_target(tropomi_co_step.run_dir / "Table.asc")
+    rs.update_target(tropomi_swir.run_dir / "Table.asc")
     cfcap = CostFunctionCapture()
     rs.add_observer(cfcap)
     try:
@@ -222,11 +231,15 @@ def test_simulated_retrieval(
         gmao_dir,
         path_prefix=test_dir,
     )
-    subprocess.run(
-        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {str(mrdir.run_dir / "Table.asc")}',
-        shell=True,
-    )
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    # Just retrieve CO
+    modify_strategy_table(
+        rs,
+        0,
+        [
+            StateElementIdentifier("CO"),
+        ],
+    )
     if oss_training_data is not None:
         oss_training_data = tropomi_band7_test_in_dir2 / oss_training_data
         # oss_training_data = "/home/mthill/muses/py-retrieve/mthill/refractor_example_notebooks/OSS_file_all_1243_2486_2_1737006088.359634.npz"
@@ -296,11 +309,15 @@ def test_radiance(
         gmao_dir,
         path_prefix=tmpdir,
     )
-    subprocess.run(
-        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {str(mrdir.run_dir / "Table.asc")}',
-        shell=True,
-    )
     rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
+    # Just retrieve CO
+    modify_strategy_table(
+        rs,
+        0,
+        [
+            StateElementIdentifier("CO"),
+        ],
+    )
     if oss_training_data is not None:
         oss_training_data = tropomi_band7_test_in_dir2 / oss_training_data
 
@@ -532,22 +549,25 @@ def test_scaled_sim_albedo_0_9_retrieval(
         gmao_dir,
         path_prefix=dir,
     )
+    rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
     # Change table to use scaled versions
-    subprocess.run(
-        f'sed -i -e "s/H2O,/H2O_SCALED,/" {str(mrdir.run_dir / "Table.asc")}',
-        shell=True,
-    )
-    subprocess.run(
-        f'sed -i -e "s/CH4,/CH4_SCALED,/" {str(mrdir.run_dir / "Table.asc")}',
-        shell=True,
-    )
-    subprocess.run(
-        f'sed -i -e "s/HDO,/HDO_SCALED,/" {str(mrdir.run_dir / "Table.asc")}',
-        shell=True,
+    modify_strategy_table(
+        rs,
+        0,
+        [
+            StateElementIdentifier("CO"),
+            StateElementIdentifier("CH4_SCALED"),
+            StateElementIdentifier("H2O_SCALED"),
+            StateElementIdentifier("HDO_SCALED"),
+            StateElementIdentifier("TROPOMISOLARSHIFTBAND7"),
+            StateElementIdentifier("TROPOMIRADIANCESHIFTBAND7"),
+            StateElementIdentifier("TROPOMISURFACEALBEDOBAND7"),
+            StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEBAND7"),
+            StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEORDER2BAND7"),
+        ],
     )
     try:
         lognum = logger.add(dir / "retrieve.log")
-        rs = RetrievalStrategy(None, osp_dir=josh_osp_dir)
         ihandle = ScaledTropomiForwardModelHandle(
             use_pca=True, use_lrad=False, lrad_second_order=False, osp_dir=josh_osp_dir
         )

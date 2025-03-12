@@ -9,7 +9,6 @@ from refractor.muses import (
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
 from pathlib import Path
-import subprocess
 
 # Fixtures that set up a full RetrievalStrategy at a given retrieval step, for use
 # in testing that is hard to do outside of a full retrieval
@@ -374,12 +373,3 @@ def omi_fm_object_creator_step_1(
 def tropomi_swir(isolated_dir, gmao_dir, josh_osp_dir, tropomi_band7_test_in_dir2):
     r = MusesRunDir(tropomi_band7_test_in_dir2, josh_osp_dir, gmao_dir)
     return r
-
-
-@pytest.fixture(scope="function")
-def tropomi_co_step(tropomi_swir):
-    subprocess.run(
-        f'sed -i -e "s/CO,CH4,H2O,HDO,TROPOMISOLARSHIFTBAND7,TROPOMIRADIANCESHIFTBAND7,TROPOMISURFACEALBEDOBAND7,TROPOMISURFACEALBEDOSLOPEBAND7,TROPOMISURFACEALBEDOSLOPEORDER2BAND7/CO                                                                                                                                                           /" {str(tropomi_swir.run_dir / "Table.asc")}',
-        shell=True,
-    )
-    return tropomi_swir

@@ -740,21 +740,27 @@ class MusesStrategyStepList(MusesStrategyImp):
                 )
             )
 
+
 class MusesStrategyModifyHandle(MusesStrategyHandle):
-    '''This is a handle useful for a quick test. We read in an existing Table.asc,
+    """This is a handle useful for a quick test. We read in an existing Table.asc,
     but then modify the given step_number to have the given retrieval_elements and
     optionally change the max_iter.
 
     This is limited of course, but handles the bulk of what we have run into in our
     pytests. You can do a similar more complicated handle if useful, or even derive from
-    MusesStrategyStepList for more complicated stuff.'''
-    def __init__(self, step_number : int, retrieval_elements : list[StateElementIdentifier],
-                 max_iter : int | None = None):
+    MusesStrategyStepList for more complicated stuff."""
+
+    def __init__(
+        self,
+        step_number: int,
+        retrieval_elements: list[StateElementIdentifier],
+        max_iter: int | None = None,
+    ):
         super().__init__()
         self.step_number = step_number
         self.retrieval_elements = retrieval_elements
         self.max_iter = max_iter
-        
+
     def muses_strategy(
         self,
         measurement_id: MeasurementId,
@@ -765,22 +771,30 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
         """
-        s =MusesStrategyStepList.create_from_strategy_table_file(
+        s = MusesStrategyStepList.create_from_strategy_table_file(
             measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
         )
-        s.current_strategy_list[self.step_number].retrieval_elements = self.retrieval_elements
-        if(self.max_iter is not None):
-            s.current_strategy_list[self.step_number].retrieval_step_parameters["max_iter"] = self.max_iter
+        s.current_strategy_list[
+            self.step_number
+        ].retrieval_elements = self.retrieval_elements
+        if self.max_iter is not None:
+            s.current_strategy_list[self.step_number].retrieval_step_parameters[
+                "max_iter"
+            ] = self.max_iter
         return s
 
-def modify_strategy_table(rs : RetrievalStrategy,
-                          step_number : int, retrieval_elements : list[StateElementIdentifier],
-                          max_iter : int | None = None):
-    '''Simple function to modify the strategy table in a RetrievalStrategy. Meant for
-    things like unit tests.'''
+
+def modify_strategy_table(
+    rs: RetrievalStrategy,
+    step_number: int,
+    retrieval_elements: list[StateElementIdentifier],
+    max_iter: int | None = None,
+):
+    """Simple function to modify the strategy table in a RetrievalStrategy. Meant for
+    things like unit tests."""
     h = MusesStrategyModifyHandle(step_number, retrieval_elements, max_iter)
     rs.muses_strategy_handle_set.add_handle(h, 100)
-                       
+
 
 MusesStrategyHandleSet.add_default_handle(MusesStrategyFileHandle())
 
