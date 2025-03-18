@@ -192,9 +192,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            for state_element_name in self.retrieval_state_element:
-                plen = len(self.full_state_value(state_element_name))
-                self._fm_sv_loc[state_element_name] = (self._fm_state_vector_size, plen)
+            for state_element_id in self.retrieval_state_element:
+                plen = len(self.full_state_value(state_element_id))
+                self._fm_sv_loc[state_element_id] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
 
@@ -221,7 +221,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return self._fm_state_vector_size
 
     def object_state(
-        self, state_element_name_list: list[StateElementIdentifier]
+        self, state_element_id_list: list[StateElementIdentifier]
     ) -> Tuple[np.ndarray, rf.StateMapping]:
         """Return a set of coefficients and a rf.StateMapping to get
         the full state values used by an object. The object passes in
@@ -234,13 +234,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """
         # TODO put in handling of log/linear
         coeff = np.concatenate(
-            [self.full_state_value(nm) for nm in state_element_name_list]
+            [self.full_state_value(nm) for nm in state_element_id_list]
         )
         rlist = self.retrieval_state_element
         rflag = np.concatenate(
             [
                 np.full((len(self.full_state_value(nm)),), nm in rlist, dtype=bool)
-                for nm in state_element_name_list
+                for nm in state_element_id_list
             ]
         )
         mp = rf.StateMappingAtIndexes(rflag)
@@ -249,7 +249,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def add_fm_state_vector_if_needed(
         self,
         fm_sv: rf.StateVector,
-        state_element_name_list: list[StateElementIdentifier],
+        state_element_id_list: list[StateElementIdentifier],
         obj_list: list[rf.SubStateVectorObserver],
     ):
         """This takes an object and a list of the state element names
@@ -262,7 +262,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
         """
         pstart = None
-        for sname in state_element_name_list:
+        for sname in state_element_id_list:
             if sname in self.fm_sv_loc:
                 ps, _ = self.fm_sv_loc[sname]
                 if pstart is None or ps < pstart:
@@ -292,7 +292,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def full_state_value(
-        self, state_element_name: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.array, so if
@@ -301,6 +301,16 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @abc.abstractmethod
+    def full_state_initial_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError() 
+   
     @property
     def step_directory(self) -> Path:
         """Return the step directory. This is a bit odd, but it is
@@ -432,7 +442,7 @@ class CurrentStateUip(CurrentState):
         return self.rf_uip.step_directory
 
     def full_state_value(
-        self, state_element_name: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
@@ -441,139 +451,148 @@ class CurrentStateUip(CurrentState):
         """
         # We've extracted this logic out from update_uip
         o_uip = mpy.ObjectView(self.rf_uip.uip)
-        if str(state_element_name) == "TSUR":
+        if str(state_element_id) == "TSUR":
             return np.array(
                 [
                     o_uip.surface_temperature,
                 ]
             )
-        elif str(state_element_name) == "EMIS":
+        elif str(state_element_id) == "EMIS":
             return np.array(o_uip.emissivity["value"])
-        elif str(state_element_name) == "PTGANG":
+        elif str(state_element_id) == "PTGANG":
             return np.array([o_uip.obs_table["pointing_angle"]])
-        elif str(state_element_name) == "RESSCALE":
+        elif str(state_element_id) == "RESSCALE":
             return np.array([o_uip.res_scale])
-        elif str(state_element_name) == "CLOUDEXT":
+        elif str(state_element_id) == "CLOUDEXT":
             return np.array(o_uip.cloud["extinction"])
-        elif str(state_element_name) == "PCLOUD":
+        elif str(state_element_id) == "PCLOUD":
             return np.array([o_uip.cloud["pressure"]])
-        elif str(state_element_name) == "OMICLOUDFRACTION":
+        elif str(state_element_id) == "OMICLOUDFRACTION":
             return np.array([o_uip.omiPars["cloud_fraction"]])
-        elif str(state_element_name) == "OMISURFACEALBEDOUV1":
+        elif str(state_element_id) == "OMISURFACEALBEDOUV1":
             return np.array([o_uip.omiPars["surface_albedo_uv1"]])
-        elif str(state_element_name) == "OMISURFACEALBEDOUV2":
+        elif str(state_element_id) == "OMISURFACEALBEDOUV2":
             return np.array([o_uip.omiPars["surface_albedo_uv2"]])
-        elif str(state_element_name) == "OMISURFACEALBEDOSLOPEUV2":
+        elif str(state_element_id) == "OMISURFACEALBEDOSLOPEUV2":
             return np.array([o_uip.omiPars["surface_albedo_slope_uv2"]])
-        elif str(state_element_name) == "OMINRADWAVUV1":
+        elif str(state_element_id) == "OMINRADWAVUV1":
             return np.array([o_uip.omiPars["nradwav_uv1"]])
-        elif str(state_element_name) == "OMINRADWAVUV2":
+        elif str(state_element_id) == "OMINRADWAVUV2":
             return np.array([o_uip.omiPars["nradwav_uv2"]])
-        elif str(state_element_name) == "OMIODWAVUV1":
+        elif str(state_element_id) == "OMIODWAVUV1":
             return np.array([o_uip.omiPars["odwav_uv1"]])
-        elif str(state_element_name) == "OMIODWAVUV2":
+        elif str(state_element_id) == "OMIODWAVUV2":
             return np.array([o_uip.omiPars["odwav_uv2"]])
-        elif str(state_element_name) == "OMIODWAVSLOPEUV1":
+        elif str(state_element_id) == "OMIODWAVSLOPEUV1":
             return np.array([o_uip.omiPars["odwav_slope_uv1"]])
-        elif str(state_element_name) == "OMIODWAVSLOPEUV2":
+        elif str(state_element_id) == "OMIODWAVSLOPEUV2":
             return np.array([o_uip.omiPars["odwav_slope_uv2"]])
-        elif str(state_element_name) == "OMIRINGSFUV1":
+        elif str(state_element_id) == "OMIRINGSFUV1":
             return np.array([o_uip.omiPars["ring_sf_uv1"]])
-        elif str(state_element_name) == "OMIRINGSFUV2":
+        elif str(state_element_id) == "OMIRINGSFUV2":
             return np.array([o_uip.omiPars["ring_sf_uv2"]])
-        elif str(state_element_name) == "TROPOMICLOUDFRACTION":
+        elif str(state_element_id) == "TROPOMICLOUDFRACTION":
             return np.array([o_uip.tropomiPars["cloud_fraction"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOBAND1":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND1":
             return np.array([o_uip.tropomiPars["surface_albedo_BAND1"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOBAND2":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND2":
             return np.array([o_uip.tropomiPars["surface_albedo_BAND2"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOBAND3":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND3":
             return np.array([o_uip.tropomiPars["surface_albedo_BAND3"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOBAND7":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND7":
             return np.array([o_uip.tropomiPars["surface_albedo_BAND7"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOBAND3TIGHT":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND3TIGHT":
             return np.array([o_uip.tropomiPars["surface_albedo_BAND3"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOSLOPEBAND2":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEBAND2":
             return np.array([o_uip.tropomiPars["surface_albedo_slope_BAND2"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOSLOPEBAND3":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEBAND3":
             return np.array([o_uip.tropomiPars["surface_albedo_slope_BAND3"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOSLOPEBAND7":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEBAND7":
             return np.array([o_uip.tropomiPars["surface_albedo_slope_BAND7"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOSLOPEBAND3TIGHT":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEBAND3TIGHT":
             return np.array([o_uip.tropomiPars["surface_albedo_slope_BAND3"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND2":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND2":
             return np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND2"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND3":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND3":
             return np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND3"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND7":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND7":
             return np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND7"]])
-        elif str(state_element_name) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND3TIGHT":
+        elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND3TIGHT":
             return np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND3"]])
-        elif str(state_element_name) == "TROPOMISOLARSHIFTBAND1":
+        elif str(state_element_id) == "TROPOMISOLARSHIFTBAND1":
             return np.array([o_uip.tropomiPars["solarshift_BAND1"]])
-        elif str(state_element_name) == "TROPOMISOLARSHIFTBAND2":
+        elif str(state_element_id) == "TROPOMISOLARSHIFTBAND2":
             return np.array([o_uip.tropomiPars["solarshift_BAND2"]])
-        elif str(state_element_name) == "TROPOMISOLARSHIFTBAND3":
+        elif str(state_element_id) == "TROPOMISOLARSHIFTBAND3":
             return np.array([o_uip.tropomiPars["solarshift_BAND3"]])
-        elif str(state_element_name) == "TROPOMISOLARSHIFTBAND7":
+        elif str(state_element_id) == "TROPOMISOLARSHIFTBAND7":
             return np.array([o_uip.tropomiPars["solarshift_BAND7"]])
-        elif str(state_element_name) == "TROPOMIRADIANCESHIFTBAND1":
+        elif str(state_element_id) == "TROPOMIRADIANCESHIFTBAND1":
             return np.array([o_uip.tropomiPars["radianceshift_BAND1"]])
-        elif str(state_element_name) == "TROPOMIRADIANCESHIFTBAND2":
+        elif str(state_element_id) == "TROPOMIRADIANCESHIFTBAND2":
             return np.array([o_uip.tropomiPars["radianceshift_BAND2"]])
-        elif str(state_element_name) == "TROPOMIRADIANCESHIFTBAND3":
+        elif str(state_element_id) == "TROPOMIRADIANCESHIFTBAND3":
             return np.array([o_uip.tropomiPars["radianceshift_BAND3"]])
-        elif str(state_element_name) == "TROPOMIRADIANCESHIFTBAND7":
+        elif str(state_element_id) == "TROPOMIRADIANCESHIFTBAND7":
             return np.array([o_uip.tropomiPars["radianceshift_BAND7"]])
-        elif str(state_element_name) == "TROPOMIRADSQUEEZEBAND1":
+        elif str(state_element_id) == "TROPOMIRADSQUEEZEBAND1":
             return np.array([o_uip.tropomiPars["radsqueeze_BAND1"]])
-        elif str(state_element_name) == "TROPOMIRADSQUEEZEBAND2":
+        elif str(state_element_id) == "TROPOMIRADSQUEEZEBAND2":
             return np.array([o_uip.tropomiPars["radsqueeze_BAND2"]])
-        elif str(state_element_name) == "TROPOMIRADSQUEEZEBAND3":
+        elif str(state_element_id) == "TROPOMIRADSQUEEZEBAND3":
             return np.array([o_uip.tropomiPars["radsqueeze_BAND3"]])
-        elif str(state_element_name) == "TROPOMIRADSQUEEZEBAND7":
+        elif str(state_element_id) == "TROPOMIRADSQUEEZEBAND7":
             return np.array([o_uip.tropomiPars["radsqueeze_BAND7"]])
-        elif str(state_element_name) == "TROPOMIRINGSFBAND1":
+        elif str(state_element_id) == "TROPOMIRINGSFBAND1":
             return np.array([o_uip.tropomiPars["ring_sf_BAND1"]])
-        elif str(state_element_name) == "TROPOMIRINGSFBAND2":
+        elif str(state_element_id) == "TROPOMIRINGSFBAND2":
             return np.array([o_uip.tropomiPars["ring_sf_BAND2"]])
-        elif str(state_element_name) == "TROPOMIRINGSFBAND3":
+        elif str(state_element_id) == "TROPOMIRINGSFBAND3":
             return np.array([o_uip.tropomiPars["ring_sf_BAND3"]])
-        elif str(state_element_name) == "TROPOMIRINGSFBAND7":
+        elif str(state_element_id) == "TROPOMIRINGSFBAND7":
             return np.array([o_uip.tropomiPars["ring_sf_BAND7"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO0BAND2":
+        elif str(state_element_id) == "TROPOMIRESSCALEO0BAND2":
             return np.array([o_uip.tropomiPars["resscale_O0_BAND2"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO1BAND2":
+        elif str(state_element_id) == "TROPOMIRESSCALEO1BAND2":
             return np.array([o_uip.tropomiPars["resscale_O1_BAND2"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO2BAND2":
+        elif str(state_element_id) == "TROPOMIRESSCALEO2BAND2":
             return np.array([o_uip.tropomiPars["resscale_O2_BAND2"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO0BAND3":
+        elif str(state_element_id) == "TROPOMIRESSCALEO0BAND3":
             return np.array([o_uip.tropomiPars["resscale_O0_BAND3"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO1BAND3":
+        elif str(state_element_id) == "TROPOMIRESSCALEO1BAND3":
             return np.array([o_uip.tropomiPars["resscale_O1_BAND3"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO2BAND3":
+        elif str(state_element_id) == "TROPOMIRESSCALEO2BAND3":
             return np.array([o_uip.tropomiPars["resscale_O2_BAND3"]])
-        elif str(state_element_name) == "TROPOMITEMPSHIFTBAND3":
+        elif str(state_element_id) == "TROPOMITEMPSHIFTBAND3":
             return np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO0BAND7":
+        elif str(state_element_id) == "TROPOMIRESSCALEO0BAND7":
             return np.array([o_uip.tropomiPars["resscale_O0_BAND7"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO1BAND7":
+        elif str(state_element_id) == "TROPOMIRESSCALEO1BAND7":
             return np.array([o_uip.tropomiPars["resscale_O1_BAND7"]])
-        elif str(state_element_name) == "TROPOMIRESSCALEO2BAND7":
+        elif str(state_element_id) == "TROPOMIRESSCALEO2BAND7":
             return np.array([o_uip.tropomiPars["resscale_O2_BAND7"]])
-        elif str(state_element_name) == "TROPOMITEMPSHIFTBAND7":
+        elif str(state_element_id) == "TROPOMITEMPSHIFTBAND7":
             return np.array([o_uip.tropomiPars["temp_shift_BAND7"]])
-        elif str(state_element_name) == "TROPOMITEMPSHIFTBAND3TIGHT":
+        elif str(state_element_id) == "TROPOMITEMPSHIFTBAND3TIGHT":
             return np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
-        elif str(state_element_name) == "TROPOMICLOUDSURFACEALBEDO":
+        elif str(state_element_id) == "TROPOMICLOUDSURFACEALBEDO":
             return np.array([o_uip.tropomiPars["cloud_Surface_Albedo"]])
         # Check if it is a column
         try:
-            return self.rf_uip.atmosphere_column(str(state_element_name))
+            return self.rf_uip.atmosphere_column(str(state_element_id))
         except ValueError:
             pass
-        raise RuntimeError(f"Don't recognize {state_element_name}")
+        raise RuntimeError(f"Don't recognize {state_element_id}")
 
+    def full_state_initial_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError() 
+    
 
 class CurrentStateDict(CurrentState):
     """Implementation of CurrentState that just takes a dictionary of
@@ -583,7 +602,7 @@ class CurrentStateDict(CurrentState):
 
     def __init__(
         self,
-        state_element_dict: dict,
+        state_element_dict: dict[StateElementIdentifier, np.ndarray | list[float] | float],
         retrieval_element: list[StateElementIdentifier | str],
     ):
         """This takes a dictionary from state element name to value,
@@ -636,14 +655,14 @@ class CurrentStateDict(CurrentState):
         return list(self.state_element_dict.keys())
 
     def full_state_value(
-        self, state_element_name: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
 
         """
-        v = self.state_element_dict[state_element_name]
+        v = self.state_element_dict[state_element_id]
         if isinstance(v, np.ndarray):
             return v
         elif isinstance(v, list):
@@ -654,7 +673,15 @@ class CurrentStateDict(CurrentState):
             ]
         )
 
-
+    def full_state_initial_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError() 
+    
 class CurrentStateStateInfo(CurrentState):
     """Implementation of CurrentState that uses our StateInfo. This is
     the way the actual full retrieval works.
@@ -830,14 +857,14 @@ class CurrentStateStateInfo(CurrentState):
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            for state_element_name in self.retrieval_state_element:
+            for state_element_id in self.retrieval_state_element:
                 if self.do_systematic:
                     plen = self.retrieval_info.species_list_sys.count(
-                        str(state_element_name)
+                        str(state_element_id)
                     )
                 else:
                     plen = self.retrieval_info.species_list_fm.count(
-                        str(state_element_name)
+                        str(state_element_id)
                     )
 
                 # As a convention, if plen is 0 py-retrieve pads this
@@ -852,21 +879,41 @@ class CurrentStateStateInfo(CurrentState):
                 # set, i.e., we are doing RetrievalStrategyStepBT.
                 if plen == 0:
                     plen = 1
-                self._fm_sv_loc[state_element_name] = (self._fm_state_vector_size, plen)
+                self._fm_sv_loc[state_element_id] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
 
     def full_state_value(
-        self, state_element_name: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so if
         there is only one value put that in a length 1 np.ndarray.
 
         """
-        selem = self.state_info.state_element(state_element_name)
+        selem = self.state_info.state_element(state_element_id)
         return selem.value
 
+    def full_state_initial_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        selem = self.state_info.state_element(state_element_id, step="initial")
+        return selem.value
+
+    def full_state_apriori_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        selem = self.state_info.state_element(state_element_id)
+        return selem.apriori_value
+    
 
 __all__ = [
     "CurrentState",

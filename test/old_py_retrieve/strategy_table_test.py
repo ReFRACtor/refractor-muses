@@ -24,6 +24,10 @@ class EofStateElement(RetrievableStateElement):
     def value(self):
         return self._value
 
+    @property
+    def apriori_value(self) -> np.ndarray:
+        return np.array([0.0,])
+
     def should_write_to_l2_product(self, instruments):
         if "OMI" in instruments:
             return True

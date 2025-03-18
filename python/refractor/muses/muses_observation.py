@@ -440,6 +440,15 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
+    def scattering_angle(self) -> np.ndarray:
+        return np.array(
+            [
+                float(self._avg_obs("ScatteringAngle", i))
+                for i in range(self.num_channels)
+            ]
+        )
+    
+    @property
     def observation_zenith(self) -> np.ndarray:
         return np.array(
             [

@@ -59,6 +59,13 @@ class MusesPyStateElement(RetrievableStateElement):
         # the full set of species in place, it is useful for us to just ignore that.
         raise NotImplementedError
 
+    @property
+    def apriori_value(self):
+        # Temporary, define this so we can use a MusesPyStateElement, but
+        # we don't actually have code for a value for this. But until we have
+        # the full set of species in place, it is useful for us to just ignore that.
+        raise NotImplementedError
+    
     def sa_covariance(self):
         """Return sa covariance matrix, and also pressure. This is what
         ErrorAnalysis needs."""
@@ -2397,6 +2404,16 @@ class MusesPyOmiStateElement(MusesPyStateElement):
     def value(self, v):
         self.state_info.state_info_dict["current"]["omi"][self.omi_key] = v[0]
 
+    @property
+    def apriori_value(self):
+        return np.array(
+            [self.state_info.state_info_dict["constraint"]["omi"][self.omi_key]]
+        )
+
+    @apriori_value.setter
+    def apriori_value(self, v):
+        self.state_info.state_info_dict["constraint"]["omi"][self.omi_key] = v[0]
+        
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,
@@ -2510,6 +2527,16 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
     def value(self, v):
         self.state_info.state_info_dict["current"]["tropomi"][self.tropomi_key] = v[0]
 
+    @property
+    def apriori_value(self):
+        return np.array(
+            [self.state_info.state_info_dict["constraint"]["tropomi"][self.tropomi_key]]
+        )
+
+    @apriori_value.setter
+    def apriori_value(self, v):
+        self.state_info.state_info_dict["constraint"]["tropomi"][self.tropomi_key] = v[0]
+        
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,

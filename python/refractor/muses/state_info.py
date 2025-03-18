@@ -153,9 +153,14 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def value(self):
+    def value(self) -> np.ndarray:
         raise NotImplementedError
 
+    @property
+    @abc.abstractmethod
+    def apriori_value(self) -> np.ndarray:
+        raise NotImplementedError
+    
 
 class RetrievableStateElement(StateElement):
     """This has additional functionality to have a StateElement be retrievable,

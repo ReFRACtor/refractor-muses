@@ -60,6 +60,10 @@ class O3ScaledStateElement(RetrievableStateElement):
     def value(self):
         return self._value
 
+    @property
+    def apriori_value(self) -> np.ndarray:
+        return np.array([1.0,])
+
     def should_write_to_l2_product(self, instruments: list[InstrumentIdentifier]):
         if InstrumentIdentifier("TROPOMI") in instruments:
             return True

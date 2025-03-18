@@ -4,7 +4,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes
-from .identifier import InstrumentIdentifier, ProcessLocation
+from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
 from pathlib import Path
 import numpy as np
 import typing
@@ -68,6 +68,9 @@ class RetrievalL2Output(RetrievalOutput):
     def retrieval_info(self):
         return self.retrieval_strategy.retrieval_info
 
+    def observation(self, instrument_name):
+        return self.retrieval_strategy.observation_handle_set.observation(InstrumentIdentifier(instrument_name), None, None, None)
+
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname. This handles numbering
         L2 output files if we have the same species in different strategy steps"""
@@ -77,6 +80,14 @@ class RetrievalL2Output(RetrievalOutput):
             self.file_number_dict[basefname] = FileNumberHandle(basefname)
         return self.file_number_dict[basefname]
 
+    def state_value(self, state_name : str) -> np.ndarray:
+        '''Get the state value for the given state name'''
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))[0]
+
+    def state_apriori(self, state_name : str) -> np.ndarray:
+        '''Get the state value for the given state name'''
+        return self.current_state.full_state_apriori_value(StateElementIdentifier(state_name))[0]
+    
     @property
     def species_list(self):
         """List of species, partially ordered so TATM comes before H2O, H2O before HDO,
@@ -163,7 +174,7 @@ class RetrievalL2Output(RetrievalOutput):
                     "code has not been tested for species_name CH4 and dataN2O is None"
                 )
                 data2 = copy.deepcopy(dataInfo)
-                value = self.state_info.state_element("N2O", step="initial").value
+                value = self.current_state.full_state_initial_value(StateElementIdentifier("N2O"))
                 data2["SPECIES"][data2["SPECIES"] > 0] = copy.deepcopy(value)
                 data2["INITIAL"][data2["SPECIES"] > 0] = copy.deepcopy(value)
                 data2["CONSTRAINTVECTOR"][data2["SPECIES"] > 0] = copy.deepcopy(value)
@@ -278,11 +289,6 @@ class RetrievalL2Output(RetrievalOutput):
         num_pressures = 67
         nfreqEmis = 121
 
-        if self.state_info.has_true_values:
-            # TODO If we get sample data, we can put this back in
-            logger.warning(
-                "There is a block of code in the muses-py for reporting true values. We don't have that code, because we don't have any test data for this. So skipping."
-            )
         if InstrumentIdentifier("OCO-2") in self.instruments:
             # TODO If we get sample data, we can put this back in
             logger.warning(
@@ -524,262 +530,103 @@ class RetrievalL2Output(RetrievalOutput):
         # ==============> Cleanup to this point
         if InstrumentIdentifier("OMI") in self.instruments:
             # Make all names uppercased to make life easier.
-            species_data.OMI_SZA_UV2 = self.state_info.state_info_obj.current["omi"][
-                "sza_uv2"
-            ]
-            species_data.OMI_RAZ_UV2 = self.state_info.state_info_obj.current["omi"][
-                "raz_uv2"
-            ]
-            species_data.OMI_VZA_UV2 = self.state_info.state_info_obj.current["omi"][
-                "vza_uv2"
-            ]
-            species_data.OMI_SCA_UV2 = self.state_info.state_info_obj.current["omi"][
-                "sca_uv2"
-            ]
-
-            species_data.OMI_SZA_UV1 = self.state_info.state_info_obj.current["omi"][
-                "sza_uv1"
-            ]
-            species_data.OMI_RAZ_UV1 = self.state_info.state_info_obj.current["omi"][
-                "raz_uv1"
-            ]
-            species_data.OMI_VZA_UV1 = self.state_info.state_info_obj.current["omi"][
-                "vza_uv1"
-            ]
-            species_data.OMI_SCA_UV1 = self.state_info.state_info_obj.current["omi"][
-                "sca_uv1"
-            ]
-
-            # could get these from state.current.omipars
-            # note I added this to the new_state_structures and Make_UIP_OMI.pro
-            species_data.OMI_CLOUDFRACTION = self.state_info.state_info_obj.current[
-                "omi"
-            ]["cloud_fraction"]
-            species_data.OMI_CLOUDFRACTIONCONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["omi"]["cloud_fraction"]
-            )
-            species_data.OMI_CLOUDTOPPRESSURE = (
-                self.state_info.state_info_obj.constraint["omi"]["cloud_pressure"]
-            )
-
-            species_data.OMI_SURFACEALBEDOUV1 = self.state_info.state_info_obj.current[
-                "omi"
-            ]["surface_albedo_uv1"]
-            species_data.OMI_SURFACEALBEDOUV1CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["omi"]["surface_albedo_uv1"]
-            )
-
-            species_data.OMI_SURFACEALBEDOUV2 = self.state_info.state_info_obj.current[
-                "omi"
-            ]["surface_albedo_uv2"]
-            species_data.OMI_SURFACEALBEDOUV2CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["omi"]["surface_albedo_uv2"]
-            )
-
-            species_data.OMI_SURFACEALBEDOSLOPEUV2 = (
-                self.state_info.state_info_obj.current["omi"][
-                    "surface_albedo_slope_uv2"
-                ]
-            )
-            species_data.OMI_SURFACEALBEDOSLOPEUV2CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["omi"][
-                    "surface_albedo_slope_uv2"
-                ]
-            )
-
-            species_data.OMI_NRADWAVUV1 = self.state_info.state_info_obj.current["omi"][
-                "nradwav_uv1"
-            ]
-            species_data.OMI_NRADWAVUV2 = self.state_info.state_info_obj.current["omi"][
-                "nradwav_uv2"
-            ]
-
-            species_data.OMI_ODWAVUV1 = self.state_info.state_info_obj.current["omi"][
-                "odwav_uv1"
-            ]
-            species_data.OMI_ODWAVUV2 = self.state_info.state_info_obj.current["omi"][
-                "odwav_uv2"
-            ]
-
-            species_data.OMI_RINGSFUV1 = self.state_info.state_info_obj.current["omi"][
-                "ring_sf_uv1"
-            ]
-            species_data.OMI_RINGSFUV2 = self.state_info.state_info_obj.current["omi"][
-                "ring_sf_uv2"
-            ]
+            obs = self.observation("OMI")
+            # List of bands we have data for
+            blist = [str(i[0]) for i in obs.filter_data]
+            sza = obs.solar_zenith
+            raz = obs.relative_azimuth
+            vza = obs.observation_zenith
+            sca = obs.scattering_angle
+            d = species_data.__dict__
+            for bout in ["UV1", "UV2"]:
+                if(bout in blist):
+                    i = blist.index(bout)
+                    d[f"OMI_SZA_{bout}"] = sza[i]
+                    d[f"OMI_RAZ_{bout}"] = raz[i]
+                    d[f"OMI_VZA_{bout}"] = vza[i]
+                    d[f"OMI_SCA_{bout}"] = sca[i]
+                    d[f"OMI_SURFACEALBEDO{bout}"] = self.state_value(f"OMISURFACEALBEDO{bout}")
+                    d[f"OMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = self.state_apriori(f"OMISURFACEALBEDO{bout}")
+                    if(bout != "UV1"):
+                        # For who knows what reason this isn't present for UV1.
+                        d[f"OMI_SURFACEALBEDOSLOPE{bout}"] = self.state_value(f"OMISURFACEALBEDOSLOPE{bout}")
+                        d[f"OMI_SURFACEALBEDOSLOPE{bout}CONSTRAINTVECTOR"] = self.state_apriori(f"OMISURFACEALBEDOSLOPE{bout}")
+                    d[f"OMI_NRADWAV{bout}"] = self.state_value(f"OMINRADWAV{bout}")
+                    d[f"OMI_ODWAV{bout}"] = self.state_value(f"OMIODWAV{bout}")
+                    d[f"OMI_RINGSF{bout}"] = self.state_value(f"OMIRINGSF{bout}")
+                else:
+                    d[f"OMI_SZA_{bout}"] = 0.0
+                    d[f"OMI_RAZ_{bout}"] = 0.0
+                    d[f"OMI_VZA_{bout}"] = 0.0
+                    d[f"OMI_SCA_{bout}"] = 0.0
+                    d[f"OMI_SURFACEALBEDO{bout}"] = 0.0
+                    d[f"OMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = 0.0
+                    if(bout != "UV1"):
+                        # For who knows what reason this isn't present for UV1.
+                        d[f"OMI_SURFACEALBEDOSLOPE{bout}"] = 0.0
+                        d[f"OMI_SURFACEALBEDOSLOPE{bout}CONSTRAINTVECTOR"] = 0.0
+                    d[f"OMI_NRADWAV{bout}"] = 0.0
+                    d[f"OMI_ODWAV{bout}"] = 0.0
+                    d[f"OMI_RINGSF{bout}"] = 0.0
+            species_data.OMI_CLOUDFRACTION = self.state_value("OMICLOUDFRACTION")
+            species_data.OMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_apriori("OMICLOUDFRACTION")
+            species_data.OMI_CLOUDTOPPRESSURE = obs.cloud_pressure.value
         if InstrumentIdentifier("TROPOMI") in self.instruments:
             # As with OMI, make all names uppercased to make life easier.
             # EM NOTE - This will have to be expanded if additional tropomi bands are used
-            species_data.TROPOMI_SZA_BAND1 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["sza_BAND1"]
-            species_data.TROPOMI_RAZ_BAND1 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["raz_BAND1"]
-            species_data.TROPOMI_VZA_BAND1 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["vza_BAND1"]
-            species_data.TROPOMI_SCA_BAND1 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["sca_BAND1"]
+            obs = self.observation("TROPOMI")
+            # List of bands we have data for
+            blist = [str(i[0]) for i in obs.filter_data]
+            sza = obs.solar_zenith
+            raz = obs.relative_azimuth
+            vza = obs.observation_zenith
+            sca = obs.scattering_angle
+            d = species_data.__dict__
+            for bout in ["BAND1", "BAND2", "BAND3"]:
+                if(bout in blist):
+                    i = blist.index(bout)
+                    d[f"TROPOMI_SZA_{bout}"] = sza[i]
+                    d[f"TROPOMI_RAZ_{bout}"] = raz[i]
+                    d[f"TROPOMI_VZA_{bout}"] = vza[i]
+                    d[f"TROPOMI_SCA_{bout}"] = sca[i]
+                    d[f"TROPOMI_SURFACEALBEDO{bout}"] = self.state_value(f"TROPOMISURFACEALBEDO{bout}")
+                    d[f"TROPOMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = self.state_apriori(f"TROPOMISURFACEALBEDO{bout}")
+                    d[f"TROPOMI_SOLARSHIFT{bout}"] = self.state_value(f"TROPOMISOLARSHIFT{bout}")
+                    d[f"TROPOMI_RADIANCESHIFT{bout}"] = self.state_value(f"TROPOMIRADIANCESHIFT{bout}")
+                    d[f"TROPOMI_RADSQUEEZE{bout}"] = self.state_value(f"TROPOMIRADSQUEEZE{bout}")
+                    d[f"TROPOMI_RINGSF{bout}"] = self.state_value(f"TROPOMIRINGSF{bout}")
+                    if(bout != "BAND1"):
+                        # For who knows what reason this isn't present for band 1.
+                        d[f"TROPOMI_SURFACEALBEDOSLOPE{bout}"] = self.state_value(f"TROPOMISURFACEALBEDOSLOPE{bout}")
+                        d[f"TROPOMI_SURFACEALBEDOSLOPE{bout}CONSTRAINTVECTOR"] = self.state_apriori(f"TROPOMISURFACEALBEDOSLOPE{bout}")
+                        d[f"TROPOMI_SURFACEALBEDOSLOPEORDER2{bout}"] = self.state_value(f"TROPOMISURFACEALBEDOSLOPEORDER2{bout}")
+                        d[f"TROPOMI_SURFACEALBEDOSLOPEORDER2{bout}CONSTRAINTVECTOR"] = self.state_apriori(f"TROPOMISURFACEALBEDOSLOPEORDER2{bout}")
+                    if bout == "BAND3":
+                        d[f"TROPOMI_TEMPSHIFT{bout}"] = self.state_value(f"TROPOMITEMPSHIFT{bout}")
+                        
+                else:
+                    d[f"TROPOMI_SZA_{bout}"] = 0.0
+                    d[f"TROPOMI_RAZ_{bout}"] = 0.0
+                    d[f"TROPOMI_VZA_{bout}"] = 0.0
+                    d[f"TROPOMI_SCA_{bout}"] = 0.0
+                    d[f"TROPOMI_SURFACEALBEDO{bout}"] = 0.0
+                    d[f"TROPOMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = 0.0
+                    d[f"TROPOMI_SOLARSHIFT{bout}"] = 0.0
+                    d[f"TROPOMI_RADIANCESHIFT{bout}"] = 0.0
+                    d[f"TROPOMI_RADSQUEEZE{bout}"] = 0.0
+                    d[f"TROPOMI_RINGSF{bout}"] = 0.0
+                    if(bout != "BAND1"):
+                        # For who knows what reason this isn't present for band 1.
+                        d[f"TROPOMI_SURFACEALBEDOSLOPE{bout}"] = 0.0
+                        d[f"TROPOMI_SURFACEALBEDOSLOPE{bout}CONSTRAINTVECTOR"] = 0.0
+                        d[f"TROPOMI_SURFACEALBEDOSLOPEORDER2{bout}"] = 0.0
+                        d[f"TROPOMI_SURFACEALBEDOSLOPEORDER2{bout}CONSTRAINTVECTOR"] = 0.0
+                    if bout == "BAND3":
+                        d[f"TROPOMI_TEMPSHIFT{bout}"] = 0.0
 
-            species_data.TROPOMI_SZA_BAND2 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["sza_BAND2"]
-            species_data.TROPOMI_RAZ_BAND2 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["raz_BAND2"]
-            species_data.TROPOMI_VZA_BAND2 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["vza_BAND2"]
-            species_data.TROPOMI_SCA_BAND2 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["sca_BAND2"]
-
-            species_data.TROPOMI_SZA_BAND3 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["sza_BAND3"]
-            species_data.TROPOMI_RAZ_BAND3 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["raz_BAND3"]
-            species_data.TROPOMI_VZA_BAND3 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["vza_BAND3"]
-            species_data.TROPOMI_SCA_BAND3 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["sca_BAND3"]
-
-            # could get these from state.current.tropomipars
-            species_data.TROPOMI_CLOUDFRACTION = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["cloud_fraction"]
-            species_data.TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["tropomi"]["cloud_fraction"]
-            )
-            species_data.TROPOMI_CLOUDTOPPRESSURE = (
-                self.state_info.state_info_obj.constraint["tropomi"]["cloud_pressure"]
-            )
-
-            species_data.TROPOMI_SURFACEALBEDOBAND1 = (
-                self.state_info.state_info_obj.current["tropomi"][
-                    "surface_albedo_BAND1"
-                ]
-            )
-            species_data.TROPOMI_SURFACEALBEDOBAND1CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["tropomi"][
-                    "surface_albedo_BAND1"
-                ]
-            )
-
-            species_data.TROPOMI_SURFACEALBEDOBAND2 = (
-                self.state_info.state_info_obj.current["tropomi"][
-                    "surface_albedo_BAND2"
-                ]
-            )
-            species_data.TROPOMI_SURFACEALBEDOBAND2CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["tropomi"][
-                    "surface_albedo_BAND2"
-                ]
-            )
-
-            species_data.TROPOMI_SURFACEALBEDOBAND3 = (
-                self.state_info.state_info_obj.current["tropomi"][
-                    "surface_albedo_BAND3"
-                ]
-            )
-            species_data.TROPOMI_SURFACEALBEDOBAND3CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["tropomi"][
-                    "surface_albedo_BAND3"
-                ]
-            )
-
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND2 = (
-                self.state_info.state_info_obj.current["tropomi"][
-                    "surface_albedo_slope_BAND2"
-                ]
-            )
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND2CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["tropomi"][
-                    "surface_albedo_slope_BAND2"
-                ]
-            )
-
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND3 = (
-                self.state_info.state_info_obj.current["tropomi"][
-                    "surface_albedo_slope_BAND3"
-                ]
-            )
-            species_data.TROPOMI_SURFACEALBEDOSLOPEBAND3CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["tropomi"][
-                    "surface_albedo_slope_BAND3"
-                ]
-            )
-
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2 = (
-                self.state_info.state_info_obj.current["tropomi"][
-                    "surface_albedo_slope_order2_BAND2"
-                ]
-            )
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["tropomi"][
-                    "surface_albedo_slope_BAND2"
-                ]
-            )
-
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3 = (
-                self.state_info.state_info_obj.current["tropomi"][
-                    "surface_albedo_slope_order2_BAND3"
-                ]
-            )
-            species_data.TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3CONSTRAINTVECTOR = (
-                self.state_info.state_info_obj.constraint["tropomi"][
-                    "surface_albedo_slope_BAND3"
-                ]
-            )
-
-            species_data.TROPOMI_SOLARSHIFTBAND1 = (
-                self.state_info.state_info_obj.current["tropomi"]["solarshift_BAND1"]
-            )
-            species_data.TROPOMI_SOLARSHIFTBAND2 = (
-                self.state_info.state_info_obj.current["tropomi"]["solarshift_BAND2"]
-            )
-            species_data.TROPOMI_SOLARSHIFTBAND3 = (
-                self.state_info.state_info_obj.current["tropomi"]["solarshift_BAND3"]
-            )
-
-            species_data.TROPOMI_RADIANCESHIFTBAND1 = (
-                self.state_info.state_info_obj.current["tropomi"]["radianceshift_BAND1"]
-            )
-            species_data.TROPOMI_RADIANCESHIFTBAND2 = (
-                self.state_info.state_info_obj.current["tropomi"]["radianceshift_BAND2"]
-            )
-            species_data.TROPOMI_RADIANCESHIFTBAND3 = (
-                self.state_info.state_info_obj.current["tropomi"]["radianceshift_BAND3"]
-            )
-
-            species_data.TROPOMI_RADSQUEEZEBAND1 = (
-                self.state_info.state_info_obj.current["tropomi"]["radsqueeze_BAND1"]
-            )
-            species_data.TROPOMI_RADSQUEEZEBAND2 = (
-                self.state_info.state_info_obj.current["tropomi"]["radsqueeze_BAND2"]
-            )
-            species_data.TROPOMI_RADSQUEEZEBAND3 = (
-                self.state_info.state_info_obj.current["tropomi"]["radsqueeze_BAND3"]
-            )
-
-            species_data.TROPOMI_RINGSFBAND1 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["ring_sf_BAND1"]
-            species_data.TROPOMI_RINGSFBAND2 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["ring_sf_BAND2"]
-            species_data.TROPOMI_RINGSFBAND3 = self.state_info.state_info_obj.current[
-                "tropomi"
-            ]["ring_sf_BAND3"]
-
-            species_data.TROPOMI_TEMPSHIFTBAND3 = (
-                self.state_info.state_info_obj.current["tropomi"]["temp_shift_BAND3"]
-            )
+            species_data.TROPOMI_CLOUDFRACTION = self.state_value("TROPOMICLOUDFRACTION")
+            species_data.TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_apriori("TROPOMICLOUDFRACTION")
+            species_data.TROPOMI_CLOUDTOPPRESSURE = obs.cloud_pressure.value
 
         # species_data.TROPOMI_EOF1 = 1.0
         species_data.SPECIES[pslice] = self.retrieval_info.species_results(
