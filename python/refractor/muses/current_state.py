@@ -10,7 +10,7 @@ import typing
 from .identifier import StateElementIdentifier
 
 if typing.TYPE_CHECKING:
-    from .state_info import StateInfo, PropagatedQA
+    from .state_info import StateInfo, PropagatedQA, StateElement, SoundingMetadata
     from .refractor_uip import RefractorUip
     from .retrieval_info import RetrievalInfo
     from .retrieval_configuration import RetrievalConfiguration
@@ -155,12 +155,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def state_info(self) -> StateInfo:
-        """Return StateInfo. We will move towards removing this, but for now
-        we need to have this available."""
-        raise NotImplementedError()
-
-    @property
     def apriori_cov(self) -> np.ndarray:
         """Apriori Covariance"""
         raise NotImplementedError()
@@ -278,22 +272,55 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def full_state_element(self) -> list[StateElementIdentifier]:
+    def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element"""
         raise NotImplementedError()
 
+    @abc.abstractproperty
+    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
+        """Subset of full_state_element_id for species that are on levels, so things like
+        H2O"""
+        raise NotImplementedError()
+    
     def full_state_desc(self) -> str:
         """Return a description of the full state."""
         res = ""
-        for selem in self.full_state_element:
+        for selem in self.full_state_element_id:
             res += f"{str(selem)}:\n{self.full_state_value(selem)}\n"
         return res
 
+    @abc.abstractproperty
+    def sounding_metadata(self) -> SoundingMetadata:
+        '''Return the sounding metadata. It isn't clear if this really
+        belongs in CurrentState or not, but there isn't another
+        obvious place for this so for now we'll have this here.
+
+        Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
+        that makes more sense.
+        '''
+        raise NotImplementedError()
+
     @abc.abstractmethod
-    def full_state_value(
+    def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> StateElement:
+        """Return the StateElement for the state_element_id. I'm not sure if we want to
+        have this exposed or not, but there is a bit of useful information we have in
+        each StateElement (such as the sa_cross_covariance). We can have this exposed for
+        now, and revisit it if we end up deciding this is too much coupling. There are
+        only a few spots that use full_state_element vs something like full_state_value,
+        so we will just need to revisit those few spots if this becomes an issue."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def full_state_spectral_domain_wavelength(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+        '''Return the spectral domain (as nm) for the given state_element_id, or None if
+        there isn't an associated frequency for the given state_element_id'''
+        raise NotImplementedError()
+    
+    @abc.abstractmethod
+    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -309,8 +336,28 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        raise NotImplementedError() 
-   
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def full_state_initial_initial_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initialInitial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
+    
+    @abc.abstractmethod
+    def full_state_apriori_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the apriori value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
+
     @property
     def step_directory(self) -> Path:
         """Return the step directory. This is a bit odd, but it is
@@ -430,7 +477,7 @@ class CurrentStateUip(CurrentState):
         return [StateElementIdentifier(i) for i in self.rf_uip.jacobian_all]
 
     @property
-    def full_state_element(self) -> list[StateElementIdentifier]:
+    def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element"""
         # I think we could come up with something here if needed, but for now
@@ -438,12 +485,37 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     @property
+    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
+        """Subset of full_state_element_id for species that are on levels, so things like
+        H2O"""
+        raise NotImplementedError()
+    
+    @property
     def step_directory(self) -> Path:
         return self.rf_uip.step_directory
 
-    def full_state_value(
+    @property
+    def sounding_metadata(self) -> SoundingMetadata:
+        '''Return the sounding metadata. It isn't clear if this really
+        belongs in CurrentState or not, but there isn't another
+        obvious place for this so for now we'll have this here.
+
+        Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
+        that makes more sense.
+        '''
+        raise NotImplementedError()
+    
+    def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> StateElement:
+        raise NotImplementedError()
+
+    def full_state_spectral_domain_wavelength(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+        '''Return the spectral domain (as nm) for the given state_element_id, or None if
+        there isn't an associated frequency for the given state_element_id'''
+        raise NotImplementedError()
+    
+    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
@@ -591,8 +663,26 @@ class CurrentStateUip(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        raise NotImplementedError() 
+        raise NotImplementedError()
+
+    def full_state_initial_initial_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initialInitial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
     
+    def full_state_apriori_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
+
 
 class CurrentStateDict(CurrentState):
     """Implementation of CurrentState that just takes a dictionary of
@@ -602,7 +692,9 @@ class CurrentStateDict(CurrentState):
 
     def __init__(
         self,
-        state_element_dict: dict[StateElementIdentifier, np.ndarray | list[float] | float],
+        state_element_dict: dict[
+            StateElementIdentifier, np.ndarray | list[float] | float
+        ],
         retrieval_element: list[StateElementIdentifier | str],
     ):
         """This takes a dictionary from state element name to value,
@@ -649,14 +741,39 @@ class CurrentStateDict(CurrentState):
         self.clear_cache()
 
     @property
-    def full_state_element(self) -> list[StateElementIdentifier]:
+    def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element"""
         return list(self.state_element_dict.keys())
 
-    def full_state_value(
+    @property
+    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
+        """Subset of full_state_element_id for species that are on levels, so things like
+        H2O"""
+        raise NotImplementedError()
+    
+    @property
+    def sounding_metadata(self) -> SoundingMetadata:
+        '''Return the sounding metadata. It isn't clear if this really
+        belongs in CurrentState or not, but there isn't another
+        obvious place for this so for now we'll have this here.
+
+        Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
+        that makes more sense.
+        '''
+        raise NotImplementedError()
+    
+    def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> StateElement:
+        raise NotImplementedError()
+
+    def full_state_spectral_domain_wavelength(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+        '''Return the spectral domain (as nm) for the given state_element_id, or None if
+        there isn't an associated frequency for the given state_element_id'''
+        raise NotImplementedError()
+    
+    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
@@ -680,8 +797,27 @@ class CurrentStateDict(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        raise NotImplementedError() 
+        raise NotImplementedError()
+
+    def full_state_initial_initial_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the initialInitial value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
     
+    def full_state_apriori_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the apriori value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
+
+
 class CurrentStateStateInfo(CurrentState):
     """Implementation of CurrentState that uses our StateInfo. This is
     the way the actual full retrieval works.
@@ -722,18 +858,6 @@ class CurrentStateStateInfo(CurrentState):
         self.retrieval_state_element_override = retrieval_state_element_override
         self.do_systematic = do_systematic
         self._step_directory = Path(step_directory)
-
-    @property
-    def state_info(self) -> StateInfo:
-        """Return StateInfo. We will move towards removing this, but for now
-        we need to have this available."""
-        return self._state_info
-
-    @state_info.setter
-    def state_info(self, val: StateInfo):
-        self._state_info = val
-        # Clear cache, we need to regenerate these after update
-        self.clear_cache()
 
     @property
     def initial_guess(self) -> np.ndarray:
@@ -798,11 +922,11 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def propagated_qa(self) -> PropagatedQA:
-        return self.state_info.propagated_qa
+        return self._state_info.propagated_qa
 
     @property
     def brightness_temperature_data(self) -> dict:
-        return self.state_info.brightness_temperature_data
+        return self._state_info.brightness_temperature_data
 
     def update_state(
         self,
@@ -813,7 +937,7 @@ class CurrentStateStateInfo(CurrentState):
         step: int,
     ):
         """Update the state info"""
-        self.state_info.update_state(
+        self._state_info.update_state(
             retrieval_info, results_list, do_not_update, retrieval_config, step
         )
 
@@ -840,11 +964,17 @@ class CurrentStateStateInfo(CurrentState):
         return [StateElementIdentifier(i) for i in self.retrieval_info.species_names]
 
     @property
-    def full_state_element(self) -> list[StateElementIdentifier]:
+    def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element"""
-        return [i.name for i in self.state_info.state_element_list()]
+        return [i.name for i in self._state_info.state_element_list()]
 
+    @property
+    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
+        """Subset of full_state_element_id for species that are on levels, so things like
+        H2O"""
+        return [ StateElementIdentifier(i) for i in self._state_info.state_element_on_levels ]
+    
     @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
         """Dict that gives the starting location in the forward model
@@ -883,15 +1013,41 @@ class CurrentStateStateInfo(CurrentState):
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
 
-    def full_state_value(
+    @property
+    def sounding_metadata(self) -> SoundingMetadata:
+        '''Return the sounding metadata. It isn't clear if this really
+        belongs in CurrentState or not, but there isn't another
+        obvious place for this so for now we'll have this here.
+
+        Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
+        that makes more sense.
+        '''
+        return self._state_info.sounding_metadata()
+    
+    def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> StateElement:
+        """Return the StateElement for the state_element_id. I'm not sure if we want to
+        have this exposed or not, but there is a bit of useful information we have in
+        each StateElement (such as the sa_cross_covariance). We can have this exposed for
+        now, and revisit it if we end up deciding this is too much coupling. There are
+        only a few spots that use full_state_element vs something like full_state_value,
+        so we will just need to revisit those few spots if this becomes an issue."""
+        return self._state_info.state_element(state_element_id)
+
+    def full_state_spectral_domain_wavelength(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+        '''Return the spectral domain (as nm) for the given state_element_id, or None if
+        there isn't an associated frequency for the given state_element_id'''
+        selem = self._state_info.state_element(state_element_id)
+        return selem.spectral_domain_wavelength
+
+    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so if
         there is only one value put that in a length 1 np.ndarray.
 
         """
-        selem = self.state_info.state_element(state_element_id)
+        selem = self._state_info.state_element(state_element_id)
         return selem.value
 
     def full_state_initial_value(
@@ -901,19 +1057,29 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        selem = self.state_info.state_element(state_element_id, step="initial")
+        selem = self._state_info.state_element(state_element_id, step="initial")
         return selem.value
 
-    def full_state_apriori_value(
+    def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
-        """Return the initial value of the given state element identification.
+        """Return the initialInitial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        selem = self.state_info.state_element(state_element_id)
-        return selem.apriori_value
+        selem = self._state_info.state_element(state_element_id, step="initialInitial")
+        return selem.value
     
+    def full_state_apriori_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the apriori value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        selem = self._state_info.state_element(state_element_id)
+        return selem.apriori_value
+
 
 __all__ = [
     "CurrentState",

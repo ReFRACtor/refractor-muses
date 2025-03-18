@@ -165,22 +165,18 @@ class RetrievalRadianceOutput(RetrievalOutput):
 
         sstate = self.state_info.state_element("emissivity")
         my_data.emis = sstate.value.astype(np.float32)
-        my_data.emisFreq = sstate.wavelength.astype(np.float32)
+        my_data.emisFreq = sstate.spectral_domain_wavelength.astype(np.float32)
 
         sstate = self.state_info.state_element("cloudEffExt")
         my_data.cloud = sstate.value.astype(np.float32)[0, :]
-        my_data.cloudFreq = sstate.wavelength.astype(np.float32)
+        my_data.cloudFreq = sstate.spectral_domain_wavelength.astype(np.float32)
 
         my_data.quality = np.int16(self.results.masterQuality)
         my_data.radianceResidualMean = np.float32(self.results.radianceResidualMean[0])
         my_data.radianceResidualRMS = np.float32(self.results.radianceResidualRMS[0])
-        my_data.cloudTopPressure = np.float32(
-            self.state_info.state_element("PCLOUD").value[0]
-        )
+        my_data.cloudTopPressure = np.float32(self.state_value("PCLOUD"))
         my_data.cloudOpticalDepth = np.float32(self.results.cloudODAve)
-        my_data.surfaceTemperature = np.float32(
-            self.state_info.state_element("TSUR").value[0]
-        )
+        my_data.surfaceTemperature = np.float32(self.state_value("TSUR"))
         # Write out, use units as dummy: "()"
         my_data = my_data.__dict__
         mpy.cdf_write(

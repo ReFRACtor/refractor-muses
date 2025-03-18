@@ -1,7 +1,7 @@
 from __future__ import annotations
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
-from .identifier import RetrievalType, ProcessLocation
+from .identifier import RetrievalType, ProcessLocation, StateElementIdentifier
 from pathlib import Path
 import os
 import copy
@@ -97,6 +97,18 @@ class RetrievalOutput:
     @property
     def state_info(self):
         return self.retrieval_strategy.state_info
+
+    def state_value(self, state_name: str) -> np.ndarray:
+        """Get the state value for the given state name"""
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+            0
+        ]
+
+    def state_apriori(self, state_name: str) -> np.ndarray:
+        """Get the state value for the given state name"""
+        return self.current_state.full_state_apriori_value(
+            StateElementIdentifier(state_name)
+        )[0]
 
     @property
     def current_state(self):

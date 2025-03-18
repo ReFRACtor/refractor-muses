@@ -131,13 +131,9 @@ class RetrievalJacobianOutput(RetrievalOutput):
         my_data.quality = np.int16(self.results.masterQuality)
         my_data.radianceResidualMean = np.float32(self.results.radianceResidualMean[0])
         my_data.radianceResidualRMS = np.float32(self.results.radianceResidualRMS[0])
-        my_data.cloudTopPressure = np.float32(
-            self.state_info.state_element("PCLOUD").value[0]
-        )
+        my_data.cloudTopPressure = np.float32(self.state_value("PCLOUD"))
         my_data.cloudOpticalDepth = np.float32(self.results.cloudODAve)
-        my_data.surfaceTemperature = np.float32(
-            self.state_info.state_element("TSUR").value[0]
-        )
+        my_data.surfaceTemperature = np.float32(self.state_value("TSUR"))
 
         # Write out, use units as dummy: "()"
         my_data = my_data.__dict__

@@ -11,6 +11,7 @@ if typing.TYPE_CHECKING:
     from .state_info import StateInfo, PropagatedQA
     from .muses_observation import MusesObservation
     from .retrieval_info import RetrievalInfo
+    from .current_state import CurrentState
 
 
 class RetrievalResult:
@@ -45,7 +46,7 @@ class RetrievalResult:
         self,
         ret_res: dict,
         retrieval_info: RetrievalInfo,
-        state_info: StateInfo,
+        current_state: CurrentState,
         obs_list: list[MusesObservation],
         radiance_full: dict,
         propagated_qa: PropagatedQA,
@@ -59,8 +60,8 @@ class RetrievalResult:
         self.obs_list = obs_list
         self.instruments = [obs.instrument_name for obs in self.obs_list]
         self.retrieval_info = retrieval_info
-        self.state_info = state_info
-        self.sounding_metadata = state_info.sounding_metadata()
+        self.current_state = current_state
+        self.sounding_metadata = current_state.sounding_metadata
         self.ret_res = mpy.ObjectView(ret_res)
         self.jacobianSys = jacobian_sys
         self.num_iterations = 0
@@ -506,18 +507,12 @@ class RetrievalResult:
         o_results.NESR = self.rstep.NESR
 
         ind = np.argmin(
-            np.abs(self.state_info.state_info_obj.emisPars["frequency"] - 1025)
+            np.abs(self.current_state.full_state_spectral_domain_wavelength("emissivity") - 1025)
         )
-        o_results.Desert_Emiss_QA = self.state_info.state_info_obj.current[
-            "emissivity"
-        ][ind]
+        o_results.Desert_Emiss_QA = self.current_state.full_state_value("emissivity")[ind]
 
-        o_results.omi_cloudfraction = self.state_info.state_info_obj.current["omi"][
-            "cloud_fraction"
-        ]
-        o_results.tropomi_cloudfraction = self.state_info.state_info_obj.current[
-            "tropomi"
-        ]["cloud_fraction"]
+        o_results.omi_cloudfraction = self.current_state.full_state_value("OMICLOUDFRACTION")[0]
+        o_results.tropomi_cloudfraction = self.current_state.full_state_value("TROPOMICLOUDFRACTION")[0]
 
         return o_results
 

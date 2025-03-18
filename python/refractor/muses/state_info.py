@@ -77,10 +77,17 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def __init__(self, state_info: StateInfo, name: StateElementIdentifier):
         self._name = name
         self.state_info = state_info
+        self.mapType = "linear"
 
     @property
     def name(self) -> StateElementIdentifier:
         return self._name
+
+    @property
+    def map_type(self) -> str:
+        '''Mapping type. This can hopefully go away and we just use rf.StateMapping, but
+        this is needed for now.'''
+        return self.mapType
 
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
@@ -152,6 +159,21 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return res
 
     @property
+    def spectral_domain(self) -> rf.SpectralDomain | None:
+        '''For StateElementWithFrequency, this returns the frequency associated
+        with it. For all other StateElement, just return None.'''
+        return None
+    
+    @property
+    def spectral_domain_wavelength(self) -> np.ndarray | None:
+        """Short cut to return the spectral domain in units of nm."""
+        sd = self.spectral_domain
+        if sd is None:
+            return None
+        return sd.convert_wave(rf.Unit("nm"))
+
+
+    @property
     @abc.abstractmethod
     def value(self) -> np.ndarray:
         raise NotImplementedError
@@ -160,7 +182,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def apriori_value(self) -> np.ndarray:
         raise NotImplementedError
-    
+
 
 class RetrievableStateElement(StateElement):
     """This has additional functionality to have a StateElement be retrievable,

@@ -447,7 +447,7 @@ class MusesObservationImp(MusesObservation):
                 for i in range(self.num_channels)
             ]
         )
-    
+
     @property
     def observation_zenith(self) -> np.ndarray:
         return np.array(

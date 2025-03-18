@@ -491,6 +491,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         # self._state_info = jsonpickle.decode(
         #    gzip.open(state_info_pickle_file, "rb").read())
         self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
+        self._state_info.state_element_handle_set = self._state_element_handle_set
         self._state_info.retrieval_config.base_dir = self.run_dir
         self._state_info.retrieval_config.osp_dir = (
             Path(self.osp_dir) if self.osp_dir is not None else None

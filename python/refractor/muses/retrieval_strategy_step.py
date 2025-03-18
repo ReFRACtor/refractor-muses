@@ -241,7 +241,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.results = RetrievalResult(
             ret_res,
             rs.retrieval_info,
-            cstate.state_info,
+            cstate,
             self.cfunc.obs_list,
             self.radiance_full(rs),
             cstate.propagated_qa,

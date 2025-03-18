@@ -65,7 +65,7 @@ class MusesPyStateElement(RetrievableStateElement):
         # we don't actually have code for a value for this. But until we have
         # the full set of species in place, it is useful for us to just ignore that.
         raise NotImplementedError
-    
+
     def sa_covariance(self):
         """Return sa covariance matrix, and also pressure. This is what
         ErrorAnalysis needs."""
@@ -2413,7 +2413,7 @@ class MusesPyOmiStateElement(MusesPyStateElement):
     @apriori_value.setter
     def apriori_value(self, v):
         self.state_info.state_info_dict["constraint"]["omi"][self.omi_key] = v[0]
-        
+
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,
@@ -2535,8 +2535,10 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
 
     @apriori_value.setter
     def apriori_value(self, v):
-        self.state_info.state_info_dict["constraint"]["tropomi"][self.tropomi_key] = v[0]
-        
+        self.state_info.state_info_dict["constraint"]["tropomi"][self.tropomi_key] = v[
+            0
+        ]
+
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,
@@ -2636,6 +2638,10 @@ class StateElementOnLevels(MusesPyStateElement):
     def value(self):
         return self.state_info.state_info_dict[self.step]["values"][self._ind, :]
 
+    @property
+    def apriori_value(self):
+        return self.state_info.state_info_dict["constraint"]["values"][self._ind, :]
+    
 
 class StateElementOnLevelsHandle(StateElementHandle):
     def state_element_object(
@@ -2670,6 +2676,49 @@ class StateElementInDict(MusesPyStateElement):
             )
         return v
 
+    @property
+    def apriori_value(self):
+        v = self.state_info.state_info_dict["constraint"][str(self.name)]
+        # So we don't need special cases, always have a numpy array. A
+        # single value is an array with one value.
+        if isinstance(v, numbers.Number):
+            return np.array(
+                [
+                    v,
+                ]
+            )
+        return v
+
+class StateElementInTopDict(MusesPyStateElement):
+    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
+        super().__init__(state_info, name, step)
+
+    @property
+    def value(self):
+        v = self.state_info.state_info_dict[str(self.name)]
+        # So we don't need special cases, always have a numpy array. A
+        # single value is an array with one value.
+        if isinstance(v, numbers.Number):
+            return np.array(
+                [
+                    v,
+                ]
+            )
+        return v
+
+    @property
+    def apriori_value(self):
+        v = self.state_info.state_info_dict[str(self.name)]
+        # So we don't need special cases, always have a numpy array. A
+        # single value is an array with one value.
+        if isinstance(v, numbers.Number):
+            return np.array(
+                [
+                    v,
+                ]
+            )
+        return v
+    
 
 class StateElementInDictHandle(StateElementHandle):
     def state_element_object(
@@ -2686,6 +2735,21 @@ class StateElementInDictHandle(StateElementHandle):
             ),
         )
 
+class StateElementInTopDictHandle(StateElementHandle):
+    def state_element_object(
+        self, state_info: StateInfo, name: StateElementIdentifier
+    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        if str(name) not in state_info.state_info_dict:
+            return (False, None)
+        return (
+            True,
+            (
+                StateElementInTopDict(state_info, name, "initialInitial"),
+                StateElementInTopDict(state_info, name, "initial"),
+                StateElementInTopDict(state_info, name, "current"),
+            ),
+        )
+    
 
 class StateElementWithFrequency(MusesPyStateElement):
     """Some of the species also have frequencies associated with them.
@@ -2699,21 +2763,33 @@ class StateElementWithFrequency(MusesPyStateElement):
         super().__init__(state_info, name, step)
 
     @property
-    def spectral_range(self):
+    def spectral_domain(self) -> rf.SpectralDomain:
         raise NotImplementedError
 
+
+class PtgAngState(MusesPyStateElement):
+    def __init__(self, state_info, step):
+        super().__init__(state_info, StateElementIdentifier("PTGANG"), step)
+
     @property
-    def wavelength(self):
-        """Short cut to return the spectral range in units of nm."""
-        return self.spectral_range.convert_wave(rf.Unit("nm"))
+    def value(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        return np.array([self.state_info.state_info_dict[self.step]["tes"]["boresightNadirRadians"],])
 
-
+    @property
+    def apriori_value(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        return np.array([self.state_info.state_info_dict['constraint']["tes"]["boresightNadirRadians"],])
+    
+        
 class EmissivityState(StateElementWithFrequency):
     def __init__(self, state_info, step):
         super().__init__(state_info, StateElementIdentifier("emissivity"), step)
 
     @property
-    def spectral_range(self):
+    def spectral_domain(self):
         # Probably to support old IDL, the arrays are larger than the actual data.
         # We need to subset to get the actual data.
         r = range(0, self.state_info.state_info_dict["emisPars"]["num_frequencies"])
@@ -2728,6 +2804,13 @@ class EmissivityState(StateElementWithFrequency):
         r = range(0, self.state_info.state_info_dict["emisPars"]["num_frequencies"])
         return self.state_info.state_info_dict[self.step]["emissivity"][r]
 
+    @property
+    def apriori_value(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        r = range(0, self.state_info.state_info_dict["emisPars"]["num_frequencies"])
+        return self.state_info.state_info_dict['constraint']["emissivity"][r]
+    
     @property
     def camel_distance(self):
         # Not sure what this is, but seems worth keeping
@@ -2745,7 +2828,7 @@ class CloudState(StateElementWithFrequency):
         self.step = step
 
     @property
-    def spectral_range(self):
+    def spectral_domain(self):
         # Probably to support old IDL, the arrays are larger than the actual data.
         # We need to subset to get the actual data.
         r = range(0, self.state_info.state_info_dict["cloudPars"]["num_frequencies"])
@@ -2760,6 +2843,27 @@ class CloudState(StateElementWithFrequency):
         r = range(0, self.state_info.state_info_dict["cloudPars"]["num_frequencies"])
         return self.state_info.state_info_dict[self.step]["cloudEffExt"][:, r]
 
+class CalibrationState(StateElementWithFrequency):
+    def __init__(self, state_info, step):
+        super().__init__(state_info, StateElementIdentifier("calibrationScale"), step)
+        self.step = step
+
+    @property
+    def spectral_domain(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        r = range(0, self.state_info.state_info_dict["calibrationPars"]["num_frequencies"])
+        return rf.SpectralDomain(
+            self.state_info.state_info_dict["calibrationPars"]["frequency"][r], rf.Unit("nm")
+        )
+
+    @property
+    def value(self):
+        # Probably to support old IDL, the arrays are larger than the actual data.
+        # We need to subset to get the actual data.
+        r = range(0, self.state_info.state_info_dict["calibrationPars"]["num_frequencies"])
+        return self.state_info.state_info_dict[self.step]["calibrationScale"][r]
+    
 
 class SingleSpeciesHandle(StateElementHandle):
     def __init__(
@@ -2809,7 +2913,16 @@ StateElementHandleSet.add_default_handle(
     SingleSpeciesHandle(StateElementIdentifier("cloudEffExt"), CloudState),
     priority_order=1,
 )
+StateElementHandleSet.add_default_handle(
+    SingleSpeciesHandle(StateElementIdentifier("calibrationScale"), CalibrationState),
+    priority_order=1,
+)
+StateElementHandleSet.add_default_handle(
+    SingleSpeciesHandle(StateElementIdentifier("PTGANG"), PtgAngState),
+    priority_order=1,
+)
 StateElementHandleSet.add_default_handle(StateElementInDictHandle())
+StateElementHandleSet.add_default_handle(StateElementInTopDictHandle())
 StateElementHandleSet.add_default_handle(StateElementOnLevelsHandle())
 StateElementHandleSet.add_default_handle(
     MusesPyOmiStateElementHandle(), priority_order=-1

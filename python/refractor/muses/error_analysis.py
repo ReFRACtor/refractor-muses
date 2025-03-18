@@ -1,5 +1,7 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
+from .fake_state_info import FakeStateInfo
+from .state_info import RetrievableStateElement
 import copy
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
@@ -7,6 +9,8 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .state_info import StateInfo
+    from .current_state import CurrentState
+    from .muses_strategy import CurrentStrategyStep
     from .retrieval_result import RetrievalResult
     from .retrieval_info import RetrievalInfo
     from .identifier import StateElementIdentifier
@@ -21,11 +25,12 @@ class ErrorAnalysis:
 
     def __init__(
         self,
-        state_info: StateInfo,
+        current_state: CurrentState,
+        current_strategy_step: CurrentStrategyStep,
         covariance_state_element_name: list[StateElementIdentifier],
     ):
         self.error_initial = self.initialize_error_initial(
-            state_info, covariance_state_element_name
+            current_state, current_strategy_step, covariance_state_element_name
         )
         self.error_current: dict | mpy.ObjectView = copy.deepcopy(self.error_initial)
         # Code seems to assume these are object view.
@@ -34,7 +39,8 @@ class ErrorAnalysis:
 
     def initialize_error_initial(
         self,
-        state_info: StateInfo,
+        current_state: CurrentState,
+        current_strategy_step: CurrentStrategyStep,
         covariance_state_element_name: list[StateElementIdentifier],
     ) -> dict | mpy.ObjectView:
         """covariance_state_element_name should be the list of state
@@ -45,9 +51,18 @@ class ErrorAnalysis:
         """
         selem_list = []
         for sname in covariance_state_element_name:
-            selem = state_info.state_element(sname)
-            # selem.update_initial_guess(current_strategy_step)
-            selem_list.append(selem)
+            selem = current_state.full_state_element(sname)
+            # Note clear why, but we get slightly different results if we
+            # update the original state_info. May want to track this down,
+            # but as a work around we just copy this. This is just needed
+            # to get the mapping type, I don't think anything else is
+            # needed. We should be able to pull that out from the full
+            # initial guess update at some point, so we don't need to do
+            # the full initial guess
+            if isinstance(selem, RetrievableStateElement):
+                selem = copy.deepcopy(selem)
+                selem.update_initial_guess(current_strategy_step)
+                selem_list.append(selem)
 
         # Note the odd seeming "capitalize" here. This is because
         # get_prior_error uses the map type to look up files, and
@@ -65,7 +80,7 @@ class ErrorAnalysis:
             pressure_list.extend(pressureSa)
             species_list.extend([selem.name] * matrix.shape[0])
             matrix_list.append(matrix)
-            map_list.extend([selem.mapType] * matrix.shape[0])
+            map_list.extend([selem.map_type] * matrix.shape[0])
 
         initial = block_diag(*matrix_list)
         # Off diagonal blocks for covariance.
@@ -89,16 +104,17 @@ class ErrorAnalysis:
         # Both these functions update retrieval_result in place, and
         # also returned. We don't need the return value, it is just the
         # same as retrieval_result
+        fstate_info = FakeStateInfo(retrieval_result.current_state, retrieval_result.retrieval_info.species_names)
         _ = self.error_analysis(
             retrieval_result.rstep.__dict__,
+            fstate_info,
             retrieval_result.retrieval_info,
-            retrieval_result.state_info,
             retrieval_result,
         )
         _ = mpy.write_retrieval_summary(
             None,
             retrieval_result.retrieval_info.retrieval_info_obj,
-            retrieval_result.state_info.state_info_obj,
+            fstate_info,
             None,
             retrieval_result,
             {},
@@ -113,8 +129,8 @@ class ErrorAnalysis:
     def error_analysis(
         self,
         radiance_step: dict,
+        fstate_info : FakeStateInfo,
         retrieval_info: RetrievalInfo,
-        state_info: StateInfo,
         retrieval_result: RetrievalResult,
     ):
         """Update results and error_current"""
@@ -127,7 +143,7 @@ class ErrorAnalysis:
             radiance_step,
             radiance_noise,
             retrieval_info.retrieval_info_obj,
-            state_info.state_info_obj,
+            fstate_info,
             self.error_initial,
             self.error_current,
             None,

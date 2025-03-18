@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .tes_file import TesFile
+from .fake_state_info import FakeStateInfo
 import refractor.muses.muses_py as mpy  # type: ignore
 from loguru import logger
 import abc
@@ -170,11 +171,12 @@ class MusesPyQaDataHandle(QaDataHandle):
             "StepAnalysis",
             "QualityFlags.asc",
         )
+        fstate_info = FakeStateInfo(retrieval_result.current_state)
         master = mpy.write_quality_flags(
             qa_outname,
             quality_fname,
             retrieval_result,
-            retrieval_result.state_info.state_info_obj,
+            fstate_info,
             writeOutput=False,
         )
         retrieval_result.masterQuality = 1 if master == "GOOD" else 0
