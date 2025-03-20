@@ -165,37 +165,26 @@ class FakeStateInfo:
         self._current["omi"] = self.default_omi()
         self._current["tropomi"] = self.default_tropomi()
         self._current["nir"] = self.default_nir()
-        self._current["tes"] = {}
+        self._current["tes"] = self.default_tes()
         # If we have an observation, fill in information into the default dict
         obs_dict = {}
         if obs_list is not None:
             for obs in obs_list:
                 obs_dict[obs.instrument_name] = obs
-        # print(state_info.state_info_dict["current"]["cris"])
+        # print(current_state._state_info.state_info_dict["current"]["tes"])
         if InstrumentIdentifier("OMI") in obs_dict:
             self.fill_omi(current_state, obs_dict[InstrumentIdentifier("OMI")])
-        else:
-            # Need cloud fraction even if other part isn't filled in
-            self._current["omi"]["cloud_fraction"] = self.state_value(
-                "OMICLOUDFRACTION"
-            )
         if InstrumentIdentifier("TROPOMI") in obs_dict:
             self.fill_tropomi(current_state, obs_dict[InstrumentIdentifier("TROPOMI")])
-        else:
-            # Need cloud fraction even if other part isn't filled in
-            self._current["tropomi"]["cloud_fraction"] = self.state_value(
-                "TROPOMICLOUDFRACTION"
-            )
         if InstrumentIdentifier("AIRS") in obs_dict:
             self.fill_airs(current_state, obs_dict[InstrumentIdentifier("AIRS")])
         if InstrumentIdentifier("CRIS") in obs_dict:
             self.fill_cris(current_state, obs_dict[InstrumentIdentifier("CRIS")])
-        self._current["tes"]["boresightNadirRadians"] = current_state.full_state_value(
-            StateElementIdentifier("PTGANG")
-        )[0]
-        # print(self._current['cris'])
-        # print(state_info.state_info_dict["current"]["cris"].keys())
-        # print(self._current['cris'].keys())
+        if InstrumentIdentifier("TES") in obs_dict:
+            self.fill_tes(current_state, obs_dict[InstrumentIdentifier("TES")])
+        # print(self._current['tes'])
+        # print(current_state._state_info.state_info_dict["current"]["tes"].keys())
+        # print(self._current['tes'].keys())
         # breakpoint()
 
         # Fields we needed from different functions we call:
@@ -253,6 +242,11 @@ class FakeStateInfo:
         # stateOne.omi
         # stateOne.tropomi
         # stateOne.nir
+        # make_uip_tes
+        # ['tes']['boresightNadirRadians']
+        # ['tes']['instrumentAzimuth']
+        # ['tes']['instrumentAltitude']
+        # ['tes']['orbitInclinationAngle']
 
     @property
     def current(self):
@@ -333,6 +327,8 @@ class FakeStateInfo:
             "sca_uv2": 0.0 - 999,
             "SPACECRAFTALTITUDE": 0.0 - 999,
         }
+        # Need cloud fraction even if other part isn't filled in
+        omi["cloud_fraction"] = self.state_value("OMICLOUDFRACTION")
         return omi
 
     def default_tropomi(self):
@@ -400,6 +396,8 @@ class FakeStateInfo:
             "sca_BAND7": 0.0 - 999,
             "SPACECRAFTALTITUDE": 0.0 - 999,
         }
+        # Need cloud fraction even if other part isn't filled in
+        tropomi["cloud_fraction"] = self.state_value("TROPOMICLOUDFRACTION")
         return tropomi
 
     def default_airs(self):
@@ -430,18 +428,9 @@ class FakeStateInfo:
         return cris
 
     def default_tes(self):
-        tes = {
-            "boresightNadirRadians": 0.0,
-            "orbitInclinationAngle": 0.0,
-            "viewMode": "Nadir",
-            "instrumentAzimuth": 0.0,
-            "instrumentAltitude": 0.0,
-            "instrumentLatitude": 0.0,
-            "geoPointing": 0.0,
-            "targetRadius": 0.0,
-            "instrumentRadius": 0.0,
-            "orbitAscending": 0,
-        }
+        tes = {}
+        # Need pointing angle even if other part not filled in.
+        tes["boresightNadirRadians"] = self.state_value("PTGANG")
         return tes
 
     def default_nir(self):
@@ -642,6 +631,34 @@ class FakeStateInfo:
             else:
                 d[k] = d2[k.upper()]
         self._current["cris"] = d
+
+    def fill_tes(self, current_state, obs):
+        d = {}
+        d2 = obs.muses_py_dict
+        for k in (
+            "boresightNadirRadians",
+            "orbitInclinationAngle",
+            "viewMode",
+            "instrumentAzimuth",
+            "instrumentAltitude",
+            "instrumentLatitude",
+            "geoPointing",
+            "targetRadius",
+            "instrumentRadius",
+            "orbitAscending",
+        ):
+            # Special case for IRK, where we only have a fake tes observation. We just
+            # use various fill values for stuff not actually in d2.
+            if k not in d2:
+                if k == "viewMode":
+                    d[k] = "Nadir"
+                elif k == "orbitAscending":
+                    d[k] = 0
+                else:
+                    d[k] = 0.0
+            else:
+                d[k] = d2[k]
+        self._current["tes"] = d
 
 
 __all__ = [
