@@ -431,6 +431,10 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
+    def spacecraft_altitude(self) -> float:
+        return np.mean(np.asarray(self.observation_table["SpacecraftAltitude"]))
+
+    @property
     def solar_zenith(self) -> np.ndarray:
         return np.array(
             [
@@ -893,7 +897,7 @@ class MusesAirsObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: MusesAirsObservation,
+        existing_obs: MusesAirsObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
@@ -1233,7 +1237,7 @@ class MusesTesObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: MusesTesObservation,
+        existing_obs: MusesTesObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
@@ -1277,6 +1281,10 @@ class MusesTesObservation(MusesObservationImp):
             if func == "NORTON_BEER":
                 strength = mid["NortonBeerApodizationStrength"]
                 sdef = TesFile(mid["defaultSpectralWindowsDefinitionFilename"])
+                if sdef.table is None:
+                    raise RuntimeError(
+                        "Trouble reading defaultSpectralWindowsDefinitionFilename"
+                    )
                 maxopd = np.array(sdef.table["MAXOPD"])
                 flt = np.array(sdef.table["FILTER"])
                 spacing = np.array(sdef.table["RET_FRQ_SPC"])
@@ -1477,7 +1485,7 @@ class MusesCrisObservation(MusesObservationImp):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: MusesCrisObservation,
+        existing_obs: MusesCrisObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
@@ -2032,7 +2040,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: MusesTropomiObservation,
+        existing_obs: MusesTropomiObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
@@ -2282,7 +2290,7 @@ class MusesOmiObservation(MusesObservationReflectance):
     def create_from_id(
         cls,
         mid: MeasurementId,
-        existing_obs: MusesOmiObservation,
+        existing_obs: MusesOmiObservation | None,
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,

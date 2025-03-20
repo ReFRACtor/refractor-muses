@@ -1,4 +1,18 @@
-from refractor.muses import RefractorUip
+from refractor.muses import (
+    RefractorUip,
+    CurrentStateStateInfo,
+    FakeStateInfo,
+    StateInfo,
+    MusesOmiObservation,
+    MeasurementIdFile,
+    RetrievalConfiguration,
+    InstrumentIdentifier,
+    FilterIdentifier,
+    MusesTropomiObservation,
+    MusesAirsObservation,
+    MusesCrisObservation,
+)
+import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
 import pytest
@@ -59,7 +73,7 @@ def test_species_basis(tropomi_uip_step_2):
 
 @pytest.mark.old_py_retrieve_test
 def test_refractor_joint_tropomi_create_uip(
-    joint_tropomi_muses_retrieval_step_12, joint_tropomi_uip_step_12
+    joint_tropomi_muses_retrieval_step_12, joint_tropomi_uip_step_12, osp_dir
 ):
     rstep = joint_tropomi_muses_retrieval_step_12
     i_stateInfo = rstep.params["i_stateInfo"]
@@ -72,8 +86,32 @@ def test_refractor_joint_tropomi_create_uip(
     i_omi = rstep.params["i_omi"]
     i_tropomi = rstep.params["i_tropomi"]
     i_oco2 = rstep.params["i_oco2"]
+    # Test working with FakeStateInfo, since that is what we do now in
+    # actual retrieval
+    sinfo = StateInfo()
+    sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        "Table.asc", osp_dir=osp_dir
+    )
+    filter_list_dict = {
+        InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")],
+        InstrumentIdentifier("CRIS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
+    obs_list = [
+        MusesCrisObservation.create_from_id(mid, None, None, None, None),
+        MusesTropomiObservation.create_from_id(mid, None, None, None, None),
+    ]
+    cstate = CurrentStateStateInfo(sinfo, None, "stepdir")
+    fstate_info = FakeStateInfo(cstate, obs_list=obs_list, state_info=sinfo)
     rf_uip = RefractorUip.create_uip(
-        i_stateInfo,
+        # i_stateInfo,
+        fstate_info,
         i_table,
         i_windows,
         i_retrievalInfo,
@@ -101,8 +139,7 @@ def test_refractor_joint_tropomi_create_uip(
 
 @pytest.mark.old_py_retrieve_test
 def test_refractor_tropomi_create_uip(
-    tropomi_muses_retrieval_step_2,
-    tropomi_uip_step_2,
+    tropomi_muses_retrieval_step_2, tropomi_uip_step_2, osp_dir
 ):
     rstep = tropomi_muses_retrieval_step_2
     i_stateInfo = rstep.params["i_stateInfo"]
@@ -115,8 +152,31 @@ def test_refractor_tropomi_create_uip(
     i_omi = rstep.params["i_omi"]
     i_tropomi = rstep.params["i_tropomi"]
     i_oco2 = rstep.params["i_oco2"]
+    # Test working with FakeStateInfo, since that is what we do now in
+    # actual retrieval
+    sinfo = StateInfo()
+    sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        "Table.asc", osp_dir=osp_dir
+    )
+    filter_list_dict = {
+        InstrumentIdentifier("TROPOMI"): [FilterIdentifier("BAND3")],
+        InstrumentIdentifier("CRIS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
+    obs_list = [
+        MusesTropomiObservation.create_from_id(mid, None, None, None, None),
+    ]
+    cstate = CurrentStateStateInfo(sinfo, None, "stepdir")
+    fstate_info = FakeStateInfo(cstate, obs_list=obs_list, state_info=sinfo)
     rf_uip = RefractorUip.create_uip(
-        i_stateInfo,
+        # i_stateInfo,
+        fstate_info,
         i_table,
         i_windows,
         i_retrievalInfo,
@@ -142,7 +202,7 @@ def test_refractor_tropomi_create_uip(
 
 @pytest.mark.old_py_retrieve_test
 def test_refractor_joint_omi_create_uip(
-    joint_omi_muses_retrieval_step_8, joint_omi_uip_step_8
+    joint_omi_muses_retrieval_step_8, joint_omi_uip_step_8, osp_dir
 ):
     rstep = joint_omi_muses_retrieval_step_8
     i_stateInfo = rstep.params["i_stateInfo"]
@@ -155,8 +215,32 @@ def test_refractor_joint_omi_create_uip(
     i_omi = rstep.params["i_omi"]
     i_tropomi = rstep.params["i_tropomi"]
     i_oco2 = rstep.params["i_oco2"]
+    # Test working with FakeStateInfo, since that is what we do now in
+    # actual retrieval
+    sinfo = StateInfo()
+    sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        "Table.asc", osp_dir=osp_dir
+    )
+    filter_list_dict = {
+        InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
+        InstrumentIdentifier("AIRS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
+    obs_list = [
+        MusesAirsObservation.create_from_id(mid, None, None, None, None),
+        MusesOmiObservation.create_from_id(mid, None, None, None, None),
+    ]
+    cstate = CurrentStateStateInfo(sinfo, None, "stepdir")
+    fstate_info = FakeStateInfo(cstate, obs_list=obs_list, state_info=sinfo)
     rf_uip = RefractorUip.create_uip(
-        i_stateInfo,
+        # i_stateInfo,
+        fstate_info,
         i_table,
         i_windows,
         i_retrievalInfo,
@@ -183,7 +267,7 @@ def test_refractor_joint_omi_create_uip(
 
 
 @pytest.mark.old_py_retrieve_test
-def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2):
+def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2, osp_dir):
     rstep = omi_muses_retrieval_step_2
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
@@ -195,8 +279,31 @@ def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2):
     i_omi = rstep.params["i_omi"]
     i_tropomi = rstep.params["i_tropomi"]
     i_oco2 = rstep.params["i_oco2"]
+    # Test working with FakeStateInfo, since that is what we do now in
+    # actual retrieval
+    sinfo = StateInfo()
+    sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        "Table.asc", osp_dir=osp_dir
+    )
+    filter_list_dict = {
+        InstrumentIdentifier("OMI"): [FilterIdentifier("UV1"), FilterIdentifier("UV2")],
+        InstrumentIdentifier("AIRS"): [
+            FilterIdentifier("2B1"),
+            FilterIdentifier("1B2"),
+            FilterIdentifier("2A1"),
+            FilterIdentifier("1A1"),
+        ],
+    }
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, filter_list_dict)
+    obs_list = [
+        MusesOmiObservation.create_from_id(mid, None, None, None, None),
+    ]
+    cstate = CurrentStateStateInfo(sinfo, None, "stepdir")
+    fstate_info = FakeStateInfo(cstate, obs_list=obs_list, state_info=sinfo)
     rf_uip = RefractorUip.create_uip(
-        i_stateInfo,
+        # i_stateInfo,
+        fstate_info,
         i_table,
         i_windows,
         i_retrievalInfo,

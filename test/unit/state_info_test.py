@@ -39,9 +39,9 @@ def test_state_info(
     assert sinfo.state_element(StateElementIdentifier("emissivity")).value[
         0
     ] == pytest.approx(0.98081997)
-    assert sinfo.state_element(StateElementIdentifier("emissivity")).spectral_domain_wavelength[
-        0
-    ] == pytest.approx(600)
+    assert sinfo.state_element(
+        StateElementIdentifier("emissivity")
+    ).spectral_domain_wavelength[0] == pytest.approx(600)
     assert sinfo.sounding_metadata().latitude.value == pytest.approx(62.8646)
     assert sinfo.sounding_metadata().longitude.value == pytest.approx(81.0379)
     assert sinfo.sounding_metadata().surface_altitude.convert(
@@ -53,9 +53,9 @@ def test_state_info(
     assert sinfo.state_element(StateElementIdentifier("cloudEffExt")).value[
         0, 0
     ] == pytest.approx(1e-29)
-    assert sinfo.state_element(StateElementIdentifier("cloudEffExt")).spectral_domain_wavelength[
-        0
-    ] == pytest.approx(600)
+    assert sinfo.state_element(
+        StateElementIdentifier("cloudEffExt")
+    ).spectral_domain_wavelength[0] == pytest.approx(600)
     assert sinfo.state_element(StateElementIdentifier("PCLOUD")).value[
         0
     ] == pytest.approx(500.0)

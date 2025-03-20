@@ -1,6 +1,7 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
+from .identifier import StateElementIdentifier
 import numpy as np
 from loguru import logger
 from typing import Any
@@ -8,7 +9,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
-    from .state_info import StateInfo, PropagatedQA
+    from .state_info import PropagatedQA
     from .muses_observation import MusesObservation
     from .retrieval_info import RetrievalInfo
     from .current_state import CurrentState
@@ -506,13 +507,22 @@ class RetrievalResult:
 
         o_results.NESR = self.rstep.NESR
 
-        ind = np.argmin(
-            np.abs(self.current_state.full_state_spectral_domain_wavelength("emissivity") - 1025)
+        wlen = self.current_state.full_state_spectral_domain_wavelength(
+            StateElementIdentifier("emissivity")
         )
-        o_results.Desert_Emiss_QA = self.current_state.full_state_value("emissivity")[ind]
+        if wlen is None:
+            raise RuntimeError("Expected to find emissivity frequencies")
+        ind = np.argmin(np.abs(wlen - 1025))
+        o_results.Desert_Emiss_QA = self.current_state.full_state_value(
+            StateElementIdentifier("emissivity")
+        )[ind]
 
-        o_results.omi_cloudfraction = self.current_state.full_state_value("OMICLOUDFRACTION")[0]
-        o_results.tropomi_cloudfraction = self.current_state.full_state_value("TROPOMICLOUDFRACTION")[0]
+        o_results.omi_cloudfraction = self.current_state.full_state_value(
+            StateElementIdentifier("OMICLOUDFRACTION")
+        )[0]
+        o_results.tropomi_cloudfraction = self.current_state.full_state_value(
+            StateElementIdentifier("TROPOMICLOUDFRACTION")
+        )[0]
 
         return o_results
 

@@ -171,7 +171,9 @@ class MusesPyQaDataHandle(QaDataHandle):
             "StepAnalysis",
             "QualityFlags.asc",
         )
-        fstate_info = FakeStateInfo(retrieval_result.current_state)
+        #fstate_info = FakeStateInfo(retrieval_result.current_state)
+        # Temp
+        fstate_info = retrieval_result.current_state._state_info.state_info_obj
         master = mpy.write_quality_flags(
             qa_outname,
             quality_fname,
