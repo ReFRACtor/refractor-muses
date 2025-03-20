@@ -2641,7 +2641,7 @@ class StateElementOnLevels(MusesPyStateElement):
     @property
     def apriori_value(self):
         return self.state_info.state_info_dict["constraint"]["values"][self._ind, :]
-    
+
 
 class StateElementOnLevelsHandle(StateElementHandle):
     def state_element_object(
@@ -2689,6 +2689,7 @@ class StateElementInDict(MusesPyStateElement):
             )
         return v
 
+
 class StateElementInTopDict(MusesPyStateElement):
     def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
         super().__init__(state_info, name, step)
@@ -2718,7 +2719,7 @@ class StateElementInTopDict(MusesPyStateElement):
                 ]
             )
         return v
-    
+
 
 class StateElementInDictHandle(StateElementHandle):
     def state_element_object(
@@ -2735,6 +2736,7 @@ class StateElementInDictHandle(StateElementHandle):
             ),
         )
 
+
 class StateElementInTopDictHandle(StateElementHandle):
     def state_element_object(
         self, state_info: StateInfo, name: StateElementIdentifier
@@ -2749,7 +2751,7 @@ class StateElementInTopDictHandle(StateElementHandle):
                 StateElementInTopDict(state_info, name, "current"),
             ),
         )
-    
+
 
 class StateElementWithFrequency(MusesPyStateElement):
     """Some of the species also have frequencies associated with them.
@@ -2775,15 +2777,27 @@ class PtgAngState(MusesPyStateElement):
     def value(self):
         # Probably to support old IDL, the arrays are larger than the actual data.
         # We need to subset to get the actual data.
-        return np.array([self.state_info.state_info_dict[self.step]["tes"]["boresightNadirRadians"],])
+        return np.array(
+            [
+                self.state_info.state_info_dict[self.step]["tes"][
+                    "boresightNadirRadians"
+                ],
+            ]
+        )
 
     @property
     def apriori_value(self):
         # Probably to support old IDL, the arrays are larger than the actual data.
         # We need to subset to get the actual data.
-        return np.array([self.state_info.state_info_dict['constraint']["tes"]["boresightNadirRadians"],])
-    
-        
+        return np.array(
+            [
+                self.state_info.state_info_dict["constraint"]["tes"][
+                    "boresightNadirRadians"
+                ],
+            ]
+        )
+
+
 class EmissivityState(StateElementWithFrequency):
     def __init__(self, state_info, step):
         super().__init__(state_info, StateElementIdentifier("emissivity"), step)
@@ -2809,8 +2823,8 @@ class EmissivityState(StateElementWithFrequency):
         # Probably to support old IDL, the arrays are larger than the actual data.
         # We need to subset to get the actual data.
         r = range(0, self.state_info.state_info_dict["emisPars"]["num_frequencies"])
-        return self.state_info.state_info_dict['constraint']["emissivity"][r]
-    
+        return self.state_info.state_info_dict["constraint"]["emissivity"][r]
+
     @property
     def camel_distance(self):
         # Not sure what this is, but seems worth keeping
@@ -2843,6 +2857,7 @@ class CloudState(StateElementWithFrequency):
         r = range(0, self.state_info.state_info_dict["cloudPars"]["num_frequencies"])
         return self.state_info.state_info_dict[self.step]["cloudEffExt"][:, r]
 
+
 class CalibrationState(StateElementWithFrequency):
     def __init__(self, state_info, step):
         super().__init__(state_info, StateElementIdentifier("calibrationScale"), step)
@@ -2852,18 +2867,23 @@ class CalibrationState(StateElementWithFrequency):
     def spectral_domain(self):
         # Probably to support old IDL, the arrays are larger than the actual data.
         # We need to subset to get the actual data.
-        r = range(0, self.state_info.state_info_dict["calibrationPars"]["num_frequencies"])
+        r = range(
+            0, self.state_info.state_info_dict["calibrationPars"]["num_frequencies"]
+        )
         return rf.SpectralDomain(
-            self.state_info.state_info_dict["calibrationPars"]["frequency"][r], rf.Unit("nm")
+            self.state_info.state_info_dict["calibrationPars"]["frequency"][r],
+            rf.Unit("nm"),
         )
 
     @property
     def value(self):
         # Probably to support old IDL, the arrays are larger than the actual data.
         # We need to subset to get the actual data.
-        r = range(0, self.state_info.state_info_dict["calibrationPars"]["num_frequencies"])
+        r = range(
+            0, self.state_info.state_info_dict["calibrationPars"]["num_frequencies"]
+        )
         return self.state_info.state_info_dict[self.step]["calibrationScale"][r]
-    
+
 
 class SingleSpeciesHandle(StateElementHandle):
     def __init__(
