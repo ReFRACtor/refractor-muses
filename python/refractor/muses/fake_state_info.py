@@ -42,12 +42,8 @@ class FakeStateInfo:
             StateElementIdentifier("PCLOUD")
         )
         self._true["PCLOUD"] = np.zeros(self._current["PCLOUD"].shape)
-        self._current["PSUR"] = current_state.full_state_value(
-            StateElementIdentifier("PSUR")
-        )[0]
-        self._current["TSUR"] = current_state.full_state_value(
-            StateElementIdentifier("TSUR")
-        )[0]
+        self._current["PSUR"] = self.state_value("PSUR")
+        self._current["TSUR"] = self.state_value("TSUR")
         self._current["latitude"] = current_state.sounding_metadata.latitude.value
         self._current["tsa"] = {}
         self._current["tsa"]["surfaceAltitudeKm"] = (
@@ -105,30 +101,6 @@ class FakeStateInfo:
         self._constraint["TSUR"] = current_state.full_state_apriori_value(
             StateElementIdentifier("TSUR")
         )[0]
-        self._current["omi"] = {}
-        self._current["tropomi"] = {}
-        if (
-            StateElementIdentifier("OMICLOUDFRACTION")
-            in current_state.full_state_element_id
-        ):
-            self._current["omi"]["cloud_fraction"] = current_state.full_state_value(
-                StateElementIdentifier("OMICLOUDFRACTION")
-            )[0]
-        else:
-            self._current["omi"]["cloud_fraction"] = -999.0
-        if (
-            StateElementIdentifier("TROPOMICLOUDFRACTION")
-            in current_state.full_state_element_id
-        ):
-            self._current["tropomi"]["cloud_fraction"] = current_state.full_state_value(
-                StateElementIdentifier("TROPOMICLOUDFRACTION")
-            )[0]
-        else:
-            self._current["tropomi"]["cloud_fraction"] = -999.0
-        self._current["tes"] = {}
-        self._current["tes"]["boresightNadirRadians"] = current_state.full_state_value(
-            StateElementIdentifier("PTGANG")
-        )[0]
         self._gmao_tropopause_pressure = current_state.full_state_value(
             StateElementIdentifier("gmaoTropopausePressure")
         )[0]
@@ -147,6 +119,9 @@ class FakeStateInfo:
         )
         self._true["cloudEffExt"] = np.zeros(self._current["cloudEffExt"].shape)
         self._emis_pars: dict[str, Any] = {}
+        # I think this is always 'yes', it looks like the logic in muses-py for setting
+        # this to 'no' is never active.
+        self._emis_pars["use"] = "yes"
         self._emis_pars["frequency"] = (
             current_state.full_state_spectral_domain_wavelength(
                 StateElementIdentifier("emissivity")
@@ -161,6 +136,9 @@ class FakeStateInfo:
         )
         self._true["emissivity"] = np.zeros(self._current["emissivity"].shape)
         self._calibration_pars: dict[str, Any] = {}
+        # I think this is always 'no', it looks like the logic in muses-py for setting
+        # this to 'yes' is never active.
+        self._calibration_pars["use"] = "no"
         self._calibration_pars["frequency"] = (
             current_state.full_state_spectral_domain_wavelength(
                 StateElementIdentifier("calibrationScale")
@@ -172,10 +150,48 @@ class FakeStateInfo:
         self._current["calibrationScale"] = current_state.full_state_value(
             StateElementIdentifier("calibrationScale")
         )
+        self._current["calibrationOffset"] = current_state.full_state_value(
+            StateElementIdentifier("calibrationOffset")
+        )
         self._true["calibrationScale"] = np.zeros(
             self._current["calibrationScale"].shape
         )
-
+        self._current["residualScale"] = current_state.full_state_value(
+            StateElementIdentifier("residualScale")
+        )
+        self._current["airs"] = self.default_airs()
+        self._current["cris"] = self.default_cris()
+        self._current["omi"] = self.default_omi()
+        self._current["tropomi"] = self.default_tropomi()
+        self._current["nir"] = self.default_nir()
+        self._current["tes"] = {}
+        # If we have an observation, fill in information into the default dict
+        obs_dict = {}
+        if obs_list is not None:
+            for obs in obs_list:
+                obs_dict[obs.instrument_name] = obs
+        # print(state_info.state_info_dict["current"]["cris"])
+        if InstrumentIdentifier("OMI") in obs_dict:
+            self.fill_omi(current_state, obs_dict[InstrumentIdentifier("OMI")])
+        else:
+            # Need cloud fraction even if other part isn't filled in
+            self._current["omi"]["cloud_fraction"] = self.state_value("OMICLOUDFRACTION")
+        if InstrumentIdentifier("TROPOMI") in obs_dict:
+            self.fill_tropomi(current_state, obs_dict[InstrumentIdentifier("TROPOMI")])
+        else:
+            # Need cloud fraction even if other part isn't filled in
+            self._current["tropomi"]["cloud_fraction"] = self.state_value("TROPOMICLOUDFRACTION")
+        if InstrumentIdentifier("AIRS") in obs_dict:
+            self.fill_airs(current_state, obs_dict[InstrumentIdentifier("AIRS")])
+        if InstrumentIdentifier("CRIS") in obs_dict:
+            self.fill_cris(current_state, obs_dict[InstrumentIdentifier("CRIS")])
+        self._current["tes"]["boresightNadirRadians"] = current_state.full_state_value(
+            StateElementIdentifier("PTGANG")
+        )[0]
+        # print(self._current['cris'])
+        # print(state_info.state_info_dict["current"]["cris"].keys())
+        # print(self._current['cris'].keys())
+        # breakpoint()
         # Write quality flag
         # x - stateInfo.current['PCLOUD'][0]
         # x - stateInfo.current['TSUR']
@@ -466,9 +482,12 @@ class FakeStateInfo:
 
     def state_value(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
-            0
-        ]
+        if StateElementIdentifier(state_name) in self.current_state.full_state_element_id:
+            return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+                0
+            ]
+        else:
+            return -999.0
 
     def fill_omi(self, current_state, obs):
         d = self._current["omi"]
