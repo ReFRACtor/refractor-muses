@@ -6,7 +6,6 @@ from typing import Any
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-    from .state_info import StateInfo
     from .muses_observation import MusesObservation
 
 
@@ -15,21 +14,25 @@ class FakeStateInfo:
     StateInfo object/dict used by muses-py. However there are a
     handful of muses-py functions that we want to call which is
     tightly coupled to that old StateInfo object/dict. The content of
-    this is largely what we have in our CurrentState, however the
-    format is substantially different.  This class produces a "fake"
-    StateInfo object/dict which is a reformat of the CurrentState
-    data.  The purpose of this is just to call the old code, an
-    alternative might be to replace this old code. But for now, we are
-    massaging our data to call the old code.
+    this is a subset of what we have in our CurrentState plus metadata
+    for MusesObservation, however the format is substantially
+    different.  This class produces a "fake" StateInfo object/dict
+    which is a reformat of the CurrentState data.  The purpose of this
+    is just to call the old code, an alternative might be to replace
+    this old code. But for now, we are massaging our data to call the
+    old code.
+
+    Some of the content depends on the MusesObservation metadata. From
+    the places we are calling we don't always have easy access to the
+    MusesObservation, so we skip that portion of the FakeStateInfo. We
+    just "know" that this part isn't needed in the portion that
+    doesn't fill it in.
     """
 
-    # Note state_info is just temporary, so we can more easily figure out how to
-    # duplicate things. This will go away
     def __init__(
         self,
         current_state: CurrentState,
         obs_list: list[MusesObservation] | None = None,
-        state_info: StateInfo | None = None,
     ):
         self._current: dict[str, Any] = {}
         self._initial: dict[str, Any] = {}
@@ -50,9 +53,7 @@ class FakeStateInfo:
             current_state.sounding_metadata.surface_altitude.value
         )
         self._current["heightKm"] = current_state.sounding_metadata.height.value
-        self._current["scalePressure"] = current_state.full_state_value(
-            StateElementIdentifier("scalePressure")
-        )
+        self._current["scalePressure"] = self.state_value("scalePressure")
 
         self._species = [str(i) for i in current_state.full_state_element_on_levels_id]
         self._num_species = len(self._species)
@@ -175,12 +176,16 @@ class FakeStateInfo:
             self.fill_omi(current_state, obs_dict[InstrumentIdentifier("OMI")])
         else:
             # Need cloud fraction even if other part isn't filled in
-            self._current["omi"]["cloud_fraction"] = self.state_value("OMICLOUDFRACTION")
+            self._current["omi"]["cloud_fraction"] = self.state_value(
+                "OMICLOUDFRACTION"
+            )
         if InstrumentIdentifier("TROPOMI") in obs_dict:
             self.fill_tropomi(current_state, obs_dict[InstrumentIdentifier("TROPOMI")])
         else:
             # Need cloud fraction even if other part isn't filled in
-            self._current["tropomi"]["cloud_fraction"] = self.state_value("TROPOMICLOUDFRACTION")
+            self._current["tropomi"]["cloud_fraction"] = self.state_value(
+                "TROPOMICLOUDFRACTION"
+            )
         if InstrumentIdentifier("AIRS") in obs_dict:
             self.fill_airs(current_state, obs_dict[InstrumentIdentifier("AIRS")])
         if InstrumentIdentifier("CRIS") in obs_dict:
@@ -192,6 +197,8 @@ class FakeStateInfo:
         # print(state_info.state_info_dict["current"]["cris"].keys())
         # print(self._current['cris'].keys())
         # breakpoint()
+
+        # Fields we needed from different functions we call:
         # Write quality flag
         # x - stateInfo.current['PCLOUD'][0]
         # x - stateInfo.current['TSUR']
@@ -482,12 +489,9 @@ class FakeStateInfo:
 
     def state_value(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
-        if StateElementIdentifier(state_name) in self.current_state.full_state_element_id:
-            return self.current_state.full_state_value(StateElementIdentifier(state_name))[
-                0
-            ]
-        else:
-            return -999.0
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+            0
+        ]
 
     def fill_omi(self, current_state, obs):
         d = self._current["omi"]

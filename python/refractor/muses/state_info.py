@@ -35,28 +35,28 @@ class PropagatedQA:
 
     """
 
-    def __init__(self):
-        self.propagated_qa = {"TATM": 1, "H2O": 1, "O3": 1}
+    def __init__(self) -> None:
+        self.propagated_qa: dict[str, int] = {"TATM": 1, "H2O": 1, "O3": 1}
 
     @property
-    def tatm_qa(self):
+    def tatm_qa(self) -> int:
         return self.propagated_qa["TATM"]
 
     @property
-    def h2o_qa(self):
+    def h2o_qa(self) -> int:
         return self.propagated_qa["H2O"]
 
     @property
-    def o3_qa(self):
+    def o3_qa(self) -> int:
         return self.propagated_qa["O3"]
 
     def update(
         self, retrieval_state_element: list[StateElementIdentifier], qa_flag: int
-    ):
+    ) -> None:
         """Update the QA flags for items that we retrieved."""
         for state_element_name in retrieval_state_element:
-            if state_element_name in self.propagated_qa:
-                self.propagated_qa[state_element_name] = qa_flag
+            if str(state_element_name) in self.propagated_qa:
+                self.propagated_qa[str(state_element_name)] = qa_flag
 
 
 class StateElement(object, metaclass=abc.ABCMeta):
@@ -85,8 +85,8 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def map_type(self) -> str:
-        '''Mapping type. This can hopefully go away and we just use rf.StateMapping, but
-        this is needed for now.'''
+        """Mapping type. This can hopefully go away and we just use rf.StateMapping, but
+        this is needed for now."""
         return self.mapType
 
     @property
@@ -160,10 +160,10 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
-        '''For StateElementWithFrequency, this returns the frequency associated
-        with it. For all other StateElement, just return None.'''
+        """For StateElementWithFrequency, this returns the frequency associated
+        with it. For all other StateElement, just return None."""
         return None
-    
+
     @property
     def spectral_domain_wavelength(self) -> np.ndarray | None:
         """Short cut to return the spectral domain in units of nm."""
@@ -171,7 +171,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
         if sd is None:
             return None
         return sd.convert_wave(rf.Unit("nm"))
-
 
     @property
     @abc.abstractmethod

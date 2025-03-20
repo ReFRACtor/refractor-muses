@@ -17,6 +17,7 @@ from .refractor_uip import RefractorUip
 from .identifier import StateElementIdentifier, ProcessLocation
 from .muses_strategy import MusesStrategyHandleSet
 from .spectral_window_handle import SpectralWindowHandleSet
+from .fake_state_info import FakeStateInfo
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
@@ -293,6 +294,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             "labels1": "retrievalType",
             "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
         }
+        fake_state_info = FakeStateInfo(self.current_state(), obs_list=obs_list)
+        # Maybe an update happens in the UIP, that doesn't get propogated back to
+        # state_info? See if we can figure out what is changed here
         o_xxx = {
             "AIRS": None,
             "TES": None,
@@ -308,7 +312,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                     o_xxx[str(iname)] = obs.muses_py_dict
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             return RefractorUip.create_uip(
-                self.state_info,
+                fake_state_info,
                 fake_table,
                 mwin,
                 rinfo,
@@ -476,7 +480,9 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
         self.restart()
         self.error_analysis = ErrorAnalysis(
-            self.current_state(), self.current_strategy_step, covariance_state_element_name
+            self.current_state(),
+            self.current_strategy_step,
+            covariance_state_element_name,
         )
 
     def next_step(self) -> None:

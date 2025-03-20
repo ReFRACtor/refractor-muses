@@ -8,7 +8,6 @@ from scipy.linalg import block_diag  # type: ignore
 import typing
 
 if typing.TYPE_CHECKING:
-    from .state_info import StateInfo
     from .current_state import CurrentState
     from .muses_strategy import CurrentStrategyStep
     from .retrieval_result import RetrievalResult
@@ -129,7 +128,7 @@ class ErrorAnalysis:
     def error_analysis(
         self,
         radiance_step: dict,
-        fstate_info : FakeStateInfo,
+        fstate_info: FakeStateInfo,
         retrieval_info: RetrievalInfo,
         retrieval_result: RetrievalResult,
     ):
