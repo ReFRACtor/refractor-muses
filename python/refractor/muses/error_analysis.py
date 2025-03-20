@@ -104,7 +104,7 @@ class ErrorAnalysis:
         # Both these functions update retrieval_result in place, and
         # also returned. We don't need the return value, it is just the
         # same as retrieval_result
-        fstate_info = FakeStateInfo(retrieval_result.current_state, retrieval_result.retrieval_info.species_names)
+        fstate_info = FakeStateInfo(retrieval_result.current_state)
         _ = self.error_analysis(
             retrieval_result.rstep.__dict__,
             fstate_info,
