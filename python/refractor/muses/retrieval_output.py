@@ -1,7 +1,12 @@
 from __future__ import annotations
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
-from .identifier import RetrievalType, ProcessLocation, StateElementIdentifier
+from .identifier import (
+    RetrievalType,
+    ProcessLocation,
+    StateElementIdentifier,
+    InstrumentIdentifier,
+)
 from pathlib import Path
 import os
 import copy
@@ -94,25 +99,46 @@ class RetrievalOutput:
     def results(self):
         return self.retrieval_strategy_step.results
 
-    @property
-    def state_info(self):
-        return self.retrieval_strategy.state_info
-
-    def state_value(self, state_name: str) -> np.ndarray:
+    def state_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
         return self.current_state.full_state_value(StateElementIdentifier(state_name))[
             0
         ]
 
-    def state_apriori(self, state_name: str) -> np.ndarray:
+    def state_value_vec(self, state_name: str) -> np.ndarray:
+        """Get the state value for the given state name"""
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))
+
+    def state_sd_wavelength(self, state_name: str) -> np.ndarray:
+        """Get the spectral domain wavelength in nm for state element"""
+        return self.current_state.full_state_spectral_domain_wavelength(
+            StateElementIdentifier(state_name)
+        )
+
+    def state_apriori(self, state_name: str) -> float:
         """Get the state value for the given state name"""
         return self.current_state.full_state_apriori_value(
             StateElementIdentifier(state_name)
         )[0]
 
+    def state_apriori_vec(self, state_name: str) -> np.ndarray:
+        """Get the state value for the given state name"""
+        return self.current_state.full_state_apriori_value(
+            StateElementIdentifier(state_name)
+        )
+
     @property
     def current_state(self):
         return self.retrieval_strategy.current_state()
+
+    @property
+    def current_strategy_step(self):
+        return self.retrieval_strategy.current_strategy_step
+    
+    def observation(self, instrument_name):
+        return self.retrieval_strategy.observation_handle_set.observation(
+            InstrumentIdentifier(instrument_name), None, None, None
+        )
 
     @property
     def radiance_full(self):

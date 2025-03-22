@@ -409,10 +409,11 @@ class StateInfo:
         self.initialInitial: dict[str, StateElement] = {}
         self.initial: dict[str, StateElement] = {}
         self.current: dict[str, StateElement] = {}
+        self.true: dict[str, StateElement] = {}
         self.next_state: dict[str, StateElement] = {}
         self.next_state_dict: dict[str, StateElement] | None = {}
 
-        self.propagated_qa = PropagatedQA()
+        self.propagated_qa = PropagatedQA() 
         self.brightness_temperature_data: dict[int, dict[str, float | None]] = {}
 
         # Odds and ends that are currently in the StateInfo. Doesn't exactly have
@@ -1239,17 +1240,24 @@ class StateInfo:
             return list(self.initialInitial.values())
         elif step == "initial":
             return list(self.initial.values())
+        elif step == "true":
+            return list(self.true.values())
         else:
-            raise RuntimeError("step must be initialInitial, initial, or current")
+            raise RuntimeError("step must be initialInitial, initial, true, or current")
 
     def state_element(self, name: StateElementIdentifier | str, step="current"):
         """Return the state element with the given name."""
+        # Temp, we added true and it hasn't made it into the various saved versions.
+        # We are going to rewrite this anyways, so short term just work around
+        if("true" not in self.__dict__):
+            self.true = {}
         # We create the StateElement objects on first use
         if str(name) not in self.current:
             (
                 self.initialInitial[str(name)],
                 self.initial[str(name)],
                 self.current[str(name)],
+                self.true[str(name)],
             ) = self.state_element_handle_set.state_element_object(
                 self,
                 name
@@ -1262,8 +1270,10 @@ class StateInfo:
             return self.initial[str(name)]
         elif step == "current":
             return self.current[str(name)]
+        elif step == "true":
+            return self.true[str(name)]
         else:
-            raise RuntimeError("step must be initialInitial, initial, or current")
+            raise RuntimeError("step must be initialInitial, initial, true, or current")
 
 
 __all__ = [

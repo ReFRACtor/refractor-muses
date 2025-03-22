@@ -57,6 +57,7 @@ os.environ["MUSES_FAKE_CREATION_DATE"] = "FAKE_DATE"
 
 def pytest_addoption(parser):
     parser.addoption("--run-long", action="store_true", help="run long tests")
+    parser.addoption("--run-only-long", action="store_true", help="run only long tests")
     parser.addoption("--run-compare", action="store_true", help="run compare tests")
     parser.addoption(
         "--skip-old-py-retrieve-test",
@@ -76,11 +77,16 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
-    if not config.getoption("--run-long"):
+    if not config.getoption("--run-long") and not config.getoption("--run-only-long"):
         skip_long_test = pytest.mark.skip(reason="need --run-long option to run")
         for item in items:
             if "long_test" in item.keywords:
                 item.add_marker(skip_long_test)
+    if config.getoption("--run-only-long"):
+        skip_only_long_test = pytest.mark.skip(reason="skipping because --run-only-long only runs long tests")
+        for item in items:
+            if "long_test" not in item.keywords:
+                item.add_marker(skip_only_long_test)
     if not config.getoption("--run-compare"):
         skip_compare_test = pytest.mark.skip(reason="need --run-compare option to run")
         for item in items:

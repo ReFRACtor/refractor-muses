@@ -48,6 +48,7 @@ class FakeStateInfo:
         self._current["PSUR"] = self.state_value("PSUR")
         self._current["TSUR"] = self.state_value("TSUR")
         self._current["latitude"] = current_state.sounding_metadata.latitude.value
+        self._current["longitude"] = current_state.sounding_metadata.longitude.value
         self._current["tsa"] = {}
         self._current["tsa"]["surfaceAltitudeKm"] = (
             current_state.sounding_metadata.surface_altitude.value
@@ -95,6 +96,11 @@ class FakeStateInfo:
         )
         self._initial_initial["pressure"] = (
             current_state.full_state_initial_initial_value(
+                StateElementIdentifier("pressure")
+            )
+        )
+        self._true["pressure"] = (
+            current_state.full_state_true_value(
                 StateElementIdentifier("pressure")
             )
         )
@@ -265,12 +271,12 @@ class FakeStateInfo:
         return self._initial
 
     @property
-    def initialInitial(self):
-        return self._initial_initial
-
-    @property
     def true(self):
         return self._true
+    
+    @property
+    def initialInitial(self):
+        return self._initial_initial
 
     @property
     def num_pressures(self):

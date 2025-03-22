@@ -163,13 +163,11 @@ class RetrievalRadianceOutput(RetrievalOutput):
         my_data.land = np.int16(1 if smeta.is_land else 0)
         my_data.scanDirection = np.int16(0)
 
-        sstate = self.state_info.state_element("emissivity")
-        my_data.emis = sstate.value.astype(np.float32)
-        my_data.emisFreq = sstate.spectral_domain_wavelength.astype(np.float32)
+        my_data.emis = self.state_value_vec("emissivity").astype(np.float32)
+        my_data.emisFreq = self.state_sd_wavelength("emissivity").astype(np.float32)
 
-        sstate = self.state_info.state_element("cloudEffExt")
-        my_data.cloud = sstate.value.astype(np.float32)[0, :]
-        my_data.cloudFreq = sstate.spectral_domain_wavelength.astype(np.float32)
+        my_data.cloud = self.state_value_vec("cloudEffExt").astype(np.float32)[0, :]
+        my_data.cloudFreq = self.state_sd_wavelength("cloudEffExt").astype(np.float32)
 
         my_data.quality = np.int16(self.results.masterQuality)
         my_data.radianceResidualMean = np.float32(self.results.radianceResidualMean[0])

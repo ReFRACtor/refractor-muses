@@ -341,6 +341,16 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
+    def full_state_true_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the true value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
+    
+    @abc.abstractmethod
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
@@ -669,6 +679,15 @@ class CurrentStateUip(CurrentState):
         """
         raise NotImplementedError()
 
+    def full_state_true_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the true value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
+    
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
@@ -805,6 +824,15 @@ class CurrentStateDict(CurrentState):
         """
         raise NotImplementedError()
 
+    def full_state_true_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the true value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
+    
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
@@ -1070,6 +1098,16 @@ class CurrentStateStateInfo(CurrentState):
         selem = self._state_info.state_element(state_element_id, step="initial")
         return selem.value
 
+    def full_state_true_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the true value of the given state element identification.
+        Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+        """
+        selem = self._state_info.state_element(state_element_id, step="true")
+        return selem.value
+    
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:

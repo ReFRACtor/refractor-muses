@@ -3,7 +3,7 @@ from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
-from .identifier import ProcessLocation
+from .identifier import ProcessLocation, InstrumentIdentifier
 import numpy as np
 import math
 import typing
@@ -67,7 +67,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             return
 
         # Copy of write_products_irk_one, so we can try cleaning this up a bit
-        smeta = self.state_info.sounding_metadata()
+        smeta = self.current_state.sounding_metadata
 
         nobs = 1
         num_points = 67
@@ -155,8 +155,8 @@ class RetrievalIrkOutput(RetrievalOutput):
         irk_data.CloudTopPressureIRK[:] = self.results_irk.PCLOUD["irfk"][:]
         irk_data.emisIRK[:, 0] = self.results_irk.EMIS["irfk"][:]
         irk_data.h2o[nn:, 0] = self.results_irk.H2O["vmr"][:]
-        irk_data.co2[nn:, 0] = self.state_info.state_element("CO2").value * 1e6
-        irk_data.n2o[nn:, 0] = self.state_info.state_element("N2O").value * 1e6
+        irk_data.co2[nn:, 0] = self.state_value_vec("CO2") * 1e6
+        irk_data.n2o[nn:, 0] = self.state_value_vec("N2O") * 1e6
         irk_data.o3[nn:, 0] = self.results_irk.O3["vmr"][:]
         irk_data.tatm[nn:, 0] = self.results_irk.TATM["vmr"][:]
         irk_data.cloudod[:, 0] = self.results_irk.CLOUDOD["vmr"][:]
@@ -165,24 +165,35 @@ class RetrievalIrkOutput(RetrievalOutput):
         irk_data.tatm_QA[:] = self.propagated_qa.tatm_qa
         irk_data.o3_QA[:] = self.propagated_qa.o3_qa
         irk_data.utctime = smeta.utc_time
-
-        irk_data.omi_sza_uv2 = np.float32(
-            self.state_info.state_info_obj.current["omi"]["sza_uv2"]
-        )
-        irk_data.omi_raz_uv2 = np.float32(
-            self.state_info.state_info_obj.current["omi"]["raz_uv2"]
-        )
-        irk_data.omi_vza_uv2 = np.float32(
-            self.state_info.state_info_obj.current["omi"]["vza_uv2"]
-        )
-        irk_data.omi_sca_uv2 = np.float32(
-            self.state_info.state_info_obj.current["omi"]["sca_uv2"]
-        )
+        if InstrumentIdentifier("OMI") in self.current_strategy_step.instrument_name:
+            obs = self.observation("OMI")
+            blist = [str(i[0]) for i in obs.filter_data]
+            sza = obs.solar_zenith
+            raz = obs.relative_azimuth
+            vza = obs.observation_zenith
+            sca = obs.scattering_angle
+            if ("UV2") in blist:
+                i = blist.index["UV2"]
+                irk_data.omi_sza_uv2 = np.float32(sza[i])
+                irk_data.omi_raz_uv2 = np.float32(raz[i])
+                irk_data.omi_vza_uv2 = np.float32(vza[i])
+                irk_data.omi_sca_uv2 = np.float32(sca[i])
+            else:
+                irk_data.omi_sza_uv2 = np.float32(-999.0)
+                irk_data.omi_raz_uv2 = np.float32(-999.0)
+                irk_data.omi_vza_uv2 = np.float32(-999.0)
+                irk_data.omi_sca_uv2 = np.float32(-999.0)
+        else:
+            irk_data.omi_sza_uv2 = np.float32(-999.0)
+            irk_data.omi_raz_uv2 = np.float32(-999.0)
+            irk_data.omi_vza_uv2 = np.float32(-999.0)
+            irk_data.omi_sca_uv2 = np.float32(-999.0)
 
         if "OMI" in self.retrieval_info.retrieval_info_obj.speciesList:
-            irk_data.BoresightNadirAngle[:] = self.state_info.state_info_obj.current[
-                "omi"
-            ]["vza_uv1"][:].astype(np.float32)  # degrees
+            irk_data.BoresightNadirAngle[:] = np.float32(vza[blist.index["UV1"]])
+        else:
+            # convert to degrees
+            irk_data.BoresightNadirAngle[:] = self.state_value("PTGANG") * 180 / math.pi
 
         irk_data.soundingID = smeta.sounding_id
         mid = self.retrieval_strategy.measurement_id
@@ -209,15 +220,6 @@ class RetrievalIrkOutput(RetrievalOutput):
 
         irk_data.LATITUDE = smeta.latitude.value
         irk_data.LONGITUDE = smeta.longitude.value
-        irk_data.BoresightNadirAngle[:] = (
-            self.state_info.state_info_obj.current["tes"]["boresightNadirRadians"]
-            * 180
-            / math.pi
-        )  # convert to degrees
-        if "OMI" in self.retrieval_info.retrieval_info_obj.speciesList:
-            irk_data.BoresightNadirAngle[:] = self.state_info.state_info_obj.current[
-                "omi"
-            ]["vza_uv1"][:]  # degrees
 
         if smeta.local_hour >= 8 and smeta.local_hour <= 22:  # day
             irk_data.daynightFlag[0] = 1

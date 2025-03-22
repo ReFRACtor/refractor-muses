@@ -2375,6 +2375,7 @@ class MusesPyStateElementHandle(StateElementHandle):
                 MusesPyStateElement(state_info, name, "initialInitial"),
                 MusesPyStateElement(state_info, name, "initial"),
                 MusesPyStateElement(state_info, name, "current"),
+                MusesPyStateElement(state_info, name, "true"),
             ),
         )
 
@@ -2498,6 +2499,7 @@ class MusesPyOmiStateElementHandle(StateElementHandle):
                 MusesPyOmiStateElement(state_info, name, "initialInitial"),
                 MusesPyOmiStateElement(state_info, name, "initial"),
                 MusesPyOmiStateElement(state_info, name, "current"),
+                MusesPyOmiStateElement(state_info, name, "true"),
             ),
         )
 
@@ -2623,6 +2625,7 @@ class MusesPyTropomiStateElementHandle(StateElementHandle):
                 MusesPyTropomiStateElement(state_info, name, "initialInitial"),
                 MusesPyTropomiStateElement(state_info, name, "initial"),
                 MusesPyTropomiStateElement(state_info, name, "current"),
+                MusesPyTropomiStateElement(state_info, name, "true"),
             ),
         )
 
@@ -2655,6 +2658,7 @@ class StateElementOnLevelsHandle(StateElementHandle):
                 StateElementOnLevels(state_info, name, "initialInitial"),
                 StateElementOnLevels(state_info, name, "initial"),
                 StateElementOnLevels(state_info, name, "current"),
+                StateElementOnLevels(state_info, name, "true"),
             ),
         )
 
@@ -2733,6 +2737,7 @@ class StateElementInDictHandle(StateElementHandle):
                 StateElementInDict(state_info, name, "initialInitial"),
                 StateElementInDict(state_info, name, "initial"),
                 StateElementInDict(state_info, name, "current"),
+                StateElementInDict(state_info, name, "true"),
             ),
         )
 
@@ -2749,6 +2754,7 @@ class StateElementInTopDictHandle(StateElementHandle):
                 StateElementInTopDict(state_info, name, "initialInitial"),
                 StateElementInTopDict(state_info, name, "initial"),
                 StateElementInTopDict(state_info, name, "current"),
+                StateElementInTopDict(state_info, name, "true"),
             ),
         )
 
@@ -2836,6 +2842,22 @@ class EmissivityState(StateElementWithFrequency):
         return self.state_info.state_info_dict["emisPars"]["emissivity_prior_source"]
 
 
+class NativeEmissivityState(StateElementWithFrequency):
+    def __init__(self, state_info, step):
+        super().__init__(state_info, StateElementIdentifier("native_emissivity"), step)
+
+    @property
+    def spectral_domain(self):
+        return rf.SpectralDomain(
+            self.state_info.state_info_dict[self.step]["native_emis_wavenumber"],
+            rf.Unit("nm"),
+        )
+
+    @property
+    def value(self):
+        return self.state_info.state_info_dict[self.step]["native_emissivity"]
+
+
 class CloudState(StateElementWithFrequency):
     def __init__(self, state_info, step):
         super().__init__(state_info, StateElementIdentifier("cloudEffExt"), step)
@@ -2912,6 +2934,7 @@ class SingleSpeciesHandle(StateElementHandle):
                     ),
                     self.state_element_class(state_info, "initial", **self.kwargs),
                     self.state_element_class(state_info, "current", **self.kwargs),
+                    self.state_element_class(state_info, "true", **self.kwargs),
                 ),
             )
         else:
@@ -2921,12 +2944,19 @@ class SingleSpeciesHandle(StateElementHandle):
                     self.state_element_class(state_info, **self.kwargs),
                     self.state_element_class(state_info, **self.kwargs),
                     self.state_element_class(state_info, **self.kwargs),
+                    self.state_element_class(state_info, **self.kwargs),
                 ),
             )
 
 
 StateElementHandleSet.add_default_handle(
     SingleSpeciesHandle(StateElementIdentifier("emissivity"), EmissivityState),
+    priority_order=1,
+)
+StateElementHandleSet.add_default_handle(
+    SingleSpeciesHandle(
+        StateElementIdentifier("native_emissivity"), NativeEmissivityState
+    ),
     priority_order=1,
 )
 StateElementHandleSet.add_default_handle(

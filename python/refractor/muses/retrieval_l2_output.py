@@ -68,11 +68,6 @@ class RetrievalL2Output(RetrievalOutput):
     def retrieval_info(self):
         return self.retrieval_strategy.retrieval_info
 
-    def observation(self, instrument_name):
-        return self.retrieval_strategy.observation_handle_set.observation(
-            InstrumentIdentifier(instrument_name), None, None, None
-        )
-
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname. This handles numbering
         L2 output files if we have the same species in different strategy steps"""
@@ -181,11 +176,11 @@ class RetrievalL2Output(RetrievalOutput):
         else:
             data2 = None
 
-        state_element_out = [
-            t
-            for t in self.state_info.state_element_list()
-            if t.should_write_to_l2_product(self.instruments)
-        ]
+        state_element_out = []
+        for sid in self.current_state.full_state_element_id:
+            t = self.current_state.full_state_element(sid)
+            if t.should_write_to_l2_product(self.instruments):
+                state_element_out.append(t)
 
         if self.spcname == "H2O" and self.dataTATM is not None:
             self.out_fname = self.file_number_handle(
@@ -422,8 +417,12 @@ class RetrievalL2Output(RetrievalOutput):
             ],
         }
 
-        emis_state = self.state_info.state_element("emissivity")
-        if emis_state.spectral_domain_wavelength.shape[0] == 0:
+        if (
+            self.current_state.full_state_spectral_domain_wavelength(
+                StateElementIdentifier("emissivity")
+            ).shape[0]
+            == 0
+        ):
             del species_data["EMISSIVITY_CONSTRAINT"]
             del species_data["EMISSIVITY_ERROR"]
             del species_data["EMISSIVITY_INITIAL"]
@@ -433,10 +432,9 @@ class RetrievalL2Output(RetrievalOutput):
         species_data = mpy.ObjectView(species_data)
 
         # AT_LINE 121 write_products_one.pro
+        gpress = self.state_value("gmaoTropopausePressure")
         species_data.TROPOPAUSEPRESSURE = (
-            self.state_info.gmao_tropopause_pressure()
-            if self.state_info.gmao_tropopause_pressure() > 0
-            else self.results.tropopausePressure
+            gpress if gpress > 0 else self.results.tropopausePressure
         )
 
         # AT_LINE 126 write_products_one.pro
@@ -452,16 +450,14 @@ class RetrievalL2Output(RetrievalOutput):
 
         # Determine subset of the max num_pressures that we actually have
         # data for
-        num_actual_pressures = self.state_info.state_element(
-            self.state_info.state_element_on_levels[0]
-        ).value.shape[0]
+        num_actual_pressures = self.current_state.full_state_value("TATM").shape[0]
         # And get the range of data we use to fill in our fields
         pslice = slice(num_pressures - num_actual_pressures, num_pressures)
         # get column / altitude / air density / trop column stuff
         altitudeResult, _ = mpy.compute_altitude_pge(
-            self.state_info.pressure,
-            self.state_info.state_element("TATM").value,
-            self.state_info.state_element("H2O").value,
+            self.state_value_vec("pressure"),
+            self.state_value_vec("TATM"),
+            self.state_value_vec("H2O"),
             smeta.surface_altitude.convert("m").value,
             smeta.latitude.convert("deg").value,
             i_waterType=None,
@@ -523,7 +519,6 @@ class RetrievalL2Output(RetrievalOutput):
             - self.results.radianceResidualRMS[0]
         )
 
-        # ==============> Cleanup to this point
         if InstrumentIdentifier("OMI") in self.instruments:
             # Make all names uppercased to make life easier.
             obs = self.observation("OMI")
@@ -670,8 +665,8 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.CONSTRAINTVECTOR[pslice] = self.retrieval_info.species_constraint(
             self.spcname
         )
-        species_data.PRESSURE[pslice] = self.state_info.pressure
-        species_data.CLOUDTOPPRESSURE = self.state_info.state_element("PCLOUD").value[0]
+        species_data.PRESSURE[pslice] = self.state_value_vec("pressure")
+        species_data.CLOUDTOPPRESSURE = self.state_value("PCLOUD")
 
         utilList = mpy.UtilList()
         indx = utilList.WhereEqualIndices(self.species_list_fm, "PCLOUD")
@@ -698,7 +693,7 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.SURFACETEMPVSATMTEMP_QA = self.results.tsur_minus_tatm0
 
         # AT_LINE 300 write_products_one.pro
-        species_data.SURFACETEMPERATURE = self.state_info.state_info_obj.current["TSUR"]
+        species_data.SURFACETEMPERATURE = self.state_value("TSUR")
         unique_speciesListFM = utilList.GetUniqueValues(self.species_list_fm)
 
         indx = utilList.WhereEqualIndices(unique_speciesListFM, "TSUR")
@@ -805,7 +800,7 @@ class RetrievalL2Output(RetrievalOutput):
         )
 
         # AT_LINE 355 write_products_one.pro
-        if self.state_info.state_info_obj.cloudPars["num_frequencies"] > 0:
+        if self.state_sd_wavelength("cloudEffExt").shape[0] > 0:
             species_data.CLOUDFREQUENCY = [
                 600,
                 650,
@@ -839,36 +834,27 @@ class RetrievalL2Output(RetrievalOutput):
 
             # AT_LINE 365 src_ms-2018-12-10/write_products_one.pro
             factor = mpy.compute_cloud_factor(
-                self.state_info.state_info_obj.current["pressure"],
-                self.state_info.state_info_obj.current["values"][
-                    self.state_info.state_info_obj.species.index("TATM"), :
-                ],
-                self.state_info.state_info_obj.current["values"][
-                    self.state_info.state_info_obj.species.index("H2O"), :
-                ],
-                self.state_info.state_info_obj.current["PCLOUD"][0],
-                self.state_info.state_info_obj.current["scalePressure"],
-                self.state_info.state_info_obj.current["tsa"]["surfaceAltitudeKm"]
-                * 1000,
-                self.state_info.state_info_obj.current["latitude"],
+                self.state_value_vec("pressure"),
+                self.state_value_vec("TATM"),
+                self.state_value_vec("H2O"),
+                self.state_value("PCLOUD"),
+                self.state_value("scalePressure"),
+                self.current_state.sounding_metadata.surface_altitude.value * 1000,
+                self.current_state.sounding_metadata.latitude.value,
             )
 
-            self.state_info.state_info_obj.current["convertToOD"] = factor
+            convertToOD = factor
 
             # AT_LINE 363 write_products_one.pro
             # AT_LINE 374 src_ms-2018-12-10/write_products_one.pro
             species_data.CLOUDEFFECTIVEOPTICALDEPTH = (
-                self.state_info.state_info_obj.current["cloudEffExt"][
-                    0, 0 : self.state_info.state_info_obj.cloudPars["num_frequencies"]
-                ]
-                * self.state_info.state_info_obj.current["convertToOD"]
+                self.state_value_vec("cloudEffExt")[0, :] * convertToOD
             )
 
             indf = utilList.WhereEqualIndices(self.species_list_fm, "CLOUDEXT")
             if len(indf) > 0:
                 species_data.CLOUDEFFECTIVEOPTICALDEPTHERROR = (
-                    self.results.errorFM[indf]
-                    * self.state_info.state_info_obj.current["convertToOD"]
+                    self.results.errorFM[indf] * convertToOD
                 )
         # end if self.state_info.state_info_obj.cloudPars['num_frequencies'] > 0:
 
@@ -989,38 +975,41 @@ class RetrievalL2Output(RetrievalOutput):
                 mpy.get_diagonal(self.results.Sx[array_2d_indices])
             )
 
-        nx = self.state_info.state_info_obj.emisPars["num_frequencies"]
-        if nx > 0:
-            species_data.EMISSIVITY_CONSTRAINT = (
-                self.state_info.state_info_obj.constraint["emissivity"][0:nx]
-            )
+        if self.state_sd_wavelength("emissivity").shape[0] > 0:
+            species_data.EMISSIVITY_CONSTRAINT = self.state_apriori_vec("emissivity")
             species_data.EMISSIVITY_INITIAL = (
-                self.state_info.state_info_obj.initialInitial["emissivity"][0:nx]
+                self.current_state.full_state_initial_initial_value(
+                    StateElementIdentifier("emissivity")
+                )
             )
-            species_data.EMISSIVITY = self.state_info.state_info_obj.current[
-                "emissivity"
-            ][0:nx]
-            species_data.EMISSIVITY_WAVENUMBER = (
-                self.state_info.state_info_obj.emisPars["frequency"][0:nx]
-            )
-            if "native_emissivity" in self.state_info.state_info_obj.initialInitial:
+            species_data.EMISSIVITY = self.state_value_vec("emissivity")
+            species_data.EMISSIVITY_WAVENUMBER = self.state_sd_wavelength("emissivity")
+
+            # This test doesn't work, since nothing has accessed this yet. I believe this
+            # is always in the state, get_state_initial.py in py-retrieve always fills this
+            # in if emissivity is filled in. Comment out this test, we can return to
+            # this if needed.
+            # if StateElementIdentifier("native_emissivity") in self.current_state.full_state_element_id:
+            if True:
                 species_data.NATIVE_HSR_EMISSIVITY_INITIAL = (
-                    self.state_info.state_info_obj.initialInitial["native_emissivity"]
+                    self.current_state.full_state_initial_initial_value(
+                        StateElementIdentifier("native_emissivity")
+                    )
                 )
-                species_data.NATIVE_HSR_EMIS_WAVENUMBER = (
-                    self.state_info.state_info_obj.initialInitial[
-                        "native_emis_wavenumber"
-                    ]
+                species_data.NATIVE_HSR_EMIS_WAVENUMBER = self.state_sd_wavelength(
+                    "native_emissivity"
                 )
-            if "camel_distance" in self.state_info.state_info_obj.emisPars:
-                species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(
-                    [self.state_info.state_info_obj.emisPars["camel_distance"]]
-                )
-            if "emissivity_prior_source" in self.state_info.state_info_obj.emisPars:
-                runtime_attributes.setdefault("EMISSIVITY_INITIAL", dict())
-                runtime_attributes["EMISSIVITY_INITIAL"]["database"] = (
-                    self.state_info.state_info_obj.emisPars["emissivity_prior_source"]
-                )
+
+            selem = self.current_state.full_state_element(
+                StateElementIdentifier("emissivity")
+            )
+            species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(
+                [
+                    selem.camel_distance,
+                ]
+            )
+            runtime_attributes.setdefault("EMISSIVITY_INITIAL", dict())
+            runtime_attributes["EMISSIVITY_INITIAL"]["database"] = selem.prior_source
 
         # AT_LINE 631 write_products_one.pro
         # for CH4 add in N2O results, constraint vector, calculate
@@ -1065,12 +1054,12 @@ class RetrievalL2Output(RetrievalOutput):
             else:
                 # N2O not retrieved... use values from initial guess
                 logger.warning("code has not been tested for N2O not retrieved.")
-                indn2o = utilList.WhereEqualIndices(
-                    self.state_info.state_info_obj.species, "N2O"
+                species_data.N2O_SPECIES[pslice] = (
+                    self.current_state.full_state_initial_value("N2O")
                 )
-                value = self.state_info.state_info_obj.initial["values"][indn2o, :]
-                species_data.N2O_SPECIES[pslice] = copy.deepcopy(value)
-                species_data.N2O_CONSTRAINTVECTOR[pslice] = copy.deepcopy(value)
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = (
+                    self.current_state.full_state_initial_value("N2O")
+                )
 
             # correct ch4 from n2o
             species_data.ORIGINAL_SPECIES = copy.deepcopy(species_data.SPECIES)
@@ -1138,11 +1127,11 @@ class RetrievalL2Output(RetrievalOutput):
             if isinstance(v, list):
                 species_data[k] = np.asarray(v)
 
-        state_element_out = [
-            t
-            for t in self.state_info.state_element_list()
-            if t.should_write_to_l2_product(self.instruments)
-        ]
+        state_element_out = []
+        for sid in self.current_state.full_state_element_id:
+            t = self.current_state.full_state_element(sid)
+            if t.should_write_to_l2_product(self.instruments):
+                state_element_out.append(t)
 
         #######
         # write with lite format using cdf_write_tes

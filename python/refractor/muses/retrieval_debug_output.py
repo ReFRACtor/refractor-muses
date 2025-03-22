@@ -2,6 +2,7 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
+from .fake_state_info import FakeStateInfo
 from loguru import logger
 import os
 import pickle
@@ -47,9 +48,10 @@ class RetrievalInputOutput(RetrievalOutput):
         os.makedirs(self.input_directory, exist_ok=True)
         # May need to extend this logic here
         detectorsUse = [1]
+        fstate_info = FakeStateInfo(self.current_state)
         mpy.write_retrieval_inputs(
             self.retrieval_strategy.rstrategy_table.strategy_table_dict,
-            self.state_info.state_info_obj,
+            fstate_info,
             self.windows,
             self.retrieval_info.retrieval_info_obj,
             self.step_number,
@@ -98,11 +100,12 @@ class RetrievalPlotResult(RetrievalOutput):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.step_directory, exist_ok=True)
+        fstate_info = FakeStateInfo(self.current_state)
         mpy.plot_results(
             str(self.step_directory) + "/",
             self.results,
             self.retrieval_info.retrieval_info_obj,
-            self.state_info.state_info_obj,
+            fstate_info,
         )
 
 
