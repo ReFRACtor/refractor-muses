@@ -308,7 +308,7 @@ def test_noupdate_cloudfraction(omi_step_0):
     sinfo.update_state(
         rinfo,
         results_list,
-        ["OMICLOUDFRACTION"],
+        [StateElementIdentifier("OMICLOUDFRACTION")],
         rs.retrieval_config,
         rs.current_strategy_step.strategy_step.step_number,
     )
@@ -616,7 +616,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
     sinfo.update_state(
         rinfo,
         results_list,
-        ["OMIEOFUV1"],
+        [StateElementIdentifier("OMIEOFUV1")],
         rs.retrieval_config,
         rs.current_strategy_step.strategy_step.step_number,
     )

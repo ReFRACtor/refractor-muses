@@ -38,7 +38,7 @@ class MusesRaman(rf.RamanSiorisEffect):
         atmosphere: rf.AtmosphereStandard,
         solar_model: rf.SolarModel,
         mapping: rf.StateMapping,
-    ):
+    ) -> None:
         # Note sensor_index is only used here for naming the state vector element
         super().__init__(
             Solar_and_odepth_spec_domain,
@@ -58,7 +58,9 @@ class MusesRaman(rf.RamanSiorisEffect):
         self.solar_model_sd_min = Solar_and_odepth_spec_domain.data.min()
         self.solar_model_sd_max = Solar_and_odepth_spec_domain.data.max()
 
-    def apply_effect(self, spec: rf.Spectrum, fm_grid: rf.ForwardModelSpectralGrid):
+    def apply_effect(
+        self, spec: rf.Spectrum, fm_grid: rf.ForwardModelSpectralGrid
+    ) -> None:
         temp_layers = self.ray_info.tbar()
         surf_alb = self.surface_albedo.surface_albedo()
         # Sanity check - the error messages at the C++ level are pretty obscure

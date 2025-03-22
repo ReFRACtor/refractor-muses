@@ -49,18 +49,18 @@ class CreatorHandleSet(PriorityHandleSet):
     this function call.
     """
 
-    def __init__(self, creator_func_name: str):
+    def __init__(self, creator_func_name: str) -> None:
         """Constructor, takes the name of the creator function (e.g.,
         "observation")."""
         super().__init__()
         self.creator_func_name = creator_func_name
 
-    def notify_update_target(self, *args, **kwargs):
+    def notify_update_target(self, *args: Any, **kwargs: Any) -> None:
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
                 h.notify_update_target(*args, **kwargs)
 
-    def handle_h(self, h: CreatorHandle, *args, **kwargs) -> Tuple[bool, Any]:
+    def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> Tuple[bool, Any]:
         """Process a registered function"""
         res = getattr(h, self.creator_func_name)(*args, **kwargs)
         if res is None:
@@ -90,7 +90,7 @@ class CreatorHandle:
 
     """
 
-    def _dispatch(self, func_name: str, *args, **kwargs):
+    def _dispatch(self, func_name: str, *args: Any, **kwargs: Any) -> Any:
         """It can be useful sometimes to have a handle with multiple
         functions that we can call. This support function just takes
         the name of the function to call and then calls that function
@@ -101,7 +101,7 @@ class CreatorHandle:
         """
         return getattr(self, func_name)(*args, **kwargs)
 
-    def notify_update_target(self, *args):
+    def notify_update_target(self, *args: Any) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing

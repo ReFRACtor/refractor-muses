@@ -14,8 +14,10 @@ def test_muses_strategy_file(joint_omi_step_8):
     stable.notify_update_target(rs.measurement_id)
     stable_old.notify_update_target(rs.measurement_id)
     assert stable.filter_list_dict == stable_old.filter_list_dict
-    assert stable.retrieval_elements == stable_old.retrieval_elements
-    assert stable.error_analysis_interferents == stable_old.error_analysis_interferents
+    assert [str(i) for i in stable.retrieval_elements] == stable_old.retrieval_elements
+    assert [
+        str(i) for i in stable.error_analysis_interferents
+    ] == stable_old.error_analysis_interferents
     assert stable.instrument_name == stable_old.instrument_name
     # In general, we need to use the right current_state in next_step below. However, for
     # this particular unit test we know that only the cstate.brightness_temperature_data

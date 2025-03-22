@@ -8,6 +8,7 @@ import io
 import os
 from functools import lru_cache
 import typing
+from typing import Iterator, Tuple
 
 
 class TesFile(collections.abc.Mapping):
@@ -26,7 +27,7 @@ class TesFile(collections.abc.Mapping):
     table content
     """
 
-    def __init__(self, fname: str | os.PathLike[str], use_mpy=False):
+    def __init__(self, fname: str | os.PathLike[str], use_mpy: bool = False) -> None:
         """Open the given file, and read the keyword/value pairs plus
         the (possibly empty) table.
 
@@ -109,19 +110,19 @@ class TesFile(collections.abc.Mapping):
             self.table = None
 
     @property
-    def shape(self):
+    def shape(self) -> list[int]:
         """Return the shape of the table. Note this comes from the
         metadata 'Data_Size', not the actual table.
         """
         return [int(i) for i in self["Data_Size"].split("x")]
 
-    def __getitem__(self, ky: str):
+    def __getitem__(self, ky: str) -> str:
         return self._d[ky]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._d)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Tuple[str, str]]:
         return self._d.__iter__()
 
     # _lru_cache_wrapper is not correctly typed, we get a spurious

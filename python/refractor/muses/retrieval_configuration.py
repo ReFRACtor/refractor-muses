@@ -5,7 +5,7 @@ import re
 import copy
 from .tes_file import TesFile
 from pathlib import Path
-from typing import Any
+from typing import Any, Self, Iterator
 
 
 class RetrievalConfiguration(collections.abc.MutableMapping):
@@ -44,7 +44,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         self,
         base_dir: str | os.PathLike[str] = ".",
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> None:
         self._data: dict[str, Any] = {}
         # These can be updated after the object is created, e.g. after
         # have a pickle file loaded. The relative paths in the our
@@ -55,16 +55,16 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
     def __getitem__(self, key: str) -> Any:
         return self._abs_dir(self._data[key])
 
-    def __setitem__(self, key: str, val: Any):
+    def __setitem__(self, key: str, val: Any) -> None:
         self._data[key] = val
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         del self._data[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return self._data.__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data)
 
     @classmethod
@@ -72,7 +72,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         cls,
         fname: str | os.PathLike[str],
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Self:
         strategy_table_fname = Path(fname).absolute()
         strategy_table_dir = strategy_table_fname.parent
         res = cls(base_dir=strategy_table_dir, osp_dir=osp_dir)
@@ -138,7 +138,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # skip this, we'll at least try that for now.
         return res
 
-    def _abs_dir(self, v):
+    def _abs_dir(self, v: Any) -> Any:
         """Convert values like ../OSP to the osp_dir passed in. Expand
         user ~ and environment variables. Convert relative paths to
         absolute paths.

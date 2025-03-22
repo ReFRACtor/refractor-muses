@@ -134,7 +134,7 @@ class RetrievalOutput:
     @property
     def current_strategy_step(self):
         return self.retrieval_strategy.current_strategy_step
-    
+
     def observation(self, instrument_name):
         return self.retrieval_strategy.observation_handle_set.observation(
             InstrumentIdentifier(instrument_name), None, None, None

@@ -26,15 +26,15 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.notify_update_target(None)
 
-    def notify_update_target(self, rs: RetrievalStrategy):
+    def notify_update_target(self, rs: RetrievalStrategy | None) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
 
     def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: dict
     ) -> bool:
         if retrieval_type != RetrievalType("bt"):
             return False
@@ -64,7 +64,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         step: int,
         state_info: StateInfo,
         cstate: CurrentState,
-    ):
+    ) -> None:
         """Calculate brightness temperature, and use to update
         cstate.brightness_temperature_data. We also TSUR and
         cloudEffExt in state_info."""

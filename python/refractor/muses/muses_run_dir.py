@@ -24,8 +24,8 @@ class MusesRunDir:
         osp_dir: str | os.PathLike[str],
         gmao_dir: str | os.PathLike[str],
         path_prefix: str | os.PathLike[str] = ".",
-        skip_sym_link=False,
-    ):
+        skip_sym_link: bool = False,
+    ) -> None:
         """Set up a run directory in the given path_prefix with the
         data saved in a sounding 1 save directory (e.g.,
         ~/muses/refractor_test_data/omi/sounding_1).
@@ -91,9 +91,9 @@ class MusesRunDir:
         self,
         vlidort_cli: str
         | os.PathLike[str] = "~/muses/muses-vlidort/build/release/vlidort_cli",
-        debug=False,
-        plots=False,
-    ):
+        debug: bool = False,
+        plots: bool = False,
+    ) -> None:
         """Do a run of py_retrieve. Note this is a full run.
 
         Note OMI, but not TROPOMI now uses a separate vlidort_cli, which
@@ -127,7 +127,7 @@ class MusesRunDir:
         cls,
         amuse_me_run_dir: str | os.PathLike[str],
         refractor_sounding_dir: str | os.PathLike[str],
-    ):
+    ) -> None:
         """Copy data from the amuse_me run directory (e.g.,
         ~/muses/refractor-muses/muses_capture/output/omi/2016-04-14/setup-targets/Global_Survey/20160414_23_394_11_23) to a sounding save directory
         (e.g., ~/muses/refractor_test_data/omi/sounding_1).

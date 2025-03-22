@@ -83,7 +83,9 @@ def pytest_collection_modifyitems(config, items):
             if "long_test" in item.keywords:
                 item.add_marker(skip_long_test)
     if config.getoption("--run-only-long"):
-        skip_only_long_test = pytest.mark.skip(reason="skipping because --run-only-long only runs long tests")
+        skip_only_long_test = pytest.mark.skip(
+            reason="skipping because --run-only-long only runs long tests"
+        )
         for item in items:
             if "long_test" not in item.keywords:
                 item.add_marker(skip_only_long_test)

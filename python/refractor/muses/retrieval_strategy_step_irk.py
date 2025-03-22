@@ -12,16 +12,16 @@ if typing.TYPE_CHECKING:
 class RetrievalStrategyStepIRK(RetrievalStrategyStep):
     """IRK strategy step."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.results_irk = None
+        self.results_irk: ResultIrk | None = None
 
     def retrieval_step_body(
         self,
         retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
-        irk_res=None,
-        **kwargs,
+        irk_res: ResultIrk | None = None,
+        **kwargs: dict,
     ) -> bool:
         if retrieval_type != RetrievalType("irk"):
             return False
@@ -44,7 +44,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         rs.notify_update(ProcessLocation("IRK step"), retrieval_strategy_step=self)
         return True
 
-    def get_state(self):
+    def get_state(self) -> dict:
         res = {"results_irk": None}
         if self.results_irk is not None:
             res["results_irk"] = self.results_irk.get_state()

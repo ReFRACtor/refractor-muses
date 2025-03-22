@@ -1,9 +1,10 @@
 from __future__ import annotations
 import collections
 import collections.abc
+from typing import Any, Self, Iterable, Iterator, Tuple
 
 
-def _empty_set():
+def _empty_set() -> set:
     return set()
 
 
@@ -48,74 +49,76 @@ class PriorityHandleSet(collections.abc.Set):
     with the highest priority wins.
     """
 
-    def __init__(self):
+    _default_handle_set: None | Self = None
+
+    def __init__(self) -> None:
         # This can't be pickled, so use the slight indirection of having
         # a module level function, which can be pickled.
         # self.handle_set = collections.defaultdict(lambda : set())
-        self.handle_set = collections.defaultdict(_empty_set)
+        self.handle_set: dict[int, set[Any]] = collections.defaultdict(_empty_set)
 
-    def __contains__(self, itm):
+    def __contains__(self, itm: Any) -> bool:
         return itm[0] in self.handle_set[itm[1]]
 
-    def __len__(self):
+    def __len__(self) -> int:
         res = 0
         for t in self.handle_set.values():
             res += len(t)
         return res
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Tuple[set[Any], int]]:
         for k in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[k]:
                 yield (h, k)
 
     @classmethod
-    def _from_iterable(cls, it):
+    def _from_iterable(cls, it: Iterable[Any]) -> Self:
         obj = cls()
         for i in it:
             obj.add_handle(i[0], priority_order=i[1])
         return obj
 
-    def __copy__(self):
+    def __copy__(self) -> Self:
         """Copy the PrioritySet. This is a shallow copy, we have our own
         handle set but all the objects in it are the same as the original
         set."""
         return self.__class__._from_iterable(iter(self))
 
-    def add_handle(self, h, priority_order=0):
+    def add_handle(self, h: Any, priority_order: int = 0) -> None:
         """Add a handler. The higher priority_order (larger number) items are
         tried first."""
         self.handle_set[priority_order].add(h)
 
-    def discard_handle(self, h):
+    def discard_handle(self, h: Any) -> None:
         """Discard the handle h. It is ok if h isn't actually in the set
         of handles."""
         for k in sorted(self.handle_set.keys()):
             self.handle_set[k].discard(h)
 
-    def clear(self):
+    def clear(self) -> None:
         """Remove all handles in the set."""
         self.handle_set.clear()
 
     @classmethod
-    def default_handle_set(cls):
+    def default_handle_set(cls) -> Self:
         """Return the default set of handlers to use."""
-        if not hasattr(cls, "_default_handle_set"):
+        if cls._default_handle_set is None:
             cls._default_handle_set = cls()
         return cls._default_handle_set
 
     @classmethod
-    def add_default_handle(cls, h, priority_order=0):
+    def add_default_handle(cls, h: Any, priority_order: int = 0) -> None:
         """Add the given handle to the default set of handlers.  The
         higher priority_order (larger number) items are tried first."""
         cls.default_handle_set().add_handle(h, priority_order)
 
     @classmethod
-    def discard_default_handle(cls, h):
+    def discard_default_handle(cls, h: Any) -> None:
         """Discard the handle h from the default list. It is ok if h isn't
         actually in the set of handles."""
         cls.default_handle_set().discard_handle(h)
 
-    def handle(self, *args, **keywords):
+    def handle(self, *args: Any, **keywords: Any) -> Any:
         """Find the first handle that says it can process the given arguments,
         and return the results from that handle."""
         could_handle = False
@@ -138,7 +141,7 @@ class PriorityHandleSet(collections.abc.Set):
             "No handle was found. args=%s, keywords=%s" % (args, keywords)
         )
 
-    def handle_h(self, h, *args, **keywords):
+    def handle_h(self, h: Any, *args: Any, **keywords: Any) -> Tuple[bool, Any]:
         raise NotImplementedError
 
 

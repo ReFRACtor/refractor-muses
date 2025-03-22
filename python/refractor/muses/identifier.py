@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 from .order_species import order_species
 
@@ -23,14 +24,14 @@ class Identifier(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """Test for equality. Different Identifier objects that point to the same
         Identifier should be equal (so default test that objects are the same isn't
         what we want here)."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Hash to go along with __eq__. We want Identifier objects that have the
         same value with the same hash (so we can find in a dict for example, without
         the default of the objects being identical)
@@ -49,13 +50,15 @@ class IdentifierStr(Identifier):
     future. But we have all the Identifiers separated out from str, so any
     future changes should have the plumbing in place to support."""
 
-    def __init__(self, s):
+    def __init__(self, s: str) -> None:
         self.s = s
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not hasattr(other, "s"):
+            raise RuntimeError("other should be a IdentifierStr")
         return self.s == other.s
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.s)
 
     def __str__(self) -> str:
@@ -71,14 +74,11 @@ class InstrumentIdentifier(IdentifierStr):
 class StateElementIdentifier(IdentifierStr):
     '''Identify an state element, e.g., "TROPOMIRINGSFBAND3"'''
 
-    def __eq__(self, other):
-        # Allow for comparison to str without casting
-        if isinstance(other, str):
-            return self.s == other
+    def __eq__(self, other: object) -> bool:
         return super().__eq__(other)
 
     # unhashable type: 'StateElementIdentifier' if not defined
-    def __hash__(self):
+    def __hash__(self) -> int:
         return super().__hash__()
 
     @classmethod
@@ -90,11 +90,13 @@ class StateElementIdentifier(IdentifierStr):
 class RetrievalType(IdentifierStr):
     '''Identify an retrieval step type, e.g., "BG"'''
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not hasattr(other, "s"):
+            raise RuntimeError("other should be a RetrievalType")
         # Do case insensitive compare
         return self.s.lower() == other.s.lower()
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.s.lower())
 
     def lower(self) -> str:
@@ -106,18 +108,20 @@ class StrategyStepIdentifier(Identifier):
     Note we identify by the name and initial step number. The step_number can be updated
     without changing this identifier, just the string it prints out gets updated"""
 
-    def __init__(self, initial_step_number: int, step_name: str):
+    def __init__(self, initial_step_number: int, step_name: str) -> None:
         self.initial_step_number = initial_step_number
         self.step_name = step_name
         self.step_number = self.initial_step_number
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not hasattr(other, "initial_step_number") or not hasattr(other, "step_name"):
+            raise RuntimeError("other should be a StrategyStepIdentifier")
         return (
             self.initial_step_number == other.initial_step_number
             and self.step_name == other.step_name
         )
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.initial_step_number, self.step_name))
 
     def __str__(self) -> str:
@@ -139,8 +143,8 @@ class IdentifierSortByWaveLength:
     for now, provide for sorting.
     """
 
-    def __init__(self):
-        self._d = {}
+    def __init__(self) -> None:
+        self._d: dict[Identifier, float] = {}
 
     def add(self, id: Identifier, starting_wavelength: float) -> None:
         if id not in self._d:

@@ -2,10 +2,13 @@ from __future__ import annotations
 from contextlib import contextmanager
 import tempfile
 import os
+from typing import Generator
 
 
 @contextmanager
-def osp_setup(osp_dir: str | os.PathLike[str] | None = None):
+def osp_setup(
+    osp_dir: str | os.PathLike[str] | None = None,
+) -> Generator[None, None, None]:
     """Some of the readers assume the OSP is available as "../OSP". We
     are trying to get away from assuming we are in a run directory
     whenever we do things, it limits using the code in various

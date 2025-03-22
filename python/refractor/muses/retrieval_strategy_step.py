@@ -421,7 +421,9 @@ class RetrievalStepCaptureObserver:
         if retrieval_strategy_step is None:
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        fname = f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.json.gz"
+        fname = (
+            f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.json.gz"
+        )
         with gzip.open(fname, mode="wb") as fh:
             fh.write(
                 json.dumps(

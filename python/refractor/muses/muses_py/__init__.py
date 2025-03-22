@@ -14,12 +14,13 @@ except ImportError:
 import os as _os
 import re as _re
 import glob as _glob
+from typing import Any
 
 # Give a cleaner message if somebody tries to call a function that isn't
 # available
 if not have_muses_py:
 
-    def __getattr__(name):
+    def __getattr__(name: str) -> Any:
         raise NameError("py_retrieve is not available, so can't import '%s'" % name)
 
 

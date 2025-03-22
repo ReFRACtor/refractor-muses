@@ -99,10 +99,8 @@ class FakeStateInfo:
                 StateElementIdentifier("pressure")
             )
         )
-        self._true["pressure"] = (
-            current_state.full_state_true_value(
-                StateElementIdentifier("pressure")
-            )
+        self._true["pressure"] = current_state.full_state_true_value(
+            StateElementIdentifier("pressure")
         )
 
         self._constraint["TSUR"] = current_state.full_state_apriori_value(
@@ -273,7 +271,7 @@ class FakeStateInfo:
     @property
     def true(self):
         return self._true
-    
+
     @property
     def initialInitial(self):
         return self._initial_initial

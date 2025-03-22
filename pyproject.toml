@@ -35,3 +35,8 @@ build-backend = "setuptools.build_meta"
 # this code at all, the point is to compare our new code against
 # this old code
 exclude = ["retrieval_info_old.py"]
+
+[tool.mypy]
+exclude = '''(?x)(
+^python/refractor/omi/config/.*\.py$   # files in config directory
+)'''

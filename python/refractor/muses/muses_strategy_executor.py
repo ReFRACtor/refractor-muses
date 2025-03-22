@@ -513,6 +513,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.error_analysis,
             Path(self.retrieval_config["speciesDirectory"]),
             self.current_strategy_step,
+            self.current_state(),
             self.state_info,
         )
 

@@ -28,9 +28,9 @@ class OmiEofStateElement(RetrievableStateElement):
     def __init__(
         self,
         state_info: StateInfo,
-        name=StateElementIdentifier("OMIEOFUV1"),
-        number_eof=3,
-    ):
+        name: StateElementIdentifier = StateElementIdentifier("OMIEOFUV1"),
+        number_eof: int = 3,
+    ) -> None:
         super().__init__(state_info, name)
         self._value = np.zeros(number_eof)
         self._constraint = self._value.copy()
@@ -45,18 +45,20 @@ class OmiEofStateElement(RetrievableStateElement):
         return np.diag([10 * 10.0] * self.number_eof), [-999.0] * self.number_eof
 
     @property
-    def value(self):
+    def value(self) -> np.ndarray:
         return self._value
 
     @property
-    def apriori_value(self):
+    def apriori_value(self) -> np.ndarray:
         return np.array(
             [
                 0.0,
             ]
         )
 
-    def should_write_to_l2_product(self, instruments) -> bool:
+    def should_write_to_l2_product(
+        self, instruments: list[InstrumentIdentifier]
+    ) -> bool:
         if InstrumentIdentifier("OMI") in instruments:
             return True
         return False
@@ -83,14 +85,14 @@ class OmiEofStateElement(RetrievableStateElement):
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.ndarray,
-    ):
+    ) -> None:
         # If we are requested not to update the next step, then save a copy
         # of this to reset the value
         if not update_next:
             self.state_info.next_state[str(self.name)] = self.clone_for_other_state()
         self._value = results_list[retrieval_info.species_list == str(self._name)]
 
-    def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
+    def update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
         self.mapType = "linear"
         self.pressureList = np.full((self.number_eof), -2.0)
         self.altitudeList = np.full((self.number_eof), -2.0)

@@ -413,7 +413,7 @@ class StateInfo:
         self.next_state: dict[str, StateElement] = {}
         self.next_state_dict: dict[str, StateElement] | None = {}
 
-        self.propagated_qa = PropagatedQA() 
+        self.propagated_qa = PropagatedQA()
         self.brightness_temperature_data: dict[int, dict[str, float | None]] = {}
 
         # Odds and ends that are currently in the StateInfo. Doesn't exactly have
@@ -1200,8 +1200,14 @@ class StateInfo:
         do_update_fm = np.zeros(retrieval_info.n_totalParametersFM)
 
         for state_element_name in retrieval_info.species_names:
-            update_next = False if state_element_name in do_not_update else True
-            self.state_element(state_element_name).update_state_element(
+            update_next = (
+                False
+                if StateElementIdentifier(state_element_name) in do_not_update
+                else True
+            )
+            self.state_element(
+                StateElementIdentifier(state_element_name)
+            ).update_state_element(
                 retrieval_info,
                 results_list,
                 update_next,
@@ -1249,7 +1255,7 @@ class StateInfo:
         """Return the state element with the given name."""
         # Temp, we added true and it hasn't made it into the various saved versions.
         # We are going to rewrite this anyways, so short term just work around
-        if("true" not in self.__dict__):
+        if "true" not in self.__dict__:
             self.true = {}
         # We create the StateElement objects on first use
         if str(name) not in self.current:

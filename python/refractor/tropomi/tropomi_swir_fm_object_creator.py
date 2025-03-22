@@ -110,7 +110,10 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
                 self.spectrum_sampling,
                 self.spectrum_effect,
                 self.oss_training_data,
-                self.current_state.forward_model_state_vector_element_list,
+                [
+                    str(i)
+                    for i in self.current_state.forward_model_state_vector_element_list
+                ],
             )
             res.setup_grid()
         else:

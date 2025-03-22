@@ -8,6 +8,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .state_info import StateInfo
+    from .current_state import CurrentState
     from .error_analysis import ErrorAnalysis
     from .muses_strategy_executor import CurrentStrategyStep
 
@@ -30,10 +31,15 @@ class RetrievalInfo:
         error_analysis: ErrorAnalysis,
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
+        current_state: CurrentState,
         state_info: StateInfo,
     ):
         self.retrieval_dict = self.init_data(
-            error_analysis, species_dir, current_strategy_step, state_info
+            error_analysis,
+            species_dir,
+            current_strategy_step,
+            current_state,
+            state_info,
         )
         self.retrieval_dict = self.retrieval_dict.__dict__
         self._map_type_systematic = mpy.constraint_get_maptype(
@@ -253,6 +259,7 @@ class RetrievalInfo:
     def init_interferents(
         self,
         current_strategy_step: CurrentStrategyStep,
+        current_state: CurrentState,
         state_info: StateInfo,
         o_retrievalInfo: mpy.ObjectView,
         error_analysis: ErrorAnalysis,
@@ -280,7 +287,12 @@ class RetrievalInfo:
                 o_retrievalInfo.parameterEndSys.append(-1)
 
     def add_species(
-        self, species_name: str, current_strategy_step, state_info, o_retrievalInfo
+        self,
+        species_name: str,
+        current_strategy_step: CurrentStrategyStep,
+        current_state: CurrentState,
+        state_info: StateInfo,
+        o_retrievalInfo,
     ):
         selem = state_info.state_element(StateElementIdentifier(species_name))
         selem.update_initial_guess(current_strategy_step)
@@ -322,7 +334,13 @@ class RetrievalInfo:
         o_retrievalInfo.n_totalParameters = row + mm
         o_retrievalInfo.n_totalParametersFM = rowFM + nn
 
-    def init_joint(self, o_retrievalInfo, species_dir: Path, state_info: StateInfo):
+    def init_joint(
+        self,
+        o_retrievalInfo,
+        species_dir: Path,
+        current_state: CurrentState,
+        state_info: StateInfo,
+    ):
         """This should get cleaned up somehow"""
         index_H2O = -1
         index_HDO = -1
@@ -426,6 +444,7 @@ class RetrievalInfo:
         error_analysis: ErrorAnalysis,
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
+        current_state: CurrentState,
         state_info: StateInfo,
     ):
         # This is a reworking of get_species_information in muses-py
@@ -509,14 +528,22 @@ class RetrievalInfo:
 
             for species_name in o_retrievalInfo.species:
                 self.add_species(
-                    species_name, current_strategy_step, state_info, o_retrievalInfo
+                    species_name,
+                    current_strategy_step,
+                    current_state,
+                    state_info,
+                    o_retrievalInfo,
                 )
 
             self.init_interferents(
-                current_strategy_step, state_info, o_retrievalInfo, error_analysis
+                current_strategy_step,
+                current_state,
+                state_info,
+                o_retrievalInfo,
+                error_analysis,
             )
 
-        self.init_joint(o_retrievalInfo, species_dir, state_info)
+        self.init_joint(o_retrievalInfo, species_dir, current_state, state_info)
 
         # Convert to numpy arrays
         for key in (

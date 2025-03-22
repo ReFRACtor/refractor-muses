@@ -28,7 +28,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 import pickle
 from pathlib import Path
-from typing import Any
+from typing import Any, Tuple
 import typing
 
 if typing.TYPE_CHECKING:
@@ -109,11 +109,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self,
         filename: str | os.PathLike[str],
         vlidort_cli: str | os.PathLike[str] | None = None,
-        writeOutput=False,
-        writePlots=False,
+        writeOutput: bool = False,
+        writePlots: bool = False,
         osp_dir: str | os.PathLike[str] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         logger.info(f"Strategy table filename {filename}")
         self._capture_directory = RefractorCaptureDirectory()
         self._observers: set[Any] = set()
@@ -126,7 +126,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._observation_handle_set = (
             self._cost_function_creator.observation_handle_set
         )
-        self._kwargs = kwargs
+        self._kwargs: dict[str, Any] = kwargs
         self._kwargs["vlidort_cli"] = self._vlidort_cli
 
         self._state_info = StateInfo()
@@ -172,18 +172,19 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         if filename is not None:
             self.update_target(filename)
 
-    def register_with_muses_py(self):
+    def register_with_muses_py(self) -> None:
         """Register run_ms as a replacement for script_retrieval_ms"""
         mpy.register_replacement_function("script_retrieval_ms", self)
 
-    def should_replace_function(self, func_name: str, parms) -> bool:
+    def should_replace_function(self, func_name: str, parms: list[Any]) -> bool:
         return True
 
-    def replace_function(self, func_name: str, parms):
+    def replace_function(self, func_name: str, parms: dict) -> int | None:
         if func_name == "script_retrieval_ms":
             return self.script_retrieval_ms(**parms)
+        return None
 
-    def update_target(self, filename: str | os.PathLike[str]):
+    def update_target(self, filename: str | os.PathLike[str]) -> None:
         """Set up to process a target, given the filename for the
         strategy table.
 
@@ -226,18 +227,18 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     def script_retrieval_ms(
         self,
         filename: str | os.PathLike[str],
-        writeOutput=False,
-        writePlots=False,
-        debug=False,
-        update_product_format=False,
-    ):
+        writeOutput: bool = False,
+        writePlots: bool = False,
+        debug: bool = False,
+        update_product_format: bool = False,
+    ) -> int:
         # Ignore arguments other than filename.
         # We can clean this up if needed, perhaps delay the
         # initialization or something.
         self.update_target(filename)
         return self.retrieval_ms()
 
-    def add_observer(self, obs: Any):
+    def add_observer(self, obs: Any) -> None:
         # Often we want weakref, so we don't prevent objects from
         # being deleted just because they are observing this. But in
         # this particular case, we actually do want to maintain the
@@ -249,19 +250,19 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         if hasattr(obs, "notify_add"):
             obs.notify_add(self)
 
-    def remove_observer(self, obs: Any):
+    def remove_observer(self, obs: Any) -> None:
         self._observers.discard(obs)
         if hasattr(obs, "notify_remove"):
             obs.notify_remove(self)
 
-    def clear_observers(self):
+    def clear_observers(self) -> None:
         # We change self._observers, in our loop so grab a copy of the
         # list before we start
         lobs = list(self._observers)
         for obs in lobs:
             self.remove_observer(obs)
 
-    def notify_update(self, location: ProcessLocation | str, **kwargs):
+    def notify_update(self, location: ProcessLocation | str, **kwargs: Any) -> None:
         loc = location
         if not isinstance(loc, ProcessLocation):
             loc = ProcessLocation(loc)
@@ -273,7 +274,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self._vlidort_cli
 
     @vlidort_cli.setter
-    def vlidort_cli(self, v: str | os.PathLike[str]):
+    def vlidort_cli(self, v: str | os.PathLike[str]) -> None:
         self._vlidort_cli = Path(v)
         self._kwargs["vlidort_cli"] = Path(v)
 
@@ -387,7 +388,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self.strategy_executor.current_strategy_step
 
     def current_state(
-        self, do_systematic=False, jacobian_speciesIn=None
+        self, do_systematic: bool = False, jacobian_speciesIn: list[str] | None = None
     ) -> CurrentState:
         return self.strategy_executor.current_state(
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn
@@ -433,10 +434,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
 
     def create_cost_function(
         self,
-        do_systematic=False,
-        include_bad_sample=False,
-        fix_apriori_size=False,
-        jacobian_speciesIn=None,
+        do_systematic: bool = False,
+        include_bad_sample: bool = False,
+        fix_apriori_size: bool = False,
+        jacobian_speciesIn: list[str] | None = None,
     ) -> CostFunction:
         """Create cost function"""
         # Similiar to error_analysis, this gets uses in
@@ -450,13 +451,15 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
             jacobian_speciesIn=jacobian_speciesIn,
         )
 
-    def save_pickle(self, save_pickle_file: str | os.PathLike[str], **kwargs):
+    def save_pickle(
+        self, save_pickle_file: str | os.PathLike[str], **kwargs: Any
+    ) -> None:
         """Dump a pickled version of this object, along with the working
         directory. Pairs with load_retrieval_strategy."""
         self._capture_directory.save_directory(self.run_dir, vlidort_input=None)
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
-    def state_state_info(self, save_pickle_file: str | os.PathLike[str]):
+    def state_state_info(self, save_pickle_file: str | os.PathLike[str]) -> None:
         """Dump a pickled version of the StateInfo object.
         We may play with this, but currently we gzip this.
         We would like to have something a bit more stable, not tied to the
@@ -475,7 +478,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         state_info_pickle_file: str | os.PathLike[str],
         step_number: int,
         ret_state_file: str | os.PathLike[str] | None = None,
-    ):
+    ) -> None:
         """This pairs with state_state_info. Instead of pickling the
         entire RetrievalStrategy, we just save the state. We then
         set up to process the given target_filename with the given
@@ -507,11 +510,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         cls,
         save_pickle_file: str | os.PathLike[str],
         path: str | os.PathLike[str] = ".",
-        change_to_dir=False,
+        change_to_dir: bool = False,
         osp_dir: str | os.PathLike[str] | None = None,
         gmao_dir: str | os.PathLike[str] | None = None,
         vlidort_cli: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[RetrievalStrategy, dict]:
         """This pairs with save_pickle.
 
         This is pretty direct to use, but as an example we can do
@@ -553,13 +556,18 @@ class RetrievalStrategyCaptureObserver:
 
     """
 
-    def __init__(self, basefname: str, location_to_capture: str | ProcessLocation):
+    def __init__(
+        self, basefname: str, location_to_capture: str | ProcessLocation
+    ) -> None:
         self.basefname = basefname
         self.location_to_capture = ProcessLocation(location_to_capture)
 
     def notify_update(
-        self, retrieval_strategy: RetrievalStrategy, location: ProcessLocation, **kwargs
-    ):
+        self,
+        retrieval_strategy: RetrievalStrategy,
+        location: ProcessLocation,
+        **kwargs: Any,
+    ) -> None:
         if location != self.location_to_capture:
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
@@ -577,13 +585,18 @@ class StateInfoCaptureObserver:
 
     """
 
-    def __init__(self, basefname: str, location_to_capture: str | ProcessLocation):
+    def __init__(
+        self, basefname: str, location_to_capture: str | ProcessLocation
+    ) -> None:
         self.basefname = basefname
         self.location_to_capture = ProcessLocation(location_to_capture)
 
     def notify_update(
-        self, retrieval_strategy: RetrievalStrategy, location: ProcessLocation, **kwargs
-    ):
+        self,
+        retrieval_strategy: RetrievalStrategy,
+        location: ProcessLocation,
+        **kwargs: Any,
+    ) -> None:
         if location != self.location_to_capture:
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
@@ -593,12 +606,20 @@ class StateInfoCaptureObserver:
 
 
 class RetrievalStrategyMemoryUse:
-    def __init__(self):
-        self.tr = None
+    def __init__(self) -> None:
+        # Need pympler here, but don't generally need it. Include this
+        # so this isn't a requirement, unless we are running with this
+        # observer
+        from pympler import tracker
+
+        self.tr: None | tracker.SummaryTracker = None
 
     def notify_update(
-        self, retrieval_strategy: RetrievalStrategy, location: ProcessLocation, **kwargs
-    ):
+        self,
+        retrieval_strategy: RetrievalStrategy,
+        location: ProcessLocation,
+        **kwargs: Any,
+    ) -> None:
         # Need pympler here, but don't generally need it. Include this
         # so this isn't a requirement, unless we are running with this
         # observer
@@ -614,7 +635,8 @@ class RetrievalStrategyMemoryUse:
             "done next_state_to_current",
         ):
             logger.info(f"Memory change when {location}")
-            self.tr.print_diff()
+            if self.tr is not None:
+                self.tr.print_diff()
 
 
 __all__ = [

@@ -349,7 +349,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         there is only one value put that in a length 1 np.array.
         """
         raise NotImplementedError()
-    
+
     @abc.abstractmethod
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
@@ -687,7 +687,7 @@ class CurrentStateUip(CurrentState):
         there is only one value put that in a length 1 np.array.
         """
         raise NotImplementedError()
-    
+
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
@@ -832,7 +832,7 @@ class CurrentStateDict(CurrentState):
         there is only one value put that in a length 1 np.array.
         """
         raise NotImplementedError()
-    
+
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
@@ -1107,7 +1107,7 @@ class CurrentStateStateInfo(CurrentState):
         """
         selem = self._state_info.state_element(state_element_id, step="true")
         return selem.value
-    
+
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
