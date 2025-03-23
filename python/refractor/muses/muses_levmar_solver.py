@@ -5,6 +5,7 @@ from .replace_function_helper import register_replacement_function_in_block
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from pathlib import Path
+from typing import Any
 
 
 class MusesLevmarSolver:
@@ -81,7 +82,7 @@ class MusesLevmarSolver:
         self.best_iter = d["best_iter"]
         self.residual_rms = np.array(d["residual_rms"])
 
-    def retrieval_results(self) -> dict:
+    def retrieval_results(self) -> dict[str, Any]:
         """Return the retrieval results dict. Hopefully this can go away, this
         is just used in mpy.set_retrieval_results (another function we would like
         to remove). It would probably be better for things

@@ -7,6 +7,7 @@ from loguru import logger
 import os
 import pickle
 import typing
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -22,11 +23,11 @@ class RetrievalInputOutput(RetrievalOutput):
     """Write out the retrieval inputs"""
 
     @property
-    def error_current(self):
+    def error_current(self):  # type: ignore
         return self.retrieval_strategy.error_analysis.error_current
 
     @property
-    def windows(self):
+    def windows(self):  # type: ignore
         return self.retrieval_strategy.microwindows
 
     @property
@@ -38,8 +39,8 @@ class RetrievalInputOutput(RetrievalOutput):
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
         if location != ProcessLocation("retrieval step"):
@@ -70,8 +71,8 @@ class RetrievalPickleResult(RetrievalOutput):
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
         if location != ProcessLocation("retrieval step"):
@@ -84,7 +85,7 @@ class RetrievalPickleResult(RetrievalOutput):
 
 class RetrievalPlotResult(RetrievalOutput):
     @property
-    def retrieval_info(self):
+    def retrieval_info(self) -> RetrievalInfo:
         return self.retrieval_strategy.retrieval_info
 
     def notify_update(
@@ -92,8 +93,8 @@ class RetrievalPlotResult(RetrievalOutput):
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
         if location != ProcessLocation("retrieval step"):
@@ -115,8 +116,8 @@ class RetrievalPlotRadiance(RetrievalOutput):
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
         if location != ProcessLocation("retrieval step"):

@@ -50,7 +50,7 @@ class EofStateElement(RetrievableStateElement):
         step: int,
         do_update_fm: np.ndarray,
     ):
-        self._value = results_list[retrieval_info.species_list == self._name]
+        self._value = results_list[np.array(retrieval_info.species_list) == self._name]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"

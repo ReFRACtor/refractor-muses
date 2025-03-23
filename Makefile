@@ -45,3 +45,9 @@ format:
 # version.
 mypy:
 	PYTHONPATH=$(PWD)/python mypy python/refractor
+
+# This adds options to check for missing typing info. Right now we have a lot
+# of this, we'll slowly fix this class by class. No rush, but useful to have
+# full typing information to find the occasinal problem
+mypy-missing:
+	PYTHONPATH=$(PWD)/python mypy --disallow-untyped-defs python/refractor

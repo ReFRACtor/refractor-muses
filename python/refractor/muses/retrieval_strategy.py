@@ -560,7 +560,10 @@ class RetrievalStrategyCaptureObserver:
         self, basefname: str, location_to_capture: str | ProcessLocation
     ) -> None:
         self.basefname = basefname
-        self.location_to_capture = ProcessLocation(location_to_capture)
+        if isinstance(location_to_capture, ProcessLocation):
+            self.location_to_capture = location_to_capture
+        else:
+            self.location_to_capture = ProcessLocation(location_to_capture)
 
     def notify_update(
         self,
@@ -589,7 +592,10 @@ class StateInfoCaptureObserver:
         self, basefname: str, location_to_capture: str | ProcessLocation
     ) -> None:
         self.basefname = basefname
-        self.location_to_capture = ProcessLocation(location_to_capture)
+        if isinstance(location_to_capture, ProcessLocation):
+            self.location_to_capture = location_to_capture
+        else:
+            self.location_to_capture = ProcessLocation(location_to_capture)
 
     def notify_update(
         self,

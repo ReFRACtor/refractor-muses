@@ -5,6 +5,7 @@ import refractor.framework as rf  # type: ignore
 import abc
 import numpy as np
 import typing
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
@@ -14,8 +15,10 @@ if typing.TYPE_CHECKING:
 
 
 def mpy_radiance_from_observation_list(
-    obs_list: list[MusesObservation], include_bad_sample=False, full_band=False
-):
+    obs_list: list[MusesObservation],
+    include_bad_sample: bool = False,
+    full_band: bool = False,
+) -> dict[str, Any]:
     """There are various places where py-retrieve needs the radiance
     data in a particular structure (e.g., its 'radianceStep'
     calculations.

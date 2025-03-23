@@ -716,7 +716,7 @@ class CurrentStateDict(CurrentState):
     def __init__(
         self,
         state_element_dict: dict[
-            StateElementIdentifier, np.ndarray | list[float] | float
+            StateElementIdentifier | str, np.ndarray | list[float] | float
         ],
         retrieval_element: list[StateElementIdentifier | str],
     ):

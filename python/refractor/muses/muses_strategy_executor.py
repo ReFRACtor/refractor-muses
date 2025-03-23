@@ -162,13 +162,15 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 SpectralWindowHandleSet.default_handle_set()
             )
         else:
-            self._retrieval_strategy_step_set = retrieval_strategy_step_set
+            self._spectral_window_handle_set = spectral_window_handle_set
+
         if qa_data_handle_set is None:
             self._qa_data_handle_set = copy.deepcopy(
                 QaDataHandleSet.default_handle_set()
             )
         else:
             self._qa_data_handle_set = qa_data_handle_set
+
         self.measurement_id: MeasurementId | None = None
 
     def notify_update_target(self, measurement_id: MeasurementId):

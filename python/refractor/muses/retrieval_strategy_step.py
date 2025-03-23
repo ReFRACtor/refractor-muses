@@ -9,12 +9,14 @@ from .retrieval_result import RetrievalResult
 from .identifier import RetrievalType, ProcessLocation
 import json
 import gzip
-from typing import Tuple
+import os
+from typing import Tuple, Any
 import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_result import RetrievalResult
+    from .cost_function import CostFunction
 
 # TODO clean up the usage for various internal objects of
 # RetrievalStrategy, we want to rework this anyways as we introduce
@@ -35,11 +37,11 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
     """
 
     def retrieval_step(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
     ) -> None:
         self.handle(retrieval_type, rs, **kwargs)
 
-    def notify_update_target(self, rs: RetrievalStrategy):
+    def notify_update_target(self, rs: RetrievalStrategy) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
@@ -51,7 +53,7 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
         h: RetrievalStrategyStep,
         retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
-        **kwargs,
+        **kwargs: Any,
     ) -> Tuple[bool, None]:
         return h.retrieval_step(retrieval_type, rs, **kwargs)
 
@@ -80,11 +82,12 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._uip = None
-        self._saved_state = None
+        self._saved_state: None | dict[str, Any] = None
+        self.results: None | RetrievalResult = None
 
-    def notify_update_target(self, rs: RetrievalStrategy):
+    def notify_update_target(self, rs: RetrievalStrategy) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -94,8 +97,8 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         self,
         retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
-        ret_state=None,
-        **kwargs,
+        ret_state: None | dict[str, Any] = None,
+        **kwargs: Any,
     ) -> Tuple[bool, None]:
         """Returns (True, None) if we handle the retrieval step,
         (False, None) otherwise
@@ -111,12 +114,12 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
     ) -> bool:
         """Returns True if we handle the retrieval step, False otherwise"""
         raise NotImplementedError()
 
-    def get_state(self) -> dict:
+    def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by
         set_state.  This allows us to skip pieces of the retrieval
         step. This is similar to a pickle serialization (which we also
@@ -131,22 +134,27 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         # Default, no state
         return {}
 
-    def set_state(self, d: dict):
+    def set_state(self, d: dict[str, Any] | None) -> None:
         """Set the state previously saved by get_state"""
         # Default, just put this into the _saved_state for use
         # in the rest of this object
         self._saved_state = d
 
-    def radiance_step(self):
+    def radiance_step(self) -> dict[str, Any]:
         """We have a few places that need the old py-retrieve dict
         version of our observation data. This function calculates
         that- it is just a reformatting of our observation data.
         """
-        return mpy_radiance_from_observation_list(
-            self.cfunc.obs_list, include_bad_sample=True
-        )
+        # I don't think this ever gets called by something that doesn't have
+        # a cfunc, but go ahead and have handling for this just in case
+        if hasattr(self, "cfunc"):
+            return mpy_radiance_from_observation_list(
+                self.cfunc.obs_list, include_bad_sample=True
+            )
+        else:
+            return {}
 
-    def radiance_full(self, rs: RetrievalStrategy):
+    def radiance_full(self, rs: RetrievalStrategy) -> dict[str, Any]:
         """The full set of radiance, for all instruments and full band."""
         olist = [
             rs.observation_handle_set.observation(iname, None, None, None)
@@ -168,7 +176,7 @@ class RetrievalStrategyStepNotImplemented(RetrievalStrategyStep):
     """
 
     def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
     ) -> bool:
         if retrieval_type not in (
             RetrievalType("forwardmodel"),
@@ -184,18 +192,18 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
     """Strategy step that does a retrieval (e.g., the default strategy
     step)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.notify_update_target(None)
-        self.slv = None
-        self.cfunc = None
-        self.cfunc_sys = None
+        self.slv: None | MusesLevmarSolver = None
+        self.cfunc: None | CostFunction = None
+        self.cfunc_sys: None | CostFunction = None
 
-    def notify_update_target(self, rs: RetrievalStrategy):
+    def notify_update_target(self, rs: RetrievalStrategy | None) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         # Nothing currently needed
 
-    def get_state(self) -> dict:
+    def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by
         set_state.  This allows us to skip pieces of the retrieval
         step. This is similar to a pickle serialization (which we also
@@ -207,7 +215,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         to actually run the retrieval.
 
         """
-        res = {"slv": None, "cfunc_sys": None}
+        res: dict[str, Any] = {"slv": None, "cfunc_sys": None}
         if self.slv is not None:
             res["slv"] = self.slv.get_state()
         if self.cfunc_sys is not None:
@@ -215,7 +223,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         return res
 
     def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
     ) -> bool:
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         rs.notify_update(
@@ -237,7 +245,8 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         Path(f"{rs.run_dir}/-run_token.asc").touch()
 
         ret_res = self.run_retrieval(rs, **kwargs)
-
+        if self.cfunc is None:
+            raise RuntimeError("self.cfunc should not be None")
         self.results = RetrievalResult(
             ret_res,
             rs.retrieval_info,
@@ -300,7 +309,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         )
         return True
 
-    def run_retrieval(self, rs: RetrievalStrategy, cost_function_params={}, **kwargs):
+    def run_retrieval(
+        self, rs: RetrievalStrategy, cost_function_params: dict = {}, **kwargs: Any
+    ) -> dict[str, Any]:
         """run_retrieval"""
         self.cfunc = rs.create_cost_function()
         rs.notify_update(
@@ -333,7 +344,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         logger.info(f"Solved State vector:\n{self.cfunc.fm_sv}")
         return self.slv.retrieval_results()
 
-    def extra_after_run_retrieval_step(self, rs: RetrievalStrategy):
+    def extra_after_run_retrieval_step(self, rs: RetrievalStrategy) -> None:
         """We have a couple of steps that just do some extra adjustments before
         we go into the systematic_jacobian/error_analysis stuff. This is just a hook
         for putting this in place."""
@@ -345,13 +356,13 @@ class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
     OMI cloud fraction."""
 
     def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
     ) -> bool:
         if retrieval_type != RetrievalType("omicloud_ig_refine"):
             return False
         return super().retrieval_step_body(retrieval_type, rs, **kwargs)
 
-    def extra_after_run_retrieval_step(self, rs):
+    def extra_after_run_retrieval_step(self, rs: RetrievalStrategy) -> None:
         rs.state_info.state_info_dict["constraint"]["omi"]["cloud_fraction"] = (
             rs.state_info.state_info_dict["current"]["omi"]["cloud_fraction"]
         )
@@ -362,13 +373,13 @@ class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve
     TROPOMI cloud fraction."""
 
     def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs
+        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
     ) -> bool:
         if retrieval_type != RetrievalType("tropomicloud_ig_refine"):
             return False
         return super().retrieval_step_body(retrieval_type, rs, **kwargs)
 
-    def extra_after_run_retrieval_step(self, rs: RetrievalStrategy):
+    def extra_after_run_retrieval_step(self, rs: RetrievalStrategy) -> None:
         rs.state_info.state_info_dict["constraint"]["tropomi"]["cloud_fraction"] = (
             rs.state_info.state_info_dict["current"]["tropomi"]["cloud_fraction"]
         )
@@ -401,12 +412,14 @@ class RetrievalStepCaptureObserver:
     unit tests the json state is more fundamental and should be more stable.
     """
 
-    def __init__(self, basefname, location_to_capture="end_retrieval_step"):
+    def __init__(
+        self, basefname: str, location_to_capture: str = "end_retrieval_step"
+    ) -> None:
         self.basefname = basefname
         self.location_to_capture = ProcessLocation(location_to_capture)
 
     @classmethod
-    def load_retrieval_state(cls, fname):
+    def load_retrieval_state(cls, fname: str | os.PathLike[str]) -> dict[str, Any]:
         return json.loads(gzip.open(fname, mode="rb").read().decode("utf-8"))
 
     def notify_update(
@@ -414,8 +427,8 @@ class RetrievalStepCaptureObserver:
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         if location != self.location_to_capture:
             return
         if retrieval_strategy_step is None:

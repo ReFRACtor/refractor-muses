@@ -7,6 +7,7 @@ from .identifier import InstrumentIdentifier
 import os
 from typing import Any
 import typing
+from typing import Tuple
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
@@ -29,7 +30,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         obs: MusesObservation,
         ils_params_list: list[dict],
         osp_dir: str | os.PathLike[str],
-    ):
+    ) -> None:
         """Creator"""
         # Dummy since we are overwriting the optical_depth function
         self.osp_dir = osp_dir
@@ -49,8 +50,8 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         self.xsect_data: list[np.ndarray] = []
         for i in range(self.obs.num_channels):
             if self.obs.spectral_domain(i).data.shape[0] == 0:
-                t1 = []
-                t2 = []
+                t1 = np.array([])
+                t2 = np.array([])
             elif self.obs.instrument_name == InstrumentIdentifier("TROPOMI"):
                 t1, t2 = self._xsect_tropomi_ils(i)
             elif self.obs.instrument_name == InstrumentIdentifier("OMI"):
@@ -62,7 +63,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
             self.xsect_grid.append(np.array(t1))
             self.xsect_data.append(np.array(t2))
 
-    def _xsect_tropomi_ils(self, sensor_index: int):
+    def _xsect_tropomi_ils(self, sensor_index: int) -> Tuple[np.ndarray, np.ndarray]:
         uip = None
         do_temp_shift = False
         # I don't think we ever have no2_col. We can add this in if needed later,
@@ -92,7 +93,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         xsect_data = o3_xsec["o3xsec"]
         return xsect_grid.astype(float), xsect_data.astype(float)
 
-    def _xsect_omi_ils(self, sensor_index: int):
+    def _xsect_omi_ils(self, sensor_index: int) -> Tuple[np.ndarray, np.ndarray]:
         tatm = self.temperature.temperature_grid(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         ).value.value

@@ -9,6 +9,8 @@ import copy
 from loguru import logger
 from collections.abc import Callable
 import typing
+from typing import Tuple, Any
+import numpy as np
 
 if typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
@@ -26,7 +28,7 @@ class CostFunctionCreator:
     Observation, see that class for a discussion on using this.
     """
 
-    def __init__(self, rs: RetrievalStrategy | None = None):
+    def __init__(self, rs: RetrievalStrategy | None = None) -> None:
         self.forward_model_handle_set = copy.deepcopy(
             ForwardModelHandleSet.default_handle_set()
         )
@@ -35,7 +37,7 @@ class CostFunctionCreator:
         )
         self.measurement_id: MeasurementId | None = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Set up for processing a target.
 
         Note we separate this out from the cost_function creator
@@ -86,10 +88,10 @@ class CostFunctionCreator:
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
-        include_bad_sample=False,
+        include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> CostFunction:
         """Return cost function for the RetrievalStrategy.
 
         This takes the list of instrument names that make up this
@@ -162,10 +164,18 @@ class CostFunctionCreator:
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
-        include_bad_sample=False,
+        include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Tuple[
+        list[InstrumentIdentifier],
+        list[rf.ForwardModel],
+        list[rf.Observation],
+        rf.StateVector,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray | None,
+    ]:
         self.obs_list = []
         fm_sv = rf.StateVector()
         if obs_list is not None:
@@ -223,8 +233,8 @@ class CostFunctionCreator:
         rf_uip: RefractorUip,
         obs_list: list[MusesObservation] | None,
         ret_info: dict | None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> CostFunction:
         """Create a cost function from a RefractorUip and a
         ret_info. Note that this is really just for backwards testing,
         we are trying to get away from using the RefractorUip because

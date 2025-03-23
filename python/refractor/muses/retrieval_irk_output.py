@@ -7,6 +7,7 @@ from .identifier import ProcessLocation, InstrumentIdentifier
 import numpy as np
 import math
 import typing
+from typing import Any, Tuple, Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -16,7 +17,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
 
 
-def _new_from_init(cls, *args):
+def _new_from_init(cls, *args):  # type: ignore
     """For use with pickle, covers common case where we just store the
     arguments needed to create an object."""
     inst = cls.__new__(cls)
@@ -27,7 +28,7 @@ def _new_from_init(cls, *args):
 class RetrievalIrkOutput(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_IRK files."""
 
-    def __reduce__(self):
+    def __reduce__(self) -> Tuple[Callable, Tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
     @property
@@ -51,8 +52,8 @@ class RetrievalIrkOutput(RetrievalOutput):
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
         if location != ProcessLocation("IRK step"):
@@ -62,7 +63,7 @@ class RetrievalIrkOutput(RetrievalOutput):
         os.makedirs(os.path.dirname(self.out_fname), exist_ok=True)
         self.write_irk()
 
-    def write_irk(self):
+    def write_irk(self) -> None:
         if self.results_irk is None:
             return
 
@@ -76,7 +77,7 @@ class RetrievalIrkOutput(RetrievalOutput):
         nfreqEmis = len(self.results_irk.EMIS["irfk"])
         nfreqCloud = len(self.results_irk.CLOUDOD["irfk"])
 
-        irk_data = {
+        irk_datad = {
             "fmBandFlux": np.zeros(shape=(nobs), dtype=np.float32) - 999,
             "l1BBandFlux": np.zeros(shape=(nobs), dtype=np.float32) - 999,
             "fmFluxSegs": np.zeros(shape=(nfreqBandFM, nobs), dtype=np.float32) - 999,
@@ -122,7 +123,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             "omi_vza_uv2": np.zeros(shape=(nobs), dtype=np.float32),
             "omi_sca_uv2": np.zeros(shape=(nobs), dtype=np.float32),
         }
-        irk_data = mpy.ObjectView(irk_data)
+        irk_data = mpy.ObjectView(irk_datad)
 
         nn = num_points - len(self.results_irk.H2O["vmr"])
         irk_data.fmBandFlux[:] = self.results_irk.flux
@@ -173,7 +174,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             vza = obs.observation_zenith
             sca = obs.scattering_angle
             if ("UV2") in blist:
-                i = blist.index["UV2"]
+                i = blist.index("UV2")
                 irk_data.omi_sza_uv2 = np.float32(sza[i])
                 irk_data.omi_raz_uv2 = np.float32(raz[i])
                 irk_data.omi_vza_uv2 = np.float32(vza[i])
@@ -190,7 +191,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             irk_data.omi_sca_uv2 = np.float32(-999.0)
 
         if "OMI" in self.retrieval_info.retrieval_info_obj.speciesList:
-            irk_data.BoresightNadirAngle[:] = np.float32(vza[blist.index["UV1"]])
+            irk_data.BoresightNadirAngle[:] = np.float32(vza[blist.index("UV1")])
         else:
             # convert to degrees
             irk_data.BoresightNadirAngle[:] = self.state_value("PTGANG") * 180 / math.pi

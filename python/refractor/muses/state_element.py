@@ -2426,7 +2426,9 @@ class MusesPyOmiStateElement(MusesPyStateElement):
     ):
         # Note we assume here that all the mappings are linear. I'm pretty
         # sure that is the case, we can put the extra logic in if needed.
-        self.value = results_list[retrieval_info.species_list == str(self.name)]
+        self.value = results_list[
+            np.array(retrieval_info.species_list) == str(self.name)
+        ]
         ij = retrieval_info.species_names.index(str(self.name))
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
@@ -2552,7 +2554,9 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
     ):
         # Note we assume here that all the mappings are linear. I'm pretty
         # sure that is the case, we can put the extra logic in if needed.
-        self.value = results_list[retrieval_info.species_list == str(self.name)]
+        self.value = results_list[
+            np.array(retrieval_info.species_list) == str(self.name)
+        ]
         ij = retrieval_info.species_names.index(str(self.name))
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]

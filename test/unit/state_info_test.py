@@ -130,7 +130,7 @@ def test_update_cloudfraction(omi_step_0):
     rs._strategy_executor.get_initial_guess()
     rinfo = rs.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
+    results_list[np.array(rinfo.species_list) == "OMICLOUDFRACTION"] = 0.5
     sinfo.update_state(
         rinfo,
         results_list,
@@ -304,7 +304,7 @@ def test_noupdate_cloudfraction(omi_step_0):
     rs._strategy_executor.get_initial_guess()
     rinfo = rs.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[rinfo.species_list == "OMICLOUDFRACTION"] = 0.5
+    results_list[np.array(rinfo.species_list) == "OMICLOUDFRACTION"] = 0.5
     sinfo.update_state(
         rinfo,
         results_list,
@@ -491,7 +491,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
     rs._strategy_executor.get_initial_guess()
     rinfo = rs.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
+    results_list[np.array(rinfo.species_list) == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     sinfo.update_state(
         rinfo,
         results_list,
@@ -612,7 +612,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
     rs._strategy_executor.get_initial_guess()
     rinfo = rs.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[rinfo.species_list == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
+    results_list[np.array(rinfo.species_list) == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     sinfo.update_state(
         rinfo,
         results_list,

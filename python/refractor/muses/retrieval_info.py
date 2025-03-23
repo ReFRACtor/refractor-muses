@@ -5,12 +5,14 @@ import numpy as np
 from scipy.linalg import block_diag  # type: ignore
 from pathlib import Path
 import typing
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .state_info import StateInfo
     from .current_state import CurrentState
     from .error_analysis import ErrorAnalysis
     from .muses_strategy_executor import CurrentStrategyStep
+    from .retrieval_result import RetrievalResult
 
 
 class RetrievalInfo:
@@ -60,95 +62,107 @@ class RetrievalInfo:
         return self.retrieval_dict["mapToState"][0:mmm, 0:nnn]
 
     @property
-    def retrieval_info_obj(self):
+    def retrieval_info_obj(self) -> mpy.ObjectView:
         return mpy.ObjectView(self.retrieval_dict)
 
     @property
-    def initial_guess_list(self):
+    def initial_guess_list(self) -> np.ndarray:
         """This is the initial guess for the state vector (not the full state)"""
         return self.retrieval_dict["initialGuessList"]
 
     @property
-    def constraint_vector(self):
+    def constraint_vector(self) -> np.ndarray:
         """This is the initial guess for the state vector (not the full state)"""
         return self.retrieval_dict["constraintVector"]
 
-    def species_results(self, results, spcname, FM_Flag=True, INITIAL_Flag=False):
+    def species_results(
+        self,
+        results: RetrievalResult,
+        spcname: str,
+        FM_Flag: bool = True,
+        INITIAL_Flag: bool = False,
+    ) -> np.ndarray:
         return mpy.get_vector(
-            results.resultsList, self.retrieval_info_obj, spcname, FM_Flag, INITIAL_Flag
+            results.results_list,
+            self.retrieval_info_obj,
+            spcname,
+            FM_Flag,
+            INITIAL_Flag,
         )
 
-    def species_initial(self, spcname, FM_Flag=True):
+    def species_initial(self, spcname: str, FM_Flag: bool = True) -> np.ndarray:
         return mpy.get_vector(
             self.initial_guess_list, self.retrieval_info_obj, spcname, FM_Flag, True
         )
 
-    def species_constraint(self, spcname, FM_Flag=True):
+    def species_constraint(self, spcname: str, FM_Flag: bool = True) -> np.ndarray:
         return mpy.get_vector(
             self.constraint_vector, self.retrieval_info_obj, spcname, FM_Flag, True
         )
 
     @property
-    def initialGuessListFM(self):
+    def initialGuessListFM(self) -> np.ndarray:
         """This is the initial guess for the FM state vector"""
         return self.retrieval_dict["initialGuessListFM"]
 
     @property
-    def initial_guess_list_fm(self):
+    def initial_guess_list_fm(self) -> np.ndarray:
         """This is the initial guess for the FM state vector"""
         return self.retrieval_dict["initialGuessListFM"]
 
     @property
-    def parameter_start_fm(self):
+    def parameter_start_fm(self) -> list[int]:
         return self.retrieval_dict["parameterStartFM"]
 
     @property
-    def parameter_end_fm(self):
+    def parameter_end_fm(self) -> list[int]:
         return self.retrieval_dict["parameterEndFM"]
 
     @property
-    def map_type(self):
+    def map_type(self) -> list[str]:
         return self.retrieval_dict["mapType"]
 
     @property
-    def type(self):
+    def type(self) -> str:
         return self.retrieval_dict["type"]
 
     @property
-    def apriori_cov(self):
+    def apriori_cov(self) -> np.ndarray:
         return self.retrieval_dict["Constraint"][
             0 : self.n_totalParameters, 0 : self.n_totalParameters
         ]
 
     @property
-    def apriori(self):
+    def apriori(self) -> np.ndarray:
         return self.retrieval_dict["constraintVector"][0 : self.n_totalParameters]
 
     @property
-    def species_names(self):
-        return self.retrieval_dict["species"][0 : self.retrieval_dict["n_species"]]
+    def species_names(self) -> list[str]:
+        return list(
+            self.retrieval_dict["species"][0 : self.retrieval_dict["n_species"]]
+        )
 
     @property
-    def species_names_sys(self):
-        return self.retrieval_dict["speciesSys"][
-            0 : self.retrieval_dict["n_speciesSys"]
-        ]
+    def species_names_sys(self) -> list[str]:
+        return list(
+            self.retrieval_dict["speciesSys"][0 : self.retrieval_dict["n_speciesSys"]]
+        )
 
     @property
-    def species_list(self):
-        return np.array(self.retrieval_dict["speciesList"][0 : self.n_totalParameters])
+    def species_list(self) -> list[str]:
+        return list(self.retrieval_dict["speciesList"][0 : self.n_totalParameters])
 
     @property
-    def species_list_sys(self):
+    def species_list_sys(self) -> list[str]:
         return list(
             self.retrieval_dict["speciesListSys"][0 : self.n_totalParametersSys]
         )
 
     @property
-    def map_type_systematic(self):
-        return self._map_type_systematic
+    def map_type_systematic(self) -> list[str]:
+        return list(self._map_type_systematic)
 
-    def retrieval_info_systematic(self):
+    def retrieval_info_systematic(self) -> mpy.ObjectView:
         """Version of retrieval info to use for a creating a systematic UIP"""
         return mpy.ObjectView(
             {
@@ -173,88 +187,65 @@ class RetrievalInfo:
         )
 
     @property
-    def species_list_fm(self):
+    def species_list_fm(self) -> list[str]:
         return self.retrieval_dict["speciesListFM"][0 : self.n_totalParametersFM]
 
     @property
-    def pressure_list_fm(self):
+    def pressure_list_fm(self) -> list[float]:
         return self.retrieval_dict["pressureListFM"][0 : self.n_totalParametersFM]
 
     @property
-    def surface_type(self):
+    def surface_type(self) -> str:
         return self.retrieval_dict["surfaceType"]
 
     @property
-    def is_ocean(self):
+    def is_ocean(self) -> bool:
         return self.surface_type == "OCEAN"
 
     # Synonyms used in the muses-py code.
     @property
-    def speciesListFM(self):
+    def speciesListFM(self) -> list[str]:
         return self.species_list_fm
 
     @property
-    def pressureListFM(self):
+    def pressureListFM(self) -> list[float]:
         return self.pressure_list_fm
 
     @property
-    def n_species(self):
+    def n_species(self) -> int:
         return len(self.species_names)
 
     @property
-    def minimumList(self):
-        return self.retrieval_dict["minimumList"][0 : self.n_totalParameters]
+    def minimumList(self) -> list[float]:
+        return list(self.retrieval_dict["minimumList"][0 : self.n_totalParameters])
 
     @property
-    def maximumList(self):
-        return self.retrieval_dict["maximumList"][0 : self.n_totalParameters]
+    def maximumList(self) -> list[float]:
+        return list(self.retrieval_dict["maximumList"][0 : self.n_totalParameters])
 
     @property
-    def maximumChangeList(self):
-        return self.retrieval_dict["maximumChangeList"][0 : self.n_totalParameters]
+    def maximumChangeList(self) -> list[float]:
+        return list(
+            self.retrieval_dict["maximumChangeList"][0 : self.n_totalParameters]
+        )
 
     @property
-    def n_totalParameters(self):
+    def n_totalParameters(self) -> int:
         # Might be a better place to get this, but start by getting from
         # initial guess
         return self.initial_guess_list.shape[0]
 
     @property
-    def n_totalParametersSys(self):
+    def n_totalParametersSys(self) -> int:
         return self.retrieval_dict["n_totalParametersSys"]
 
     @property
-    def n_totalParametersFM(self):
+    def n_totalParametersFM(self) -> int:
         return self.retrieval_dict["n_totalParametersFM"]
 
     @property
-    def n_speciesSys(self):
+    def n_speciesSys(self) -> int:
         return self.retrieval_dict["n_speciesSys"]
-
-    @property
-    def __doUpdateFM(self):
-        return self.retrieval_dict["doUpdateFM"][0 : self.n_totalParametersFM]
-
-    @property
-    def __initialGuessListFM(self):
-        """This is the initial guess for the FM state vector"""
-        return self.retrieval_dict["initialGuessListFM"]
-
-    @property
-    def __species(self):
-        # Not clear why these arrays are fixed size. Probably left over from IDL,
-        # but go ahead and trim this
-        return self.retrieval_dict["species"][0 : self.retrieval_dict["n_species"]]
-
-    @property
-    def __n_species(self):
-        return len(self.species)
-
-    @property
-    def __n_totalParametersFM(self):
-        # Might be a better place to get this, but start by getting from
-        # initial guess
-        return self.initialGuessListFM.shape[0]
 
     def init_interferents(
         self,
@@ -263,7 +254,7 @@ class RetrievalInfo:
         state_info: StateInfo,
         o_retrievalInfo: mpy.ObjectView,
         error_analysis: ErrorAnalysis,
-    ):
+    ) -> None:
         """Update the various "Sys" stuff in o_retrievalInfo to add in
         the error analysis interferents"""
         sys_tokens = [str(i) for i in current_strategy_step.error_analysis_interferents]
@@ -292,8 +283,8 @@ class RetrievalInfo:
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentState,
         state_info: StateInfo,
-        o_retrievalInfo,
-    ):
+        o_retrievalInfo: mpy.ObjectView,
+    ) -> None:
         selem = state_info.state_element(StateElementIdentifier(species_name))
         selem.update_initial_guess(current_strategy_step)
 
@@ -336,11 +327,11 @@ class RetrievalInfo:
 
     def init_joint(
         self,
-        o_retrievalInfo,
+        o_retrievalInfo: mpy.ObjectView,
         species_dir: Path,
         current_state: CurrentState,
         state_info: StateInfo,
-    ):
+    ) -> None:
         """This should get cleaned up somehow"""
         index_H2O = -1
         index_HDO = -1
@@ -446,7 +437,7 @@ class RetrievalInfo:
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentState,
         state_info: StateInfo,
-    ):
+    ) -> mpy.ObjectView:
         # This is a reworking of get_species_information in muses-py
 
         # errors propagated from step to step - possibly used as covariances
@@ -460,7 +451,7 @@ class RetrievalInfo:
         # constraints for all parameters, maps for each parameter
 
         smeta = state_info.sounding_metadata()
-        o_retrievalInfo: dict | mpy.ObjectView = {
+        o_retrievalInfod: dict[str, Any] = {
             # Info by retrieval parameter
             "surfaceType": "OCEAN" if smeta.is_ocean else "LAND",
             "speciesList": [],
@@ -509,10 +500,10 @@ class RetrievalInfo:
         # o_retrievalInfo OBJECT_TYPE dict
 
         # AT_LINE 83 Get_Species_Information.pro
-        o_retrievalInfo["type"] = str(current_strategy_step.retrieval_type)
+        o_retrievalInfod["type"] = str(current_strategy_step.retrieval_type)
 
         o_retrievalInfo = mpy.ObjectView(
-            o_retrievalInfo
+            o_retrievalInfod
         )  # Convert to object so we can use '.' to access member variables.
 
         # map types for all species

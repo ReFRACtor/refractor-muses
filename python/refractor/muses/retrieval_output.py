@@ -14,16 +14,22 @@ import numpy as np
 import datetime
 import pytz
 import typing
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .retrieval_configuration import RetrievalConfiguration
+    from .current_state import CurrentState
+    from .muses_strategy import CurrentStrategyStep
+    from .muses_observation import MusesObservation
+    from .state_info import SoundingMetadata, StateElement
 
 
 class RetrievalOutput:
     """Observer of RetrievalStrategy, common behavior for Products files."""
 
-    def notify_add(self, retrieval_strategy: RetrievalStrategy):
+    def notify_add(self, retrieval_strategy: RetrievalStrategy) -> None:
         self.retrieval_strategy = retrieval_strategy
 
     def notify_update(
@@ -31,13 +37,13 @@ class RetrievalOutput:
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.retrieval_strategy_step = retrieval_strategy_step
 
     @property
-    def retrieval_config(self):
+    def retrieval_config(self) -> RetrievalConfiguration:
         return self.retrieval_strategy.retrieval_config
 
     @property
@@ -71,13 +77,13 @@ class RetrievalOutput:
         return Path(self.retrieval_config["liteDirectory"])
 
     @property
-    def special_tag(self):
+    def special_tag(self) -> str:
         if self.retrieval_strategy.retrieval_type != RetrievalType("default"):
             return f"-{self.retrieval_strategy.retrieval_type.lower()}"
         return ""
 
     @property
-    def species_tag(self):
+    def species_tag(self) -> str:
         res = self.step_name
         res = res.rstrip(", ")
         if "EMIS" in res and res.index("EMIS") > 0:
@@ -88,15 +94,22 @@ class RetrievalOutput:
         return res
 
     @property
-    def step_number(self):
+    def step_number(self) -> int:
         return self.retrieval_strategy.strategy_step.step_number
 
     @property
-    def step_name(self):
+    def step_name(self) -> str:
         return self.retrieval_strategy.strategy_step.step_name
 
+    # This is actually a RetrievalResult, but because we directly update __dict_
+    # this seriously confuses mypy. Just mark as "Any" to work aroun this.
     @property
-    def results(self):
+    def results(self) -> Any:
+        if (
+            self.retrieval_strategy_step is None
+            or self.retrieval_strategy_step.results is None
+        ):
+            raise RuntimeError("retrieval_strategy_step.results needs to not be None")
         return self.retrieval_strategy_step.results
 
     def state_value(self, state_name: str) -> float:
@@ -111,9 +124,14 @@ class RetrievalOutput:
 
     def state_sd_wavelength(self, state_name: str) -> np.ndarray:
         """Get the spectral domain wavelength in nm for state element"""
-        return self.current_state.full_state_spectral_domain_wavelength(
+        t = self.current_state.full_state_spectral_domain_wavelength(
             StateElementIdentifier(state_name)
         )
+        if t is None:
+            raise RuntimeError(
+                f"{state_name} doesn't have full_state_spectral_domain_wavelength"
+            )
+        return t
 
     def state_apriori(self, state_name: str) -> float:
         """Get the state value for the given state name"""
@@ -128,44 +146,44 @@ class RetrievalOutput:
         )
 
     @property
-    def current_state(self):
+    def current_state(self) -> CurrentState:
         return self.retrieval_strategy.current_state()
 
     @property
-    def current_strategy_step(self):
+    def current_strategy_step(self) -> CurrentStrategyStep:
         return self.retrieval_strategy.current_strategy_step
 
-    def observation(self, instrument_name):
+    def observation(self, instrument_name: str) -> MusesObservation:
         return self.retrieval_strategy.observation_handle_set.observation(
             InstrumentIdentifier(instrument_name), None, None, None
         )
 
     @property
-    def radiance_full(self):
+    def radiance_full(self) -> dict:
         return self.results.radiance_full
 
     @property
-    def obs_list(self):
+    def obs_list(self) -> list[MusesObservation]:
         return self.results.obs_list
 
     @property
-    def radiance_step(self):
+    def radiance_step(self) -> mpy.ObjectView:
         return self.results.rstep
 
     @property
-    def instruments(self):
+    def instruments(self) -> list[InstrumentIdentifier]:
         return self.results.instruments
 
     @property
-    def species_list_fm(self):
+    def species_list_fm(self) -> list[str]:
         return self.results.species_list_fm
 
     @property
-    def pressure_list_fm(self):
+    def pressure_list_fm(self) -> np.ndarray:
         return self.results.pressure_list_fm
 
     @property
-    def sounding_metadata(self):
+    def sounding_metadata(self) -> SoundingMetadata:
         return self.results.sounding_metadata
 
 
@@ -178,21 +196,21 @@ class CdfWriteTes:
     cdf_write_tes function plus some arrays that can be extended.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def write(
         self,
-        dataOut,
-        filenameOut,
-        tracer_species="species",
-        retrieval_pressures=None,
-        write_met=False,
-        version=None,
-        liteVersion=None,
-        runtimeAttributes=None,
-        state_element_out=None,
-    ):
+        dataOut: dict,
+        filenameOut: str,
+        tracer_species: str = "species",
+        retrieval_pressures: list[float] | None = None,
+        write_met: bool = False,
+        version: str | None = None,
+        liteVersion: str | None = None,
+        runtimeAttributes: dict | None = None,
+        state_element_out: list[StateElement] | None = None,
+    ) -> None:
         """We pass in state_element_out for StateElement not otherwise handled. This
         separates out the species that were in muses-py vs stuff we may have added.
         Perhaps we'll get all the StateElements handled the same way at some point,
@@ -202,7 +220,7 @@ class CdfWriteTes:
         if runtimeAttributes is None:
             runtimeAttributes = {}
         if state_element_out is None:
-            state_element_out = {}
+            state_element_out = []
         dims = {}
 
         if "FILENAME" in dataOut:
@@ -241,7 +259,7 @@ class CdfWriteTes:
 
         # TODO Probably bad that this is hardcoded. Should perhaps pass this
         # in instead
-        grid_pressure_FM = [
+        grid_pressure_FM: list[float] | np.ndarray = [
             -999,
             1.21153e03,
             1.10070e03,
@@ -362,8 +380,8 @@ class CdfWriteTes:
             dims["dim_nir_aerosol"] = len(dataOut["NIR_AEROD"])
 
         # AT_LINE 145 TOOLS/cdf_write_tes.pro
-        grid_iters = []
-        grid_iterlist = []
+        grid_iters: list[int] | np.ndarray = []
+        grid_iterlist: list[int] | np.ndarray = []
         if "LMRESULTS_RESNORM" in dataOut:
             grid_iters = np.arange(0, len(dataOut["lmresults_resnorm".upper()]))
             grid_iterlist = np.arange(
@@ -585,9 +603,11 @@ class CdfWriteTes:
 
         #### AT_LINE 199 TOOLS/cdf_write_tes.pro
         if "MAP" in list(dataOut.keys()):
+            if retrieval_pressures is None:
+                raise RuntimeError("retrieval_pressures is None")
             if len(dataOut["pressure".upper()]) != len(dataOut["map".upper()][:, 0]):
                 # for composite files (e.g. HDO-H2O) also stack of pressures
-                grid_pressure_composite = np.concatenate(
+                grid_pressure_composite: np.ndarray = np.concatenate(
                     (retrieval_pressures, retrieval_pressures), axis=0
                 )
                 dims["dim_pressure_composite"] = len(grid_pressure_composite)
@@ -657,7 +677,7 @@ class CdfWriteTes:
                 "Function Met_Write() has not been implemented.  Must exit for now."
             )
         else:
-            global_attr = {}
+            global_attr: dict[str, Any] = {}
 
         global_attr["fileversion"] = 2
         global_attr["history"] = history_entry
@@ -814,15 +834,15 @@ class CdfWriteTes:
 
     def write_lite(
         self,
-        stepNumber,
-        filenameIn,
-        instrument,
-        liteDirectory,
-        data1In,
-        data2=None,
-        species_name="",
-        state_element_out=None,
-    ):
+        stepNumber: int,
+        filenameIn: str,
+        instrument: list[InstrumentIdentifier],
+        liteDirectory: str,
+        data1In: dict,
+        data2: dict | None = None,
+        species_name: str = "",
+        state_element_out: list[StateElement] | None = None,
+    ) -> dict | None:
         """This is a lightly edited version of make_lite_casper_script_retrieval,
         mainly we want this to call our cdf_write_tes so we can add new species in.
 
@@ -839,7 +859,9 @@ class CdfWriteTes:
         version = "CASPER"
 
         versionLite = "v08"
-        pressuresMax = 1040
+        pressuresMax = [
+            1040.0,
+        ]
 
         starttai = mpy.tai(
             {"year": 2003, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},

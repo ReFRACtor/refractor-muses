@@ -8,13 +8,14 @@ from .identifier import ProcessLocation
 from pathlib import Path
 import numpy as np
 import typing
+from typing import Any, Tuple, Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
 
 
-def _new_from_init(cls, *args):
+def _new_from_init(cls, *args):  # type: ignore
     """For use with pickle, covers common case where we just store the
     arguments needed to create an object."""
     inst = cls.__new__(cls)
@@ -25,7 +26,7 @@ def _new_from_init(cls, *args):
 class RetrievalJacobianOutput(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_Jacobian files."""
 
-    def __reduce__(self):
+    def __reduce__(self) -> Tuple[Callable, Tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
     def notify_update(
@@ -33,8 +34,8 @@ class RetrievalJacobianOutput(RetrievalOutput):
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
         if location != ProcessLocation("retrieval step"):
@@ -54,7 +55,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
             / f"Products_Jacobian-{self.species_tag}{self.special_tag}.nc"
         )
 
-    def write_jacobian(self):
+    def write_jacobian(self) -> None:
         # this section is to make all pressure grids have a standard size,
         # like 65 levels
 
@@ -94,14 +95,13 @@ class RetrievalJacobianOutput(RetrievalOutput):
             myspecies.append(my_list)
             myjacobian.append(jacobian)
         # end for ii in range(0, len(species)):
-        mypressure = np.concatenate(mypressure)
-        myspecies = np.concatenate(myspecies)
-        myjacobian = np.concatenate(myjacobian, axis=0)
-        my_data = {
-            "jacobian": np.transpose(myjacobian),  # We transpose to match IDL shape.
+        my_datad = {
+            "jacobian": np.transpose(
+                np.concatenate(myjacobian, axis=0)
+            ),  # We transpose to match IDL shape.
             "frequency": None,
-            "species": ",".join(myspecies),
-            "pressure": mypressure,
+            "species": ",".join(np.concatenate(myspecies)),
+            "pressure": np.concatenate(mypressure),
             "soundingID": None,
             "latitude": None,
             "longitude": None,
@@ -115,7 +115,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
             "surfaceTemperature": None,
         }
 
-        my_data = mpy.ObjectView(my_data)
+        my_data = mpy.ObjectView(my_datad)
 
         my_data.frequency = self.results.frequency.astype(np.float32)
 

@@ -447,7 +447,9 @@ class ScaledStateElement(RetrievableStateElement):
         # of this to reset the value
         if not update_next:
             self.state_info.next_state[str(self.name)] = self.clone_for_other_state()
-        self._value = results_list[retrieval_info.species_list == str(self._name)]
+        self._value = results_list[
+            np.array(retrieval_info.species_list) == str(self._name)
+        ]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"

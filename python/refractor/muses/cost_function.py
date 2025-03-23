@@ -4,6 +4,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import numpy as np
 from loguru import logger
 import typing
+from typing import Any, Tuple
 
 if typing.TYPE_CHECKING:
     from .identifier import InstrumentIdentifier
@@ -26,8 +27,8 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         fm_sv: rf.StateVector,
         retrieval_sv_apriori: np.ndarray,
         retrieval_sv_sqrt_constraint: np.ndarray,
-        basis_matrix,
-    ):
+        basis_matrix: None | np.ndarray,
+    ) -> None:
         self.instrument_name_list = instrument_name_list
         self.fm_sv = fm_sv
         self.retrieval_sv_apriori = retrieval_sv_apriori
@@ -79,7 +80,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             "msrmnt_jacobian_x": msrmnt_jacobian_x.tolist(),
         }
 
-    def set_state(self, d: dict):
+    def set_state(self, d: dict) -> None:
         """Set the state previously saved by get_state"""
         self.parameters = np.array(d["parameters"])
         # Translate the lists back to np.ndarray, with
@@ -111,16 +112,16 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     # py-retrieve code, ReFRACtor retrieval doesn't need any of this.
     # -----------------------------------------------------------------
 
-    def parameters_fm(self):
+    def parameters_fm(self) -> np.ndarray:
         """Parameters on the full forward model grid."""
         return self.max_a_posteriori.mapping.mapped_state(
             rf.ArrayAd_double_1(self.parameters)
         ).value
 
-    def should_replace_function(self, func_name, parms):
+    def should_replace_function(self, func_name: str, parms: list[Any]) -> bool:
         return True
 
-    def replace_function(self, func_name, parms):
+    def replace_function(self, func_name: str, parms: dict) -> Any:
         if func_name == "fm_wrapper":
             return self.fm_wrapper(**parms)
         elif func_name == "residual_fm_jacobian":
@@ -128,14 +129,16 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         elif func_name == "update_uip":
             return self.update_uip(**parms)
 
-    def update_uip(self, i_uip, i_ret_info, i_retrieval_vec):
+    def update_uip(
+        self, i_uip: dict, i_ret_info: dict, i_retrieval_vec: dict
+    ) -> Tuple[None, dict]:
         """This is an adapter that stubs out the updating of the
         UIP. We don't actually need to do this, but
         levmar_nllsq_elanor expects a function here.
         """
         return (None, i_retrieval_vec)
 
-    def fm_wrapper(self, i_uip, i_windows, oco_info):
+    def fm_wrapper(self, i_uip, i_windows, oco_info):  # type: ignore
         """This uses the CostFunction to calculate the same things that
         muses-py does with it fm_wrapper function. We provide the same
         interface here to 1) provide something that can be used as a
@@ -192,7 +195,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             o_measured_radiance_tropomi,
         )
 
-    def good_point(self):
+    def good_point(self) -> np.ndarray:
         """Return a boolean array for the full observation size, all
         forward models, including bad samples. True means a good point,
         False means bad."""
@@ -202,7 +205,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             gpt.append(s.spectral_range.uncertainty >= 0)
         return np.concatenate(gpt)
 
-    def residual_fm_jacobian(self, uip, ret_info, retrieval_vec, iterNum, oco_info={}):
+    def residual_fm_jacobian(self, uip, ret_info, retrieval_vec, iterNum, oco_info={}):  # type: ignore
         """This uses the CostFunction to calculate the same things that
         muses-py does with it residual_fm_jacobian function. We provide the
         same interface here to 1) provide something that can be used as a

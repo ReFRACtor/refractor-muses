@@ -8,6 +8,7 @@ import abc
 import os
 from pathlib import Path
 import typing
+import pandas as pd
 
 if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
@@ -36,7 +37,7 @@ class QaFlagValue(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def use_for_master(self) -> list[int]:
+    def use_for_master(self) -> list[bool]:
         """Indicate of QA flag is used for master quality."""
         raise NotImplementedError()
 
@@ -44,28 +45,35 @@ class QaFlagValue(object, metaclass=abc.ABCMeta):
 class QaFlagValueFile(QaFlagValue):
     """Implementation that uses a file to get the values."""
 
+    # TODO Note that the data is a pandas table. We convert to lists, but
+    # it might be easier just to leave this as a pandas table. Right now this
+    # is just a placeholder, we are using the old muses-py to do the QA calculation
+    # but we can revisit this if needed, and perhaps change this interface.
     def __init__(self, fname: str | os.PathLike[str]):
         self.d = TesFile(fname)
+        if self.d.table is None:
+            raise RuntimeError(f"Trouble reading file {fname}")
+        self.tbl: pd.DataFrame = self.d.table
 
     @property
     def qa_flag_name(self) -> list[str]:
         """Return list of QA flags the other values apply to."""
-        return self.d["Flag"]
+        return self.tbl["Flag"].tolist()
 
     @property
     def cutoff_min(self) -> list[float]:
         """Minimum cutoff value for flag."""
-        return self.d["CutoffMin"]
+        return self.tbl["CutoffMin"].tolist()
 
-    @abc.abstractproperty
+    @property
     def cutoff_max(self) -> list[float]:
         """Maximum cutoff value for flag."""
-        return self.d["CutoffMax"]
+        return self.tbl["CutoffMax"].tolist()
 
-    @abc.abstractproperty
-    def use_for_master(self) -> list[int]:
+    @property
+    def use_for_master(self) -> list[bool]:
         """Indicate of QA flag is used for master quality."""
-        return self.d["Use_For_Master"]
+        return self.tbl["Use_For_Master"].astype(bool).tolist()
 
 
 class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
@@ -137,22 +145,17 @@ class MusesPyQaDataHandle(QaDataHandle):
         self.viewing_mode = measurement_id["viewingMode"]
         self.qa_flag_directory = measurement_id["QualityFlagDirectory"]
 
-    def qa_update_retrieval_result(
-        self,
-        retrieval_result: RetrievalResult,
-        current_strategy_step: CurrentStrategyStep,
-    ) -> str | None:
-        """This does the QA calculation, and updates the given
-        RetrievalResult.  Returns the master quality flag results
-
-        """
-        logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
+    def quality_flag_file_name(
+        self, current_strategy_step: CurrentStrategyStep
+    ) -> Path:
+        """Return the quality file name."""
         # Name is derived from the microwindows file name
         mwfname = current_strategy_step.muses_microwindows_fname()
         quality_fname = os.path.basename(mwfname)
         quality_fname = quality_fname.replace("Microwindows_", "QualityFlag_Spec_")
         quality_fname = quality_fname.replace("Windows_", "QualityFlag_Spec_")
         quality_fname = f"{self.qa_flag_directory}/{quality_fname}"
+
         # if this does not exist use generic nadir / limb quality flag
         if not os.path.isfile(quality_fname):
             logger.warning(f"Could not find quality flag file: {quality_fname}")
@@ -165,6 +168,18 @@ class MusesPyQaDataHandle(QaDataHandle):
             if not os.path.isfile(quality_fname):
                 raise RuntimeError(f"Quality flag filename not found: {quality_fname}")
         quality_fname = os.path.abspath(quality_fname)
+        return Path(quality_fname)
+
+    def qa_update_retrieval_result(
+        self,
+        retrieval_result: RetrievalResult,
+        current_strategy_step: CurrentStrategyStep,
+    ) -> str | None:
+        """This does the QA calculation, and updates the given
+        RetrievalResult.  Returns the master quality flag results
+
+        """
+        logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         qa_outname = Path(
             self.run_dir,
             f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}",
@@ -174,7 +189,7 @@ class MusesPyQaDataHandle(QaDataHandle):
         fstate_info = FakeStateInfo(retrieval_result.current_state)
         master = mpy.write_quality_flags(
             qa_outname,
-            quality_fname,
+            str(self.quality_flag_file_name(current_strategy_step)),
             retrieval_result,
             fstate_info,
             writeOutput=False,

@@ -8,13 +8,14 @@ from .identifier import InstrumentIdentifier, ProcessLocation
 from pathlib import Path
 import numpy as np
 import typing
+from typing import Any, Tuple, Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
 
 
-def _new_from_init(cls, *args):
+def _new_from_init(cls, *args):  # type: ignore
     """For use with pickle, covers common case where we just store the
     arguments needed to create an object."""
     inst = cls.__new__(cls)
@@ -25,10 +26,10 @@ def _new_from_init(cls, *args):
 class RetrievalRadianceOutput(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_Radiance files."""
 
-    def __init__(self):
-        self.myobsrad = None
+    def __init__(self) -> None:
+        self.myobsrad: None | dict = None
 
-    def __reduce__(self):
+    def __reduce__(self) -> Tuple[Callable, Tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
     def notify_update(
@@ -36,8 +37,8 @@ class RetrievalRadianceOutput(RetrievalOutput):
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
         if location != ProcessLocation("retrieval step"):
@@ -84,7 +85,9 @@ class RetrievalRadianceOutput(RetrievalOutput):
             / f"Products_Radiance-{self.species_tag}{self.special_tag}.nc"
         )
 
-    def write_radiance(self):
+    def write_radiance(self) -> None:
+        if self.myobsrad is None:
+            raise RuntimeError("self.myobsrad needs to not be None")
         if (
             len(self.myobsrad["instrumentNames"]) == 1
             or self.myobsrad["instrumentNames"][0]
@@ -106,7 +109,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
             fullRadiance = self.myobsrad["radiance"][r]
             fullNESR = self.myobsrad["NESR"][r]
 
-        my_data = dict.fromkeys(
+        my_datad = dict.fromkeys(
             [
                 "radianceFit",
                 "radianceFitInitial",
@@ -136,7 +139,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
             ]
         )
 
-        my_data = mpy.ObjectView(my_data)
+        my_data = mpy.ObjectView(my_datad)
 
         my_data.radianceFullBand = fullRadiance
         my_data.frequencyFullBand = num_trueFreq

@@ -5,16 +5,21 @@ import os
 import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes
 from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
+
+# We'll fix StateElement at some point, but for now ignore this typing
+from .state_element import EmissivityState  # type: ignore
 from pathlib import Path
 import numpy as np
 import typing
+from typing import Any, Tuple, Callable, cast
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
+    from .retrieval_info import RetrievalInfo
 
 
-def _new_from_init(cls, *args):
+def _new_from_init(cls, *args):  # type: ignore
     """For use with pickle, covers common case where we just store the
     arguments needed to create an object."""
     inst = cls.__new__(cls)
@@ -34,17 +39,17 @@ class FileNumberHandle:
     foo-initial2.nc etc. Then, at the end of processing a sounding we go back and
     rename them."""
 
-    def __init__(self, basename: Path):
+    def __init__(self, basename: Path) -> None:
         self.count = 0
         self.basename = basename
 
     def current_file_name(self) -> Path:
         return Path(str(self.basename) + f"-initial-{self.count}.nc")
 
-    def next(self):
+    def next(self) -> None:
         self.count += 1
 
-    def finalize(self):
+    def finalize(self) -> None:
         """Go back through and rename file to the final name"""
         for i in range(self.count + 1):
             f1 = Path(str(self.basename) + f"-initial-{i}.nc")
@@ -55,17 +60,18 @@ class FileNumberHandle:
 class RetrievalL2Output(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_L2 files."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.dataTATM = None
         self.dataH2O = None
         self.dataN2O = None
-        self.file_number_dict = {}
+        self.file_number_dict: dict[Path, FileNumberHandle] = {}
+        self._species_list: list[str] | None = None
 
-    def __reduce__(self):
+    def __reduce__(self) -> Tuple[Callable, Tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
     @property
-    def retrieval_info(self):
+    def retrieval_info(self) -> RetrievalInfo:
         return self.retrieval_strategy.retrieval_info
 
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
@@ -78,7 +84,7 @@ class RetrievalL2Output(RetrievalOutput):
         return self.file_number_dict[basefname]
 
     @property
-    def species_list(self):
+    def species_list(self) -> list[str]:
         """List of species, partially ordered so TATM comes before H2O, H2O before HDO,
         and N2O before CH4.
 
@@ -93,7 +99,7 @@ class RetrievalL2Output(RetrievalOutput):
                     self._species_list.insert(0, spc)
         return self._species_list
 
-    def finalize_file_number(self):
+    def finalize_file_number(self) -> None:
         """Rename all the files that our FileNumberHandle is handling."""
         logger.debug("Finalizing file number is output file names")
         for fnum in self.file_number_dict.values():
@@ -105,8 +111,8 @@ class RetrievalL2Output(RetrievalOutput):
         retrieval_strategy: RetrievalStrategy,
         location: ProcessLocation,
         retrieval_strategy_step: RetrievalStrategyStep | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.retrieval_strategy = retrieval_strategy
         self.retrieval_strategy_step = retrieval_strategy_step
         # Start of a retrieval
@@ -152,8 +158,9 @@ class RetrievalL2Output(RetrievalOutput):
                     self.dataN2O = dataInfo
                 self.lite_file(dataInfo)
 
-    def lite_file(self, dataInfo):
+    def lite_file(self, dataInfo: dict) -> None:
         """Create lite file."""
+        data2: None | dict = None
         if self.spcname == "CH4":
             if self.dataN2O is not None:
                 data2 = self.dataN2O
@@ -173,8 +180,6 @@ class RetrievalL2Output(RetrievalOutput):
                 data2["OBSERVATIONERRORCOVARIANCE"].fill(0.0)
         elif self.spcname == "HDO":
             data2 = self.dataH2O
-        else:
-            data2 = None
 
         state_element_out = []
         for sid in self.current_state.full_state_element_id:
@@ -203,8 +208,8 @@ class RetrievalL2Output(RetrievalOutput):
             self.output_directory / "Products" / f"Lite_Products_L2-{self.spcname}"
         ).current_file_name()
         if InstrumentIdentifier("OCO2") not in self.instruments:
-            t = CdfWriteTes()
-            data2 = t.write_lite(
+            t2 = CdfWriteTes()
+            data2 = t2.write_lite(
                 self.step_number,
                 str(self.out_fname),
                 self.instruments,
@@ -215,11 +220,11 @@ class RetrievalL2Output(RetrievalOutput):
                 state_element_out=state_element_out,
             )
 
-    def generate_geo_data(self, species_data):
+    def generate_geo_data(self, species_data: dict[str, Any]) -> dict[str, Any]:
         """Generate the geo_data, pulled out just to keep write_l2 from getting
         too long."""
         nobs = 1
-        geo_data = {
+        geo_datad = {
             "DAYNIGHTFLAG": None,
             "landFlag".upper(): np.zeros(shape=(nobs), dtype=np.int32) - 999,
             "LATITUDE": None,
@@ -230,7 +235,7 @@ class RetrievalL2Output(RetrievalOutput):
             "SOUNDINGID": None,
         }
 
-        geo_data = mpy.ObjectView(geo_data)
+        geo_data = mpy.ObjectView(geo_datad)
         smeta = self.sounding_metadata
         geo_data.TIME = np.int32(smeta.wrong_tai_time)
         geo_data.LATITUDE = smeta.latitude.convert("deg").value
@@ -271,9 +276,9 @@ class RetrievalL2Output(RetrievalOutput):
                 geo_data[k] = np.asarray(v)
         return geo_data
 
-    def write_l2(self):
+    def write_l2(self) -> mpy.ObjectView:
         """Create L2 product file"""
-        runtime_attributes = dict()
+        runtime_attributes: dict[str, Any] = dict()
 
         # AT_LINE 7 write_products_one.pro
         # num_pressures varies based on surface pressure.  We set it to max here.
@@ -288,7 +293,7 @@ class RetrievalL2Output(RetrievalOutput):
 
         nfilter = len(self.results.filter_index) - 1
 
-        species_data = {
+        species_datad = {
             "SPECIES".upper(): np.zeros(shape=(num_pressures), dtype=np.float32) - 999,
             "PRIORCOVARIANCE".upper(): np.zeros(
                 shape=(num_pressures, num_pressures), dtype=np.float32
@@ -417,19 +422,14 @@ class RetrievalL2Output(RetrievalOutput):
             ],
         }
 
-        if (
-            self.current_state.full_state_spectral_domain_wavelength(
-                StateElementIdentifier("emissivity")
-            ).shape[0]
-            == 0
-        ):
-            del species_data["EMISSIVITY_CONSTRAINT"]
-            del species_data["EMISSIVITY_ERROR"]
-            del species_data["EMISSIVITY_INITIAL"]
-            del species_data["EMISSIVITY"]
-            del species_data["EMISSIVITY_WAVENUMBER"]
+        if self.state_sd_wavelength("emissivity").shape[0] == 0:
+            del species_datad["EMISSIVITY_CONSTRAINT"]
+            del species_datad["EMISSIVITY_ERROR"]
+            del species_datad["EMISSIVITY_INITIAL"]
+            del species_datad["EMISSIVITY"]
+            del species_datad["EMISSIVITY_WAVENUMBER"]
 
-        species_data = mpy.ObjectView(species_data)
+        species_data = mpy.ObjectView(species_datad)
 
         # AT_LINE 121 write_products_one.pro
         gpress = self.state_value("gmaoTropopausePressure")
@@ -450,7 +450,7 @@ class RetrievalL2Output(RetrievalOutput):
 
         # Determine subset of the max num_pressures that we actually have
         # data for
-        num_actual_pressures = self.current_state.full_state_value("TATM").shape[0]
+        num_actual_pressures = self.state_value_vec("TATM").shape[0]
         # And get the range of data we use to fill in our fields
         pslice = slice(num_pressures - num_actual_pressures, num_pressures)
         # get column / altitude / air density / trop column stuff
@@ -941,7 +941,9 @@ class RetrievalL2Output(RetrievalOutput):
             ]
 
             # AT_LINE 448 src_ms-2018-12-10/write_products_one.pro
-            vector_of_fills = np.ndarray(shape=(num_pressures), dtype=np.float32)
+            vector_of_fills: np.ndarray = np.ndarray(
+                shape=(num_pressures), dtype=np.float32
+            )
             vector_of_fills.fill(-999.0)
 
             # add H2O constraint and result
@@ -1000,8 +1002,11 @@ class RetrievalL2Output(RetrievalOutput):
                     "native_emissivity"
                 )
 
-            selem = self.current_state.full_state_element(
-                StateElementIdentifier("emissivity")
+            selem = cast(
+                EmissivityState,
+                self.current_state.full_state_element(
+                    StateElementIdentifier("emissivity")
+                ),
             )
             species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(
                 [
@@ -1055,10 +1060,14 @@ class RetrievalL2Output(RetrievalOutput):
                 # N2O not retrieved... use values from initial guess
                 logger.warning("code has not been tested for N2O not retrieved.")
                 species_data.N2O_SPECIES[pslice] = (
-                    self.current_state.full_state_initial_value("N2O")
+                    self.current_state.full_state_initial_value(
+                        StateElementIdentifier("N2O")
+                    )
                 )
                 species_data.N2O_CONSTRAINTVECTOR[pslice] = (
-                    self.current_state.full_state_initial_value("N2O")
+                    self.current_state.full_state_initial_value(
+                        StateElementIdentifier("N2O")
+                    )
                 )
 
             # correct ch4 from n2o
@@ -1138,8 +1147,8 @@ class RetrievalL2Output(RetrievalOutput):
 
         o_data = species_data
         o_data.update(self.generate_geo_data(species_data))
-        t = CdfWriteTes()
-        t.write(
+        t2 = CdfWriteTes()
+        t2.write(
             o_data,
             str(self.out_fname),
             runtimeAttributes=runtime_attributes,
