@@ -207,6 +207,20 @@ class RetrievableStateElement(StateElement):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def update_state(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ):
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         """Create/update a initial guess. This currently fills in a number
         of member variables. I'm not sure that all of this is actually needed,
@@ -308,6 +322,7 @@ class SoundingMetadata:
         self._surface_altitude = rf.DoubleWithUnit(
             state_info.state_info_dict[step]["tsa"]["surfaceAltitudeKm"], "km"
         )
+        self._day_flag = bool(state_info.state_info_dict[step]["tsa"]["dayFlag"])
         self._height = rf.ArrayWithUnit_double_1(
             state_info.state_info_dict[step]["heightKm"], "km"
         )
@@ -317,19 +332,19 @@ class SoundingMetadata:
         self._utc_time = state_info._utc_time
 
     @property
-    def latitude(self):
+    def latitude(self) -> rf.DoubleWithUnit:
         return self._latitude
 
     @property
-    def longitude(self):
+    def longitude(self) -> rf.DoubleWithUnit:
         return self._longitude
 
     @property
-    def surface_altitude(self):
+    def surface_altitude(self) -> rf.DoubleWithUnit:
         return self._surface_altitude
 
     @property
-    def height(self):
+    def height(self) -> rf.DoubleWithUnit:
         return self._height
 
     @property
@@ -373,15 +388,19 @@ class SoundingMetadata:
         return self._sounding_id
 
     @property
-    def surface_type(self):
+    def surface_type(self) -> str:
         return self._surface_type
 
     @property
-    def is_ocean(self):
+    def is_day(self) -> bool:
+        return self._day_flag
+
+    @property
+    def is_ocean(self) -> bool:
         return self.surface_type == "OCEAN"
 
     @property
-    def is_land(self):
+    def is_land(self) -> bool:
         return self.surface_type == "LAND"
 
 

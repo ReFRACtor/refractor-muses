@@ -2,7 +2,7 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
 from .tes_file import TesFile
-from .identifier import RetrievalType
+from .identifier import RetrievalType, StateElementIdentifier
 import numpy as np
 import copy
 from loguru import logger
@@ -10,7 +10,6 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
-    from .state_info import StateInfo
     from .current_state import CurrentState
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import MusesStrategy
@@ -48,7 +47,6 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             rs.retrieval_config,
             rs.strategy,
             rs.strategy_step.step_number,
-            rs.state_info,
             rs.current_state(),
         )
         logger.info(f"Step: {rs.strategy_step}")
@@ -62,12 +60,11 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
         step: int,
-        state_info: StateInfo,
         cstate: CurrentState,
     ) -> None:
         """Calculate brightness temperature, and use to update
-        cstate.brightness_temperature_data. We also TSUR and
-        cloudEffExt in state_info."""
+        cstate.brightness_temperature_data. We also update TSUR and
+        cloudEffExt in current state."""
         # Note from py-retrieve: issue with negative radiances, so take mean
         #
         # I'm not actually sure that is true, we filter out bad samples. But
@@ -119,28 +116,34 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         btdata[step]["species_igr"] = np.array(cfile.table["SPECIES_IGR"])[row]
 
         # for IGR and TSUR modification for TSUR, must be daytime land
-        stateInfo = state_info.state_info_dict
         if (
-            stateInfo["current"]["tsa"]["dayFlag"] == 0
-            or stateInfo["surfaceType"].upper() in ("OCEAN", "FRESH")
+            not cstate.sounding_metadata.is_day
+            or cstate.sounding_metadata.surface_type in ("OCEAN", "FRESH")
         ) and "TSUR" in btdata[step]["species_igr"]:
             logger.info("Must be land, daytime for TSUR IGR")
             btdata[step]["species_igr"] = None
             tsurIG[row] = 0
 
         if cloudIG[row] > 0:
-            stateInfo["initial"]["cloudEffExt"][:] = cloudIG[row]
-            stateInfo["current"]["cloudEffExt"][:] = cloudIG[row]
-            stateInfo["constraint"]["cloudEffExt"][:] = cloudIG[row]
-
+            newv = cstate.full_state_value(StateElementIdentifier("cloudEffExt"))
+            newv[:] = cloudIG[row]
+            cstate.update_full_state_element(
+                StateElementIdentifier("cloudEffExt"),
+                initial=newv,
+                current=newv,
+                apriori=newv,
+            )
         if tsurIG[row] != 0:
             # use difference in observed - fit to change TSUR.  Note, we
             # assume weak clouds.
-            stateInfo["initial"]["TSUR"] = (
-                stateInfo["initial"]["TSUR"] + btdata[step]["obs"] - btdata[step]["fit"]
+            newv = cstate.full_state_value(StateElementIdentifier("TSUR"))
+            newv = newv + btdata[step]["obs"] - btdata[step]["fit"]
+            cstate.update_full_state_element(
+                StateElementIdentifier("TSUR"),
+                initial=newv,
+                current=newv,
+                apriori=newv,
             )
-            stateInfo["current"]["TSUR"] = stateInfo["initial"]["TSUR"]
-            stateInfo["constraint"]["TSUR"] = stateInfo["initial"]["TSUR"]
 
 
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())

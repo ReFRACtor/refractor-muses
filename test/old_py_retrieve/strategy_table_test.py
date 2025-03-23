@@ -40,6 +40,19 @@ class EofStateElement(RetrievableStateElement):
     def net_cdf_variable_name(self):
         return "OMI_EOF_1"
 
+    def update_state(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ) -> None:
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        raise NotImplementedError
+    
     def update_state_element(
         self,
         state_info: StateInfo,

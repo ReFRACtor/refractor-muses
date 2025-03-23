@@ -106,6 +106,19 @@ class MusesPyStateElement(RetrievableStateElement):
             return matrix
         return None
 
+    def update_state(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ) -> None:
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        raise NotImplementedError
+
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,
@@ -2671,6 +2684,34 @@ class StateElementInDict(MusesPyStateElement):
     def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
         super().__init__(state_info, name, step)
 
+    def update_state(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ):
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        # Check to see if the data should be scalar
+        vcheck = self.state_info.state_info_dict[self.step][str(self.name)]
+        is_scalar = isinstance(vcheck, numbers.Number)
+        for v, stp in (
+            (current, "current"),
+            (apriori, "constraint"),
+            (initial, "initial"),
+            (initial_initial, "initialInitial"),
+            (true, "true"),
+        ):
+            if v is not None:
+                if is_scalar and v.shape[0] != 1:
+                    raise "Value set should be a scalar"
+                self.state_info.state_info_dict[stp][str(self.name)] = (
+                    v[0] if is_scalar else v
+                )
+
     @property
     def value(self):
         v = self.state_info.state_info_dict[self.step][str(self.name)]
@@ -2888,6 +2929,27 @@ class CloudState(StateElementWithFrequency):
         r = range(0, self.state_info.state_info_dict["cloudPars"]["num_frequencies"])
         return self.state_info.state_info_dict[self.step]["cloudEffExt"][:, r]
 
+    def update_state(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ):
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        for v, stp in (
+            (current, "current"),
+            (apriori, "constraint"),
+            (initial, "initial"),
+            (initial_initial, "initialInitial"),
+            (true, "true"),
+        ):
+            if v is not None:
+                self.state_info.state_info_dict[stp]["cloudEffExt"] = v
+
 
 class CalibrationState(StateElementWithFrequency):
     def __init__(self, state_info, step):
@@ -2960,28 +3022,33 @@ class SingleSpeciesHandle(StateElementHandle):
 
 StateElementHandleSet.add_default_handle(
     SingleSpeciesHandle(StateElementIdentifier("emissivity"), EmissivityState),
-    priority_order=1,
+    priority_order=2,
 )
 StateElementHandleSet.add_default_handle(
     SingleSpeciesHandle(
         StateElementIdentifier("native_emissivity"), NativeEmissivityState
     ),
-    priority_order=1,
+    priority_order=2,
 )
 StateElementHandleSet.add_default_handle(
     SingleSpeciesHandle(StateElementIdentifier("cloudEffExt"), CloudState),
-    priority_order=1,
+    priority_order=2,
 )
 StateElementHandleSet.add_default_handle(
     SingleSpeciesHandle(StateElementIdentifier("calibrationScale"), CalibrationState),
-    priority_order=1,
+    priority_order=2,
 )
 StateElementHandleSet.add_default_handle(
     SingleSpeciesHandle(StateElementIdentifier("PTGANG"), PtgAngState),
-    priority_order=1,
+    priority_order=2,
+)
+# We have some things that are *both* in the top dictionary and in the state dictionary
+# (example I know of is surfaceType). I *think* we want the value from the top dict, so
+# I've given this a higher priority
+StateElementHandleSet.add_default_handle(
+    StateElementInTopDictHandle(), priority_order=1
 )
 StateElementHandleSet.add_default_handle(StateElementInDictHandle())
-StateElementHandleSet.add_default_handle(StateElementInTopDictHandle())
 StateElementHandleSet.add_default_handle(StateElementOnLevelsHandle())
 StateElementHandleSet.add_default_handle(
     MusesPyOmiStateElementHandle(), priority_order=-1

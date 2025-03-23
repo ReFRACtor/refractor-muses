@@ -143,6 +143,20 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             mapping = rf.StateMappingLinear()
         return mapping.mapped_state(rf.ArrayAd_double_1(self.initial_guess)).value
 
+    def update_full_state_element(
+        self,
+        state_element_id: StateElementIdentifier,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ):
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        raise NotImplementedError()
+
     def update_state(
         self,
         retrieval_info: RetrievalInfo,
@@ -996,6 +1010,21 @@ class CurrentStateStateInfo(CurrentState):
         self._state_info.update_state(
             retrieval_info, results_list, do_not_update, retrieval_config, step
         )
+
+    def update_full_state_element(
+        self,
+        state_element_id: StateElementIdentifier,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ) -> None:
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        selem = self._state_info.state_element(state_element_id)
+        selem.update_state(current, apriori, initial, initial_initial, true)
 
     @property
     def retrieval_info(self) -> RetrievalInfo | None:
