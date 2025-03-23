@@ -1,14 +1,14 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .identifier import StateElementIdentifier
+from .state_element import MusesPyStateElement  # type: ignore
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
 from pathlib import Path
 import typing
-from typing import Any
+from typing import Any, cast
 
 if typing.TYPE_CHECKING:
-    from .state_info import StateInfo
     from .current_state import CurrentState
     from .error_analysis import ErrorAnalysis
     from .muses_strategy_executor import CurrentStrategyStep
@@ -34,14 +34,9 @@ class RetrievalInfo:
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentState,
-        state_info: StateInfo,
     ):
         self.retrieval_dict = self.init_data(
-            error_analysis,
-            species_dir,
-            current_strategy_step,
-            current_state,
-            state_info,
+            error_analysis, species_dir, current_strategy_step, current_state
         )
         self.retrieval_dict = self.retrieval_dict.__dict__
         self._map_type_systematic = mpy.constraint_get_maptype(
@@ -251,7 +246,6 @@ class RetrievalInfo:
         self,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentState,
-        state_info: StateInfo,
         o_retrievalInfo: mpy.ObjectView,
         error_analysis: ErrorAnalysis,
     ) -> None:
@@ -282,10 +276,12 @@ class RetrievalInfo:
         species_name: str,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentState,
-        state_info: StateInfo,
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
-        selem = state_info.state_element(StateElementIdentifier(species_name))
+        selem = cast(
+            MusesPyStateElement,
+            current_state.full_state_element(StateElementIdentifier(species_name)),
+        )
         selem.update_initial_guess(current_strategy_step)
 
         row = o_retrievalInfo.n_totalParameters
@@ -317,8 +313,8 @@ class RetrievalInfo:
         o_retrievalInfo.mapTypeListFM.extend([selem.mapType] * nn)
         o_retrievalInfo.mapType.append(selem.mapType)
 
-        o_retrievalInfo.Constraint[row : row + mm, row : row + mm] = (
-            selem.constraintMatrix
+        o_retrievalInfo.Constraint = block_diag(
+            o_retrievalInfo.Constraint, selem.constraintMatrix
         )
         o_retrievalInfo.parameterStartFM.append(rowFM)
         o_retrievalInfo.parameterEndFM.append(rowFM + nn - 1)
@@ -330,7 +326,6 @@ class RetrievalInfo:
         o_retrievalInfo: mpy.ObjectView,
         species_dir: Path,
         current_state: CurrentState,
-        state_info: StateInfo,
     ) -> None:
         """This should get cleaned up somehow"""
         index_H2O = -1
@@ -342,6 +337,13 @@ class RetrievalInfo:
             index_HDO = o_retrievalInfo.species.index("HDO")
 
         locs = [index_H2O, index_HDO]
+
+        i_nh3type = current_state.full_state_value_str(
+            StateElementIdentifier("nh3type")
+        )
+        i_ch3ohtype = current_state.full_state_value_str(
+            StateElementIdentifier("ch3ohtype")
+        )
 
         if locs[0] >= 0 and locs[1] >= 0:
             # HDO and H2O both retrieved in this step
@@ -412,8 +414,8 @@ class RetrievalInfo:
                             constraint_species,
                             filename,
                             mm,
-                            i_nh3type=state_info.nh3type,
-                            i_ch3ohtype=state_info.ch3ohtype,
+                            i_nh3type=i_nh3type,
+                            i_ch3ohtype=i_ch3ohtype,
                         )
                     )
                     # PYTHON_NOTE: We add 1 to the end of the slice since Python does not include the slice end value.
@@ -436,7 +438,6 @@ class RetrievalInfo:
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentState,
-        state_info: StateInfo,
     ) -> mpy.ObjectView:
         # This is a reworking of get_species_information in muses-py
 
@@ -444,13 +445,11 @@ class RetrievalInfo:
         #                                       but perhaps also as propagated
         #                                       constraints.
 
-        nn = len(state_info.pressure)
-
         # get retrieval parameters, including a list of retrieved species,
         # initial values for each parameter, true values for each parameter,
         # constraints for all parameters, maps for each parameter
 
-        smeta = state_info.sounding_metadata()
+        smeta = current_state.sounding_metadata
         o_retrievalInfod: dict[str, Any] = {
             # Info by retrieval parameter
             "surfaceType": "OCEAN" if smeta.is_ocean else "LAND",
@@ -494,7 +493,7 @@ class RetrievalInfo:
             "mapToParameters": [],
             # Constraint & SaTrue, & info for all parameters
             "n_totalParameters": 0,
-            "Constraint": np.zeros(shape=(10 * nn, 10 * nn), dtype=np.float64),
+            "Constraint": np.zeros((0, 0), dtype=np.float64),
             "type": None,
         }
         # o_retrievalInfo OBJECT_TYPE dict
@@ -522,19 +521,17 @@ class RetrievalInfo:
                     species_name,
                     current_strategy_step,
                     current_state,
-                    state_info,
                     o_retrievalInfo,
                 )
 
             self.init_interferents(
                 current_strategy_step,
                 current_state,
-                state_info,
                 o_retrievalInfo,
                 error_analysis,
             )
 
-        self.init_joint(o_retrievalInfo, species_dir, current_state, state_info)
+        self.init_joint(o_retrievalInfo, species_dir, current_state)
 
         # Convert to numpy arrays
         for key in (

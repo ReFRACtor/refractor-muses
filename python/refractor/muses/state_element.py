@@ -2703,6 +2703,11 @@ class StateElementInTopDict(MusesPyStateElement):
         super().__init__(state_info, name, step)
 
     @property
+    def value_str(self) -> str:
+        v = self.state_info.state_info_dict[str(self.name)]
+        return str(v)
+
+    @property
     def value(self):
         v = self.state_info.state_info_dict[str(self.name)]
         # So we don't need special cases, always have a numpy array. A

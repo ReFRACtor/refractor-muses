@@ -516,7 +516,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             Path(self.retrieval_config["speciesDirectory"]),
             self.current_strategy_step,
             self.current_state(),
-            self.state_info,
         )
 
         # Update state with initial guess so that the initial guess is

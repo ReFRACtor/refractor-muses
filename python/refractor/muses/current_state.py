@@ -331,6 +331,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+        """A small number of values in the full state are actually str (e.g.,
+        StateElementIdentifier("nh3type"). This is like full_state_value, but we
+        return a str instead.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     def full_state_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
@@ -670,6 +678,13 @@ class CurrentStateUip(CurrentState):
             pass
         raise RuntimeError(f"Don't recognize {state_element_id}")
 
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+        """A small number of values in the full state are actually str (e.g.,
+        StateElementIdentifier("nh3type"). This is like full_state_value, but we
+        return a str instead.
+        """
+        raise NotImplementedError()
+
     def full_state_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
@@ -821,6 +836,13 @@ class CurrentStateDict(CurrentState):
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+        """
+        raise NotImplementedError()
+
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+        """A small number of values in the full state are actually str (e.g.,
+        StateElementIdentifier("nh3type"). This is like full_state_value, but we
+        return a str instead.
         """
         raise NotImplementedError()
 
@@ -1097,6 +1119,18 @@ class CurrentStateStateInfo(CurrentState):
         """
         selem = self._state_info.state_element(state_element_id, step="initial")
         return selem.value
+
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+        """A small number of values in the full state are actually str (e.g.,
+        StateElementIdentifier("nh3type"). This is like full_state_value, but we
+        return a str instead.
+        """
+        selem = self._state_info.state_element(state_element_id)
+        if not hasattr(selem, "value_str"):
+            raise RuntimeError(
+                f"Requested str value for a state element {state_element_id} that isn't a str value."
+            )
+        return selem.value_str
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
