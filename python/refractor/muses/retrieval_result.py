@@ -77,7 +77,7 @@ class RetrievalResult:
         )
         self.__dict__.update(d.__dict__)
 
-    def update_jacobian_sys(self, cfunc_sys: CostFunction):
+    def update_jacobian_sys(self, cfunc_sys: CostFunction) -> None:
         """Run the forward model in cfunc to get the jacobian_sys set."""
         self.jacobianSys = (
             cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[
@@ -102,19 +102,19 @@ class RetrievalResult:
         return self.retrieval_info.pressure_list_fm
 
     @property
-    def best_iteration(self):
-        return self.bestIteration
+    def best_iteration(self) -> int:
+        return self.bestIteration  # type: ignore[attr-defined]
 
     @property
-    def results_list(self):
-        return self.resultsList
+    def results_list(self) -> np.ndarray:
+        return self.resultsList  # type: ignore[attr-defined]
 
     @property
     def master_quality(self) -> int:
         return self.masterQuality
 
     @master_quality.setter
-    def master_quality(self, val: int):
+    def master_quality(self, val: int) -> None:
         self.masterQuality = val
 
     @property

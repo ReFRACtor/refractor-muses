@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
-from typing import Any, Tuple
+from typing import Any, Tuple, Self
 import typing
 from .identifier import InstrumentIdentifier, FilterIdentifier
 
@@ -68,13 +68,13 @@ class MusesSpectralWindow(rf.SpectralWindow):
         self,
         spec_win: rf.SpectralWindowRange | None,
         obs: MusesObservation | None,
-        raman_ext=3.01,
+        raman_ext: float = 3.01,
         instrument_name: InstrumentIdentifier | None = None,
         filter_metadata: FilterMetadata | None = None,
         filter_name: np.ndarray | None = None,
         rt: np.ndarray | None = None,
         species_list: np.ndarray | None = None,
-    ):
+    ) -> None:
         """Create a MusesSpectralWindow. The passed in spec_win should
         *not* have bad samples removed. We get the bad sample for the
         obs passed in and add it to spec_win.
@@ -166,10 +166,10 @@ class MusesSpectralWindow(rf.SpectralWindow):
     def _v_number_spectrometer(self) -> int:
         return self._spec_win.number_spectrometer
 
-    def _v_spectral_bound(self):
+    def _v_spectral_bound(self) -> rf.SpectralBound:
         return self._spec_win.spectral_bound
 
-    def add_bad_sample_mask(self, obs: MusesObservation):
+    def add_bad_sample_mask(self, obs: MusesObservation) -> None:
         """We have a bit of a chicken and an egg problem. We need the MusesSpectralWindow
         before we create the MusesObservation, but we need the MusesObservation to
         add the bad samples in. So we do this after the creation, when the obs is
@@ -194,7 +194,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 res.append((FilterIdentifier(self.filter_name[i, j]), d[i, j, 0]))
         return res
 
-    def grid_indexes(self, grid, spec_index: int):
+    def grid_indexes(self, grid: rf.SpectralDomain, spec_index: int) -> list[int]:
         if self._spec_win is None or self.full_band:
             return list(range(grid.data.shape[0]))
         if self.do_raman_ext:
@@ -204,7 +204,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 return self._spec_win_with_bad_sample.grid_indexes(grid, spec_index)
         return self._spec_win.grid_indexes(grid, spec_index)
 
-    def muses_monochromatic(self):
+    def muses_monochromatic(self) -> Tuple[np.ndarray, np.ndarray, list[int]]:
         """In certain places, muses-py uses a "monochromatic" list of
         points, along with a wavelength filter. This seems to serve
         much the same function as our high resolution grid in
@@ -241,9 +241,9 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 * len(mono_temp)
             )
             mono_list_length.append(len(mono_temp))
-        mono_list = np.concatenate(mono_list, axis=0)
-        mono_filter_list = np.array(mono_filter_list)
-        return mono_list, mono_filter_list, mono_list_length
+        mono_listv = np.concatenate(mono_list, axis=0)
+        mono_filter_listv = np.array(mono_filter_list)
+        return mono_listv, mono_filter_listv, mono_list_length
 
     def muses_microwindows(self) -> list[dict]:
         """Return the muses-py list of dict structure used as
@@ -388,8 +388,8 @@ class MusesSpectralWindow(rf.SpectralWindow):
         instrument_name: InstrumentIdentifier,
         filter_list_all: list[FilterIdentifier] | None = None,
         filter_metadata: FilterMetadata | None = None,
-        different_filter_different_sensor_index=True,
-    ) -> MusesSpectralWindow:
+        different_filter_different_sensor_index: bool = True,
+    ) -> Self:
         """Create a MusesSpectralWindow for the given instrument name
         from the given microwindow file name. We also take an optional
         FilterMetadata which is used for additional metadata in the
@@ -484,7 +484,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         step_name: str,
         retrieval_type: RetrievalType,
         spec_file: str | os.PathLike[str] | None = None,
-    ):
+    ) -> str:
         """For testing purposes, this calls the old mpy.table_get_spectral_filename to
         determine the microwindow file name use. This can be used to verify that
         we are finding the right name. This shouldn't be used for real code,
@@ -524,7 +524,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         step_name: str,
         retrieval_type: RetrievalType,
         spec_file: str | os.PathLike[str] | None = None,
-    ):
+    ) -> list[dict[str, Any]]:
         """For testing purposes, this calls the old mpy.table_new_mw_from_step. This can
         be used to verify that the microwindows we generate are correct. This shouldn't
         be used for real code, instead use the SpectralWindowHandleSet."""
@@ -576,7 +576,7 @@ class TesSpectralWindow(MusesSpectralWindow):
     pretty much just a MusesSpectralWindow, except we have extra logic in the
     grid_indexes."""
 
-    def __init__(self, swin: MusesSpectralWindow, obs: MusesObservation):
+    def __init__(self, swin: MusesSpectralWindow, obs: MusesObservation) -> None:
         super().__init__(
             swin._spec_win_with_bad_sample,
             obs,
@@ -592,7 +592,7 @@ class TesSpectralWindow(MusesSpectralWindow):
     def desc(self) -> str:
         return "TesSpectralWindow"
 
-    def grid_indexes(self, grid, spec_index: int):
+    def grid_indexes(self, grid: rf.SpectralDomain, spec_index: int) -> list[int]:
         # We only have the extra logic for the unchanged ranges,
         # or include_bad_sample. So just return results otherwise
         if self._spec_win is None or self.full_band or self.do_raman_ext:

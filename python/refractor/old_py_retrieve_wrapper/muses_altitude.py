@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import refractor.framework as rf  # type: ignore
 from .muses_ray_info import MusesRayInfo
-from typing import cast
+from typing import cast, Self
 
 
 class MusesAltitude(rf.Altitude):
@@ -16,7 +16,9 @@ class MusesAltitude(rf.Altitude):
     this is class is useful if we want to compare against old py-retrieve results
     """
 
-    def __init__(self, ray_info: MusesRayInfo, pressure: rf.Pressure, latitude: float):
+    def __init__(
+        self, ray_info: MusesRayInfo, pressure: rf.Pressure, latitude: float
+    ) -> None:
         # Initialize director
         super().__init__()
 
@@ -26,7 +28,7 @@ class MusesAltitude(rf.Altitude):
 
         self.altitude_grid = None
 
-    def cache_altitude(self):
+    def cache_altitude(self) -> None:
         nlev = self._pressure.number_level
 
         # Recompute if value is undefined or if number of layers in pressure grid has changed
@@ -35,7 +37,9 @@ class MusesAltitude(rf.Altitude):
 
         self.altitude_grid = self.ray_info.altitude_grid()
 
-    def altitude(self, pressure_value: rf.DoubleWithUnit):
+    def altitude(
+        self, pressure_value: rf.DoubleWithUnit
+    ) -> rf.AutoDerivativeWithUnitDouble:
         self.cache_altitude()
 
         pgrid_ad = self._pressure.pressure_grid().convert("Pa").value
@@ -51,7 +55,7 @@ class MusesAltitude(rf.Altitude):
             rf.AutoDerivativeDouble(alt_value, np.zeros(pgrid_ad.number_variable)), "m"
         )
 
-    def gravity(self, pressure_value: rf.DoubleWithUnit):
+    def gravity(self, pressure_value: rf.DoubleWithUnit) -> rf.AutoDerivativeDouble:
         "Gravity as implemented by vlidort_cli"
 
         # constants
@@ -85,10 +89,10 @@ class MusesAltitude(rf.Altitude):
 
         return rf.AutoDerivativeWithUnitDouble(rf.AutoDerivativeDouble(grav), "m/s^2")
 
-    def clone(self):
+    def clone(self) -> Self:
         return MusesAltitude(self.ray_info, self._pressure, self._latitude)
 
-    def desc(self):
+    def desc(self) -> str:
         return "MusesAltitude"
 
 
