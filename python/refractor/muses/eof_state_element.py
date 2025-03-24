@@ -88,21 +88,24 @@ class OmiEofStateElement(RetrievableStateElement):
         """We have a few places where we want to update a state element other than
         update_initial_guess. This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
-        raise NotImplementedError
+        if current is not None:
+            self._value = current
+        if (
+            apriori is not None
+            or initial is not None
+            or initial_initial is not None
+            or true is not None
+        ):
+            raise NotImplementedError
 
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-        update_next: bool,
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.ndarray,
     ) -> None:
-        # If we are requested not to update the next step, then save a copy
-        # of this to reset the value
-        if not update_next and self.state_info.next_state is not None:
-            self.state_info.next_state[str(self.name)] = self.clone_for_other_state()
         self._value = results_list[
             np.array(retrieval_info.species_list) == str(self._name)
         ]

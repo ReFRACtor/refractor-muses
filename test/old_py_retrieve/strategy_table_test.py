@@ -58,7 +58,6 @@ class EofStateElement(RetrievableStateElement):
         state_info: StateInfo,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-        update_next: bool,
         retrieval_config: RetrievalConfiguration,
         step: int,
         do_update_fm: np.ndarray,

@@ -4,7 +4,6 @@ from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategySte
 from .tes_file import TesFile
 from .identifier import RetrievalType, StateElementIdentifier
 import numpy as np
-import copy
 from loguru import logger
 import typing
 
@@ -50,9 +49,6 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             rs.current_state(),
         )
         logger.info(f"Step: {rs.strategy_step}")
-        rs.state_info.next_state_dict = copy.deepcopy(
-            rs.state_info.state_info_dict["current"]
-        )
         return True
 
     def calculate_bt(

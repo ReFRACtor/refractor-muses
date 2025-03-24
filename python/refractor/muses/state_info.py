@@ -172,13 +172,12 @@ class StateElement(object, metaclass=abc.ABCMeta):
             return None
         return sd.convert_wave(rf.Unit("nm"))
 
-    @property
-    @abc.abstractmethod
+    @abc.abstractproperty
     def value(self) -> np.ndarray:
         raise NotImplementedError
 
     @property
-    @abc.abstractmethod
+    @abc.abstractproperty
     def apriori_value(self) -> np.ndarray:
         raise NotImplementedError
 
@@ -194,16 +193,11 @@ class RetrievableStateElement(StateElement):
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-        update_next: bool,
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.ndarray,
     ):
-        """Update the state element based on retrieval results.
-        The current state is always updated, but in some cases we don't want this
-        propogated to the next retrieval step. So we have both a "current" and a
-        "next_state". If update_next is False, we update current only. Otherwise
-        both get updated."""
+        """Update the state element based on retrieval results."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -429,10 +423,8 @@ class StateInfo:
         self.initial: dict[str, StateElement] = {}
         self.current: dict[str, StateElement] = {}
         self.true: dict[str, StateElement] = {}
-        self.next_state: dict[str, StateElement] | None = {}
-        self.next_state_dict: dict[str, StateElement] | None = {}
-        self.reset_state_value: dict[StateElementIdentifier, np.ndarray] = {}
 
+        self.reset_state_value: dict[StateElementIdentifier, np.ndarray] = {}
         self.propagated_qa = PropagatedQA()
         self.brightness_temperature_data: dict[int, dict[str, float | None]] = {}
 
@@ -495,9 +487,6 @@ class StateInfo:
         self._tai_time = float(f["TAI_Time_of_ZPD"])
         self._utc_time = f["UTC_Time"]
         self._sounding_id = measurement_id["key"]
-        self.next_state_dict = None
-        if False:
-            self.next_state = None
 
     # Ignore typing for now. This is a long complicated function that we will
     # rewrite in a bit
@@ -1081,23 +1070,17 @@ class StateInfo:
                 self.initial[k] = scopy
 
     def next_state_to_current(self):
-        # muses-py StateElement maintains state outside of the classes, so
-        # copy this dictionary
-        if self.next_state_dict is not None:
-            self.state_info_dict["current"] = self.next_state_dict
-        self.next_state_dict = None
-        # For ReFRACtor StateElement, we have already updated current. But
-        # if the request was not to pass this on to the next step, we set this
-        # aside in self.next_state. Go ahead and put that into place
-        if self.next_state is not None:
-            self.current.update(self.next_state)
-        if False:
-            self.next_state = None
-            for selem_id, v in self.reset_state_value.items():
-                selem = self.state_element(selem_id)
-                selem.update_state(current=v)
-        else:
-            self.next_state = {}
+        # Not clear at all why this copy is necessary. Sort of accidentally discovered
+        # this, because we use to copy to create the "next_state". Instead we now
+        # have the simpler reset_state_value which just changes the items on "do_not_update".
+        # I'm guessing something in the code somewhere is holding on a reference to something
+        # in current that is getting updated. Since we are moving to do away with the whole
+        # complicated state_info_dict we won't spend too much time tracking this down.
+        # But without this copy, we get a different result from our various sounding tests.
+        self.state_info_dict["current"] = copy.deepcopy(self.state_info_dict["current"])
+        for selem_id, v in self.reset_state_value.items():
+            selem = self.state_element(selem_id)
+            selem.update_state(current=v)
         self.reset_state_value = {}
 
     def sounding_metadata(self, step="current"):
@@ -1225,10 +1208,6 @@ class StateInfo:
         retrieval step, but not actually propagated to the next retrieval step.
         Call next_state_to_current() to update the current state with the
         next_state (i.e., remove the changes for things listed in do_not_update)."""
-        self.next_state_dict = copy.deepcopy(self.state_info_dict["current"])
-        # Not clear why this is needed and reset_state_value doesn't work
-        # self.next_state_dict = None
-        # self.next_state = None
         self.reset_state_value = {}
 
         do_update_fm = np.zeros(retrieval_info.n_totalParametersFM)
@@ -1238,17 +1217,11 @@ class StateInfo:
             if str(selm) in retrieval_info.species_names:
                 self.reset_state_value[selm] = self.state_element(selm).value.copy()
         for state_element_name in retrieval_info.species_names:
-            update_next = (
-                False
-                if StateElementIdentifier(state_element_name) in do_not_update
-                else True
-            )
             self.state_element(
                 StateElementIdentifier(state_element_name)
             ).update_state_element(
                 retrieval_info,
                 results_list,
-                update_next,
                 retrieval_config,
                 step,
                 do_update_fm,
@@ -1272,6 +1245,9 @@ class StateInfo:
         # Update doUpdateFM in i_retrievalInfo. Note it might be good to move this
         # out of this function, it isn't good to have "side effects". But leave for
         # now
+        # Tracked this down, it is *only* used in error_analysis.py in muses-py.
+        # Not clear if this is ever anything other than all ones, we should perhaps
+        # check this and see if we need this or not
         retrieval_info.retrieval_dict["doUpdateFM"] = do_update_fm
 
     def state_element_list(self, step="current"):
@@ -1291,10 +1267,6 @@ class StateInfo:
 
     def state_element(self, name: StateElementIdentifier | str, step="current"):
         """Return the state element with the given name."""
-        # Temp, we added true and it hasn't made it into the various saved versions.
-        # We are going to rewrite this anyways, so short term just work around
-        if "true" not in self.__dict__:
-            self.true = {}
         # We create the StateElement objects on first use
         if str(name) not in self.current:
             (

@@ -104,15 +104,10 @@ class O3ScaledStateElement(RetrievableStateElement):
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-        update_next: bool,
         retrieval_config: RetrievalConfiguration,
         step: int,
         do_update_fm: np.ndarray,
     ):
-        # If we are requested not to update the next step, then save a copy
-        # of this to reset the value
-        if not update_next and self.state_info.next_state is not None:
-            self.state_info.next_state[self.name] = self.clone_for_other_state()
         self._value = results_list[
             np.array(retrieval_info.species_list) == str(self._name)
         ]

@@ -4,6 +4,7 @@ import refractor.framework as rf  # type: ignore
 import numpy as np
 import abc
 from pathlib import Path
+from copy import copy
 import os
 from typing import Tuple
 import typing
@@ -431,7 +432,7 @@ class CurrentStateUip(CurrentState):
     @property
     def initial_guess(self) -> np.ndarray:
         """Initial guess"""
-        return self._initial_guess
+        return copy(self._initial_guess)
 
     @property
     def apriori_cov(self) -> np.ndarray:
@@ -937,9 +938,11 @@ class CurrentStateStateInfo(CurrentState):
         if self._retrieval_info is None:
             raise RuntimeError("_retrieval_info is None")
         if self.do_systematic:
-            return self._retrieval_info.retrieval_info_systematic().initialGuessList
+            return copy(
+                self._retrieval_info.retrieval_info_systematic().initialGuessList
+            )
         else:
-            return self._retrieval_info.initial_guess_list
+            return copy(self._retrieval_info.initial_guess_list)
 
     @property
     def apriori_cov(self) -> np.ndarray:
@@ -950,7 +953,7 @@ class CurrentStateStateInfo(CurrentState):
         else:
             if self._retrieval_info is None:
                 raise RuntimeError("_retrieval_info is None")
-            return self._retrieval_info.apriori_cov
+            return copy(self._retrieval_info.apriori_cov)
 
     @property
     def sqrt_constraint(self) -> np.ndarray:
@@ -970,7 +973,7 @@ class CurrentStateStateInfo(CurrentState):
         else:
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
-            return self.retrieval_info.apriori
+            return copy(self.retrieval_info.apriori)
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
@@ -1137,7 +1140,7 @@ class CurrentStateStateInfo(CurrentState):
 
         """
         selem = self._state_info.state_element(state_element_id)
-        return selem.value
+        return copy(selem.value)
 
     def full_state_initial_value(
         self, state_element_id: StateElementIdentifier
@@ -1147,7 +1150,7 @@ class CurrentStateStateInfo(CurrentState):
         there is only one value put that in a length 1 np.array.
         """
         selem = self._state_info.state_element(state_element_id, step="initial")
-        return selem.value
+        return copy(selem.value)
 
     def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
         """A small number of values in the full state are actually str (e.g.,
@@ -1159,7 +1162,7 @@ class CurrentStateStateInfo(CurrentState):
             raise RuntimeError(
                 f"Requested str value for a state element {state_element_id} that isn't a str value."
             )
-        return selem.value_str
+        return str(selem.value_str)
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
@@ -1169,7 +1172,7 @@ class CurrentStateStateInfo(CurrentState):
         there is only one value put that in a length 1 np.array.
         """
         selem = self._state_info.state_element(state_element_id, step="true")
-        return selem.value
+        return copy(selem.value)
 
     def full_state_initial_initial_value(
         self, state_element_id: StateElementIdentifier
@@ -1179,7 +1182,7 @@ class CurrentStateStateInfo(CurrentState):
         there is only one value put that in a length 1 np.array.
         """
         selem = self._state_info.state_element(state_element_id, step="initialInitial")
-        return selem.value
+        return copy(selem.value)
 
     def full_state_apriori_value(
         self, state_element_id: StateElementIdentifier
@@ -1189,7 +1192,7 @@ class CurrentStateStateInfo(CurrentState):
         there is only one value put that in a length 1 np.array.
         """
         selem = self._state_info.state_element(state_element_id)
-        return selem.apriori_value
+        return copy(selem.apriori_value)
 
 
 __all__ = [

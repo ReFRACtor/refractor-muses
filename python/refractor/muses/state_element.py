@@ -123,16 +123,11 @@ class MusesPyStateElement(RetrievableStateElement):
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.array,
-        update_next: bool,
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.array,
     ):
         ij = retrieval_info.species_names.index(str(self.name))
-        if self.state_info.next_state_dict is not None:
-            next_state = mpy.ObjectView(self.state_info.next_state_dict)
-        else:
-            next_state = None
 
         FM_Flag = True
         INITIAL_Flag = True
@@ -206,14 +201,6 @@ class MusesPyStateElement(RetrievableStateElement):
             # ind = where(result NE 0)
             if ind.size > 0:
                 self.state_info.state_info_obj.current["emissivity"][ind] = result[ind]
-
-            # mapping takes care of all interpolation.
-            # see get_species_information for that.
-            if update_next and (next_state is not None):
-                next_state.emissivity = copy.deepcopy(
-                    self.state_info.state_info_obj.current["emissivity"]
-                )
-
         elif str(self.name) == "CLOUDEXT":
             # Note that the variable ind is the list of frequencies that are retrieved
             # AT_LINE 85 Update_State.pro
@@ -309,11 +296,6 @@ class MusesPyStateElement(RetrievableStateElement):
                     )
             # end part of: if stepType != 'bt_ig_refine':
 
-            if update_next and (next_state is not None):
-                next_state.cloudEffExt = copy.deepcopy(
-                    self.state_info.state_info_obj.current["cloudEffExt"]
-                )
-
             if self.state_info.state_info_obj.current["cloudEffExt"][0, 0] == 0.01:
                 logger.warning(
                     "self.state_info.state_info_obj.current['cloudEffExt'][0, 0] == 0.01"
@@ -326,12 +308,6 @@ class MusesPyStateElement(RetrievableStateElement):
                 self.state_info.state_info_obj.current["calibrationScale"][ind] = (
                     result[ind]
                 )
-
-            if update_next and (next_state is not None):
-                next_state.calibrationScale = copy.deepcopy(
-                    self.state_info.state_info_obj.current["calibrationScale"]
-                )
-
         elif str(self.name) == "CALOFFSET":
             if ind.size > 0:
                 self.state_info.state_info_obj.current["calibrationOffset"][ind] = (
@@ -351,15 +327,6 @@ class MusesPyStateElement(RetrievableStateElement):
             self.state_info.state_info_obj.current["tropomi"][actual_tropomi_key] = (
                 copy.deepcopy(result)
             )  # Use the actual key and replace the exist key.
-
-            if next_state is not None and update_next is True:
-                # Something strange here.  Sometimes the variable next_state is ObjectView, sometimes it is a dictionary.
-                next_state.tropomi[actual_tropomi_key] = copy.deepcopy(
-                    self.state_info.state_info_obj.current["tropomi"][
-                        actual_tropomi_key
-                    ]
-                )
-
         elif "NIR" in str(self.name)[0:3]:
             # tag_names_str = tag_names(state.current.nir)
             # ntag = n_elements(tag_names_str)
@@ -423,12 +390,6 @@ class MusesPyStateElement(RetrievableStateElement):
                 )  # checked ordering is good 12/2021
             else:
                 self.state_info.state_info_obj.current["nir"][my_species] = result
-
-            if next_state is not None and update_next is True:
-                next_state.nir[my_species] = self.state_info.state_info_obj.current[
-                    "nir"
-                ][my_species]
-
         # AT_LINE 175 Update_State.pro
         elif str(self.name) == "PCLOUD":
             # Note: Variable result is ndarray (sequence) of size 730
@@ -459,44 +420,16 @@ class MusesPyStateElement(RetrievableStateElement):
 
                 if self.state_info.state_info_obj.current["PCLOUD"][0] < resetValue:
                     self.state_info.state_info_obj.current["PCLOUD"][0] = resetValue
-
-            if next_state is not None and update_next is True:
-                next_state.PCLOUD[0] = self.state_info.state_info_obj.current["PCLOUD"][
-                    0
-                ]
-
         elif str(self.name) == "TSUR":
             self.state_info.state_info_obj.current["TSUR"] = result
-            if next_state is not None and update_next is True:
-                next_state.TSUR = result
         elif str(self.name) == "PSUR":
-            # surface pressure
-            # update sigma levels
-
             self.state_info.state_info_obj.current["pressure"][0] = result
-
-            if next_state is not None and update_next is True:
-                next_state.pressure[0] = result
-                next_state.pressure = mpy.pressure_sigma(
-                    next_state.pressure[0], len(next_state.pressure), "surface"
-                )
         elif str(self.name) == "PTGANG":
             self.state_info.state_info_obj.current["tes"]["boresightNadirRadians"] = (
                 result
             )
-            if next_state is not None and update_next is True:
-                next_state.tes["boresightNadirRadians"] = (
-                    self.state_info.state_info_obj.current["tes"][
-                        "boresightNadirRadians"
-                    ]
-                )
-
         elif str(self.name) == "RESSCALE":
             self.state_info.state_info_obj.current.residualscale[step:] = result
-            if next_state is not None and update_next is True:
-                next_state.residualScale = self.state_info.state_info_obj.current[
-                    "residualScale"
-                ]
         else:
             # AT_LINE 289 Update_State.pro
             max_index = (self.state_info.state_info_obj.current["values"].shape)[
@@ -505,11 +438,6 @@ class MusesPyStateElement(RetrievableStateElement):
             self.state_info.state_info_obj.current["values"][loc, :] = result[
                 0:max_index
             ]
-            if next_state is not None and update_next is True:
-                next_state.values[loc, :] = self.state_info.state_info_obj.current[
-                    "values"
-                ][loc, :]
-
         # end part of if (self.name == 'EMIS'):
 
         locHDO = utilGeneral.WhereEqualIndices(
@@ -536,10 +464,6 @@ class MusesPyStateElement(RetrievableStateElement):
             self.state_info.state_info_obj.current["values"][
                 locHDO[0], 0 : len(result)
             ] = result * initialRatio
-            if next_state is not None and update_next is True:
-                next_state.values[locHDO[0], :] = (
-                    self.state_info.state_info_obj.current["values"][locHDO[0], :]
-                )
 
         locH2O18 = utilGeneral.WhereEqualIndices(
             self.state_info.state_info_obj.species, "H2O18"
@@ -2427,6 +2351,28 @@ class MusesPyOmiStateElement(MusesPyStateElement):
             [self.state_info.state_info_dict["constraint"]["omi"][self.omi_key]]
         )
 
+    def update_state(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ) -> None:
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        if current is not None:
+            self.state_info.state_info_dict["current"]["omi"][self.omi_key] = current[0]
+        if apriori is not None:
+            if apriori.shape[0] != 1:
+                raise RuntimeError("Needs to be a scalar")
+            self.state_info.state_info_dict["constraint"]["omi"][self.omi_key] = (
+                apriori[0]
+            )
+        if initial is not None or initial_initial is not None or true is not None:
+            raise NotImplementedError
+
     @apriori_value.setter
     def apriori_value(self, v):
         self.state_info.state_info_dict["constraint"]["omi"][self.omi_key] = v[0]
@@ -2435,7 +2381,6 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.array,
-        update_next: bool,
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.array,
@@ -2449,8 +2394,6 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
         do_update_fm[ind1:ind2] = 1
-        if update_next and self.state_info.next_state_dict is not None:
-            self.state_info.next_state_dict["omi"][self.omi_key] = self.value[0]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"
@@ -2559,11 +2502,34 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
             0
         ]
 
+    def update_state(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ) -> None:
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        if current is not None:
+            self.state_info.state_info_dict["current"]["tropomi"][self.tropomi_key] = (
+                current[0]
+            )
+        if apriori is not None:
+            if apriori.shape[0] != 1:
+                raise RuntimeError("Needs to be a scalar")
+            self.state_info.state_info_dict["constraint"]["tropomi"][
+                self.tropomi_key
+            ] = apriori[0]
+        if initial is not None or initial_initial is not None or true is not None:
+            raise NotImplementedError
+
     def update_state_element(
         self,
         retrieval_info: RetrievalInfo,
         results_list: np.array,
-        update_next: bool,
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
         do_update_fm: np.array,
@@ -2577,8 +2543,6 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
         do_update_fm[ind1:ind2] = 1
-        if update_next and self.state_info.next_state_dict is not None:
-            self.state_info.next_state_dict["tropomi"][self.tropomi_key] = self.value[0]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"
