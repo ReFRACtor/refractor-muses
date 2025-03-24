@@ -11,7 +11,7 @@ from loguru import logger
 import numpy as np
 import abc
 import copy
-from typing import Callable
+from typing import Callable, Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -203,7 +203,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return MusesSpectrumSampling(hres_spec)
 
     @cached_property
-    def dispersion(self):
+    def dispersion(self) -> None:
         # return creator.instrument.SampleGridSpectralDomain.create_direct(
         #    spectral_domains = self.rf_uip.sample_grid,
         #    desc_band_name = self.channel_names,
@@ -212,8 +212,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         # Not currently used
         return None
 
-    def ils_params(self, sensor_index: int):
-        """ILS parameters"""
+    def ils_params(self, sensor_index: int) -> dict[str, Any]:
+        """ILS parameters (muses-py code)"""
         raise NotImplementedError
 
     def ils_method(self, sensor_index: int) -> str:
@@ -221,7 +221,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @cached_property
-    def ils_function(self):
+    def ils_function(self) -> None:
+        # Not currently used, we can remove this in the future but
+        # leave as a placeholder
+
         # This is the "real" ILS, but py-retrieve applies this to
         # the input data is some way. We don't actually want to apply
         # this is the forward model
@@ -243,7 +246,10 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         return res
 
     @cached_property
-    def ils_half_width(self):
+    def ils_half_width(self) -> None:
+        # Not currently used, we can remove this in the future but
+        # leave as a placeholder
+
         # For the "real" ILS
         # return rf.ArrayWithUnit(np.array([0.63/2.0, 0.42/2.0]), "nm")
         return None
@@ -552,7 +558,9 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             self.absorber_vmr, self.pressure, self.temperature, self.altitude, xsectable
         )
 
-    def find_absco_pattern(self, pattern: str, join_to_absco_base_path=True) -> Path:
+    def find_absco_pattern(
+        self, pattern: str, join_to_absco_base_path: bool = True
+    ) -> Path:
         if join_to_absco_base_path:
             flist = list(self.absco_base_path.glob(pattern))
         else:
@@ -569,7 +577,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def absco_base_path(self) -> Path:
         return self.osp_dir / "ABSCO"
 
-    def absco_filename(self, gas) -> Path | None:
+    def absco_filename(self, gas: str) -> Path | None:
         if gas != "O3":
             return None
         return self.find_absco_pattern("O3_*_v0.0_init.nc")

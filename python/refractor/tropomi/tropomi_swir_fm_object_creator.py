@@ -11,7 +11,7 @@ from .tropomi_fm_object_creator import TropomiFmObjectCreator
 from loguru import logger
 import numpy as np
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -39,8 +39,8 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         use_raman: bool = False,
         use_oss: bool = False,
         oss_training_data: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
             current_state,
             measurement_id,
@@ -101,7 +101,7 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
         )
 
     @cached_property
-    def underlying_forward_model(self):
+    def underlying_forward_model(self) -> rf.ForwardModelHandle:
         if self.use_oss:
             res = rf.director.OSSForwardModel(
                 self.instrument,
@@ -129,11 +129,11 @@ class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):
 
 
 class TropomiSwirForwardModelHandle(ForwardModelHandle):
-    def __init__(self, **creator_kwargs):
+    def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
-        self.measurement_id = None
+        self.measurement_id: None | MeasurementId = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
@@ -145,10 +145,13 @@ class TropomiSwirForwardModelHandle(ForwardModelHandle):
         obs: MusesObservation,
         fm_sv: rf.StateVector,
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
-        **kwargs,
+        **kwargs: Any,
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
+        if self.measurement_id is None:
+            raise RuntimeError("Call notify_update_target first")
+        logger.debug("Creating forward model using using TropmiSwirFmObjectCreator")
         obj_creator = TropomiSwirFmObjectCreator(
             current_state,
             self.measurement_id,

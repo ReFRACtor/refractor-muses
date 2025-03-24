@@ -1,3 +1,9 @@
+# This code isn't currently used, but we will keep around in case it gets
+# resurrected. But don't bother with types now, without a test case we
+# can't really check this or fill in the correct types. We can revisit this
+# in the future if needed.
+# mypy: disable-error-code="no-untyped-def"
+
 import numpy as np
 import re
 

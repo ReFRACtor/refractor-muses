@@ -15,7 +15,7 @@ import refractor.framework as rf  # type: ignore
 from loguru import logger
 import numpy as np
 import re
-from typing import Callable
+from typing import Callable, Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -23,7 +23,7 @@ if typing.TYPE_CHECKING:
 
 
 class TropomiSurfaceAlbedo(SurfaceAlbedo):
-    def __init__(self, ground: rf.GroundWithCloudHandling, spec_index: int):
+    def __init__(self, ground: rf.GroundWithCloudHandling, spec_index: int) -> None:
         self.ground = ground
         self.spec_index = spec_index
 
@@ -49,8 +49,8 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         use_raman: bool = True,
         use_oss: bool = False,
         oss_training_data: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
             current_state,
             measurement_id,
@@ -71,7 +71,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             res.append(v)
         return res
 
-    def ils_params_preconv(self, sensor_index: int):
+    def ils_params_preconv(self, sensor_index: int) -> dict[str, Any]:
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
         num_fwhm_srf = 4.0
         wn, sindex = self.observation.wn_and_sindex(sensor_index)
@@ -84,7 +84,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             num_fwhm_srf,
         )
 
-    def ils_params_postconv(self, sensor_index: int):
+    def ils_params_postconv(self, sensor_index: int) -> dict[str, Any]:
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
         # Place holder, this doesn't work yet. Copy of what is
         # done in make_uip_tropomi.
@@ -114,7 +114,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             num_fwhm_srf,
         )
 
-    def ils_params_fastconv(self, sensor_index: int):
+    def ils_params_fastconv(self, sensor_index: int) -> dict[str, Any]:
         # Note, I'm not sure of fastconv actually works. This fails in muses-py if
         # we try to use fastconv. From the code, I *think* this is what was intended,
         # but I don't know if this was actually tested anywhere since you can't actuall
@@ -149,7 +149,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             i_interpmethod="INTERP_MONOCHROM",
         )
 
-    def ils_params(self, sensor_index: int):
+    def ils_params(self, sensor_index: int) -> dict[str, Any]:
         """ILS parameters"""
         if self.ils_method(sensor_index) == "APPLY":
             return self.ils_params_preconv(sensor_index)
@@ -396,7 +396,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
             return ram
 
     @cached_property
-    def underlying_forward_model(self):
+    def underlying_forward_model(self) -> rf.ForwardModel:
         if self.use_oss:
             res = rf.director.OSSForwardModel(
                 self.instrument,
@@ -462,11 +462,11 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
 
 class TropomiForwardModelHandle(ForwardModelHandle):
-    def __init__(self, **creator_kwargs):
+    def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
-        self.measurement_id = None
+        self.measurement_id: None | MeasurementId = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
@@ -478,10 +478,13 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         obs: MusesObservation,
         fm_sv: rf.StateVector,
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
-        **kwargs,
+        **kwargs: Any,
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):
             return None
+        if self.measurement_id is None:
+            raise RuntimeError("Call notify_update_target first")
+        logger.debug("Creating forward model using using TropomiFmObjectCreator")
         obj_creator = TropomiFmObjectCreator(
             current_state,
             self.measurement_id,

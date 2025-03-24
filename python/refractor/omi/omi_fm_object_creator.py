@@ -18,7 +18,7 @@ import h5py  # type: ignore
 
 # for netCDF3 support which is not supported in h5py
 from netCDF4 import Dataset
-from typing import Callable
+from typing import Callable, Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -56,10 +56,10 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         current_state: CurrentState,
         measurement_id: MeasurementId,
         observation: MusesObservation,
-        use_eof=False,
-        eof_dir=None,
-        **kwargs,
-    ):
+        use_eof: bool = False,
+        eof_dir: None | str | os.PathLike[str] = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(
             current_state,
             measurement_id,
@@ -70,7 +70,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         self.use_eof = use_eof
         self.eof_dir = eof_dir
 
-    def ils_params_preconv(self, sensor_index: int):
+    def ils_params_preconv(self, sensor_index: int) -> dict[str, Any]:
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
         num_fwhm_srf = 4.0
         wn, sindex = self.observation.wn_and_sindex(sensor_index)
@@ -83,11 +83,11 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             num_fwhm_srf,
         )
 
-    def ils_params_postconv(self, sensor_index: int):
+    def ils_params_postconv(self, sensor_index: int) -> dict[str, Any]:
         # make_uip_omi does the same thing for postconv as preconv
         return self.ils_params_preconv(sensor_index)
 
-    def ils_params_fastconv(self, sensor_index: int):
+    def ils_params_fastconv(self, sensor_index: int) -> dict[str, Any]:
         # This is hardcoded in make_uip_omi, so we duplicate that here
         num_fwhm_srf = 4.0
         wn, sindex = self.observation.wn_and_sindex(sensor_index)
@@ -117,7 +117,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             i_interpmethod="INTERP_MONOCHROM",
         )
 
-    def ils_params(self, sensor_index: int):
+    def ils_params(self, sensor_index: int) -> dict[str, Any]:
         """ILS parameters"""
         # TODO Pull out of rf_uip. This is in make_uip_tropomi.py
         # Note that this seems to fold in determine the high resolution grid.
@@ -352,14 +352,14 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         return cf
 
     @lru_cache(maxsize=None)
-    def raman_effect(self, i) -> rf.RamanSiorisEffect:
+    def raman_effect(self, i: int) -> rf.RamanSiorisEffect:
         if self.match_py_retrieve:
             return self.raman_effect_muses(i)
         else:
             return self.raman_effect_refractor(i)
 
     @lru_cache(maxsize=None)
-    def raman_effect_muses(self, i) -> rf.RamanSiorisEffect:
+    def raman_effect_muses(self, i: int) -> rf.RamanSiorisEffect:
         # Note we should probably look at this sample grid, and
         # make sure it goes RamanSioris.ramam_edge_wavenumber past
         # the edges of our spec_win. Also there isn't any particular
@@ -390,7 +390,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         )
 
     @lru_cache(maxsize=None)
-    def raman_effect_refractor(self, i) -> rf.RamanSiorisEffect:
+    def raman_effect_refractor(self, i: int) -> rf.RamanSiorisEffect:
         scale_factor = 1.9
         with self.observation.modify_spectral_window(do_raman_ext=True):
             wlen = self.observation.spectral_domain(i)
@@ -411,11 +411,11 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
 
 class OmiForwardModelHandle(ForwardModelHandle):
-    def __init__(self, **creator_kwargs):
+    def __init__(self, **creator_kwargs: Any) -> None:
         self.creator_kwargs = creator_kwargs
-        self.measurement_id = None
+        self.measurement_id: None | MeasurementId = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
@@ -428,10 +428,13 @@ class OmiForwardModelHandle(ForwardModelHandle):
         obs: MusesObservation,
         fm_sv: rf.StateVector,
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
-        **kwargs,
+        **kwargs: Any,
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("OMI"):
             return None
+        if self.measurement_id is None:
+            raise RuntimeError("Call notify_update_target first")
+        logger.debug("Creating forward model using using OmiFmObjectCreator")
         obj_creator = OmiFmObjectCreator(
             current_state,
             self.measurement_id,
