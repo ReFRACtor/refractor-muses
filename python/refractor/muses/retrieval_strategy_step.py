@@ -351,47 +351,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         pass
 
 
-class RetrievalStrategyStep_omicloud_ig_refine(RetrievalStrategyStepRetrieve):
-    """This is a retreival, followed by using the results to update the
-    OMI cloud fraction."""
-
-    def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
-    ) -> bool:
-        if retrieval_type != RetrievalType("omicloud_ig_refine"):
-            return False
-        return super().retrieval_step_body(retrieval_type, rs, **kwargs)
-
-    def extra_after_run_retrieval_step(self, rs: RetrievalStrategy) -> None:
-        rs.state_info.state_info_dict["constraint"]["omi"]["cloud_fraction"] = (
-            rs.state_info.state_info_dict["current"]["omi"]["cloud_fraction"]
-        )
-
-
-class RetrievalStrategyStep_tropomicloud_ig_refine(RetrievalStrategyStepRetrieve):
-    """This is a retreival, followed by using the results to update the
-    TROPOMI cloud fraction."""
-
-    def retrieval_step_body(
-        self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: Any
-    ) -> bool:
-        if retrieval_type != RetrievalType("tropomicloud_ig_refine"):
-            return False
-        return super().retrieval_step_body(retrieval_type, rs, **kwargs)
-
-    def extra_after_run_retrieval_step(self, rs: RetrievalStrategy) -> None:
-        rs.state_info.state_info_dict["constraint"]["tropomi"]["cloud_fraction"] = (
-            rs.state_info.state_info_dict["current"]["tropomi"]["cloud_fraction"]
-        )
-
-
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepNotImplemented())
-RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStep_omicloud_ig_refine())
-RetrievalStrategyStepSet.add_default_handle(
-    RetrievalStrategyStep_tropomicloud_ig_refine()
-)
 # Anything that isn't one of the special types is a generic retrieval, so
-# fall back to this as the lowest priority fall back
+# set to this as the lowest priority fall back
 RetrievalStrategyStepSet.add_default_handle(
     RetrievalStrategyStepRetrieve(), priority_order=-1
 )
@@ -450,7 +412,5 @@ __all__ = [
     "RetrievalStrategyStep",
     "RetrievalStrategyStepNotImplemented",
     "RetrievalStrategyStepRetrieve",
-    "RetrievalStrategyStep_omicloud_ig_refine",
-    "RetrievalStrategyStep_tropomicloud_ig_refine",
     "RetrievalStepCaptureObserver",
 ]

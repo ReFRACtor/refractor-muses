@@ -572,7 +572,7 @@ class TesSpectralWindow(MusesSpectralWindow):
     doing a lot of TES retrievals, this is just for backwards
     compatibility.
 
-    So w`qe have a special adapter here to pull in the extra behavior. This is
+    So we have a special adapter here to pull in the extra behavior. This is
     pretty much just a MusesSpectralWindow, except we have extra logic in the
     grid_indexes."""
 

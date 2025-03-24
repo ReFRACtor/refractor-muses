@@ -165,6 +165,9 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
             self.measurement_id,
             self.strategy_step.step_number,
         )
+        for selem_id in self.current_strategy_step_dict["update_apriori_elements"]:
+            v = current_state.full_state_value(selem_id)
+            current_state.update_full_state_element(selem_id, apriori=v)
 
     def muses_microwindows_fname(self):
         """This is very specific, but there is some complicated code used to generate the
@@ -560,10 +563,23 @@ class MusesStrategyStepList(MusesStrategyImp):
                 ),
                 # Will fill in notify_update_target
                 "spectral_window_dict": None,
+                # List of elements that we include in this step, but then
+                # set back to their original value for the next step
                 "do_not_update_list": res._parse_state_elements(row["donotupdate"]),
+                # List of elements that we update the apriori to match what
+                # we retrieve
+                "update_apriori_elements" : []
             }
             # Will fill in measurement_id in notify_update_target
             cstep = CurrentStrategyStepDict(cstepdict, None)
+            # The muses-py strategy table just "knows" that certain
+            # retrieval types also update the apriori value. We duplicate this
+            # behavior, although it would be nice to have a cleaner way of doing this
+            # (e.g., maybe just have a update_apriori_elements column in the table?)
+            if(cstep.retrieval_type == RetrievalType("tropomicloud_ig_refine")):
+                cstep.current_strategy_step_dict["update_apriori_elements"].append(StateElementIdentifier("TROPOMICLOUDFRACTION"))
+            if(cstep.retrieval_type == RetrievalType("omicloud_ig_refine")):
+                cstep.current_strategy_step_dict["update_apriori_elements"].append(StateElementIdentifier("OMICLOUDFRACTION"))
             res.current_strategy_list.append(cstep)
         return res
 
