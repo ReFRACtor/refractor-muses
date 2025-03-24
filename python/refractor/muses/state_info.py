@@ -429,8 +429,9 @@ class StateInfo:
         self.initial: dict[str, StateElement] = {}
         self.current: dict[str, StateElement] = {}
         self.true: dict[str, StateElement] = {}
-        self.next_state: dict[str, StateElement] = {}
+        self.next_state: dict[str, StateElement] | None = {}
         self.next_state_dict: dict[str, StateElement] | None = {}
+        self.reset_state_value: dict[StateElementIdentifier, np.ndarray] = {}
 
         self.propagated_qa = PropagatedQA()
         self.brightness_temperature_data: dict[int, dict[str, float | None]] = {}
@@ -495,6 +496,8 @@ class StateInfo:
         self._utc_time = f["UTC_Time"]
         self._sounding_id = measurement_id["key"]
         self.next_state_dict = None
+        if False:
+            self.next_state = None
 
     # Ignore typing for now. This is a long complicated function that we will
     # rewrite in a bit
@@ -1086,8 +1089,16 @@ class StateInfo:
         # For ReFRACtor StateElement, we have already updated current. But
         # if the request was not to pass this on to the next step, we set this
         # aside in self.next_state. Go ahead and put that into place
-        self.current.update(self.next_state)
-        self.next_state = {}
+        if self.next_state is not None:
+            self.current.update(self.next_state)
+        if False:
+            self.next_state = None
+            for selem_id, v in self.reset_state_value.items():
+                selem = self.state_element(selem_id)
+                selem.update_state(current=v)
+        else:
+            self.next_state = {}
+        self.reset_state_value = {}
 
     def sounding_metadata(self, step="current"):
         return SoundingMetadata(self, step=step)
@@ -1215,9 +1226,17 @@ class StateInfo:
         Call next_state_to_current() to update the current state with the
         next_state (i.e., remove the changes for things listed in do_not_update)."""
         self.next_state_dict = copy.deepcopy(self.state_info_dict["current"])
+        # Not clear why this is needed and reset_state_value doesn't work
+        # self.next_state_dict = None
+        # self.next_state = None
+        self.reset_state_value = {}
 
         do_update_fm = np.zeros(retrieval_info.n_totalParametersFM)
 
+        # Save values before updating for things we want to reset
+        for selm in do_not_update:
+            if str(selm) in retrieval_info.species_names:
+                self.reset_state_value[selm] = self.state_element(selm).value.copy()
         for state_element_name in retrieval_info.species_names:
             update_next = (
                 False

@@ -52,7 +52,7 @@ class EofStateElement(RetrievableStateElement):
         update_initial_guess. This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
         raise NotImplementedError
-    
+
     def update_state_element(
         self,
         state_info: StateInfo,

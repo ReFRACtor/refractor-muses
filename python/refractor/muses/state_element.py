@@ -129,7 +129,10 @@ class MusesPyStateElement(RetrievableStateElement):
         do_update_fm: np.array,
     ):
         ij = retrieval_info.species_names.index(str(self.name))
-        next_state = mpy.ObjectView(self.state_info.next_state_dict)
+        if self.state_info.next_state_dict is not None:
+            next_state = mpy.ObjectView(self.state_info.next_state_dict)
+        else:
+            next_state = None
 
         FM_Flag = True
         INITIAL_Flag = True
@@ -2446,7 +2449,7 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
         do_update_fm[ind1:ind2] = 1
-        if update_next:
+        if update_next and self.state_info.next_state_dict is not None:
             self.state_info.next_state_dict["omi"][self.omi_key] = self.value[0]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
@@ -2574,7 +2577,7 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
         do_update_fm[ind1:ind2] = 1
-        if update_next:
+        if update_next and self.state_info.next_state_dict is not None:
             self.state_info.next_state_dict["tropomi"][self.tropomi_key] = self.value[0]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
@@ -2653,6 +2656,27 @@ class StateElementOnLevels(MusesPyStateElement):
     def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
         super().__init__(state_info, name, step)
         self._ind = self.state_info.state_element_on_levels.index(str(name))
+
+    def update_state(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        initial: np.ndarray | None = None,
+        initial_initial: np.ndarray | None = None,
+        true: np.ndarray | None = None,
+    ):
+        """We have a few places where we want to update a state element other than
+        update_initial_guess. This function updates each of the various values passed in.
+        A value of 'None' (the default) means skip updating that part of the state."""
+        for v, stp in (
+            (current, "current"),
+            (apriori, "constraint"),
+            (initial, "initial"),
+            (initial_initial, "initialInitial"),
+            (true, "true"),
+        ):
+            if v is not None:
+                self.state_info.state_info_dict[self.step]["values"][self._ind, :] = v
 
     @property
     def value(self):
