@@ -253,54 +253,54 @@ class FakeStateInfo:
         # ['tes']['orbitInclinationAngle']
 
     @property
-    def current(self):
+    def current(self) -> dict[str, Any]:
         return self._current
 
     @property
-    def species(self):
+    def species(self) -> list[str]:
         return self._species
 
     @property
-    def constraint(self):
+    def constraint(self) -> dict[str, Any]:
         return self._constraint
 
     @property
-    def initial(self):
+    def initial(self) -> dict[str, Any]:
         return self._initial
 
     @property
-    def true(self):
+    def true(self) -> dict[str, Any]:
         return self._true
 
     @property
-    def initialInitial(self):
+    def initialInitial(self) -> dict[str, Any]:
         return self._initial_initial
 
     @property
-    def num_pressures(self):
+    def num_pressures(self) -> int:
         return self._num_pressures
 
     @property
-    def num_species(self):
+    def num_species(self) -> int:
         return self._num_species
 
     @property
-    def gmaoTropopausePressure(self):
+    def gmaoTropopausePressure(self) -> float:
         return self._gmao_tropopause_pressure
 
     @property
-    def cloudPars(self):
+    def cloudPars(self) -> dict[str, Any]:
         return self._cloud_pars
 
     @property
-    def emisPars(self):
+    def emisPars(self) -> dict[str, Any]:
         return self._emis_pars
 
     @property
-    def calibrationPars(self):
+    def calibrationPars(self) -> dict[str, Any]:
         return self._calibration_pars
 
-    def default_omi(self):
+    def default_omi(self) -> dict[str, Any]:
         # Copied from new_state_structures.py in muses-py, this is the values if we don't
         # otherwise set
         omi = {
@@ -335,7 +335,7 @@ class FakeStateInfo:
         omi["cloud_fraction"] = self.state_value("OMICLOUDFRACTION")
         return omi
 
-    def default_tropomi(self):
+    def default_tropomi(self) -> dict[str, Any]:
         tropomi = {
             "surface_albedo_BAND1": 0.0 - 999,
             "surface_albedo_BAND2": 0.0 - 999,
@@ -404,7 +404,7 @@ class FakeStateInfo:
         tropomi["cloud_fraction"] = self.state_value("TROPOMICLOUDFRACTION")
         return tropomi
 
-    def default_airs(self):
+    def default_airs(self) -> dict[str, Any]:
         airs = {
             "scanAng": 0.0,
             "satZen": 0.0,
@@ -417,7 +417,7 @@ class FakeStateInfo:
         }
         return airs
 
-    def default_cris(self):
+    def default_cris(self) -> dict[str, Any]:
         cris = {
             "scanAng": 0.0,
             "satZen": 0.0,
@@ -431,13 +431,13 @@ class FakeStateInfo:
         }
         return cris
 
-    def default_tes(self):
+    def default_tes(self) -> dict[str, Any]:
         tes = {}
         # Need pointing angle even if other part not filled in.
         tes["boresightNadirRadians"] = self.state_value("PTGANG")
         return tes
 
-    def default_nir(self):
+    def default_nir(self) -> dict[str, Any]:
         # 180 wavelengths
         minn = 0.7565
         maxx = 0.7730
@@ -480,13 +480,13 @@ class FakeStateInfo:
         }
         return nir
 
-    def state_value(self, state_name: str) -> np.ndarray:
+    def state_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
         return self.current_state.full_state_value(StateElementIdentifier(state_name))[
             0
         ]
 
-    def fill_omi(self, current_state, obs):
+    def fill_omi(self, current_state: CurrentState, obs: MusesObservation) -> None:
         d = self._current["omi"]
         blist = [str(i[0]) for i in obs.filter_data]
         sza = obs.solar_zenith
@@ -519,7 +519,7 @@ class FakeStateInfo:
         d["xsecscaling"] = 1.0
         d["SPACECRAFTALTITUDE"] = obs.spacecraft_altitude
 
-    def fill_tropomi(self, current_state, obs):
+    def fill_tropomi(self, current_state: CurrentState, obs: MusesObservation) -> None:
         d = self._current["tropomi"]
         blist = [str(i[0]) for i in obs.filter_data]
         sza = obs.solar_zenith
@@ -582,7 +582,7 @@ class FakeStateInfo:
         d["xsecscaling"] = 1.0
         d["SPACECRAFTALTITUDE"] = obs.spacecraft_altitude
 
-    def fill_airs(self, current_state, obs):
+    def fill_airs(self, current_state: CurrentState, obs: MusesObservation) -> None:
         d = {}
         d2 = obs.muses_py_dict
         for k in (
@@ -614,7 +614,7 @@ class FakeStateInfo:
                 d[k] = d2[k]
         self._current["airs"] = d
 
-    def fill_cris(self, current_state, obs):
+    def fill_cris(self, current_state: CurrentState, obs: MusesObservation) -> None:
         d = {}
         d2 = obs.muses_py_dict
         for k in (
@@ -636,8 +636,8 @@ class FakeStateInfo:
                 d[k] = d2[k.upper()]
         self._current["cris"] = d
 
-    def fill_tes(self, current_state, obs):
-        d = {}
+    def fill_tes(self, current_state: CurrentState, obs: MusesObservation) -> None:
+        d: dict[str, Any] = {}
         d2 = obs.muses_py_dict
         for k in (
             "boresightNadirRadians",

@@ -1,13 +1,16 @@
 from __future__ import annotations
 from contextlib import contextmanager
 from . import muses_py as mpy  # type: ignore
+from typing import Generator
 
 # Some helper functions for managing the mpy.replace_function. We may migrate
 # some of this into muses-py, but for now we'll collect stuff here.
 
 
 @contextmanager
-def register_replacement_function_in_block(func_name: str, obj):
+def register_replacement_function_in_block(
+    func_name: str, obj: object
+) -> Generator[None, None, None]:
     """Register a replacement function object, execute whatever is in
     the block of the context manager, and then reset the replacement
     function to whatever existing previously (including nothing, if
@@ -22,7 +25,7 @@ def register_replacement_function_in_block(func_name: str, obj):
 
 
 @contextmanager
-def suppress_replacement(func_name: str):
+def suppress_replacement(func_name: str) -> Generator[None, None, None]:
     """Synonym for register_replacement_function(func_name, None),
     which just makes the intent clearer
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 import refractor.framework as rf  # type: ignore
 import abc
-from typing import Callable
+from typing import Callable, Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -33,7 +33,7 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -47,7 +47,7 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
         obs: MusesObservation,
         fm_sv: rf.StateVector,
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
-        **kwargs,
+        **kwargs: Any,
     ) -> rf.ForwardModel | None:
         """Return ForwardModel if we can process the given
         instrument_name, or None if we can't.
@@ -76,7 +76,7 @@ class ForwardModelHandleSet(CreatorHandleSet):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("forward_model")
 
     def forward_model(
@@ -86,7 +86,7 @@ class ForwardModelHandleSet(CreatorHandleSet):
         obs: MusesObservation,
         fm_sv: rf.StateVector,
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
-        **kwargs,
+        **kwargs: Any,
     ) -> rf.ForwardModel | None:
         """Create a ForwardModel for the given instrument.
 

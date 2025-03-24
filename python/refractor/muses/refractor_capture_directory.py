@@ -5,16 +5,17 @@ import tarfile
 from contextlib import contextmanager
 from . import muses_py as mpy  # type: ignore
 from pathlib import Path
+from typing import Generator
 
 
 @contextmanager
 def muses_py_call(
     rundir: str | os.PathLike[str],
     vlidort_cli: str | os.PathLike[str] | None = None,
-    debug=False,
-    vlidort_nstokes=2,
-    vlidort_nstreams=4,
-):
+    debug: bool = False,
+    vlidort_nstokes: int = 2,
+    vlidort_nstreams: int = 4,
+) -> Generator[None, None, None]:
     """There is some cookie cutter code needed to call a py_retrieve function.
     We collect that here as a context manager, so you can just do something
     like:
@@ -85,16 +86,16 @@ class RefractorCaptureDirectory:
     when we capture runs, and extract it again to run the data again.
     This class handles this, wrapping everything up."""
 
-    def __init__(self):
-        self.capture_directory = None
-        self.runbase = None
+    def __init__(self) -> None:
+        self.capture_directory: None | bytes = None
+        self.runbase: None | Path = None
         self.rundir = Path(".")
 
     def save_directory(
         self,
         dirbase: str | os.PathLike[str],
         vlidort_input: str | os.PathLike[str] | None,
-    ):
+    ) -> None:
         """Capture information from the run directory so we can recreate the
         directory later. This is only needed by muses-py which uses a
         lot of files as "hidden" arguments to functions.  ReFRACtor
@@ -102,7 +103,7 @@ class RefractorCaptureDirectory:
         """
         fh = io.BytesIO()
         dirbase = Path(dirbase).absolute()
-        self.runbase = dirbase.name
+        self.runbase = Path(dirbase.name)
         # TODO This is probably too OMI specific
         osp_src_path = dirbase.parent / "OSP/OMI/"
         relpath = Path("./" + dirbase.name)
@@ -130,10 +131,10 @@ class RefractorCaptureDirectory:
     def extract_directory(
         self,
         path: str | os.PathLike[str] = ".",
-        change_to_dir=False,
+        change_to_dir: bool = False,
         osp_dir: str | os.PathLike[str] | None = None,
         gmao_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> None:
         """Extract a directory that has been previously saved.
         This gets extracted into the directory passed in the path. You can
         optionally change into the run directory.
@@ -143,6 +144,8 @@ class RefractorCaptureDirectory:
         you need the full OSP directory. We don't carry this in this class,
         but if you supply a osp_dir we use that instead of the OSP we have
         stashed."""
+        if self.runbase is None:
+            raise RuntimeError("First need to save a directory before extracting it")
         path = Path(path).absolute()
         if self.capture_directory is None:
             raise RuntimeError(

@@ -5,10 +5,12 @@ import os
 import copy
 from contextlib import contextmanager
 import sys
+from types import TracebackType
+from typing import Any, Self, Generator
 
 
 @contextmanager
-def suppress_stdout():
+def suppress_stdout() -> Generator[None, None, None]:
     """A context manager to temporarily redirect stdout to /dev/null"""
     oldstdchannel = None
     dest_file = None
@@ -28,7 +30,7 @@ class WatchOssInit(mpy.ObserveFunctionObject):
     """Helper object to update osswrapper.have_oss when py-retrieve calls
     fm_oss_init."""
 
-    def notify_function_call(self, func_name: str, parms):
+    def notify_function_call(self, func_name: str, parms: dict[str, Any]) -> None:
         osswrapper.have_oss = True
         osswrapper.first_oss_initialize = False
 
@@ -37,7 +39,7 @@ class WatchOssDelete(mpy.ObserveFunctionObject):
     """Helper object to update osswrapper.have_oss when py-retrieve calls
     fm_oss_delete."""
 
-    def notify_function_call(self, func_name: str, parms):
+    def notify_function_call(self, func_name: str, parms: dict[str, Any]) -> None:
         osswrapper.have_oss = False
 
 
@@ -76,7 +78,7 @@ class osswrapper:
     have_oss = False
     first_oss_initialize = True
 
-    def __init__(self, uip: dict):
+    def __init__(self, uip: dict[str, Any]) -> None:
         if hasattr(uip, "as_dict"):
             self.uip = uip.as_dict(uip)
         else:
@@ -85,11 +87,11 @@ class osswrapper:
         self.need_cleanup = False
 
     @classmethod
-    def register_with_muses_py(self):
+    def register_with_muses_py(self) -> None:
         mpy.register_observer_function("fm_oss_init", WatchOssInit())
         mpy.register_observer_function("fm_oss_delete", WatchOssDelete())
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         uip_all = None
         if not osswrapper.have_oss:
             for inst in ("CRIS", "AIRS", "TES"):
@@ -152,7 +154,12 @@ class osswrapper:
             self.oss_frequencyListFull = None
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         if self.need_cleanup:
             with suppress_replacement("fm_oss_delete"):
                 mpy.fm_oss_delete()

@@ -27,7 +27,7 @@ class ErrorAnalysis:
         current_state: CurrentState,
         current_strategy_step: CurrentStrategyStep,
         covariance_state_element_name: list[StateElementIdentifier],
-    ):
+    ) -> None:
         self.error_initial = self.initialize_error_initial(
             current_state, current_strategy_step, covariance_state_element_name
         )
@@ -97,7 +97,7 @@ class ErrorAnalysis:
             initial, pressure_list, [str(i) for i in species_list], map_list
         )
 
-    def update_retrieval_result(self, retrieval_result: RetrievalResult):
+    def update_retrieval_result(self, retrieval_result: RetrievalResult) -> None:
         """Update the retrieval_result and ErrorAnalysis. The retrieval_result
         are updated in place."""
         # Both these functions update retrieval_result in place, and
@@ -131,7 +131,7 @@ class ErrorAnalysis:
         fstate_info: FakeStateInfo,
         retrieval_info: RetrievalInfo,
         retrieval_result: RetrievalResult,
-    ):
+    ) -> mpy.ObjectView:
         """Update results and error_current"""
         # Doesn't seem to be used for anything, but we need to pass in. I think
         # this might have been something that was used in the past?

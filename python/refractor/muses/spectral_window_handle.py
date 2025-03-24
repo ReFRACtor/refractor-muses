@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
-from .filter_metadata import FileFilterMetadata
+from .filter_metadata import FileFilterMetadata, FilterMetadata
 from .muses_spectral_window import MusesSpectralWindow
 from loguru import logger
 import abc
@@ -20,7 +20,7 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -90,7 +90,7 @@ class SpectralWindowHandleSet(CreatorHandleSet):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("_dispatch")
 
     def filter_name_dict(
@@ -135,10 +135,10 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
 
     """
 
-    def __init__(self):
-        self.filter_metadata = None
+    def __init__(self) -> None:
+        self.filter_metadata: None | FilterMetadata = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")

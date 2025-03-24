@@ -88,7 +88,7 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # Default is to do nothing
         pass
@@ -100,7 +100,7 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        **kwargs,
+        **kwargs: Any,
     ) -> rf.Observation | None:
         """Return Observation if we can process the given
         instrument_name, or None if we can't. Add to fm_sv. If you
@@ -128,7 +128,7 @@ class ObservationHandleSet(CreatorHandleSet):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("observation")
 
     def observation(
@@ -137,7 +137,7 @@ class ObservationHandleSet(CreatorHandleSet):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        **kwargs,
+        **kwargs: Any,
     ) -> rf.Observation:
         """Create an Observation for the given instrument."""
         return self.handle(instrument_name, current_state, spec_win, fm_sv, **kwargs)

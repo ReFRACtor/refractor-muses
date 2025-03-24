@@ -83,7 +83,7 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
     that a class is intended for this.
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -105,7 +105,7 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
 class QaDataHandleSet(CreatorHandleSet):
     """This takes a RetrievalResult and updates it with QA data."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("qa_update_retrieval_result")
 
     def qa_update_retrieval_result(
@@ -129,11 +129,11 @@ class MusesPyQaDataHandle(QaDataHandle):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.viewing_mode = None
         self.qa_flag_directory = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # We'll add grabbing the stuff out of RetrievalConfiguration
@@ -149,6 +149,9 @@ class MusesPyQaDataHandle(QaDataHandle):
         self, current_strategy_step: CurrentStrategyStep
     ) -> Path:
         """Return the quality file name."""
+        if self.viewing_mode is None:
+            raise RuntimeError("Need to call notify_update_target first")
+
         # Name is derived from the microwindows file name
         mwfname = current_strategy_step.muses_microwindows_fname()
         quality_fname = os.path.basename(mwfname)

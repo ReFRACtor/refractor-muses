@@ -16,11 +16,11 @@ from loguru import logger
 
 
 class MaxAPosterioriSqrtConstraintUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
-    def __init__(self, rf_uip: RefractorUip):
+    def __init__(self, rf_uip: RefractorUip) -> None:
         super().__init__()
         self.rf_uip = rf_uip
 
-    def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint):
+    def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.rf_uip.update_uip(mstand.parameters)
 
