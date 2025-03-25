@@ -56,27 +56,6 @@ class OmiEofStateElement(RetrievableStateElement):
             ]
         )
 
-    def should_write_to_l2_product(
-        self, instruments: list[InstrumentIdentifier]
-    ) -> bool:
-        if InstrumentIdentifier("OMI") in instruments:
-            return True
-        return False
-
-    def net_cdf_variable_name(self) -> str:
-        # Want names like OMI_EOF_UV1
-        return str(self.name).replace("EOF", "_EOF_")
-
-    def net_cdf_struct_units(self) -> dict:
-        """Returns the attributes attached to a netCDF write out of this
-        StateElement."""
-        return {
-            "Longname": "OMI EOF scale factors",
-            "Units": "",
-            "FillValue": "",
-            "MisingValue": "",
-        }
-
     def update_state(
         self,
         current: np.ndarray | None = None,

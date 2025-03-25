@@ -3,7 +3,7 @@ from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
 import copy
-from .retrieval_output import RetrievalOutput, CdfWriteTes
+from .retrieval_output import RetrievalOutput, CdfWriteTes, extra_l2_output
 from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
 
 # We'll fix StateElement at some point, but for now ignore this typing
@@ -183,9 +183,8 @@ class RetrievalL2Output(RetrievalOutput):
 
         state_element_out = []
         for sid in self.current_state.full_state_element_id:
-            t = self.current_state.full_state_element(sid)
-            if t.should_write_to_l2_product(self.instruments):
-                state_element_out.append(t)
+            if extra_l2_output.should_add_to_l2(sid, self.instruments):
+                state_element_out.append(sid)
 
         if self.spcname == "H2O" and self.dataTATM is not None:
             self.out_fname = self.file_number_handle(
@@ -1138,9 +1137,8 @@ class RetrievalL2Output(RetrievalOutput):
 
         state_element_out = []
         for sid in self.current_state.full_state_element_id:
-            t = self.current_state.full_state_element(sid)
-            if t.should_write_to_l2_product(self.instruments):
-                state_element_out.append(t)
+            if extra_l2_output.should_add_to_l2(sid, self.instruments):
+                state_element_out.append(sid)
 
         #######
         # write with lite format using cdf_write_tes
