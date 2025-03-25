@@ -18,7 +18,10 @@ class RetrievalStrategyStop:
         if location == ProcessLocation("initial set up done"):
             raise StopIteration()
 
+# Since we have pull state info out of RetrievalStrategy, these can't run any more.
+# Leave for a bit as a record. We have tested the same functionality in current_state_test.py
 
+@pytest.mark.skip
 def test_state_info(
     isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
 ):
@@ -69,6 +72,7 @@ def test_state_info(
     ] == pytest.approx(293.28302002)
 
 
+@pytest.mark.skip
 def test_update_cloudfraction(omi_step_0):
     """Test updating OMICLOUDFRACTION. Nothing particularly special about this
     StateElement, it is just a good simple test case for checking the muses-py
@@ -244,6 +248,7 @@ def test_update_cloudfraction(omi_step_0):
     npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
 
 
+@pytest.mark.skip
 def test_noupdate_cloudfraction(omi_step_0):
     """Repeat the previous test, but label the update as "do_not_update". This
     tests the handling of that case."""
@@ -419,6 +424,7 @@ def test_noupdate_cloudfraction(omi_step_0):
     npt.assert_allclose(selement.constraintMatrix, np.array([[400.0]]))
 
 
+@pytest.mark.skip
 def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir):
     """Repeat the tests for OMICLOUDFRACTION for our own ReFRACtor only
     StateElement. This is the OmiEofStateElement, but this should be pretty
@@ -545,6 +551,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
     npt.assert_allclose(selement.constraintMatrix, np.diag([100, 100, 100]))
 
 
+@pytest.mark.skip
 def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir):
     """Repeat the previous test, but label the update as "do_not_update". This
     tests the handling of that case."""

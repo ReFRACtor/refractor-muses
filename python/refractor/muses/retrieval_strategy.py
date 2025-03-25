@@ -11,7 +11,6 @@ from .retrieval_debug_output import (
 )
 from .retrieval_strategy_step import (
     RetrievalStrategyStepSet,
-    RetrievalStepCaptureObserver,
 )
 from .retrieval_configuration import RetrievalConfiguration
 from .muses_observation import MeasurementIdFile
@@ -20,7 +19,6 @@ from .muses_strategy_executor import (
 )
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
-from .state_info import StateInfo
 from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation
 from loguru import logger
@@ -129,8 +127,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._kwargs: dict[str, Any] = kwargs
         self._kwargs["vlidort_cli"] = self._vlidort_cli
 
-        self._state_info = StateInfo()
-        self._state_element_handle_set = self._state_info.state_element_handle_set
         self.osp_dir = osp_dir
         if self.osp_dir is None:
             self.osp_dir = os.environ.get("MUSES_OSP_PATH", None)
@@ -221,7 +217,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self.strategy_executor.notify_update_target(self.measurement_id)
         self._cost_function_creator.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
-        self._state_info.notify_update_target(self)
         self.notify_update(ProcessLocation("update target"))
 
     def script_retrieval_ms(
@@ -353,7 +348,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
         """The set of handles we use for each state element."""
-        return self._state_element_handle_set
+        return self._strategy_executor.state_element_handle_set
 
     @property
     def retrieval_strategy_step_set(self) -> RetrievalStrategyStepSet:
@@ -411,11 +406,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self.strategy_executor.retrieval_info
 
     @property
-    def state_info(self) -> StateInfo:
-        # Can hopefully replace this with CurrentState
-        return self._state_info
-
-    @property
     def cost_function_creator(self) -> CostFunctionCreator:
         return self._cost_function_creator
 
@@ -459,19 +449,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._capture_directory.save_directory(self.run_dir, vlidort_input=None)
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
-    def state_state_info(self, save_pickle_file: str | os.PathLike[str]) -> None:
-        """Dump a pickled version of the StateInfo object.
-        We may play with this, but currently we gzip this.
-        We would like to have something a bit more stable, not tied to the
-        object structure. But for now, just do a straight json dump of the object"""
-
-        # Doesn't work yet. Not overly important, looks like a bug in
-        # jsonpickle Just use normal pickle for now, we want to change
-        # what gets saved anyways
-        #
-        # with gzip.GzipFile(save_pickle_file, "wb") as fh:
-        #    fh.write(jsonpickle.encode(self.state_info).encode('utf-8'))
-        pickle.dump(self.state_info, open(save_pickle_file, "wb"))
+    def save_state_info(self, save_pickle_file: str | os.PathLike[str]) -> None:
+        self._strategy_executor.save_state_info(save_pickle_file)
 
     def load_state_info(
         self,
@@ -479,31 +458,9 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         step_number: int,
         ret_state_file: str | os.PathLike[str] | None = None,
     ) -> None:
-        """This pairs with state_state_info. Instead of pickling the
-        entire RetrievalStrategy, we just save the state. We then
-        set up to process the given target_filename with the given
-        state, jumping to the given retrieval step_number.
-
-        Note for some tests in addition to the StateInfo we want the
-        results saved by RetrievalStepCaptureObserver (e.g., we want
-        to test the output writing). You can optionally pass in the
-        json file for this and we will also pass that information to
-        the RetrievalStrategyStep.
-
-        """
-        # self._state_info = jsonpickle.decode(
-        #    gzip.open(state_info_pickle_file, "rb").read())
-        self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
-        self._state_info.state_element_handle_set = self._state_element_handle_set
-        self._state_info.retrieval_config.base_dir = self.run_dir
-        self._state_info.retrieval_config.osp_dir = (
-            Path(self.osp_dir) if self.osp_dir is not None else None
+        self._strategy_executor.load_state_info(
+            state_info_pickle_file, step_number, ret_state_file
         )
-        self.strategy_executor.set_step(step_number)
-        if ret_state_file is not None:
-            t = RetrievalStepCaptureObserver.load_retrieval_state(ret_state_file)
-            self._kwargs["ret_state"] = t
-            self.strategy_executor.kwargs["ret_state"] = t
 
     @classmethod
     def load_retrieval_strategy(
@@ -608,7 +565,7 @@ class StateInfoCaptureObserver:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         # fname = f"{self.basefname}_{retrieval_strategy.step_number}.json.gz"
         fname = f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
-        retrieval_strategy.state_state_info(fname)
+        retrieval_strategy.save_state_info(fname)
 
 
 class RetrievalStrategyMemoryUse:

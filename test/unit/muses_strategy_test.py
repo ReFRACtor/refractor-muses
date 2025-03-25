@@ -29,7 +29,7 @@ def test_muses_strategy_file(joint_omi_step_8):
     stable_old.restart()
     while not stable.is_done():
         assert stable.is_next_bt() == stable_old.is_next_bt()
-        
+
         # This no longer passes because we added "update_apriori_elements" to
         # the table. So this doesn't match the old strategy table without this.
         # Just comment this out, the test we had already verified everything was

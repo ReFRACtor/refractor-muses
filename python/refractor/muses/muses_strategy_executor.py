@@ -18,10 +18,13 @@ from .identifier import StateElementIdentifier, ProcessLocation
 from .muses_strategy import MusesStrategyHandleSet
 from .spectral_window_handle import SpectralWindowHandleSet
 from .fake_state_info import FakeStateInfo
+from .retrieval_strategy_step import RetrievalStepCaptureObserver
+from .state_info import StateInfo
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
 import os
+import pickle
 from loguru import logger
 import time
 import functools
@@ -36,7 +39,6 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .cost_function import CostFunction
     from .retrieval_configuration import RetrievalConfiguration
-    from .state_info import StateInfo
     from .cost_function_creator import CostFunctionCreator
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier, FilterIdentifier
@@ -135,6 +137,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         **kwargs,
     ):
         self.rs = rs
+        self._state_info = StateInfo()
         self.retrieval_info: RetrievalInfo | None = None
         self.vlidort_cli = vlidort_cli
         self.kwargs = kwargs
@@ -177,18 +180,19 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
         self.qa_data_handle_set.notify_update_target(self.measurement_id)
+        self._state_info.notify_update_target(self.retrieval_config)
 
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
         return self.rs.retrieval_config
 
     @property
-    def run_dir(self) -> Path:
-        return self.rs.run_dir
+    def state_element_handle_set(self):
+        return self._state_info.state_element_handle_set
 
     @property
-    def state_info(self) -> StateInfo:
-        return self.rs.state_info
+    def run_dir(self) -> Path:
+        return self.rs.run_dir
 
     @property
     def cost_function_creator(self) -> CostFunctionCreator:
@@ -333,7 +337,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self, do_systematic=False, jacobian_speciesIn=None
     ) -> CurrentState:
         return CurrentStateStateInfo(
-            self.state_info,
+            self._state_info,
             self.retrieval_info,
             self.run_dir
             / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}",
@@ -524,7 +528,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         logger.info(str(self.current_strategy_step.strategy_step))
         if nparm > 0:
             xig = self.retrieval_info.initial_guess_list[0:nparm]
-            self.state_info.update_state(
+            self.current_state().update_state(
                 self.retrieval_info,
                 xig,
                 [],
@@ -534,7 +538,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
     def run_step(self):
         """Run a the current step."""
-        self.state_info.copy_current_initial()
+        self._state_info.copy_current_initial()
         logger.info("\n---")
         logger.info(str(self.current_strategy_step.strategy_step))
         logger.info("\n---")
@@ -550,7 +554,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             **self.kwargs,
         )
         self.notify_update(ProcessLocation("done retrieval_step"))
-        self.state_info.next_state_to_current()
+        self._state_info.next_state_to_current()
         self.notify_update(ProcessLocation("done next_state_to_current"))
         logger.info(f"Done with {str(self.current_strategy_step.strategy_step)}")
 
@@ -581,7 +585,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
                 "Need to call notify_update_target before calling this function"
             )
         with self.chdir_run_dir():
-            self.state_info.init_state(
+            self._state_info.init_state(
                 self.measurement_id,
                 self.observation_handle_set,
                 self.retrieval_elements_all_step,
@@ -612,7 +616,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # Not sure that this is needed or used anywhere, but for now
         # go ahead and this this until we know for sure it doesn't
         # matter.
-        self.state_info.copy_current_initialInitial()
+        self._state_info.copy_current_initialInitial()
         self.notify_update(ProcessLocation("starting retrieval steps"))
         self.restart()
         while not self.is_done():
@@ -665,6 +669,53 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
                 yield
             finally:
                 os.chdir(curdir)
+
+    def save_state_info(self, save_pickle_file: str | os.PathLike[str]) -> None:
+        """Dump a pickled version of the StateInfo object.
+        We may play with this, but currently we gzip this.
+        We would like to have something a bit more stable, not tied to the
+        object structure. But for now, just do a straight json dump of the object"""
+
+        # Doesn't work yet. Not overly important, looks like a bug in
+        # jsonpickle Just use normal pickle for now, we want to change
+        # what gets saved anyways
+        #
+        # with gzip.GzipFile(save_pickle_file, "wb") as fh:
+        #    fh.write(jsonpickle.encode(self.state_info).encode('utf-8'))
+        pickle.dump(self._state_info, open(save_pickle_file, "wb"))
+
+    def load_state_info(
+        self,
+        state_info_pickle_file: str | os.PathLike[str],
+        step_number: int,
+        ret_state_file: str | os.PathLike[str] | None = None,
+    ) -> None:
+        """This pairs with save_state_info. Instead of pickling the
+        entire RetrievalStrategy, we just save the state. We then
+        set up to process the given target_filename with the given
+        state, jumping to the given retrieval step_number.
+
+        Note for some tests in addition to the StateInfo we want the
+        results saved by RetrievalStepCaptureObserver (e.g., we want
+        to test the output writing). You can optionally pass in the
+        json file for this and we will also pass that information to
+        the RetrievalStrategyStep.
+
+        """
+        # self._state_info = jsonpickle.decode(
+        #    gzip.open(state_info_pickle_file, "rb").read())
+        hset = self.state_element_handle_set
+        self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
+        self._state_info.state_element_handle_set = hset
+        if self._state_info.retrieval_config is not None:
+            self._state_info.retrieval_config.base_dir = self.run_dir
+            self._state_info.retrieval_config.osp_dir = (
+                Path(self.osp_dir) if self.osp_dir is not None else None
+            )
+        self.set_step(step_number)
+        if ret_state_file is not None:
+            t = RetrievalStepCaptureObserver.load_retrieval_state(ret_state_file)
+            self.kwargs["ret_state"] = t
 
 
 __all__ = [

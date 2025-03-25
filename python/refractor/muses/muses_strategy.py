@@ -568,7 +568,7 @@ class MusesStrategyStepList(MusesStrategyImp):
                 "do_not_update_list": res._parse_state_elements(row["donotupdate"]),
                 # List of elements that we update the apriori to match what
                 # we retrieve
-                "update_apriori_elements" : []
+                "update_apriori_elements": [],
             }
             # Will fill in measurement_id in notify_update_target
             cstep = CurrentStrategyStepDict(cstepdict, None)
@@ -576,10 +576,14 @@ class MusesStrategyStepList(MusesStrategyImp):
             # retrieval types also update the apriori value. We duplicate this
             # behavior, although it would be nice to have a cleaner way of doing this
             # (e.g., maybe just have a update_apriori_elements column in the table?)
-            if(cstep.retrieval_type == RetrievalType("tropomicloud_ig_refine")):
-                cstep.current_strategy_step_dict["update_apriori_elements"].append(StateElementIdentifier("TROPOMICLOUDFRACTION"))
-            if(cstep.retrieval_type == RetrievalType("omicloud_ig_refine")):
-                cstep.current_strategy_step_dict["update_apriori_elements"].append(StateElementIdentifier("OMICLOUDFRACTION"))
+            if cstep.retrieval_type == RetrievalType("tropomicloud_ig_refine"):
+                cstep.current_strategy_step_dict["update_apriori_elements"].append(
+                    StateElementIdentifier("TROPOMICLOUDFRACTION")
+                )
+            if cstep.retrieval_type == RetrievalType("omicloud_ig_refine"):
+                cstep.current_strategy_step_dict["update_apriori_elements"].append(
+                    StateElementIdentifier("OMICLOUDFRACTION")
+                )
             res.current_strategy_list.append(cstep)
         return res
 

@@ -18,7 +18,6 @@ if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
     from .retrieval_configuration import RetrievalConfiguration
     from .observation_handle import ObservationHandleSet
-    from .retrieval_strategy import RetrievalStrategy
     from .muses_strategy_executor import CurrentStrategyStep
     from .muses_observation import MeasurementId, MusesObservation
     from .identifier import InstrumentIdentifier
@@ -91,6 +90,8 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
+        if self.state_info.retrieval_config is None:
+            raise RuntimeError("Need to call notify_update_target first")
         return self.state_info.retrieval_config
 
     def sa_covariance(self):
@@ -258,7 +259,7 @@ class StateElementHandle(object, metaclass=abc.ABCMeta):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next."""
 
-    def notify_update_target(self, rs: RetrievalStrategy):
+    def notify_update_target(self, state_info: StateInfo):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # Default is to do nothing
         pass
@@ -284,11 +285,11 @@ class StateElementHandleSet(PriorityHandleSet):
     ) -> tuple[StateElement, StateElement, StateElement]:
         return self.handle(state_info, name)
 
-    def notify_update_target(self, rs: RetrievalStrategy):
+    def notify_update_target(self, state_info: StateInfo):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(rs)
+                h.notify_update_target(state_info)
 
     def handle_h(
         self, h: StateElementHandle, state_info: StateInfo, name: StateElementIdentifier
@@ -416,7 +417,9 @@ class StateInfo:
         )
         self.notify_update_target(None)
 
-    def notify_update_target(self, rs: RetrievalStrategy):
+    def notify_update_target(
+        self, retrieval_config: RetrievalConfiguration | None
+    ) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.state_info_dict: dict[str, Any] = {}
         self.initialInitial: dict[str, StateElement] = {}
@@ -435,8 +438,8 @@ class StateInfo:
         self._tai_time = -999.0
         self._utc_time = ""
         self._sounding_id = ""
-        self.retrieval_config = rs.retrieval_config if rs is not None else None
-        self.state_element_handle_set.notify_update_target(rs)
+        self.retrieval_config = retrieval_config
+        self.state_element_handle_set.notify_update_target(self)
 
     def init_state(
         self,
