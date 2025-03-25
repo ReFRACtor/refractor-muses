@@ -18,7 +18,7 @@ import subprocess
 import itertools
 import collections.abc
 import re
-from typing import Tuple
+from typing import Tuple, Iterator, Any, Generator, Self, TypeVar
 import typing
 from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIdentifier
 
@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
 
 
-def _new_from_init(cls, *args):
+def _new_from_init(cls, *args):  # type: ignore
     """For use with pickle, covers common case where we just store the
     arguments needed to create an object.
     """
@@ -77,13 +77,13 @@ class MeasurementId(collections.abc.Mapping):
         """
         raise NotImplementedError
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         raise NotImplementedError
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         raise NotImplementedError
 
-    def __len__(self):
+    def __len__(self) -> int:
         raise NotImplementedError
 
 
@@ -94,7 +94,7 @@ class MeasurementIdDict(MeasurementId):
         self,
         measurement_dict: dict,
         filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
-    ):
+    ) -> None:
         self.measurement_dict = measurement_dict
         self._filter_list_dict = filter_list_dict
 
@@ -107,16 +107,18 @@ class MeasurementIdDict(MeasurementId):
         return self._filter_list_dict
 
     @filter_list_dict.setter
-    def filter_list_dict(self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]):
+    def filter_list_dict(
+        self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]
+    ) -> None:
         self._filter_list_dict = val
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         return self.measurement_dict[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return self.measurement_dict.__iter__()
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.measurement_dict)
 
 
@@ -129,7 +131,7 @@ class MeasurementIdFile(MeasurementId):
         fname: str | os.PathLike[str],
         retrieval_config: RetrievalConfiguration,
         filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
-    ):
+    ) -> None:
         self.fname = Path(fname)
         self.base_dir = self.fname.parent.absolute()
         self._p = TesFile(self.fname)
@@ -145,23 +147,25 @@ class MeasurementIdFile(MeasurementId):
         return self._filter_list_dict
 
     @filter_list_dict.setter
-    def filter_list_dict(self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]):
+    def filter_list_dict(
+        self, val: dict[InstrumentIdentifier, list[FilterIdentifier]]
+    ) -> None:
         self._filter_list_dict = val
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Any:
         if key in self._p:
             return self._abs_dir(self._p[key])
         if key in self._retrieval_config:
             return self._retrieval_config[key]
         raise KeyError(key)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return itertools.chain(self._p, self._retrieval_config)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._p) + len(self._retrieval_config)
 
-    def _abs_dir(self, v):
+    def _abs_dir(self, v: Any) -> Any:
         # Don't try treating a list like a path.
         if isinstance(v, list):
             return v
@@ -219,7 +223,9 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     """
 
-    def __init__(self, coeff, in_map=None):
+    def __init__(
+        self, coeff: np.ndarray, in_map: rf.StateMapping | None = None
+    ) -> None:
         if in_map is None:
             super().__init__(coeff)
         else:
@@ -231,7 +237,7 @@ class MusesObservation(rf.ObservationSvImpBase):
         raise NotImplementedError()
 
     @property
-    def filter_data(self) -> list[Tuple[str, int]]:
+    def filter_data(self) -> list[Tuple[FilterIdentifier, int]]:
         """This returns a list of filter names and sizes. This is used
         as metadata in the py-retrieve structure called
         "radianceStep".
@@ -255,7 +261,7 @@ class MusesObservation(rf.ObservationSvImpBase):
         raise NotImplementedError()
 
     @property
-    def sounding_desc(self):
+    def sounding_desc(self) -> dict[str, Any]:
         """Different types of instruments have different description
         of the sounding ID. This gets used in retrieval_l2_output for
         metadata.
@@ -269,11 +275,11 @@ class MusesObservation(rf.ObservationSvImpBase):
         raise NotImplementedError()
 
     @spectral_window.setter
-    def spectral_window(self, val: MusesSpectralWindow):
+    def spectral_window(self, val: MusesSpectralWindow) -> None:
         """Set the SpectralWindow to apply to the observation data."""
         raise NotImplementedError()
 
-    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping):
+    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping) -> None:
         """Update the objects coefficients and state mapping. Useful
         if we create observation before we have a CurrentState and/or
         StateVector - which we often do in unit tests.
@@ -289,11 +295,11 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     def radiance_all_extended(
         self,
-        skip_jacobian=True,
-        include_bad_sample=False,
-        full_band=False,
-        do_raman_ext=False,
-    ):
+        skip_jacobian: bool = True,
+        include_bad_sample: bool = False,
+        full_band: bool = False,
+        do_raman_ext: bool = False,
+    ) -> rf.Spectrum:
         """Convenience function that changes the spectral_window
         (e.g., turn on bad samples), calls radiance_all, and then
         changes back.
@@ -312,8 +318,11 @@ class MusesObservation(rf.ObservationSvImpBase):
 
     @contextmanager
     def modify_spectral_window(
-        self, include_bad_sample=False, full_band=False, do_raman_ext=False
-    ):
+        self,
+        include_bad_sample: bool = False,
+        full_band: bool = False,
+        do_raman_ext: bool = False,
+    ) -> Generator[None, None, None]:
         """Convenience context that changes the spectral_window (e.g.,
         turn on bad samples), does something, and then changes back.
 
@@ -346,9 +355,16 @@ class MusesObservationImp(MusesObservation):
 
     """
 
-    def __init__(self, muses_py_dict, sdesc, num_channels=1, coeff=None, mp=None):
+    def __init__(
+        self,
+        muses_py_dict: dict[str, Any],
+        sdesc: dict[str, Any],
+        num_channels: int = 1,
+        coeff: np.ndarray | None = None,
+        mp: None | rf.StateMapping = None,
+    ) -> None:
         if coeff is None:
-            super().__init__([])
+            super().__init__(np.array([]))
         else:
             if mp is None:
                 raise RuntimeError("Both coeff and mp need to be None or not None")
@@ -357,10 +373,10 @@ class MusesObservationImp(MusesObservation):
         self._spectral_window = MusesSpectralWindow(None, None)
         self._num_channels = num_channels
         self._sounding_desc = sdesc
-        self._filter_data_name = []
-        self._filter_data_swin = None
+        self._filter_data_name: list[FilterIdentifier] = []
+        self._filter_data_swin: None | MusesSpectralWindow = None
 
-    def wn_and_sindex(self, sensor_index):
+    def wn_and_sindex(self, sensor_index: int) -> Tuple[list[np.ndarray], int]:
         """We have a couple of places where we need the complete
         frequency grid (so all spectral channels), and the sample
         index for one of the sensors in that full grid.
@@ -392,11 +408,11 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
-    def observation_table(self):
+    def observation_table(self) -> dict[str, Any]:
         return self.muses_py_dict["Earth_Radiance"]["ObservationTable"]
 
     @property
-    def wavelength_filter(self):
+    def wavelength_filter(self) -> dict[str, Any]:
         return self.muses_py_dict["Earth_Radiance"]["EarthWavelength_Filter"]
 
     @property
@@ -489,8 +505,10 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
-    def filter_data(self) -> list[Tuple[str, int]]:
-        res: list[Tuple[str, int]] = []
+    def filter_data(self) -> list[Tuple[FilterIdentifier, int]]:
+        if self._filter_data_swin is None:
+            raise RuntimeError("Need to fill in self._filter_data_swin")
+        res: list[Tuple[FilterIdentifier, int]] = []
         sd = self.spectral_domain_all()
         for i, fltname in enumerate(self._filter_data_name):
             sz = self._filter_data_swin.apply(sd, i).data.shape[0]
@@ -498,7 +516,7 @@ class MusesObservationImp(MusesObservation):
                 res.append((fltname, sz))
         return res
 
-    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping):
+    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping) -> None:
         """Update the objects coefficients and state mapping. Useful
         if we create observation before we have a CurrentState and/or
         StateVector - which we often do in unit tests.
@@ -510,7 +528,7 @@ class MusesObservationImp(MusesObservation):
         self.init(coeff, mp)
 
     @property
-    def sounding_desc(self):
+    def sounding_desc(self) -> dict[str, Any]:
         """Different types of instruments have different description
         of the sounding ID. This gets used in retrieval_l2_output for
         metadata.
@@ -518,10 +536,10 @@ class MusesObservationImp(MusesObservation):
         """
         return self._sounding_desc
 
-    def _v_num_channels(self):
+    def _v_num_channels(self) -> int:
         return self._num_channels
 
-    def notify_update(self, sv):
+    def notify_update(self, sv: rf.StateVector) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         super().notify_update(sv)
         self._spec = [
@@ -529,23 +547,25 @@ class MusesObservationImp(MusesObservation):
         ] * self.num_channels
 
     @property
-    def spectral_window(self):
+    def spectral_window(self) -> MusesSpectralWindow:
         return self._spectral_window
 
     @spectral_window.setter
-    def spectral_window(self, val):
+    def spectral_window(self, val: MusesSpectralWindow) -> None:
         self._spectral_window = val
 
-    def spectral_domain(self, sensor_index):
+    def spectral_domain(self, sensor_index: int) -> rf.SpectralDomain:
         sd = self.spectral_domain_full(sensor_index)
         return self.spectral_window.apply(sd, sensor_index)
 
-    def radiance(self, sensor_index, skip_jacobian=False):
+    def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         return self.spectral_window.apply(
             self.spectrum_full(sensor_index), sensor_index
         )
 
-    def spectrum_full(self, sensor_index, skip_jacobian=False):
+    def spectrum_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> rf.Spectrum:
         """The full list of radiance, before we have removed bad
         samples or applied the microwindows.
 
@@ -560,14 +580,16 @@ class MusesObservationImp(MusesObservation):
         )
         return rf.Spectrum(sd, sr)
 
-    def radiance_full(self, sensor_index, skip_jacobian=False):
+    def radiance_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> np.ndarray:
         """The full list of radiance, before we have removed bad
         samples or applied the microwindows.
 
         """
         raise NotImplementedError
 
-    def spectral_domain_full(self, sensor_index):
+    def spectral_domain_full(self, sensor_index: int) -> rf.SpectralDomain:
         """Spectral domain before we have removed bad samples or
         applied the microwindows."""
         # By convention, sample index starts with 1. This was from OCO-2, I'm not
@@ -577,21 +599,21 @@ class MusesObservationImp(MusesObservation):
         sindex = np.array(list(range(len(freq)))) + 1
         return rf.SpectralDomain(freq, sindex, rf.Unit("nm"))
 
-    def frequency_full(self, sensor_index):
+    def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
 
         """
         raise NotImplementedError
 
-    def nesr_full(self, sensor_index):
+    def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
         or applied the microwindows.
 
         """
         raise NotImplementedError
 
-    def bad_sample_mask(self, sensor_index):
+    def bad_sample_mask(self, sensor_index: int) -> np.ndarray:
         # Default way to find bad samples is to look for negative
         # NESR. Some of the the derived objects override this (e.g.,
         # Tropomi also check the solar model for negative values).
@@ -608,7 +630,7 @@ class SimulatedObservation(MusesObservationImp):
 
     def __init__(
         self, obs: MusesObservationImp, replacement_spectrum: list[np.ndarray]
-    ):
+    ) -> None:
         # Note the muses_py_dict is needed here, although only for
         # generating a UIP. Right now we still need that functionality
         # in a few places.  The long term goal is to have this *only*
@@ -642,7 +664,7 @@ class SimulatedObservation(MusesObservationImp):
         self.spectral_window.add_bad_sample_mask(self)
 
     @property
-    def filter_list(self):
+    def filter_list(self) -> list[FilterIdentifier]:
         return self._obs.filter_list
 
     @property
@@ -650,11 +672,11 @@ class SimulatedObservation(MusesObservationImp):
         return self._obs.instrument_name
 
     @property
-    def cloud_pressure(self):
+    def cloud_pressure(self) -> rf.DoubleWithUnit:
         return self._obs.cloud_pressure
 
     @property
-    def observation_table(self):
+    def observation_table(self) -> dict[str, Any]:
         return self._obs.observation_table
 
     @property
@@ -686,36 +708,38 @@ class SimulatedObservation(MusesObservationImp):
         return self._obs.longitude
 
     @property
-    def filter_data(self) -> list[Tuple[str, int]]:
+    def filter_data(self) -> list[Tuple[FilterIdentifier, int]]:
         return self._obs.filter_data
 
-    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping):
+    def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping) -> None:
         # We don't do any updating here, the observation stays fixed
         pass
 
     @property
-    def spectral_window(self):
+    def spectral_window(self) -> MusesSpectralWindow:
         return self._spectral_window
 
     @spectral_window.setter
-    def spectral_window(self, val):
+    def spectral_window(self, val: MusesSpectralWindow) -> None:
         self._spectral_window = val
 
-    def radiance_full(self, sensor_index, skip_jacobian=False):
+    def radiance_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> np.ndarray:
         """The full list of radiance, before we have removed bad
         samples or applied the microwindows.
 
         """
         return self._rad_full[sensor_index]
 
-    def frequency_full(self, sensor_index):
+    def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
 
         """
         return self._obs.frequency_full(sensor_index)
 
-    def nesr_full(self, sensor_index):
+    def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
         or applied the microwindows.
 
@@ -730,11 +754,13 @@ class SimulatedObservationHandle(ObservationHandle):
 
     """
 
-    def __init__(self, instrument_name: InstrumentIdentifier, obs: MusesObservation):
+    def __init__(
+        self, instrument_name: InstrumentIdentifier, obs: MusesObservation
+    ) -> None:
         self.instrument_name = instrument_name
         self.obs = obs
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
 
@@ -745,12 +771,15 @@ class SimulatedObservationHandle(ObservationHandle):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         osp_dir: str | os.PathLike[str] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> MusesObservation | None:
         if instrument_name != self.instrument_name:
             return None
         logger.debug(f"Creating observation using {self.__class__.__name__}")
         return copy.deepcopy(self.obs)
+
+
+MusesObservationClassType = TypeVar("MusesObservationClassType", bound=MusesObservation)
 
 
 class MusesObservationHandle(ObservationHandle):
@@ -759,25 +788,29 @@ class MusesObservationHandle(ObservationHandle):
 
     """
 
-    def __init__(self, instrument_name: InstrumentIdentifier, obs_cls):
+    def __init__(
+        self,
+        instrument_name: InstrumentIdentifier,
+        obs_cls: type[MusesObservationClassType],
+    ) -> None:
         self.instrument_name = instrument_name
         self.obs_cls = obs_cls
         # Keep the same observation around as long as the target doesn't
         # change - we just update the spectral windows.
-        self.existing_obs: obs_cls | None = None
+        self.existing_obs: MusesObservation | None = None
         self.measurement_id: MeasurementId | None = None
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
         # If we pickle, don't include the stashed obs
         attributes = self.__dict__.copy()
         del attributes["existing_obs"]
         return attributes
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__ = state
         self.existing_obs = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         # Need to read new data when the target changes
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.existing_obs = None
@@ -790,8 +823,8 @@ class MusesObservationHandle(ObservationHandle):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         osp_dir: str | os.PathLike[str] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> MusesObservation | None:
         if instrument_name != self.instrument_name:
             return None
         logger.debug(f"Creating observation using {self.obs_cls.__name__}")
@@ -810,7 +843,14 @@ class MusesObservationHandle(ObservationHandle):
 
 
 class MusesAirsObservation(MusesObservationImp):
-    def __init__(self, o_airs, sdesc, num_channels=1, coeff=None, mp=None):
+    def __init__(
+        self,
+        o_airs: dict[str, Any],
+        sdesc: dict[str, Any],
+        num_channels: int = 1,
+        coeff: np.ndarray | None = None,
+        mp: rf.StateMapping = None,
+    ) -> None:
         """Note you don't normally create an object of this class with
         the __init__. Instead, call one of the create_xxx class
         methods.
@@ -818,7 +858,9 @@ class MusesAirsObservation(MusesObservationImp):
         """
         super().__init__(o_airs, sdesc)
         # Set up stuff for the filter_data metadata
-        self._filter_data_name = o_airs["radiance"]["filterNames"]
+        self._filter_data_name = [
+            FilterIdentifier(i) for i in o_airs["radiance"]["filterNames"]
+        ]
         mw_range = np.zeros((len(self._filter_data_name), 1, 2))
         sindex = 0
         for i in range(mw_range.shape[0]):
@@ -833,12 +875,12 @@ class MusesAirsObservation(MusesObservationImp):
     def _read_data(
         cls,
         filename: str | os.PathLike[str],
-        granule,
-        xtrack,
-        atrack,
-        filter_list,
+        granule: int,
+        xtrack: int,
+        atrack: int,
+        filter_list: list[str],
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[dict[str, Any], dict[str, Any]]:
         i_fileid = {}
         i_fileid["preferences"] = {
             "AIRS_filename": os.path.abspath(str(filename)),
@@ -858,7 +900,7 @@ class MusesAirsObservation(MusesObservationImp):
         }
         return (o_airs, sdesc)
 
-    def desc(self):
+    def desc(self) -> str:
         return "MusesAirsObservation"
 
     @property
@@ -869,12 +911,12 @@ class MusesAirsObservation(MusesObservationImp):
     def create_from_filename(
         cls,
         filename: str | os.PathLike[str],
-        granule,
-        xtrack,
-        atrack,
-        filter_list,
+        granule: int,
+        xtrack: int,
+        atrack: int,
+        filter_list: list[FilterIdentifier],
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
         access to the underlying data.
@@ -902,8 +944,8 @@ class MusesAirsObservation(MusesObservationImp):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         osp_dir: str | os.PathLike[str] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Self:
         """Create from a MeasurementId. If this depends on any state
         information, you can pass in the CurrentState. This can be
         given as None if you just want to use default values, e.g. you
@@ -952,7 +994,9 @@ class MusesAirsObservation(MusesObservationImp):
             )
         return obs
 
-    def radiance_full(self, sensor_index, skip_jacobian=False):
+    def radiance_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> np.ndarray:
         """The full list of radiance, before we have removed bad
         samples or applied the microwindows.
 
@@ -961,7 +1005,7 @@ class MusesAirsObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["radiance"]["radiance"]
 
-    def frequency_full(self, sensor_index):
+    def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
 
@@ -970,7 +1014,7 @@ class MusesAirsObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["radiance"]["frequency"]
 
-    def nesr_full(self, sensor_index):
+    def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
         or applied the microwindows.
 
@@ -981,7 +1025,14 @@ class MusesAirsObservation(MusesObservationImp):
 
 
 class MusesTesObservation(MusesObservationImp):
-    def __init__(self, o_tes, sdesc, num_channels=1, coeff=None, mp=None):
+    def __init__(
+        self,
+        o_tes: dict[str, Any],
+        sdesc: dict[str, Any],
+        num_channels: int = 1,
+        coeff: np.ndarray | None = None,
+        mp: rf.StateMapping = None,
+    ) -> None:
         """Note you don't normally create an object of this class with
         the __init__. Instead, call one of the create_xxx class
         methods.
@@ -989,7 +1040,9 @@ class MusesTesObservation(MusesObservationImp):
         """
         super().__init__(o_tes, sdesc)
         # Set up stuff for the filter_data metadata
-        self._filter_data_name = o_tes["radianceStruct"]["filterNames"]
+        self._filter_data_name = [
+            FilterIdentifier(i) for i in o_tes["radianceStruct"]["filterNames"]
+        ]
         mw_range = np.zeros((len(self._filter_data_name), 1, 2))
         sindex = 0
         for i in range(mw_range.shape[0]):
@@ -1004,14 +1057,14 @@ class MusesTesObservation(MusesObservationImp):
     def _read_data(
         cls,
         filename: str | os.PathLike[str],
-        l1b_index,
-        l1b_avgflag,
-        run,
-        sequence,
-        scan,
-        filter_list,
+        l1b_index: int,
+        l1b_avgflag: int,
+        run: int,
+        sequence: int,
+        scan: int,
+        filter_list: list[str],
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[dict[str, Any], dict[str, Any]]:
         i_fileid = {}
         i_fileid["preferences"] = {
             "TES_filename_L1B": os.path.abspath(str(filename)),
@@ -1033,7 +1086,15 @@ class MusesTesObservation(MusesObservationImp):
         return (o_tes, sdesc)
 
     @classmethod
-    def _apodization(cls, o_tes, func, strength, flt, maxopd, spacing):
+    def _apodization(
+        cls,
+        o_tes: dict[str, Any],
+        func: str,
+        strength: str,
+        flt: np.ndarray,
+        maxopd: np.ndarray,
+        spacing: np.ndarray,
+    ) -> None:
         """Apply apodization to the radiance and NESR. o_tes is
         updated in place"""
         if func != "NORTON_BEER":
@@ -1044,10 +1105,10 @@ class MusesTesObservation(MusesObservationImp):
         o_tes["radianceStruct"] = rstruct
 
     @property
-    def boresight_angle(self):
+    def boresight_angle(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(self.muses_py_dict["boresightNadirRadians"], "rad")
 
-    def desc(self):
+    def desc(self) -> str:
         return "MusesTesObservation"
 
     @property
@@ -1055,7 +1116,9 @@ class MusesTesObservation(MusesObservationImp):
         return InstrumentIdentifier("TES")
 
     @classmethod
-    def create_fake_for_irk(cls, tes_frequency_fname: str, swin: MusesSpectralWindow):
+    def create_fake_for_irk(
+        cls, tes_frequency_fname: str, swin: MusesSpectralWindow
+    ) -> Self:
         """For the RetrievalStrategyStepIrk (Instantaneous Radiative
         Kernels) AIRS frequencies gets replaced with TES. I think TES
         is a more full grid.  We don't really need a full
@@ -1138,7 +1201,7 @@ class MusesTesObservation(MusesObservationImp):
         return res
 
     @classmethod
-    def _make_case_right(cls, my_file):
+    def _make_case_right(cls, my_file: dict[str, Any]) -> dict[str, Any]:
         # Because all the fields in tesRadiance are uppercased from
         # when they were read from external file, we have to make the
         # cases right before calling radiance_set_windows(),
@@ -1176,7 +1239,7 @@ class MusesTesObservation(MusesObservationImp):
         return {translation_table.get(k, k): v for k, v in my_file.items()}
 
     @classmethod
-    def _transpose_2d_arrays(cls, my_file):
+    def _transpose_2d_arrays(cls, my_file: dict[str, Any]) -> dict[str, Any]:
         # Because of how the 2D (and greater dimensions) arrays are
         # read in from external NetCDF file, we have to transpose them
         # so the shape will be correct.  otherwise, the function will
@@ -1204,14 +1267,14 @@ class MusesTesObservation(MusesObservationImp):
     def create_from_filename(
         cls,
         filename: str | os.PathLike[str],
-        l1b_index,
-        l1b_avgflag,
-        run,
-        sequence,
-        scan,
-        filter_list,
+        l1b_index: int,
+        l1b_avgflag: int,
+        run: int,
+        sequence: int,
+        scan: int,
+        filter_list: list[str],
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Self:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
         access to the underlying data.
@@ -1242,8 +1305,8 @@ class MusesTesObservation(MusesObservationImp):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         osp_dir: str | os.PathLike[str] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Self:
         """Create from a MeasurementId. If this depends on any state
         information, you can pass in the CurrentState. This can be
         given as None if you just want to use default values, e.g. you
@@ -1313,7 +1376,9 @@ class MusesTesObservation(MusesObservationImp):
             )
         return obs
 
-    def radiance_full(self, sensor_index, skip_jacobian=False):
+    def radiance_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> np.ndarray:
         """The full list of radiance, before we have removed bad
         samples or applied the microwindows.
 
@@ -1322,7 +1387,7 @@ class MusesTesObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["radianceStruct"]["radiance"]
 
-    def frequency_full(self, sensor_index):
+    def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
 
@@ -1331,7 +1396,7 @@ class MusesTesObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["radianceStruct"]["frequency"]
 
-    def nesr_full(self, sensor_index):
+    def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
         or applied the microwindows.
 
@@ -1342,13 +1407,24 @@ class MusesTesObservation(MusesObservationImp):
 
 
 class MusesCrisObservation(MusesObservationImp):
-    def __init__(self, o_cris, sdesc, num_channels=1, coeff=None, mp=None):
+    def __init__(
+        self,
+        o_cris: dict[str, Any],
+        sdesc: dict[str, Any],
+        num_channels: int = 1,
+        coeff: np.ndarray | None = None,
+        mp: rf.StateMapping = None,
+    ) -> None:
         """Note you don't normally create an object of this class with the
         __init__. Instead, call one of the create_xxx class methods."""
         super().__init__(o_cris, sdesc)
         # This is just hardcoded in py-retrieve, see about line 395 in
         # script_retrieval_setup_ms.py
-        self._filter_data_name = ["CrIS-fsr-lw", "CrIS-fsr-mw", "CrIS-fsr-sw"]
+        self._filter_data_name = [
+            FilterIdentifier("CrIS-fsr-lw"),
+            FilterIdentifier("CrIS-fsr-mw"),
+            FilterIdentifier("CrIS-fsr-sw"),
+        ]
         mw_range = np.zeros((3, 1, 2))
         mw_range[0, 0, :] = 0.0, 1200.00
         mw_range[1, 0, :] = 1200.01, 2145.00
@@ -1360,12 +1436,12 @@ class MusesCrisObservation(MusesObservationImp):
     def _read_data(
         cls,
         filename: str | os.PathLike[str],
-        granule,
-        xtrack,
-        atrack,
-        pixel_index,
+        granule: int,
+        xtrack: int,
+        atrack: int,
+        pixel_index: int,
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[dict[str, Any], dict[str, Any]]:
         i_fileid = {
             "CRIS_filename": os.path.abspath(str(filename)),
             "CRIS_XTrack_Index": xtrack,
@@ -1404,7 +1480,7 @@ class MusesCrisObservation(MusesObservationImp):
         return (o_cris, sdesc)
 
     @classmethod
-    def l1b_type_int_from_filename(cls, filename):
+    def l1b_type_int_from_filename(cls, filename: str) -> int:
         """Enumeration used in output metadata for the l1b_type"""
         return [
             "suomi_nasa_nsr",
@@ -1417,7 +1493,7 @@ class MusesCrisObservation(MusesObservationImp):
         ].index(cls.l1b_type_from_filename(filename))
 
     @classmethod
-    def l1b_type_from_filename(cls, filename):
+    def l1b_type_from_filename(cls, filename: str) -> str:
         """There are a number of sources for the CRIS data, and two
         different file format types. This determines the l1b_type by
         looking at the path/filename. This isn't particularly robust,
@@ -1444,14 +1520,14 @@ class MusesCrisObservation(MusesObservationImp):
             )
 
     @property
-    def l1b_type_int(self):
+    def l1b_type_int(self) -> int:
         return self.l1b_type_int_from_filename(self.filename)
 
     @property
-    def l1b_type(self):
+    def l1b_type(self) -> str:
         return self.l1b_type_from_filename(self.filename)
 
-    def desc(self):
+    def desc(self) -> str:
         return "MusesCrisObservation"
 
     @property
@@ -1462,12 +1538,12 @@ class MusesCrisObservation(MusesObservationImp):
     def create_from_filename(
         cls,
         filename: str | os.PathLike[str],
-        granule,
-        xtrack,
-        atrack,
-        pixel_index,
+        granule: int,
+        xtrack: int,
+        atrack: int,
+        pixel_index: int,
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Self:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
         access to the underlying data.
@@ -1490,8 +1566,8 @@ class MusesCrisObservation(MusesObservationImp):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         osp_dir: str | os.PathLike[str] | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Self:
         """Create from a MeasurementId. If this depends on any state
         information, you can pass in the CurrentState. This can be
         given as None if you just want to use default values, e.g. you
@@ -1534,7 +1610,9 @@ class MusesCrisObservation(MusesObservationImp):
             )
         return obs
 
-    def radiance_full(self, sensor_index, skip_jacobian=False):
+    def radiance_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> np.ndarray:
         """The full list of radiance, before we have removed bad
         samples or applied the microwindows.
 
@@ -1543,7 +1621,7 @@ class MusesCrisObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["RADIANCE"]
 
-    def frequency_full(self, sensor_index):
+    def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
 
@@ -1552,7 +1630,7 @@ class MusesCrisObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["FREQUENCY"]
 
-    def nesr_full(self, sensor_index):
+    def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
         or applied the microwindows.
 
@@ -1577,13 +1655,13 @@ class MusesDispersion:
 
     def __init__(
         self,
-        original_wav,
-        bad_sample_mask,
-        parent_obj,
-        offset_index,
-        slope_index,
-        order,
-    ):
+        original_wav: np.ndarray,
+        bad_sample_mask: np.ndarray,
+        parent_obj: MusesObservation,
+        offset_index: int,
+        slope_index: int,
+        order: int,
+    ) -> None:
         """For convenience, we take the offset and slope as a index
         into parent.mapped_state.  This allows us to directly use data
         from the Observation class without needing to worry about
@@ -1602,7 +1680,7 @@ class MusesDispersion:
         self.order = order
         self.orgwav_mean = np.mean(original_wav[bad_sample_mask != True])
 
-    def pixel_grid(self):
+    def pixel_grid(self) -> list[rf.AutoDerivativeDouble]:
         """Return the pixel grid. This is in "nm", although for
         convenience we just return the data.
 
@@ -1642,7 +1720,7 @@ class LinearInterpolate(rf.LinearInterpolateAutoDerivative):
 
     """
 
-    def __init__(self, x, y):
+    def __init__(self, x: np.ndarray, y: np.ndarray) -> None:
         self.x = x.copy()
         self.y = y.copy()
         x_ad = rf.vector_auto_derivative()
@@ -1653,12 +1731,12 @@ class LinearInterpolate(rf.LinearInterpolateAutoDerivative):
             y_ad.append(rf.AutoDerivativeDouble(float(yv)))
         super().__init__(x_ad, y_ad)
 
-    def __reduce__(self):
+    def __reduce__(self):  # type: ignore
         return (_new_from_init, (self.__class__, self.x, self.y))
 
 
 class LinearInterpolate2(rf.LinearInterpolateAutoDerivative):
-    def __init__(self, x, y):
+    def __init__(self, x: np.ndarray, y: list[rf.AutoDerivativeDouble]) -> None:
         self.x = x.copy()
         self.y = y.copy()
         x_ad = rf.vector_auto_derivative()
@@ -1680,8 +1758,14 @@ class MusesObservationReflectance(MusesObservationImp):
     """
 
     def __init__(
-        self, muses_py_dict, sdesc, filter_list, existing_obs=None, coeff=None, mp=None
-    ):
+        self,
+        muses_py_dict: dict[str, Any],
+        sdesc: dict[str, Any],
+        filter_list: list[FilterIdentifier],
+        existing_obs: Self | None = None,
+        coeff: np.ndarray | None = None,
+        mp: rf.StateMapping | None = None,
+    ) -> None:
         self.filter_list = filter_list
         # Placeholder values if not passed in
         if coeff is None:
@@ -1693,13 +1777,13 @@ class MusesObservationReflectance(MusesObservationImp):
 
         # Grab values from existing_obs if available
         if existing_obs is not None:
-            self._freq_data = existing_obs._freq_data
-            self._nesr_data = existing_obs._nesr_data
-            self._bsamp = existing_obs._bsamp
-            self._solar_interp = existing_obs._solar_interp
-            self._earth_rad = existing_obs._earth_rad
-            self._nesr = existing_obs._nesr
-            self._solar_spectrum = existing_obs._solar_spectrum
+            self._freq_data: list[np.ndarray] = existing_obs._freq_data
+            self._nesr_data: list[np.ndarray] = existing_obs._nesr_data
+            self._bsamp: list[np.ndarray] = existing_obs._bsamp
+            self._solar_interp: list[LinearInterpolate] = existing_obs._solar_interp
+            self._earth_rad: list[np.ndarray] = existing_obs._earth_rad
+            self._nesr: list[np.ndarray] = existing_obs._nesr
+            self._solar_spectrum: list[rf.Spectrum] = existing_obs._solar_spectrum
         else:
             # Stash some values we use in later calculations. Note
             # that the radiance data is all smooshed together, so we
@@ -1758,14 +1842,14 @@ class MusesObservationReflectance(MusesObservationImp):
         # dispersion will have independent values
         self._solar_wav = []
         self._norm_rad_wav = []
-        for i, flt in enumerate(filter_list):
+        for i in range(len(filter_list)):
             self._solar_wav.append(
                 MusesDispersion(
                     self._freq_data[i],
                     self.bad_sample_mask(i),
                     self,
                     0 * len(self.filter_list) + i,
-                    None,
+                    -1,
                     order=1,
                 )
             )
@@ -1780,16 +1864,16 @@ class MusesObservationReflectance(MusesObservationImp):
                 )
             )
 
-    def desc(self):
+    def desc(self) -> str:
         return "MusesObservationReflectance"
 
     @property
-    def filter_data(self) -> list[Tuple[str, int]]:
+    def filter_data(self) -> list[Tuple[FilterIdentifier, int]]:
         self._filter_data_name = self.filter_list
         self._filter_data_swin = self._spectral_window
         return super().filter_data
 
-    def frequency_full(self, sensor_index):
+    def frequency_full(self, sensor_index: int) -> np.ndarray:
         """The full list of frequency, before we have removed bad
         samples or applied the microwindows.
 
@@ -1798,7 +1882,7 @@ class MusesObservationReflectance(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self._freq_data[sensor_index]
 
-    def nesr_full(self, sensor_index):
+    def nesr_full(self, sensor_index: int) -> np.ndarray:
         """The full list of NESR, before we have removed bad samples
         or applied the microwindows.
 
@@ -1807,12 +1891,12 @@ class MusesObservationReflectance(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self._nesr_data[sensor_index]
 
-    def bad_sample_mask(self, sensor_index):
+    def bad_sample_mask(self, sensor_index: int) -> np.ndarray:
         if sensor_index < 0 or sensor_index >= self.num_channels:
             raise RuntimeError("sensor_index out of range")
         return self._bsamp[sensor_index]
 
-    def solar_spectrum(self, sensor_index):
+    def solar_spectrum(self, sensor_index: int) -> rf.Spectrum:
         """Not sure how much sense it makes, but the RamanSioris gets
         it solar model from the observation. I suppose this sort of
         makes sense, because we already need the solar model.  It
@@ -1828,7 +1912,7 @@ class MusesObservationReflectance(MusesObservationImp):
             self._solar_spectrum[sensor_index], sensor_index
         )
 
-    def solar_radiance(self, sensor_index):
+    def solar_radiance(self, sensor_index: int) -> list[rf.AutoDerivativeDouble]:
         """Use our interpolator to get the solar model at the shifted
         spectrum. This is for all data, so filtering out bad sample
         happens outside of this function.
@@ -1837,7 +1921,7 @@ class MusesObservationReflectance(MusesObservationImp):
         pgrid = self._solar_wav[sensor_index].pixel_grid()
         return [self._solar_interp[sensor_index](wav) for wav in pgrid]
 
-    def norm_radiance(self, sensor_index):
+    def norm_radiance(self, sensor_index: int) -> list[rf.AutoDerivativeDouble]:
         """Calculate the normalized radiance. This is for all data, so
         filtering out bad sample happens outside of this function.
 
@@ -1846,7 +1930,7 @@ class MusesObservationReflectance(MusesObservationImp):
         ninterp = self._norm_rad_interp(sensor_index)
         return [ninterp(wav) for wav in pgrid]
 
-    def norm_rad_nesr(self, sensor_index):
+    def norm_rad_nesr(self, sensor_index: int) -> np.ndarray:
         """Calculate the normalized radiance. This is for all data, so
         filtering out bad sample happens outside of this function.
 
@@ -1859,7 +1943,7 @@ class MusesObservationReflectance(MusesObservationImp):
             ]
         )
 
-    def _norm_rad_interp(self, sensor_index):
+    def _norm_rad_interp(self, sensor_index: int) -> LinearInterpolate:
         """Calculate the interpolator used for the normalized
         radiance. This can't be done ahead of time, because the solar
         radiance used is the interpolated solar radiance.
@@ -1876,11 +1960,13 @@ class MusesObservationReflectance(MusesObservationImp):
         ]
         return LinearInterpolate2(orgwav_good, norm_rad_good)
 
-    def snr_uplimit(self, sensor_index):
+    def snr_uplimit(self, sensor_index: int) -> float:
         """Upper limit for SNR, we adjust uncertainty if we are greater than this."""
         raise NotImplementedError()
 
-    def spectrum_full(self, sensor_index, skip_jacobian=False):
+    def spectrum_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> rf.Spectrum:
         """The full list of radiance, before we have removed bad
         samples or applied the microwindows.
 
@@ -1902,7 +1988,9 @@ class MusesObservationReflectance(MusesObservationImp):
         sd = self.spectral_domain_full(sensor_index)
         return rf.Spectrum(sd, sr)
 
-    def radiance_full(self, sensor_index, skip_jacobian=False):
+    def radiance_full(
+        self, sensor_index: int, skip_jacobian: bool = False
+    ) -> np.ndarray | rf.ArrayAd_double_1:
         """The full list of radiance, before we have removed bad
         samples or applied the microwindows.
 
@@ -1921,8 +2009,14 @@ class MusesTropomiObservation(MusesObservationReflectance):
     """Observation for Tropomi"""
 
     def __init__(
-        self, muses_py_dict, sdesc, filter_list, existing_obs=None, coeff=None, mp=None
-    ):
+        self,
+        muses_py_dict: dict[str, Any],
+        sdesc: dict[str, Any],
+        filter_list: list[FilterIdentifier],
+        existing_obs: Self | None = None,
+        coeff: np.ndarray | None = None,
+        mp: rf.StateMapping | None = None,
+    ) -> None:
         """Note you don't normally create an object of this class with the
         __init__. Instead, call one of the create_xxx class methods."""
         super().__init__(
@@ -1938,13 +2032,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def _read_data(
         cls,
         filename_dict: dict[str, str | os.PathLike[str]],
-        xtrack_dict,
-        atrack_dict,
-        utc_time,
-        filter_list,
-        calibration_filename=None,
+        xtrack_dict: dict[str, int],
+        atrack_dict: dict[str, int],
+        utc_time: str,
+        filter_list: list[str],
+        calibration_filename: str | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[dict[str, Any], dict[str, Any]]:
         # Filter list should be in the same order as filename_list,
         # and should be things like "BAND3"
         if calibration_filename is not None:
@@ -1999,7 +2093,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             ]["ViewingZenithAngle"][i]
         return (o_tropomi, sdesc)
 
-    def desc(self):
+    def desc(self) -> str:
         return "MusesTropomiObservation"
 
     @property
@@ -2010,13 +2104,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
     def create_from_filename(
         cls,
         filename_dict: dict[str, str | os.PathLike[str]],
-        xtrack_dict,
-        atrack_dict,
-        utc_time,
-        filter_list,
-        calibration_filename=None,
+        xtrack_dict: dict[str, int],
+        atrack_dict: dict[str, int],
+        utc_time: str,
+        filter_list: list[FilterIdentifier],
+        calibration_filename: str | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
         access to the underlying data.
@@ -2045,9 +2139,9 @@ class MusesTropomiObservation(MusesObservationReflectance):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         osp_dir: str | os.PathLike[str] | None = None,
-        write_tropomi_radiance_pickle=False,
-        **kwargs,
-    ):
+        write_tropomi_radiance_pickle: bool = False,
+        **kwargs: Any,
+    ) -> Self:
         """Create from a MeasurementId. If this depends on any state
         information, you can pass in the CurrentState. This can be
         given as None if you just want to use default values, e.g. you
@@ -2149,13 +2243,13 @@ class MusesTropomiObservation(MusesObservationReflectance):
             )
         return obs
 
-    def snr_uplimit(self, sensor_index):
+    def snr_uplimit(self, sensor_index: int) -> float:
         """Upper limit for SNR, we adjust uncertainty is we are greater than this."""
         return 500.0
 
     @classmethod
     def state_element_name_list_from_filter(
-        cls, filter_list
+        cls, filter_list: list[FilterIdentifier]
     ) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         res = []
@@ -2186,8 +2280,14 @@ class MusesOmiObservation(MusesObservationReflectance):
     """Observation for OMI"""
 
     def __init__(
-        self, muses_py_dict, sdesc, filter_list, existing_obs=None, coeff=None, mp=None
-    ):
+        self,
+        muses_py_dict: dict[str, Any],
+        sdesc: dict[str, Any],
+        filter_list: list[FilterIdentifier],
+        existing_obs: Self | None = None,
+        coeff: np.ndarray | None = None,
+        mp: rf.StateMapping | None = None,
+    ) -> None:
         """Note you don't normally create an object of this class with
         the __init__. Instead, call one of the create_xxx class
         methods.
@@ -2206,14 +2306,14 @@ class MusesOmiObservation(MusesObservationReflectance):
     def _read_data(
         cls,
         filename: str | os.PathLike[str],
-        xtrack_uv1,
-        xtrack_uv2,
-        atrack,
-        utc_time,
-        calibration_filename,
-        cld_filename=None,
+        xtrack_uv1: int,
+        xtrack_uv2: int,
+        atrack: int,
+        utc_time: str,
+        calibration_filename: str,
+        cld_filename: str | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[dict[str, Any], dict[str, Any]]:
         with osp_setup(osp_dir):
             o_omi = mpy.read_omi(
                 str(filename),
@@ -2245,7 +2345,7 @@ class MusesOmiObservation(MusesObservationReflectance):
             ] *= 2
         return (o_omi, sdesc)
 
-    def desc(self):
+    def desc(self) -> str:
         return "MusesOmiObservation"
 
     @property
@@ -2256,15 +2356,15 @@ class MusesOmiObservation(MusesObservationReflectance):
     def create_from_filename(
         cls,
         filename: str | os.PathLike[str],
-        xtrack_uv1,
-        xtrack_uv2,
-        atrack,
-        utc_time,
-        calibration_filename,
-        filter_list,
-        cld_filename=None,
+        xtrack_uv1: int,
+        xtrack_uv2: int,
+        atrack: int,
+        utc_time: str,
+        calibration_filename: str,
+        filter_list: list[FilterIdentifier],
+        cld_filename: str | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
-    ):
+    ) -> Tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
         access to the underlying data.
@@ -2295,9 +2395,9 @@ class MusesOmiObservation(MusesObservationReflectance):
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
         osp_dir: str | os.PathLike[str] | None = None,
-        write_omi_radiance_pickle=False,
-        **kwargs,
-    ):
+        write_omi_radiance_pickle: bool = False,
+        **kwargs: Any,
+    ) -> Self:
         """Create from a MeasurementId. If this depends on any state
         information, you can pass in the CurrentState. This can be
         given as None if you just want to use default values, e.g. you
@@ -2376,7 +2476,7 @@ class MusesOmiObservation(MusesObservationReflectance):
             )
         return obs
 
-    def snr_uplimit(self, sensor_index):
+    def snr_uplimit(self, sensor_index: int) -> float:
         """Upper limit for SNR, we adjust uncertainty is we are greater than this."""
         if self.filter_list[sensor_index] == FilterIdentifier("UV2"):
             return 800.0
@@ -2384,16 +2484,16 @@ class MusesOmiObservation(MusesObservationReflectance):
 
     @classmethod
     def state_element_name_list_from_filter(
-        cls, filter_list
+        cls, filter_list: list[FilterIdentifier]
     ) -> list[StateElementIdentifier]:
         """List of state element names for this observation"""
         res = []
         for flt in filter_list:
-            res.append(StateElementIdentifier(f"OMINRADWAV{flt}"))
+            res.append(StateElementIdentifier(f"OMINRADWAV{str(flt)}"))
         for flt in filter_list:
-            res.append(StateElementIdentifier(f"OMIODWAV{flt}"))
+            res.append(StateElementIdentifier(f"OMIODWAV{str(flt)}"))
         for flt in filter_list:
-            res.append(StateElementIdentifier(f"OMIODWAVSLOPE{flt}"))
+            res.append(StateElementIdentifier(f"OMIODWAVSLOPE{str(flt)}"))
         return res
 
     def state_vector_name_i(self, i: int) -> str:

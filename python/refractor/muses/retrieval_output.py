@@ -38,7 +38,7 @@ class ExtraL2Output:
     This contains the information write_list needs for writing a variable.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def should_add_to_l2(
