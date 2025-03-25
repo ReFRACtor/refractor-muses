@@ -32,7 +32,7 @@ import numpy as np
 import numpy.testing as npt
 from pathlib import Path
 import typing
-from typing import Callable
+from typing import Callable, Generator, Any
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -42,33 +42,30 @@ if typing.TYPE_CHECKING:
     from .cost_function_creator import CostFunctionCreator
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier, FilterIdentifier
+    from .state_info import StateElementHandleSet
 
 
-def log_timing(f):
-    """Decorator to log the timing of a function."""
-
-    @functools.wraps(f)
-    def log_tm(*args, **kwargs):
-        start_date = time.strftime("%c")
-        start_time = time.time()
-        res = f(*args, **kwargs)
-        stop_date = time.strftime("%c")
-        stop_time = time.time()
-        elapsed_time = stop_time - start_time
-        elapsed_time_seconds = stop_time - start_time
-        elapsed_time_minutes = elapsed_time_seconds / 60.0
-        logger.info("\n---")
-        logger.info(f"start_date {start_date}")
-        logger.info(f"stop_date {stop_date}")
-        logger.info(f"elapsed_time {elapsed_time}")
-        logger.info(f"elapsed_time_seconds {elapsed_time_seconds}")
-        logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
-        return res
-
-    return log_tm
+@contextmanager
+def log_timing() -> Generator[None, None, None]:
+    start_date = time.strftime("%c")
+    start_time = time.time()
+    yield
+    stop_date = time.strftime("%c")
+    stop_time = time.time()
+    elapsed_time = stop_time - start_time
+    elapsed_time_seconds = stop_time - start_time
+    elapsed_time_minutes = elapsed_time_seconds / 60.0
+    logger.info("\n---")
+    logger.info(f"start_date {start_date}")
+    logger.info(f"stop_date {stop_date}")
+    logger.info(f"elapsed_time {elapsed_time}")
+    logger.info(f"elapsed_time_seconds {elapsed_time_seconds}")
+    logger.info(f"elapsed_time_minutes {elapsed_time_minutes}")
 
 
-def struct_compare(s1, s2, skip_list=None, verbose=False):
+def struct_compare(
+    s1: dict, s2: dict, skip_list: None | list[str] = None, verbose: bool = False
+) -> None:
     if skip_list is None:
         skip_list = []
     for k in s1.keys():
@@ -86,7 +83,12 @@ def struct_compare(s1, s2, skip_list=None, verbose=False):
             assert s1[k] == s2[k]
 
 
-def array_compare(s1, s2, skip_list=None, verbose=False):
+def array_compare(
+    s1: list[dict],
+    s2: list[dict],
+    skip_list: None | list[str] = None,
+    verbose: bool = False,
+) -> None:
     assert len(s1) == len(s2)
     for i in range(len(s1)):
         struct_compare(s1[i], s2[i], skip_list=skip_list, verbose=verbose)
@@ -134,8 +136,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         qa_data_handle_set: QaDataHandleSet | None = None,
         vlidort_cli: Path | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.rs = rs
         self._state_info = StateInfo()
         self.retrieval_info: RetrievalInfo | None = None
@@ -176,7 +178,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
         self.measurement_id: MeasurementId | None = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
         self.qa_data_handle_set.notify_update_target(self.measurement_id)
@@ -187,7 +189,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return self.rs.retrieval_config
 
     @property
-    def state_element_handle_set(self):
+    def state_element_handle_set(self) -> StateElementHandleSet:
         return self._state_info.state_element_handle_set
 
     @property
@@ -229,7 +231,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return self._spectral_window_handle_set
 
     def rf_uip_func_cost_function(
-        self, do_systematic, jacobian_speciesIn
+        self,
+        do_systematic: bool,
+        jacobian_speciesIn: list[StateElementIdentifier] | None,
     ) -> Callable[[InstrumentIdentifier | None], RefractorUip]:
         return functools.partial(
             self._rf_uip_func,
@@ -237,7 +241,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             jacobian_speciesIn=jacobian_speciesIn,
         )
 
-    def rf_uip_irk(self, obs: MusesObservation, pointing_angle: rf.DoubleWithUnit):
+    def rf_uip_irk(
+        self, obs: MusesObservation, pointing_angle: rf.DoubleWithUnit
+    ) -> RefractorUip:
         return self._rf_uip_func(
             obs.instrument_name,
             obs_list=[
@@ -250,10 +256,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self,
         instrument: InstrumentIdentifier,
         obs_list: list[MusesObservation] | None = None,
-        do_systematic=False,
-        jacobian_speciesIn=None,
+        do_systematic: bool = False,
+        jacobian_speciesIn: None | list[StateElementIdentifier] = None,
         pointing_angle: rf.DoubleWithUnit | None = None,
-    ):
+    ) -> RefractorUip:
         """To reduce coupling, you can give the instrument name to
         use.
 
@@ -328,13 +334,17 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 o_xxx["OMI"],
                 o_xxx["TROPOMI"],
                 o_xxx["OCO2"],
-                jacobian_speciesIn=jacobian_speciesIn,
+                jacobian_speciesIn=[str(i) for i in jacobian_speciesIn]
+                if jacobian_speciesIn is not None
+                else None,
                 only_create_instrument=instrument,
                 pointing_angle=pointing_angle,
             )
 
     def current_state(
-        self, do_systematic=False, jacobian_speciesIn=None
+        self,
+        do_systematic: bool = False,
+        jacobian_speciesIn: None | list[StateElementIdentifier] = None,
     ) -> CurrentState:
         return CurrentStateStateInfo(
             self._state_info,
@@ -345,7 +355,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             retrieval_state_element_override=jacobian_speciesIn,
         )
 
-    def create_forward_model(self):
+    def create_forward_model(self) -> rf.ForwardModel:
         """Create a forward model for the current step."""
         if len(self.current_strategy_step.instrument_name) != 1:
             raise RuntimeError(
@@ -366,10 +376,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def create_cost_function(
         self,
-        do_systematic=False,
-        include_bad_sample=False,
-        fix_apriori_size=False,
-        jacobian_speciesIn=None,
+        do_systematic: bool = False,
+        include_bad_sample: bool = False,
+        fix_apriori_size: bool = False,
+        jacobian_speciesIn: None | list[StateElementIdentifier] = None,
     ) -> CostFunction:
         """Create a CostFunction, for use either in retrieval or just
         for running the forward model (the CostFunction is a little
@@ -408,12 +418,12 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def __init__(
         self,
         rs: RetrievalStrategy,
-        osp_dir=None,
-        muses_strategy_handle_set=None,
-        retrieval_strategy_step_set=None,
-        spectral_window_handle_set=None,
-        qa_data_handle_set=None,
-    ):
+        osp_dir: None | str | os.PathLike[str] = None,
+        muses_strategy_handle_set: None | MusesStrategyHandleSet = None,
+        retrieval_strategy_step_set: None | RetrievalStrategyStepSet = None,
+        spectral_window_handle_set: None | SpectralWindowHandleSet = None,
+        qa_data_handle_set: None | QaDataHandleSet = None,
+    ) -> None:
         super().__init__(
             rs,
             observation_handle_set=rs.observation_handle_set,
@@ -428,7 +438,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self.retrieval_info: RetrievalInfo | None = None
         self.measurement_id: MeasurementId | None = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         super().notify_update_target(measurement_id)
         self._strategy = self.muses_strategy_handle_set.muses_strategy(
             measurement_id,
@@ -443,7 +453,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             raise RuntimeError("Call update_target before this function")
         return self._strategy
 
-    def notify_update(self, location: str | ProcessLocation, **kwargs):
+    def notify_update(self, location: str | ProcessLocation, **kwargs: Any) -> None:
         self.rs.notify_update(location, **kwargs)
 
     @property
@@ -500,18 +510,18 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         return self.strategy.is_done()
 
     @property
-    def instrument_name_all_step(self):
+    def instrument_name_all_step(self) -> list[InstrumentIdentifier]:
         return self.strategy.instrument_name
 
     @property
-    def error_analysis_interferents_all_step(self):
+    def error_analysis_interferents_all_step(self) -> list[StateElementIdentifier]:
         return self.strategy.error_analysis_interferents
 
     @property
-    def retrieval_elements_all_step(self):
+    def retrieval_elements_all_step(self) -> list[StateElementIdentifier]:
         return self.strategy.retrieval_elements
 
-    def get_initial_guess(self):
+    def get_initial_guess(self) -> None:
         """Set retrieval_info, errorInitial and errorCurrent for the current step."""
         # Temp, we'll want to get this update done automatically. But do this
         # to figure out issue
@@ -536,7 +546,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
                 self.current_strategy_step.strategy_step.step_number,
             )
 
-    def run_step(self):
+    def run_step(self) -> None:
         """Run a the current step."""
         self._state_info.copy_current_initial()
         logger.info("\n---")
@@ -558,8 +568,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self.notify_update(ProcessLocation("done next_state_to_current"))
         logger.info(f"Done with {str(self.current_strategy_step.strategy_step)}")
 
-    @log_timing
-    def execute_retrieval(self, stop_at_step=None):
+    def execute_retrieval(self, stop_at_step: None | int = None) -> None:
         """Run through all the steps, i.e., do a full retrieval.
 
         Note for various testing purposes, you can have the retrieval
@@ -567,12 +576,13 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         problems with an individual step, or to run a simulation at a
         particular step.
         """
-        # Currently the initialization etc. code assumes we are in the run directory.
-        # Hopefully we can remove this in the future, but for now we need this
-        with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
-            self.execute_retrieval_body(stop_at_step=stop_at_step)
+        with log_timing():
+            # Currently the initialization etc. code assumes we are in the run directory.
+            # Hopefully we can remove this in the future, but for now we need this
+            with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
+                self.execute_retrieval_body(stop_at_step=stop_at_step)
 
-    def execute_retrieval_body(self, stop_at_step=None):
+    def execute_retrieval_body(self, stop_at_step: None | int = None) -> None:
         """Run through all the steps, i.e., do a full retrieval.
 
         Note for various testing purposes, you can have the retrieval
@@ -630,7 +640,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.next_step()
         self.notify_update("retrieval done")
 
-    def continue_retrieval(self, stop_after_step=None) -> None:
+    def continue_retrieval(self, stop_after_step: None | int = None) -> None:
         """After saving a pickled step, you can continue the processing starting
         at that step to diagnose a problem."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
@@ -647,7 +657,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.notify_update("retrieval done")
 
     @contextmanager
-    def chdir_run_dir(self):
+    def chdir_run_dir(self) -> Generator[None, None, None]:
         """A number of muses-py routines assume they are in the directory
         that the strategy table lives in. This gives a nice way to ensure
         that is the case. Uses this as a context manager

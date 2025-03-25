@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .state_info import RetrievableStateElement, StateInfo
-from .identifier import StateElementIdentifier, InstrumentIdentifier
+from .identifier import StateElementIdentifier
 import numpy as np
 from typing import Tuple
 import typing

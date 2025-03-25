@@ -23,10 +23,11 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MusesObservation
-    from .state_info import SoundingMetadata, StateElement
+    from .state_info import SoundingMetadata
+
 
 class ExtraL2Output:
-    '''All of the muses-py elements are hard wired in the L2 output. We possibly want
+    """All of the muses-py elements are hard wired in the L2 output. We possibly want
     to have new elements added.
 
     This is a sort of half baked placeholder for this, I think once we have some actual
@@ -35,20 +36,23 @@ class ExtraL2Output:
     somehow, possibly as they are created or find initial values.
 
     This contains the information write_list needs for writing a variable.
-    '''
+    """
+
     def __init__(self):
         pass
 
-    def should_add_to_l2(self, sid : StateElementIdentifier, instruments : list[InstrumentIdentifier]) -> bool:
-        '''True if this should get added to the L2 file.'''
+    def should_add_to_l2(
+        self, sid: StateElementIdentifier, instruments: list[InstrumentIdentifier]
+    ) -> bool:
+        """True if this should get added to the L2 file."""
         # Right now, have everything false here.
         return False
 
-    def net_cdf_variable_name(self, sid : StateElementIdentifier) -> str:
-        '''Variable name in netcdf file.'''
+    def net_cdf_variable_name(self, sid: StateElementIdentifier) -> str:
+        """Variable name in netcdf file."""
         return str(sid)
 
-    def net_cdf_struct_units(self, sid : StateElementIdentifier) -> dict[str, str]:
+    def net_cdf_struct_units(self, sid: StateElementIdentifier) -> dict[str, str]:
         """Returns the attributes attached to a netCDF write out of this
         StateElement."""
         return {
@@ -58,12 +62,14 @@ class ExtraL2Output:
             "MisingValue": "",
         }
 
-    def net_cdf_group_name(self, sid : StateElementIdentifier) -> str:
+    def net_cdf_group_name(self, sid: StateElementIdentifier) -> str:
         """Group that variable goes into in a netCDF file. Use the empty string
         if this doesn't go into a group, but rather is a top level variable."""
         return ""
 
-extra_l2_output = ExtraL2Output()    
+
+extra_l2_output = ExtraL2Output()
+
 
 class RetrievalOutput:
     """Observer of RetrievalStrategy, common behavior for Products files."""
@@ -242,15 +248,16 @@ class CdfWriteTes:
         self,
         dataOut: dict,
         filenameOut: str,
+        current_state: CurrentState,
         tracer_species: str = "species",
         retrieval_pressures: list[float] | None = None,
         write_met: bool = False,
         version: str | None = None,
         liteVersion: str | None = None,
         runtimeAttributes: dict | None = None,
-        state_element_out: list[StateElementId] | None = None,
+        state_element_out: list[StateElementIdentifier] | None = None,
     ) -> None:
-        """We pass in state_element_out for StateElementId not otherwise handled. This
+        """We pass in state_element_out for StateElementIdentifier not otherwise handled. This
         separates out the species that were in muses-py vs stuff we may have added.
         Perhaps we'll get all the StateElements handled the same way at some point,
         muses-py is really overly complicated. On the other hand, this is just output
@@ -841,7 +848,7 @@ class CdfWriteTes:
         # StateElement that weren't originally in muses-py.
 
         for sid in state_element_out:
-            v = self.current_state().full_state_value(sid)
+            v = current_state.full_state_value(sid)
             # For simplicity, value is always a numpy array. If it is size 1,
             # we want to pull this out so the data is written in netcdf as
             # a scalar rather than a array of size 1
@@ -850,10 +857,14 @@ class CdfWriteTes:
             else:
                 structIn[str(sid)] = v
             structUnits.append(extra_l2_output.net_cdf_struct_units(sid))
-            exact_cased_variable_names[str(sid)] = extra_l2_output.net_cdf_variable_name(sid)
+            exact_cased_variable_names[str(sid)] = (
+                extra_l2_output.net_cdf_variable_name(sid)
+            )
             groupvarnames.append(
-                [extra_l2_output.net_cdf_group_name(sid),
-                 extra_l2_output.net_cdf_variable_name(sid)]
+                [
+                    extra_l2_output.net_cdf_group_name(sid),
+                    extra_l2_output.net_cdf_variable_name(sid),
+                ]
             )
 
         # ===============================
@@ -878,17 +889,18 @@ class CdfWriteTes:
         self,
         stepNumber: int,
         filenameIn: str,
+        current_state: CurrentState,
         instrument: list[InstrumentIdentifier],
         liteDirectory: str,
         data1In: dict,
         data2: dict | None = None,
         species_name: str = "",
-        state_element_out: list[StateElementId] | None = None,
+        state_element_out: list[StateElementIdentifier] | None = None,
     ) -> dict | None:
         """This is a lightly edited version of make_lite_casper_script_retrieval,
         mainly we want this to call our cdf_write_tes so we can add new species in.
 
-        We pass in state_element_out for StateElementId not otherwise handled. This
+        We pass in state_element_out for StateElementIdentifier not otherwise handled. This
         separates out the species that were in muses-py vs stuff we may have added.
         Perhaps we'll get all the StateElements handled the same way at some point,
         muses-py is really overly complicated. On the other hand, this is just output
@@ -962,6 +974,7 @@ class CdfWriteTes:
         self.write(
             data,
             filenameOut,
+            current_state,
             tracer,
             retrieval_pressures,
             write_met,

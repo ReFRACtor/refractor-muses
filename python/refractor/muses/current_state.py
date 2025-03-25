@@ -107,10 +107,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Cache these values, they don't normally change.
-        self._fm_sv_loc = None
-        self._fm_state_vector_size = None
+        self._fm_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = None
+        self._fm_state_vector_size = -1
 
     @property
     def propagated_qa(self) -> PropagatedQA:
@@ -120,10 +120,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def brightness_temperature_data(self) -> dict:
         raise NotImplementedError()
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear cache, if an update has occurred"""
         self._fm_sv_loc = None
-        self._fm_state_vector_size = None
+        self._fm_state_vector_size = -1
 
     @property
     def initial_guess(self) -> np.ndarray:
@@ -152,7 +152,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         initial: np.ndarray | None = None,
         initial_initial: np.ndarray | None = None,
         true: np.ndarray | None = None,
-    ):
+    ) -> None:
         """We have a few places where we want to update a state element other than
         update_initial_guess. This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
@@ -165,7 +165,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
-    ):
+    ) -> None:
         """Update the state info"""
         raise NotImplementedError()
 
@@ -224,7 +224,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def fm_state_vector_size(self) -> int:
         """Full size of the forward model state vector."""
-        if self._fm_state_vector_size is None:
+        if self._fm_state_vector_size < 0:
             # Side effect of fm_sv_loc is filling in fm_state_vector_size
             _ = self.fm_sv_loc
         return self._fm_state_vector_size
@@ -260,7 +260,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         fm_sv: rf.StateVector,
         state_element_id_list: list[StateElementIdentifier],
         obj_list: list[rf.SubStateVectorObserver],
-    ):
+    ) -> None:
         """This takes an object and a list of the state element names
         that object uses. This then adds the object to the forward
         model state vector if some of the elements are being
@@ -778,7 +778,7 @@ class CurrentStateDict(CurrentState):
         return self._state_element_dict
 
     @state_element_dict.setter
-    def state_element_dict(self, val: dict):
+    def state_element_dict(self, val: dict) -> None:
         self._state_element_dict = val
         # Clear cache, we need to regenerate these after update
         self.clear_cache()
@@ -788,7 +788,7 @@ class CurrentStateDict(CurrentState):
         return self._retrieval_element
 
     @retrieval_state_element.setter
-    def retrieval_state_element(self, val: list[StateElementIdentifier]):
+    def retrieval_state_element(self, val: list[StateElementIdentifier]) -> None:
         self._retrieval_element = val
         # Clear cache, we need to regenerate these after update
         self.clear_cache()
@@ -901,8 +901,8 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_info: RetrievalInfo | None,
         step_directory: str | os.PathLike[str],
         retrieval_state_element_override: list[StateElementIdentifier] | None = None,
-        do_systematic=False,
-    ):
+        do_systematic: bool = False,
+    ) -> None:
         """I think we'll want to get some of the logic in
         RetrievalInfo into this class, I'm not sure that we want this
         as separate. But for now, include this as an argument.
@@ -1008,7 +1008,7 @@ class CurrentStateStateInfo(CurrentState):
         do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
-    ):
+    ) -> None:
         """Update the state info"""
         self._state_info.update_state(
             retrieval_info, results_list, do_not_update, retrieval_config, step
@@ -1034,7 +1034,7 @@ class CurrentStateStateInfo(CurrentState):
         return self._retrieval_info
 
     @retrieval_info.setter
-    def retrieval_info(self, val: RetrievalInfo):
+    def retrieval_info(self, val: RetrievalInfo) -> None:
         self._retrieval_info = val
         # Clear cache, we need to regenerate these after update
         self.clear_cache()

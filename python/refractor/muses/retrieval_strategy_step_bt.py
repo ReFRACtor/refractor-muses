@@ -37,7 +37,9 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         if retrieval_type != RetrievalType("bt"):
             return False
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
-        jacobian_speciesNames = ["H2O"]
+        jacobian_speciesNames = [
+            StateElementIdentifier("H2O"),
+        ]
         logger.info("Running run_forward_model ...")
         self.cfunc = rs.create_cost_function(
             fix_apriori_size=True, jacobian_speciesIn=jacobian_speciesNames

@@ -20,7 +20,7 @@ from .muses_strategy_executor import (
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
-from .identifier import ProcessLocation
+from .identifier import ProcessLocation, StateElementIdentifier
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
@@ -383,7 +383,9 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self.strategy_executor.current_strategy_step
 
     def current_state(
-        self, do_systematic: bool = False, jacobian_speciesIn: list[str] | None = None
+        self,
+        do_systematic: bool = False,
+        jacobian_speciesIn: list[StateElementIdentifier] | None = None,
     ) -> CurrentState:
         return self.strategy_executor.current_state(
             do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn
@@ -427,7 +429,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         do_systematic: bool = False,
         include_bad_sample: bool = False,
         fix_apriori_size: bool = False,
-        jacobian_speciesIn: list[str] | None = None,
+        jacobian_speciesIn: list[StateElementIdentifier] | None = None,
     ) -> CostFunction:
         """Create cost function"""
         # Similiar to error_analysis, this gets uses in

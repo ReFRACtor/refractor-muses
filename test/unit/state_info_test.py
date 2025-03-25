@@ -18,8 +18,10 @@ class RetrievalStrategyStop:
         if location == ProcessLocation("initial set up done"):
             raise StopIteration()
 
+
 # Since we have pull state info out of RetrievalStrategy, these can't run any more.
 # Leave for a bit as a record. We have tested the same functionality in current_state_test.py
+
 
 @pytest.mark.skip
 def test_state_info(

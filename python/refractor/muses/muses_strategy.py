@@ -63,7 +63,7 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         current_state: CurrentState,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-    ):
+    ) -> None:
         """Update the CurrentState with the results. We have this as
         part of CurrentStrategyStep so we can support any sort of more
         complicated logic for updating the state (e.g., update the
@@ -73,7 +73,7 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def muses_microwindows_fname(self):
+    def muses_microwindows_fname(self) -> str:
         """This is very specific, but there is some complicated code
         used to generate the microwindows file name. This is used to
         create the MusesSpectralWindow (by one of the handlers). Also
@@ -101,7 +101,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
 
     def __init__(
         self, current_strategy_step_dict: dict, measurement_id: MeasurementId | None
-    ):
+    ) -> None:
         self.current_strategy_step_dict = current_strategy_step_dict
         self.measurement_id = measurement_id
         self.is_skipped = False
@@ -118,7 +118,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         )
 
     @retrieval_elements.setter
-    def retrieval_elements(self, v):
+    def retrieval_elements(self, v: list[StateElementIdentifier]) -> None:
         self.current_strategy_step_dict["retrieval_elements"] = v
 
     @property
@@ -149,7 +149,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         current_state: CurrentState,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
-    ):
+    ) -> None:
         """Update the CurrentState with the results. We have this as part of
         CurrentStrategyStep so we can support any sort of more complicated logic
         for updating the state (e.g., update the apriori)"""
@@ -169,7 +169,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
             v = current_state.full_state_value(selem_id)
             current_state.update_full_state_element(selem_id, apriori=v)
 
-    def muses_microwindows_fname(self):
+    def muses_microwindows_fname(self) -> str:
         """This is very specific, but there is some complicated code used to generate the
         microwindows file name. This is used to create the MusesSpectralWindow (by
         one of the handlers). Also the QA data file name depends on this. It would be nice to
@@ -191,7 +191,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         """Return the strategy step identifier"""
         return self.current_strategy_step_dict["strategy_step"]
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """This is useful for unit tests. I don't think we in general need to check
         equality, but if so might want to check the logic here. This is set up so
         we can check that two CurrentStrategyStepDict will give the same results in
@@ -201,7 +201,10 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         # To diagnose problem, can be useful to know exactly where we fail.
         # Set to true to break on failure
         break_on_fail = False
-
+        if not isinstance(other, CurrentStrategyStepDict):
+            if break_on_fail:
+                breakpoint()
+            return False
         if sorted(list(self.current_strategy_step_dict.keys())) != sorted(
             list(other.current_strategy_step_dict.keys())
         ):
@@ -277,7 +280,7 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
     between calls, see CreatorHandle for a discussion of this.
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -289,7 +292,7 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
         measurement_id: MeasurementId,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
@@ -301,7 +304,7 @@ class MusesStrategyHandleSet(CreatorHandleSet):
     """This takes the MeasurementId and creates a MusesStrategy for
     processing it."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("muses_strategy")
 
     def muses_strategy(
@@ -309,7 +312,7 @@ class MusesStrategyHandleSet(CreatorHandleSet):
         measurement_id: MeasurementId,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> MusesStrategy:
         """Create a MusesStrategy for the given measurement_id."""
         return self.handle(
@@ -335,11 +338,11 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         pass
 
     @abc.abstractmethod
-    def is_next_bt(self):
+    def is_next_bt(self) -> bool:
         """Indicate if the next step is a BT step. This is a bit
         awkward, perhaps we can come up with another interface
         here. But RetrievalStrategyStepBT handles the calculation of the
@@ -452,7 +455,7 @@ class MusesStrategyImp(MusesStrategy):
 
     def __init__(
         self, spectral_window_handle_set: SpectralWindowHandleSet | None = None
-    ):
+    ) -> None:
         self._measurement_id: MeasurementId | None = None
         if spectral_window_handle_set is None:
             self._spectral_window_handle_set = copy.deepcopy(
@@ -466,11 +469,11 @@ class MusesStrategyImp(MusesStrategy):
         return self._measurement_id
 
     @property
-    def spectral_window_handle_set(self):
+    def spectral_window_handle_set(self) -> SpectralWindowHandleSet:
         """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
         return self._spectral_window_handle_set
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         self._measurement_id = measurement_id
         self.spectral_window_handle_set.notify_update_target(self.measurement_id)
 
@@ -481,7 +484,7 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
         measurement_id: MeasurementId,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
@@ -497,7 +500,7 @@ class MusesStrategyStepList(MusesStrategyImp):
     def __init__(
         self,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
-    ):
+    ) -> None:
         """This uses a list of CurrentStrategyStep,
         self.current_strategy_list.  Note that there is a bit of
         information that depends on the measurement_id, we fill that
@@ -611,7 +614,7 @@ class MusesStrategyStepList(MusesStrategyImp):
             return self.current_strategy_list[self._cur_step_index + i]
         return None
 
-    def is_next_bt(self):
+    def is_next_bt(self) -> bool:
         """Indicate if the next step is a BT step. This is a bit
         awkward, perhaps we can come up with another interface
         here. But RetrievalStrategyStepBT handles the calculation of the
@@ -714,7 +717,7 @@ class MusesStrategyStepList(MusesStrategyImp):
             return []
         return [StateElementIdentifier(i) for i in r]
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         super().notify_update_target(measurement_id)
         filter_list_dict_t: dict[
             InstrumentIdentifier, dict[FilterIdentifier, float]
@@ -740,14 +743,14 @@ class MusesStrategyStepList(MusesStrategyImp):
         # Calculate filter_list_dict,
         self._filter_list_dict = {}
         silist = IdentifierSortByWaveLength()
-        for k, v in filter_list_dict_t.items():
+        for k2, v2 in filter_list_dict_t.items():
             sflist = IdentifierSortByWaveLength()
-            for fid, swav in v.items():
+            for fid, swav in v2.items():
                 sflist.add(fid, swav)
-            self._filter_list_dict[k] = cast(
+            self._filter_list_dict[k2] = cast(
                 list[FilterIdentifier], sflist.sorted_identifer()
             )
-            silist.add(k, min(v.values()))
+            silist.add(k2, min(v2.values()))
         self._instrument_name = cast(
             list[InstrumentIdentifier], silist.sorted_identifer()
         )
@@ -786,7 +789,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         measurement_id: MeasurementId,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
@@ -809,7 +812,7 @@ def modify_strategy_table(
     step_number: int,
     retrieval_elements: list[StateElementIdentifier],
     max_iter: int | None = None,
-):
+) -> None:
     """Simple function to modify the strategy table in a RetrievalStrategy. Meant for
     things like unit tests."""
     h = MusesStrategyModifyHandle(step_number, retrieval_elements, max_iter)

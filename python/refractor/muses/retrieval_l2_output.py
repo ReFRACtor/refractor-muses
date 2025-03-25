@@ -195,6 +195,7 @@ class RetrievalL2Output(RetrievalOutput):
                 t.write_lite(
                     self.step_number,
                     str(self.out_fname),
+                    self.current_state,
                     self.instruments,
                     str(self.lite_directory) + "/",
                     dataInfo,
@@ -211,6 +212,7 @@ class RetrievalL2Output(RetrievalOutput):
             data2 = t2.write_lite(
                 self.step_number,
                 str(self.out_fname),
+                self.current_state,
                 self.instruments,
                 str(self.lite_directory) + "/",
                 dataInfo,
@@ -1149,6 +1151,7 @@ class RetrievalL2Output(RetrievalOutput):
         t2.write(
             o_data,
             str(self.out_fname),
+            self.current_state,
             runtimeAttributes=runtime_attributes,
             state_element_out=state_element_out,
         )

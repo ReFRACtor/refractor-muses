@@ -22,8 +22,8 @@ class MusesLevmarSolver:
         conv_tolerance: list[float],
         chi2_tolerance: float,
         log_file: str | os.PathLike[str] | None = None,
-        verbose=False,
-    ):
+        verbose: bool = False,
+    ) -> None:
         self.cfunc = cfunc
         self.max_iter = max_iter
         self.delta_value = delta_value
@@ -43,7 +43,7 @@ class MusesLevmarSolver:
         self.stop_code = -1
         self.verbose = verbose
 
-    def get_state(self) -> dict:
+    def get_state(self) -> dict[str, Any]:
         """Return a dictionary of values that can be used by set_state.
         This allows us to skip running the solver in unit tests. This
         is similar to a pickle serialization (which we also support), but
@@ -67,7 +67,7 @@ class MusesLevmarSolver:
             "residual_rms": self.residual_rms.tolist(),
         }
 
-    def set_state(self, d: dict):
+    def set_state(self, d: dict[str, Any]) -> None:
         """Set the state previously saved by get_state"""
         # Translate the lists back to np.ndarray
         self.cfunc.set_state(d["cfunc"])
@@ -129,7 +129,7 @@ class MusesLevmarSolver:
             "lambda": self.diag_lambda_rho_delta[:, 0],
         }
 
-    def solve(self):
+    def solve(self) -> None:
         # py-retrieve expects the directory to already be there, so create if
         # needed.
         if self.log_file is not None:

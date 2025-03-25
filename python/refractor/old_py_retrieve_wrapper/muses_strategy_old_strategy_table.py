@@ -15,6 +15,7 @@ from refractor.muses import (
     StrategyStepIdentifier,
 )
 from .strategy_table import StrategyTable
+from typing import Any
 import os
 
 
@@ -35,7 +36,7 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         super().__init__(spectral_window_handle_set)
         self._stable = StrategyTable(filename, osp_dir=osp_dir)
 
-    def is_next_bt(self):
+    def is_next_bt(self) -> bool:
         """Indicate if the next step is a BT step. This is a bit
         awkward, perhaps we can come up with another interface
         here. But RetrievalStrategyStepBT handles the calculation of the
@@ -142,7 +143,7 @@ class MusesStrategyOldStrategyTableHandle(MusesStrategyHandle):
         measurement_id: MeasurementId,
         osp_dir: str | os.PathLike[str] | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> MusesStrategy | None:
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
