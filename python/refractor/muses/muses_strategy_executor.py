@@ -377,15 +377,11 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         # isn't clear that we ever want to run the forward model for
         # bad samples. But right now the existing py-retrieve code
         # requires this is a few places.
-        #
-        # Note the copy here seems to be necessary. Not clear why, this seems like
-        # a bug floating around somewhere. We may want to track that down,
-        # but for now have a copy. Note that we always need this if do_systematic
-        # or retrieval_state_element_override is present, but we need the copy
-        # even without this for some reason.
-        cstate = self.current_state.current_state_override(
-            do_systematic, retrieval_state_element_override=jacobian_speciesIn
-        )
+        cstate: CurrentState = self.current_state
+        if do_systematic or jacobian_speciesIn is not None:
+            cstate = self.current_state.current_state_override(
+                do_systematic, retrieval_state_element_override=jacobian_speciesIn
+            )
         return self.cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,
             cstate,

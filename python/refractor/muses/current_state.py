@@ -961,6 +961,7 @@ class CurrentStateStateInfo(CurrentState):
         res = copy(self)
         res.retrieval_state_element_override = retrieval_state_element_override
         res.do_systematic = do_systematic
+        res.clear_cache()
         return res
 
     @property
@@ -1052,7 +1053,7 @@ class CurrentStateStateInfo(CurrentState):
         self._state_info.update_state(
             retrieval_info, results_list, do_not_update, retrieval_config, step
         )
-        self._retrieval_info = retrieval_info
+        self.retrieval_info = retrieval_info
 
     def update_full_state_element(
         self,

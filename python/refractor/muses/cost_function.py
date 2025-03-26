@@ -38,6 +38,50 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             mapping = rf.StateMappingBasisMatrix(self.basis_matrix.transpose())
         else:
             mapping = rf.StateMappingLinear()
+
+        # ------------------------------------------------------
+        # Do some sanity checks. This all gets caught at the C++
+        # level, but the error messages tend to be more cryptic
+        # ------------------------------------------------------
+
+        # Expect sqrt_constraint to be square, and to have the same
+        # number of rows as apriori
+        if (
+            self.retrieval_sv_sqrt_constraint.shape[0]
+            != self.retrieval_sv_sqrt_constraint.shape[1]
+        ):
+            raise RuntimeError(
+                f"retrieval_sv_sqrt_constraint should be a square matrix, was {retrieval_sv_sqrt_constraint.shape[0]} x {retrieval_sv_sqrt_constraint.shape[1]}"
+            )
+        if (
+            self.retrieval_sv_sqrt_constraint.shape[0]
+            != self.retrieval_sv_apriori.shape[0]
+        ):
+            raise RuntimeError(
+                f"retrieval_sv_apriori size {self.retrieval_sv_apriori.shape[0]} and retrieval_sv_sqrt_constraint size {self.retrieval_sv_sqrt_constraint.shape[0]} should have the same numbers of rows"
+            )
+
+        # If we don't have a basis matrix, the forward model state
+        # vector size needs to match the retrieval state vector size
+        if self.basis_matrix is None:
+            if self.fm_sv.observer_claimed_size != self.retrieval_sv_apriori.shape[0]:
+                raise RuntimeError(
+                    f"Without a basis matrix, fm_sv size of {self.fm_sv.observer_claimed_size} should be same as retrieval_sv_apriori size of {self.retrieval_sv_apriori.shape[0]}"
+                )
+        else:
+            # If we do have a basis matrix, the forward model state
+            # vector size needs to match the column size of the basis
+            # matrix, and the retrieval state vector size needs to
+            # match the rows of the basis matrix
+            if self.fm_sv.observer_claimed_size != self.basis_matrix.shape[1]:
+                raise RuntimeError(
+                    f"fm_sv size of {self.fm_sv.observer_claimed_size} should match column size of basis matrix of {self.basis_matrix.shape[0]} x {self.basis_matrix.shape[1]}"
+                )
+            if self.retrieval_sv_apriori.shape[0] != self.basis_matrix.shape[0]:
+                raise RuntimeError(
+                    f"retrieval_sv_apriori size of {self.retrieval_sv_apriori.shape[0]} should match row size of basis matrix of {self.basis_matrix.shape[0]} x {self.basis_matrix.shape[1]}"
+                )
+
         mstand = rf.MaxAPosterioriSqrtConstraint(
             fm_list,
             obs_list,

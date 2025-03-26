@@ -217,7 +217,6 @@ class CostFunctionCreator:
         bmatrix = current_state.basis_matrix
         retrieval_sv_apriori = current_state.apriori
         retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
-
         return (
             instrument_name_list,
             self.fm_list,
