@@ -32,7 +32,7 @@ class RetrievalInputOutput(RetrievalOutput):
 
     @property
     def retrieval_info(self) -> RetrievalInfo:
-        return self.retrieval_strategy.retrieval_info
+        return self.retrieval_strategy.current_state.retrieval_info
 
     def notify_update(
         self,
@@ -86,7 +86,7 @@ class RetrievalPickleResult(RetrievalOutput):
 class RetrievalPlotResult(RetrievalOutput):
     @property
     def retrieval_info(self) -> RetrievalInfo:
-        return self.retrieval_strategy.retrieval_info
+        return self.retrieval_strategy.current_state.retrieval_info
 
     def notify_update(
         self,

@@ -138,7 +138,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         **kwargs: Any,
     ) -> None:
         self.rs = rs
-        self.retrieval_info: RetrievalInfo | None = None
         self.current_state = CurrentStateStateInfo(StateInfo())
         self.vlidort_cli = vlidort_cli
         self.kwargs = kwargs
@@ -273,12 +272,12 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
         """
         logger.debug(f"Creating rf_uip for {instrument}")
-        if self.retrieval_info is None:
+        if self.current_state.retrieval_info is None:
             raise RuntimeError("Need to have retrieval_info defined")
         if do_systematic:
-            rinfo = self.retrieval_info.retrieval_info_systematic()
+            rinfo = self.current_state.retrieval_info.retrieval_info_systematic()
         else:
-            rinfo = self.retrieval_info
+            rinfo = self.current_state.retrieval_info
         cstep = self.current_strategy_step
         if obs_list is None:
             obs_list = []
@@ -340,15 +339,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 pointing_angle=pointing_angle,
             )
 
-    def current_state2(self) -> CurrentState:
-        return CurrentStateStateInfo(
-            self.current_state._state_info,
-            self.retrieval_info,
-            self.run_dir
-            / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}",
-        )
-        
-
     def create_forward_model(self) -> rf.ForwardModel:
         """Create a forward model for the current step."""
         if len(self.current_strategy_step.instrument_name) != 1:
@@ -387,12 +377,15 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         # isn't clear that we ever want to run the forward model for
         # bad samples. But right now the existing py-retrieve code
         # requires this is a few places.
-        #cstate: CurrentState = self.current_state
-        cstate: CurrentState = self.current_state2()
-        if do_systematic or jacobian_speciesIn is not None:
-            cstate = cstate.current_state_override(
-                do_systematic, retrieval_state_element_override=jacobian_speciesIn
-            )
+        #
+        # Note the copy here seems to be necessary. Not clear why, this seems like
+        # a bug floating around somewhere. We may want to track that down,
+        # but for now have a copy. Note that we always need this if do_systematic
+        # or retrieval_state_element_override is present, but we need the copy
+        # even without this for some reason.
+        cstate = self.current_state.current_state_override(
+            do_systematic, retrieval_state_element_override=jacobian_speciesIn
+        )
         return self.cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,
             cstate,
@@ -433,7 +426,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         )
         self._strategy: MusesStrategy | None = None
         self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
-        self.retrieval_info: RetrievalInfo | None = None
         self.measurement_id: MeasurementId | None = None
 
     def notify_update_target(self, measurement_id: MeasurementId) -> None:
@@ -471,7 +463,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.run_dir
             / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}"
         )
-        
 
     def set_step(self, step_number: int) -> None:
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
@@ -533,7 +524,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         """Set retrieval_info, errorInitial and errorCurrent for the current step."""
         # Temp, we'll want to get this update done automatically. But do this
         # to figure out issue
-        self.retrieval_info = RetrievalInfo(
+        self.current_state.retrieval_info = RetrievalInfo(
             self.error_analysis,
             Path(self.retrieval_config["speciesDirectory"]),
             self.current_strategy_step,
@@ -542,12 +533,12 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
-        nparm = self.retrieval_info.n_totalParameters
+        nparm = self.current_state.retrieval_info.n_totalParameters
         logger.info(str(self.current_strategy_step.strategy_step))
         if nparm > 0:
-            xig = self.retrieval_info.initial_guess_list[0:nparm]
+            xig = self.current_state.retrieval_info.initial_guess_list[0:nparm]
             self.current_state.update_state(
-                self.retrieval_info,
+                self.current_state.retrieval_info,
                 xig,
                 [],
                 self.retrieval_config,

@@ -34,7 +34,6 @@ if typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandleSet
     from .observation_handle import ObservationHandleSet
     from .state_info import StateElementHandleSet
-    from .retrieval_info import RetrievalInfo
     from .current_state import CurrentState
     from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
@@ -389,18 +388,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     @property
     def retrieval_type(self) -> RetrievalType:
         return self.current_strategy_step.retrieval_type
-
-    @property
-    def retrieval_info(self) -> RetrievalInfo:
-        """RetrievalInfo for current retrieval step. Note it might be
-        good to remove this if possible, right now this is just used
-        by RetrievalL2Output. But at least for now we need this to get
-        the required information for the output.
-
-        """
-        if self.strategy_executor.retrieval_info is None:
-            raise RuntimeError("Need to have retrieval_info defined")
-        return self.strategy_executor.retrieval_info
 
     @property
     def cost_function_creator(self) -> CostFunctionCreator:

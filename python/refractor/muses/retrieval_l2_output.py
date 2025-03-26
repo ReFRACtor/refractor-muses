@@ -72,7 +72,7 @@ class RetrievalL2Output(RetrievalOutput):
 
     @property
     def retrieval_info(self) -> RetrievalInfo:
-        return self.retrieval_strategy.retrieval_info
+        return self.retrieval_strategy.current_state.retrieval_info
 
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname. This handles numbering

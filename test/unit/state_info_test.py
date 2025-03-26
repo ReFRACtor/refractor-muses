@@ -134,7 +134,7 @@ def test_update_cloudfraction(omi_step_0):
 
     # Update results, and make sure element gets updated
     rs._strategy_executor.get_initial_guess()
-    rinfo = rs.retrieval_info
+    rinfo = rs.current_state.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[np.array(rinfo.species_list) == "OMICLOUDFRACTION"] = 0.5
     sinfo.update_state(
@@ -309,7 +309,7 @@ def test_noupdate_cloudfraction(omi_step_0):
 
     # Update results, and make sure element gets updated
     rs._strategy_executor.get_initial_guess()
-    rinfo = rs.retrieval_info
+    rinfo = rs.current_state.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[np.array(rinfo.species_list) == "OMICLOUDFRACTION"] = 0.5
     sinfo.update_state(
@@ -497,7 +497,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
 
     # Update results, and make sure element gets updated
     rs._strategy_executor.get_initial_guess()
-    rinfo = rs.retrieval_info
+    rinfo = rs.current_state.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[np.array(rinfo.species_list) == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     sinfo.update_state(
@@ -619,7 +619,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
 
     # Update results, and make sure element gets updated
     rs._strategy_executor.get_initial_guess()
-    rinfo = rs.retrieval_info
+    rinfo = rs.current_state.retrieval_info
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[np.array(rinfo.species_list) == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     sinfo.update_state(

@@ -11,7 +11,6 @@ if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
     from .state_info import PropagatedQA
     from .muses_observation import MusesObservation
-    from .retrieval_info import RetrievalInfo
     from .current_state import CurrentState
 
 
@@ -46,7 +45,6 @@ class RetrievalResult:
     def __init__(
         self,
         ret_res: dict,
-        retrieval_info: RetrievalInfo,
         current_state: CurrentState,
         obs_list: list[MusesObservation],
         radiance_full: dict,
@@ -60,7 +58,6 @@ class RetrievalResult:
         self.radiance_full = radiance_full
         self.obs_list = obs_list
         self.instruments = [obs.instrument_name for obs in self.obs_list]
-        self.retrieval_info = retrieval_info
         self.current_state = current_state
         self.sounding_metadata = current_state.sounding_metadata
         self.ret_res = mpy.ObjectView(ret_res)
@@ -89,17 +86,17 @@ class RetrievalResult:
     def species_list_fm(self) -> list[str]:
         """This is the length of the forward model state vector, with a
         retrieval_element name for each location."""
-        return self.retrieval_info.species_list_fm
+        return self.current_state.retrieval_info.species_list_fm
 
     @property
     def species_list_retrieval(self) -> list[str]:
         """This is the length of the retrieval state vector, with a
         retrieval_element name for each location."""
-        return self.retrieval_info.species_list
+        return self.current_state.retrieval_info.species_list
 
     @property
     def pressure_list_fm(self) -> list[float]:
-        return self.retrieval_info.pressure_list_fm
+        return self.current_state.retrieval_info.pressure_list_fm
 
     @property
     def best_iteration(self) -> int:
@@ -128,7 +125,7 @@ class RetrievalResult:
         """
         # Convert any dict to ObjectView so we can have a consistent
         # way of referring to our input.
-        num_species = self.retrieval_info.n_species
+        num_species = self.current_state.retrieval_info.n_species
         nfreqs = len(self.rstep.frequency)
 
         niter = len(self.ret_res.resdiag[:, 0])
@@ -241,15 +238,15 @@ class RetrievalResult:
 
         # get the total number of frequency points in all microwindows for the
         # gain matrix
-        rows = self.retrieval_info.n_totalParameters
-        rowsSys = self.retrieval_info.n_totalParametersSys
-        rowsFM = self.retrieval_info.n_totalParametersFM
+        rows = self.current_state.retrieval_info.n_totalParameters
+        rowsSys = self.current_state.retrieval_info.n_totalParametersSys
+        rowsFM = self.current_state.retrieval_info.n_totalParametersFM
         if rowsSys == 0:
             rowsSys = 1
 
         o_results: dict[str, Any] | mpy.ObjectView = {
             "retrieval": "",
-            "is_ocean": self.retrieval_info.is_ocean,
+            "is_ocean": self.current_state.retrieval_info.is_ocean,
             "badRetrieval": -999,
             "retIteration": self.ret_res.xretIterations,
             "bestIteration": self.ret_res.bestIteration,
@@ -465,8 +462,8 @@ class RetrievalResult:
         # get retrieval vector result (for all species) for best iteration
         ii = o_results.bestIteration
         if ii == 0:
-            result = self.retrieval_info.initial_guess_list[
-                0 : self.retrieval_info.n_totalParameters
+            result = self.current_state.retrieval_info.initial_guess_list[
+                0 : self.current_state.retrieval_info.n_totalParameters
             ]
         else:
             result = self.ret_res.xretIterations[o_results.bestIteration, :]
@@ -479,8 +476,8 @@ class RetrievalResult:
         for iq in range(self.ret_res.num_iterations + 1):
             if iq == 0:
                 o_results.LMResults_iterList[iq, :] = (
-                    self.retrieval_info.initial_guess_list[
-                        0 : self.retrieval_info.n_totalParameters
+                    self.current_state.retrieval_info.initial_guess_list[
+                        0 : self.current_state.retrieval_info.n_totalParameters
                     ]
                 )
             else:

@@ -249,7 +249,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             raise RuntimeError("self.cfunc should not be None")
         self.results = RetrievalResult(
             ret_res,
-            rs.retrieval_info,
             cstate,
             self.cfunc.obs_list,
             self.radiance_full(rs),
@@ -263,7 +262,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         logger.info("---\n")
 
         rs.current_strategy_step.update_state(
-            cstate, rs.retrieval_info, self.results.results_list
+            cstate, rs.current_state.retrieval_info, self.results.results_list
         )
 
         # I don't think we actually want this in here. 1) we don't currently
@@ -285,7 +284,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         #
         # For right now, these are required, we would need to update
         # the error analysis to work without bad samples
-        if rs.retrieval_info.n_speciesSys > 0:
+        if rs.current_state.retrieval_info.n_speciesSys > 0:
             self.cfunc_sys = rs.create_cost_function(
                 do_systematic=True, include_bad_sample=True, fix_apriori_size=True
             )

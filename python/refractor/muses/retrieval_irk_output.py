@@ -33,7 +33,7 @@ class RetrievalIrkOutput(RetrievalOutput):
 
     @property
     def retrieval_info(self) -> RetrievalInfo:
-        return self.retrieval_strategy.retrieval_info
+        return self.retrieval_strategy.current_state.retrieval_info
 
     @property
     def propagated_qa(self) -> PropagatedQA:

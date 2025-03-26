@@ -107,12 +107,12 @@ class ErrorAnalysis:
         _ = self.error_analysis(
             retrieval_result.rstep.__dict__,
             fstate_info,
-            retrieval_result.retrieval_info,
+            retrieval_result.current_state.retrieval_info,
             retrieval_result,
         )
         _ = mpy.write_retrieval_summary(
             None,
-            retrieval_result.retrieval_info.retrieval_info_obj,
+            retrieval_result.current_state.retrieval_info.retrieval_info_obj,
             fstate_info,
             None,
             retrieval_result,
