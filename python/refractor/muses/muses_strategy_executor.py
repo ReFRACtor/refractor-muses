@@ -6,7 +6,7 @@ from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .retrieval_info import RetrievalInfo
 from .error_analysis import ErrorAnalysis
 from .order_species import order_species
-from .current_state import CurrentStateStateInfo
+from .current_state import CurrentStateStateInfo, CurrentState
 from .qa_data_handle import QaDataHandleSet
 from .muses_strategy import (
     MusesStrategy,
@@ -40,7 +40,6 @@ if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
     from .retrieval_configuration import RetrievalConfiguration
     from .cost_function_creator import CostFunctionCreator
-    from .current_state import CurrentState
     from .identifier import InstrumentIdentifier, FilterIdentifier
     from .state_info import StateElementHandleSet
 
@@ -139,8 +138,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         **kwargs: Any,
     ) -> None:
         self.rs = rs
-        self._state_info = StateInfo()
         self.retrieval_info: RetrievalInfo | None = None
+        self.current_state = CurrentStateStateInfo(StateInfo())
         self.vlidort_cli = vlidort_cli
         self.kwargs = kwargs
         if observation_handle_set is None:
@@ -182,7 +181,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
         self.qa_data_handle_set.notify_update_target(self.measurement_id)
-        self._state_info.notify_update_target(self.retrieval_config)
+        self.current_state._state_info.notify_update_target(self.retrieval_config)
 
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
@@ -190,7 +189,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
-        return self._state_info.state_element_handle_set
+        return self.current_state._state_info.state_element_handle_set
 
     @property
     def run_dir(self) -> Path:
@@ -306,7 +305,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             "labels1": "retrievalType",
             "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
         }
-        fake_state_info = FakeStateInfo(self.current_state(), obs_list=obs_list)
+        fake_state_info = FakeStateInfo(self.current_state, obs_list=obs_list)
         # Maybe an update happens in the UIP, that doesn't get propogated back to
         # state_info? See if we can figure out what is changed here
         o_xxx = {
@@ -341,19 +340,14 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 pointing_angle=pointing_angle,
             )
 
-    def current_state(
-        self,
-        do_systematic: bool = False,
-        jacobian_speciesIn: None | list[StateElementIdentifier] = None,
-    ) -> CurrentState:
+    def current_state2(self) -> CurrentState:
         return CurrentStateStateInfo(
-            self._state_info,
+            self.current_state._state_info,
             self.retrieval_info,
             self.run_dir
             / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}",
-            do_systematic=do_systematic,
-            retrieval_state_element_override=jacobian_speciesIn,
         )
+        
 
     def create_forward_model(self) -> rf.ForwardModel:
         """Create a forward model for the current step."""
@@ -368,7 +362,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         fm_sv = rf.StateVector()
         return self.rs.forward_model_handle_set.forward_model(
             iname,
-            self.current_state(),
+            self.current_state,
             obs,
             fm_sv,
             self.rf_uip_func_cost_function(False, None),
@@ -392,12 +386,16 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         # TODO Would probably be good to remove include_bad_sample, it
         # isn't clear that we ever want to run the forward model for
         # bad samples. But right now the existing py-retrieve code
-        # requires this is a few places.a
+        # requires this is a few places.
+        #cstate: CurrentState = self.current_state
+        cstate: CurrentState = self.current_state2()
+        if do_systematic or jacobian_speciesIn is not None:
+            cstate = cstate.current_state_override(
+                do_systematic, retrieval_state_element_override=jacobian_speciesIn
+            )
         return self.cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,
-            self.current_state(
-                do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn
-            ),
+            cstate,
             self.current_strategy_step.spectral_window_dict,
             self.rf_uip_func_cost_function(do_systematic, jacobian_speciesIn),
             include_bad_sample=include_bad_sample,
@@ -469,6 +467,11 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def restart(self) -> None:
         """Set step to the first one."""
         self.strategy.restart()
+        self.current_state.step_directory = (
+            self.run_dir
+            / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}"
+        )
+        
 
     def set_step(self, step_number: int) -> None:
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
@@ -496,14 +499,19 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
         self.restart()
         self.error_analysis = ErrorAnalysis(
-            self.current_state(),
+            self.current_state,
             self.current_strategy_step,
             covariance_state_element_name,
         )
 
     def next_step(self) -> None:
         """Advance to the next step"""
-        self.strategy.next_step(self.current_state())
+        self.strategy.next_step(self.current_state)
+        if not self.is_done():
+            self.current_state.step_directory = (
+                self.run_dir
+                / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}"
+            )
 
     def is_done(self) -> bool:
         """Return true if we are done, otherwise false."""
@@ -529,7 +537,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.error_analysis,
             Path(self.retrieval_config["speciesDirectory"]),
             self.current_strategy_step,
-            self.current_state(),
+            self.current_state,
         )
 
         # Update state with initial guess so that the initial guess is
@@ -538,7 +546,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         logger.info(str(self.current_strategy_step.strategy_step))
         if nparm > 0:
             xig = self.retrieval_info.initial_guess_list[0:nparm]
-            self.current_state().update_state(
+            self.current_state.update_state(
                 self.retrieval_info,
                 xig,
                 [],
@@ -548,7 +556,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
     def run_step(self) -> None:
         """Run a the current step."""
-        self._state_info.copy_current_initial()
+        self.current_state._state_info.copy_current_initial()
         logger.info("\n---")
         logger.info(str(self.current_strategy_step.strategy_step))
         logger.info("\n---")
@@ -564,7 +572,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             **self.kwargs,
         )
         self.notify_update(ProcessLocation("done retrieval_step"))
-        self._state_info.next_state_to_current()
+        self.current_state._state_info.next_state_to_current()
         self.notify_update(ProcessLocation("done next_state_to_current"))
         logger.info(f"Done with {str(self.current_strategy_step.strategy_step)}")
 
@@ -595,7 +603,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
                 "Need to call notify_update_target before calling this function"
             )
         with self.chdir_run_dir():
-            self._state_info.init_state(
+            self.current_state._state_info.init_state(
                 self.measurement_id,
                 self.observation_handle_set,
                 self.retrieval_elements_all_step,
@@ -626,7 +634,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # Not sure that this is needed or used anywhere, but for now
         # go ahead and this this until we know for sure it doesn't
         # matter.
-        self._state_info.copy_current_initialInitial()
+        self.current_state._state_info.copy_current_initialInitial()
         self.notify_update(ProcessLocation("starting retrieval steps"))
         self.restart()
         while not self.is_done():
@@ -692,7 +700,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         #
         # with gzip.GzipFile(save_pickle_file, "wb") as fh:
         #    fh.write(jsonpickle.encode(self.state_info).encode('utf-8'))
-        pickle.dump(self._state_info, open(save_pickle_file, "wb"))
+        pickle.dump(self.current_state._state_info, open(save_pickle_file, "wb"))
 
     def load_state_info(
         self,
@@ -715,11 +723,11 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # self._state_info = jsonpickle.decode(
         #    gzip.open(state_info_pickle_file, "rb").read())
         hset = self.state_element_handle_set
-        self._state_info = pickle.load(open(state_info_pickle_file, "rb"))
-        self._state_info.state_element_handle_set = hset
-        if self._state_info.retrieval_config is not None:
-            self._state_info.retrieval_config.base_dir = self.run_dir
-            self._state_info.retrieval_config.osp_dir = (
+        self.current_state._state_info = pickle.load(open(state_info_pickle_file, "rb"))
+        self.current_state._state_info.state_element_handle_set = hset
+        if self.current_state._state_info.retrieval_config is not None:
+            self.current_state._state_info.retrieval_config.base_dir = self.run_dir
+            self.current_state._state_info.retrieval_config.osp_dir = (
                 Path(self.osp_dir) if self.osp_dir is not None else None
             )
         self.set_step(step_number)

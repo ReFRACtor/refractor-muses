@@ -112,6 +112,17 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self._fm_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = None
         self._fm_state_vector_size = -1
 
+    def current_state_override(
+        self,
+        do_systematic: bool,
+        retrieval_state_element_override: None | list[StateElementIdentifier],
+    ) -> CurrentState:
+        """Create a variation of the current state that either does a systematic
+        jacobian and/or overrides the retrieval_state_element_override. This is actually
+        a bit awkward, but it is how muses-py was set up. This is only used in a few places,
+        so we'll go ahead and use the same logic here."""
+        raise NotImplementedError()
+
     @property
     def propagated_qa(self) -> PropagatedQA:
         raise NotImplementedError()
@@ -178,6 +189,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def sqrt_constraint(self) -> np.ndarray:
         """Sqrt matrix from covariance"""
         return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
+
+    @property
+    def retrieval_info(self) -> RetrievalInfo:
+        """RetrievalInfo for current state."""
+        raise NotImplementedError
 
     @property
     def apriori(self) -> np.ndarray:
@@ -433,6 +449,11 @@ class CurrentStateUip(CurrentState):
     def initial_guess(self) -> np.ndarray:
         """Initial guess"""
         return copy(self._initial_guess)
+
+    @property
+    def retrieval_info(self) -> RetrievalInfo:
+        """RetrievalInfo for current state."""
+        raise NotImplementedError
 
     @property
     def apriori_cov(self) -> np.ndarray:
@@ -898,10 +919,8 @@ class CurrentStateStateInfo(CurrentState):
     def __init__(
         self,
         state_info: StateInfo,
-        retrieval_info: RetrievalInfo | None,
-        step_directory: str | os.PathLike[str],
-        retrieval_state_element_override: list[StateElementIdentifier] | None = None,
-        do_systematic: bool = False,
+        retrieval_info: RetrievalInfo | None = None,
+        step_directory: str | os.PathLike[str] | None = None,
     ) -> None:
         """I think we'll want to get some of the logic in
         RetrievalInfo into this class, I'm not sure that we want this
@@ -926,9 +945,23 @@ class CurrentStateStateInfo(CurrentState):
         super().__init__()
         self._state_info = state_info
         self._retrieval_info = retrieval_info
-        self.retrieval_state_element_override = retrieval_state_element_override
-        self.do_systematic = do_systematic
-        self._step_directory = Path(step_directory)
+        self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
+            None
+        )
+        self.do_systematic = False
+        self._step_directory = (
+            Path(step_directory) if step_directory is not None else None
+        )
+
+    def current_state_override(
+        self,
+        do_systematic: bool,
+        retrieval_state_element_override: None | list[StateElementIdentifier],
+    ) -> CurrentState:
+        res = copy(self)
+        res.retrieval_state_element_override = retrieval_state_element_override
+        res.do_systematic = do_systematic
+        return res
 
     @property
     def initial_guess(self) -> np.ndarray:
@@ -991,7 +1024,13 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def step_directory(self) -> Path:
+        if self._step_directory is None:
+            raise RuntimeError("Set step directory first")
         return self._step_directory
+
+    @step_directory.setter
+    def step_directory(self, val: Path) -> None:
+        self._step_directory = val
 
     @property
     def propagated_qa(self) -> PropagatedQA:
@@ -1013,6 +1052,7 @@ class CurrentStateStateInfo(CurrentState):
         self._state_info.update_state(
             retrieval_info, results_list, do_not_update, retrieval_config, step
         )
+        self._retrieval_info = retrieval_info
 
     def update_full_state_element(
         self,
@@ -1030,7 +1070,9 @@ class CurrentStateStateInfo(CurrentState):
         selem.update_state(current, apriori, initial, initial_initial, true)
 
     @property
-    def retrieval_info(self) -> RetrievalInfo | None:
+    def retrieval_info(self) -> RetrievalInfo:
+        if self._retrieval_info is None:
+            raise RuntimeError("Need to set self._retrieval_info")
         return self._retrieval_info
 
     @retrieval_info.setter

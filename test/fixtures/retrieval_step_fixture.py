@@ -173,11 +173,11 @@ def tropomi_fm_object_creator_step_0(
         InstrumentIdentifier("TROPOMI")
     )
     res = TropomiFmObjectCreator(
-        rs.current_state(),
+        rs.current_state,
         rs.measurement_id,
         rs.observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
-            rs.current_state(),
+            rs.current_state,
             rs.current_strategy_step.spectral_window_dict[
                 InstrumentIdentifier("TROPOMI")
             ],
@@ -226,11 +226,11 @@ def tropomi_fm_object_creator_swir_step(
         include_ret_state=False,
     )
     res = TropomiSwirFmObjectCreator(
-        rs.current_state(),
+        rs.current_state,
         rs.measurement_id,
         rs.observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
-            rs.current_state(),
+            rs.current_state,
             rs.current_strategy_step.spectral_window_dict[
                 InstrumentIdentifier("TROPOMI")
             ],
@@ -269,11 +269,11 @@ def tropomi_fm_object_creator_step_1(
         InstrumentIdentifier("TROPOMI")
     )
     res = TropomiFmObjectCreator(
-        rs.current_state(),
+        rs.current_state,
         rs.measurement_id,
         rs.observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
-            rs.current_state(),
+            rs.current_state,
             rs.current_strategy_step.spectral_window_dict[
                 InstrumentIdentifier("TROPOMI")
             ],
@@ -310,11 +310,11 @@ def omi_fm_object_creator_step_0(
         InstrumentIdentifier("OMI")
     )
     res = OmiFmObjectCreator(
-        rs.current_state(),
+        rs.current_state,
         rs.measurement_id,
         rs.observation_handle_set.observation(
             InstrumentIdentifier("OMI"),
-            rs.current_state(),
+            rs.current_state,
             rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
             None,
             osp_dir=osp_dir,
@@ -349,11 +349,11 @@ def omi_fm_object_creator_step_1(
         InstrumentIdentifier("OMI")
     )
     res = OmiFmObjectCreator(
-        rs.current_state(),
+        rs.current_state,
         rs.measurement_id,
         rs.observation_handle_set.observation(
             InstrumentIdentifier("OMI"),
-            rs.current_state(),
+            rs.current_state,
             rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
             None,
             osp_dir=osp_dir,

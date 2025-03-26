@@ -48,7 +48,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             rs.retrieval_config,
             rs.strategy,
             rs.strategy_step.step_number,
-            rs.current_state(),
+            rs.current_state,
         )
         logger.info(f"Step: {rs.strategy_step}")
         return True

@@ -101,7 +101,7 @@ def test_current_state(
             rs.retrieval_ms()
     except StopIteration:
         pass
-    cstate = rs.current_state()
+    cstate = rs.current_state
     assert cstate.sounding_metadata.wrong_tai_time == pytest.approx(839312679.58409)
     assert cstate.full_state_value(StateElementIdentifier("emissivity"))[
         0
@@ -141,7 +141,7 @@ def test_update_cloudfraction(omi_step_0):
     StateElement, it is just a good simple test case for checking the muses-py
     species handling."""
     rs, _, _ = omi_step_0
-    cstate = rs.current_state()
+    cstate = rs.current_state
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
@@ -316,7 +316,7 @@ def test_noupdate_cloudfraction(omi_step_0):
     """Repeat the previous test, but label the update as "do_not_update". This
     tests the handling of that case."""
     rs, _, _ = omi_step_0
-    cstate = rs.current_state()
+    cstate = rs.current_state
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
@@ -532,7 +532,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
             rs.script_retrieval_ms(r.run_dir / "Table.asc")
     except StopIteration:
         pass
-    cstate = rs.current_state()
+    cstate = rs.current_state
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
@@ -654,7 +654,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
             rs.script_retrieval_ms(r.run_dir / "Table.asc")
     except StopIteration:
         pass
-    cstate = rs.current_state()
+    cstate = rs.current_state
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)

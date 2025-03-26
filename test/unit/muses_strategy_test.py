@@ -24,7 +24,7 @@ def test_muses_strategy_file(joint_omi_step_8):
     # affects the MusesStrategyStepList, so we get away with only using one
     # cstate since brightness_temperature_data doesn't change after the step it is
     # calculated.
-    cstate = rs.current_state()
+    cstate = rs.current_state
     stable.restart()
     stable_old.restart()
     while not stable.is_done():

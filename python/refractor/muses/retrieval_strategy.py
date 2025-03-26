@@ -382,14 +382,9 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     def current_strategy_step(self) -> CurrentStrategyStep:
         return self.strategy_executor.current_strategy_step
 
-    def current_state(
-        self,
-        do_systematic: bool = False,
-        jacobian_speciesIn: list[StateElementIdentifier] | None = None,
-    ) -> CurrentState:
-        return self.strategy_executor.current_state(
-            do_systematic=do_systematic, jacobian_speciesIn=jacobian_speciesIn
-        )
+    @property
+    def current_state(self) -> CurrentState:
+        return self.strategy_executor.current_state
 
     @property
     def retrieval_type(self) -> RetrievalType:

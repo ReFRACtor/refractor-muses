@@ -229,7 +229,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs.notify_update(
             ProcessLocation("retrieval input"), retrieval_strategy_step=self
         )
-        cstate = rs.current_state()
+        cstate = rs.current_state
         logger.info("Running run_retrieval ...")
 
         # SSK 2023.  I find I get failures from glitches like reading

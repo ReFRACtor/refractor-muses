@@ -192,7 +192,7 @@ class RetrievalOutput:
 
     @property
     def current_state(self) -> CurrentState:
-        return self.retrieval_strategy.current_state()
+        return self.retrieval_strategy.current_state
 
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:

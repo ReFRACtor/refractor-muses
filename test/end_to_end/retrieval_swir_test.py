@@ -337,7 +337,7 @@ def test_radiance(
     # which we can use for simulation purposes.
     rs.strategy_executor.execute_retrieval(stop_at_step=0)
     cfunc = rs.strategy_executor.create_cost_function()
-    cstate = rs.current_state()
+    cstate = rs.current_state
     # Print out a description of the full state, so we can look at the problem
     # with the albedo
     print(cstate.full_state_desc())
