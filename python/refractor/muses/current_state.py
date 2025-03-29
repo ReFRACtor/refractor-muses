@@ -111,6 +111,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         # Cache these values, they don't normally change.
         self._fm_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = None
         self._fm_state_vector_size = -1
+        self._retrieval_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = None
+        self._retrieval_state_vector_size = -1
 
     def current_state_override(
         self,
@@ -135,6 +137,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Clear cache, if an update has occurred"""
         self._fm_sv_loc = None
         self._fm_state_vector_size = -1
+        self._retrieval_sv_loc = None
+        self._retrieval_state_vector_size = -1
 
     @property
     def initial_guess(self) -> np.ndarray:
@@ -224,10 +228,37 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return self._fm_sv_loc
 
     @property
+    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+        """Like fm_sv_loc, but for the retrieval state vactor (rather than the
+        forward model state vector. If we don't have a basis_matrix, these are the
+        same. With a basis_matrix, the total length of the fm_sv_loc is the
+        basis_matrix column size, and retrieval_vector_loc is the smaller basis_matrix
+        row size."""
+        raise NotImplementedError()
+
+    def pressure_list(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+        """For state elements that are on pressure level, this returns
+        the pressure levels.  This is for the retrieval state vector
+        levels (generally smaller than the pressure_list_fm).
+        """
+        raise NotImplementedError()
+
+    def pressure_list_fm(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+        """For state elements that are on pressure level, this returns
+        the pressure levels.  This is for the forward model state
+        vector levels (generally larger than the pressure_list).
+        """
+        raise NotImplementedError()
+    
+
+    @property
     def forward_model_state_vector_element_list(self) -> list[StateElementIdentifier]:
-        """List of StateElementIdentifier for each entry in the state vector. This
-        is the full size of the forward model state vector, so in general a
-        StateElementIdentifier may be listed multiple times."""
+        """List of StateElementIdentifier for each entry in the
+        forwarmd model state vector. This is the full size of the
+        forward model state vector, so in general a
+        StateElementIdentifier may be listed multiple times.
+
+        """
         res = [
             StateElementIdentifier("None"),
         ] * self.fm_state_vector_size
@@ -238,6 +269,23 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return res
 
     @property
+    def retrieval_state_vector_element_list(self) -> list[StateElementIdentifier]:
+        """List of StateElementIdentifier for each entry in the
+        retrieval state vector. This is the full size of the retrieval
+        state vector, so in general a StateElementIdentifier may be
+        listed multiple times.
+
+        """
+        res = [
+            StateElementIdentifier("None"),
+        ] * self.retrieval_state_vector_size
+        for sid, (pstart, plen) in self.retrieval_sv_loc.items():
+            res[pstart : (pstart + plen)] = [
+                sid,
+            ] * plen
+        return res
+    
+    @property
     def fm_state_vector_size(self) -> int:
         """Full size of the forward model state vector."""
         if self._fm_state_vector_size < 0:
@@ -245,6 +293,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             _ = self.fm_sv_loc
         return self._fm_state_vector_size
 
+    @property
+    def retrieval_state_vector_size(self) -> int:
+        """Full size of the retrieval state vector."""
+        if self._retrieval_state_vector_size < 0:
+            # Side effect of retrieval_sv_loc is filling in fm_state_vector_size
+            _ = self.retrieval_sv_loc
+        return self._retrieval_state_vector_size
+    
     def object_state(
         self, state_element_id_list: list[StateElementIdentifier]
     ) -> Tuple[np.ndarray, rf.StateMapping]:
@@ -1237,6 +1293,64 @@ class CurrentStateStateInfo(CurrentState):
         selem = self._state_info.state_element(state_element_id)
         return copy(selem.apriori_value)
 
+    @property
+    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+        """Like fm_sv_loc, but for the retrieval state vactor (rather than the
+        forward model state vector. If we don't have a basis_matrix, these are the
+        same. With a basis_matrix, the total length of the fm_sv_loc is the
+        basis_matrix column size, and retrieval_vector_loc is the smaller basis_matrix
+        row size."""
+        if self.retrieval_info is None:
+            raise RuntimeError("retrieval_info is None")
+        if self._retrieval_sv_loc is None:
+            self._retrieval_sv_loc = {}
+            self._retrieval_state_vector_size = 0
+            for state_element_id in self.retrieval_state_element:
+                if self.do_systematic:
+                    plen = self.retrieval_info.species_list_sys.count(
+                        str(state_element_id)
+                    )
+                else:
+                    plen = self.retrieval_info.species_list.count(
+                        str(state_element_id)
+                    )
+
+                # As a convention, if plen is 0 py-retrieve pads this
+                # to 1, although the state vector isn't actually used
+                # - it does get set. I think this is to avoid having a
+                # 0 size state vector. We should perhaps clean this up
+                # as some point, there isn't anything wrong with a
+                # zero size state vector (although this might have
+                # been a problem with IDL). But for now, use the
+                # py-retrieve convention. This can generally only
+                # happen if we have retrieval_state_element_override
+                # set, i.e., we are doing RetrievalStrategyStepBT.
+                if plen == 0:
+                    plen = 1
+                self._retrieval_sv_loc[state_element_id] = (self._retrieval_state_vector_size, plen)
+                self._retrieval_state_vector_size += plen
+        return self._retrieval_sv_loc
+
+    def pressure_list(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+        """For state elements that are on pressure level, this returns
+        the pressure levels.  This is for the retrieval state vector
+        levels (generally smaller than the pressure_list_fm).
+        """
+        selem = self.full_state_element(state_element_id)
+        if(hasattr(selem, "pressureList")):
+            return selem.pressureList
+        return None
+        
+    def pressure_list_fm(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+        """For state elements that are on pressure level, this returns
+        the pressure levels.  This is for the forward model state
+        vector levels (generally larger than the pressure_list).
+        """
+        selem = self.full_state_element(state_element_id)
+        if(hasattr(selem, "pressureListFM")):
+            return selem.pressureListFM
+        return None
+    
 
 __all__ = [
     "CurrentState",
