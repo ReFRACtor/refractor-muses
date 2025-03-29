@@ -10,6 +10,7 @@ from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
 import logging
 import pickle
+from pathlib import Path
 
 if mpy.have_muses_py:
 
@@ -128,7 +129,35 @@ class MusesRetrievalStep:
         changes to that directory."""
         res = pickle.load(open(save_pickle_file, "rb"))
         res.run_path = os.path.abspath(path)
+        refractor_sounding_dir = Path(save_pickle_file).parent.absolute()
         res.capture_directory.extract_directory(
             path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir
         )
+        _, d = mpy.read_all_tes(str(Path(res.run_retrieval_path) / "Measurement_ID.asc"))
+        for k in (
+            "AIRS_filename",
+            "OMI_filename",
+            "OMI_Cloud_filename",
+            "CRIS_filename",
+            "TES_filename_L2",
+            "TES_filename_L1B",
+            "OCO2_filename",
+            "OCO2_filename_l1b",
+            "TROPOMI_filename_BAND3",
+            "TROPOMI_filename_BAND7",
+            "TROPOMI_filename_BAND8",
+            "TROPOMI_IRR_filename",
+            "TROPOMI_IRR_SIR_filename",
+            "TROPOMI_Cloud_filename",
+        ):
+            if k in d["preferences"]:
+                f2 = Path(d["preferences"][k])
+                # If this starts with a ".", assume we want a file in the sounding director.
+                # otherwise we want the one in the input directory.
+                if f2.parent == Path("."):
+                    freplace = refractor_sounding_dir / f2.name
+                else:
+                    freplace = refractor_sounding_dir.parent / f2.name
+                d["preferences"][k] = str(freplace)
+        mpy.write_all_tes(d, str(Path(res.run_retrieval_path) / "Measurement_ID.asc"))
         return res

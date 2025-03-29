@@ -16,6 +16,7 @@ import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
 import pytest
+import os
 import numpy.testing as npt
 
 
@@ -76,6 +77,7 @@ def test_refractor_joint_tropomi_create_uip(
     joint_tropomi_muses_retrieval_step_12, joint_tropomi_uip_step_12, osp_dir
 ):
     rstep = joint_tropomi_muses_retrieval_step_12
+    os.chdir(rstep.run_retrieval_path)
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
@@ -142,6 +144,7 @@ def test_refractor_tropomi_create_uip(
     tropomi_muses_retrieval_step_2, tropomi_uip_step_2, osp_dir
 ):
     rstep = tropomi_muses_retrieval_step_2
+    os.chdir(rstep.run_retrieval_path)
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
@@ -205,6 +208,7 @@ def test_refractor_joint_omi_create_uip(
     joint_omi_muses_retrieval_step_8, joint_omi_uip_step_8, osp_dir
 ):
     rstep = joint_omi_muses_retrieval_step_8
+    os.chdir(rstep.run_retrieval_path)
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
@@ -269,6 +273,7 @@ def test_refractor_joint_omi_create_uip(
 @pytest.mark.old_py_retrieve_test
 def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2, osp_dir):
     rstep = omi_muses_retrieval_step_2
+    os.chdir(rstep.run_retrieval_path)
     i_stateInfo = rstep.params["i_stateInfo"]
     i_table = rstep.params["i_tableStruct"]
     i_windows = rstep.params["i_windows"]
