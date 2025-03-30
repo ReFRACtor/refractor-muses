@@ -396,7 +396,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     """This is a strategy executor that uses a MusesStrategy to determine the
     strategy.
 
-    It isn't clear if we will ever need a different strategy executor, have different
+    It isn't clear if we will ever need a different strategy executor, having different
     MusesStrategy may be all the flexibility we need. But we go ahead and set up
     the infrastructure here since it is fairly cheap to do so, just in case we need
     a different implementation in the future.
@@ -450,7 +450,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     @property
     def current_strategy_step(self) -> CurrentStrategyStep:
         """Return the CurrentStrategyStep for the current step."""
-        return self.strategy.current_strategy_step()
+        cstep = self.strategy.current_strategy_step()
+        if cstep is None:
+            raise RuntimeError("current_strategy_step called after the last step.")
+        return cstep
 
     def restart(self) -> None:
         """Set step to the first one."""
@@ -494,11 +497,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def next_step(self) -> None:
         """Advance to the next step"""
         self.strategy.next_step(self.current_state)
-        if not self.is_done():
-            self.current_state.step_directory = (
-                self.run_dir
-                / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}"
-            )
+        cstep = self.strategy.current_strategy_step()
+        self.current_state.next_step(cstep, self.error_analysis, self.retrieval_config)
+        if cstep is not None:
+            logger.info(str(cstep.strategy_step))
 
     def is_done(self) -> bool:
         """Return true if we are done, otherwise false."""
@@ -543,12 +545,14 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
     def run_step(self) -> None:
         """Run a the current step."""
+        # Tempt1
         self.current_state._state_info.copy_current_initial()
         logger.info("\n---")
         logger.info(str(self.current_strategy_step.strategy_step))
         logger.info("\n---")
-        self.get_initial_guess()
-        self.notify_update(ProcessLocation("done get_initial_guess"))
+        # Temp2
+        self.current_state.get_initial_guess(self.current_strategy_step,
+                                             self.error_analysis, self.retrieval_config)
         logger.info(
             f"Step: {self.current_strategy_step.strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
         )
@@ -559,8 +563,8 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             **self.kwargs,
         )
         self.notify_update(ProcessLocation("done retrieval_step"))
+        # Temp3
         self.current_state._state_info.next_state_to_current()
-        self.notify_update(ProcessLocation("done next_state_to_current"))
         logger.info(f"Done with {str(self.current_strategy_step.strategy_step)}")
 
     def execute_retrieval(self, stop_at_step: None | int = None) -> None:
@@ -616,7 +620,9 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # this in place until we understand this
         self.restart()
         while not self.is_done():
-            self.get_initial_guess()
+            # Temp4
+            self.current_state.get_initial_guess(self.current_strategy_step,
+                                                 self.error_analysis, self.retrieval_config)
             self.next_step()
         # Not sure that this is needed or used anywhere, but for now
         # go ahead and this this until we know for sure it doesn't

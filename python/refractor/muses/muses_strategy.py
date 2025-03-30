@@ -445,8 +445,8 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        """Return the CurrentStrategyStep for the current step."""
+    def current_strategy_step(self) -> CurrentStrategyStep | None:
+        """Return the CurrentStrategyStep for the current step. Returns None is self.is_done()"""
         raise NotImplementedError
 
 
@@ -668,8 +668,10 @@ class MusesStrategyStepList(MusesStrategyImp):
     def _handle_bt(self, current_state: CurrentState) -> None:
         # Nothing to do if this isn't a BT step, or if we don't have the
         # brightness_temperature_data
+        cstep = self.current_strategy_step()
         if (
-            self.current_strategy_step().retrieval_type != RetrievalType("BT")
+            cstep is None
+            or cstep.retrieval_type != RetrievalType("BT")
             or self._cur_step_count not in current_state.brightness_temperature_data
         ):
             return
@@ -700,8 +702,10 @@ class MusesStrategyStepList(MusesStrategyImp):
         """True if we have reached the last step"""
         return self._cur_step_index >= len(self.current_strategy_list)
 
-    def current_strategy_step(self) -> CurrentStrategyStep:
-        """Return the CurrentStrategyStep for the current step."""
+    def current_strategy_step(self) -> CurrentStrategyStep | None:
+        """Return the CurrentStrategyStep for the current step. Returns None is self.is_done()"""
+        if self.is_done():
+            return None
         cstate = self.current_strategy_list[self._cur_step_index]
         # Update the step number, which may be different than the initial step number
         # we had before we marked anything skip

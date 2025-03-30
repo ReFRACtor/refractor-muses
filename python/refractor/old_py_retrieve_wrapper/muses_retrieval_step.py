@@ -133,7 +133,9 @@ class MusesRetrievalStep:
         res.capture_directory.extract_directory(
             path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir
         )
-        _, d = mpy.read_all_tes(str(Path(res.run_retrieval_path) / "Measurement_ID.asc"))
+        _, d = mpy.read_all_tes(
+            str(Path(res.run_retrieval_path) / "Measurement_ID.asc")
+        )
         for k in (
             "AIRS_filename",
             "OMI_filename",

@@ -96,7 +96,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         f = TesFile.create(res["CloudParameterFilename"])
         res._data.update(f)
         f = TesFile.create(res["allTESPressureLevelsFilename"])
-        # This is the pressure levels that species information. This
+        # This is the pressure levels that species information uses. This
         # is generally the initial pressure levels the forward model
         # is performed on, although these are distinct concepts. This
         # is really a column that might make sense to include in the

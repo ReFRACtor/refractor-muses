@@ -13,9 +13,11 @@ from .identifier import StateElementIdentifier
 if typing.TYPE_CHECKING:
     from .state_info import StateInfo, PropagatedQA, StateElement, SoundingMetadata
     from .refractor_uip import RefractorUip
-    from .retrieval_info import RetrievalInfo
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_observation import MeasurementId
+    from .error_analysis import ErrorAnalysis
+    from .muses_strategy import CurrentStrategyStep
+    from .retrieval_info import RetrievalInfo
 
 
 class CurrentState(object, metaclass=abc.ABCMeta):
@@ -32,7 +34,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     In addition there is an intermediate set that isn't named in the
     paper.  In the py-retrieve code, this gets referred to as the
     "forward model state vector". And internally objects may map
-    things it a "object state".
+    things to a "object state".
 
     A brief description of these:
 
@@ -111,7 +113,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         # Cache these values, they don't normally change.
         self._fm_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = None
         self._fm_state_vector_size = -1
-        self._retrieval_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = None
+        self._retrieval_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = (
+            None
+        )
         self._retrieval_state_vector_size = -1
 
     def current_state_override(
@@ -147,8 +151,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @property
     def initial_guess_fm(self) -> np.ndarray:
-        """Return the initial guess on for the forward model grid.
-        This isn't independent, it is directly calculated from the
+        """Return the initial guess for the forward model grid.  This
+        isn't independent, it is directly calculated from the
         initial_guess and basis_matrix. But convenient to supply this
         (mostly as a help in unit testing).
 
@@ -214,9 +218,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
         """Dict that gives the starting location in the forward model
-        state vector for a particular state element name (state
-        elements not being retrieved don't get listed here)
-
+        state vector and length for a particular state element name
+        (state elements not being retrieved don't get listed here)
         """
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
@@ -230,31 +233,34 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
         """Like fm_sv_loc, but for the retrieval state vactor (rather than the
-        forward model state vector. If we don't have a basis_matrix, these are the
+        forward model state vector). If we don't have a basis_matrix, these are the
         same. With a basis_matrix, the total length of the fm_sv_loc is the
         basis_matrix column size, and retrieval_vector_loc is the smaller basis_matrix
         row size."""
         raise NotImplementedError()
 
-    def pressure_list(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+    def pressure_list(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the retrieval state vector
         levels (generally smaller than the pressure_list_fm).
         """
         raise NotImplementedError()
 
-    def pressure_list_fm(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+    def pressure_list_fm(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
         """
         raise NotImplementedError()
-    
 
     @property
     def forward_model_state_vector_element_list(self) -> list[StateElementIdentifier]:
         """List of StateElementIdentifier for each entry in the
-        forwarmd model state vector. This is the full size of the
+        forward model state vector. This is the full size of the
         forward model state vector, so in general a
         StateElementIdentifier may be listed multiple times.
 
@@ -284,7 +290,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
                 sid,
             ] * plen
         return res
-    
+
     @property
     def fm_state_vector_size(self) -> int:
         """Full size of the forward model state vector."""
@@ -300,7 +306,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             # Side effect of retrieval_sv_loc is filling in fm_state_vector_size
             _ = self.retrieval_sv_loc
         return self._retrieval_state_vector_size
-    
+
     def object_state(
         self, state_element_id_list: list[StateElementIdentifier]
     ) -> Tuple[np.ndarray, rf.StateMapping]:
@@ -475,6 +481,18 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
         """
         raise NotImplementedError()
+
+    def restart(self):
+        pass
+
+    def next_step(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        """Called when MusesStrategy has gone to the next step."""
+        pass
 
 
 class CurrentStateUip(CurrentState):
@@ -1311,9 +1329,7 @@ class CurrentStateStateInfo(CurrentState):
                         str(state_element_id)
                     )
                 else:
-                    plen = self.retrieval_info.species_list.count(
-                        str(state_element_id)
-                    )
+                    plen = self.retrieval_info.species_list.count(str(state_element_id))
 
                 # As a convention, if plen is 0 py-retrieve pads this
                 # to 1, although the state vector isn't actually used
@@ -1327,30 +1343,94 @@ class CurrentStateStateInfo(CurrentState):
                 # set, i.e., we are doing RetrievalStrategyStepBT.
                 if plen == 0:
                     plen = 1
-                self._retrieval_sv_loc[state_element_id] = (self._retrieval_state_vector_size, plen)
+                self._retrieval_sv_loc[state_element_id] = (
+                    self._retrieval_state_vector_size,
+                    plen,
+                )
                 self._retrieval_state_vector_size += plen
         return self._retrieval_sv_loc
 
-    def pressure_list(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+    def pressure_list(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the retrieval state vector
         levels (generally smaller than the pressure_list_fm).
         """
         selem = self.full_state_element(state_element_id)
-        if(hasattr(selem, "pressureList")):
+        if hasattr(selem, "pressureList"):
             return selem.pressureList
         return None
-        
-    def pressure_list_fm(self, state_element_id: StateElementIdentifier) -> np.ndarray | None:
+
+    def pressure_list_fm(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
         """
         selem = self.full_state_element(state_element_id)
-        if(hasattr(selem, "pressureListFM")):
+        if hasattr(selem, "pressureListFM"):
             return selem.pressureListFM
         return None
-    
+
+    # Some of these arguments may get put into the class, but for now have explicit
+    # passing of these
+    def get_initial_guess(
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        """Set retrieval_info, errorInitial and errorCurrent for the current step."""
+        # Chicken and egg problem with circular dependency, so we just import this
+        # when we need it here
+        from .retrieval_info import RetrievalInfo
+        
+        # Temp, we'll want to get this update done automatically. But do this
+        # to figure out issue
+        self._retrieval_info = RetrievalInfo(
+            error_analysis,
+            Path(retrieval_config["speciesDirectory"]),
+            current_strategy_step,
+            self,
+        )
+
+        # Update state with initial guess so that the initial guess is
+        # mapped properly, if doing a retrieval, for each retrieval step.
+        nparm = self._retrieval_info.n_totalParameters
+        if nparm > 0:
+            xig = self._retrieval_info.initial_guess_list[0:nparm]
+            self.update_state(
+                self._retrieval_info,
+                xig,
+                [],
+                retrieval_config,
+                current_strategy_step.strategy_step.step_number,
+            )
+
+    def next_step(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        """Called when MusesStrategy has gone to the next step."""
+        # current_strategy_step being None means we are past the last step in our
+        # MusesStrategy, so we just skip doing anything
+        if current_strategy_step is not None:
+            self.step_directory = (
+                retrieval_config["run_dir"]
+                / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
+            )
+            #self._state_info.next_state_to_current()
+            # Doesn't seem right that we update initial *before* doing get_initial_guess,
+            # but that deems to be shat happends
+            #self._state_info.copy_current_initial()
+            #self.get_initial_guess(
+            #    current_strategy_step, error_analysis, retrieval_config
+            #)
+
 
 __all__ = [
     "CurrentState",
