@@ -11,13 +11,21 @@ import typing
 from .identifier import StateElementIdentifier
 
 if typing.TYPE_CHECKING:
-    from .state_info import StateInfo, PropagatedQA, StateElement, SoundingMetadata
+    from .state_info import (
+        StateInfo,
+        PropagatedQA,
+        StateElement,
+        SoundingMetadata,
+        StateElementHandleSet,
+    )
     from .refractor_uip import RefractorUip
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_observation import MeasurementId
     from .error_analysis import ErrorAnalysis
     from .muses_strategy import CurrentStrategyStep
     from .retrieval_info import RetrievalInfo
+    from .muses_strategy import MusesStrategy
+    from .observation_handle import ObservationHandleSet
 
 
 class CurrentState(object, metaclass=abc.ABCMeta):
@@ -482,8 +490,26 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def restart(self):
+    def restart(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
         pass
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
+        """Have updated the target we are processing."""
+        pass
+
+    @property
+    def state_element_handle_set(self) -> StateElementHandleSet:
+        raise NotImplementedError()
 
     def notify_new_step(
         self,
@@ -1387,7 +1413,7 @@ class CurrentStateStateInfo(CurrentState):
         # Chicken and egg problem with circular dependency, so we just import this
         # when we need it here
         from .retrieval_info import RetrievalInfo
-        
+
         # Temp, we'll want to get this update done automatically. But do this
         # to figure out issue
         self._retrieval_info = RetrievalInfo(
@@ -1409,6 +1435,22 @@ class CurrentStateStateInfo(CurrentState):
                 retrieval_config,
                 current_strategy_step.strategy_step.step_number,
             )
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
+        """Have updated the target we are processing."""
+        self._state_info.notify_update_target(
+            measurement_id, retrieval_config, strategy, observation_handle_set
+        )
+
+    @property
+    def state_element_handle_set(self) -> StateElementHandleSet:
+        return self._state_info.state_element_handle_set
 
     def notify_new_step(
         self,
@@ -1438,21 +1480,22 @@ class CurrentStateStateInfo(CurrentState):
             self.get_initial_guess(
                 current_strategy_step, error_analysis, retrieval_config
             )
-        
 
     def restart(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        '''Called when muses_strategy_executor has restarted'''
+        """Called when muses_strategy_executor has restarted"""
         if current_strategy_step is not None:
             self.step_directory = (
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
             self._state_info.restart()
+            self._state_info.copy_current_initialInitial()
             self._state_info.copy_current_initial()
+
 
 __all__ = [
     "CurrentState",

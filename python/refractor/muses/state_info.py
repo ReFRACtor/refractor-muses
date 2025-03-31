@@ -11,6 +11,7 @@ import copy
 from pathlib import Path
 import refractor.framework as rf  # type: ignore
 import numpy as np
+import os
 from typing import Any
 import typing
 
@@ -21,6 +22,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy_executor import CurrentStrategyStep
     from .muses_observation import MeasurementId, MusesObservation
     from .identifier import InstrumentIdentifier
+    from .muses_strategy import MusesStrategy
 
 
 class PropagatedQA:
@@ -234,7 +236,9 @@ class StateElementHandle(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def state_element_object(
         self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+    ) -> tuple[
+        bool, tuple[StateElement, StateElement, StateElement, StateElement] | None
+    ]:
         raise NotImplementedError
 
 
@@ -249,7 +253,7 @@ class StateElementHandleSet(PriorityHandleSet):
 
     def state_element_object(
         self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[StateElement, StateElement, StateElement]:
+    ) -> tuple[StateElement, StateElement, StateElement, StateElement]:
         return self.handle(state_info, name)
 
     def notify_update_target(self, state_info: StateInfo):
@@ -260,7 +264,9 @@ class StateElementHandleSet(PriorityHandleSet):
 
     def handle_h(
         self, h: StateElementHandle, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+    ) -> tuple[
+        bool, tuple[StateElement, StateElement, StateElement, StateElement] | None
+    ]:
         return h.state_element_object(state_info, name)
 
 
@@ -378,16 +384,10 @@ class StateInfo:
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.state_element_handle_set = copy.deepcopy(
             StateElementHandleSet.default_handle_set()
         )
-        self.notify_update_target(None)
-
-    def notify_update_target(
-        self, retrieval_config: RetrievalConfiguration | None
-    ) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.state_info_dict: dict[str, Any] = {}
         self.initialInitial: dict[str, StateElement] = {}
         self.initial: dict[str, StateElement] = {}
@@ -405,8 +405,50 @@ class StateInfo:
         self._tai_time = -999.0
         self._utc_time = ""
         self._sounding_id = ""
+        self.retrieval_config: RetrievalConfiguration | None = None
+        self.state_element_handle_set.notify_update_target(self)
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.state_info_dict = {}
+        self.initialInitial = {}
+        self.initial = {}
+        self.current = {}
+        self.true = {}
+
+        self.reset_state_value = {}
+        self.propagated_qa = PropagatedQA()
+        self.brightness_temperature_data = {}
+
+        # Odds and ends that are currently in the StateInfo. Doesn't exactly have
+        # to do with the state, but we don't have another place for these.
+        # Perhaps SoundingMetadata can migrate into its own thing, and these can
+        # get moved over to there.
+        self._tai_time = -999.0
+        self._utc_time = ""
+        self._sounding_id = ""
         self.retrieval_config = retrieval_config
         self.state_element_handle_set.notify_update_target(self)
+        curdir = os.getcwd()
+        try:
+            os.chdir(retrieval_config["run_dir"])
+            self.init_state(
+                measurement_id,
+                observation_handle_set,
+                strategy.retrieval_elements,
+                strategy.error_analysis_interferents,
+                strategy.instrument_name,
+                retrieval_config["run_dir"],
+                osp_dir=retrieval_config.osp_dir,
+            )
+        finally:
+            os.chdir(curdir)
 
     def init_state(
         self,
@@ -1040,9 +1082,8 @@ class StateInfo:
                 self.initial[k] = scopy
 
     def restart(self):
-        '''Called when we restart a retrieval.'''
+        """Called when we restart a retrieval."""
         self.reset_state_value = {}
-        
 
     def next_state_to_current(self):
         # Not clear at all why this copy is necessary. Sort of accidentally discovered

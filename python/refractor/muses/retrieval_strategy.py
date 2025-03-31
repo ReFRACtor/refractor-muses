@@ -213,8 +213,8 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         )
         self.strategy_executor.notify_update_target(self.measurement_id)
         self._measurement_id.filter_list_dict = self.strategy_executor.filter_list_dict
-        self.strategy_executor.notify_update_target(self.measurement_id)
         self._cost_function_creator.notify_update_target(self.measurement_id)
+        self.strategy_executor.notify_update_target(self.measurement_id)
         self._retrieval_strategy_step_set.notify_update_target(self)
         self.notify_update(ProcessLocation("update target"))
 
