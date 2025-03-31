@@ -485,11 +485,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def restart(self):
         pass
 
-    def next_step(
+    def notify_new_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
     ) -> None:
         """Called when MusesStrategy has gone to the next step."""
         pass
@@ -1409,14 +1410,14 @@ class CurrentStateStateInfo(CurrentState):
                 current_strategy_step.strategy_step.step_number,
             )
 
-    def next_step(
+    def notify_new_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
-        skip_initial_guess_update=False
+        skip_initial_guess_update: bool = False,
     ) -> None:
-        """Called when MusesStrategy has gone to the next step.
+        """Called when MusesStrategy is starting a new step.
 
         The logic for when to update the initial guess in the state info table is kind of
         complicated and confusing. For now we duplicate this behavior, in some cases we do
@@ -1430,13 +1431,13 @@ class CurrentStateStateInfo(CurrentState):
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
             if not skip_initial_guess_update:
+                self._state_info.next_state_to_current()
                 self._state_info.copy_current_initial()
             # Doesn't seem right that we update initial *before* doing get_initial_guess,
             # but that seems to be what happens
-            #self._state_info.copy_current_initial()
-            #self.get_initial_guess(
-            #    current_strategy_step, error_analysis, retrieval_config
-            #)
+            self.get_initial_guess(
+                current_strategy_step, error_analysis, retrieval_config
+            )
         
 
     def restart(

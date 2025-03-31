@@ -467,7 +467,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             self._restart_and_error_analysis()
             while self.current_strategy_step.strategy_step.step_number < step_number:
-                self.next_step(skip_initial_guess_update=True)
+                self.current_state.notify_new_step(self.current_strategy_step,
+                                                   self.error_analysis, self.retrieval_config,
+                                                   skip_initial_guess_update=True)
+                self.next_step()
 
     def _restart_and_error_analysis(self) -> None:
         '''Restart and recreate error analysis. Put together just for convenience,
@@ -492,20 +495,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             covariance_state_element_name,
         )
 
-    def next_step(self, skip_initial_guess_update=False) -> None:
-        """Advance to the next step.
-        
-        The logic for when to update the initial guess in the state info table is kind of
-        complicated and confusing. For now we duplicate this behavior, in some cases we do
-        this and in others we don't. We can hopefully sort this out, the logic should be
-        straight forward"""
+    def next_step(self) -> None:
+        """Advance to the next step. """
         self.strategy.next_step(self.current_state)
         cstep = self.strategy.current_strategy_step()
-        self.current_state.next_step(cstep, self.error_analysis, self.retrieval_config,
-                                     skip_initial_guess_update)
-        # Temp 5
-        #if(not skip_initial_guess_update):
-        #    self.current_state._state_info.copy_current_initial()
         if cstep is not None:
             logger.info(str(cstep.strategy_step))
 
@@ -525,41 +518,11 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def retrieval_elements_all_step(self) -> list[StateElementIdentifier]:
         return self.strategy.retrieval_elements
 
-    def get_initial_guess(self) -> None:
-        """Set retrieval_info, errorInitial and errorCurrent for the current step."""
-        # Temp, we'll want to get this update done automatically. But do this
-        # to figure out issue
-        self.current_state.retrieval_info = RetrievalInfo(
-            self.error_analysis,
-            Path(self.retrieval_config["speciesDirectory"]),
-            self.current_strategy_step,
-            self.current_state,
-        )
-
-        # Update state with initial guess so that the initial guess is
-        # mapped properly, if doing a retrieval, for each retrieval step.
-        nparm = self.current_state.retrieval_info.n_totalParameters
-        logger.info(str(self.current_strategy_step.strategy_step))
-        if nparm > 0:
-            xig = self.current_state.retrieval_info.initial_guess_list[0:nparm]
-            self.current_state.update_state(
-                self.current_state.retrieval_info,
-                xig,
-                [],
-                self.retrieval_config,
-                self.current_strategy_step.strategy_step.step_number,
-            )
-
     def run_step(self) -> None:
         """Run a the current step."""
-        # Temp1
-        #self.current_state._state_info.copy_current_initial()
         logger.info("\n---")
         logger.info(str(self.current_strategy_step.strategy_step))
         logger.info("\n---")
-        # Temp2
-        self.current_state.get_initial_guess(self.current_strategy_step,
-                                             self.error_analysis, self.retrieval_config)
         logger.info(
             f"Step: {self.current_strategy_step.strategy_step.step_number}, Retrieval Type {self.current_strategy_step.retrieval_type}"
         )
@@ -571,7 +534,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         )
         self.notify_update(ProcessLocation("done retrieval_step"))
         # Temp3
-        self.current_state._state_info.next_state_to_current()
+        #self.current_state._state_info.next_state_to_current()
         logger.info(f"Done with {str(self.current_strategy_step.strategy_step)}")
 
     def execute_retrieval(self, stop_at_step: None | int = None) -> None:
@@ -627,10 +590,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # this in place until we understand this
         self.restart()
         while not self.is_done():
-            # Temp4
-            self.current_state.get_initial_guess(self.current_strategy_step,
-                                                 self.error_analysis, self.retrieval_config)
-            self.next_step(skip_initial_guess_update=True)
+            self.current_state.notify_new_step(self.current_strategy_step,
+                                               self.error_analysis, self.retrieval_config,
+                                               skip_initial_guess_update=True)
+            self.next_step()
         # Not sure that this is needed or used anywhere, but for now
         # go ahead and this this until we know for sure it doesn't
         # matter.
@@ -644,10 +607,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             ):
                 return
             self.notify_update(ProcessLocation("starting run_step"))
+            self.current_state.notify_new_step(self.current_strategy_step,
+                                               self.error_analysis, self.retrieval_config)
             self.run_step()
             self.next_step()
-            # Temp 5, move
-            #self.current_state._state_info.copy_current_initial()
         self.notify_update("retrieval done")
 
     def continue_retrieval(self, stop_after_step: None | int = None) -> None:
@@ -655,6 +618,8 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         at that step to diagnose a problem."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             while not self.is_done():
+                self.current_state.notify_new_step(self.current_strategy_step,
+                                                   self.error_analysis, self.retrieval_config)
                 self.notify_update(ProcessLocation("starting run_step"))
                 self.run_step()
                 if (
