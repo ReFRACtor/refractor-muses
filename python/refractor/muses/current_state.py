@@ -1414,8 +1414,14 @@ class CurrentStateStateInfo(CurrentState):
         current_strategy_step: CurrentStrategyStep | None,
         error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update=False
     ) -> None:
-        """Called when MusesStrategy has gone to the next step."""
+        """Called when MusesStrategy has gone to the next step.
+
+        The logic for when to update the initial guess in the state info table is kind of
+        complicated and confusing. For now we duplicate this behavior, in some cases we do
+        this and in others we don't. We can hopefully sort this out, the logic should be
+        straight forward"""
         # current_strategy_step being None means we are past the last step in our
         # MusesStrategy, so we just skip doing anything
         if current_strategy_step is not None:
@@ -1423,14 +1429,29 @@ class CurrentStateStateInfo(CurrentState):
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
-            #self._state_info.next_state_to_current()
+            if not skip_initial_guess_update:
+                self._state_info.copy_current_initial()
             # Doesn't seem right that we update initial *before* doing get_initial_guess,
-            # but that deems to be shat happends
+            # but that seems to be what happens
             #self._state_info.copy_current_initial()
             #self.get_initial_guess(
             #    current_strategy_step, error_analysis, retrieval_config
             #)
+        
 
+    def restart(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        '''Called when muses_strategy_executor has restarted'''
+        if current_strategy_step is not None:
+            self.step_directory = (
+                retrieval_config["run_dir"]
+                / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
+            )
+            self._state_info.restart()
+            self._state_info.copy_current_initial()
 
 __all__ = [
     "CurrentState",

@@ -458,10 +458,8 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def restart(self) -> None:
         """Set step to the first one."""
         self.strategy.restart()
-        self.current_state.step_directory = (
-            self.run_dir
-            / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}"
-        )
+        self.current_state.restart(self.current_strategy_step, 
+                                   self.retrieval_config)
 
     def set_step(self, step_number: int) -> None:
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
@@ -469,7 +467,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             self._restart_and_error_analysis()
             while self.current_strategy_step.strategy_step.step_number < step_number:
-                self.next_step()
+                self.next_step(skip_initial_guess_update=True)
 
     def _restart_and_error_analysis(self) -> None:
         '''Restart and recreate error analysis. Put together just for convenience,
@@ -494,11 +492,20 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             covariance_state_element_name,
         )
 
-    def next_step(self) -> None:
-        """Advance to the next step"""
+    def next_step(self, skip_initial_guess_update=False) -> None:
+        """Advance to the next step.
+        
+        The logic for when to update the initial guess in the state info table is kind of
+        complicated and confusing. For now we duplicate this behavior, in some cases we do
+        this and in others we don't. We can hopefully sort this out, the logic should be
+        straight forward"""
         self.strategy.next_step(self.current_state)
         cstep = self.strategy.current_strategy_step()
-        self.current_state.next_step(cstep, self.error_analysis, self.retrieval_config)
+        self.current_state.next_step(cstep, self.error_analysis, self.retrieval_config,
+                                     skip_initial_guess_update)
+        # Temp 5
+        #if(not skip_initial_guess_update):
+        #    self.current_state._state_info.copy_current_initial()
         if cstep is not None:
             logger.info(str(cstep.strategy_step))
 
@@ -545,8 +552,8 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
     def run_step(self) -> None:
         """Run a the current step."""
-        # Tempt1
-        self.current_state._state_info.copy_current_initial()
+        # Temp1
+        #self.current_state._state_info.copy_current_initial()
         logger.info("\n---")
         logger.info(str(self.current_strategy_step.strategy_step))
         logger.info("\n---")
@@ -623,7 +630,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             # Temp4
             self.current_state.get_initial_guess(self.current_strategy_step,
                                                  self.error_analysis, self.retrieval_config)
-            self.next_step()
+            self.next_step(skip_initial_guess_update=True)
         # Not sure that this is needed or used anywhere, but for now
         # go ahead and this this until we know for sure it doesn't
         # matter.
@@ -639,6 +646,8 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.notify_update(ProcessLocation("starting run_step"))
             self.run_step()
             self.next_step()
+            # Temp 5, move
+            #self.current_state._state_info.copy_current_initial()
         self.notify_update("retrieval done")
 
     def continue_retrieval(self, stop_after_step: None | int = None) -> None:
@@ -734,3 +743,4 @@ __all__ = [
     "MusesStrategyExecutorRetrievalStrategyStep",
     "MusesStrategyExecutorMusesStrategy",
 ]
+ 

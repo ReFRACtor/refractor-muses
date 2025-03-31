@@ -1039,6 +1039,11 @@ class StateInfo:
             if scopy is not None:
                 self.initial[k] = scopy
 
+    def restart(self):
+        '''Called when we restart a retrieval.'''
+        self.reset_state_value = {}
+        
+
     def next_state_to_current(self):
         # Not clear at all why this copy is necessary. Sort of accidentally discovered
         # this, because we use to copy to create the "next_state". Instead we now
