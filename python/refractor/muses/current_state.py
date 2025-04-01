@@ -11,12 +11,10 @@ import typing
 from .identifier import StateElementIdentifier
 
 if typing.TYPE_CHECKING:
-    from .state_info import (
-        StateInfo,
-        PropagatedQA,
-        StateElement,
-        SoundingMetadata,
-        StateElementHandleSet,
+    from refractor.old_py_retrieve_wrapper import (  # type: ignore
+        StateInfoOld,
+        StateElementOld,
+        StateElementHandleSetOld,
     )
     from .refractor_uip import RefractorUip
     from .retrieval_configuration import RetrievalConfiguration
@@ -26,6 +24,143 @@ if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
     from .muses_strategy import MusesStrategy
     from .observation_handle import ObservationHandleSet
+
+
+class PropagatedQA:
+    """There are a few parameters that get propagated from one step to
+    the next. Not sure exactly what this gets looked for, it look just
+    like flags copied from one step to the next. But pull this
+    together into one place so we can track this.
+
+    TODO Note that we might just make this appear like any other StateElementOld,
+    but at least for now leave this as separate because that is how
+
+    """
+
+    def __init__(self) -> None:
+        self.propagated_qa: dict[str, int] = {"TATM": 1, "H2O": 1, "O3": 1}
+
+    @property
+    def tatm_qa(self) -> int:
+        return self.propagated_qa["TATM"]
+
+    @property
+    def h2o_qa(self) -> int:
+        return self.propagated_qa["H2O"]
+
+    @property
+    def o3_qa(self) -> int:
+        return self.propagated_qa["O3"]
+
+    def update(
+        self, retrieval_state_element: list[StateElementIdentifier], qa_flag: int
+    ) -> None:
+        """Update the QA flags for items that we retrieved."""
+        for state_element_name in retrieval_state_element:
+            if str(state_element_name) in self.propagated_qa:
+                self.propagated_qa[str(state_element_name)] = qa_flag
+
+
+class SoundingMetadata:
+    """Not really clear that this belongs in the StateInfoOld, but the muses-py seems
+    to at least allow the possibility of this changing from one step to the next.
+    I'm not sure if that actually can happen, but there isn't another obvious place
+    to put this metadata so we'll go ahead and keep this here."""
+
+    def __init__(self, state_info: StateInfoOld, step="current") -> None:
+        if step not in ("current", "initial", "initialInitial"):
+            raise RuntimeError(
+                "Don't support anything other than the current, initial, or initialInitial step"
+            )
+        self._latitude = rf.DoubleWithUnit(
+            state_info.state_info_dict[step]["latitude"], "deg"
+        )
+        self._longitude = rf.DoubleWithUnit(
+            state_info.state_info_dict[step]["longitude"], "deg"
+        )
+        self._surface_altitude = rf.DoubleWithUnit(
+            state_info.state_info_dict[step]["tsa"]["surfaceAltitudeKm"], "km"
+        )
+        self._day_flag = bool(state_info.state_info_dict[step]["tsa"]["dayFlag"])
+        self._height = rf.ArrayWithUnit_double_1(
+            state_info.state_info_dict[step]["heightKm"], "km"
+        )
+        self._surface_type = state_info.state_info_dict[step]["surfaceType"].upper()
+        self._tai_time = state_info._tai_time
+        self._sounding_id = state_info._sounding_id
+        self._utc_time = state_info._utc_time
+
+    @property
+    def latitude(self) -> rf.DoubleWithUnit:
+        return self._latitude
+
+    @property
+    def longitude(self) -> rf.DoubleWithUnit:
+        return self._longitude
+
+    @property
+    def surface_altitude(self) -> rf.DoubleWithUnit:
+        return self._surface_altitude
+
+    @property
+    def height(self) -> rf.DoubleWithUnit:
+        return self._height
+
+    @property
+    def tai_time(self) -> float:
+        return self._tai_time
+
+    @property
+    def utc_time(self) -> str:
+        return self._utc_time
+
+    @property
+    def local_hour(self):
+        timestruct = mpy.utc(self.utc_time)
+        hour = timestruct["hour"] + self.longitude.convert("deg").value / 180.0 * 12
+        if hour < 0:
+            hour += 24
+        if hour > 24:
+            hour -= 24
+        return hour
+
+    @property
+    def wrong_tai_time(self):
+        """The muses-py function mpy.tai uses the wrong number of leapseconds, it
+        doesn't include anything since 2006. To match old data, return the incorrect
+        value so we can match the file. This should get fixed actually."""
+        timestruct = mpy.utc(self.utc_time)
+        if timestruct["yearfloat"] >= 2017.0:
+            extraleapscond = 4
+        elif timestruct["yearfloat"] >= 2015.5:
+            extraleapscond = 3
+        elif timestruct["yearfloat"] >= 2012.5:
+            extraleapscond = 2
+        elif timestruct["yearfloat"] >= 2009.0:
+            extraleapscond = 1
+        else:
+            extraleapscond = 0
+        return self._tai_time - extraleapscond
+
+    @property
+    def sounding_id(self):
+        return self._sounding_id
+
+    @property
+    def surface_type(self) -> str:
+        return self._surface_type
+
+    @property
+    def is_day(self) -> bool:
+        return self._day_flag
+
+    @property
+    def is_ocean(self) -> bool:
+        return self.surface_type == "OCEAN"
+
+    @property
+    def is_land(self) -> bool:
+        return self.surface_type == "LAND"
 
 
 class CurrentState(object, metaclass=abc.ABCMeta):
@@ -405,7 +540,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> StateElement:
+    ) -> StateElementOld:
         """Return the StateElement for the state_element_id. I'm not sure if we want to
         have this exposed or not, but there is a bit of useful information we have in
         each StateElement (such as the sa_cross_covariance). We can have this exposed for
@@ -508,7 +643,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         pass
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
+    def state_element_handle_set(self) -> StateElementHandleSetOld:
         raise NotImplementedError()
 
     def notify_new_step(
@@ -664,7 +799,7 @@ class CurrentStateUip(CurrentState):
 
     def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> StateElement:
+    ) -> StateElementOld:
         raise NotImplementedError()
 
     def full_state_spectral_domain_wavelength(
@@ -940,7 +1075,7 @@ class CurrentStateDict(CurrentState):
 
     def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> StateElement:
+    ) -> StateElementOld:
         raise NotImplementedError()
 
     def full_state_spectral_domain_wavelength(
@@ -1019,7 +1154,7 @@ class CurrentStateStateInfo(CurrentState):
 
     def __init__(
         self,
-        state_info: StateInfo,
+        state_info: StateInfoOld | None,
         retrieval_info: RetrievalInfo | None = None,
         step_directory: str | os.PathLike[str] | None = None,
     ) -> None:
@@ -1043,8 +1178,13 @@ class CurrentStateStateInfo(CurrentState):
         jacobian.  If do_systematic is set to True, we use this values
         instead.
         """
+        from refractor.old_py_retrieve_wrapper import StateInfoOld  # type: ignore
+
         super().__init__()
-        self._state_info = state_info
+        if state_info is not None:
+            self._state_info = state_info
+        else:
+            self._state_info = StateInfoOld()
         self._retrieval_info = retrieval_info
         self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
             None
@@ -1260,7 +1400,7 @@ class CurrentStateStateInfo(CurrentState):
 
     def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> StateElement:
+    ) -> StateElementOld:
         """Return the StateElement for the state_element_id. I'm not sure if we want to
         have this exposed or not, but there is a bit of useful information we have in
         each StateElement (such as the sa_cross_covariance). We can have this exposed for
@@ -1449,7 +1589,7 @@ class CurrentStateStateInfo(CurrentState):
         )
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
+    def state_element_handle_set(self) -> StateElementHandleSetOld:
         return self._state_info.state_element_handle_set
 
     def notify_new_step(
@@ -1502,4 +1642,6 @@ __all__ = [
     "CurrentStateUip",
     "CurrentStateDict",
     "CurrentStateStateInfo",
+    "SoundingMetadata",
+    "PropagatedQA",
 ]

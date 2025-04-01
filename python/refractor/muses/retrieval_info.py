@@ -1,12 +1,11 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .identifier import StateElementIdentifier
-from .state_element import MusesPyStateElement  # type: ignore
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
 from pathlib import Path
 import typing
-from typing import Any, cast
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
@@ -278,10 +277,7 @@ class RetrievalInfo:
         current_state: CurrentState,
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
-        selem = cast(
-            MusesPyStateElement,
-            current_state.full_state_element(StateElementIdentifier(species_name)),
-        )
+        selem = current_state.full_state_element(StateElementIdentifier(species_name))
         selem.update_initial_guess(current_strategy_step)
 
         row = o_retrievalInfo.n_totalParameters

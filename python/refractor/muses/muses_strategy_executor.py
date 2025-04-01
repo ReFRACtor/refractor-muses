@@ -18,7 +18,6 @@ from .muses_strategy import MusesStrategyHandleSet
 from .spectral_window_handle import SpectralWindowHandleSet
 from .fake_state_info import FakeStateInfo
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
-from .state_info import StateInfo
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
@@ -40,7 +39,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .cost_function_creator import CostFunctionCreator
     from .identifier import InstrumentIdentifier, FilterIdentifier
-    from .state_info import StateElementHandleSet
+    from refractor.old_py_retrieve_wrapper import StateElementHandleSetOld  # type: ignore
 
 
 @contextmanager
@@ -137,7 +136,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         **kwargs: Any,
     ) -> None:
         self.rs = rs
-        self.current_state = CurrentStateStateInfo(StateInfo())
+        self.current_state = CurrentStateStateInfo(None)
         self.vlidort_cli = vlidort_cli
         self.kwargs = kwargs
         if observation_handle_set is None:
@@ -185,7 +184,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return self.rs.retrieval_config
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
+    def state_element_handle_set(self) -> StateElementHandleSetOld:
         return self.current_state.state_element_handle_set
 
     @property

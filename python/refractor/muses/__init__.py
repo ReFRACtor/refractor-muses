@@ -34,7 +34,12 @@ if _typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandle
     from .muses_raman import MusesRaman, SurfaceAlbedo
     from .muses_spectral_window import MusesSpectralWindow
-    from .current_state import CurrentState, CurrentStateUip
+    from .current_state import (
+        CurrentState,
+        CurrentStateUip,
+        SoundingMetadata,
+        PropagatedQA,
+    )
     from .misc import osp_setup
     from .muses_observation import (
         MeasurementId,
@@ -69,6 +74,14 @@ if _typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
     from .spectral_window_handle import SpectralWindowHandleSet
     from .cost_function_creator import CostFunctionCreator
+    from .priority_handle_set import PriorityHandleSet
+    from .retrieval_configuration import RetrievalConfiguration
+    from .observation_handle import (
+        ObservationHandleSet,
+        mpy_radiance_from_observation_list,
+    )
+    from .tes_file import TesFile
+    from .order_species import order_species
 
 del _i
 del _re

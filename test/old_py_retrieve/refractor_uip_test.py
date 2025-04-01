@@ -2,7 +2,6 @@ from refractor.muses import (
     RefractorUip,
     CurrentStateStateInfo,
     FakeStateInfo,
-    StateInfo,
     MusesOmiObservation,
     MeasurementIdFile,
     RetrievalConfiguration,
@@ -12,6 +11,7 @@ from refractor.muses import (
     MusesAirsObservation,
     MusesCrisObservation,
 )
+from refractor.old_py_retrieve_wrapper import StateInfoOld
 import refractor.muses.muses_py as mpy
 import subprocess
 import pprint
@@ -90,7 +90,7 @@ def test_refractor_joint_tropomi_create_uip(
     i_oco2 = rstep.params["i_oco2"]
     # Test working with FakeStateInfo, since that is what we do now in
     # actual retrieval
-    sinfo = StateInfo()
+    sinfo = StateInfoOld()
     sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         "Table.asc", osp_dir=osp_dir
@@ -157,7 +157,7 @@ def test_refractor_tropomi_create_uip(
     i_oco2 = rstep.params["i_oco2"]
     # Test working with FakeStateInfo, since that is what we do now in
     # actual retrieval
-    sinfo = StateInfo()
+    sinfo = StateInfoOld()
     sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         "Table.asc", osp_dir=osp_dir
@@ -221,7 +221,7 @@ def test_refractor_joint_omi_create_uip(
     i_oco2 = rstep.params["i_oco2"]
     # Test working with FakeStateInfo, since that is what we do now in
     # actual retrieval
-    sinfo = StateInfo()
+    sinfo = StateInfoOld()
     sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         "Table.asc", osp_dir=osp_dir
@@ -286,7 +286,7 @@ def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2, os
     i_oco2 = rstep.params["i_oco2"]
     # Test working with FakeStateInfo, since that is what we do now in
     # actual retrieval
-    sinfo = StateInfo()
+    sinfo = StateInfoOld()
     sinfo.state_info_dict = mpy.ObjectView.as_dict(i_stateInfo)
     rconfig = RetrievalConfiguration.create_from_strategy_file(
         "Table.asc", osp_dir=osp_dir

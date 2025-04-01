@@ -1,12 +1,12 @@
 from refractor.muses import (
     MusesRunDir,
-    SingleSpeciesHandle,
     OmiEofStateElement,
     RetrievalStrategy,
     StateElementIdentifier,
     ProcessLocation,
     modify_strategy_table,
 )
+from refractor.old_py_retrieve_wrapper import SingleSpeciesHandleOld
 from fixtures.misc_fixture import all_output_disabled
 import pytest
 import numpy as np
@@ -451,8 +451,8 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
             rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandle(
-                    StateElementIdentifier("OMIEOFUV1"),
+                SingleSpeciesHandleOld(
+                    "OMIEOFUV1",
                     OmiEofStateElement,
                     pass_state=False,
                     name=StateElementIdentifier("OMIEOFUV1"),
@@ -460,8 +460,8 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
                 )
             )
             rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandle(
-                    StateElementIdentifier("OMIEOFUV2"),
+                SingleSpeciesHandleOld(
+                    "OMIEOFUV2",
                     OmiEofStateElement,
                     pass_state=False,
                     name=StateElementIdentifier("OMIEOFUV2"),
@@ -577,15 +577,15 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
             rs.clear_observers()
             rs.add_observer(RetrievalStrategyStop())
             rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandle(
-                    StateElementIdentifier("OMIEOFUV1"),
+                SingleSpeciesHandleOld(
+                    "OMIEOFUV1",
                     OmiEofStateElement,
                     pass_state=False,
                 )
             )
             rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandle(
-                    StateElementIdentifier("OMIEOFUV2"),
+                SingleSpeciesHandleOld(
+                    "OMIEOFUV2",
                     OmiEofStateElement,
                     pass_state=False,
                 )

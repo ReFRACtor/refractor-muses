@@ -6,12 +6,10 @@ import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes, extra_l2_output
 from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
 
-# We'll fix StateElement at some point, but for now ignore this typing
-from .state_element import EmissivityState  # type: ignore
 from pathlib import Path
 import numpy as np
 import typing
-from typing import Any, Tuple, Callable, cast
+from typing import Any, Tuple, Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -1003,11 +1001,8 @@ class RetrievalL2Output(RetrievalOutput):
                     "native_emissivity"
                 )
 
-            selem = cast(
-                EmissivityState,
-                self.current_state.full_state_element(
-                    StateElementIdentifier("emissivity")
-                ),
+            selem = self.current_state.full_state_element(
+                StateElementIdentifier("emissivity")
             )
             species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(
                 [

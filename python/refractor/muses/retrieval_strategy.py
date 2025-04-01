@@ -33,12 +33,12 @@ if typing.TYPE_CHECKING:
     from .error_analysis import ErrorAnalysis
     from .forward_model_handle import ForwardModelHandleSet
     from .observation_handle import ObservationHandleSet
-    from .state_info import StateElementHandleSet
     from .current_state import CurrentState
     from .muses_strategy_executor import CurrentStrategyStep
     from .cost_function import CostFunction
     from .muses_strategy import MusesStrategy, MusesStrategyHandleSet
     from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
+    from refractor.old_py_retrieve_wrapper import StateElementHandleSetOld  # type: ignore
 
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -345,7 +345,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self._observation_handle_set
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
+    def state_element_handle_set(self) -> StateElementHandleSetOld:
         """The set of handles we use for each state element."""
         return self._strategy_executor.state_element_handle_set
 

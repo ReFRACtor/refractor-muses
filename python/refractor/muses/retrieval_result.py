@@ -9,9 +9,8 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
-    from .state_info import PropagatedQA
     from .muses_observation import MusesObservation
-    from .current_state import CurrentState
+    from .current_state import CurrentState, PropagatedQA
 
 
 class RetrievalResult:

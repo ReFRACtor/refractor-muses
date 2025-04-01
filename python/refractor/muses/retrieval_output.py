@@ -20,10 +20,9 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .current_state import CurrentState
+    from .current_state import CurrentState, SoundingMetadata
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MusesObservation
-    from .state_info import SoundingMetadata
 
 
 class ExtraL2Output:

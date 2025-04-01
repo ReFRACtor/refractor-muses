@@ -1,12 +1,14 @@
 from refractor.muses import (
     MusesRunDir,
-    RetrievableStateElement,
     RetrievalInfo,
     CurrentStrategyStep,
     RetrievalConfiguration,
-    StateInfo,
 )
-from refractor.old_py_retrieve_wrapper import StrategyTable
+from refractor.old_py_retrieve_wrapper import (
+    StrategyTable,
+    RetrievableStateElementOld,
+    StateInfoOld,
+)
 import subprocess
 import numpy as np
 import pytest
@@ -15,8 +17,8 @@ import pytest
 # handles this correctly
 
 
-class EofStateElement(RetrievableStateElement):
-    def __init__(self, state_info: StateInfo, name="OMIEOF1"):
+class EofStateElement(RetrievableStateElementOld):
+    def __init__(self, state_info: StateInfoOld, name="OMIEOF1"):
         super().__init__(state_info, name)
         self._value = None
 
@@ -55,7 +57,7 @@ class EofStateElement(RetrievableStateElement):
 
     def update_state_element(
         self,
-        state_info: StateInfo,
+        state_info: StateInfoOld,
         retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         retrieval_config: RetrievalConfiguration,

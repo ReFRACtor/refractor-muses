@@ -4,7 +4,6 @@ from refractor.muses import (
     register_replacement_function_in_block,
     RefractorUip,
     RetrievalInfo,
-    CostFunctionCreator,
 )
 from .muses_retrieval_step import MusesRetrievalStep
 from .muses_forward_model_step import MusesForwardModelStep
@@ -68,6 +67,8 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject):
         is called. This can then be used to debug any issues with a
         particular step of the processing.
         """
+        from refractor.muses import CostFunctionCreator
+
         self.cost_function_creator = CostFunctionCreator()
         self.forward_model_handle_set = (
             self.cost_function_creator.forward_model_handle_set

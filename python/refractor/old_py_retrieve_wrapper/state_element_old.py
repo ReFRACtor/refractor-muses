@@ -8,14 +8,13 @@
 
 from __future__ import annotations  # We can remove this when we upgrade to python 3.9
 import refractor.muses.muses_py as mpy  # type: ignore
-from .state_info import (
-    StateElement,
-    StateElementHandle,
-    RetrievableStateElement,
-    StateElementHandleSet,
-    StateInfo,
+from .state_info_old import (
+    StateElementOld,
+    StateElementHandleOld,
+    RetrievableStateElementOld,
+    StateElementHandleSetOld,
+    StateInfoOld,
 )
-from .identifier import StateElementIdentifier
 import numpy as np
 import numbers
 import refractor.framework as rf  # type: ignore
@@ -27,26 +26,31 @@ from loguru import logger
 import typing
 
 if typing.TYPE_CHECKING:
-    from .retrieval_configuration import RetrievalConfiguration
-    from .retrieval_info import RetrievalInfo
-    from .muses_strategy_executor import CurrentStrategyStep
-    from .muses_observation import MeasurementId
+    from refractor.muses import (
+        StateElementIdentifier,
+        RetrievalConfiguration,
+        RetrievalInfo,
+        CurrentStrategyStep,
+        MeasurementId,
+    )
 
 
-class MusesPyStateElement(RetrievableStateElement):
+class MusesPyStateElementOld(RetrievableStateElementOld):
     """This will need a bit of work, right now we don't exactly know what
     this interface should look like. This doesn't match the other species
     we have created, so we'll need to get this worked out."""
 
-    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
+    def __init__(
+        self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
+    ):
         super().__init__(state_info, name)
         self.step = step
 
     def clone_for_other_state(self):
-        """StateInfo has copy_current_initialInitial and copy_current_initial.
+        """StateInfoOld has copy_current_initialInitial and copy_current_initial.
         The simplest thing would be to just copy the current dict. However,
         the muses-py StateElement maintain their state outside of the classes in
-        various dicts in StateInfo (probably left over from IDL). So we have
+        various dicts in StateInfoOld (probably left over from IDL). So we have
         this function. For ReFRACtor StateElement, this should just be a copy of
         StateElement, but for muses-py we return None. The copy_current_initialInitial
         and copy_current_initial then handle these two cases."""
@@ -92,7 +96,7 @@ class MusesPyStateElement(RetrievableStateElement):
         )
         return (matrix, pressureSa)
 
-    def sa_cross_covariance(self, selem2: StateElement):
+    def sa_cross_covariance(self, selem2: StateElementOld):
         smeta = self.state_info.sounding_metadata()
         surfacetype = "OCEAN" if smeta.is_ocean else "LAND"
         matrix, _ = mpy.get_prior_cross_covariance(
@@ -2305,22 +2309,26 @@ class MusesPyStateElement(RetrievableStateElement):
         self.constraintMatrix = constraintMatrix
 
 
-class MusesPyStateElementHandle(StateElementHandle):
+class MusesPyStateElementHandleOld(StateElementHandleOld):
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        self, state_info: StateInfoOld, name: StateElementIdentifier
+    ) -> tuple[
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
+    ]:
         return (
             True,
             (
-                MusesPyStateElement(state_info, name, "initialInitial"),
-                MusesPyStateElement(state_info, name, "initial"),
-                MusesPyStateElement(state_info, name, "current"),
-                MusesPyStateElement(state_info, name, "true"),
+                MusesPyStateElementOld(state_info, name, "initialInitial"),
+                MusesPyStateElementOld(state_info, name, "initial"),
+                MusesPyStateElementOld(state_info, name, "current"),
+                MusesPyStateElementOld(state_info, name, "true"),
             ),
         )
 
 
-class MusesPyOmiStateElement(MusesPyStateElement):
+class MusesPyOmiStateElementOld(MusesPyStateElementOld):
     """MUSES-py groups all the OMI state elements together. While we could pull
     this apart, the create_uip depends on finding the OMI stuff in a "omi" key
     in the state info dict. We have no strong reason to pull this out right now.
@@ -2330,7 +2338,9 @@ class MusesPyOmiStateElement(MusesPyStateElement):
     shouldn't use this class, there is no reason to store this information in
     a separate data structure."""
 
-    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
+    def __init__(
+        self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
+    ):
         super().__init__(state_info, name, step)
         omiInfo = mpy.ObjectView(self.state_info.state_info_obj.current["omi"])
         self.omi_key = mpy.get_omi_key(omiInfo, str(self.name))
@@ -2446,10 +2456,14 @@ class MusesPyOmiStateElement(MusesPyStateElement):
         )
 
 
-class MusesPyOmiStateElementHandle(StateElementHandle):
+class MusesPyOmiStateElementHandleOld(StateElementHandleOld):
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        self, state_info: StateInfoOld, name: StateElementIdentifier
+    ) -> tuple[
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
+    ]:
         if str(name) not in mpy.ordered_species_list() or not str(name).startswith(
             "OMI"
         ):
@@ -2457,15 +2471,15 @@ class MusesPyOmiStateElementHandle(StateElementHandle):
         return (
             True,
             (
-                MusesPyOmiStateElement(state_info, name, "initialInitial"),
-                MusesPyOmiStateElement(state_info, name, "initial"),
-                MusesPyOmiStateElement(state_info, name, "current"),
-                MusesPyOmiStateElement(state_info, name, "true"),
+                MusesPyOmiStateElementOld(state_info, name, "initialInitial"),
+                MusesPyOmiStateElementOld(state_info, name, "initial"),
+                MusesPyOmiStateElementOld(state_info, name, "current"),
+                MusesPyOmiStateElementOld(state_info, name, "true"),
             ),
         )
 
 
-class MusesPyTropomiStateElement(MusesPyStateElement):
+class MusesPyTropomiStateElementOld(MusesPyStateElementOld):
     """MUSES-py groups all the OMI state elements together. While we could pull
     this apart, the create_uip depends on finding the OMI stuff in a "omi" key
     in the state info dict. We have no strong reason to pull this out right now.
@@ -2475,7 +2489,9 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
     shouldn't use this class, there is no reason to store this information in
     a separate data structure."""
 
-    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
+    def __init__(
+        self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
+    ):
         super().__init__(state_info, name, step)
         tropomiInfo = mpy.ObjectView(self.state_info.state_info_obj.current["tropomi"])
         self.tropomi_key = mpy.get_tropomi_key(tropomiInfo, str(self.name))
@@ -2595,10 +2611,14 @@ class MusesPyTropomiStateElement(MusesPyStateElement):
         )
 
 
-class MusesPyTropomiStateElementHandle(StateElementHandle):
+class MusesPyTropomiStateElementHandleOld(StateElementHandleOld):
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        self, state_info: StateInfoOld, name: StateElementIdentifier
+    ) -> tuple[
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
+    ]:
         if str(name) not in mpy.ordered_species_list() or not str(name).startswith(
             "TROPOMI"
         ):
@@ -2606,18 +2626,20 @@ class MusesPyTropomiStateElementHandle(StateElementHandle):
         return (
             True,
             (
-                MusesPyTropomiStateElement(state_info, name, "initialInitial"),
-                MusesPyTropomiStateElement(state_info, name, "initial"),
-                MusesPyTropomiStateElement(state_info, name, "current"),
-                MusesPyTropomiStateElement(state_info, name, "true"),
+                MusesPyTropomiStateElementOld(state_info, name, "initialInitial"),
+                MusesPyTropomiStateElementOld(state_info, name, "initial"),
+                MusesPyTropomiStateElementOld(state_info, name, "current"),
+                MusesPyTropomiStateElementOld(state_info, name, "true"),
             ),
         )
 
 
-class StateElementOnLevels(MusesPyStateElement):
+class StateElementOnLevelsOld(MusesPyStateElementOld):
     """These are things that are reported on our pressure levels."""
 
-    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
+    def __init__(
+        self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
+    ):
         super().__init__(state_info, name, step)
         self._ind = self.state_info.state_element_on_levels.index(str(name))
 
@@ -2651,25 +2673,31 @@ class StateElementOnLevels(MusesPyStateElement):
         return self.state_info.state_info_dict["constraint"]["values"][self._ind, :]
 
 
-class StateElementOnLevelsHandle(StateElementHandle):
+class StateElementOnLevelsHandleOld(StateElementHandleOld):
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        self, state_info: StateInfoOld, name: StateElementIdentifier
+    ) -> tuple[
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
+    ]:
         if str(name) not in state_info.state_element_on_levels:
             return (False, None)
         return (
             True,
             (
-                StateElementOnLevels(state_info, name, "initialInitial"),
-                StateElementOnLevels(state_info, name, "initial"),
-                StateElementOnLevels(state_info, name, "current"),
-                StateElementOnLevels(state_info, name, "true"),
+                StateElementOnLevelsOld(state_info, name, "initialInitial"),
+                StateElementOnLevelsOld(state_info, name, "initial"),
+                StateElementOnLevelsOld(state_info, name, "current"),
+                StateElementOnLevelsOld(state_info, name, "true"),
             ),
         )
 
 
-class StateElementInDict(MusesPyStateElement):
-    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
+class StateElementInDictOld(MusesPyStateElementOld):
+    def __init__(
+        self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
+    ):
         super().__init__(state_info, name, step)
 
     def update_state(
@@ -2727,8 +2755,10 @@ class StateElementInDict(MusesPyStateElement):
         return v
 
 
-class StateElementInTopDict(MusesPyStateElement):
-    def __init__(self, state_info: StateInfo, name: StateElementIdentifier, step: str):
+class StateElementInTopDictOld(MusesPyStateElementOld):
+    def __init__(
+        self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
+    ):
         super().__init__(state_info, name, step)
 
     @property
@@ -2763,48 +2793,56 @@ class StateElementInTopDict(MusesPyStateElement):
         return v
 
 
-class StateElementInDictHandle(StateElementHandle):
+class StateElementInDictHandleOld(StateElementHandleOld):
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        self, state_info: StateInfoOld, name: StateElementIdentifier
+    ) -> tuple[
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
+    ]:
         if str(name) not in state_info.state_info_dict["current"]:
             return (False, None)
         return (
             True,
             (
-                StateElementInDict(state_info, name, "initialInitial"),
-                StateElementInDict(state_info, name, "initial"),
-                StateElementInDict(state_info, name, "current"),
-                StateElementInDict(state_info, name, "true"),
+                StateElementInDictOld(state_info, name, "initialInitial"),
+                StateElementInDictOld(state_info, name, "initial"),
+                StateElementInDictOld(state_info, name, "current"),
+                StateElementInDictOld(state_info, name, "true"),
             ),
         )
 
 
-class StateElementInTopDictHandle(StateElementHandle):
+class StateElementInTopDictHandleOld(StateElementHandleOld):
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        self, state_info: StateInfoOld, name: StateElementIdentifier
+    ) -> tuple[
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
+    ]:
         if str(name) not in state_info.state_info_dict:
             return (False, None)
         return (
             True,
             (
-                StateElementInTopDict(state_info, name, "initialInitial"),
-                StateElementInTopDict(state_info, name, "initial"),
-                StateElementInTopDict(state_info, name, "current"),
-                StateElementInTopDict(state_info, name, "true"),
+                StateElementInTopDictOld(state_info, name, "initialInitial"),
+                StateElementInTopDictOld(state_info, name, "initial"),
+                StateElementInTopDictOld(state_info, name, "current"),
+                StateElementInTopDictOld(state_info, name, "true"),
             ),
         )
 
 
-class StateElementWithFrequency(MusesPyStateElement):
+class StateElementWithFrequencyOld(MusesPyStateElementOld):
     """Some of the species also have frequencies associated with them.
     We return these as Refractor SpectralDomain objects.
 
     TODO I'm pretty sure these are in nm, but this would be worth verifying."""
 
     def __init__(
-        self, state_info: "StateInfo", name: StateElementIdentifier, step: str
+        self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
     ):
         super().__init__(state_info, name, step)
 
@@ -2813,8 +2851,10 @@ class StateElementWithFrequency(MusesPyStateElement):
         raise NotImplementedError
 
 
-class PtgAngState(MusesPyStateElement):
+class PtgAngState(MusesPyStateElementOld):
     def __init__(self, state_info, step):
+        from refractor.muses import StateElementIdentifier
+
         super().__init__(state_info, StateElementIdentifier("PTGANG"), step)
 
     @property
@@ -2842,8 +2882,10 @@ class PtgAngState(MusesPyStateElement):
         )
 
 
-class EmissivityState(StateElementWithFrequency):
+class EmissivityStateOld(StateElementWithFrequencyOld):
     def __init__(self, state_info, step):
+        from refractor.muses import StateElementIdentifier
+
         super().__init__(state_info, StateElementIdentifier("emissivity"), step)
 
     @property
@@ -2880,8 +2922,10 @@ class EmissivityState(StateElementWithFrequency):
         return self.state_info.state_info_dict["emisPars"]["emissivity_prior_source"]
 
 
-class NativeEmissivityState(StateElementWithFrequency):
+class NativeEmissivityStateOld(StateElementWithFrequencyOld):
     def __init__(self, state_info, step):
+        from refractor.muses import StateElementIdentifier
+
         super().__init__(state_info, StateElementIdentifier("native_emissivity"), step)
 
     @property
@@ -2896,8 +2940,10 @@ class NativeEmissivityState(StateElementWithFrequency):
         return self.state_info.state_info_dict[self.step]["native_emissivity"]
 
 
-class CloudState(StateElementWithFrequency):
+class CloudStateOld(StateElementWithFrequencyOld):
     def __init__(self, state_info, step):
+        from refractor.muses import StateElementIdentifier
+
         super().__init__(state_info, StateElementIdentifier("cloudEffExt"), step)
         self.step = step
 
@@ -2939,8 +2985,10 @@ class CloudState(StateElementWithFrequency):
                 self.state_info.state_info_dict[stp]["cloudEffExt"] = v
 
 
-class CalibrationState(StateElementWithFrequency):
+class CalibrationState(StateElementWithFrequencyOld):
     def __init__(self, state_info, step):
+        from refractor.muses import StateElementIdentifier
+
         super().__init__(state_info, StateElementIdentifier("calibrationScale"), step)
         self.step = step
 
@@ -2966,22 +3014,28 @@ class CalibrationState(StateElementWithFrequency):
         return self.state_info.state_info_dict[self.step]["calibrationScale"][r]
 
 
-class SingleSpeciesHandle(StateElementHandle):
+class SingleSpeciesHandleOld(StateElementHandleOld):
     def __init__(
         self,
-        specname: StateElementIdentifier,
+        specname: str,
         state_element_class,
         pass_state=True,
         **kwargs,
     ):
-        self.name = specname
+        from refractor.muses import StateElementIdentifier
+
+        self.name = StateElementIdentifier(specname)
         self.state_element_class = state_element_class
         self.pass_state = pass_state
         self.kwargs = kwargs
 
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[bool, tuple[StateElement, StateElement, StateElement] | None]:
+        self, state_info: StateInfoOld, name: StateElementIdentifier
+    ) -> tuple[
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
+    ]:
         if name != self.name:
             return (False, None)
         if self.pass_state:
@@ -3008,55 +3062,55 @@ class SingleSpeciesHandle(StateElementHandle):
             )
 
 
-StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle(StateElementIdentifier("emissivity"), EmissivityState),
+StateElementHandleSetOld.add_default_handle(
+    SingleSpeciesHandleOld("emissivity", EmissivityStateOld),
     priority_order=2,
 )
-StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle(
-        StateElementIdentifier("native_emissivity"), NativeEmissivityState
-    ),
+StateElementHandleSetOld.add_default_handle(
+    SingleSpeciesHandleOld("native_emissivity", NativeEmissivityStateOld),
     priority_order=2,
 )
-StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle(StateElementIdentifier("cloudEffExt"), CloudState),
+StateElementHandleSetOld.add_default_handle(
+    SingleSpeciesHandleOld("cloudEffExt", CloudStateOld),
     priority_order=2,
 )
-StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle(StateElementIdentifier("calibrationScale"), CalibrationState),
+StateElementHandleSetOld.add_default_handle(
+    SingleSpeciesHandleOld("calibrationScale", CalibrationState),
     priority_order=2,
 )
-StateElementHandleSet.add_default_handle(
-    SingleSpeciesHandle(StateElementIdentifier("PTGANG"), PtgAngState),
+StateElementHandleSetOld.add_default_handle(
+    SingleSpeciesHandleOld("PTGANG", PtgAngState),
     priority_order=2,
 )
 # We have some things that are *both* in the top dictionary and in the state dictionary
 # (example I know of is surfaceType). I *think* we want the value from the top dict, so
 # I've given this a higher priority
-StateElementHandleSet.add_default_handle(
-    StateElementInTopDictHandle(), priority_order=1
+StateElementHandleSetOld.add_default_handle(
+    StateElementInTopDictHandleOld(), priority_order=1
 )
-StateElementHandleSet.add_default_handle(StateElementInDictHandle())
-StateElementHandleSet.add_default_handle(StateElementOnLevelsHandle())
-StateElementHandleSet.add_default_handle(
-    MusesPyOmiStateElementHandle(), priority_order=-1
+StateElementHandleSetOld.add_default_handle(StateElementInDictHandleOld())
+StateElementHandleSetOld.add_default_handle(StateElementOnLevelsHandleOld())
+StateElementHandleSetOld.add_default_handle(
+    MusesPyOmiStateElementHandleOld(), priority_order=-1
 )
-StateElementHandleSet.add_default_handle(
-    MusesPyTropomiStateElementHandle(), priority_order=-1
+StateElementHandleSetOld.add_default_handle(
+    MusesPyTropomiStateElementHandleOld(), priority_order=-1
 )
 # If nothing else handles a state_element, fall back to the muses-py code.
-StateElementHandleSet.add_default_handle(MusesPyStateElementHandle(), priority_order=-2)
+StateElementHandleSetOld.add_default_handle(
+    MusesPyStateElementHandleOld(), priority_order=-2
+)
 
 
 __all__ = [
-    "MusesPyStateElement",
-    "MusesPyOmiStateElement",
-    "StateElementOnLevels",
-    "StateElementOnLevelsHandle",
-    "StateElementInDict",
-    "StateElementInDictHandle",
-    "StateElementWithFrequency",
-    "EmissivityState",
-    "CloudState",
-    "SingleSpeciesHandle",
+    "MusesPyStateElementOld",
+    "MusesPyOmiStateElementOld",
+    "StateElementOnLevelsOld",
+    "StateElementOnLevelsHandleOld",
+    "StateElementInDictOld",
+    "StateElementInDictHandleOld",
+    "StateElementWithFrequencyOld",
+    "EmissivityStateOld",
+    "CloudStateOld",
+    "SingleSpeciesHandleOld",
 ]

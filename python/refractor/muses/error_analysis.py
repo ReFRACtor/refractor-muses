@@ -1,7 +1,6 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .fake_state_info import FakeStateInfo
-from .state_info import RetrievableStateElement
 import copy
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
@@ -58,7 +57,7 @@ class ErrorAnalysis:
             # needed. We should be able to pull that out from the full
             # initial guess update at some point, so we don't need to do
             # the full initial guess
-            if isinstance(selem, RetrievableStateElement):
+            if hasattr(selem, "update_initial_guess"):
                 selem = copy.deepcopy(selem)
                 selem.update_initial_guess(current_strategy_step)
                 selem_list.append(selem)

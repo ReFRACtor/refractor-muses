@@ -1,10 +1,18 @@
+# Don't both typechecking the file. It is long and complicated, and we will replace most
+# of it in a bit. Silence mypy, just so we don't get a lot of noise in the output
+# type: ignore
+
 from __future__ import annotations  # We can remove this when we upgrade to python 3.9
 import abc
-from .priority_handle_set import PriorityHandleSet
-from .observation_handle import mpy_radiance_from_observation_list
-from .tes_file import TesFile
-from .order_species import order_species
-from .identifier import StateElementIdentifier
+from refractor.muses import (
+    PriorityHandleSet,
+    StateElementIdentifier,
+    SoundingMetadata,
+    order_species,
+    mpy_radiance_from_observation_list,
+    TesFile,
+    PropagatedQA,
+)
 import refractor.muses.muses_py as mpy  # type: ignore
 from loguru import logger
 import copy
@@ -16,51 +24,19 @@ from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from .retrieval_info import RetrievalInfo
-    from .retrieval_configuration import RetrievalConfiguration
-    from .observation_handle import ObservationHandleSet
-    from .muses_strategy_executor import CurrentStrategyStep
-    from .muses_observation import MeasurementId, MusesObservation
-    from .identifier import InstrumentIdentifier
-    from .muses_strategy import MusesStrategy
+    from .muses import (
+        RetrievalInfo,
+        RetrievalConfiguration,
+        ObservationHandleSet,
+        CurrentStrategyStep,
+        MeasurementId,
+        MusesObservation,
+        InstrumentIdentifier,
+        MusesStrategy,
+    )
 
 
-class PropagatedQA:
-    """There are a few parameters that get propagated from one step to
-    the next. Not sure exactly what this gets looked for, it look just
-    like flags copied from one step to the next. But pull this
-    together into one place so we can track this.
-
-    TODO Note that we might just make this appear like any other StateElement,
-    but at least for now leave this as separate because that is how
-
-    """
-
-    def __init__(self) -> None:
-        self.propagated_qa: dict[str, int] = {"TATM": 1, "H2O": 1, "O3": 1}
-
-    @property
-    def tatm_qa(self) -> int:
-        return self.propagated_qa["TATM"]
-
-    @property
-    def h2o_qa(self) -> int:
-        return self.propagated_qa["H2O"]
-
-    @property
-    def o3_qa(self) -> int:
-        return self.propagated_qa["O3"]
-
-    def update(
-        self, retrieval_state_element: list[StateElementIdentifier], qa_flag: int
-    ) -> None:
-        """Update the QA flags for items that we retrieved."""
-        for state_element_name in retrieval_state_element:
-            if str(state_element_name) in self.propagated_qa:
-                self.propagated_qa[str(state_element_name)] = qa_flag
-
-
-class StateElement(object, metaclass=abc.ABCMeta):
+class StateElementOld(object, metaclass=abc.ABCMeta):
     """Muses-py tends to call everything in its state "species",
     although in a few places things things are called
     "parameters". These should really be thought of as "things that go
@@ -72,10 +48,10 @@ class StateElement(object, metaclass=abc.ABCMeta):
     out, and try to figure out the right design here.
 
     These get referenced by a "name", usually called a "species_name"
-    in the muses-py code. The StateInfo can be used to look these
+    in the muses-py code. The StateInfoOld can be used to look these
     up."""
 
-    def __init__(self, state_info: StateInfo, name: StateElementIdentifier):
+    def __init__(self, state_info: StateInfoOld, name: StateElementIdentifier):
         self._name = name
         self.state_info = state_info
         self.mapType = "linear"
@@ -101,18 +77,18 @@ class StateElement(object, metaclass=abc.ABCMeta):
         ErrorAnalysis needs."""
         raise NotImplementedError()
 
-    def sa_cross_covariance(self, selem2: StateElement):
+    def sa_cross_covariance(self, selem2: StateElementOld):
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         return None
 
     def clone_for_other_state(self):
-        """StateInfo has copy_current_initialInitial and copy_current_initial.
+        """StateInfoOld has copy_current_initialInitial and copy_current_initial.
         The simplest thing would be to just copy the current dict. However,
-        the muses-py StateElement maintain their state outside of the classes in
-        various dicts in StateInfo (probably left over from IDL). So we have
-        this function. For ReFRACtor StateElement, this should just be a copy of
-        StateElement, but for muses-py we return None. The copy_current_initialInitial
+        the muses-py StateElementOld maintain their state outside of the classes in
+        various dicts in StateInfoOld (probably left over from IDL). So we have
+        this function. For ReFRACtor StateElementOld, this should just be a copy of
+        StateElementOld, but for muses-py we return None. The copy_current_initialInitial
         and copy_current_initial then handle these two cases."""
         # Default is to just copy all the data, other than the reference
         # to state_info we have. Derived classes should override this to make
@@ -152,7 +128,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
 
-class RetrievableStateElement(StateElement):
+class RetrievableStateElementOld(StateElementOld):
     """This has additional functionality to have a StateElement be retrievable,
     so things like having a priori and initial guess needed in a retrieval. Most
     StateElements are retrievable, but not all - so we separate out the
@@ -215,7 +191,7 @@ class RetrievableStateElement(StateElement):
         raise NotImplementedError
 
 
-class StateElementHandle(object, metaclass=abc.ABCMeta):
+class StateElementHandleOld(object, metaclass=abc.ABCMeta):
     """Return 3 StateElement objects, for initialInitial, initial and
     current state. For many classes, this will just be a deepcopy of the same class,
     but at least for now the older muses-py code stores these in different places.
@@ -223,26 +199,28 @@ class StateElementHandle(object, metaclass=abc.ABCMeta):
     stuff, it is sort of odd to create these 3 things at once. But we'll match
     what muses-py does for now.
 
-    Note StateElementHandle can assume that they are called for the same target, until
+    Note StateElementHandleOld can assume that they are called for the same target, until
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next."""
 
-    def notify_update_target(self, state_info: StateInfo):
+    def notify_update_target(self, state_info: StateInfoOld):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # Default is to do nothing
         pass
 
     @abc.abstractmethod
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
+        self, state_info: StateInfoOld, name: StateElementIdentifier
     ) -> tuple[
-        bool, tuple[StateElement, StateElement, StateElement, StateElement] | None
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
     ]:
         raise NotImplementedError
 
 
-class StateElementHandleSet(PriorityHandleSet):
+class StateElementHandleSetOld(PriorityHandleSet):
     """This maps a species name to the SpeciesOrParametersState object that handles
     it.
 
@@ -252,153 +230,56 @@ class StateElementHandleSet(PriorityHandleSet):
     one call to the next."""
 
     def state_element_object(
-        self, state_info: StateInfo, name: StateElementIdentifier
-    ) -> tuple[StateElement, StateElement, StateElement, StateElement]:
+        self, state_info: StateInfoOld, name: StateElementIdentifier
+    ) -> tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]:
         return self.handle(state_info, name)
 
-    def notify_update_target(self, state_info: StateInfo):
+    def notify_update_target(self, state_info: StateInfoOld):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
                 h.notify_update_target(state_info)
 
     def handle_h(
-        self, h: StateElementHandle, state_info: StateInfo, name: StateElementIdentifier
+        self,
+        h: StateElementHandleOld,
+        state_info: StateInfoOld,
+        name: StateElementIdentifier,
     ) -> tuple[
-        bool, tuple[StateElement, StateElement, StateElement, StateElement] | None
+        bool,
+        tuple[StateElementOld, StateElementOld, StateElementOld, StateElementOld]
+        | None,
     ]:
         return h.state_element_object(state_info, name)
 
 
-class SoundingMetadata:
-    """Not really clear that this belongs in the StateInfo, but the muses-py seems
-    to at least allow the possibility of this changing from one step to the next.
-    I'm not sure if that actually can happen, but there isn't another obvious place
-    to put this metadata so we'll go ahead and keep this here."""
-
-    def __init__(self, state_info, step="current"):
-        if step not in ("current", "initial", "initialInitial"):
-            raise RuntimeError(
-                "Don't support anything other than the current, initial, or initialInitial step"
-            )
-        self._latitude = rf.DoubleWithUnit(
-            state_info.state_info_dict[step]["latitude"], "deg"
-        )
-        self._longitude = rf.DoubleWithUnit(
-            state_info.state_info_dict[step]["longitude"], "deg"
-        )
-        self._surface_altitude = rf.DoubleWithUnit(
-            state_info.state_info_dict[step]["tsa"]["surfaceAltitudeKm"], "km"
-        )
-        self._day_flag = bool(state_info.state_info_dict[step]["tsa"]["dayFlag"])
-        self._height = rf.ArrayWithUnit_double_1(
-            state_info.state_info_dict[step]["heightKm"], "km"
-        )
-        self._surface_type = state_info.state_info_dict[step]["surfaceType"].upper()
-        self._tai_time = state_info._tai_time
-        self._sounding_id = state_info._sounding_id
-        self._utc_time = state_info._utc_time
-
-    @property
-    def latitude(self) -> rf.DoubleWithUnit:
-        return self._latitude
-
-    @property
-    def longitude(self) -> rf.DoubleWithUnit:
-        return self._longitude
-
-    @property
-    def surface_altitude(self) -> rf.DoubleWithUnit:
-        return self._surface_altitude
-
-    @property
-    def height(self) -> rf.DoubleWithUnit:
-        return self._height
-
-    @property
-    def tai_time(self) -> float:
-        return self._tai_time
-
-    @property
-    def utc_time(self) -> str:
-        return self._utc_time
-
-    @property
-    def local_hour(self):
-        timestruct = mpy.utc(self.utc_time)
-        hour = timestruct["hour"] + self.longitude.convert("deg").value / 180.0 * 12
-        if hour < 0:
-            hour += 24
-        if hour > 24:
-            hour -= 24
-        return hour
-
-    @property
-    def wrong_tai_time(self):
-        """The muses-py function mpy.tai uses the wrong number of leapseconds, it
-        doesn't include anything since 2006. To match old data, return the incorrect
-        value so we can match the file. This should get fixed actually."""
-        timestruct = mpy.utc(self.utc_time)
-        if timestruct["yearfloat"] >= 2017.0:
-            extraleapscond = 4
-        elif timestruct["yearfloat"] >= 2015.5:
-            extraleapscond = 3
-        elif timestruct["yearfloat"] >= 2012.5:
-            extraleapscond = 2
-        elif timestruct["yearfloat"] >= 2009.0:
-            extraleapscond = 1
-        else:
-            extraleapscond = 0
-        return self._tai_time - extraleapscond
-
-    @property
-    def sounding_id(self):
-        return self._sounding_id
-
-    @property
-    def surface_type(self) -> str:
-        return self._surface_type
-
-    @property
-    def is_day(self) -> bool:
-        return self._day_flag
-
-    @property
-    def is_ocean(self) -> bool:
-        return self.surface_type == "OCEAN"
-
-    @property
-    def is_land(self) -> bool:
-        return self.surface_type == "LAND"
-
-
-class StateInfo:
+class StateInfoOld:
     """State Info during a retrieval - so what gets passed between RetrievalStrategyStep.
 
-    Note that StateInfo can assume that they are called for the same target, until
+    Note that StateInfoOld can assume that they are called for the same target, until
     notify_update_target is called. So if it makes sense, these objects can do internal
     caching for things that don't change when the target being retrieved is the same from
     one call to the next.
 
-    This is also true for all the StateElementHandle we have.
+    This is also true for all the StateElementHandleOld we have.
 
     """
 
     def __init__(self) -> None:
         self.state_element_handle_set = copy.deepcopy(
-            StateElementHandleSet.default_handle_set()
+            StateElementHandleSetOld.default_handle_set()
         )
         self.state_info_dict: dict[str, Any] = {}
-        self.initialInitial: dict[str, StateElement] = {}
-        self.initial: dict[str, StateElement] = {}
-        self.current: dict[str, StateElement] = {}
-        self.true: dict[str, StateElement] = {}
+        self.initialInitial: dict[str, StateElementOld] = {}
+        self.initial: dict[str, StateElementOld] = {}
+        self.current: dict[str, StateElementOld] = {}
+        self.true: dict[str, StateElementOld] = {}
 
         self.reset_state_value: dict[StateElementIdentifier, np.ndarray] = {}
         self.propagated_qa = PropagatedQA()
         self.brightness_temperature_data: dict[int, dict[str, float | None]] = {}
 
-        # Odds and ends that are currently in the StateInfo. Doesn't exactly have
+        # Odds and ends that are currently in the StateInfoOld. Doesn't exactly have
         # to do with the state, but we don't have another place for these.
         # Perhaps SoundingMetadata can migrate into its own thing, and these can
         # get moved over to there.
@@ -426,7 +307,7 @@ class StateInfo:
         self.propagated_qa = PropagatedQA()
         self.brightness_temperature_data = {}
 
-        # Odds and ends that are currently in the StateInfo. Doesn't exactly have
+        # Odds and ends that are currently in the StateInfoOld. Doesn't exactly have
         # to do with the state, but we don't have another place for these.
         # Perhaps SoundingMetadata can migrate into its own thing, and these can
         # get moved over to there.
@@ -1059,7 +940,7 @@ class StateInfo:
         )
         # The simplest thing would be to just copy the current dict. However,
         # the muses-py StateElement maintain their state outside of the classes in
-        # various dicts in StateInfo (probably left over from IDL). So we have
+        # various dicts in StateInfoOld (probably left over from IDL). So we have
         # this function. For ReFRACtor StateElement, this should just be a copy of
         # StateElement, but for muses-py we return None
 
@@ -1072,7 +953,7 @@ class StateInfo:
         self.state_info_dict["initial"] = copy.deepcopy(self.state_info_dict["current"])
         # The simplest thing would be to just copy the current dict. However,
         # the muses-py StateElement maintain their state outside of the classes in
-        # various dicts in StateInfo (probably left over from IDL). So we have
+        # various dicts in StateInfoOld (probably left over from IDL). So we have
         # this function. For ReFRACtor StateElement, this should just be a copy of
         # StateElement, but for muses-py we return None
 
@@ -1137,7 +1018,7 @@ class StateInfo:
         """omi_params is used in creating the uip. This is a mix of parameters from the o_omi object
         returned by mpy.read_omi and various state elements. Put this together, so we have this
         for the UIP. Note we are trying to move away from the UIP, it is just a shuffling around
-        of data found in the StateInfo. But for now go ahead and support this."""
+        of data found in the StateInfoOld. But for now go ahead and support this."""
         return {
             "surface_albedo_uv1": self.state_element(
                 StateElementIdentifier("OMISURFACEALBEDOUV1")
@@ -1267,7 +1148,7 @@ class StateInfo:
         retrieval_info.retrieval_dict["doUpdateFM"] = do_update_fm
 
     def state_element_list(self, step="current"):
-        """Return the list of state elements that we already have in StateInfo.
+        """Return the list of state elements that we already have in StateInfoOld.
         Note that state_element creates this on first use, the list returned is
         those state elements that have already been created."""
         if step == "current":
@@ -1309,11 +1190,9 @@ class StateInfo:
 
 
 __all__ = [
-    "StateElement",
-    "StateElementHandle",
-    "RetrievableStateElement",
-    "StateElementHandleSet",
-    "PropagatedQA",
-    "SoundingMetadata",
-    "StateInfo",
+    "StateElementOld",
+    "StateElementHandleOld",
+    "RetrievableStateElementOld",
+    "StateElementHandleSetOld",
+    "StateInfoOld",
 ]

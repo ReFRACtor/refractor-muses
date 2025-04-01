@@ -11,16 +11,18 @@ from refractor.muses import (
     MusesObservation,
     MusesRunDir,
     RefractorUip,
-    RetrievableStateElement,
     RetrievalInfo,
     RetrievalConfiguration,
     RetrievalStrategy,
     RetrievalStrategyCaptureObserver,
-    SingleSpeciesHandle,
-    StateInfo,
     InstrumentIdentifier,
     StateElementIdentifier,
     modify_strategy_table,
+)
+from refractor.old_py_retrieve_wrapper import (
+    RetrievableStateElementOld,
+    StateInfoOld,
+    SingleSpeciesHandleOld,
 )
 from typing import Callable
 import subprocess
@@ -28,7 +30,7 @@ from loguru import logger
 import pytest
 
 
-class O3ScaledStateElement(RetrievableStateElement):
+class O3ScaledStateElement(RetrievableStateElementOld):
     """Note that we may rework this. Not sure how much we need specific
     StateElement vs. handling a class of them. But for now, we have
     the O3 scaled as a separate StateElement as we work out what exactly we
@@ -39,7 +41,9 @@ class O3ScaledStateElement(RetrievableStateElement):
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("O3_SCALED", O3SCaledStateElement, pass_state=False))
     """
 
-    def __init__(self, state_info: StateInfo, name=StateElementIdentifier("O3_SCALED")):
+    def __init__(
+        self, state_info: StateInfoOld, name=StateElementIdentifier("O3_SCALED")
+    ):
         super().__init__(state_info, name)
         self._value = np.array(
             [
@@ -244,8 +248,8 @@ def test_tropomi_vrm_scaled(
         )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.state_element_handle_set.add_handle(
-            SingleSpeciesHandle(
-                StateElementIdentifier("O3_SCALED"),
+            SingleSpeciesHandleOld(
+                "O3_SCALED",
                 O3ScaledStateElement,
                 pass_state=False,
                 name=StateElementIdentifier("O3_SCALED"),

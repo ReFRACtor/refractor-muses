@@ -7,18 +7,20 @@ from refractor.muses import (
     MusesObservation,
     MusesRunDir,
     RefractorUip,
-    RetrievableStateElement,
     RetrievalConfiguration,
     RetrievalInfo,
     RetrievalStrategy,
     SimulatedObservation,
     SimulatedObservationHandle,
-    SingleSpeciesHandle,
-    StateInfo,
     InstrumentIdentifier,
     StateElementIdentifier,
     ProcessLocation,
     modify_strategy_table,
+)
+from refractor.old_py_retrieve_wrapper import (
+    RetrievableStateElementOld,
+    StateInfoOld,
+    SingleSpeciesHandleOld,
 )
 from refractor.tropomi import TropomiSwirForwardModelHandle, TropomiSwirFmObjectCreator
 import refractor.framework as rf
@@ -378,7 +380,7 @@ def test_sim_albedo_0_9_retrieval(
         logger.remove(lognum)
 
 
-class ScaledStateElement(RetrievableStateElement):
+class ScaledStateElement(RetrievableStateElementOld):
     """Note that we may rework this. Not sure how much we need specific
     StateElement vs. handling a class of them.
     We can use the SingleSpeciesHandle to add this in, e.g.,
@@ -386,7 +388,7 @@ class ScaledStateElement(RetrievableStateElement):
     rs.state_element_handle_set.add_handle(SingleSpeciesHandle("H2O_SCALED", ScaledStateElement, pass_state=False, name="H2O_SCALED"))
     """
 
-    def __init__(self, state_info: StateInfo, name=None):
+    def __init__(self, state_info: StateInfoOld, name=None):
         super().__init__(state_info, name)
         self._value = np.array(
             [
@@ -591,24 +593,24 @@ def test_scaled_sim_albedo_0_9_retrieval(
         )
         rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
         rs.state_element_handle_set.add_handle(
-            SingleSpeciesHandle(
-                StateElementIdentifier("H2O_SCALED"),
+            SingleSpeciesHandleOld(
+                "H2O_SCALED",
                 ScaledStateElement,
                 pass_state=False,
                 name=StateElementIdentifier("H2O_SCALED"),
             )
         )
         rs.state_element_handle_set.add_handle(
-            SingleSpeciesHandle(
-                StateElementIdentifier("CH4_SCALED"),
+            SingleSpeciesHandleOld(
+                "CH4_SCALED",
                 ScaledStateElement,
                 pass_state=False,
                 name=StateElementIdentifier("CH4_SCALED"),
             )
         )
         rs.state_element_handle_set.add_handle(
-            SingleSpeciesHandle(
-                StateElementIdentifier("HDO_SCALED"),
+            SingleSpeciesHandleOld(
+                "HDO_SCALED",
                 ScaledStateElement,
                 pass_state=False,
                 name=StateElementIdentifier("HDO_SCALED"),

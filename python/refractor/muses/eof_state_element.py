@@ -1,5 +1,6 @@
 from __future__ import annotations
-from .state_info import RetrievableStateElement, StateInfo
+
+# from refractor.old_py_retrieve_wrapper.state_info_old import RetrievableStateElementOld
 from .identifier import StateElementIdentifier
 import numpy as np
 from typing import Tuple
@@ -10,9 +11,11 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_observation import MeasurementId
     from .muses_strategy_executor import CurrentStrategyStep
+    from refractor.old_py_retrieve_wrapper import StateInfoOld  # type: ignore
 
 
-class OmiEofStateElement(RetrievableStateElement):
+# class OmiEofStateElement(RetrievableStateElementOld):
+class OmiEofStateElement:
     """Note that we may rework this. Not sure how much we need
     specific StateElement vs. handling a class of them. But for now,
     we have the EOF as a separate StateElement as we work out what
@@ -27,11 +30,11 @@ class OmiEofStateElement(RetrievableStateElement):
 
     def __init__(
         self,
-        state_info: StateInfo,
+        state_info: StateInfoOld,
         name: StateElementIdentifier = StateElementIdentifier("OMIEOFUV1"),
         number_eof: int = 3,
     ) -> None:
-        super().__init__(state_info, name)
+        super().__init__(state_info, name)  # type: ignore
         self._value = np.zeros(number_eof)
         self._constraint = self._value.copy()
         self.number_eof = number_eof
@@ -86,7 +89,7 @@ class OmiEofStateElement(RetrievableStateElement):
         do_update_fm: np.ndarray,
     ) -> None:
         self._value = results_list[
-            np.array(retrieval_info.species_list) == str(self._name)
+            np.array(retrieval_info.species_list) == str(self._name)  # type: ignore
         ]
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:

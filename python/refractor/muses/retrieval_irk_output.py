@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
     from .muses_forward_model import ResultIrk
-    from .state_info import PropagatedQA
+    from .current_state import PropagatedQA
     from .retrieval_info import RetrievalInfo
 
 
