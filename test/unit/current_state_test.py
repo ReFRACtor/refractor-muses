@@ -257,9 +257,8 @@ def test_update_cloudfraction(omi_step_0):
     npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
 
     # Go to the next step, and check that the state element is updated
-    # Should clean this up
-    cstate._state_info.next_state_to_current()
     rs._strategy_executor.next_step()
+    rs._strategy_executor.notify_new_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
@@ -434,9 +433,8 @@ def test_noupdate_cloudfraction(omi_step_0):
     npt.assert_allclose(selement.constraintMatrix, np.array([[4.0]]))
 
     # Go to the next step, and check that the state element is updated
-    # Should clean this up
-    cstate._state_info.next_state_to_current()
     rs._strategy_executor.next_step()
+    rs._strategy_executor.notify_new_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
@@ -597,9 +595,8 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
     npt.assert_allclose(selement.constraintMatrix, np.diag([100, 100, 100]))
 
     # Go to the next step, and check that the state element is updated
-    # Should clean this up
-    cstate._state_info.next_state_to_current()
     rs._strategy_executor.next_step()
+    rs._strategy_executor.notify_new_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update
@@ -723,9 +720,8 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
     npt.assert_allclose(selement.constraintMatrix, np.diag([100, 100, 100]))
 
     # Go to the next step, and check that the state element is updated
-    # Should clean this up
-    cstate._state_info.next_state_to_current()
     rs._strategy_executor.next_step()
+    rs._strategy_executor.notify_new_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 1, after an update

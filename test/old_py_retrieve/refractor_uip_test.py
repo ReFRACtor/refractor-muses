@@ -1,6 +1,6 @@
 from refractor.muses import (
     RefractorUip,
-    CurrentStateStateInfo,
+    CurrentStateStateInfoOld,
     FakeStateInfo,
     MusesOmiObservation,
     MeasurementIdFile,
@@ -109,7 +109,7 @@ def test_refractor_joint_tropomi_create_uip(
         MusesCrisObservation.create_from_id(mid, None, None, None, None),
         MusesTropomiObservation.create_from_id(mid, None, None, None, None),
     ]
-    cstate = CurrentStateStateInfo(sinfo, None, "stepdir")
+    cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
     rf_uip = RefractorUip.create_uip(
         # i_stateInfo,
@@ -175,7 +175,7 @@ def test_refractor_tropomi_create_uip(
     obs_list = [
         MusesTropomiObservation.create_from_id(mid, None, None, None, None),
     ]
-    cstate = CurrentStateStateInfo(sinfo, None, "stepdir")
+    cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
     rf_uip = RefractorUip.create_uip(
         # i_stateInfo,
@@ -240,7 +240,7 @@ def test_refractor_joint_omi_create_uip(
         MusesAirsObservation.create_from_id(mid, None, None, None, None),
         MusesOmiObservation.create_from_id(mid, None, None, None, None),
     ]
-    cstate = CurrentStateStateInfo(sinfo, None, "stepdir")
+    cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
     rf_uip = RefractorUip.create_uip(
         # i_stateInfo,
@@ -304,7 +304,7 @@ def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2, os
     obs_list = [
         MusesOmiObservation.create_from_id(mid, None, None, None, None),
     ]
-    cstate = CurrentStateStateInfo(sinfo, None, "stepdir")
+    cstate = CurrentStateStateInfoOld(sinfo, None, "stepdir")
     fstate_info = FakeStateInfo(cstate, obs_list=obs_list)
     rf_uip = RefractorUip.create_uip(
         # i_stateInfo,

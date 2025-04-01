@@ -127,7 +127,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             newv[:] = cloudIG[row]
             cstate.update_full_state_element(
                 StateElementIdentifier("cloudEffExt"),
-                initial=newv,
+                step_initial=newv,
                 current=newv,
                 apriori=newv,
             )
@@ -138,7 +138,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             newv = newv + btdata[step]["obs"] - btdata[step]["fit"]
             cstate.update_full_state_element(
                 StateElementIdentifier("TSUR"),
-                initial=newv,
+                step_initial=newv,
                 current=newv,
                 apriori=newv,
             )

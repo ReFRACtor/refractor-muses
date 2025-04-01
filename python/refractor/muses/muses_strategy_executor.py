@@ -5,7 +5,8 @@ from .refractor_capture_directory import muses_py_call
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .error_analysis import ErrorAnalysis
 from .order_species import order_species
-from .current_state import CurrentStateStateInfo, CurrentState
+from .current_state import CurrentState
+from .current_state_state_info import CurrentStateStateInfo
 from .qa_data_handle import QaDataHandleSet
 from .muses_strategy import (
     MusesStrategy,
@@ -136,7 +137,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         **kwargs: Any,
     ) -> None:
         self.rs = rs
-        self.current_state = CurrentStateStateInfo(None)
+        self.current_state = CurrentStateStateInfo()
         self.vlidort_cli = vlidort_cli
         self.kwargs = kwargs
         if observation_handle_set is None:
@@ -466,18 +467,22 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self.strategy.restart()
         self.current_state.restart(self.current_strategy_step, self.retrieval_config)
 
+    def notify_new_step(self, skip_initial_guess_update : bool = False):
+        """Called to notify other object that we are on a new retrieval step."""
+        self.current_state.notify_new_step(
+            self.current_strategy_step,
+            self.error_analysis,
+            self.retrieval_config,
+            skip_initial_guess_update=skip_initial_guess_update,
+        )
+        
     def set_step(self, step_number: int) -> None:
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
         where we jump to a given step number."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             self._restart_and_error_analysis()
             while self.current_strategy_step.strategy_step.step_number < step_number:
-                self.current_state.notify_new_step(
-                    self.current_strategy_step,
-                    self.error_analysis,
-                    self.retrieval_config,
-                    skip_initial_guess_update=True,
-                )
+                self.notify_new_step(skip_initial_guess_update=True)
                 self.next_step()
 
     def _restart_and_error_analysis(self) -> None:
@@ -585,12 +590,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # this in place until we understand this
         self.restart()
         while not self.is_done():
-            self.current_state.notify_new_step(
-                self.current_strategy_step,
-                self.error_analysis,
-                self.retrieval_config,
-                skip_initial_guess_update=True,
-            )
+            self.notify_new_step(skip_initial_guess_update=True)
             self.next_step()
         # Not sure that this is needed or used anywhere, but for now
         # go ahead and this this until we know for sure it doesn't
@@ -605,9 +605,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             ):
                 return
             self.notify_update(ProcessLocation("starting run_step"))
-            self.current_state.notify_new_step(
-                self.current_strategy_step, self.error_analysis, self.retrieval_config
-            )
+            self.notify_new_step()
             self.run_step()
             self.next_step()
         self.notify_update("retrieval done")
@@ -617,11 +615,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         at that step to diagnose a problem."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             while not self.is_done():
-                self.current_state.notify_new_step(
-                    self.current_strategy_step,
-                    self.error_analysis,
-                    self.retrieval_config,
-                )
+                self.notify_new_step()
                 self.notify_update(ProcessLocation("starting run_step"))
                 self.run_step()
                 if (
@@ -669,7 +663,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         #
         # with gzip.GzipFile(save_pickle_file, "wb") as fh:
         #    fh.write(jsonpickle.encode(self.state_info).encode('utf-8'))
-        pickle.dump(self.current_state._state_info, open(save_pickle_file, "wb"))
+        pickle.dump(
+            self.current_state._current_state_old._state_info,
+            open(save_pickle_file, "wb"),
+        )
 
     def load_state_info(
         self,
@@ -692,11 +689,18 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # self._state_info = jsonpickle.decode(
         #    gzip.open(state_info_pickle_file, "rb").read())
         hset = self.state_element_handle_set
-        self.current_state._state_info = pickle.load(open(state_info_pickle_file, "rb"))
-        self.current_state._state_info.state_element_handle_set = hset
-        if self.current_state._state_info.retrieval_config is not None:
-            self.current_state._state_info.retrieval_config.base_dir = self.run_dir
-            self.current_state._state_info.retrieval_config.osp_dir = (
+        self.current_state._current_state_old._state_info = pickle.load(
+            open(state_info_pickle_file, "rb")
+        )
+        self.current_state._current_state_old._state_info.state_element_handle_set = (
+            hset
+        )
+        if (
+            self.current_state._current_state_old._state_info.retrieval_config
+            is not None
+        ):
+            self.current_state._current_state_old._state_info.retrieval_config.base_dir = self.run_dir
+            self.current_state._current_state_old._state_info.retrieval_config.osp_dir = (
                 Path(self.osp_dir) if self.osp_dir is not None else None
             )
         self.set_step(step_number)

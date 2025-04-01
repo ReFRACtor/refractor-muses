@@ -71,11 +71,11 @@ class FakeStateInfo:
             varr2[self.species.index(s), :] = current_state.full_state_apriori_value(
                 StateElementIdentifier(s)
             )
-            varr3[self.species.index(s), :] = current_state.full_state_initial_value(
-                StateElementIdentifier(s)
+            varr3[self.species.index(s), :] = (
+                current_state.full_state_step_initial_value(StateElementIdentifier(s))
             )
             varr4[self.species.index(s), :] = (
-                current_state.full_state_initial_initial_value(
+                current_state.full_state_retrieval_initial_value(
                     StateElementIdentifier(s)
                 )
             )
@@ -91,11 +91,11 @@ class FakeStateInfo:
         self._constraint["pressure"] = current_state.full_state_apriori_value(
             StateElementIdentifier("pressure")
         )
-        self._initial["pressure"] = current_state.full_state_initial_value(
+        self._initial["pressure"] = current_state.full_state_step_initial_value(
             StateElementIdentifier("pressure")
         )
         self._initial_initial["pressure"] = (
-            current_state.full_state_initial_initial_value(
+            current_state.full_state_retrieval_initial_value(
                 StateElementIdentifier("pressure")
             )
         )

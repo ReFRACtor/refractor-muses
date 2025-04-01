@@ -168,7 +168,7 @@ class RetrievalL2Output(RetrievalOutput):
                     "code has not been tested for species_name CH4 and dataN2O is None"
                 )
                 data2 = copy.deepcopy(dataInfo)
-                value = self.current_state.full_state_initial_value(
+                value = self.current_state.full_state_step_initial_value(
                     StateElementIdentifier("N2O")
                 )
                 data2["SPECIES"][data2["SPECIES"] > 0] = copy.deepcopy(value)
@@ -979,7 +979,7 @@ class RetrievalL2Output(RetrievalOutput):
         if self.state_sd_wavelength("emissivity").shape[0] > 0:
             species_data.EMISSIVITY_CONSTRAINT = self.state_apriori_vec("emissivity")
             species_data.EMISSIVITY_INITIAL = (
-                self.current_state.full_state_initial_initial_value(
+                self.current_state.full_state_retrieval_initial_value(
                     StateElementIdentifier("emissivity")
                 )
             )
@@ -993,7 +993,7 @@ class RetrievalL2Output(RetrievalOutput):
             # if StateElementIdentifier("native_emissivity") in self.current_state.full_state_element_id:
             if True:
                 species_data.NATIVE_HSR_EMISSIVITY_INITIAL = (
-                    self.current_state.full_state_initial_initial_value(
+                    self.current_state.full_state_retrieval_initial_value(
                         StateElementIdentifier("native_emissivity")
                     )
                 )
@@ -1056,12 +1056,12 @@ class RetrievalL2Output(RetrievalOutput):
                 # N2O not retrieved... use values from initial guess
                 logger.warning("code has not been tested for N2O not retrieved.")
                 species_data.N2O_SPECIES[pslice] = (
-                    self.current_state.full_state_initial_value(
+                    self.current_state.full_state_step_initial_value(
                         StateElementIdentifier("N2O")
                     )
                 )
                 species_data.N2O_CONSTRAINTVECTOR[pslice] = (
-                    self.current_state.full_state_initial_value(
+                    self.current_state.full_state_step_initial_value(
                         StateElementIdentifier("N2O")
                     )
                 )

@@ -311,8 +311,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         state_element_id: StateElementIdentifier,
         current: np.ndarray | None = None,
         apriori: np.ndarray | None = None,
-        initial: np.ndarray | None = None,
-        initial_initial: np.ndarray | None = None,
+        step_initial: np.ndarray | None = None,
+        retrieval_initial: np.ndarray | None = None,
         true: np.ndarray | None = None,
     ) -> None:
         """We have a few places where we want to update a state element other than
@@ -575,7 +575,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_initial_value(
+    def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the initial value of the given state element identification.
@@ -595,7 +595,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_initial_initial_value(
+    def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the initialInitial value of the given state element identification.
@@ -957,7 +957,7 @@ class CurrentStateUip(CurrentState):
         """
         raise NotImplementedError()
 
-    def full_state_initial_value(
+    def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the initial value of the given state element identification.
@@ -975,7 +975,7 @@ class CurrentStateUip(CurrentState):
         """
         raise NotImplementedError()
 
-    def full_state_initial_initial_value(
+    def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the initialInitial value of the given state element identification.
@@ -1102,7 +1102,7 @@ class CurrentStateDict(CurrentState):
             ]
         )
 
-    def full_state_initial_value(
+    def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the initial value of the given state element identification.
@@ -1127,7 +1127,7 @@ class CurrentStateDict(CurrentState):
         """
         raise NotImplementedError()
 
-    def full_state_initial_initial_value(
+    def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the initialInitial value of the given state element identification.
@@ -1146,10 +1146,14 @@ class CurrentStateDict(CurrentState):
         raise NotImplementedError()
 
 
-class CurrentStateStateInfo(CurrentState):
-    """Implementation of CurrentState that uses our StateInfo. This is
+class CurrentStateStateInfoOld(CurrentState):
+    """Implementation of CurrentState that uses our StateInfoOld. This is
     the way the actual full retrieval works.
 
+    This class uses the old py-retrieve code we wrapped, and was used for
+    initial development, and testing our implementation of CurrentStateStateInfo.
+    Unless you are testing old code, you don't actually want to use this class,
+    but instead use CurrentStateStateInfo.
     """
 
     def __init__(
@@ -1301,15 +1305,15 @@ class CurrentStateStateInfo(CurrentState):
         state_element_id: StateElementIdentifier,
         current: np.ndarray | None = None,
         apriori: np.ndarray | None = None,
-        initial: np.ndarray | None = None,
-        initial_initial: np.ndarray | None = None,
+        step_initial: np.ndarray | None = None,
+        retrieval_initial: np.ndarray | None = None,
         true: np.ndarray | None = None,
     ) -> None:
         """We have a few places where we want to update a state element other than
         update_initial_guess. This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
         selem = self._state_info.state_element(state_element_id)
-        selem.update_state(current, apriori, initial, initial_initial, true)
+        selem.update_state(current, apriori, step_initial, retrieval_initial, true)
 
     @property
     def retrieval_info(self) -> RetrievalInfo:
@@ -1426,7 +1430,7 @@ class CurrentStateStateInfo(CurrentState):
         selem = self._state_info.state_element(state_element_id)
         return copy(selem.value)
 
-    def full_state_initial_value(
+    def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the initial value of the given state element identification.
@@ -1458,7 +1462,7 @@ class CurrentStateStateInfo(CurrentState):
         selem = self._state_info.state_element(state_element_id, step="true")
         return copy(selem.value)
 
-    def full_state_initial_initial_value(
+    def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the initialInitial value of the given state element identification.
@@ -1641,7 +1645,7 @@ __all__ = [
     "CurrentState",
     "CurrentStateUip",
     "CurrentStateDict",
-    "CurrentStateStateInfo",
+    "CurrentStateStateInfoOld",
     "SoundingMetadata",
     "PropagatedQA",
 ]
