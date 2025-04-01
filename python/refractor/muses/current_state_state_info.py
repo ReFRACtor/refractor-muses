@@ -50,12 +50,9 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_state_element_override: None | list[StateElementIdentifier],
     ) -> CurrentState:
         res = copy(self)
+        res._current_state_old = res._current_state_old.current_state_override(do_systematic, retrieval_state_element_override)
         res.retrieval_state_element_override = retrieval_state_element_override
         res.do_systematic = do_systematic
-        res._current_state_old.retrieval_state_element_override = (
-            retrieval_state_element_override
-        )
-        res._current_state_old.do_systematic = do_systematic
         res.clear_cache()
         return res
 
