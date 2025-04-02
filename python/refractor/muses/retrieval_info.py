@@ -277,7 +277,7 @@ class RetrievalInfo:
         current_state: CurrentState,
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
-        selem = current_state.full_state_element(StateElementIdentifier(species_name))
+        selem = current_state.full_state_element_old(StateElementIdentifier(species_name))
         selem.update_initial_guess(current_strategy_step)
 
         row = o_retrievalInfo.n_totalParameters

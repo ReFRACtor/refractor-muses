@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
-from typing import Any, Tuple, Self
+from typing import Any, Self
 import typing
 from .identifier import InstrumentIdentifier, FilterIdentifier
 
@@ -181,11 +181,11 @@ class MusesSpectralWindow(rf.SpectralWindow):
     def desc(self) -> str:
         return "MusesSpectralWindow"
 
-    def filter_name_list(self) -> list[Tuple[FilterIdentifier, float]]:
+    def filter_name_list(self) -> list[tuple[FilterIdentifier, float]]:
         """This returns the list of the filter names in this MusesSpectralWindow, and the
         start wavenumber. This is needed because muses-py assumes the filter names are sorted
         by the start wavenumber."""
-        res: list[Tuple[FilterIdentifier, float]] = []
+        res: list[tuple[FilterIdentifier, float]] = []
         if self.filter_name is None:
             return res
         d = self._spec_win.range_array.value
@@ -204,7 +204,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
                 return self._spec_win_with_bad_sample.grid_indexes(grid, spec_index)
         return self._spec_win.grid_indexes(grid, spec_index)
 
-    def muses_monochromatic(self) -> Tuple[np.ndarray, np.ndarray, list[int]]:
+    def muses_monochromatic(self) -> tuple[np.ndarray, np.ndarray, list[int]]:
         """In certain places, muses-py uses a "monochromatic" list of
         points, along with a wavelength filter. This seems to serve
         much the same function as our high resolution grid in

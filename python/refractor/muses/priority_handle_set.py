@@ -1,7 +1,7 @@
 from __future__ import annotations
 import collections
 import collections.abc
-from typing import Any, Self, Iterable, Iterator, Tuple
+from typing import Any, Self, Iterable, Iterator
 
 
 def _empty_set() -> set:
@@ -66,7 +66,7 @@ class PriorityHandleSet(collections.abc.Set):
             res += len(t)
         return res
 
-    def __iter__(self) -> Iterator[Tuple[set[Any], int]]:
+    def __iter__(self) -> Iterator[tuple[set[Any], int]]:
         for k in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[k]:
                 yield (h, k)
@@ -141,7 +141,7 @@ class PriorityHandleSet(collections.abc.Set):
             "No handle was found. args=%s, keywords=%s" % (args, keywords)
         )
 
-    def handle_h(self, h: Any, *args: Any, **keywords: Any) -> Tuple[bool, Any]:
+    def handle_h(self, h: Any, *args: Any, **keywords: Any) -> tuple[bool, Any]:
         raise NotImplementedError
 
 

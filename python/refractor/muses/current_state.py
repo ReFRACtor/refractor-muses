@@ -6,7 +6,6 @@ import abc
 from pathlib import Path
 from copy import copy
 import os
-from typing import Tuple
 import typing
 from .identifier import StateElementIdentifier
 
@@ -67,7 +66,7 @@ class SoundingMetadata:
     I'm not sure if that actually can happen, but there isn't another obvious place
     to put this metadata so we'll go ahead and keep this here."""
 
-    def __init__(self, state_info: StateInfoOld, step="current") -> None:
+    def __init__(self, state_info: StateInfoOld, step : str="current") -> None:
         if step not in ("current", "initial", "initialInitial"):
             raise RuntimeError(
                 "Don't support anything other than the current, initial, or initialInitial step"
@@ -115,7 +114,7 @@ class SoundingMetadata:
         return self._utc_time
 
     @property
-    def local_hour(self):
+    def local_hour(self) -> int:
         timestruct = mpy.utc(self.utc_time)
         hour = timestruct["hour"] + self.longitude.convert("deg").value / 180.0 * 12
         if hour < 0:
@@ -125,7 +124,7 @@ class SoundingMetadata:
         return hour
 
     @property
-    def wrong_tai_time(self):
+    def wrong_tai_time(self) -> float:
         """The muses-py function mpy.tai uses the wrong number of leapseconds, it
         doesn't include anything since 2006. To match old data, return the incorrect
         value so we can match the file. This should get fixed actually."""
@@ -143,7 +142,7 @@ class SoundingMetadata:
         return self._tai_time - extraleapscond
 
     @property
-    def sounding_id(self):
+    def sounding_id(self) -> str:
         return self._sounding_id
 
     @property
@@ -254,9 +253,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def __init__(self) -> None:
         # Cache these values, they don't normally change.
-        self._fm_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = None
+        self._fm_sv_loc: dict[StateElementIdentifier, tuple[int, int]] | None = None
         self._fm_state_vector_size = -1
-        self._retrieval_sv_loc: dict[StateElementIdentifier, Tuple[int, int]] | None = (
+        self._retrieval_sv_loc: dict[StateElementIdentifier, tuple[int, int]] | None = (
             None
         )
         self._retrieval_state_vector_size = -1
@@ -313,7 +312,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         apriori: np.ndarray | None = None,
         step_initial: np.ndarray | None = None,
         retrieval_initial: np.ndarray | None = None,
-        true: np.ndarray | None = None,
+        true_value: np.ndarray | None = None,
     ) -> None:
         """We have a few places where we want to update a state element other than
         update_initial_guess. This function updates each of the various values passed in.
@@ -359,7 +358,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def fm_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+    def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Dict that gives the starting location in the forward model
         state vector and length for a particular state element name
         (state elements not being retrieved don't get listed here)
@@ -374,7 +373,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return self._fm_sv_loc
 
     @property
-    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Like fm_sv_loc, but for the retrieval state vactor (rather than the
         forward model state vector). If we don't have a basis_matrix, these are the
         same. With a basis_matrix, the total length of the fm_sv_loc is the
@@ -452,7 +451,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def object_state(
         self, state_element_id_list: list[StateElementIdentifier]
-    ) -> Tuple[np.ndarray, rf.StateMapping]:
+    ) -> tuple[np.ndarray, rf.StateMapping]:
         """Return a set of coefficients and a rf.StateMapping to get
         the full state values used by an object. The object passes in
         the list of state element names it uses.  In general only a
@@ -540,7 +539,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> StateElementOld:
+    ) -> StateElement:
         """Return the StateElement for the state_element_id. I'm not sure if we want to
         have this exposed or not, but there is a bit of useful information we have in
         each StateElement (such as the sa_cross_covariance). We can have this exposed for
@@ -612,6 +611,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def full_state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the covariance of the apriori value of the given state element identification."""
         raise NotImplementedError()
 
     @property
@@ -754,7 +760,7 @@ class CurrentStateUip(CurrentState):
     # just have a different implementation of fm_sv_loc. We should
     # sort this out at some point.
     @property
-    def fm_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+    def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
@@ -993,6 +999,12 @@ class CurrentStateUip(CurrentState):
         """
         raise NotImplementedError()
 
+    def full_state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the covariance of the apriori value of the given state element identification."""
+        raise NotImplementedError()
+
 
 class CurrentStateDict(CurrentState):
     """Implementation of CurrentState that just takes a dictionary of
@@ -1075,7 +1087,7 @@ class CurrentStateDict(CurrentState):
 
     def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> StateElementOld:
+    ) -> StateElement:
         raise NotImplementedError()
 
     def full_state_spectral_domain_wavelength(
@@ -1145,6 +1157,12 @@ class CurrentStateDict(CurrentState):
         """
         raise NotImplementedError()
 
+    def full_state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the covariance of the apriori value of the given state element identification."""
+        raise NotImplementedError()
+
 
 class CurrentStateStateInfoOld(CurrentState):
     """Implementation of CurrentState that uses our StateInfoOld. This is
@@ -1182,14 +1200,9 @@ class CurrentStateStateInfoOld(CurrentState):
         jacobian.  If do_systematic is set to True, we use this values
         instead.
         """
-        from refractor.old_py_retrieve_wrapper import StateInfoOld  # type: ignore
 
         super().__init__()
-        if state_info is not None:
-            self._state_info = state_info
-        else:
-            self._state_info = StateInfoOld()
-        self._retrieval_info = retrieval_info
+        self._state_info = state_info
         self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
             None
         )
@@ -1198,6 +1211,13 @@ class CurrentStateStateInfoOld(CurrentState):
             Path(step_directory) if step_directory is not None else None
         )
 
+    @property
+    def state_info(self) -> StateInfoOld:
+        if(self._state_info is None):
+            from refractor.old_py_retrieve_wrapper import StateInfoOld  # type: ignore
+            self._state_info = StateInfoOld()
+        return self._state_info
+    
     def current_state_override(
         self,
         do_systematic: bool,
@@ -1280,11 +1300,11 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def propagated_qa(self) -> PropagatedQA:
-        return self._state_info.propagated_qa
+        return self.state_info.propagated_qa
 
     @property
     def brightness_temperature_data(self) -> dict:
-        return self._state_info.brightness_temperature_data
+        return self.state_info.brightness_temperature_data
 
     def update_state(
         self,
@@ -1295,7 +1315,7 @@ class CurrentStateStateInfoOld(CurrentState):
         step: int,
     ) -> None:
         """Update the state info"""
-        self._state_info.update_state(
+        self.state_info.update_state(
             retrieval_info, results_list, do_not_update, retrieval_config, step
         )
         self.retrieval_info = retrieval_info
@@ -1307,13 +1327,15 @@ class CurrentStateStateInfoOld(CurrentState):
         apriori: np.ndarray | None = None,
         step_initial: np.ndarray | None = None,
         retrieval_initial: np.ndarray | None = None,
-        true: np.ndarray | None = None,
+        true_value: np.ndarray | None = None,
     ) -> None:
         """We have a few places where we want to update a state element other than
         update_initial_guess. This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
-        selem = self._state_info.state_element(state_element_id)
-        selem.update_state(current, apriori, step_initial, retrieval_initial, true)
+        selem = self.state_info.state_element(state_element_id)
+        selem.update_state(
+            current, apriori, step_initial, retrieval_initial, true_value
+        )
 
     @property
     def retrieval_info(self) -> RetrievalInfo:
@@ -1343,18 +1365,18 @@ class CurrentStateStateInfoOld(CurrentState):
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element"""
-        return [i.name for i in self._state_info.state_element_list()]
+        return [i.name for i in self.state_info.state_element_list()]
 
     @property
     def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
         """Subset of full_state_element_id for species that are on levels, so things like
         H2O"""
         return [
-            StateElementIdentifier(i) for i in self._state_info.state_element_on_levels
+            StateElementIdentifier(i) for i in self.state_info.state_element_on_levels
         ]
 
     @property
-    def fm_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+    def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Dict that gives the starting location in the forward model
         state vector for a particular state element name (state
         elements not being retrieved don't get listed here)
@@ -1400,9 +1422,14 @@ class CurrentStateStateInfoOld(CurrentState):
         Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
         that makes more sense.
         """
-        return self._state_info.sounding_metadata()
+        return self.state_info.sounding_metadata()
 
     def full_state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement:
+        raise NotImplementedError()
+    
+    def full_state_element_old(
         self, state_element_id: StateElementIdentifier
     ) -> StateElementOld:
         """Return the StateElement for the state_element_id. I'm not sure if we want to
@@ -1411,14 +1438,14 @@ class CurrentStateStateInfoOld(CurrentState):
         now, and revisit it if we end up deciding this is too much coupling. There are
         only a few spots that use full_state_element vs something like full_state_value,
         so we will just need to revisit those few spots if this becomes an issue."""
-        return self._state_info.state_element(state_element_id)
+        return self.state_info.state_element(state_element_id)
 
     def full_state_spectral_domain_wavelength(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:
         """Return the spectral domain (as nm) for the given state_element_id, or None if
         there isn't an associated frequency for the given state_element_id"""
-        selem = self._state_info.state_element(state_element_id)
+        selem = self.state_info.state_element(state_element_id)
         return selem.spectral_domain_wavelength
 
     def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
@@ -1427,7 +1454,7 @@ class CurrentStateStateInfoOld(CurrentState):
         there is only one value put that in a length 1 np.ndarray.
 
         """
-        selem = self._state_info.state_element(state_element_id)
+        selem = self.state_info.state_element(state_element_id)
         return copy(selem.value)
 
     def full_state_step_initial_value(
@@ -1437,7 +1464,7 @@ class CurrentStateStateInfoOld(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        selem = self._state_info.state_element(state_element_id, step="initial")
+        selem = self.state_info.state_element(state_element_id, step="initial")
         return copy(selem.value)
 
     def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
@@ -1445,7 +1472,7 @@ class CurrentStateStateInfoOld(CurrentState):
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
         """
-        selem = self._state_info.state_element(state_element_id)
+        selem = self.state_info.state_element(state_element_id)
         if not hasattr(selem, "value_str"):
             raise RuntimeError(
                 f"Requested str value for a state element {state_element_id} that isn't a str value."
@@ -1459,7 +1486,7 @@ class CurrentStateStateInfoOld(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        selem = self._state_info.state_element(state_element_id, step="true")
+        selem = self.state_info.state_element(state_element_id, step="true")
         return copy(selem.value)
 
     def full_state_retrieval_initial_value(
@@ -1469,7 +1496,7 @@ class CurrentStateStateInfoOld(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        selem = self._state_info.state_element(state_element_id, step="initialInitial")
+        selem = self.state_info.state_element(state_element_id, step="initialInitial")
         return copy(selem.value)
 
     def full_state_apriori_value(
@@ -1479,11 +1506,18 @@ class CurrentStateStateInfoOld(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        selem = self._state_info.state_element(state_element_id)
+        selem = self.state_info.state_element(state_element_id)
         return copy(selem.apriori_value)
 
+    def full_state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the covariance of the apriori value of the given state element identification."""
+        selem = self.state_info.state_element(state_element_id)
+        return copy(selem.sa_covariance)
+
     @property
-    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Like fm_sv_loc, but for the retrieval state vactor (rather than the
         forward model state vector. If we don't have a basis_matrix, these are the
         same. With a basis_matrix, the total length of the fm_sv_loc is the
@@ -1528,7 +1562,7 @@ class CurrentStateStateInfoOld(CurrentState):
         the pressure levels.  This is for the retrieval state vector
         levels (generally smaller than the pressure_list_fm).
         """
-        selem = self.full_state_element(state_element_id)
+        selem = self.full_state_element_old(state_element_id)
         if hasattr(selem, "pressureList"):
             return selem.pressureList
         return None
@@ -1540,7 +1574,7 @@ class CurrentStateStateInfoOld(CurrentState):
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
         """
-        selem = self.full_state_element(state_element_id)
+        selem = self.full_state_element_old(state_element_id)
         if hasattr(selem, "pressureListFM"):
             return selem.pressureListFM
         return None
@@ -1588,13 +1622,13 @@ class CurrentStateStateInfoOld(CurrentState):
         observation_handle_set: ObservationHandleSet,
     ) -> None:
         """Have updated the target we are processing."""
-        self._state_info.notify_update_target(
+        self.state_info.notify_update_target(
             measurement_id, retrieval_config, strategy, observation_handle_set
         )
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSetOld:
-        return self._state_info.state_element_handle_set
+        return self.state_info.state_element_handle_set
 
     def notify_new_step(
         self,
@@ -1617,8 +1651,8 @@ class CurrentStateStateInfoOld(CurrentState):
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
             if not skip_initial_guess_update:
-                self._state_info.next_state_to_current()
-                self._state_info.copy_current_initial()
+                self.state_info.next_state_to_current()
+                self.state_info.copy_current_initial()
             # Doesn't seem right that we update initial *before* doing get_initial_guess,
             # but that seems to be what happens
             self.get_initial_guess(
@@ -1636,9 +1670,9 @@ class CurrentStateStateInfoOld(CurrentState):
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
-            self._state_info.restart()
-            self._state_info.copy_current_initialInitial()
-            self._state_info.copy_current_initial()
+            self.state_info.restart()
+            self.state_info.copy_current_initialInitial()
+            self.state_info.copy_current_initial()
 
 
 __all__ = [

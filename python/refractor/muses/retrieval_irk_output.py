@@ -7,7 +7,7 @@ from .identifier import ProcessLocation, InstrumentIdentifier
 import numpy as np
 import math
 import typing
-from typing import Any, Tuple, Callable
+from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -28,7 +28,7 @@ def _new_from_init(cls, *args):  # type: ignore
 class RetrievalIrkOutput(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_IRK files."""
 
-    def __reduce__(self) -> Tuple[Callable, Tuple[Any]]:
+    def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
     @property

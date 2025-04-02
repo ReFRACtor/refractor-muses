@@ -8,7 +8,7 @@ from .identifier import ProcessLocation
 from pathlib import Path
 import numpy as np
 import typing
-from typing import Any, Tuple, Callable
+from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -26,7 +26,7 @@ def _new_from_init(cls, *args):  # type: ignore
 class RetrievalJacobianOutput(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_Jacobian files."""
 
-    def __reduce__(self) -> Tuple[Callable, Tuple[Any]]:
+    def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
     def notify_update(

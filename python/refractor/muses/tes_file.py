@@ -8,7 +8,7 @@ import io
 import os
 from functools import lru_cache
 import typing
-from typing import Iterator, Tuple
+from typing import Iterator
 
 
 class TesFile(collections.abc.Mapping):
@@ -122,7 +122,7 @@ class TesFile(collections.abc.Mapping):
     def __len__(self) -> int:
         return len(self._d)
 
-    def __iter__(self) -> Iterator[Tuple[str, str]]:
+    def __iter__(self) -> Iterator[tuple[str, str]]:
         return self._d.__iter__()
 
     # _lru_cache_wrapper is not correctly typed, we get a spurious

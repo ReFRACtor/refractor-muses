@@ -9,7 +9,7 @@ import copy
 from loguru import logger
 from collections.abc import Callable
 import typing
-from typing import Tuple, Any
+from typing import Any
 import numpy as np
 
 if typing.TYPE_CHECKING:
@@ -167,7 +167,7 @@ class CostFunctionCreator:
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         **kwargs: Any,
-    ) -> Tuple[
+    ) -> tuple[
         list[InstrumentIdentifier],
         list[rf.ForwardModel],
         list[rf.Observation],

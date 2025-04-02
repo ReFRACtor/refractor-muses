@@ -18,7 +18,7 @@ import subprocess
 import itertools
 import collections.abc
 import re
-from typing import Tuple, Iterator, Any, Generator, Self, TypeVar
+from typing import Iterator, Any, Generator, Self, TypeVar
 import typing
 from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIdentifier
 
@@ -237,7 +237,7 @@ class MusesObservation(rf.ObservationSvImpBase):
         raise NotImplementedError()
 
     @property
-    def filter_data(self) -> list[Tuple[FilterIdentifier, int]]:
+    def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
         """This returns a list of filter names and sizes. This is used
         as metadata in the py-retrieve structure called
         "radianceStep".
@@ -376,7 +376,7 @@ class MusesObservationImp(MusesObservation):
         self._filter_data_name: list[FilterIdentifier] = []
         self._filter_data_swin: None | MusesSpectralWindow = None
 
-    def wn_and_sindex(self, sensor_index: int) -> Tuple[list[np.ndarray], int]:
+    def wn_and_sindex(self, sensor_index: int) -> tuple[list[np.ndarray], int]:
         """We have a couple of places where we need the complete
         frequency grid (so all spectral channels), and the sample
         index for one of the sensors in that full grid.
@@ -505,10 +505,10 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
-    def filter_data(self) -> list[Tuple[FilterIdentifier, int]]:
+    def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
         if self._filter_data_swin is None:
             raise RuntimeError("Need to fill in self._filter_data_swin")
-        res: list[Tuple[FilterIdentifier, int]] = []
+        res: list[tuple[FilterIdentifier, int]] = []
         sd = self.spectral_domain_all()
         for i, fltname in enumerate(self._filter_data_name):
             sz = self._filter_data_swin.apply(sd, i).data.shape[0]
@@ -708,7 +708,7 @@ class SimulatedObservation(MusesObservationImp):
         return self._obs.longitude
 
     @property
-    def filter_data(self) -> list[Tuple[FilterIdentifier, int]]:
+    def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
         return self._obs.filter_data
 
     def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping) -> None:
@@ -880,7 +880,7 @@ class MusesAirsObservation(MusesObservationImp):
         atrack: int,
         filter_list: list[str],
         osp_dir: str | os.PathLike[str] | None = None,
-    ) -> Tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         i_fileid = {}
         i_fileid["preferences"] = {
             "AIRS_filename": os.path.abspath(str(filename)),
@@ -916,7 +916,7 @@ class MusesAirsObservation(MusesObservationImp):
         atrack: int,
         filter_list: list[FilterIdentifier],
         osp_dir: str | os.PathLike[str] | None = None,
-    ) -> Tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
         access to the underlying data.
@@ -1064,7 +1064,7 @@ class MusesTesObservation(MusesObservationImp):
         scan: int,
         filter_list: list[str],
         osp_dir: str | os.PathLike[str] | None = None,
-    ) -> Tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         i_fileid = {}
         i_fileid["preferences"] = {
             "TES_filename_L1B": os.path.abspath(str(filename)),
@@ -1441,7 +1441,7 @@ class MusesCrisObservation(MusesObservationImp):
         atrack: int,
         pixel_index: int,
         osp_dir: str | os.PathLike[str] | None = None,
-    ) -> Tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         i_fileid = {
             "CRIS_filename": os.path.abspath(str(filename)),
             "CRIS_XTrack_Index": xtrack,
@@ -1868,7 +1868,7 @@ class MusesObservationReflectance(MusesObservationImp):
         return "MusesObservationReflectance"
 
     @property
-    def filter_data(self) -> list[Tuple[FilterIdentifier, int]]:
+    def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
         self._filter_data_name = self.filter_list
         self._filter_data_swin = self._spectral_window
         return super().filter_data
@@ -2038,7 +2038,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
         filter_list: list[str],
         calibration_filename: str | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
-    ) -> Tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         # Filter list should be in the same order as filename_list,
         # and should be things like "BAND3"
         if calibration_filename is not None:
@@ -2110,7 +2110,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
         filter_list: list[FilterIdentifier],
         calibration_filename: str | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
-    ) -> Tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
         access to the underlying data.
@@ -2313,7 +2313,7 @@ class MusesOmiObservation(MusesObservationReflectance):
         calibration_filename: str,
         cld_filename: str | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
-    ) -> Tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         with osp_setup(osp_dir):
             o_omi = mpy.read_omi(
                 str(filename),
@@ -2364,7 +2364,7 @@ class MusesOmiObservation(MusesObservationReflectance):
         filter_list: list[FilterIdentifier],
         cld_filename: str | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
-    ) -> Tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Create from just the filenames. Note that spectral window
         doesn't get set here, but this can be useful if you just want
         access to the underlying data.

@@ -10,7 +10,7 @@ from .identifier import RetrievalType, ProcessLocation
 import json
 import gzip
 import os
-from typing import Tuple, Any
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -54,7 +54,7 @@ class RetrievalStrategyStepSet(PriorityHandleSet):
         retrieval_type: RetrievalType,
         rs: RetrievalStrategy,
         **kwargs: Any,
-    ) -> Tuple[bool, None]:
+    ) -> tuple[bool, None]:
         return h.retrieval_step(retrieval_type, rs, **kwargs)
 
 
@@ -99,7 +99,7 @@ class RetrievalStrategyStep(object, metaclass=abc.ABCMeta):
         rs: RetrievalStrategy,
         ret_state: None | dict[str, Any] = None,
         **kwargs: Any,
-    ) -> Tuple[bool, None]:
+    ) -> tuple[bool, None]:
         """Returns (True, None) if we handle the retrieval step,
         (False, None) otherwise
 

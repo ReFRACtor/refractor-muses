@@ -8,7 +8,7 @@ from .identifier import InstrumentIdentifier, ProcessLocation
 from pathlib import Path
 import numpy as np
 import typing
-from typing import Any, Tuple, Callable
+from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -29,7 +29,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
     def __init__(self) -> None:
         self.myobsrad: None | dict = None
 
-    def __reduce__(self) -> Tuple[Callable, Tuple[Any]]:
+    def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
     def notify_update(

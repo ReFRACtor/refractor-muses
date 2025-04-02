@@ -1,11 +1,15 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
+from .creator_handle import CreatorHandle, CreatorHandleSet
 import numpy as np
 import abc
 import typing
+import copy
+from collections import UserDict
 
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier
+    from .muses_observation import MeasurementId
 
 
 class StateElement(object, metaclass=abc.ABCMeta):
@@ -26,19 +30,14 @@ class StateElement(object, metaclass=abc.ABCMeta):
     of size 1.
     """
 
-    def __init__(self, state_element_identifier: StateElementIdentifier):
-        self._state_element_identifier = state_element_identifier
+    def __init__(self, state_element_id: StateElementIdentifier):
+        self._state_element_id = state_element_id
 
     @property
-    def name(self) -> StateElementIdentifier:
-        return self._state_element_identifier
+    def state_element_id(self) -> StateElementIdentifier:
+        return self._state_element_id
 
-    @abc.abstractproperty
-    def sa_covariance(self) -> np.ndarray:
-        """Return sa covariance matrix."""
-        raise NotImplementedError()
-
-    def sa_cross_covariance(self, selem2: StateElement):
+    def sa_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         return None
@@ -108,11 +107,95 @@ class StateElement(object, metaclass=abc.ABCMeta):
         current: np.ndarray | None = None,
         apriori: np.ndarray | None = None,
         step_initial: np.ndarray | None = None,
-        retrieval_initial_initial: np.ndarray | None = None,
-        true: np.ndarray | None = None,
-    ):
+        retrieval_initial: np.ndarray | None = None,
+        true_value: np.ndarray | None = None,
+    ) -> None:
         """Update the value of the StateElement. This function updates
         each of the various values passed in.  A value of 'None' (the
         default) means skip updating that part of the StateElement.
         """
         raise NotImplementedError
+
+
+class StateElementHandle(CreatorHandle):
+    """Return StateElement objects, for a given StateElementIdentifier
+
+    Note StateElementHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next."""
+
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        # Default is to do nothing
+        pass
+
+    @abc.abstractmethod
+    def state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement | None:
+        raise NotImplementedError
+
+
+class StateElementHandleSet(CreatorHandleSet):
+    """This maps a StateElementIdentifier to a StateElement object that handles it.
+
+    Note StatElementHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next."""
+
+    def __init__(self) -> None:
+        super().__init__("state_element")
+
+    def state_element(self, state_element_id: StateElementIdentifier) -> StateElement:
+        return self.handle(state_element_id)
+
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                h.notify_update_target(MeasurementId)
+
+
+class StateInfo(UserDict):
+    """This class maintains the full state as we perform a retrieval.
+    This class is closely tied to CurrentStateStateInfo, it isn't clear
+    if we perhaps want to merge theses classes at some point. But right
+    now StateInfo focuses on maintaining the state info, and CurrentState
+    on making that state info available to other parts of software.
+
+    This is basically a dict like object, where we create StateElement from
+    a StateElementHandleSet on first usage.
+    """
+
+    def __init__(
+        self, state_element_handle_set: StateElementHandleSet | None = None
+    ) -> None:
+        super().__init__()
+        if state_element_handle_set is not None:
+            self.state_element_handle_set = state_element_handle_set
+        else:
+            self.state_element_handle_set = copy.deepcopy(
+                StateElementHandleSet.default_handle_set()
+            )
+        self._state_element: dict[StateElementIdentifier, StateElement] = {}
+
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+        self.state_element_handle_set.notify_update_target(measurement_id)
+        self.data = {}
+
+    def __missing__(self, state_element_id: StateElementIdentifier) -> StateElement:
+        self.data[state_element_id] = self.state_element_handle_set.state_element(
+            state_element_id
+        )
+        return self.data[state_element_id]
+
+
+
+
+__all__ = [
+    "StateElement",
+    "StateElementHandle",
+    "StateElementHandleSet",
+]

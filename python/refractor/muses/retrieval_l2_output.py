@@ -9,7 +9,7 @@ from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdent
 from pathlib import Path
 import numpy as np
 import typing
-from typing import Any, Tuple, Callable
+from typing import Any, Callable
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -65,7 +65,7 @@ class RetrievalL2Output(RetrievalOutput):
         self.file_number_dict: dict[Path, FileNumberHandle] = {}
         self._species_list: list[str] | None = None
 
-    def __reduce__(self) -> Tuple[Callable, Tuple[Any]]:
+    def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
     @property
@@ -1001,7 +1001,7 @@ class RetrievalL2Output(RetrievalOutput):
                     "native_emissivity"
                 )
 
-            selem = self.current_state.full_state_element(
+            selem = self.current_state.full_state_element_old(
                 StateElementIdentifier("emissivity")
             )
             species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(

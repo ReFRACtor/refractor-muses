@@ -12,7 +12,7 @@ import numpy as np
 import copy
 from collections import UserDict
 import typing
-from typing import Callable, Tuple
+from typing import Callable
 
 if typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
@@ -250,21 +250,21 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         return []
 
     @property
-    def flux_freq_range(self) -> Tuple[float, float]:
+    def flux_freq_range(self) -> tuple[float, float]:
         # The original run_irk.py code had this hardcoded, but presumably
         # this would change with different instruments? In any case, pull
         # this out to make it clear we are using fixed numbers
         return (980.0, 1080.0)
 
     @property
-    def seg_freq_range(self) -> Tuple[float, float]:
+    def seg_freq_range(self) -> tuple[float, float]:
         # The original run_irk.py code had this hardcoded, but presumably
         # this would change with different instruments? In any case, pull
         # this out to make it clear we are using fixed numbers
         return (970.0, 1120.0)
 
     @property
-    def irk_average_freq_range(self) -> Tuple[float, float]:
+    def irk_average_freq_range(self) -> tuple[float, float]:
         # The original run_irk.py code had this hardcoded, but presumably
         # this would change with different instruments? In any case, pull
         # this out to make it clear we are using fixed numbers

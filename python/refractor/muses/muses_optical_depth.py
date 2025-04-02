@@ -7,7 +7,6 @@ from .identifier import InstrumentIdentifier
 import os
 from typing import Any
 import typing
-from typing import Tuple
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
@@ -63,7 +62,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
             self.xsect_grid.append(np.array(t1))
             self.xsect_data.append(np.array(t2))
 
-    def _xsect_tropomi_ils(self, sensor_index: int) -> Tuple[np.ndarray, np.ndarray]:
+    def _xsect_tropomi_ils(self, sensor_index: int) -> tuple[np.ndarray, np.ndarray]:
         uip = None
         do_temp_shift = False
         # I don't think we ever have no2_col. We can add this in if needed later,
@@ -93,7 +92,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         xsect_data = o3_xsec["o3xsec"]
         return xsect_grid.astype(float), xsect_data.astype(float)
 
-    def _xsect_omi_ils(self, sensor_index: int) -> Tuple[np.ndarray, np.ndarray]:
+    def _xsect_omi_ils(self, sensor_index: int) -> tuple[np.ndarray, np.ndarray]:
         tatm = self.temperature.temperature_grid(
             self.pressure, rf.Pressure.DECREASING_PRESSURE
         ).value.value

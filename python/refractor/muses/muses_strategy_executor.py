@@ -467,7 +467,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self.strategy.restart()
         self.current_state.restart(self.current_strategy_step, self.retrieval_config)
 
-    def notify_new_step(self, skip_initial_guess_update : bool = False):
+    def notify_new_step(self, skip_initial_guess_update: bool = False) -> None:
         """Called to notify other object that we are on a new retrieval step."""
         self.current_state.notify_new_step(
             self.current_strategy_step,
@@ -475,7 +475,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.retrieval_config,
             skip_initial_guess_update=skip_initial_guess_update,
         )
-        
+
     def set_step(self, step_number: int) -> None:
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
         where we jump to a given step number."""

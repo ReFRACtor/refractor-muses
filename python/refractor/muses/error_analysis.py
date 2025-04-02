@@ -49,7 +49,7 @@ class ErrorAnalysis:
         """
         selem_list = []
         for sname in covariance_state_element_name:
-            selem = current_state.full_state_element(sname)
+            selem = current_state.full_state_element_old(sname)
             # Note clear why, but we get slightly different results if we
             # update the original state_info. May want to track this down,
             # but as a work around we just copy this. This is just needed

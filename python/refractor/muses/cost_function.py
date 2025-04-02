@@ -4,7 +4,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import numpy as np
 from loguru import logger
 import typing
-from typing import Any, Tuple
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .identifier import InstrumentIdentifier
@@ -175,7 +175,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
 
     def update_uip(
         self, i_uip: dict, i_ret_info: dict, i_retrieval_vec: dict
-    ) -> Tuple[None, dict]:
+    ) -> tuple[None, dict]:
         """This is an adapter that stubs out the updating of the
         UIP. We don't actually need to do this, but
         levmar_nllsq_elanor expects a function here.

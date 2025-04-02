@@ -7,11 +7,13 @@ from .current_state import (
     PropagatedQA,
 )
 from .identifier import StateElementIdentifier
+from .state_element_old_wrapper import StateElementOldWrapperHandle
+from .state_info import StateElementHandleSet
 import numpy as np
 from pathlib import Path
 from copy import copy
 import typing
-from typing import Tuple
+from typing import cast
 
 if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
@@ -35,8 +37,14 @@ class CurrentStateStateInfo(CurrentState):
     def __init__(
         self,
     ) -> None:
+        from .state_info import StateInfo
         super().__init__()
-        self._current_state_old = CurrentStateStateInfoOld(None)
+        self._state_info = StateInfo()
+        # Temp, clumsy but this will go away
+        for p in sorted(self._state_info.state_element_handle_set.handle_set.keys(), reverse=True):
+            for h in self._state_info.state_element_handle_set.handle_set[p]:
+                if hasattr(h, "_current_state_old"):
+                    self._current_state_old = h._current_state_old
         self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
             None
         )
@@ -50,7 +58,12 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_state_element_override: None | list[StateElementIdentifier],
     ) -> CurrentState:
         res = copy(self)
-        res._current_state_old = res._current_state_old.current_state_override(do_systematic, retrieval_state_element_override)
+        res._current_state_old = cast(
+            CurrentStateStateInfoOld,
+            res._current_state_old.current_state_override(
+                do_systematic, retrieval_state_element_override
+            ),
+        )
         res.retrieval_state_element_override = retrieval_state_element_override
         res.do_systematic = do_systematic
         res.clear_cache()
@@ -180,7 +193,7 @@ class CurrentStateStateInfo(CurrentState):
         return self._current_state_old.full_state_element_on_levels_id
 
     @property
-    def fm_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+    def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Dict that gives the starting location in the forward model
         state vector for a particular state element name (state
         elements not being retrieved don't get listed here)
@@ -230,21 +243,32 @@ class CurrentStateStateInfo(CurrentState):
 
     def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> StateElementOld:
+    ) -> StateElement:
         """Return the StateElement for the state_element_id. I'm not sure if we want to
         have this exposed or not, but there is a bit of useful information we have in
         each StateElement (such as the sa_cross_covariance). We can have this exposed for
         now, and revisit it if we end up deciding this is too much coupling. There are
         only a few spots that use full_state_element vs something like full_state_value,
         so we will just need to revisit those few spots if this becomes an issue."""
-        return self._current_state_old.full_state_element(state_element_id)
+        return self._state_info[state_element_id]
 
+    def full_state_element_old(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement:
+        """Return the StateElement for the state_element_id. I'm not sure if we want to
+        have this exposed or not, but there is a bit of useful information we have in
+        each StateElement (such as the sa_cross_covariance). We can have this exposed for
+        now, and revisit it if we end up deciding this is too much coupling. There are
+        only a few spots that use full_state_element vs something like full_state_value,
+        so we will just need to revisit those few spots if this becomes an issue."""
+        return self._current_state_old.full_state_element_old(state_element_id)
+    
     def full_state_spectral_domain_wavelength(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:
         """Return the spectral domain (as nm) for the given state_element_id, or None if
         there isn't an associated frequency for the given state_element_id"""
-        selem = self._current_state_old.full_state_element(state_element_id)
+        selem = self._current_state_old.full_state_element_old(state_element_id)
         return selem.spectral_domain_wavelength
 
     def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
@@ -300,8 +324,14 @@ class CurrentStateStateInfo(CurrentState):
         """
         return self._current_state_old.full_state_apriori_value(state_element_id)
 
+    def full_state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray:
+        """Return the covariance of the apriori value of the given state element identification."""
+        return self._current_state_old.full_state_apriori_covariance(state_element_id)
+
     @property
-    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, Tuple[int, int]]:
+    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Like fm_sv_loc, but for the retrieval state vactor (rather than the
         forward model state vector. If we don't have a basis_matrix, these are the
         same. With a basis_matrix, the total length of the fm_sv_loc is the
@@ -418,6 +448,11 @@ class CurrentStateStateInfo(CurrentState):
         self._current_state_old.restart(current_strategy_step, retrieval_config)
         self._step_directory = self._current_state_old.step_directory
 
+# Right now, only fall back to old py-retrieve code
+
+StateElementHandleSet.add_default_handle(
+    StateElementOldWrapperHandle(), priority_order=-1
+)
 
 __all__ = [
     "CurrentStateStateInfo",

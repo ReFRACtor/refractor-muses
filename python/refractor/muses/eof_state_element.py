@@ -3,7 +3,6 @@ from __future__ import annotations
 # from refractor.old_py_retrieve_wrapper.state_info_old import RetrievableStateElementOld
 from .identifier import StateElementIdentifier
 import numpy as np
-from typing import Tuple
 import typing
 
 if typing.TYPE_CHECKING:
@@ -39,7 +38,7 @@ class OmiEofStateElement:
         self._constraint = self._value.copy()
         self.number_eof = number_eof
 
-    def sa_covariance(self) -> Tuple[np.ndarray, list[float]]:
+    def sa_covariance(self) -> tuple[np.ndarray, list[float]]:
         """Return sa covariance matrix, and also pressure. This is what
         ErrorAnalysis needs."""
         # TODO, Double check this. Not sure of the connection between this

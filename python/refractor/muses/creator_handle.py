@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .priority_handle_set import PriorityHandleSet
-from typing import Any, Tuple
+from typing import Any
 
 
 class CreatorHandleSet(PriorityHandleSet):
@@ -60,7 +60,7 @@ class CreatorHandleSet(PriorityHandleSet):
             for h in self.handle_set[p]:
                 h.notify_update_target(*args, **kwargs)
 
-    def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> Tuple[bool, Any]:
+    def handle_h(self, h: CreatorHandle, *args: Any, **kwargs: Any) -> tuple[bool, Any]:
         """Process a registered function"""
         res = getattr(h, self.creator_func_name)(*args, **kwargs)
         if res is None:

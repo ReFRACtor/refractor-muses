@@ -26,7 +26,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 import pickle
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -455,7 +455,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         osp_dir: str | os.PathLike[str] | None = None,
         gmao_dir: str | os.PathLike[str] | None = None,
         vlidort_cli: str | os.PathLike[str] | None = None,
-    ) -> Tuple[RetrievalStrategy, dict]:
+    ) -> tuple[RetrievalStrategy, dict]:
         """This pairs with save_pickle.
 
         This is pretty direct to use, but as an example we can do
