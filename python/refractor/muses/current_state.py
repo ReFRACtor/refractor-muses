@@ -1604,9 +1604,12 @@ class CurrentStateStateInfoOld(CurrentState):
         for selem_id in current_strategy_step.retrieval_elements:
             selem = self.full_state_element_old(selem_id)
             selem.update_initial_guess(current_strategy_step)
+
+        if False:
+            self.state_info.snapshot_to_file(f"state_step{current_strategy_step.strategy_step.step_number}_1.txt")
+            error_analysis.snapshot_to_file(f"error_analysis_step{current_strategy_step.strategy_step.step_number}_1.txt")
             
-        # Temp, we'll want to get this update done automatically. But do this
-        # to figure out issue
+        # TODO, we'd like to get rid of RetrievalInfo
         self._retrieval_info = RetrievalInfo(
             error_analysis,
             Path(retrieval_config["speciesDirectory"]),

@@ -19,6 +19,8 @@ import copy
 from pathlib import Path
 import refractor.framework as rf  # type: ignore
 import numpy as np
+from pprint import pprint
+import sys
 import os
 from typing import Any
 import typing
@@ -1161,6 +1163,16 @@ class StateInfoOld:
             return list(self.true.values())
         else:
             raise RuntimeError("step must be initialInitial, initial, true, or current")
+
+    def snapshot_to_file(self, fname):
+        '''py-retrieve is big on having functions with unintended side effects. It can
+        be hard to determine what changes when. This writes a complete text dump of
+        this object, which we can then diff against other snapshots to see what has
+        changed.'''
+        with np.printoptions(precision=None, threshold=sys.maxsize):
+            with open(fname, "w") as fh:
+                pprint(self.state_info_dict, stream=fh)
+            
 
     def state_element(self, name: StateElementIdentifier | str, step="current"):
         """Return the state element with the given name."""
