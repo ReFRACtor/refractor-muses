@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .state_info import StateElement, StateElementHandle, StateElementHandleSet
+from .state_info import StateElement, StateElementHandle
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
@@ -64,7 +64,9 @@ class StateElementOldWrapper(StateElement):
     @property
     def apriori(self) -> np.ndarray:
         """Apriori value of StateElement"""
-        raise NotImplementedError
+        return self._current_state_old.full_state_apriori_value(
+            self.state_element_id
+        )
 
     @property
     def apriori_cov(self) -> np.ndarray:

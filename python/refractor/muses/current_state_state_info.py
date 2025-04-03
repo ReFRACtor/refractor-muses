@@ -20,13 +20,10 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import CurrentStrategyStep
     from .error_analysis import ErrorAnalysis
-    from refractor.old_py_retrieve_wrapper import (  # type: ignore
-        StateElementHandleSetOld,
-        StateElementOld,
-    )
     from .muses_strategy import MusesStrategy
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
+    from .state_info import StateElement
 
 
 class CurrentStateStateInfo(CurrentState):
@@ -277,7 +274,7 @@ class CurrentStateStateInfo(CurrentState):
         there is only one value put that in a length 1 np.ndarray.
 
         """
-        return self._current_state_old.full_state_value(state_element_id)
+        return self._state_info[state_element_id].value
 
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier
@@ -286,23 +283,25 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        return self._current_state_old.full_state_step_initial_value(state_element_id)
+        return self._state_info[state_element_id].step_initial_value
 
     def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
         """
-        return self._current_state_old.full_state_value_str(state_element_id)
+        return self._state_info[state_element_id].value_str
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> np.ndarray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        If we don't have a true value, return None
         """
-        return self._current_state_old.full_state_true_value(state_element_id)
+        return self._state_info[state_element_id].true_value
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
@@ -311,9 +310,7 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        return self._current_state_old.full_state_retrieval_initial_value(
-            state_element_id
-        )
+        return self._state_info[state_element_id].retrieval_initial_value
 
     def full_state_apriori_value(
         self, state_element_id: StateElementIdentifier
@@ -322,13 +319,13 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        return self._current_state_old.full_state_apriori_value(state_element_id)
+        return self._state_info[state_element_id].apriori
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray:
         """Return the covariance of the apriori value of the given state element identification."""
-        return self._current_state_old.full_state_apriori_covariance(state_element_id)
+        return self._state_info[state_element_id].apriori_cov
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
@@ -414,9 +411,13 @@ class CurrentStateStateInfo(CurrentState):
         )
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSetOld:
-        return self._current_state_old.state_element_handle_set
+    def state_element_handle_set(self) -> StateElementHandleSet:
+        return self._state_info.state_element_handle_set
 
+    @state_element_handle_set.setter
+    def state_element_handle_set(self, val) -> None:
+        self._state_info.state_element_handle_set = val
+    
     def notify_new_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,

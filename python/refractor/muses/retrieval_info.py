@@ -20,11 +20,6 @@ class RetrievalInfo:
 
     A few functions seem sort of like member functions, we'll just make a list
     of these to sort out later but not try to get the full interface in place.
-
-    Note a side effect of creating this is to update the StateInfo StateElement.
-    This seems like a kind of major side effect, but for now leave this in place.
-    We should perhaps pull this out as a separate thing, it makes more sense for
-    StateInfo to handle this perhaps, and have this update explicitly called.
     """
 
     def __init__(
@@ -278,7 +273,6 @@ class RetrievalInfo:
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
         selem = current_state.full_state_element_old(StateElementIdentifier(species_name))
-        selem.update_initial_guess(current_strategy_step)
 
         row = o_retrievalInfo.n_totalParameters
         rowFM = o_retrievalInfo.n_totalParametersFM

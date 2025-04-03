@@ -23,6 +23,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_info import RetrievalInfo
     from .muses_strategy import MusesStrategy
     from .observation_handle import ObservationHandleSet
+    from .state_info import StateElement, StateElementHandleSet
 
 
 class PropagatedQA:
@@ -586,10 +587,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> np.ndarray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+        
+        If we don't have a true value, return None
         """
         raise NotImplementedError()
 
@@ -649,7 +652,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         pass
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSetOld:
+    def state_element_handle_set(self) -> StateElementHandleSet:
         raise NotImplementedError()
 
     def notify_new_step(
@@ -974,10 +977,12 @@ class CurrentStateUip(CurrentState):
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> np.ndarray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        If we don't have a true value, return None
         """
         raise NotImplementedError()
 
@@ -1132,10 +1137,12 @@ class CurrentStateDict(CurrentState):
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> np.ndarray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        If we don't have a true value, return None
         """
         raise NotImplementedError()
 
@@ -1481,10 +1488,12 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> np.ndarray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        If we don't have a true value, return None
         """
         selem = self.state_info.state_element(state_element_id, step="true")
         return copy(selem.value)
@@ -1592,6 +1601,10 @@ class CurrentStateStateInfoOld(CurrentState):
         # when we need it here
         from .retrieval_info import RetrievalInfo
 
+        for selem_id in current_strategy_step.retrieval_elements:
+            selem = self.full_state_element_old(selem_id)
+            selem.update_initial_guess(current_strategy_step)
+            
         # Temp, we'll want to get this update done automatically. But do this
         # to figure out issue
         self._retrieval_info = RetrievalInfo(
@@ -1601,6 +1614,11 @@ class CurrentStateStateInfoOld(CurrentState):
             self,
         )
 
+        # Isn't really clear why RetrievalInfo is different, but for
+        # now this update is needed. Without this we get different results.
+        # We should sort trough this, we don't want to go through RetrievalInfo
+        # for this.
+        
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
         nparm = self._retrieval_info.n_totalParameters
@@ -1627,9 +1645,13 @@ class CurrentStateStateInfoOld(CurrentState):
         )
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSetOld:
-        return self.state_info.state_element_handle_set
+    def state_element_handle_set(self) -> StateElementHandleSet:
+        raise NotImplementedError()
 
+    @property
+    def state_element_handle_set_old(self) -> StateElementHandleSetOld:
+        return self.state_info.state_element_handle_set
+    
     def notify_new_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,

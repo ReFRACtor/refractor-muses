@@ -40,7 +40,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .cost_function_creator import CostFunctionCreator
     from .identifier import InstrumentIdentifier, FilterIdentifier
-    from refractor.old_py_retrieve_wrapper import StateElementHandleSetOld  # type: ignore
+    from .state_info import StateElementHandleSet
 
 
 @contextmanager
@@ -185,7 +185,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         return self.rs.retrieval_config
 
     @property
-    def state_element_handle_set(self) -> StateElementHandleSetOld:
+    def state_element_handle_set(self) -> StateElementHandleSet:
         return self.current_state.state_element_handle_set
 
     @property
@@ -692,7 +692,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self.current_state._current_state_old._state_info = pickle.load(
             open(state_info_pickle_file, "rb")
         )
-        self.current_state._current_state_old._state_info.state_element_handle_set = (
+        self.current_state.state_element_handle_set = (
             hset
         )
         if (
