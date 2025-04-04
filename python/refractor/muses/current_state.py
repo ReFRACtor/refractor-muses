@@ -53,12 +53,12 @@ class PropagatedQA:
         return self.propagated_qa["O3"]
 
     def update(
-        self, retrieval_state_element: list[StateElementIdentifier], qa_flag: int
+        self, retrieval_state_element_id: list[StateElementIdentifier], qa_flag: int
     ) -> None:
         """Update the QA flags for items that we retrieved."""
-        for state_element_name in retrieval_state_element:
-            if str(state_element_name) in self.propagated_qa:
-                self.propagated_qa[str(state_element_name)] = qa_flag
+        for state_element_id in retrieval_state_element_id:
+            if str(state_element_id) in self.propagated_qa:
+                self.propagated_qa[str(state_element_id)] = qa_flag
 
 
 class SoundingMetadata:
@@ -367,7 +367,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            for state_element_id in self.retrieval_state_element:
+            for state_element_id in self.retrieval_state_element_id:
                 plen = len(self.full_state_value(state_element_id))
                 self._fm_sv_loc[state_element_id] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
@@ -466,7 +466,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         coeff = np.concatenate(
             [self.full_state_value(nm) for nm in state_element_id_list]
         )
-        rlist = self.retrieval_state_element
+        rlist = self.retrieval_state_element_id
         rflag = np.concatenate(
             [
                 np.full((len(self.full_state_value(nm)),), nm in rlist, dtype=bool)
@@ -503,14 +503,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
                 fm_sv.add_observer(obj)
 
     @abc.abstractproperty
-    def retrieval_state_element(self) -> list[StateElementIdentifier]:
+    def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements we are retrieving."""
         raise NotImplementedError()
 
     @abc.abstractproperty
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
-        larger list than retrieval_state_element"""
+        larger list than retrieval_state_element_id"""
         raise NotImplementedError()
 
     @abc.abstractproperty
@@ -767,20 +767,20 @@ class CurrentStateUip(CurrentState):
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            for species_name in self.retrieval_state_element:
+            for species_name in self.retrieval_state_element_id:
                 pstart, plen = self.rf_uip.state_vector_species_index(str(species_name))
                 self._fm_sv_loc[species_name] = (pstart, plen)
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
 
     @property
-    def retrieval_state_element(self) -> list[StateElementIdentifier]:
+    def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         return [StateElementIdentifier(i) for i in self.rf_uip.jacobian_all]
 
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
-        larger list than retrieval_state_element"""
+        larger list than retrieval_state_element_id"""
         # I think we could come up with something here if needed, but for now
         # just punt on this
         raise NotImplementedError()
@@ -1058,11 +1058,11 @@ class CurrentStateDict(CurrentState):
         self.clear_cache()
 
     @property
-    def retrieval_state_element(self) -> list[StateElementIdentifier]:
+    def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         return self._retrieval_element
 
-    @retrieval_state_element.setter
-    def retrieval_state_element(self, val: list[StateElementIdentifier]) -> None:
+    @retrieval_state_element_id.setter
+    def retrieval_state_element_id(self, val: list[StateElementIdentifier]) -> None:
         self._retrieval_element = val
         # Clear cache, we need to regenerate these after update
         self.clear_cache()
@@ -1070,7 +1070,7 @@ class CurrentStateDict(CurrentState):
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
-        larger list than retrieval_state_element"""
+        larger list than retrieval_state_element_id"""
         return list(self.state_element_dict.keys())
 
     @property
@@ -1192,10 +1192,10 @@ class CurrentStateStateInfoOld(CurrentState):
         as separate. But for now, include this as an argument.
 
         The retrieval_state_element_override is an odd argument, it
-        overrides the retrieval_state_element in RetrievalInfo with a
+        overrides the retrieval_state_element_id in RetrievalInfo with a
         different set. It isn't clear why this is handled this way -
         why doesn't RetrievalInfo just figure out the right
-        retrieval_state_element list?  But for now, do it the same way
+        retrieval_state_element_id list?  But for now, do it the same way
         as py-retrieve. This seems to only be used in the
         RetrievalStrategyStepBT - I'm guessing this was a kludge put
         in to support this retrieval step.
@@ -1357,7 +1357,7 @@ class CurrentStateStateInfoOld(CurrentState):
         self.clear_cache()
 
     @property
-    def retrieval_state_element(self) -> list[StateElementIdentifier]:
+    def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         if self.retrieval_state_element_override is not None:
             return self.retrieval_state_element_override
         if self.retrieval_info is None:
@@ -1371,7 +1371,7 @@ class CurrentStateStateInfoOld(CurrentState):
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
-        larger list than retrieval_state_element"""
+        larger list than retrieval_state_element_id"""
         return [i.name for i in self.state_info.state_element_list()]
 
     @property
@@ -1394,7 +1394,7 @@ class CurrentStateStateInfoOld(CurrentState):
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            for state_element_id in self.retrieval_state_element:
+            for state_element_id in self.retrieval_state_element_id:
                 if self.do_systematic:
                     plen = self.retrieval_info.species_list_sys.count(
                         str(state_element_id)
@@ -1537,7 +1537,7 @@ class CurrentStateStateInfoOld(CurrentState):
         if self._retrieval_sv_loc is None:
             self._retrieval_sv_loc = {}
             self._retrieval_state_vector_size = 0
-            for state_element_id in self.retrieval_state_element:
+            for state_element_id in self.retrieval_state_element_id:
                 if self.do_systematic:
                     plen = self.retrieval_info.species_list_sys.count(
                         str(state_element_id)

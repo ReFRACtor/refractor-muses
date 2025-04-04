@@ -72,6 +72,15 @@ class RetrievalL2Output(RetrievalOutput):
     def retrieval_info(self) -> RetrievalInfo:
         return self.retrieval_strategy.current_state.retrieval_info
 
+    def state_apriori_vec(self, state_name: str) -> np.ndarray:
+        """Get the state value for the given state name"""
+        # This doesn't seem to be the same value found in retrieval_info
+        if StateElementIdentifier(state_name) not in self.current_state.retrieval_state_element_id:
+            return self.current_state.full_state_apriori_value(
+                StateElementIdentifier(state_name)
+            )
+        return self.retrieval_info.species_constraint(state_name)
+    
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname. This handles numbering
         L2 output files if we have the same species in different strategy steps"""
@@ -657,13 +666,10 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TROPOMI_CLOUDTOPPRESSURE = obs.cloud_pressure.value
 
         # species_data.TROPOMI_EOF1 = 1.0
-        species_data.SPECIES[pslice] = self.retrieval_info.species_results(
-            self.results, self.spcname
-        )
-        species_data.INITIAL[pslice] = self.retrieval_info.species_initial(self.spcname)
-        species_data.CONSTRAINTVECTOR[pslice] = self.retrieval_info.species_constraint(
-            self.spcname
-        )
+        species_data.SPECIES[pslice] = self.state_value_vec(self.spcname)
+        species_data.INITIAL[pslice] = self.state_step_initial_value_vec(self.spcname)
+        species_data.CONSTRAINTVECTOR[pslice] = self.state_apriori_vec(self.spcname)
+
         species_data.PRESSURE[pslice] = self.state_value_vec("pressure")
         species_data.CLOUDTOPPRESSURE = self.state_value("PCLOUD")
 

@@ -165,7 +165,7 @@ class CurrentStateStateInfo(CurrentState):
         self.clear_cache()
 
     @property
-    def retrieval_state_element(self) -> list[StateElementIdentifier]:
+    def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         if self.retrieval_state_element_override is not None:
             return self.retrieval_state_element_override
         if self.retrieval_info is None:
@@ -179,7 +179,7 @@ class CurrentStateStateInfo(CurrentState):
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
-        larger list than retrieval_state_element"""
+        larger list than retrieval_state_element_id"""
         return self._current_state_old.full_state_element_id
 
     # TODO Perhaps this can go away. Only used in FakeStateInfo
@@ -201,7 +201,7 @@ class CurrentStateStateInfo(CurrentState):
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            for state_element_id in self.retrieval_state_element:
+            for state_element_id in self.retrieval_state_element_id:
                 if self.do_systematic:
                     plen = self.retrieval_info.species_list_sys.count(
                         str(state_element_id)
@@ -339,7 +339,7 @@ class CurrentStateStateInfo(CurrentState):
         if self._retrieval_sv_loc is None:
             self._retrieval_sv_loc = {}
             self._retrieval_state_vector_size = 0
-            for state_element_id in self.retrieval_state_element:
+            for state_element_id in self.retrieval_state_element_id:
                 if self.do_systematic:
                     plen = self.retrieval_info.species_list_sys.count(
                         str(state_element_id)
