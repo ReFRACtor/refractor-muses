@@ -80,6 +80,15 @@ class RetrievalL2Output(RetrievalOutput):
                 StateElementIdentifier(state_name)
             )
         return self.retrieval_info.species_constraint(state_name)
+
+    def state_apriori(self, state_name: str) -> float:
+        """Get the state value for the given state name"""
+        # This doesn't seem to be the same value found in retrieval_info
+        if StateElementIdentifier(state_name) not in self.current_state.retrieval_state_element_id:
+            return self.current_state.full_state_apriori_value(
+                StateElementIdentifier(state_name)
+            )[0]
+        return self.retrieval_info.species_constraint(state_name)
     
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname. This handles numbering
@@ -177,9 +186,7 @@ class RetrievalL2Output(RetrievalOutput):
                     "code has not been tested for species_name CH4 and dataN2O is None"
                 )
                 data2 = copy.deepcopy(dataInfo)
-                value = self.current_state.full_state_step_initial_value(
-                    StateElementIdentifier("N2O")
-                )
+                value = self.state_step_initial_value_vec("N2O")
                 data2["SPECIES"][data2["SPECIES"] > 0] = copy.deepcopy(value)
                 data2["INITIAL"][data2["SPECIES"] > 0] = copy.deepcopy(value)
                 data2["CONSTRAINTVECTOR"][data2["SPECIES"] > 0] = copy.deepcopy(value)
@@ -705,33 +712,19 @@ class RetrievalL2Output(RetrievalOutput):
         if len(indx) > 0:
             indx = indx[0]
 
-            indxRet = utilList.WhereEqualIndices(
-                self.retrieval_info.species_list, "TSUR"
-            )[0]
-            species_data.SURFACETEMPCONSTRAINT = self.retrieval_info.constraint_vector[
-                indxRet
-            ]
+            species_data.SURFACETEMPCONSTRAINT = self.state_apriori("TSUR")
 
             # AT_LINE 306 src_ms-2018-12-10/write_products_one.pro
-            indy = utilList.WhereEqualIndices(
-                self.retrieval_info.species_names, "TSUR"
-            )[0]
+            indy = self.current_state.retrieval_state_element_id.index(StateElementIdentifier("TSUR"))
             species_data.SURFACETEMPDEGREESOFFREEDOM = (
                 self.results.degreesOfFreedomForSignal[indy]
             )
 
             species_data.SURFACETEMPERROR = self.results.errorFM[indx]
-            species_data.SURFACETEMPINITIAL = self.retrieval_info.initial_guess_list[
-                indxRet
-            ]
-
+            species_data.SURFACETEMPINITIAL = self.state_step_initial_value("TSUR")
+            
         # AT_LINE 324 write_products_one.pro
-        ispecie = utilList.WhereEqualIndices(
-            self.retrieval_info.species_names, self.spcname
-        )
-        ispecie = ispecie[
-            0
-        ]  # We just need one from the list so we can index into various variables.
+        ispecie = self.current_state.retrieval_state_element_id.index(StateElementIdentifier(self.spcname))
 
         species_data.DEVIATION_QA = self.results.deviation_QA[ispecie]
         species_data.NUM_DEVIATIONS_QA = self.results.num_deviations_QA[ispecie]
@@ -953,15 +946,10 @@ class RetrievalL2Output(RetrievalOutput):
 
             # add H2O constraint and result
             species_data.H2O_CONSTRAINTVECTOR = copy.deepcopy(vector_of_fills)
-            species_data.H2O_CONSTRAINTVECTOR[indp] = (
-                self.retrieval_info.species_constraint("H2O")
-            )
+            species_data.H2O_CONSTRAINTVECTOR[indp] = self.state_apriori_vec("H2O")
 
             species_data.H2O_SPECIES = copy.deepcopy(vector_of_fills)
-            species_data.H2O_SPECIES[indp] = self.retrieval_info.species_results(
-                self.results, "H2O"
-            )
-
+            species_data.H2O_SPECIES[indp] = self.state_value_vec("H2O")
             species_data.H2O_INITIAL = copy.deepcopy(vector_of_fills)
 
             # TODO
@@ -984,11 +972,7 @@ class RetrievalL2Output(RetrievalOutput):
 
         if self.state_sd_wavelength("emissivity").shape[0] > 0:
             species_data.EMISSIVITY_CONSTRAINT = self.state_apriori_vec("emissivity")
-            species_data.EMISSIVITY_INITIAL = (
-                self.current_state.full_state_retrieval_initial_value(
-                    StateElementIdentifier("emissivity")
-                )
-            )
+            species_data.EMISSIVITY_INITIAL = self.state_retrieval_initial_value_vec("emissivity")
             species_data.EMISSIVITY = self.state_value_vec("emissivity")
             species_data.EMISSIVITY_WAVENUMBER = self.state_sd_wavelength("emissivity")
 
@@ -998,11 +982,7 @@ class RetrievalL2Output(RetrievalOutput):
             # this if needed.
             # if StateElementIdentifier("native_emissivity") in self.current_state.full_state_element_id:
             if True:
-                species_data.NATIVE_HSR_EMISSIVITY_INITIAL = (
-                    self.current_state.full_state_retrieval_initial_value(
-                        StateElementIdentifier("native_emissivity")
-                    )
-                )
+                species_data.NATIVE_HSR_EMISSIVITY_INITIAL = self.state_retrieval_initial_value_vec("native_emissivity")
                 species_data.NATIVE_HSR_EMIS_WAVENUMBER = self.state_sd_wavelength(
                     "native_emissivity"
                 )
@@ -1021,7 +1001,7 @@ class RetrievalL2Output(RetrievalOutput):
         # AT_LINE 631 write_products_one.pro
         # for CH4 add in N2O results, constraint vector, calculate
         # n2o-corrected, save original_species
-        if self.spcname == "CH4" and "CH4" in self.retrieval_info.species_names:
+        if self.spcname == "CH4" and StateElementIdentifier("CH4") in self.current_state.retrieval_state_element_id:
             species_data.N2O_SPECIES = np.zeros(shape=(num_pressures), dtype=np.float32)
             species_data.N2O_CONSTRAINTVECTOR = np.zeros(
                 shape=(num_pressures), dtype=np.float32
@@ -1031,7 +1011,7 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.N2O_DOFS = 0.0
 
             ispecieN2O = -1
-            if "N2O" in self.retrieval_info.species_names:
+            if StateElementIdentifier("N2O") in self.current_state.retrieval_state_element_id:
                 ispecieN2O = self.retrieval_info.species_names.index("N2O")
                 ind1FMN2O = self.retrieval_info.retrieval_info_obj.parameterStartFM[
                     ispecieN2O
@@ -1052,25 +1032,13 @@ class RetrievalL2Output(RetrievalOutput):
                     )
                 )
 
-                species_data.N2O_SPECIES[pslice] = self.retrieval_info.species_results(
-                    self.results, "N2O"
-                )
-                species_data.N2O_CONSTRAINTVECTOR[pslice] = (
-                    self.retrieval_info.species_constraint("N2O")
-                )
+                species_data.N2O_SPECIES[pslice] = self.state_value_vec("N2O")
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec("N2O")
             else:
                 # N2O not retrieved... use values from initial guess
                 logger.warning("code has not been tested for N2O not retrieved.")
-                species_data.N2O_SPECIES[pslice] = (
-                    self.current_state.full_state_step_initial_value(
-                        StateElementIdentifier("N2O")
-                    )
-                )
-                species_data.N2O_CONSTRAINTVECTOR[pslice] = (
-                    self.current_state.full_state_step_initial_value(
-                        StateElementIdentifier("N2O")
-                    )
-                )
+                species_data.N2O_SPECIES[pslice] = self.state_step_initial_value_vec("N2O")
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec("N2O")
 
             # correct ch4 from n2o
             species_data.ORIGINAL_SPECIES = copy.deepcopy(species_data.SPECIES)
@@ -1092,7 +1060,7 @@ class RetrievalL2Output(RetrievalOutput):
         # end if self.spcname == 'CH4' and 'CH4' in self.retrieval_info.retrieval_info_obj.species:
 
         # for CH4 if jointly retrieved with TATM add TATM
-        if self.spcname == "CH4" and "TATM" in self.retrieval_info.species_names:
+        if self.spcname == "CH4" and StateElementIdentifier("TATM") in self.current_state.retrieval_state_element_id:
             species_data.TATM_SPECIES = np.zeros(
                 shape=(num_pressures), dtype=np.float32
             )
@@ -1101,12 +1069,8 @@ class RetrievalL2Output(RetrievalOutput):
             )
             species_data.TATM_DEVIATION = 0.0
 
-            species_data.TATM_SPECIES[pslice] = self.retrieval_info.species_results(
-                self.results, "TATM"
-            )
-            species_data.TATM_CONSTRAINTVECTOR[pslice] = (
-                self.retrieval_info.species_constraint("TATM")
-            )
+            species_data.TATM_SPECIES[pslice] = self.state_value_vec("TATM")
+            species_data.TATM_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec("TATM")
 
             # AT_LINE 725 src_ms-2018-12-10/write_products_one.pro
 
@@ -1116,12 +1080,8 @@ class RetrievalL2Output(RetrievalOutput):
                 shape=(num_pressures), dtype=np.float32
             )
 
-            species_data.H2O_SPECIES[pslice] = self.retrieval_info.species_results(
-                self.results, "H2O"
-            )
-            species_data.H2O_CONSTRAINTVECTOR[pslice] = (
-                self.retrieval_info.species_constraint("H2O")
-            )
+            species_data.H2O_SPECIES[pslice] = self.state_value_vec("H2O")
+            species_data.H2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec("H2O")
 
             indp = np.where(species_data.TATM_SPECIES > 0)[0]
             maxx = np.amax(
