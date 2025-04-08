@@ -323,7 +323,15 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        return self._state_info[state_element_id].apriori
+        # This doesn't seem to be the same value found in retrieval_info.
+        # We need to sort this out, but for now pull this into here so we
+        # know where retrieval_info is used
+        if state_element_id not in self.retrieval_state_element_id:
+            return self._state_info[state_element_id].apriori
+        res = self.retrieval_info.species_constraint(str(state_element_id))
+        if(isinstance(res, float)):
+            return np.array([res,])
+        return res
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier

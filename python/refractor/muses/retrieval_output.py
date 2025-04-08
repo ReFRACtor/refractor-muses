@@ -166,6 +166,18 @@ class RetrievalOutput:
         """Get the state value for the given state name"""
         return self.current_state.full_state_value(StateElementIdentifier(state_name))
 
+    def state_apriori_vec(self, state_name: str) -> np.ndarray:
+        """Get the state value for the given state name"""
+        return self.current_state.full_state_apriori_value(
+            StateElementIdentifier(state_name)
+        )
+
+    def state_apriori(self, state_name: str) -> float:
+        """Get the state value for the given state name"""
+        return self.current_state.full_state_apriori_value(
+            StateElementIdentifier(state_name)
+        )[0]
+    
     def state_step_initial_value_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
         return self.current_state.full_state_step_initial_value(StateElementIdentifier(state_name))
@@ -174,7 +186,7 @@ class RetrievalOutput:
         """Get the state value for the given state name"""
         return self.current_state.full_state_retrieval_initial_value(StateElementIdentifier(state_name))
     
-    def state_step_initial_value(self, state_name: str) -> np.ndarray:
+    def state_step_initial_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
         return self.current_state.full_state_step_initial_value(StateElementIdentifier(state_name))[0]
     

@@ -14,8 +14,6 @@ from typing import Any, Callable
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-    from .retrieval_info import RetrievalInfo
-
 
 def _new_from_init(cls, *args):  # type: ignore
     """For use with pickle, covers common case where we just store the
@@ -68,28 +66,6 @@ class RetrievalL2Output(RetrievalOutput):
     def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
 
-    @property
-    def retrieval_info(self) -> RetrievalInfo:
-        return self.retrieval_strategy.current_state.retrieval_info
-
-    def state_apriori_vec(self, state_name: str) -> np.ndarray:
-        """Get the state value for the given state name"""
-        # This doesn't seem to be the same value found in retrieval_info
-        if StateElementIdentifier(state_name) not in self.current_state.retrieval_state_element_id:
-            return self.current_state.full_state_apriori_value(
-                StateElementIdentifier(state_name)
-            )
-        return self.retrieval_info.species_constraint(state_name)
-
-    def state_apriori(self, state_name: str) -> float:
-        """Get the state value for the given state name"""
-        # This doesn't seem to be the same value found in retrieval_info
-        if StateElementIdentifier(state_name) not in self.current_state.retrieval_state_element_id:
-            return self.current_state.full_state_apriori_value(
-                StateElementIdentifier(state_name)
-            )[0]
-        return self.retrieval_info.species_constraint(state_name)
-    
     def file_number_handle(self, basefname: Path) -> FileNumberHandle:
         """Return the FileNumberHandle for working the basefname. This handles numbering
         L2 output files if we have the same species in different strategy steps"""
