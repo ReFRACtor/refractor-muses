@@ -164,6 +164,10 @@ class CurrentStateStateInfo(CurrentState):
         # Clear cache, we need to regenerate these after update
         self.clear_cache()
 
+    def clear_cache(self) -> None:
+        super().clear_cache()
+        self._current_state_old.clear_cache()
+
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         if self.retrieval_state_element_override is not None:
@@ -437,7 +441,7 @@ class CurrentStateStateInfo(CurrentState):
             retrieval_config,
             skip_initial_guess_update,
         )
-        self._retrieval_info = self._current_state_old.retrieval_info
+        self.retrieval_info = self._current_state_old.retrieval_info
         self._step_directory = self._current_state_old.step_directory
 
     def restart(

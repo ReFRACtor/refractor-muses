@@ -730,26 +730,20 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.NUM_DEVIATIONS_QA = self.results.num_deviations_QA[ispecie]
         species_data.DEVIATIONBAD_QA = self.results.DeviationBad_QA[ispecie]
 
-        ind1FM = self.retrieval_info.retrieval_info_obj.parameterStartFM[ispecie]
-        ind2FM = self.retrieval_info.retrieval_info_obj.parameterEndFM[ispecie]
-
-        if self.retrieval_info.retrieval_info_obj.mapType[ispecie].lower() == "linear":
-            species_data.RETRIEVEINLOG = np.int32(0)
-        elif (
-            self.retrieval_info.retrieval_info_obj.mapType[ispecie].lower()
-            == "linearpca"
-        ):
-            species_data.RETRIEVEINLOG = np.int32(0)
-        else:
+        ind1FM, sz = self.current_state.fm_sv_loc[StateElementIdentifier(self.spcname)]
+        ind2FM = ind1FM + sz
+        
+        species_data.RETRIEVEINLOG = np.int32(0)
+        if(self.current_state.full_state_element_old(StateElementIdentifier(self.spcname)).map_type == "log"):
             species_data.RETRIEVEINLOG = np.int32(1)
 
         # AT_LINE 342 write_products_one.pro
         species_data.DOFS = np.sum(
-            mpy.get_diagonal(self.results.A[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1])
+            mpy.get_diagonal(self.results.A[ind1FM : ind2FM, ind1FM : ind2FM])
         )
         species_data.PRECISION[pslice] = np.sqrt(
             mpy.get_diagonal(
-                self.results.Sx_rand[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
+                self.results.Sx_rand[ind1FM : ind2FM, ind1FM : ind2FM]
             )
         )
 
@@ -762,20 +756,20 @@ class RetrievalL2Output(RetrievalOutput):
 
         # Using slow method because fast method (using Python awesome list of locations as arrays for indices) is not working.
         species_data.AVERAGINGKERNEL[pslice, pslice] = self.results.A[
-            ind1FM : ind2FM + 1, ind1FM : ind2FM + 1
+            ind1FM : ind2FM, ind1FM : ind2FM
         ]
         species_data.MEASUREMENTERRORCOVARIANCE[pslice, pslice] = self.results.Sx_rand[
-            ind1FM : ind2FM + 1, ind1FM : ind2FM + 1
+            ind1FM : ind2FM, ind1FM : ind2FM
         ]
         species_data.TOTALERRORCOVARIANCE[pslice, pslice] = self.results.Sx[
-            ind1FM : ind2FM + 1, ind1FM : ind2FM + 1
+            ind1FM : ind2FM, ind1FM : ind2FM
         ]
 
         # We pass in for rhs_start_index because sum_Sx_Sx_sys_Sx_crossState already contain the correct shape.
         sum_Sx_Sx_sys_Sx_crossState = (
-            self.results.Sx_rand[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
-            + self.results.Sx_sys[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
-            + self.results.Sx_crossState[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
+            self.results.Sx_rand[ind1FM : ind2FM, ind1FM : ind2FM]
+            + self.results.Sx_sys[ind1FM : ind2FM, ind1FM : ind2FM]
+            + self.results.Sx_crossState[ind1FM : ind2FM, ind1FM : ind2FM]
         )
 
         species_data.OBSERVATIONERRORCOVARIANCE[pslice, pslice] = (
@@ -788,13 +782,13 @@ class RetrievalL2Output(RetrievalOutput):
         #
 
         species_data.PRIORCOVARIANCE[pslice, pslice] = self.results.Sa[
-            ind1FM : ind2FM + 1, ind1FM : ind2FM + 1
+            ind1FM : ind2FM, ind1FM : ind2FM
         ]
         species_data.AVERAGINGKERNELDIAGONAL[pslice] = mpy.get_diagonal(
-            self.results.A[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
+            self.results.A[ind1FM : ind2FM, ind1FM : ind2FM]
         )  ## utilGeneral.ManualArraySets(species_data.AVERAGINGKERNELDIAGONAL, get_diagonal(self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]), indConv, rhs_start_index=0)
         species_data.TOTALERROR[pslice] = np.sqrt(
-            mpy.get_diagonal(self.results.Sx[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1])
+            mpy.get_diagonal(self.results.Sx[ind1FM : ind2FM, ind1FM : ind2FM])
         )
 
         # AT_LINE 355 write_products_one.pro
@@ -951,15 +945,8 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.H2O_SPECIES = copy.deepcopy(vector_of_fills)
             species_data.H2O_SPECIES[indp] = self.state_value_vec("H2O")
             species_data.H2O_INITIAL = copy.deepcopy(vector_of_fills)
-
-            # TODO
-            # This looks wrong to me. Although this is marked initial, it is getting
-            # this from the results. It is possible this is correct, perhaps this
-            # the value used for the HDO? We should double check this. But this
-            # is what the current muses-py code does
-            species_data.H2O_INITIAL[indp] = self.retrieval_info.species_results(
-                self.results, "H2O", INITIAL_Flag=True
-            )
+            # Looks odd to me, but this seems to be what muses-py does
+            species_data.H2O_INITIAL[indp] = self.state_value_vec("H2O")
         # end if self.spcname == 'HDO':
 
         ind = utilList.WhereEqualIndices(self.species_list_fm, "EMIS")
@@ -1010,28 +997,19 @@ class RetrievalL2Output(RetrievalOutput):
             # AT_LINE 676 src_ms-2018-12-10/write_products_one.pro
             species_data.N2O_DOFS = 0.0
 
-            ispecieN2O = -1
             if StateElementIdentifier("N2O") in self.current_state.retrieval_state_element_id:
-                ispecieN2O = self.retrieval_info.species_names.index("N2O")
-                ind1FMN2O = self.retrieval_info.retrieval_info_obj.parameterStartFM[
-                    ispecieN2O
-                ]
-                ind2FMN2O = self.retrieval_info.retrieval_info_obj.parameterEndFM[
-                    ispecieN2O
-                ]
-
-            # AT_LINE 683 write_products_one.pro
-            if ispecieN2O >= 0:
+                ind1FMN2O, sz = self.current_state.fm_sv_loc[StateElementIdentifier("N2O")]
+                ind2FMN2O = ind1FMN2O + sz
+                
                 # AT_LINE 642 write_products_one.pro
                 species_data.N2O_DOFS = 0.0
                 species_data.N2O_DOFS = np.sum(
                     mpy.get_diagonal(
                         self.results.A[
-                            ind1FMN2O : ind2FMN2O + 1, ind1FMN2O : ind2FMN2O + 1
+                            ind1FMN2O : ind2FMN2O, ind1FMN2O : ind2FMN2O
                         ]
                     )
                 )
-
                 species_data.N2O_SPECIES[pslice] = self.state_value_vec("N2O")
                 species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec("N2O")
             else:
@@ -1057,7 +1035,7 @@ class RetrievalL2Output(RetrievalOutput):
             # AT_LINE 657 write_products_one.pro
             species_data.CH4_EVS = np.zeros(shape=(10), dtype=np.float32)
             species_data.CH4_EVS[:] = self.results.ch4_evs[:]
-        # end if self.spcname == 'CH4' and 'CH4' in self.retrieval_info.retrieval_info_obj.species:
+        # end if self.spcname == 'CH4'
 
         # for CH4 if jointly retrieved with TATM add TATM
         if self.spcname == "CH4" and StateElementIdentifier("TATM") in self.current_state.retrieval_state_element_id:
@@ -1091,7 +1069,7 @@ class RetrievalL2Output(RetrievalOutput):
                 )
             )
             species_data.TATM_DEVIATION = maxx  # maximum deviation from prior
-        # end if species_name == 'CH4' and 'TATM' in self.retrieval_info.retrieval_info_obj.species:
+        # end if species_name == 'CH4'
 
         species_data = species_data.__dict__
         for k, v in species_data.items():
