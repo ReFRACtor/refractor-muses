@@ -124,7 +124,6 @@ class CurrentStateStateInfo(CurrentState):
 
     def update_state(
         self,
-        retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration | MeasurementId,
@@ -132,9 +131,8 @@ class CurrentStateStateInfo(CurrentState):
     ) -> None:
         """Update the state info"""
         self._current_state_old.update_state(
-            retrieval_info, results_list, do_not_update, retrieval_config, step
+            results_list, do_not_update, retrieval_config, step
         )
-        self.retrieval_info = retrieval_info
 
     def update_full_state_element(
         self,

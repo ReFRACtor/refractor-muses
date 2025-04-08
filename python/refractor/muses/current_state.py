@@ -322,7 +322,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def update_state(
         self,
-        retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration | MeasurementId,
@@ -1315,7 +1314,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def update_state(
         self,
-        retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
         do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration | MeasurementId,
@@ -1323,9 +1321,8 @@ class CurrentStateStateInfoOld(CurrentState):
     ) -> None:
         """Update the state info"""
         self.state_info.update_state(
-            retrieval_info, results_list, do_not_update, retrieval_config, step
+            self.retrieval_info, results_list, do_not_update, retrieval_config, step
         )
-        self.retrieval_info = retrieval_info
 
     def update_full_state_element(
         self,
@@ -1628,12 +1625,12 @@ class CurrentStateStateInfoOld(CurrentState):
         if nparm > 0:
             xig = self._retrieval_info.initial_guess_list[0:nparm]
             self.update_state(
-                self._retrieval_info,
                 xig,
                 [],
                 retrieval_config,
                 current_strategy_step.strategy_step.step_number,
             )
+        self.clear_cache()
 
     def notify_update_target(
         self,

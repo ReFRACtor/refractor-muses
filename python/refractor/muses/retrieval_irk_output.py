@@ -3,7 +3,7 @@ from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
-from .identifier import ProcessLocation, InstrumentIdentifier
+from .identifier import ProcessLocation, InstrumentIdentifier, StateElementIdentifier
 import numpy as np
 import math
 import typing
@@ -14,7 +14,6 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy_step import RetrievalStrategyStep
     from .muses_forward_model import ResultIrk
     from .current_state import PropagatedQA
-    from .retrieval_info import RetrievalInfo
 
 
 def _new_from_init(cls, *args):  # type: ignore
@@ -30,10 +29,6 @@ class RetrievalIrkOutput(RetrievalOutput):
 
     def __reduce__(self) -> tuple[Callable, tuple[Any]]:
         return (_new_from_init, (self.__class__,))
-
-    @property
-    def retrieval_info(self) -> RetrievalInfo:
-        return self.retrieval_strategy.current_state.retrieval_info
 
     @property
     def propagated_qa(self) -> PropagatedQA:
@@ -190,7 +185,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             irk_data.omi_vza_uv2 = np.float32(-999.0)
             irk_data.omi_sca_uv2 = np.float32(-999.0)
 
-        if "OMI" in self.retrieval_info.retrieval_info_obj.speciesList:
+        if StateElementIdentifier("OMI") in self.current_state.retrieval_state_element_id:
             irk_data.BoresightNadirAngle[:] = np.float32(vza[blist.index("UV1")])
         else:
             # convert to degrees

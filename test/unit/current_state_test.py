@@ -201,7 +201,6 @@ def test_update_cloudfraction(omi_step_0):
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[np.array(rinfo.species_list) == "OMICLOUDFRACTION"] = 0.5
     cstate.update_state(
-        rinfo,
         results_list,
         [],
         rs.retrieval_config,
@@ -377,7 +376,6 @@ def test_noupdate_cloudfraction(omi_step_0):
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[np.array(rinfo.species_list) == "OMICLOUDFRACTION"] = 0.5
     cstate.update_state(
-        rinfo,
         results_list,
         [StateElementIdentifier("OMICLOUDFRACTION")],
         rs.retrieval_config,
@@ -568,7 +566,6 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[np.array(rinfo.species_list) == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     cstate.update_state(
-        rinfo,
         results_list,
         [],
         rs.retrieval_config,
@@ -693,7 +690,6 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
     results_list = np.zeros((rinfo.n_totalParameters))
     results_list[np.array(rinfo.species_list) == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
     cstate.update_state(
-        rinfo,
         results_list,
         [StateElementIdentifier("OMIEOFUV1")],
         rs.retrieval_config,

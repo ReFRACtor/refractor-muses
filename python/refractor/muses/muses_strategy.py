@@ -23,7 +23,6 @@ if typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
     from .spectral_window_handle import SpectralWindowHandleSet
-    from .retrieval_info import RetrievalInfo
     from .retrieval_strategy import RetrievalStrategy
 
 
@@ -61,7 +60,6 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     def update_state(
         self,
         current_state: CurrentState,
-        retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
     ) -> None:
         """Update the CurrentState with the results. We have this as
@@ -147,7 +145,6 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     def update_state(
         self,
         current_state: CurrentState,
-        retrieval_info: RetrievalInfo,
         results_list: np.ndarray,
     ) -> None:
         """Update the CurrentState with the results. We have this as part of
@@ -159,7 +156,6 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
             )
 
         current_state.update_state(
-            retrieval_info,
             results_list,
             self.current_strategy_step_dict["do_not_update_list"],
             self.measurement_id,

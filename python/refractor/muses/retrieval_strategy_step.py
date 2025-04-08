@@ -262,7 +262,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         logger.info("---\n")
 
         rs.current_strategy_step.update_state(
-            cstate, rs.current_state.retrieval_info, self.results.results_list
+            cstate, self.results.results_list
         )
 
         # I don't think we actually want this in here. 1) we don't currently
