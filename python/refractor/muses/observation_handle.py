@@ -53,8 +53,9 @@ def mpy_radiance_from_observation_list(
             iname.append(obs.instrument_name)
             isize.append(s.spectral_range.data.shape[0])
             for fn, fs in obs.filter_data:
-                fname.append(fn)
-                fsize.append(fs)
+                if(fs > 0):
+                    fname.append(fn)
+                    fsize.append(fs)
 
     return {
         "radiance": np.concatenate(d),

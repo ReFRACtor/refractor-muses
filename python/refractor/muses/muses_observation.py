@@ -512,8 +512,7 @@ class MusesObservationImp(MusesObservation):
         sd = self.spectral_domain_all()
         for i, fltname in enumerate(self._filter_data_name):
             sz = self._filter_data_swin.apply(sd, i).data.shape[0]
-            if sz > 0:
-                res.append((fltname, sz))
+            res.append((fltname, sz))
         return res
 
     def update_coeff_and_mapping(self, coeff: np.ndarray, mp: rf.StateMapping) -> None:

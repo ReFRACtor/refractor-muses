@@ -12,7 +12,7 @@ import numpy as np
 import copy
 from collections import UserDict
 import typing
-from typing import Callable
+from typing import Callable, Any
 
 if typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
@@ -35,8 +35,8 @@ class MusesForwardModelBase(rf.ForwardModel):
         instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        **kwargs,
-    ):
+        **kwargs : Any,
+    ) -> None:
         super().__init__()
         self.instrument_name = instrument_name
         self.rf_uip = rf_uip
@@ -44,7 +44,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         self.kwargs = kwargs
         self.measurement_id = measurement_id
 
-    def bad_sample_mask(self, sensor_index):
+    def bad_sample_mask(self, sensor_index : int) -> np.ndarray:
         bmask = self.obs.bad_sample_mask(sensor_index)
         if self.obs.spectral_window.include_bad_sample:
             bmask[:] = False
@@ -55,14 +55,14 @@ class MusesForwardModelBase(rf.ForwardModel):
             gindex = self.obs.spectral_window.grid_indexes(sd, sensor_index)
         return bmask[list(gindex)]
 
-    def setup_grid(self):
+    def setup_grid(self) -> None:
         # Nothing that we need to do for this
         pass
 
-    def _v_num_channels(self):
+    def _v_num_channels(self) -> int:
         return 1
 
-    def spectral_domain(self, sensor_index):
+    def spectral_domain(self, sensor_index : int) -> rf.SpectralDomain:
         if sensor_index > 0:
             raise RuntimeError("sensor_index out of range")
         sd = np.concatenate(
@@ -74,20 +74,20 @@ class MusesForwardModelBase(rf.ForwardModel):
 # Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
 # using something like --profile-svg in pytest
 class RefractorForwardModel(rf.ForwardModel):
-    def __init__(self, fm):
+    def __init__(self, fm : rf.ForwardModel) -> None:
         super().__init__()
         self.fm = fm
 
-    def setup_grid(self):
+    def setup_grid(self) -> None:
         self.fm.setup_grid()
 
-    def _v_num_channels(self):
+    def _v_num_channels(self) -> int:
         return self.fm.num_channels
 
-    def spectral_domain(self, sensor_index):
+    def spectral_domain(self, sensor_index : int) -> rf.SpectralDomain:
         return self.fm.spectral_domain(sensor_index)
 
-    def radiance(self, sensor_index, skip_jacobian=False):
+    def radiance(self, sensor_index : int, skip_jacobian : bool=False) -> rf.Spectrum:
         return self.fm.radiance(sensor_index, skip_jacobian)
 
 
@@ -100,11 +100,11 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
         instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        **kwargs,
-    ):
+        **kwargs : Any,
+    ) -> None:
         super().__init__(rf_uip, instrument_name, obs, measurement_id, **kwargs)
 
-    def radiance(self, sensor_index, skip_jacobian=False):
+    def radiance(self, sensor_index : int, skip_jacobian : bool=False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
         with osswrapper(self.rf_uip.uip):
@@ -159,12 +159,12 @@ class ResultIrk(UserDict):
     at some point, but right now there isn't much of a need for this.
     The old py-retrieve code that uses ResultIrk is expecting a dict."""
 
-    def __getattr__(self, nm):
+    def __getattr__(self, nm : str) -> Any:
         if nm in self.data:
             return self[nm]
         raise AttributeError()
 
-    def __setattr__(self, nm, value):
+    def __setattr__(self, nm : str, value : Any) -> None:
         if nm in ("data",):
             super().__setattr__(nm, value)
         if nm in self.data:
@@ -172,7 +172,7 @@ class ResultIrk(UserDict):
         else:
             super().__setattr__(nm, value)
 
-    def get_state(self):
+    def get_state(self) -> dict[str, Any]:
         res = dict(copy.deepcopy(self.data))
         for k in res.keys():
             if k in (
@@ -205,7 +205,7 @@ class ResultIrk(UserDict):
                     res[k][k2] = res[k][k2].tolist()
         return res
 
-    def set_state(self, d):
+    def set_state(self, d : dict[str, Any]) -> None:
         self.data = d
         for k in self.data.keys():
             if k in (
@@ -283,7 +283,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         self,
         pointing_angle: rf.DoubleWithUnit,
         rf_uip_func: Callable[[MusesObservation, rf.DoubleWithUnit], RefractorUip],
-    ):
+    ) -> tuple[rf.Spectrum, None | np.ndarray]:
         """Calculate radiance/jacobian for the IRK calculation, for the
         given angle. If pointing_angle is 0, we also return dEdOD."""
         rf_uip_pointing = rf_uip_func(self.obs, pointing_angle)
@@ -484,6 +484,8 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             # convert cloudext to cloudod
             # dL/dod = dL/dext * dext/dod
             if species_name == "CLOUDEXT":
+                if(dEdOD is None):
+                    raise RuntimeError("dEdOD should not be None")
                 myirfk = np.multiply(myirfk, dEdOD)
                 for pp in range(dEdOD.shape[0]):
                     myirfk_segs[pp, :] = myirfk_segs[pp, :] * dEdOD[pp]
@@ -660,8 +662,8 @@ class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
         rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        **kwargs,
-    ):
+        **kwargs : Any,
+    ) -> None:
         super().__init__(
             rf_uip, InstrumentIdentifier("TROPOMI"), obs, measurement_id, **kwargs
         )
@@ -673,8 +675,8 @@ class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
         rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        **kwargs,
-    ):
+        **kwargs : Any,
+    ) -> None:
         super().__init__(
             rf_uip, InstrumentIdentifier("OMI"), obs, measurement_id, **kwargs
         )
@@ -688,8 +690,8 @@ class MusesCrisForwardModel(MusesForwardModelIrk):
         rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        **kwargs,
-    ):
+        **kwargs : Any,
+    ) -> None:
         super().__init__(
             rf_uip, InstrumentIdentifier("CRIS"), obs, measurement_id, **kwargs
         )
@@ -707,8 +709,8 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        **kwargs,
-    ):
+        **kwargs : Any,
+    ) -> None:
         super().__init__(
             rf_uip, InstrumentIdentifier("AIRS"), obs, measurement_id, **kwargs
         )
@@ -733,7 +735,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         self,
         pointing_angle: rf.DoubleWithUnit,
         rf_uip_func: Callable[[MusesObservation, rf.DoubleWithUnit], RefractorUip],
-    ):
+    ) -> tuple[rf.Spectrum, None | np.ndarray]:
         """Calculate radiance/jacobian for the IRK calculation, for the
         given angle. We also return the UIP we used for the calculation"""
         # For AIRS, we use the TES forward model instead. Based on comments in
@@ -757,8 +759,8 @@ class MusesTesForwardModel(MusesForwardModelIrk):
         rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        **kwargs,
-    ):
+        **kwargs : Any,
+    ) -> None:
         super().__init__(
             rf_uip, InstrumentIdentifier("TES"), obs, measurement_id, **kwargs
         )
@@ -773,18 +775,18 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
     don't need. Just gives the right name in the state vector, and
     act as a placeholder for any future stuff."""
 
-    def __init__(self, pstart, plen, species_name):
+    def __init__(self, pstart : int, plen : int, species_name : str) -> None:
         super().__init__()
         self.pstart = pstart
         self.plen = plen
         self.species_name = species_name
         self.coeff = None
 
-    def notify_update(self, sv):
+    def notify_update(self, sv : rf.StateVector) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.coeff = sv.state[self.pstart : (self.pstart + self.plen)]
 
-    def state_vector_name(self, sv, sv_namev):
+    def state_vector_name(self, sv : rf.StateVector, sv_namev : list[str]) -> None:
         svnm = [
             "",
         ] * len(sv.state)
@@ -795,13 +797,13 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
 
 
 class MusesForwardModelHandle(ForwardModelHandle):
-    def __init__(self, instrument_name: InstrumentIdentifier, cls, **creator_kwargs):
+    def __init__(self, instrument_name: InstrumentIdentifier, cls, **creator_kwargs : Any) -> None:
         self.creator_kwargs = creator_kwargs
         self.instrument_name = instrument_name
         self.cls = cls
         self.measurement_id: MeasurementId | None = None
 
-    def notify_update_target(self, measurement_id: MeasurementId):
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
@@ -813,8 +815,8 @@ class MusesForwardModelHandle(ForwardModelHandle):
         obs: MusesObservation,
         fm_sv: rf.StateVector,
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
-        **kwargs,
-    ):
+        **kwargs : Any,
+    ) -> None | rf.ForwardModel:
         if instrument_name != self.instrument_name:
             return None
         if rf_uip_func is None:

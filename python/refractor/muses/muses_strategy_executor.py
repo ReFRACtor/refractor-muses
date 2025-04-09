@@ -139,7 +139,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self.rs = rs
         self.current_state = CurrentStateStateInfo()
         self.vlidort_cli = vlidort_cli
-        self.kwargs = kwargs
+        self.kwargs = copy.copy(kwargs)
+        if(vlidort_cli is not None):
+            self.kwargs["vlidort_cli"] = vlidort_cli
         if observation_handle_set is None:
             self.observation_handle_set = copy.deepcopy(
                 ObservationHandleSet.default_handle_set()
