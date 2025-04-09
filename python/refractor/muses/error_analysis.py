@@ -4,6 +4,7 @@ from .fake_state_info import FakeStateInfo
 import copy
 import numpy as np
 import sys
+import os
 from pprint import pprint
 from scipy.linalg import block_diag  # type: ignore
 import typing
@@ -37,16 +38,21 @@ class ErrorAnalysis:
         self.error_initial = mpy.ObjectView(self.error_initial)
         self.error_current = mpy.ObjectView(self.error_current)
 
-    def snapshot_to_file(self, fname):
-        '''py-retrieve is big on having functions with unintended side effects. It can
+    def snapshot_to_file(self, fname: str | os.PathLike[str]) -> None:
+        """py-retrieve is big on having functions with unintended side effects. It can
         be hard to determine what changes when. This writes a complete text dump of
         this object, which we can then diff against other snapshots to see what has
-        changed.'''
+        changed."""
         with np.printoptions(precision=None, threshold=sys.maxsize):
             with open(fname, "w") as fh:
-                pprint({"error_initial" : self.error_initial.__dict__,
-                        "error_current" : self.error_current.__dict__}, stream=fh)
-        
+                pprint(
+                    {
+                        "error_initial": self.error_initial.__dict__,
+                        "error_current": self.error_current.__dict__,
+                    },
+                    stream=fh,
+                )
+
     def initialize_error_initial(
         self,
         current_state: CurrentState,

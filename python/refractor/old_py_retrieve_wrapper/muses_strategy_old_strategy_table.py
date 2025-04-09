@@ -14,7 +14,7 @@ from refractor.muses import (
     StateElementIdentifier,
     StrategyStepIdentifier,
 )
-from .strategy_table import StrategyTable
+from .strategy_table import StrategyTable  # type: ignore
 from typing import Any
 import os
 

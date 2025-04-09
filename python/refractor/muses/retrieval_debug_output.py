@@ -3,6 +3,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
 from .fake_state_info import FakeStateInfo
+from .fake_retrieval_info import FakeRetrievalInfo
 from loguru import logger
 import os
 import pickle
@@ -12,7 +13,6 @@ from typing import Any
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-    from .retrieval_info import RetrievalInfo
 
 # We don't have all this in place yet, but put a few samples in place for output
 # triggered by having "writeOutput" which is controlled by the --debug flag set
@@ -30,10 +30,6 @@ class RetrievalInputOutput(RetrievalOutput):
     def windows(self):  # type: ignore
         return self.retrieval_strategy.microwindows
 
-    @property
-    def retrieval_info(self) -> RetrievalInfo:
-        return self.retrieval_strategy.current_state.retrieval_info
-
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
@@ -50,17 +46,18 @@ class RetrievalInputOutput(RetrievalOutput):
         # May need to extend this logic here
         detectorsUse = [1]
         fstate_info = FakeStateInfo(self.current_state)
+        fretrieval_info = FakeRetrievalInfo(self.current_state)
         mpy.write_retrieval_inputs(
             self.retrieval_strategy.rstrategy_table.strategy_table_dict,
             fstate_info,
             self.windows,
-            self.retrieval_info.retrieval_info_obj,
+            fretrieval_info,
             self.step_number,
             self.error_current.__dict__,
             detectorsUse,
         )
         mpy.cdf_write_dict(
-            self.retrieval_info.retrieval_info_obj.__dict__,
+            fretrieval_info.__dict__,
             str(self.input_directory / "retrieval.nc"),
         )
 
@@ -84,10 +81,6 @@ class RetrievalPickleResult(RetrievalOutput):
 
 
 class RetrievalPlotResult(RetrievalOutput):
-    @property
-    def retrieval_info(self) -> RetrievalInfo:
-        return self.retrieval_strategy.current_state.retrieval_info
-
     def notify_update(
         self,
         retrieval_strategy: RetrievalStrategy,
@@ -102,10 +95,11 @@ class RetrievalPlotResult(RetrievalOutput):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.step_directory, exist_ok=True)
         fstate_info = FakeStateInfo(self.current_state)
+        fretrieval_info = FakeRetrievalInfo(self.current_state)
         mpy.plot_results(
             str(self.step_directory) + "/",
             self.results,
-            self.retrieval_info.retrieval_info_obj,
+            fretrieval_info,
             fstate_info,
         )
 

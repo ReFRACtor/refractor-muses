@@ -305,7 +305,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
 
     def irk(
         self,
-        current_state : CurrentState,
+        current_state: CurrentState,
         rf_uip_func: Callable[[MusesObservation, rf.DoubleWithUnit], RefractorUip],
     ) -> ResultIrk:
         """This was originally the run_irk.py code from py-retrieve. We

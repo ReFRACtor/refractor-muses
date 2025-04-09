@@ -185,7 +185,10 @@ class RetrievalIrkOutput(RetrievalOutput):
             irk_data.omi_vza_uv2 = np.float32(-999.0)
             irk_data.omi_sca_uv2 = np.float32(-999.0)
 
-        if StateElementIdentifier("OMI") in self.current_state.retrieval_state_element_id:
+        if (
+            StateElementIdentifier("OMI")
+            in self.current_state.retrieval_state_element_id
+        ):
             irk_data.BoresightNadirAngle[:] = np.float32(vza[blist.index("UV1")])
         else:
             # convert to degrees

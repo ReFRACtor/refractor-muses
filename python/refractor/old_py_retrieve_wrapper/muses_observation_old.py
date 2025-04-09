@@ -1,3 +1,7 @@
+# Don't both typechecking the file. This is old code, only used for backwards testing.
+# Silence mypy, just so we don't get a lot of noise in the output
+# type: ignore
+
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from refractor.muses import RefractorUip

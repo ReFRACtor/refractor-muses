@@ -8,6 +8,7 @@ if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier
     from .current_state import CurrentStateStateInfoOld
 
+
 class StateElementOldWrapper(StateElement):
     """This wraps around a CurrentStateStateInfoOld and presents the
     data like a StateElement. This is used for backwards testing against
@@ -64,9 +65,7 @@ class StateElementOldWrapper(StateElement):
     @property
     def apriori(self) -> np.ndarray:
         """Apriori value of StateElement"""
-        return self._current_state_old.full_state_apriori_value(
-            self.state_element_id
-        )
+        return self._current_state_old.full_state_apriori_value(self.state_element_id)
 
     @property
     def apriori_cov(self) -> np.ndarray:
@@ -120,6 +119,7 @@ class StateElementOldWrapper(StateElement):
 class StateElementOldWrapperHandle(StateElementHandle):
     def __init__(self) -> None:
         from .current_state import CurrentStateStateInfoOld
+
         self._current_state_old = CurrentStateStateInfoOld(None)
 
     def state_element(
@@ -128,7 +128,4 @@ class StateElementOldWrapperHandle(StateElementHandle):
         return StateElementOldWrapper(state_element_id, self._current_state_old)
 
 
-__all__ = [
-    "StateElementOldWrapper",
-    "StateElementOldWrapperHandle"
-]
+__all__ = ["StateElementOldWrapper", "StateElementOldWrapperHandle"]

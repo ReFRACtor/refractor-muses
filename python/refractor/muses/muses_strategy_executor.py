@@ -692,9 +692,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self.current_state._current_state_old._state_info = pickle.load(
             open(state_info_pickle_file, "rb")
         )
-        self.current_state.state_element_handle_set = (
-            hset
-        )
+        self.current_state.state_element_handle_set = hset
         if (
             self.current_state._current_state_old._state_info.retrieval_config
             is not None

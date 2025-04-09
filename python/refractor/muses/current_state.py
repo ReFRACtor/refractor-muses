@@ -67,7 +67,7 @@ class SoundingMetadata:
     I'm not sure if that actually can happen, but there isn't another obvious place
     to put this metadata so we'll go ahead and keep this here."""
 
-    def __init__(self, state_info: StateInfoOld, step : str="current") -> None:
+    def __init__(self, state_info: StateInfoOld, step: str = "current") -> None:
         if step not in ("current", "initial", "initialInitial"):
             raise RuntimeError(
                 "Don't support anything other than the current, initial, or initialInitial step"
@@ -351,10 +351,30 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
+    def apriori_fm(self) -> np.ndarray:
+        """Apriori value"""
+        raise NotImplementedError()
+
+    @property
+    def true_value(self) -> np.ndarray:
+        """Apriori value"""
+        raise NotImplementedError()
+
+    @property
+    def true_value_fm(self) -> np.ndarray:
+        """Apriori value"""
+        raise NotImplementedError()
+
+    @property
     def basis_matrix(self) -> np.ndarray | None:
         """Basis matrix going from retrieval vector to full model vector.
         We don't always have this, so we return None if there isn't a basis matrix.
         """
+        raise NotImplementedError()
+
+    @property
+    def map_to_parameter_matrix(self) -> np.ndarray | None:
+        """Go the other direction from basis matrix"""
         raise NotImplementedError()
 
     @property
@@ -381,6 +401,16 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         row size."""
         raise NotImplementedError()
 
+    def map_type(self, state_element_id: StateElementIdentifier) -> str:
+        """For ReFRACtor we use a general rf.StateMapping, which can mostly
+        replace the map type py-retrieve uses. However there are some places
+        where old code depends on the map type strings (for example, writing
+        metadata to an output file). It isn't clear what we will need to do if
+        we have a more general mapping type like a scale retrieval or something like
+        that. But for now, supply the old map type. The string will be something
+        like "log" or "linear" """
+        raise NotImplementedError()
+
     def pressure_list(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:
@@ -396,6 +426,24 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
+        """
+        raise NotImplementedError()
+
+    def altitude_list(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray | None:
+        """For state elements that are on pressure level, this returns
+        the altitude.  This is for the retrieval state vector
+        levels (generally smaller than the altitude_list_fm).
+        """
+        raise NotImplementedError()
+
+    def altitude_list_fm(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray | None:
+        """For state elements that are on pressure level, this returns
+        the altitude.  This is for the forward model state
+        vector levels (generally larger than the altitude_list).
         """
         raise NotImplementedError()
 
@@ -511,7 +559,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Return list of state elements that are in the systematic list (used by the
         ErrorAnalysis)."""
         raise NotImplementedError()
-    
+
     @abc.abstractproperty
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
@@ -596,7 +644,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
-        
+
         If we don't have a true value, return None
         """
         raise NotImplementedError()
@@ -764,6 +812,11 @@ class CurrentStateUip(CurrentState):
         """
         return self._basis_matrix
 
+    @property
+    def map_to_parameter_matrix(self) -> np.ndarray | None:
+        """Go the other direction from basis matrix"""
+        raise NotImplementedError()
+
     # We don't have the other gas species working yet. Short term,
     # just have a different implementation of fm_sv_loc. We should
     # sort this out at some point.
@@ -787,7 +840,7 @@ class CurrentStateUip(CurrentState):
         """Return list of state elements that are in the systematic list (used by the
         ErrorAnalysis)."""
         raise NotImplementedError()
-    
+
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
@@ -1083,7 +1136,7 @@ class CurrentStateDict(CurrentState):
         """Return list of state elements that are in the systematic list (used by the
         ErrorAnalysis)."""
         raise NotImplementedError()
-    
+
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
@@ -1237,11 +1290,12 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def state_info(self) -> StateInfoOld:
-        if(self._state_info is None):
+        if self._state_info is None:
             from refractor.old_py_retrieve_wrapper import StateInfoOld  # type: ignore
+
             self._state_info = StateInfoOld()
         return self._state_info
-    
+
     def current_state_override(
         self,
         do_systematic: bool,
@@ -1266,6 +1320,21 @@ class CurrentStateStateInfoOld(CurrentState):
             )
         else:
             return copy(self._retrieval_info.initial_guess_list)
+
+    @property
+    def initial_guess_fm(self) -> np.ndarray:
+        """Initial guess on forward mode"""
+        # TODO
+        # Not clear why this isn't directly calculated from initial_guess, but the
+        # values are different. For now, just have this and we can try to sort this out
+        if self._retrieval_info is None:
+            raise RuntimeError("_retrieval_info is None")
+        if self.do_systematic:
+            return copy(
+                self._retrieval_info.retrieval_info_systematic().initialGuessListFM
+            )
+        else:
+            return copy(self._retrieval_info.initial_guess_list_fm)
 
     @property
     def apriori_cov(self) -> np.ndarray:
@@ -1299,6 +1368,31 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self.retrieval_info.apriori)
 
     @property
+    def apriori_fm(self) -> np.ndarray:
+        """Apriori value"""
+        # Not sure about systematic handling here.
+        if self.do_systematic:
+            return np.zeros((len(self.initial_guess_fm),))
+        else:
+            if self.retrieval_info is None:
+                raise RuntimeError("retrieval_info is None")
+            return copy(self.retrieval_info.apriori_fm)
+
+    @property
+    def true_value(self) -> np.ndarray:
+        """Apriori value"""
+        if self.retrieval_info is None:
+            raise RuntimeError("retrieval_info is None")
+        return copy(self.retrieval_info.true_value)
+
+    @property
+    def true_value_fm(self) -> np.ndarray:
+        """Apriori value"""
+        if self.retrieval_info is None:
+            raise RuntimeError("retrieval_info is None")
+        return copy(self.retrieval_info.true_value_fm)
+
+    @property
     def basis_matrix(self) -> np.ndarray | None:
         """Basis matrix going from retrieval vector to full model
         vector.  We don't always have this, so we return None if there
@@ -1311,6 +1405,16 @@ class CurrentStateStateInfoOld(CurrentState):
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
             return self.retrieval_info.basis_matrix
+
+    @property
+    def map_to_parameter_matrix(self) -> np.ndarray | None:
+        """Go the other direction from basis matrix"""
+        if self.do_systematic:
+            return None
+        else:
+            if self.retrieval_info is None:
+                raise RuntimeError("retrieval_info is None")
+            return self.retrieval_info.map_to_parameter_matrix
 
     @property
     def step_directory(self) -> Path:
@@ -1394,7 +1498,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return [
             StateElementIdentifier(i) for i in self.retrieval_info.species_names_sys
         ]
-    
+
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
@@ -1462,7 +1566,7 @@ class CurrentStateStateInfoOld(CurrentState):
         self, state_element_id: StateElementIdentifier
     ) -> StateElement:
         raise NotImplementedError()
-    
+
     def full_state_element_old(
         self, state_element_id: StateElementIdentifier
     ) -> StateElementOld:
@@ -1591,6 +1695,17 @@ class CurrentStateStateInfoOld(CurrentState):
                 self._retrieval_state_vector_size += plen
         return self._retrieval_sv_loc
 
+    def map_type(self, state_element_id: StateElementIdentifier) -> str:
+        """For ReFRACtor we use a general rf.StateMapping, which can mostly
+        replace the map type py-retrieve uses. However there are some places
+        where old code depends on the map type strings (for example, writing
+        metadata to an output file). It isn't clear what we will need to do if
+        we have a more general mapping type like a scale retrieval or something like
+        that. But for now, supply the old map type. The string will be something
+        like "log" or "linear" """
+        selem = self.full_state_element_old(state_element_id)
+        return selem.map_type
+
     def pressure_list(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:
@@ -1615,6 +1730,30 @@ class CurrentStateStateInfoOld(CurrentState):
             return selem.pressureListFM
         return None
 
+    def altitude_list(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray | None:
+        """For state elements that are on pressure level, this returns
+        the altitude levels.  This is for the retrieval state vector
+        levels (generally smaller than the altitude_list_fm).
+        """
+        selem = self.full_state_element_old(state_element_id)
+        if hasattr(selem, "altitudeList"):
+            return selem.altitudeList
+        return None
+
+    def altitude_list_fm(
+        self, state_element_id: StateElementIdentifier
+    ) -> np.ndarray | None:
+        """For state elements that are on pressure level, this returns
+        the altitude levels.  This is for the forward model state
+        vector levels (generally larger than the altitude_list).
+        """
+        selem = self.full_state_element_old(state_element_id)
+        if hasattr(selem, "altitudeListFM"):
+            return selem.altitudeListFM
+        return None
+
     # Some of these arguments may get put into the class, but for now have explicit
     # passing of these
     def get_initial_guess(
@@ -1633,9 +1772,13 @@ class CurrentStateStateInfoOld(CurrentState):
             selem.update_initial_guess(current_strategy_step)
 
         if False:
-            self.state_info.snapshot_to_file(f"state_step{current_strategy_step.strategy_step.step_number}_1.txt")
-            error_analysis.snapshot_to_file(f"error_analysis_step{current_strategy_step.strategy_step.step_number}_1.txt")
-            
+            self.state_info.snapshot_to_file(
+                f"state_step{current_strategy_step.strategy_step.step_number}_1.txt"
+            )
+            error_analysis.snapshot_to_file(
+                f"error_analysis_step{current_strategy_step.strategy_step.step_number}_1.txt"
+            )
+
         # TODO, we'd like to get rid of RetrievalInfo
         self._retrieval_info = RetrievalInfo(
             error_analysis,
@@ -1648,7 +1791,7 @@ class CurrentStateStateInfoOld(CurrentState):
         # now this update is needed. Without this we get different results.
         # We should sort trough this, we don't want to go through RetrievalInfo
         # for this.
-        
+
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
         nparm = self._retrieval_info.n_totalParameters
@@ -1681,7 +1824,7 @@ class CurrentStateStateInfoOld(CurrentState):
     @property
     def state_element_handle_set_old(self) -> StateElementHandleSetOld:
         return self.state_info.state_element_handle_set
-    
+
     def notify_new_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,

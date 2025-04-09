@@ -51,6 +51,17 @@ class RetrievalInfo:
         return self.retrieval_dict["mapToState"][0:mmm, 0:nnn]
 
     @property
+    def map_to_parameter_matrix(self) -> np.ndarray | None:
+        # TODO Sort this out
+        # Not clear why this isn't just the transpose of basis_matrix. But it isn't,
+        # so just have this in place
+        if self.n_totalParameters == 0 or self.n_totalParametersFM == 0:
+            return None
+        mmm = self.n_totalParameters
+        nnn = self.n_totalParametersFM
+        return self.retrieval_dict["mapToParameters"][0:nnn, 0:mmm]
+
+    @property
     def retrieval_info_obj(self) -> mpy.ObjectView:
         return mpy.ObjectView(self.retrieval_dict)
 
@@ -124,6 +135,22 @@ class RetrievalInfo:
     @property
     def apriori(self) -> np.ndarray:
         return self.retrieval_dict["constraintVector"][0 : self.n_totalParameters]
+
+    @property
+    def apriori_fm(self) -> np.ndarray:
+        return self.retrieval_dict["constraintVectorListFM"][
+            0 : self.n_totalParametersFM
+        ]
+
+    @property
+    def true_value(self) -> np.ndarray:
+        """Apriori value"""
+        return self.retrieval_dict["trueParameterList"][0 : self.n_totalParameters]
+
+    @property
+    def true_value_fm(self) -> np.ndarray:
+        """Apriori value"""
+        return self.retrieval_dict["trueParameterListFM"][0 : self.n_totalParametersFM]
 
     @property
     def species_names(self) -> list[str]:
@@ -272,7 +299,9 @@ class RetrievalInfo:
         current_state: CurrentState,
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
-        selem = current_state.full_state_element_old(StateElementIdentifier(species_name))
+        selem = current_state.full_state_element_old(
+            StateElementIdentifier(species_name)
+        )
 
         row = o_retrievalInfo.n_totalParameters
         rowFM = o_retrievalInfo.n_totalParametersFM

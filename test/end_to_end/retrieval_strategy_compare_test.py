@@ -83,7 +83,7 @@ def test_compare_retrieval_airs_irk(
     test_retrieval_strategy_airs_irk already having been run."""
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
-    #diff_is_error = True
+    # diff_is_error = True
     diff_is_error = False
     dir = end_to_end_run_dir / "retrieval_strategy_airs_irk"
     compare_dir = airs_irk_test_expected_dir

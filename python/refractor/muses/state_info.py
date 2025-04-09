@@ -192,8 +192,6 @@ class StateInfo(UserDict):
         return self.data[state_element_id]
 
 
-
-
 __all__ = [
     "StateElement",
     "StateElementHandle",

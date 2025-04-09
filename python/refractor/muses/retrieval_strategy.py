@@ -40,6 +40,7 @@ if typing.TYPE_CHECKING:
     from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
     from .state_info import StateElementHandleSet
 
+
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
 class RetrievalStrategy(mpy.ReplaceFunctionObject):

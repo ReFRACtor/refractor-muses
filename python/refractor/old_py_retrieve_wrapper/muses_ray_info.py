@@ -33,8 +33,8 @@ class MusesRayInfo:
         rf_uip: refractor.muses.RefractorUip,
         instrument_name: str,
         pressure: rf.Pressure,
-        set_pointing_angle_zero=True,
-    ):
+        set_pointing_angle_zero: bool = True,
+    ) -> None:
         """Constructor.
 
         Note we use pressure to get the number of layers for some of
@@ -56,7 +56,7 @@ class MusesRayInfo:
         self.pressure = pressure
         self.set_pointing_angle_zero = set_pointing_angle_zero
 
-    def _ray_info(self):
+    def _ray_info(self) -> dict:
         """Return the ray info.
 
         To help make the interfaces clear, we consider this function
@@ -70,18 +70,18 @@ class MusesRayInfo:
             self.instrument_name, set_pointing_angle_zero=self.set_pointing_angle_zero
         )
 
-    def _nlay(self):
+    def _nlay(self) -> int:
         return self.pressure.number_layer
 
-    def _nlev(self):
+    def _nlev(self) -> int:
         return self.pressure.number_level
 
-    def tbar(self):
+    def tbar(self) -> np.ndarray:
         """Return tbar. This gets used in MusesRaman, I don't think this is used
         anywhere else."""
         return self._ray_info()["tbar"][::-1][: self._nlay()]
 
-    def altitude_grid(self):
+    def altitude_grid(self) -> np.ndarray:
         """Return altitude grid of each level. This gets used in MusesAltitude, I don't think
         it is used anywhere else"""
 
@@ -89,20 +89,20 @@ class MusesRayInfo:
         hlev = t[:] - t[0]
         return hlev[::-1][: self._nlev()]
 
-    def map_vmr(self):
+    def map_vmr(self) -> tuple[np.ndarray, np.ndarray]:
         """Return map_vmr_l and map_vmr_u. This gets used in MusesOpticalDepthFile."""
         t = self._ray_info()
         return t["map_vmr_l"][::-1], t["map_vmr_u"][::-1]
 
-    def number_cloud_layer(self, cloud_pressure):
+    def number_cloud_layer(self, cloud_pressure: float) -> int:
         """Return the number of cloud layers. This is used in RefractorFmObjectCreator"""
         return np.count_nonzero(self._ray_info()["pbar"] <= cloud_pressure)
 
-    def dry_air_density(self):
+    def dry_air_density(self) -> np.ndarray:
         """Return dry air density. This gets used in MusesOpticalDepthFile."""
         return self._ray_info()["column_air"][::-1][: self._nlay()]
 
-    def gas_density_layer(self, species_name):
+    def gas_density_layer(self, species_name: str) -> np.ndarray:
         """Return gas density layer for given species name."""
         t = self._ray_info()
         ind = np.where(np.asarray(t["level_params"]["species"]) == species_name)[0]

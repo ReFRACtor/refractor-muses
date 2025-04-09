@@ -4,6 +4,7 @@ import math
 import refractor.framework as rf  # type: ignore
 from .muses_ray_info import MusesRayInfo
 from pathlib import Path
+from typing import Self
 
 
 # Multiple inheritance works fine with swig, however our serialization currently
@@ -34,8 +35,8 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         ray_info: MusesRayInfo,
         pressure: rf.Pressure,
         temperature: rf.Temperature,
-        altitude: rf.Altitude,
-        absorber_vmr: rf.AbsorberVmr,
+        altitude: list[rf.Altitude],
+        absorber_vmr: list[rf.AbsorberVmr],
         num_channel: int,
         input_dir: str | Path,
     ):
@@ -82,15 +83,15 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
             a.add_cache_invalidated_observer(self.cache_observer)
 
     # Target the renamed funciton due to use of %python_attribute
-    def _v_number_species(self):
+    def _v_number_species(self) -> int:
         # By default number_species() in Absorber return 0
         return 1
 
-    def gas_name(self, species_index: int):
+    def gas_name(self, species_index: int) -> str:
         # All ozone all the time
         return "O3"
 
-    def cache_xsect_data(self):
+    def cache_xsect_data(self) -> None:
         """Read optical depth values from MUSES written files."""
         # Note, it is not a mistake that we don't check self.cache_valid_flag
         # here. The xsect data gets created once, as a side effect of
@@ -128,11 +129,11 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         # If we are doing temperature shifting, then we have a second file
         # of O3 data at a different temperature value. Grab that data. But
         # only do this if we need it to calculate a jacbian
-        file_data_temp = None
+        file_data_temp: None | np.ndarray = None
         if (
             self.input_dir / "O3Xsec_MW001_TEMP.asc"
         ).exists() and self.do_temperature_shift:
-            file_data_temp = np.loadtxt(
+            file_data_temp2 = np.loadtxt(
                 self.input_dir / "O3Xsec_MW001_TEMP.asc", skiprows=1
             )
             for mw_num in range(2, self.num_channel + 1):  # 1-based indexing
@@ -142,10 +143,10 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
                     mw_file_data = np.loadtxt(
                         self.input_dir / f"O3Xsec_MW{mw_num:03}_TEMP.asc", skiprows=1
                     )
-                    file_data_temp = np.concatenate([file_data_temp, mw_file_data])
+                    file_data_temp2 = np.concatenate([file_data_temp2, mw_file_data])
                 except FileNotFoundError:
                     pass
-            file_data_temp = file_data_temp[file_data_temp[:, 1].argsort()]
+            file_data_temp = file_data_temp2[file_data_temp2[:, 1].argsort()]
 
         self.xsect_grid = file_data[:, 1]
 
@@ -155,7 +156,9 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         else:
             self.xsect_data_temp = None
 
-    def total_air_number_density_layer(self, spec_index: int):
+    def total_air_number_density_layer(
+        self, spec_index: int
+    ) -> rf.ArrayWithUnit_double_1:
         # The output of this routine is used by RamanSioris
         # Return the MUSES value for consistency
         dry_air_density = self.ray_info.dry_air_density()
@@ -163,7 +166,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
             rf.ArrayAd_double_1(dry_air_density), rf.Unit("cm^-2")
         )
 
-    def cache_gas_number_density_layer(self):
+    def cache_gas_number_density_layer(self) -> None:
         """Computes the gas number density value per layer
         The value is cached until recomputed due to AbsorberVmr changes.
         """
@@ -181,7 +184,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
         self.gas_density_lay = self.ray_info.gas_density_layer("O3")
         self.cache_observer.cache_valid_flag = True
 
-    def gas_number_density_layer(self, spec_index: int):
+    def gas_number_density_layer(self, spec_index: int) -> rf.ArrayAd_double_2:
         self.cache_xsect_data()
         self.cache_gas_number_density_layer()
         # Should always be true, but put in to make mypy happy
@@ -193,17 +196,19 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
     # We shouldn't be calling the level versions anywhere, but because of how
     # we calculate layer stuff the level isn't consistent. Throw an error just so
     # we don't mistakenly use this somewhere
-    def _v_total_air_number_density_level(self):
+    def _v_total_air_number_density_level(self) -> rf.ArrayWithUnit_double_1:
         raise NotImplementedError(
             "We don't support level versions of functions in MusesOpticalDepthFile"
         )
 
-    def _v_gas_number_density_level(self):
+    def _v_gas_number_density_level(self) -> rf.ArrayAd_double_2:
         raise NotImplementedError(
             "We don't support level versions of functions in MusesOpticalDepthFile"
         )
 
-    def optical_depth_each_layer(self, wn: float, spec_index: int):
+    def optical_depth_each_layer(
+        self, wn: float, spec_index: int
+    ) -> rf.ArrayAd_double_2:
         # Note that this has a pretty clumsy interface in py-retrieve.
         # We 1) Need to have print_omi_o3xsec called (part of make_uip_tropomi
         # or make_uip_omi) - i.e., this depends on side effects of calling
@@ -286,7 +291,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
             od_result = rf.ArrayAd_double_2(wn_od_data[:, np.newaxis], dod_dstate)
         return od_result
 
-    def absorber_vmr(self, gas_name: str):
+    def absorber_vmr(self, gas_name: str) -> rf.AbsorberVmr:
         # We can only handle ozone right now
         if gas_name != "O3":
             raise Exception(
@@ -295,7 +300,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
 
         return self._absorber_vmr[0]
 
-    def clone(self):
+    def clone(self) -> Self:
         return MusesOpticalDepthFile(
             self.ray_info,
             self._pressure,
@@ -306,7 +311,7 @@ class MusesOpticalDepthFile(rf.AbsorberXSec):
             self.input_dir,
         )
 
-    def desc(self):
+    def desc(self) -> str:
         s = "MusesOpticalDepthFile"
         # TODO Come back to this
         # s += rf.AbsorberXSec.__str__(self)

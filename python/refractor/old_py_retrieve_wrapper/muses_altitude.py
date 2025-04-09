@@ -26,7 +26,7 @@ class MusesAltitude(rf.Altitude):
         self._pressure = pressure
         self._latitude = latitude
 
-        self.altitude_grid = None
+        self.altitude_grid: None | np.ndarray = None
 
     def cache_altitude(self) -> None:
         nlev = self._pressure.number_level

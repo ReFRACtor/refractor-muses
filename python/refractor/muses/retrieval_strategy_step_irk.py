@@ -33,9 +33,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
                 f"The forward model {fm.__class__.__name__} does not support calculating the irk"
             )
         if self._saved_state is None:
-            self.results_irk = fm.irk(
-                rs.current_state, rs.strategy_executor.rf_uip_irk
-            )
+            self.results_irk = fm.irk(rs.current_state, rs.strategy_executor.rf_uip_irk)
         else:
             # Use saved results instead of calculating
             # unit testing where we use a precomputed result
