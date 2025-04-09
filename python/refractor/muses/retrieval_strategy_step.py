@@ -284,7 +284,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         #
         # For right now, these are required, we would need to update
         # the error analysis to work without bad samples
-        if rs.current_state.retrieval_info.n_speciesSys > 0:
+        if len(rs.current_state.systematic_state_element_id) > 0:
             self.cfunc_sys = rs.create_cost_function(
                 do_systematic=True, include_bad_sample=True, fix_apriori_size=True
             )

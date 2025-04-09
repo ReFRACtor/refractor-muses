@@ -179,6 +179,12 @@ class CurrentStateStateInfo(CurrentState):
         return [StateElementIdentifier(i) for i in self.retrieval_info.species_names]
 
     @property
+    def systematic_state_element_id(self) -> list[StateElementIdentifier]:
+        """Return list of state elements that are in the systematic list (used by the
+        ErrorAnalysis)."""
+        return self._current_state_old.systematic_state_element_id
+    
+    @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element_id"""

@@ -17,7 +17,6 @@ from typing import Callable
 if typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
     from .muses_observation import MusesObservation, MeasurementId
-    from .retrieval_info import RetrievalInfo
     from .current_state import CurrentState
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
@@ -306,7 +305,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
 
     def irk(
         self,
-        retrieval_info: RetrievalInfo,
+        current_state : CurrentState,
         rf_uip_func: Callable[[MusesObservation, rf.DoubleWithUnit], RefractorUip],
     ) -> ResultIrk:
         """This was originally the run_irk.py code from py-retrieve. We
@@ -464,6 +463,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         o_results_irk["radiances"] = radInfo
 
         # calculate irk for each type
+        retrieval_info = current_state.retrieval_info
         for ispecies in range(len(retrieval_info.species_names)):
             species_name = retrieval_info.species_names[ispecies]
             ii = retrieval_info.parameter_start_fm[ispecies]

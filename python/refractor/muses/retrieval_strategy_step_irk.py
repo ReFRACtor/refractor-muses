@@ -34,7 +34,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
             )
         if self._saved_state is None:
             self.results_irk = fm.irk(
-                rs.current_state.retrieval_info, rs.strategy_executor.rf_uip_irk
+                rs.current_state, rs.strategy_executor.rf_uip_irk
             )
         else:
             # Use saved results instead of calculating

@@ -507,6 +507,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
+    def systematic_state_element_id(self) -> list[StateElementIdentifier]:
+        """Return list of state elements that are in the systematic list (used by the
+        ErrorAnalysis)."""
+        raise NotImplementedError()
+    
+    @abc.abstractproperty
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element_id"""
@@ -776,6 +782,12 @@ class CurrentStateUip(CurrentState):
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         return [StateElementIdentifier(i) for i in self.rf_uip.jacobian_all]
 
+    @property
+    def systematic_state_element_id(self) -> list[StateElementIdentifier]:
+        """Return list of state elements that are in the systematic list (used by the
+        ErrorAnalysis)."""
+        raise NotImplementedError()
+    
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
@@ -1066,6 +1078,12 @@ class CurrentStateDict(CurrentState):
         # Clear cache, we need to regenerate these after update
         self.clear_cache()
 
+    @property
+    def systematic_state_element_id(self) -> list[StateElementIdentifier]:
+        """Return list of state elements that are in the systematic list (used by the
+        ErrorAnalysis)."""
+        raise NotImplementedError()
+    
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
@@ -1365,6 +1383,18 @@ class CurrentStateStateInfoOld(CurrentState):
             ]
         return [StateElementIdentifier(i) for i in self.retrieval_info.species_names]
 
+    @property
+    def systematic_state_element_id(self) -> list[StateElementIdentifier]:
+        """Return list of state elements that are in the systematic list (used by the
+        ErrorAnalysis)."""
+        if self.retrieval_state_element_override is not None:
+            return self.retrieval_state_element_override
+        if self.retrieval_info is None:
+            raise RuntimeError("retrieval_info is None")
+        return [
+            StateElementIdentifier(i) for i in self.retrieval_info.species_names_sys
+        ]
+    
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
