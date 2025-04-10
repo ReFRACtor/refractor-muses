@@ -141,7 +141,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self.current_state = CurrentStateStateInfo()
         self.vlidort_cli = vlidort_cli
         self.kwargs = copy.copy(kwargs)
-        if(vlidort_cli is not None):
+        if vlidort_cli is not None:
             self.kwargs["vlidort_cli"] = vlidort_cli
         if observation_handle_set is None:
             self.observation_handle_set = copy.deepcopy(
@@ -302,11 +302,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         fake_state_info = FakeStateInfo(self.current_state, obs_list=obs_list)
         fake_retrieval_info = FakeRetrievalInfo(self.current_state)
         if do_systematic:
-            #rinfo = fake_retrieval_info.retrieval_info_systematic
-            rinfo = self.current_state.retrieval_info.retrieval_info_systematic()
+            rinfo = fake_retrieval_info.retrieval_info_systematic
         else:
-            #rinfo = fake_retrieval_info
-            rinfo = self.current_state.retrieval_info
+            rinfo = fake_retrieval_info
+
         # Maybe an update happens in the UIP, that doesn't get propogated back to
         # state_info? See if we can figure out what is changed here
         o_xxx = {

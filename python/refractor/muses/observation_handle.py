@@ -53,7 +53,7 @@ def mpy_radiance_from_observation_list(
             iname.append(obs.instrument_name)
             isize.append(s.spectral_range.data.shape[0])
             for fn, fs in obs.filter_data:
-                if(fs > 0):
+                if fs > 0:
                     fname.append(fn)
                     fsize.append(fs)
 

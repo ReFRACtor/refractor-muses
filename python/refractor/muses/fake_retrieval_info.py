@@ -48,7 +48,7 @@ class FakeRetrievalInfo:
                 "n_totalParametersFM": self.n_totalParametersSys,
             }
         )
-        
+
     @property
     def speciesListFM(self) -> list[str]:
         return [
@@ -70,14 +70,14 @@ class FakeRetrievalInfo:
     @property
     def n_totalParametersFM(self) -> int:
         return self.current_state.retrieval_info.retrieval_info_obj.n_totalParametersFM
-    
+
     @property
     def speciesList(self) -> list[str]:
         return self.current_state.retrieval_info.retrieval_info_obj.speciesList
 
     @property
-    def speciesListFM(self) -> list[str]:
-        return self.current_state.retrieval_info.retrieval_info_obj.speciesListFM
+    def n_speciesSys(self) -> int:
+        return self.current_state.retrieval_info.retrieval_info_obj.n_speciesSys
 
     @property
     def mapTypeListFM(self) -> list[str]:
@@ -90,7 +90,6 @@ class FakeRetrievalInfo:
     @property
     def parameterEndSys(self) -> list[str]:
         return self.current_state.retrieval_info.retrieval_info_obj.parameterEndSys
-    
 
     @property
     def speciesSys(self) -> list[str]:
@@ -101,13 +100,21 @@ class FakeRetrievalInfo:
         return self.current_state.retrieval_info.retrieval_info_obj.speciesListSys
 
     @property
+    def Constraint(self) -> np.ndarray:
+        return self.current_state.retrieval_info.retrieval_info_obj.Constraint
+
+    @property
+    def doUpdateFM(self) -> np.ndarray:
+        return self.current_state.retrieval_info.retrieval_info_obj.doUpdateFM
+
+    @property
     def map_type_systematic(self) -> list[str]:
         return self.current_state.retrieval_info.map_type_systematic
-    
+
     @property
     def n_totalParametersSys(self) -> int:
         return self.current_state.retrieval_info.retrieval_info_obj.n_totalParametersSys
-    
+
     @property
     def mapType(self) -> list[str]:
         return [

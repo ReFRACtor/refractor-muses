@@ -11,7 +11,7 @@ from refractor.muses import (
 
 # Use refractor forward model, or use py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
-#run_refractor = False
+# run_refractor = False
 run_refractor = True
 
 # Can use the older py_retrieve matching objects
@@ -50,7 +50,7 @@ def test_retrieval_strategy_airs_omi(
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
         vlidort_cli=vlidort_cli,
-        write_omi_radiance_pickle=not run_refractor
+        write_omi_radiance_pickle=not run_refractor,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")

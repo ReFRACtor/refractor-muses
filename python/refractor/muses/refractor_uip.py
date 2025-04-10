@@ -1622,10 +1622,7 @@ class RefractorUip:
 
         # run_forward_model doesn't have mapType, not really sure why. It
         # just puts an empty list here. Similarly no n_totalParameters.
-        if (
-            "mapType" in retrieval_info.__dict__
-            and retrieval_info.n_totalParameters > 0
-        ):
+        if hasattr(retrieval_info, "mapType") and retrieval_info.n_totalParameters > 0:
             uip["jacobiansLinear"] = [
                 retrieval_info.species[i]
                 for i in range(len(retrieval_info.mapType))
@@ -1671,7 +1668,7 @@ class RefractorUip:
         uip["microwindows_all"] = i_windows
         # Basis matrix if available, this isn't in run_forward_model.
         if (
-            "mapToState" in retrieval_info.__dict__
+            hasattr(retrieval_info, "mapToState")
             and retrieval_info.n_totalParameters > 0
         ):
             mmm = retrieval_info.n_totalParameters

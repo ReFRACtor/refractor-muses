@@ -1,6 +1,7 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .fake_state_info import FakeStateInfo
+from .fake_retrieval_info import FakeRetrievalInfo
 import copy
 import numpy as np
 import sys
@@ -13,7 +14,6 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_strategy import CurrentStrategyStep
     from .retrieval_result import RetrievalResult
-    from .retrieval_info import RetrievalInfo
     from .identifier import StateElementIdentifier
 
 
@@ -121,15 +121,16 @@ class ErrorAnalysis:
         # also returned. We don't need the return value, it is just the
         # same as retrieval_result
         fstate_info = FakeStateInfo(retrieval_result.current_state)
+        fretrieval_info = FakeRetrievalInfo(retrieval_result.current_state)
         _ = self.error_analysis(
             retrieval_result.rstep.__dict__,
             fstate_info,
-            retrieval_result.current_state.retrieval_info,
+            fretrieval_info,
             retrieval_result,
         )
         _ = mpy.write_retrieval_summary(
             None,
-            retrieval_result.current_state.retrieval_info.retrieval_info_obj,
+            fretrieval_info,
             fstate_info,
             None,
             retrieval_result,
@@ -146,7 +147,7 @@ class ErrorAnalysis:
         self,
         radiance_step: dict,
         fstate_info: FakeStateInfo,
-        retrieval_info: RetrievalInfo,
+        retrieval_info: FakeRetrievalInfo,
         retrieval_result: RetrievalResult,
     ) -> mpy.ObjectView:
         """Update results and error_current"""
@@ -158,7 +159,7 @@ class ErrorAnalysis:
             None,
             radiance_step,
             radiance_noise,
-            retrieval_info.retrieval_info_obj,
+            retrieval_info,
             fstate_info,
             self.error_initial,
             self.error_current,

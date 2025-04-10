@@ -44,7 +44,7 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         return True
 
     def get_state(self) -> dict[str, Any]:
-        res : dict[str, Any] = {"results_irk": None}
+        res: dict[str, Any] = {"results_irk": None}
         if self.results_irk is not None:
             res["results_irk"] = self.results_irk.get_state()
         return res
