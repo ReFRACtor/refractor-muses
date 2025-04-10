@@ -463,18 +463,18 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         o_results_irk["radiances"] = radInfo
 
         # calculate irk for each type
-        retrieval_info = current_state.retrieval_info
-        for ispecies in range(len(retrieval_info.species_names)):
-            species_name = retrieval_info.species_names[ispecies]
-            ii = retrieval_info.parameter_start_fm[ispecies]
-            jj = retrieval_info.parameter_end_fm[ispecies]
-            vmr = retrieval_info.initial_guess_list_fm[ii : jj + 1]
-            if retrieval_info.map_type[ispecies] == "log":
+        for selem_id in current_state.retrieval_state_vector_element_list:
+            species_name = str(selem_id)
+            pstart, plen = current_state.fm_sv_loc[selem_id]
+            ii = pstart
+            jj = pstart + plen
+            vmr = current_state.initial_guess_fm[ii:jj]
+            if current_state.map_type(selem_id) == "log":
                 vmr = np.exp(vmr)
-            pressure = retrieval_info.pressure_list_fm[ii : jj + 1]
+            pressure = current_state.pressure_list_fm(selem_id)
 
-            myirfk = copy.deepcopy(irk_array[ii : jj + 1])
-            myirfk_segs = copy.deepcopy(irk_segs[ii : jj + 1, :])
+            myirfk = copy.deepcopy(irk_array[ii:jj])
+            myirfk_segs = copy.deepcopy(irk_segs[ii:jj, :])
 
             # TODO This looks like the sort of thing that can be
             # replaced with our StateElement data, to get away from
@@ -493,7 +493,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
                 species_name = "CLOUDOD"
                 vmr = np.divide(vmr, dEdOD)
 
-            mm = jj - ii + 1
+            mm = jj - ii
             if species_name == "TATM" or species_name == "TSUR":
                 mylirfk = np.multiply(myirfk, vmr)
                 mylirfk_segs = copy.deepcopy(myirfk_segs)
