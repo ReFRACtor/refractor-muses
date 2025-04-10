@@ -3,6 +3,7 @@ from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategySte
 from .muses_forward_model import ResultIrk
 from .identifier import RetrievalType, ProcessLocation
 from loguru import logger
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -42,8 +43,8 @@ class RetrievalStrategyStepIRK(RetrievalStrategyStep):
         rs.notify_update(ProcessLocation("IRK step"), retrieval_strategy_step=self)
         return True
 
-    def get_state(self) -> dict:
-        res = {"results_irk": None}
+    def get_state(self) -> dict[str, Any]:
+        res : dict[str, Any] = {"results_irk": None}
         if self.results_irk is not None:
             res["results_irk"] = self.results_irk.get_state()
         return res

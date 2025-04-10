@@ -1,4 +1,5 @@
 from __future__ import annotations
+from . import muses_py as mpy  # type: ignore
 import numpy as np
 import typing
 
@@ -24,6 +25,31 @@ class FakeRetrievalInfo:
         self.current_state = current_state
 
     @property
+    def retrieval_info_systematic(self) -> mpy.ObjectView:
+        """Version of retrieval info to use for a creating a systematic UIP"""
+        return mpy.ObjectView(
+            {
+                "parameterStartFM": self.parameterStartSys,
+                "parameterEndFM": self.parameterEndSys,
+                "species": self.speciesSys,
+                "n_species": self.n_totalParametersSys,
+                "speciesList": self.speciesListSys,
+                "speciesListFM": self.speciesListSys,
+                "mapTypeListFM": self.map_type_systematic,
+                "initialGuessListFM": np.zeros(
+                    shape=(self.n_totalParametersSys,), dtype=np.float32
+                ),
+                "constraintVectorListFM": np.zeros(
+                    shape=(self.n_totalParametersSys,), dtype=np.float32
+                ),
+                "initialGuessList": np.zeros(
+                    shape=(self.n_totalParametersSys,), dtype=np.float32
+                ),
+                "n_totalParametersFM": self.n_totalParametersSys,
+            }
+        )
+        
+    @property
     def speciesListFM(self) -> list[str]:
         return [
             str(i) for i in self.current_state.forward_model_state_vector_element_list
@@ -37,6 +63,51 @@ class FakeRetrievalInfo:
     def n_species(self) -> int:
         return len(self.current_state.retrieval_state_element_id)
 
+    @property
+    def n_totalParameters(self) -> int:
+        return self.current_state.retrieval_info.retrieval_info_obj.n_totalParameters
+
+    @property
+    def n_totalParametersFM(self) -> int:
+        return self.current_state.retrieval_info.retrieval_info_obj.n_totalParametersFM
+    
+    @property
+    def speciesList(self) -> list[str]:
+        return self.current_state.retrieval_info.retrieval_info_obj.speciesList
+
+    @property
+    def speciesListFM(self) -> list[str]:
+        return self.current_state.retrieval_info.retrieval_info_obj.speciesListFM
+
+    @property
+    def mapTypeListFM(self) -> list[str]:
+        return self.current_state.retrieval_info.retrieval_info_obj.mapTypeListFM
+
+    @property
+    def parameterStartSys(self) -> list[str]:
+        return self.current_state.retrieval_info.retrieval_info_obj.parameterStartSys
+
+    @property
+    def parameterEndSys(self) -> list[str]:
+        return self.current_state.retrieval_info.retrieval_info_obj.parameterEndSys
+    
+
+    @property
+    def speciesSys(self) -> list[str]:
+        return self.current_state.retrieval_info.retrieval_info_obj.speciesSys
+
+    @property
+    def speciesListSys(self) -> list[str]:
+        return self.current_state.retrieval_info.retrieval_info_obj.speciesListSys
+
+    @property
+    def map_type_systematic(self) -> list[str]:
+        return self.current_state.retrieval_info.map_type_systematic
+    
+    @property
+    def n_totalParametersSys(self) -> int:
+        return self.current_state.retrieval_info.retrieval_info_obj.n_totalParametersSys
+    
     @property
     def mapType(self) -> list[str]:
         return [

@@ -18,6 +18,7 @@ from .identifier import StateElementIdentifier, ProcessLocation
 from .muses_strategy import MusesStrategyHandleSet
 from .spectral_window_handle import SpectralWindowHandleSet
 from .fake_state_info import FakeStateInfo
+from .fake_retrieval_info import FakeRetrievalInfo
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
 import refractor.framework as rf  # type: ignore
 import abc
@@ -272,12 +273,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
         """
         logger.debug(f"Creating rf_uip for {instrument}")
-        if self.current_state.retrieval_info is None:
-            raise RuntimeError("Need to have retrieval_info defined")
-        if do_systematic:
-            rinfo = self.current_state.retrieval_info.retrieval_info_systematic()
-        else:
-            rinfo = self.current_state.retrieval_info
         cstep = self.current_strategy_step
         if obs_list is None:
             obs_list = []
@@ -305,6 +300,13 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
         }
         fake_state_info = FakeStateInfo(self.current_state, obs_list=obs_list)
+        fake_retrieval_info = FakeRetrievalInfo(self.current_state)
+        if do_systematic:
+            #rinfo = fake_retrieval_info.retrieval_info_systematic
+            rinfo = self.current_state.retrieval_info.retrieval_info_systematic()
+        else:
+            #rinfo = fake_retrieval_info
+            rinfo = self.current_state.retrieval_info
         # Maybe an update happens in the UIP, that doesn't get propogated back to
         # state_info? See if we can figure out what is changed here
         o_xxx = {

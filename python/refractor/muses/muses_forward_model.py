@@ -12,7 +12,7 @@ import numpy as np
 import copy
 from collections import UserDict
 import typing
-from typing import Callable, Any
+from typing import Callable, Any, TypeVar
 
 if typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
@@ -565,7 +565,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         # end for ispecies in range(len(jacobian_speciesIn)):
         return o_results_irk
 
-    def _find_bin(self, x, y):
+    def _find_bin(self, x : float, y : np.ndarray) -> np.ndarray:
         # IDL_LEGACY_NOTE: This function _find_bin is the same as findbin in run_irk.pro file.
         #
         # Returns the bin numbers for nearest value of x array to values of y
@@ -573,7 +573,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         #
         ny = len(y)
 
-        o_bin = np.ndarray(shape=(ny), dtype=np.int32)
+        o_bin : np.ndarray = np.ndarray(shape=(ny), dtype=np.int32)
         for iy in range(0, ny):
             ix = np.argmin(abs(x - y[iy]))
             o_bin[iy] = ix
@@ -593,11 +593,11 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
         instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
-        vlidort_nstokes=2,
-        vlidort_nstreams=4,
-        **kwargs,
-    ):
+        vlidort_cli : str="~/muses/muses-vlidort/build/release/vlidort_cli",
+        vlidort_nstokes : int=2,
+        vlidort_nstreams : int=4,
+        **kwargs : Any,
+    ) -> None:
         MusesForwardModelBase.__init__(
             self, rf_uip, instrument_name, obs, measurement_id, **kwargs
         )
@@ -605,7 +605,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
         self.vlidort_nstokes = vlidort_nstokes
         self.vlidort_cli = vlidort_cli
 
-    def radiance(self, sensor_index, skip_jacobian=False):
+    def radiance(self, sensor_index : int, skip_jacobian : bool=False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
         with muses_py_call(
@@ -795,9 +795,9 @@ class StateVectorPlaceHolder(rf.StateVectorObserver):
         self.sv_name = svnm
         super().state_vector_name(sv, sv_namev)
 
-
+C = TypeVar('C', bound=rf.ForwardModel)
 class MusesForwardModelHandle(ForwardModelHandle):
-    def __init__(self, instrument_name: InstrumentIdentifier, cls, **creator_kwargs : Any) -> None:
+    def __init__(self, instrument_name: InstrumentIdentifier, cls : type[C], **creator_kwargs : Any) -> None:
         self.creator_kwargs = creator_kwargs
         self.instrument_name = instrument_name
         self.cls = cls
