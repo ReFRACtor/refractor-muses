@@ -85,17 +85,24 @@ class RetrievalResult:
     def species_list_fm(self) -> list[str]:
         """This is the length of the forward model state vector, with a
         retrieval_element name for each location."""
-        return self.current_state.retrieval_info.species_list_fm
+        return [
+            str(i) for i in self.current_state.forward_model_state_vector_element_list
+        ]
 
     @property
     def species_list_retrieval(self) -> list[str]:
         """This is the length of the retrieval state vector, with a
         retrieval_element name for each location."""
-        return self.current_state.retrieval_info.species_list
+        return [str(i) for i in self.current_state.retrieval_state_element_id]
 
     @property
-    def pressure_list_fm(self) -> list[float]:
-        return self.current_state.retrieval_info.pressure_list_fm
+    def pressure_list_fm(self) -> np.ndarray:
+        return np.concatenate(
+            [
+                self.current_state.pressure_list_fm(selem)
+                for selem in self.current_state.retrieval_state_element_id
+            ]
+        )
 
     @property
     def best_iteration(self) -> int:
@@ -124,7 +131,7 @@ class RetrievalResult:
         """
         # Convert any dict to ObjectView so we can have a consistent
         # way of referring to our input.
-        num_species = self.current_state.retrieval_info.n_species
+        num_species = len(self.current_state.retrieval_state_element_id)
         nfreqs = len(self.rstep.frequency)
 
         niter = len(self.ret_res.resdiag[:, 0])
@@ -237,15 +244,15 @@ class RetrievalResult:
 
         # get the total number of frequency points in all microwindows for the
         # gain matrix
-        rows = self.current_state.retrieval_info.n_totalParameters
-        rowsSys = self.current_state.retrieval_info.n_totalParametersSys
-        rowsFM = self.current_state.retrieval_info.n_totalParametersFM
+        rows = len(self.current_state.retrieval_state_vector_element_list)
+        rowsSys = len(self.current_state.systematic_model_state_vector_element_list)
+        rowsFM = len(self.current_state.forward_model_state_vector_element_list)
         if rowsSys == 0:
             rowsSys = 1
 
         o_results: dict[str, Any] | mpy.ObjectView = {
             "retrieval": "",
-            "is_ocean": self.current_state.retrieval_info.is_ocean,
+            "is_ocean": self.current_state.sounding_metadata.is_ocean,
             "badRetrieval": -999,
             "retIteration": self.ret_res.xretIterations,
             "bestIteration": self.ret_res.bestIteration,
@@ -461,9 +468,7 @@ class RetrievalResult:
         # get retrieval vector result (for all species) for best iteration
         ii = o_results.bestIteration
         if ii == 0:
-            result = self.current_state.retrieval_info.initial_guess_list[
-                0 : self.current_state.retrieval_info.n_totalParameters
-            ]
+            result = self.current_state.initial_guess[0:rows]
         else:
             result = self.ret_res.xretIterations[o_results.bestIteration, :]
 
@@ -474,11 +479,9 @@ class RetrievalResult:
 
         for iq in range(self.ret_res.num_iterations + 1):
             if iq == 0:
-                o_results.LMResults_iterList[iq, :] = (
-                    self.current_state.retrieval_info.initial_guess_list[
-                        0 : self.current_state.retrieval_info.n_totalParameters
-                    ]
-                )
+                o_results.LMResults_iterList[iq, :] = self.current_state.initial_guess[
+                    0:rows
+                ]
             else:
                 o_results.LMResults_iterList[iq, :] = self.ret_res.xretIterations[iq, :]
 

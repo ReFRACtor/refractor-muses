@@ -256,6 +256,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         # Cache these values, they don't normally change.
         self._fm_sv_loc: dict[StateElementIdentifier, tuple[int, int]] | None = None
         self._fm_state_vector_size = -1
+        self._sys_sv_loc: dict[StateElementIdentifier, tuple[int, int]] | None = None
+        self._sys_state_vector_size = -1
         self._retrieval_sv_loc: dict[StateElementIdentifier, tuple[int, int]] | None = (
             None
         )
@@ -284,6 +286,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Clear cache, if an update has occurred"""
         self._fm_sv_loc = None
         self._fm_state_vector_size = -1
+        self._sys_sv_loc = None
+        self._sys_state_vector_size = -1
         self._retrieval_sv_loc = None
         self._retrieval_state_vector_size = -1
 
@@ -318,6 +322,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """We have a few places where we want to update a state element other than
         update_initial_guess. This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
+        raise NotImplementedError()
+
+    @property
+    def updated_fm_flag(self) -> np.ndarray:
+        """This is array of boolean flag indicating which parts of the forward
+        model state vector got updated when we last called update_state. A 1 means
+        it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
         raise NotImplementedError()
 
     def update_state(
@@ -393,6 +404,21 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return self._fm_sv_loc
 
     @property
+    def sys_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
+        """Dict that gives the starting location in the systematic forward model
+        state vector and length for a particular state element name
+        (state elements not being retrieved don't get listed here)
+        """
+        if self._sys_sv_loc is None:
+            self._sys_sv_loc = {}
+            self._sys_state_vector_size = 0
+            for state_element_id in self.systematic_state_element_id:
+                plen = len(self.full_state_value(state_element_id))
+                self._sys_sv_loc[state_element_id] = (self._sys_state_vector_size, plen)
+                self._sys_state_vector_size += plen
+        return self._sys_sv_loc
+
+    @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Like fm_sv_loc, but for the retrieval state vactor (rather than the
         forward model state vector). If we don't have a basis_matrix, these are the
@@ -465,6 +491,25 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return res
 
     @property
+    def systematic_model_state_vector_element_list(
+        self,
+    ) -> list[StateElementIdentifier]:
+        """List of StateElementIdentifier for each entry in the
+        systematic forward model state vector. This is the full size of the
+        systematic forward model state vector, so in general a
+        StateElementIdentifier may be listed multiple times.
+
+        """
+        res = [
+            StateElementIdentifier("None"),
+        ] * self.sys_state_vector_size
+        for sid, (pstart, plen) in self.sys_sv_loc.items():
+            res[pstart : (pstart + plen)] = [
+                sid,
+            ] * plen
+        return res
+
+    @property
     def retrieval_state_vector_element_list(self) -> list[StateElementIdentifier]:
         """List of StateElementIdentifier for each entry in the
         retrieval state vector. This is the full size of the retrieval
@@ -488,6 +533,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             # Side effect of fm_sv_loc is filling in fm_state_vector_size
             _ = self.fm_sv_loc
         return self._fm_state_vector_size
+
+    @property
+    def sys_state_vector_size(self) -> int:
+        """Full size of the systematic forward model state vector."""
+        if self._sys_state_vector_size < 0:
+            # Side effect of fm_sv_loc is filling in fm_state_vector_size
+            _ = self.sys_sv_loc
+        return self._sys_state_vector_size
 
     @property
     def retrieval_state_vector_size(self) -> int:
@@ -1433,6 +1486,13 @@ class CurrentStateStateInfoOld(CurrentState):
     @property
     def brightness_temperature_data(self) -> dict:
         return self.state_info.brightness_temperature_data
+
+    @property
+    def updated_fm_flag(self) -> np.ndarray:
+        """This is array of boolean flag indicating which parts of the forward
+        model state vector got updated when we last called update_state. A 1 means
+        it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
+        return self.retrieval_info.retrieval_info_obj.doUpdateFM
 
     def update_state(
         self,

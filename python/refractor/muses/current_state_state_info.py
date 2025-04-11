@@ -95,7 +95,13 @@ class CurrentStateStateInfo(CurrentState):
     @property
     def apriori(self) -> np.ndarray:
         """Apriori value"""
-        return self._current_state_old.apriori
+        # return self._current_state_old.apriori
+        return np.concatenate(
+            [
+                self.full_state_element(sid).apriori
+                for sid in self.retrieval_state_element_id
+            ]
+        )
 
     @property
     def apriori_fm(self) -> np.ndarray:
@@ -158,6 +164,13 @@ class CurrentStateStateInfo(CurrentState):
     @property
     def brightness_temperature_data(self) -> dict:
         return self._current_state_old.brightness_temperature_data
+
+    @property
+    def updated_fm_flag(self) -> np.ndarray:
+        """This is array of boolean flag indicating which parts of the forward
+        model state vector got updated when we last called update_state. A 1 means
+        it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
+        return self._current_state_old.updated_fm_flag
 
     def update_state(
         self,

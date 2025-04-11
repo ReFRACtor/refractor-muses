@@ -42,7 +42,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         ]
         logger.info("Running run_forward_model ...")
         self.cfunc = rs.create_cost_function(
-            fix_apriori_size=True, jacobian_speciesIn=jacobian_speciesNames
+            use_empty_apriori=True, jacobian_speciesIn=jacobian_speciesNames
         )
         self.calculate_bt(
             rs.retrieval_config,

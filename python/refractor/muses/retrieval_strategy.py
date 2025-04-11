@@ -410,7 +410,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self,
         do_systematic: bool = False,
         include_bad_sample: bool = False,
-        fix_apriori_size: bool = False,
+        use_empty_apriori: bool = False,
         jacobian_speciesIn: list[StateElementIdentifier] | None = None,
     ) -> CostFunction:
         """Create cost function"""
@@ -421,7 +421,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         return self.strategy_executor.create_cost_function(
             do_systematic=do_systematic,
             include_bad_sample=include_bad_sample,
-            fix_apriori_size=fix_apriori_size,
+            use_empty_apriori=use_empty_apriori,
             jacobian_speciesIn=jacobian_speciesIn,
         )
 

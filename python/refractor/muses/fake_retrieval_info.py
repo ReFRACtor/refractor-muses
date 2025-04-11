@@ -26,7 +26,11 @@ class FakeRetrievalInfo:
 
     @property
     def retrieval_info_systematic(self) -> mpy.ObjectView:
-        """Version of retrieval info to use for a creating a systematic UIP"""
+        """Version of retrieval info to use for a creating a systematic UIP. Note that all
+        this information is actually available in just the current FakeRetrievalInfo, but
+        this reformats things so the systematic forward model looks just like the
+        forward model. Could do the same thing with some flag handling in the UIP code, but
+        this is the way py-retrieve currently has things set up."""
         return mpy.ObjectView(
             {
                 "parameterStartFM": self.parameterStartSys,
@@ -65,107 +69,132 @@ class FakeRetrievalInfo:
 
     @property
     def n_totalParameters(self) -> int:
-        return self.current_state.retrieval_info.retrieval_info_obj.n_totalParameters
+        return len(self.current_state.retrieval_state_vector_element_list)
 
     @property
     def n_totalParametersFM(self) -> int:
-        return self.current_state.retrieval_info.retrieval_info_obj.n_totalParametersFM
+        return len(self.current_state.forward_model_state_vector_element_list)
 
     @property
     def speciesList(self) -> list[str]:
-        return self.current_state.retrieval_info.retrieval_info_obj.speciesList
+        return [str(i) for i in self.current_state.retrieval_state_vector_element_list]
 
     @property
     def n_speciesSys(self) -> int:
-        return self.current_state.retrieval_info.retrieval_info_obj.n_speciesSys
+        return len(self.current_state.systematic_state_element_id)
 
     @property
     def mapTypeListFM(self) -> list[str]:
-        return self.current_state.retrieval_info.retrieval_info_obj.mapTypeListFM
+        res = [
+            "",
+        ] * self.current_state.fm_state_vector_size
+        for sid, (pstart, plen) in self.current_state.fm_sv_loc.items():
+            res[pstart : (pstart + plen)] = [
+                self.current_state.map_type(sid),
+            ] * plen
+        return res
 
     @property
-    def parameterStartSys(self) -> list[str]:
-        return self.current_state.retrieval_info.retrieval_info_obj.parameterStartSys
+    def parameterStartSys(self) -> list[int]:
+        return [
+            self.current_state.sys_sv_loc[sid][0]
+            for sid in self.current_state.systematic_state_element_id
+        ]
 
     @property
-    def parameterEndSys(self) -> list[str]:
-        return self.current_state.retrieval_info.retrieval_info_obj.parameterEndSys
+    def parameterEndSys(self) -> list[int]:
+        return [
+            self.current_state.sys_sv_loc[sid][0]
+            + self.current_state.sys_sv_loc[sid][1]
+            - 1
+            for sid in self.current_state.systematic_state_element_id
+        ]
 
     @property
     def speciesSys(self) -> list[str]:
-        return self.current_state.retrieval_info.retrieval_info_obj.speciesSys
+        return [str(i) for i in self.current_state.systematic_state_element_id]
 
     @property
     def speciesListSys(self) -> list[str]:
-        return self.current_state.retrieval_info.retrieval_info_obj.speciesListSys
+        return [
+            str(i)
+            for i in self.current_state.systematic_model_state_vector_element_list
+        ]
 
     @property
     def Constraint(self) -> np.ndarray:
-        return self.current_state.retrieval_info.retrieval_info_obj.Constraint
+        return self.current_state.apriori_cov
 
     @property
     def doUpdateFM(self) -> np.ndarray:
-        return self.current_state.retrieval_info.retrieval_info_obj.doUpdateFM
+        return self.current_state.updated_fm_flag
 
     @property
     def map_type_systematic(self) -> list[str]:
-        return self.current_state.retrieval_info.map_type_systematic
+        res = [
+            "",
+        ] * self.current_state.sys_state_vector_size
+        for sid, (pstart, plen) in self.current_state.sys_sv_loc.items():
+            res[pstart : (pstart + plen)] = [
+                self.current_state.map_type(sid),
+            ] * plen
+        return res
 
     @property
     def n_totalParametersSys(self) -> int:
-        return self.current_state.retrieval_info.retrieval_info_obj.n_totalParametersSys
+        return len(self.current_state.systematic_model_state_vector_element_list)
 
     @property
     def mapType(self) -> list[str]:
         return [
-            self.current_state.map_type(selem)
-            for selem in self.current_state.retrieval_state_element_id
+            self.current_state.map_type(sid)
+            for sid in self.current_state.retrieval_state_element_id
         ]
 
     @property
     def parameterStart(self) -> list[int]:
         return [
-            self.current_state.retrieval_sv_loc[selem][0]
-            for selem in self.current_state.retrieval_state_element_id
+            self.current_state.retrieval_sv_loc[sid][0]
+            for sid in self.current_state.retrieval_state_element_id
         ]
 
     @property
     def parameterEnd(self) -> list[int]:
         return [
-            self.current_state.retrieval_sv_loc[selem][0]
-            + self.current_state.retrieval_sv_loc[selem][1]
+            self.current_state.retrieval_sv_loc[sid][0]
+            + self.current_state.retrieval_sv_loc[sid][1]
             - 1
-            for selem in self.current_state.retrieval_state_element_id
+            for sid in self.current_state.retrieval_state_element_id
         ]
 
     @property
     def parameterStartFM(self) -> list[int]:
         return [
-            self.current_state.fm_sv_loc[selem][0]
-            for selem in self.current_state.retrieval_state_element_id
+            self.current_state.fm_sv_loc[sid][0]
+            for sid in self.current_state.retrieval_state_element_id
         ]
 
     @property
     def parameterEndFM(self) -> list[int]:
         return [
-            self.current_state.fm_sv_loc[selem][0]
-            + self.current_state.fm_sv_loc[selem][1]
+            self.current_state.fm_sv_loc[sid][0]
+            + self.current_state.fm_sv_loc[sid][1]
             - 1
-            for selem in self.current_state.retrieval_state_element_id
+            for sid in self.current_state.retrieval_state_element_id
         ]
 
     @property
     def n_parametersFM(self) -> list[int]:
         return [
-            self.current_state.fm_sv_loc[selem][1]
-            for selem in self.current_state.retrieval_state_element_id
+            self.current_state.fm_sv_loc[sid][1]
+            for sid in self.current_state.retrieval_state_element_id
         ]
 
     @property
     def n_parameters(self) -> list[int]:
         return [
-            self.current_state.retrieval_sv_loc[selem][1]
-            for selem in self.current_state.retrieval_state_element_id
+            self.current_state.retrieval_sv_loc[sid][1]
+            for sid in self.current_state.retrieval_state_element_id
         ]
 
     @property
@@ -204,8 +233,8 @@ class FakeRetrievalInfo:
     def altitudeListFM(self) -> np.ndarray:
         return np.concatenate(
             [
-                self.current_state.altitude_list_fm(selem)
-                for selem in self.current_state.retrieval_state_element_id
+                self.current_state.altitude_list_fm(sid)
+                for sid in self.current_state.retrieval_state_element_id
             ]
         )
 
@@ -213,8 +242,8 @@ class FakeRetrievalInfo:
     def altitudeList(self) -> np.ndarray:
         return np.concatenate(
             [
-                self.current_state.altitude_list(selem)
-                for selem in self.current_state.retrieval_state_element_id
+                self.current_state.altitude_list(sid)
+                for sid in self.current_state.retrieval_state_element_id
             ]
         )
 
@@ -222,8 +251,8 @@ class FakeRetrievalInfo:
     def pressureListFM(self) -> np.ndarray:
         return np.concatenate(
             [
-                self.current_state.pressure_list_fm(selem)
-                for selem in self.current_state.retrieval_state_element_id
+                self.current_state.pressure_list_fm(sid)
+                for sid in self.current_state.retrieval_state_element_id
             ]
         )
 
@@ -231,8 +260,8 @@ class FakeRetrievalInfo:
     def pressureList(self) -> np.ndarray:
         return np.concatenate(
             [
-                self.current_state.pressure_list(selem)
-                for selem in self.current_state.retrieval_state_element_id
+                self.current_state.pressure_list(sid)
+                for sid in self.current_state.retrieval_state_element_id
             ]
         )
 

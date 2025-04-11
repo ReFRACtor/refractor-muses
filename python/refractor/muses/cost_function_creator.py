@@ -90,9 +90,16 @@ class CostFunctionCreator:
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
+        use_empty_apriori: bool = False,
         **kwargs: Any,
     ) -> CostFunction:
         """Return cost function for the RetrievalStrategy.
+
+        You can optional leave off the augmented/apriori piece. This is
+        useful if you are just running to forward model. The muses-py
+        code requires this in some cases, because it hasn't calculated
+        an apriori (special handling for retrieval steps "bt" and
+        "forward_model").
 
         This takes the list of instrument names that make up this
         particular retrieval step, the current state information (see
@@ -142,6 +149,7 @@ class CostFunctionCreator:
             self._rf_uip_func_wrap,
             include_bad_sample=include_bad_sample,
             obs_list=obs_list,
+            use_empty_apriori=use_empty_apriori,
             **kwargs,
         )
         cfunc = CostFunction(*args)
@@ -166,6 +174,7 @@ class CostFunctionCreator:
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
+        use_empty_apriori: bool = False,
         **kwargs: Any,
     ) -> tuple[
         list[InstrumentIdentifier],
@@ -215,8 +224,19 @@ class CostFunctionCreator:
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         bmatrix = current_state.basis_matrix
-        retrieval_sv_apriori = current_state.apriori
-        retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
+        # Leave off the apriori part if requested
+        if use_empty_apriori:
+            # TODO
+            # Note by convention muses-py using a length 1 array here. I think
+            # we can eventually relax that, but right now that is assumed in a few
+            # places. This was probably to avoid zero size arrays, but there isn't
+            # any actually problem in python with those. But for now, fit muses-py
+            # convention
+            retrieval_sv_apriori = np.zeros((1,))
+            retrieval_sv_sqrt_constraint = np.zeros((1,1))
+        else:
+            retrieval_sv_apriori = current_state.apriori
+            retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
         return (
             instrument_name_list,
             self.fm_list,

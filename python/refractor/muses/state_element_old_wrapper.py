@@ -65,6 +65,9 @@ class StateElementOldWrapper(StateElement):
     @property
     def apriori(self) -> np.ndarray:
         """Apriori value of StateElement"""
+        if self.state_element_id in self._current_state_old.retrieval_sv_loc:
+            ps, pl = self._current_state_old.retrieval_sv_loc[self.state_element_id]
+            return self._current_state_old.apriori[ps : ps + pl]
         return self._current_state_old.full_state_apriori_value(self.state_element_id)
 
     @property

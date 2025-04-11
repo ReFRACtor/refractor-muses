@@ -197,9 +197,12 @@ def test_update_cloudfraction(omi_step_0):
     rs.current_state.notify_new_step(
         rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
     )
-    rinfo = rs.current_state.retrieval_info
-    results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[np.array(rinfo.species_list) == "OMICLOUDFRACTION"] = 0.5
+    results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
+    msk = (
+        np.array([str(i) for i in rs.current_state.retrieval_state_vector_element_list])
+        == "OMICLOUDFRACTION"
+    )
+    results_list[msk] = 0.5
     cstate.update_state(
         results_list,
         [],
@@ -372,9 +375,12 @@ def test_noupdate_cloudfraction(omi_step_0):
     rs.current_state.notify_new_step(
         rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
     )
-    rinfo = rs.current_state.retrieval_info
-    results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[np.array(rinfo.species_list) == "OMICLOUDFRACTION"] = 0.5
+    results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
+    msk = (
+        np.array([str(i) for i in rs.current_state.retrieval_state_vector_element_list])
+        == "OMICLOUDFRACTION"
+    )
+    results_list[msk] = 0.5
     cstate.update_state(
         results_list,
         [StateElementIdentifier("OMICLOUDFRACTION")],
@@ -562,9 +568,12 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
     rs.current_state.notify_new_step(
         rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
     )
-    rinfo = rs.current_state.retrieval_info
-    results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[np.array(rinfo.species_list) == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
+    results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
+    msk = (
+        np.array([str(i) for i in rs.current_state.retrieval_state_vector_element_list])
+        == "OMIEOFUV1"
+    )
+    results_list[msk] = [0.5, 0.3, 0.2]
     cstate.update_state(
         results_list,
         [],
@@ -686,9 +695,12 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
     rs.current_state.notify_new_step(
         rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
     )
-    rinfo = rs.current_state.retrieval_info
-    results_list = np.zeros((rinfo.n_totalParameters))
-    results_list[np.array(rinfo.species_list) == "OMIEOFUV1"] = [0.5, 0.3, 0.2]
+    results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
+    msk = (
+        np.array([str(i) for i in rs.current_state.retrieval_state_vector_element_list])
+        == "OMIEOFUV1"
+    )
+    results_list[msk] = [0.5, 0.3, 0.2]
     cstate.update_state(
         results_list,
         [StateElementIdentifier("OMIEOFUV1")],
