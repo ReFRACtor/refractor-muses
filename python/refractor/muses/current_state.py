@@ -352,11 +352,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
 
     @property
-    def retrieval_info(self) -> RetrievalInfo:
-        """RetrievalInfo for current state."""
-        raise NotImplementedError
-
-    @property
     def apriori(self) -> np.ndarray:
         """Apriori value"""
         raise NotImplementedError()
@@ -368,12 +363,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @property
     def true_value(self) -> np.ndarray:
-        """Apriori value"""
+        """True value"""
         raise NotImplementedError()
 
     @property
     def true_value_fm(self) -> np.ndarray:
-        """Apriori value"""
+        """True value"""
         raise NotImplementedError()
 
     @property
@@ -800,11 +795,6 @@ class CurrentStateUip(CurrentState):
     def initial_guess(self) -> np.ndarray:
         """Initial guess"""
         return copy(self._initial_guess)
-
-    @property
-    def retrieval_info(self) -> RetrievalInfo:
-        """RetrievalInfo for current state."""
-        raise NotImplementedError
 
     @property
     def apriori_cov(self) -> np.ndarray:

@@ -8,7 +8,7 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .current_state import CurrentState
+    from .current_state import CurrentStateStateInfoOld
     from .error_analysis import ErrorAnalysis
     from .muses_strategy_executor import CurrentStrategyStep
     from .retrieval_result import RetrievalResult
@@ -27,7 +27,7 @@ class RetrievalInfo:
         error_analysis: ErrorAnalysis,
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
-        current_state: CurrentState,
+        current_state: CurrentStateStateInfoOld,
     ):
         self.retrieval_dict = self.init_data(
             error_analysis, species_dir, current_strategy_step, current_state
@@ -266,7 +266,7 @@ class RetrievalInfo:
     def init_interferents(
         self,
         current_strategy_step: CurrentStrategyStep,
-        current_state: CurrentState,
+        current_state: CurrentStateStateInfoOld,
         o_retrievalInfo: mpy.ObjectView,
         error_analysis: ErrorAnalysis,
     ) -> None:
@@ -296,7 +296,7 @@ class RetrievalInfo:
         self,
         species_name: str,
         current_strategy_step: CurrentStrategyStep,
-        current_state: CurrentState,
+        current_state: CurrentStateStateInfoOld,
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
         selem = current_state.full_state_element_old(
@@ -344,7 +344,7 @@ class RetrievalInfo:
         self,
         o_retrievalInfo: mpy.ObjectView,
         species_dir: Path,
-        current_state: CurrentState,
+        current_state: CurrentStateStateInfoOld,
     ) -> None:
         """This should get cleaned up somehow"""
         index_H2O = -1
@@ -456,7 +456,7 @@ class RetrievalInfo:
         error_analysis: ErrorAnalysis,
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
-        current_state: CurrentState,
+        current_state: CurrentStateStateInfoOld,
     ) -> mpy.ObjectView:
         # This is a reworking of get_species_information in muses-py
 
