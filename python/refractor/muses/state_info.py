@@ -1,6 +1,8 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
+from .current_state import PropagatedQA
+
 import numpy as np
 import abc
 import typing
@@ -10,6 +12,10 @@ from collections import UserDict
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier
     from .muses_observation import MeasurementId
+
+# A couple of aliases, just so we can clearly mark what grid data is on
+RetrievalGridArray = np.ndarray
+ForwardModelGridArray = np.ndarray
 
 
 class StateElement(object, metaclass=abc.ABCMeta):
@@ -23,6 +29,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
     In addition, we possibly have "true" value, e.g, we know the answer
     because we are simulating data or something like that. Not
     every state element has a "true" value, is None in those cases.
+
+    See the documentation at the start of CurrentState for a discussion
+    of the various state vectors.
 
     Note as a convention, we always return the values as a np.ndarray,
     even for single scalar values. This just saves on needing to have lots
@@ -57,9 +66,40 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return sd.convert_wave(rf.Unit("nm"))
 
     @abc.abstractproperty
-    def value(self) -> np.ndarray:
+    def basis_matrix(self) -> np.ndarray:
+        """Basis matrix going from retrieval vector to forward model
+        vector. Would be nice to replace this with a general
+        rf.StateMapping, but for now this is assumed in a lot of
+        muses-py code."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def retrieval_sv_length(self) -> int:
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def sys_sv_length(self) -> int:
+        raise NotImplementedError()
+    
+    @abc.abstractproperty
+    def forward_model_sv_length(self) -> int:
+        raise NotImplementedError()
+    
+    @abc.abstractproperty
+    def map_to_parameter_matrix(self) -> np.ndarray:
+        """Go the other direction from the basis matrix, going from
+        the forward model vector the retrieval vector."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def value(self) -> RetrievalGridArray:
         """Current value of StateElement"""
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def value_fm(self) -> ForwardModelGridArray:
+        """Current value of StateElement"""
+        raise NotImplementedError()
 
     @property
     def value_str(self) -> str | None:
@@ -76,27 +116,43 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return None
 
     @abc.abstractproperty
-    def apriori(self) -> np.ndarray:
+    def apriori_value(self) -> RetrievalGridArray:
         """Apriori value of StateElement"""
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def apriori_value_fm(self) -> ForwardModelGridArray:
+        """Apriori value of StateElement"""
+        raise NotImplementedError()
 
     @property
-    def apriori_cov(self) -> np.ndarray:
+    def apriori_cov(self) -> RetrievalGridArray:
         """Apriori Covariance"""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def retrieval_initial_value(self) -> np.ndarray:
+    def retrieval_initial_value(self) -> RetrievalGridArray:
         """Value StateElement had at the start of the retrieval."""
-        raise NotImplementedError
+        raise NotImplementedError()
 
     @abc.abstractproperty
-    def step_initial_value(self) -> np.ndarray:
+    def step_initial_value(self) -> RetrievalGridArray:
         """Value StateElement had at the start of the retrieval step."""
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def step_initial_value_fm(self) -> ForwardModelGridArray:
+        """Value StateElement had at the start of the retrieval step."""
+        raise NotImplementedError()
 
     @property
-    def true_value(self) -> np.ndarray | None:
+    def true_value(self) -> RetrievalGridArray | None:
+        """The "true" value if known (e.g., we are running a simulation).
+        "None" if we don't have a value."""
+        return None
+
+    @property
+    def true_value_fm(self) -> ForwardModelGridArray | None:
         """The "true" value if known (e.g., we are running a simulation).
         "None" if we don't have a value."""
         return None
@@ -114,7 +170,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         each of the various values passed in.  A value of 'None' (the
         default) means skip updating that part of the StateElement.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class StateElementHandle(CreatorHandle):
@@ -134,7 +190,7 @@ class StateElementHandle(CreatorHandle):
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class StateElementHandleSet(CreatorHandleSet):
@@ -155,7 +211,7 @@ class StateElementHandleSet(CreatorHandleSet):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(MeasurementId)
+                h.notify_update_target(measurement_id)
 
 
 class StateInfo(UserDict):
@@ -180,10 +236,14 @@ class StateInfo(UserDict):
                 StateElementHandleSet.default_handle_set()
             )
         self._state_element: dict[StateElementIdentifier, StateElement] = {}
+        self.propagated_qa = PropagatedQA()
+        self.brightness_temperature_data: dict[int, dict[str, float | None]] = {}
 
     def notify_update_target(self, measurement_id: MeasurementId) -> None:
         self.state_element_handle_set.notify_update_target(measurement_id)
         self.data = {}
+        self.propagated_qa = PropagatedQA()
+        self.brightness_temperature_data = {}
 
     def __missing__(self, state_element_id: StateElementIdentifier) -> StateElement:
         self.data[state_element_id] = self.state_element_handle_set.state_element(

@@ -284,7 +284,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         # the error analysis to work without bad samples
         if len(rs.current_state.systematic_state_element_id) > 0:
             self.cfunc_sys = rs.create_cost_function(
-                do_systematic=True, include_bad_sample=True
+                do_systematic=True,
+                include_bad_sample=True,
+                use_empty_apriori=True,
             )
             if self._saved_state is not None:
                 # Skip forward model if we have a saved state.

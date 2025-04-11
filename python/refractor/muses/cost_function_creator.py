@@ -165,12 +165,13 @@ class CostFunctionCreator:
                 )
         # TODO
         # If we are using use_empty_apriori, then our initial guess is just a
-        # length 1 set of zeros. This is really kind of arcane, but muses-py
-        # has special handling in the BT strategy step. Conform to that for now,
+        # set of zeros. This is really kind of arcane, but muses-py
+        # has special handling in the BT strategy step and systematic jacobians.
+        # Conform to that for now,
         # although it would be nice to remove this special handling at some point
         # when we have all the larger stuff sorted out.
-        if(use_empty_apriori):
-            cfunc.parameters = np.zeros((1,))
+        if use_empty_apriori:
+            cfunc.parameters = np.zeros((cfunc.fm_sv.observer_claimed_size,))
         else:
             cfunc.parameters = current_state.initial_guess
         return cfunc
@@ -241,8 +242,10 @@ class CostFunctionCreator:
             # places. This was probably to avoid zero size arrays, but there isn't
             # any actually problem in python with those. But for now, fit muses-py
             # convention
-            retrieval_sv_apriori = np.zeros((1,))
-            retrieval_sv_sqrt_constraint = np.zeros((1, 1))
+            retrieval_sv_apriori = np.zeros((current_state.fm_state_vector_size,))
+            retrieval_sv_sqrt_constraint = np.zeros(
+                (current_state.fm_state_vector_size, current_state.fm_state_vector_size)
+            )
         else:
             retrieval_sv_apriori = current_state.apriori
             retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()

@@ -8,6 +8,10 @@ if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier
     from .current_state import CurrentStateStateInfoOld
 
+# A couple of aliases, just so we can clearly mark what grid data is on
+RetrievalGridArray = np.ndarray
+ForwardModelGridArray = np.ndarray
+
 
 class StateElementOldWrapper(StateElement):
     """This wraps around a CurrentStateStateInfoOld and presents the
@@ -43,8 +47,73 @@ class StateElementOldWrapper(StateElement):
             self.state_element_id
         )
 
+    
     @property
-    def value(self) -> np.ndarray:
+    def retrieval_slice(self) -> slice | None:
+        if self.state_element_id in self._current_state_old.retrieval_sv_loc:
+            ps, pl = self._current_state_old.retrieval_sv_loc[self.state_element_id]
+            return slice(ps, ps+pl)
+        return None
+
+    @property
+    def fm_slice(self) -> slice | None:
+        if self.state_element_id in self._current_state_old.fm_sv_loc:
+            ps, pl = self._current_state_old.fm_sv_loc[self.state_element_id]
+            return slice(ps, ps+pl)
+        return None
+    
+    @property
+    def basis_matrix(self) -> np.ndarray:
+        """Basis matrix going from retrieval vector to forward model
+        vector. Would be nice to replace this with a general
+        rf.StateMapping, but for now this is assumed in a lot of
+        muses-py code."""
+        bmatrix = self._current_state_old.basis_matrix
+        s1 = self.retrieval_slice
+        s2 = self.fm_slice
+        if bmatrix is None or s1 is None or s2 is None:
+            return None
+        return bmatrix[s1, s2]
+
+    @property
+    def map_to_parameter_matrix(self) -> np.ndarray:
+        """Go the other direction from the basis matrix, going from
+        the forward model vector the retrieval vector."""
+        mmatrix = self._current_state_old.map_to_parameter_matrix
+        s1 = self.fm_slice
+        s2 = self.retrieval_slice
+        if mmatrix is None or s1 is None or s2 is None:
+            return None
+        return mmatrix[s1, s2]
+
+    @property
+    def retrieval_sv_length(self) -> int:
+        if self.state_element_id not in self._current_state_old.retrieval_sv_loc:
+            return 0
+        return self._current_state_old.retrieval_sv_loc[self.state_element_id][1]
+
+    @property
+    def sys_sv_length(self) -> int:
+        cstate = self._current_state_old.current_state_override(
+            do_systematic=True,
+            retrieval_state_element_override=None)
+        if self.state_element_id not in cstate.fm_sv_loc:
+            return 0
+        return cstate.fm_sv_loc[self.state_element_id][1]
+    
+    @property
+    def forward_model_sv_length(self) -> int:
+        if self.state_element_id not in self._current_state_old.fm_sv_loc:
+            return 0
+        return self._current_state_old.fm_sv_loc[self.state_element_id][1]
+    
+    @property
+    def value(self) -> RetrievalGridArray:
+        """Current value of StateElement"""
+        raise NotImplementedError()
+
+    @property
+    def value_fm(self) -> ForwardModelGridArray:
         """Current value of StateElement"""
         return self._current_state_old.full_state_value(self.state_element_id)
 
@@ -63,38 +132,76 @@ class StateElementOldWrapper(StateElement):
         return self._current_state_old.full_state_value_str(self.state_element_id)
 
     @property
-    def apriori(self) -> np.ndarray:
+    def apriori_value(self) -> RetrievalGridArray:
         """Apriori value of StateElement"""
-        if self.state_element_id in self._current_state_old.retrieval_sv_loc:
-            ps, pl = self._current_state_old.retrieval_sv_loc[self.state_element_id]
-            return self._current_state_old.apriori[ps : ps + pl]
-        return self._current_state_old.full_state_apriori_value(self.state_element_id)
+        s = self.retrieval_slice
+        if(s is not None):
+            return self._current_state_old.apriori[s]
+        raise RuntimeError("apriori only present for stuff in state vector")
 
     @property
-    def apriori_cov(self) -> np.ndarray:
+    def apriori_value_fm(self) -> ForwardModelGridArray:
+        """Apriori value of StateElement"""
+        if self.state_element_id not in self._current_state_old.retrieval_state_element_id:
+            return self._current_state_old.full_state_apriori_value(self.state_element_id)
+        res = self._current_state_old.retrieval_info.species_constraint(str(self.state_element_id))
+        if isinstance(res, float):
+            return np.array([res,])
+        return res
+
+    @property
+    def apriori_cov(self) -> RetrievalGridArray:
+        """Apriori Covariance"""
+        raise NotImplementedError()
+
+    @property
+    def apriori_cov_fm(self) -> ForwardModelGridArray:
         """Apriori Covariance"""
         return self._current_state_old.full_state_apriori_covariance(
             self.state_element_id
         )
 
     @property
-    def retrieval_initial_value(self) -> np.ndarray:
+    def retrieval_initial_value(self) -> RetrievalGridArray:
+        raise NotImplementedError()
+
+    @property
+    def retrieval_initial_value_fm(self) -> ForwardModelGridArray:
         """Value StateElement had at the start of the retrieval."""
+        # TODO It is not clear why this isn't directly calculated from step_initial_value,
+        # but it is different. For now, we use the existing value. We will want to sort this
+        # out, this function may end up going away.
         return self._current_state_old.full_state_retrieval_initial_value(
             self.state_element_id
         )
 
     @property
-    def step_initial_value(self) -> np.ndarray:
+    def step_initial_value(self) -> RetrievalGridArray:
+        s = self.retrieval_slice
+        if(s is not None):
+            return self._current_state_old.initial_guess[s]
+        raise RuntimeError("step_initial_value only present for stuff in state vector")
+
+    @property
+    def step_initial_value_fm(self) -> ForwardModelGridArray:
         """Value StateElement had at the start of the retrieval step."""
+        # TODO It is not clear why this isn't directly calculated from step_initial_value,
+        # but it is different. For now, we use the existing value. We will want to sort this
+        # out, this function may end up going away.
         return self._current_state_old.full_state_step_initial_value(
             self.state_element_id
         )
 
     @property
-    def true_value(self) -> np.ndarray | None:
+    def true_value_fm(self) -> ForwardModelGridArray | None:
         """The "true" value if known (e.g., we are running a simulation).
         "None" if we don't have a value."""
+        # TODO It is not clear why this isn't directly calculated from step_initial_value,
+        # but it is different. For now, we use the existing value. We will want to sort this
+        # out, this function may end up going away.
+        s = self.fm_slice
+        if(s is not None):
+            return self._current_state_old.true_value_fm[s]
         return self._current_state_old.full_state_true_value(self.state_element_id)
 
     def update_state(

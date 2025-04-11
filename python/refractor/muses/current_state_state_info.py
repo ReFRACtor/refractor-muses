@@ -3,19 +3,20 @@ from . import muses_py as mpy  # type: ignore
 from .current_state import (
     CurrentState,
     CurrentStateStateInfoOld,
-    SoundingMetadata,
-    PropagatedQA,
 )
 from .identifier import StateElementIdentifier
 from .state_element_old_wrapper import StateElementOldWrapperHandle
 from .state_info import StateElementHandleSet
 import numpy as np
+import scipy
+import numpy.testing as npt
 from pathlib import Path
 from copy import copy
 import typing
 from typing import cast
 
 if typing.TYPE_CHECKING:
+    from .current_state import PropagatedQA, SoundingMetadata
     from .retrieval_info import RetrievalInfo
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import CurrentStrategyStep
@@ -24,6 +25,11 @@ if typing.TYPE_CHECKING:
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
     from .state_info import StateElement
+
+
+# A couple of aliases, just so we can clearly mark what grid data is on
+RetrievalGridArray = np.ndarray
+ForwardModelGridArray = np.ndarray
 
 
 class CurrentStateStateInfo(CurrentState):
@@ -50,7 +56,7 @@ class CurrentStateStateInfo(CurrentState):
         )
         self.do_systematic = False
         self._step_directory: None | Path = None
-        self._retrieval_info: None | RetrievalInfo = None
+        self.__retrieval_info: None | RetrievalInfo = None
 
     def current_state_override(
         self,
@@ -70,22 +76,63 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     @property
-    def initial_guess(self) -> np.ndarray:
+    def initial_guess(self) -> RetrievalGridArray:
         """Initial guess"""
-        return self._current_state_old.initial_guess
+        # TODO Remove current_state_old
+        # TODO
+        # By convention, muses-py returns a length 1 array even if we don't
+        # have any retrieval_state_element_id. I think this was just to avoid
+        # zero size arrays in IDL. But python is fine with this. For now conform
+        # to muses-py since it is expected in various places. We should clean this
+        # up at some point by tracking down where this gets used and handling empty
+        # arrays - it is cleaner than having a "special rule". But for now, conform
+        # to the convention
+        # if len(self.retrieval_state_element_id) == 0:
+        #    res = np.zeros((1,))
+        # else:
+        #    res =  np.concatenate(
+        #        [
+        #            self._state_info[sid].step_initial_value
+        #            for sid in self.retrieval_state_element_id
+        #        ]
+        #    )
+        res2 = self._current_state_old.initial_guess
+        # npt.assert_allclose(res, res2)
+        return res2
 
     @property
-    def initial_guess_fm(self) -> np.ndarray:
+    def initial_guess_fm(self) -> ForwardModelGridArray:
         """Initial guess on forward mode"""
-        return self._current_state_old.initial_guess_fm
+        # TODO Remove current_state_old
+        # TODO
+        # By convention, muses-py returns a length 1 array even if we don't
+        # have any retrieval_state_element_id. I think this was just to avoid
+        # zero size arrays in IDL. But python is fine with this. For now conform
+        # to muses-py since it is expected in various places. We should clean this
+        # up at some point by tracking down where this gets used and handling empty
+        # arrays - it is cleaner than having a "special rule". But for now, conform
+        # to the convention
+        # if len(self.retrieval_state_element_id) == 0:
+        #    res = np.zeros((1,))
+        # else:
+        #    res = np.concatenate(
+        #        [
+        #            self._state_info[sid].step_initial_value_fm
+        #            for sid in self.retrieval_state_element_id
+        #        ]
+        #    )
+        res2 = self._current_state_old.initial_guess_fm
+        # npt.assert_allclose(res, res2)
+        return res2
 
     @property
-    def apriori_cov(self) -> np.ndarray:
+    def apriori_cov(self) -> RetrievalGridArray:
         """Apriori Covariance"""
+        # TODO Remove current_state_old
         return self._current_state_old.apriori_cov
 
     @property
-    def sqrt_constraint(self) -> np.ndarray:
+    def sqrt_constraint(self) -> RetrievalGridArray:
         """Sqrt matrix from covariance"""
         if self.do_systematic:
             return np.eye(len(self.initial_guess))
@@ -93,34 +140,95 @@ class CurrentStateStateInfo(CurrentState):
             return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
 
     @property
-    def apriori(self) -> np.ndarray:
+    def apriori(self) -> RetrievalGridArray:
         """Apriori value"""
-        # return self._current_state_old.apriori
-        return np.concatenate(
-            [
-                self.full_state_element(sid).apriori
-                for sid in self.retrieval_state_element_id
-            ]
-        )
+        # TODO
+        # By convention, muses-py returns a length 1 array even if we don't
+        # have any retrieval_state_element_id. I think this was just to avoid
+        # zero size arrays in IDL. But python is fine with this. For now conform
+        # to muses-py since it is expected in various places. We should clean this
+        # up at some point by tracking down where this gets used and handling empty
+        # arrays - it is cleaner than having a "special rule". But for now, conform
+        # to the convention
+        if len(self.retrieval_state_element_id) == 0:
+            res = np.zeros((1,))
+        else:
+            res = np.concatenate(
+                [
+                    self._state_info[sid].apriori_value
+                    for sid in self.retrieval_state_element_id
+                ]
+            )
+        if False:
+            res2 = self._current_state_old.apriori
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
-    def apriori_fm(self) -> np.ndarray:
+    def apriori_fm(self) -> ForwardModelGridArray:
         """Apriori value on forward model"""
-        return self._current_state_old.apriori_fm
+        # TODO Remove current_state_old
+        if len(self.retrieval_state_element_id) == 0:
+            # Oddly muses-py doesn't use the normal convention of returning [0],
+            # but instead returns []
+            res = np.zeros((0,))
+        else:
+            res = np.concatenate(
+                [
+                    self._state_info[sid].apriori_value_fm
+                    for sid in self.retrieval_state_element_id
+                ]
+            )
+        res2 = self._current_state_old.apriori_fm
+        # TODO Fix this
+        # npt.assert_allclose(res, res2)
+        return res2
 
     @property
-    def true_value(self) -> np.ndarray:
-        """Apriori value"""
-        if self.retrieval_info is None:
-            raise RuntimeError("retrieval_info is None")
-        return self._current_state_old.true_value
+    def true_value(self) -> RetrievalGridArray:
+        """True value"""
+        # Note muses_py always has a true value vector, even if we don't have
+        # a true value (so full_state_true_value is None). It just puts zeros
+        # in for any missing data.
+        res = np.zeros(
+            (
+                len(
+                    self.apriori,
+                )
+            )
+        )
+        for sid in self.retrieval_state_element_id:
+            tvalue = self._state_info[sid].true_value
+            if tvalue is not None:
+                ps, pl = self.retrieval_sv_loc[sid]
+                res[ps : ps + pl] = tvalue
+        if False:
+            res2 = self._current_state_old.true_value
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
-    def true_value_fm(self) -> np.ndarray:
+    def true_value_fm(self) -> ForwardModelGridArray:
         """Apriori value"""
-        if self.retrieval_info is None:
-            raise RuntimeError("retrieval_info is None")
-        return self._current_state_old.true_value_fm
+        # TODO Remove current_state_old
+        # Note muses_py always has a true value vector, even if we don't have
+        # a true value (so full_state_true_value is None). It just puts zeros
+        # in for any missing data.
+        res = np.zeros(
+            (
+                len(
+                    self.apriori_fm,
+                )
+            )
+        )
+        # for sid in self.retrieval_state_element_id:
+        #    tvalue = self._state_info[sid].true_value_fm
+        #    if(tvalue is not None):
+        #        ps, pl = self.fm_sv_loc[sid]
+        #        res[ps:ps+pl] = tvalue
+        res2 = self._current_state_old.true_value_fm
+        # npt.assert_allclose(res, res2)
+        return res2
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
@@ -131,20 +239,34 @@ class CurrentStateStateInfo(CurrentState):
         """
         if self.do_systematic:
             return None
-        else:
-            if self.retrieval_info is None:
-                raise RuntimeError("retrieval_info is None")
-            return self.retrieval_info.basis_matrix
+        blist = [self._state_info[sid].basis_matrix
+                 for sid in self.retrieval_state_element_id]
+        blist = [i for i in blist if i is not None]
+        if(len(blist) == 0):
+            return None
+        res = scipy.linalg.block_diag(*blist)
+        if False:
+            res2 = self._current_state_old.basis_matrix
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
         """Go the other direction from basis matrix"""
         if self.do_systematic:
             return None
-        else:
-            if self.retrieval_info is None:
+        mlist = [self._state_info[sid].map_to_parameter_matrix
+                 for sid in self.retrieval_state_element_id]
+        mlist = [i for i in mlist if i is not None]
+        if(len(mlist) == 0):
+            return None
+        res = scipy.linalg.block_diag(*mlist)
+        if False:
+            if self._retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
-            return self.retrieval_info.map_to_parameter_matrix
+            res2 = self._retrieval_info.map_to_parameter_matrix
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
     def step_directory(self) -> Path:
@@ -154,22 +276,27 @@ class CurrentStateStateInfo(CurrentState):
 
     @step_directory.setter
     def step_directory(self, val: Path) -> None:
+        # TODO Remove current_state_old
         self._step_directory = val
         self._current_state_old.step_directory = val
 
     @property
     def propagated_qa(self) -> PropagatedQA:
-        return self._current_state_old.propagated_qa
+        return self._state_info.propagated_qa
 
     @property
     def brightness_temperature_data(self) -> dict:
-        return self._current_state_old.brightness_temperature_data
+        # TODO Remove current_state_old
+        # Right now, need the old brightness_temperature_data.
+        # We can probably straighten this out later
+        return self._current_state_old.state_info.brightness_temperature_data
 
     @property
-    def updated_fm_flag(self) -> np.ndarray:
+    def updated_fm_flag(self) -> ForwardModelGridArray:
         """This is array of boolean flag indicating which parts of the forward
         model state vector got updated when we last called update_state. A 1 means
         it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
+        # TODO Remove current_state_old
         return self._current_state_old.updated_fm_flag
 
     def update_state(
@@ -180,6 +307,7 @@ class CurrentStateStateInfo(CurrentState):
         step: int,
     ) -> None:
         """Update the state info"""
+        # TODO Remove current_state_old
         self._current_state_old.update_state(
             results_list, do_not_update, retrieval_config, step
         )
@@ -195,49 +323,55 @@ class CurrentStateStateInfo(CurrentState):
     ) -> None:
         """This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
+        # TODO Remove current_state_old
         self._current_state_old.update_full_state_element(
             state_element_id, current, apriori, step_initial, retrieval_initial, true
         )
 
     @property
-    def retrieval_info(self) -> RetrievalInfo:
-        if self._retrieval_info is None:
-            raise RuntimeError("Need to set self._retrieval_info")
-        return self._retrieval_info
+    def _retrieval_info(self) -> RetrievalInfo:
+        if self.__retrieval_info is None:
+            raise RuntimeError("Need to set self.__retrieval_info")
+        return self.__retrieval_info
 
-    @retrieval_info.setter
-    def retrieval_info(self, val: RetrievalInfo) -> None:
-        self._retrieval_info = val
+    @_retrieval_info.setter
+    def _retrieval_info(self, val: RetrievalInfo) -> None:
+        self.__retrieval_info = val
         self._current_state_old.retrieval_info = val
         # Clear cache, we need to regenerate these after update
         self.clear_cache()
 
     def clear_cache(self) -> None:
         super().clear_cache()
+        # TODO Remove current_state_old
         self._current_state_old.clear_cache()
 
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
+        # TODO Update to remove retrieval_info
         if self.retrieval_state_element_override is not None:
             return self.retrieval_state_element_override
-        if self.retrieval_info is None:
+        if self._retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         if self.do_systematic:
             return [
-                StateElementIdentifier(i) for i in self.retrieval_info.species_names_sys
+                StateElementIdentifier(i)
+                for i in self._retrieval_info.species_names_sys
             ]
-        return [StateElementIdentifier(i) for i in self.retrieval_info.species_names]
+        return [StateElementIdentifier(i) for i in self._retrieval_info.species_names]
 
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that are in the systematic list (used by the
         ErrorAnalysis)."""
+        # TODO Remove current_state_old
         return self._current_state_old.systematic_state_element_id
 
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element_id"""
+        # TODO Remove current_state_old
         return self._current_state_old.full_state_element_id
 
     # TODO Perhaps this can go away. Only used in FakeStateInfo
@@ -245,6 +379,7 @@ class CurrentStateStateInfo(CurrentState):
     def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
         """Subset of full_state_element_id for species that are on levels, so things like
         H2O"""
+        # TODO Remove current_state_old
         return self._current_state_old.full_state_element_on_levels_id
 
     @property
@@ -254,21 +389,10 @@ class CurrentStateStateInfo(CurrentState):
         elements not being retrieved don't get listed here)
 
         """
-        if self.retrieval_info is None:
-            raise RuntimeError("retrieval_info is None")
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            for state_element_id in self.retrieval_state_element_id:
-                if self.do_systematic:
-                    plen = self.retrieval_info.species_list_sys.count(
-                        str(state_element_id)
-                    )
-                else:
-                    plen = self.retrieval_info.species_list_fm.count(
-                        str(state_element_id)
-                    )
-
+            for sid in self.retrieval_state_element_id:
                 # As a convention, if plen is 0 py-retrieve pads this
                 # to 1, although the state vector isn't actually used
                 # - it does get set. I think this is to avoid having a
@@ -279,10 +403,16 @@ class CurrentStateStateInfo(CurrentState):
                 # py-retrieve convention. This can generally only
                 # happen if we have retrieval_state_element_override
                 # set, i.e., we are doing RetrievalStrategyStepBT.
+                if(self.do_systematic):
+                    plen = self._state_info[sid].sys_sv_length
+                else:
+                    plen = self._state_info[sid].forward_model_sv_length
                 if plen == 0:
                     plen = 1
-                self._fm_sv_loc[state_element_id] = (self._fm_state_vector_size, plen)
+                self._fm_sv_loc[sid] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
+        if True:
+            assert self._fm_sv_loc == self._current_state_old.fm_sv_loc
         return self._fm_sv_loc
 
     @property
@@ -294,6 +424,7 @@ class CurrentStateStateInfo(CurrentState):
         Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
         that makes more sense.
         """
+        # TODO Remove current_state_old
         return self._current_state_old.sounding_metadata
 
     def full_state_element(
@@ -323,27 +454,39 @@ class CurrentStateStateInfo(CurrentState):
     ) -> np.ndarray | None:
         """Return the spectral domain (as nm) for the given state_element_id, or None if
         there isn't an associated frequency for the given state_element_id"""
+        # TODO Remove current_state_old
         selem = self._current_state_old.full_state_element_old(state_element_id)
         return selem.spectral_domain_wavelength
 
-    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
+    def full_state_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> ForwardModelGridArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so if
         there is only one value put that in a length 1 np.ndarray.
 
         """
-        return self._state_info[state_element_id].value
+        res = self._state_info[state_element_id].value_fm
+        if False:
+            res2 = self._current_state_old.full_state_value(state_element_id)
+            npt.assert_allclose(res, res2)
+        return res
 
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        return self._state_info[state_element_id].step_initial_value
+        # TODO Remove current_state_old
+        res = self._state_info[state_element_id].step_initial_value_fm
+        res2 = self._current_state_old.full_state_step_initial_value(state_element_id)
+        # TODO Fix this, an issue with data being left in log form
+        # npt.assert_allclose(res, res2)
+        return res
 
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
@@ -352,50 +495,54 @@ class CurrentStateStateInfo(CurrentState):
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
 
         If we don't have a true value, return None
         """
-        return self._state_info[state_element_id].true_value
+        res = self._state_info[state_element_id].true_value_fm
+        if False:
+            res2 = self._current_state_old.full_state_true_value(state_element_id)
+            npt.assert_allclose(res, res2)
+        return res
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initialInitial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        return self._state_info[state_element_id].retrieval_initial_value
+        res = self._state_info[state_element_id].retrieval_initial_value_fm
+        if False:
+            res2 = self._current_state_old.full_state_retrieval_initial_value(
+                state_element_id
+            )
+            npt.assert_allclose(res, res2)
+        return res
 
     def full_state_apriori_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        # This doesn't seem to be the same value found in retrieval_info.
-        # We need to sort this out, but for now pull this into here so we
-        # know where retrieval_info is used
-        if state_element_id not in self.retrieval_state_element_id:
-            return self._state_info[state_element_id].apriori
-        res = self.retrieval_info.species_constraint(str(state_element_id))
-        if isinstance(res, float):
-            return np.array(
-                [
-                    res,
-                ]
-            )
-        return res
+        # TODO Fix this
+        # return self._current_state_old.full_state_apriori_value(state_element_id)
+        return self._state_info[state_element_id].apriori_value_fm
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the covariance of the apriori value of the given state element identification."""
-        return self._state_info[state_element_id].apriori_cov
+        res = self._state_info[state_element_id].apriori_cov_fm
+        if False:
+            res2 = self._current_state_old.full_state_apriori_covariance(state_element_id)
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
@@ -404,19 +551,10 @@ class CurrentStateStateInfo(CurrentState):
         same. With a basis_matrix, the total length of the fm_sv_loc is the
         basis_matrix column size, and retrieval_vector_loc is the smaller basis_matrix
         row size."""
-        if self.retrieval_info is None:
-            raise RuntimeError("retrieval_info is None")
         if self._retrieval_sv_loc is None:
             self._retrieval_sv_loc = {}
             self._retrieval_state_vector_size = 0
-            for state_element_id in self.retrieval_state_element_id:
-                if self.do_systematic:
-                    plen = self.retrieval_info.species_list_sys.count(
-                        str(state_element_id)
-                    )
-                else:
-                    plen = self.retrieval_info.species_list.count(str(state_element_id))
-
+            for sid in self.retrieval_state_element_id:
                 # As a convention, if plen is 0 py-retrieve pads this
                 # to 1, although the state vector isn't actually used
                 # - it does get set. I think this is to avoid having a
@@ -427,13 +565,16 @@ class CurrentStateStateInfo(CurrentState):
                 # py-retrieve convention. This can generally only
                 # happen if we have retrieval_state_element_override
                 # set, i.e., we are doing RetrievalStrategyStepBT.
+                plen = self._state_info[sid].retrieval_sv_length
                 if plen == 0:
                     plen = 1
-                self._retrieval_sv_loc[state_element_id] = (
+                self._retrieval_sv_loc[sid] = (
                     self._retrieval_state_vector_size,
                     plen,
                 )
                 self._retrieval_state_vector_size += plen
+        if True:
+            assert self._retrieval_sv_loc == self._current_state_old.retrieval_sv_loc
         return self._retrieval_sv_loc
 
     def map_type(self, state_element_id: StateElementIdentifier) -> str:
@@ -444,42 +585,47 @@ class CurrentStateStateInfo(CurrentState):
         we have a more general mapping type like a scale retrieval or something like
         that. But for now, supply the old map type. The string will be something
         like "log" or "linear" """
+        # TODO Remove current_state_old
         return self._current_state_old.map_type(state_element_id)
 
     def pressure_list(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the retrieval state vector
         levels (generally smaller than the pressure_list_fm).
         """
+        # TODO Remove current_state_old
         return self._current_state_old.pressure_list(state_element_id)
 
     def pressure_list_fm(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
         """
+        # TODO Remove current_state_old
         return self._current_state_old.pressure_list_fm(state_element_id)
 
     def altitude_list(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels.  This is for the retrieval state vector
         levels (generally smaller than the altitude_list_fm).
         """
+        # TODO Remove current_state_old
         return self._current_state_old.altitude_list(state_element_id)
 
     def altitude_list_fm(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
         """
+        # TODO Remove current_state_old
         return self._current_state_old.altitude_list_fm(state_element_id)
 
     # Some of these arguments may get put into the class, but for now have explicit
@@ -491,10 +637,11 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_config: RetrievalConfiguration,
     ) -> None:
         """Set retrieval_info, errorInitial and errorCurrent for the current step."""
+        # TODO Remove current_state_old
         self._current_state_old.get_initial_guess(
             current_strategy_step, error_analysis, retrieval_config
         )
-        self.retrieval_info = self._current_state_old.retrieval_info
+        self._retrieval_info = self._current_state_old.retrieval_info
 
     def notify_update_target(
         self,
@@ -504,9 +651,11 @@ class CurrentStateStateInfo(CurrentState):
         observation_handle_set: ObservationHandleSet,
     ) -> None:
         """Have updated the target we are processing."""
+        # TODO Remove current_state_old
         self._current_state_old.notify_update_target(
             measurement_id, retrieval_config, strategy, observation_handle_set
         )
+        self._state_info.notify_update_target(measurement_id)
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
@@ -529,13 +678,14 @@ class CurrentStateStateInfo(CurrentState):
         complicated and confusing. For now we duplicate this behavior, in some cases we do
         this and in others we don't. We can hopefully sort this out, the logic should be
         straight forward"""
+        # TODO Remove current_state_old
         self._current_state_old.notify_new_step(
             current_strategy_step,
             error_analysis,
             retrieval_config,
             skip_initial_guess_update,
         )
-        self.retrieval_info = self._current_state_old.retrieval_info
+        self._retrieval_info = self._current_state_old.retrieval_info
         self._step_directory = self._current_state_old.step_directory
 
     def restart(
@@ -544,6 +694,7 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_config: RetrievalConfiguration,
     ) -> None:
         """Called when muses_strategy_executor has restarted"""
+        # TODO Remove current_state_old
         self._current_state_old.restart(current_strategy_step, retrieval_config)
         self._step_directory = self._current_state_old.step_directory
 

@@ -163,6 +163,11 @@ class SoundingMetadata:
         return self.surface_type == "LAND"
 
 
+# A couple of aliases, just so we can clearly mark what grid data is on
+RetrievalGridArray = np.ndarray
+ForwardModelGridArray = np.ndarray
+
+
 class CurrentState(object, metaclass=abc.ABCMeta):
     """There are a number of "states" floating around
     py-retrieve/ReFRACtor, and it can be a little confusing if you
@@ -292,12 +297,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self._retrieval_state_vector_size = -1
 
     @property
-    def initial_guess(self) -> np.ndarray:
+    def initial_guess(self) -> RetrievalGridArray:
         """Initial guess, on the retrieval grid."""
         raise NotImplementedError()
 
     @property
-    def initial_guess_fm(self) -> np.ndarray:
+    def initial_guess_fm(self) -> ForwardModelGridArray:
         """Return the initial guess for the forward model grid.  This
         isn't independent, it is directly calculated from the
         initial_guess and basis_matrix. But convenient to supply this
@@ -325,7 +330,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def updated_fm_flag(self) -> np.ndarray:
+    def updated_fm_flag(self) -> ForwardModelGridArray:
         """This is array of boolean flag indicating which parts of the forward
         model state vector got updated when we last called update_state. A 1 means
         it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
@@ -342,32 +347,32 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def apriori_cov(self) -> np.ndarray:
+    def apriori_cov(self) -> RetrievalGridArray:
         """Apriori Covariance"""
         raise NotImplementedError()
 
     @property
-    def sqrt_constraint(self) -> np.ndarray:
+    def sqrt_constraint(self) -> RetrievalGridArray:
         """Sqrt matrix from covariance"""
         return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
 
     @property
-    def apriori(self) -> np.ndarray:
+    def apriori(self) -> RetrievalGridArray:
         """Apriori value"""
         raise NotImplementedError()
 
     @property
-    def apriori_fm(self) -> np.ndarray:
+    def apriori_fm(self) -> ForwardModelGridArray:
         """Apriori value"""
         raise NotImplementedError()
 
     @property
-    def true_value(self) -> np.ndarray:
+    def true_value(self) -> RetrievalGridArray:
         """True value"""
         raise NotImplementedError()
 
     @property
-    def true_value_fm(self) -> np.ndarray:
+    def true_value_fm(self) -> ForwardModelGridArray:
         """True value"""
         raise NotImplementedError()
 
@@ -434,7 +439,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def pressure_list(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the retrieval state vector
         levels (generally smaller than the pressure_list_fm).
@@ -443,7 +448,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def pressure_list_fm(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
@@ -452,7 +457,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def altitude_list(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude.  This is for the retrieval state vector
         levels (generally smaller than the altitude_list_fm).
@@ -461,7 +466,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def altitude_list_fm(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude.  This is for the forward model state
         vector levels (generally larger than the altitude_list).
@@ -624,7 +629,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Return a description of the full state."""
         res = ""
         for selem in self.full_state_element_id:
-            res += f"{str(selem)}:\n{self.full_state_value(selem)}\n"
+            if(self.full_state_value_str(selem) is not None):
+                res += f"{str(selem)}:\n{self.full_state_value_str(selem)}\n"
+            else:
+                res += f"{str(selem)}:\n{self.full_state_value(selem)}\n"
         return res
 
     @abc.abstractproperty
@@ -659,7 +667,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
+    def full_state_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> ForwardModelGridArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -668,17 +678,17 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
-        return a str instead.
+        return a str instead. Return None if this doesn't apply.
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -688,7 +698,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -700,7 +710,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initialInitial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -710,7 +720,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def full_state_apriori_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -720,7 +730,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the covariance of the apriori value of the given state element identification."""
         raise NotImplementedError()
 
@@ -1066,7 +1076,7 @@ class CurrentStateUip(CurrentState):
             pass
         raise RuntimeError(f"Don't recognize {state_element_id}")
 
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
@@ -1241,7 +1251,7 @@ class CurrentStateDict(CurrentState):
         """
         raise NotImplementedError()
 
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
@@ -1655,16 +1665,14 @@ class CurrentStateStateInfoOld(CurrentState):
         selem = self.state_info.state_element(state_element_id, step="initial")
         return copy(selem.value)
 
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str:
+    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
         """
         selem = self.state_info.state_element(state_element_id)
         if not hasattr(selem, "value_str"):
-            raise RuntimeError(
-                f"Requested str value for a state element {state_element_id} that isn't a str value."
-            )
+            return None
         return str(selem.value_str)
 
     def full_state_true_value(
