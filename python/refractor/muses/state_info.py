@@ -66,11 +66,17 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return sd.convert_wave(rf.Unit("nm"))
 
     @abc.abstractproperty
-    def basis_matrix(self) -> np.ndarray:
+    def basis_matrix(self) -> np.ndarray | None:
         """Basis matrix going from retrieval vector to forward model
         vector. Would be nice to replace this with a general
         rf.StateMapping, but for now this is assumed in a lot of
         muses-py code."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def map_to_parameter_matrix(self) -> np.ndarray | None:
+        """Go the other direction from the basis matrix, going from
+        the forward model vector the retrieval vector."""
         raise NotImplementedError()
 
     @abc.abstractproperty
@@ -85,12 +91,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def forward_model_sv_length(self) -> int:
         raise NotImplementedError()
     
-    @abc.abstractproperty
-    def map_to_parameter_matrix(self) -> np.ndarray:
-        """Go the other direction from the basis matrix, going from
-        the forward model vector the retrieval vector."""
-        raise NotImplementedError()
-
     @abc.abstractproperty
     def value(self) -> RetrievalGridArray:
         """Current value of StateElement"""

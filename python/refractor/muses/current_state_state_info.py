@@ -8,7 +8,7 @@ from .identifier import StateElementIdentifier
 from .state_element_old_wrapper import StateElementOldWrapperHandle
 from .state_info import StateElementHandleSet
 import numpy as np
-import scipy
+import scipy # type: ignore
 import numpy.testing as npt
 from pathlib import Path
 from copy import copy
@@ -17,7 +17,6 @@ from typing import cast
 
 if typing.TYPE_CHECKING:
     from .current_state import PropagatedQA, SoundingMetadata
-    from .retrieval_info import RetrievalInfo
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import CurrentStrategyStep
     from .error_analysis import ErrorAnalysis
@@ -56,7 +55,6 @@ class CurrentStateStateInfo(CurrentState):
         )
         self.do_systematic = False
         self._step_directory: None | Path = None
-        self.__retrieval_info: None | RetrievalInfo = None
 
     def current_state_override(
         self,
@@ -262,9 +260,7 @@ class CurrentStateStateInfo(CurrentState):
             return None
         res = scipy.linalg.block_diag(*mlist)
         if False:
-            if self._retrieval_info is None:
-                raise RuntimeError("retrieval_info is None")
-            res2 = self._retrieval_info.map_to_parameter_matrix
+            res2 = self._current_state_old.map_to_parameter_matrix
             npt.assert_allclose(res, res2)
         return res
 
@@ -327,20 +323,7 @@ class CurrentStateStateInfo(CurrentState):
         self._current_state_old.update_full_state_element(
             state_element_id, current, apriori, step_initial, retrieval_initial, true
         )
-
-    @property
-    def _retrieval_info(self) -> RetrievalInfo:
-        if self.__retrieval_info is None:
-            raise RuntimeError("Need to set self.__retrieval_info")
-        return self.__retrieval_info
-
-    @_retrieval_info.setter
-    def _retrieval_info(self, val: RetrievalInfo) -> None:
-        self.__retrieval_info = val
-        self._current_state_old.retrieval_info = val
-        # Clear cache, we need to regenerate these after update
-        self.clear_cache()
-
+        
     def clear_cache(self) -> None:
         super().clear_cache()
         # TODO Remove current_state_old
@@ -348,17 +331,12 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
-        # TODO Update to remove retrieval_info
+        # TODO Update to remove current_state_old
         if self.retrieval_state_element_override is not None:
             return self.retrieval_state_element_override
-        if self._retrieval_info is None:
-            raise RuntimeError("retrieval_info is None")
         if self.do_systematic:
-            return [
-                StateElementIdentifier(i)
-                for i in self._retrieval_info.species_names_sys
-            ]
-        return [StateElementIdentifier(i) for i in self._retrieval_info.species_names]
+            return self._current_state_old.retrieval_state_element_id
+        return self._current_state_old.retrieval_state_element_id
 
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
@@ -628,21 +606,6 @@ class CurrentStateStateInfo(CurrentState):
         # TODO Remove current_state_old
         return self._current_state_old.altitude_list_fm(state_element_id)
 
-    # Some of these arguments may get put into the class, but for now have explicit
-    # passing of these
-    def get_initial_guess(
-        self,
-        current_strategy_step: CurrentStrategyStep,
-        error_analysis: ErrorAnalysis,
-        retrieval_config: RetrievalConfiguration,
-    ) -> None:
-        """Set retrieval_info, errorInitial and errorCurrent for the current step."""
-        # TODO Remove current_state_old
-        self._current_state_old.get_initial_guess(
-            current_strategy_step, error_analysis, retrieval_config
-        )
-        self._retrieval_info = self._current_state_old.retrieval_info
-
     def notify_update_target(
         self,
         measurement_id: MeasurementId,
@@ -656,6 +619,7 @@ class CurrentStateStateInfo(CurrentState):
             measurement_id, retrieval_config, strategy, observation_handle_set
         )
         self._state_info.notify_update_target(measurement_id)
+        self.clear_cache()
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
@@ -685,8 +649,8 @@ class CurrentStateStateInfo(CurrentState):
             retrieval_config,
             skip_initial_guess_update,
         )
-        self._retrieval_info = self._current_state_old.retrieval_info
         self._step_directory = self._current_state_old.step_directory
+        self.clear_cache()
 
     def restart(
         self,

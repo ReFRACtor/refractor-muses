@@ -63,7 +63,7 @@ class StateElementOldWrapper(StateElement):
         return None
     
     @property
-    def basis_matrix(self) -> np.ndarray:
+    def basis_matrix(self) -> np.ndarray | None:
         """Basis matrix going from retrieval vector to forward model
         vector. Would be nice to replace this with a general
         rf.StateMapping, but for now this is assumed in a lot of
@@ -76,7 +76,7 @@ class StateElementOldWrapper(StateElement):
         return bmatrix[s1, s2]
 
     @property
-    def map_to_parameter_matrix(self) -> np.ndarray:
+    def map_to_parameter_matrix(self) -> np.ndarray | None:
         """Go the other direction from the basis matrix, going from
         the forward model vector the retrieval vector."""
         mmatrix = self._current_state_old.map_to_parameter_matrix

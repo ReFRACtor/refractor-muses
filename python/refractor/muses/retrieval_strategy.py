@@ -576,7 +576,6 @@ class RetrievalStrategyMemoryUse:
             self.tr = tracker.SummaryTracker()
         elif location in (
             "done copy_current_initial",
-            "done get_initial_guess",
             "done create_windows",
             "done retrieval_step",
             "done next_state_to_current",
