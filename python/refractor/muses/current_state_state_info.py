@@ -63,12 +63,6 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_state_element_override: None | list[StateElementIdentifier],
     ) -> CurrentState:
         res = copy(self)
-        res._current_state_old = cast(
-            CurrentStateStateInfoOld,
-            res._current_state_old.current_state_override(
-                do_systematic, retrieval_state_element_override
-            ),
-        )
         res.retrieval_state_element_override = retrieval_state_element_override
         res.do_systematic = do_systematic
         res.clear_cache()
@@ -272,8 +266,9 @@ class CurrentStateStateInfo(CurrentState):
         """This is array of boolean flag indicating which parts of the forward
         model state vector got updated when we last called update_state. A 1 means
         it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
-        # TODO Remove current_state_old
-        return self._current_state_old.updated_fm_flag
+        if(self._updated_fm_flag is None):
+            raise RuntimeError("Need to call update_state before updated_fm_flag")
+        return self._updated_fm_flag
 
     def update_state(
         self,
@@ -283,10 +278,10 @@ class CurrentStateStateInfo(CurrentState):
         step: int,
     ) -> None:
         """Update the state info"""
-        # TODO Remove current_state_old
-        self._current_state_old.update_state(
-            results_list, do_not_update, retrieval_config, step
-        )
+        bdata = [ selem.update_state(results_list, do_not_update,
+                                     retrieval_config, step)
+                  for selem in self._state_info.values()]
+        self._updated_fm_flag = np.concatenate([i for i in bdata if i is not None])
 
     def update_full_state_element(
         self,
@@ -299,36 +294,32 @@ class CurrentStateStateInfo(CurrentState):
     ) -> None:
         """This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
-        # TODO Remove current_state_old
-        self._current_state_old.update_full_state_element(
-            state_element_id, current, apriori, step_initial, retrieval_initial, true
-        )
+        self._state_info[state_element_id].update_state_element(current, apriori, step_initial,
+                                                                retrieval_initial, true)
         
     def clear_cache(self) -> None:
         super().clear_cache()
+        self._updated_fm_flag = None
 
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
-        # TODO Update to remove current_state_old
         if self.retrieval_state_element_override is not None:
             return self.retrieval_state_element_override
-        if self.do_systematic:
-            return self._current_state_old.retrieval_state_element_id
-        return self._current_state_old.retrieval_state_element_id
+        res = self._sys_element_id if self.do_systematic else self._retrieval_element_id
+        return res
 
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that are in the systematic list (used by the
         ErrorAnalysis)."""
-        # TODO Remove current_state_old
-        return self._current_state_old.systematic_state_element_id
+        res = self._sys_element_id
+        return res
 
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element_id"""
-        # TODO Remove current_state_old
-        return self._current_state_old.full_state_element_id
+        return list(self._state_info.keys())
 
     @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
@@ -359,8 +350,6 @@ class CurrentStateStateInfo(CurrentState):
                     plen = 1
                 self._fm_sv_loc[sid] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
-        if True:
-            assert self._fm_sv_loc == self._current_state_old.fm_sv_loc
         return self._fm_sv_loc
 
     @property
@@ -500,8 +489,6 @@ class CurrentStateStateInfo(CurrentState):
                     plen,
                 )
                 self._retrieval_state_vector_size += plen
-        if True:
-            assert self._retrieval_sv_loc == self._current_state_old.retrieval_sv_loc
         return self._retrieval_sv_loc
 
     def map_type(self, state_element_id: StateElementIdentifier) -> str:
@@ -585,17 +572,18 @@ class CurrentStateStateInfo(CurrentState):
         # current_strategy_step being None means we are past the last step in our
         # MusesStrategy, so we just skip doing anything
         if current_strategy_step is not None:
+            self._retrieval_element_id = current_strategy_step.retrieval_elements
+            self._sys_element_id = current_strategy_step.error_analysis_interferents
             self._step_directory = (
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
-            for sid in self.full_state_element_id:
-                self._state_info[sid].notify_new_step(
-                    current_strategy_step,
-                    error_analysis,
-                    retrieval_config,
-                    skip_initial_guess_update,
-                )
+            self._state_info.notify_new_step(
+                current_strategy_step,
+                error_analysis,
+                retrieval_config,
+                skip_initial_guess_update,
+            )
             self.clear_cache()
 
     def restart(
@@ -605,15 +593,13 @@ class CurrentStateStateInfo(CurrentState):
     ) -> None:
         """Called when muses_strategy_executor has restarted"""
         if current_strategy_step is not None:
+            self._retrieval_element_id = current_strategy_step.retrieval_elements
+            self._sys_element_id = current_strategy_step.error_analysis_interferents
             self._step_directory = (
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
-            for sid in self.full_state_element_id:
-                self._state_info[sid].restart(
-                    current_strategy_step,
-                    retrieval_config,
-                )
+            self._state_info.restart(current_strategy_step, retrieval_config)
             self.clear_cache()
 
 

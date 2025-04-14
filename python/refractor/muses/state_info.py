@@ -15,6 +15,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .error_analysis import ErrorAnalysis
+    from .current_state import SoundingMetadata
 
 
 # A couple of aliases, just so we can clearly mark what grid data is on
@@ -189,7 +190,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return None
 
     @abc.abstractmethod
-    def update_state(
+    def update_state_element(
         self,
         current: np.ndarray | None = None,
         apriori: np.ndarray | None = None,
@@ -201,6 +202,18 @@ class StateElement(object, metaclass=abc.ABCMeta):
         each of the various values passed in.  A value of 'None' (the
         default) means skip updating that part of the StateElement.
         """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def update_state(
+        self,
+        results_list: np.ndarray,
+        do_not_update: list[StateElementIdentifier],
+        retrieval_config: RetrievalConfiguration | MeasurementId,
+        step: int,
+    ) -> np.ndarray | None:
+        '''Update the state based on results, and return a boolean array
+        indicating which coefficients were updated.'''
         raise NotImplementedError()
 
     def notify_new_step(
@@ -315,6 +328,7 @@ class StateInfo(UserDict):
         # Right now, use the old SoundingMetadata. We'll want to move this over,
         # but that can wait a bit
         return self._current_state_old.sounding_metadata
+    
     def notify_update_target(
         self,
         measurement_id: MeasurementId,
@@ -325,6 +339,50 @@ class StateInfo(UserDict):
         self.state_element_handle_set.notify_update_target(measurement_id, retrieval_config, strategy, observation_handle_set)
         self.data = {}
         self.propagated_qa = PropagatedQA()
+
+    def notify_new_step(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        # TODO, we want to remove this
+        self._current_state_old.notify_new_step(
+            current_strategy_step,
+            error_analysis,
+            retrieval_config,
+            skip_initial_guess_update,
+        )
+        # Since we aren't actually doing the init stuff yet in our
+        # new StateElement, make sure everything get created (since
+        # this happens on first use)
+        for sid in self._current_state_old.full_state_element_id:
+            _ = self[sid]
+        for selem in self.values():
+            selem.restart(
+                current_strategy_step,
+                retrieval_config,
+            )
+        
+        
+    def restart(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        # TODO, we want to remove this
+        self._current_state_old.restart(current_strategy_step, retrieval_config)
+        # Since we aren't actually doing the init stuff yet in our
+        # new StateElement, make sure everything get created (since
+        # this happens on first use)
+        for sid in self._current_state_old.full_state_element_id:
+            _ = self[sid]
+        for selem in self.values():
+            selem.restart(
+                current_strategy_step,
+                retrieval_config,
+            )
 
     def __missing__(self, state_element_id: StateElementIdentifier) -> StateElement:
         self.data[state_element_id] = self.state_element_handle_set.state_element(

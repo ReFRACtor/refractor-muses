@@ -8,8 +8,9 @@ if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier
     from .current_state import CurrentStateStateInfoOld
     from .muses_observation import ObservationHandleSet, MeasurementId
-    from .muses_strategy import MusesStrategy
+    from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
+    from .error_analysis import ErrorAnalysis
 
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
@@ -256,7 +257,7 @@ class StateElementOldWrapper(StateElement):
             return self._current_state_old.true_value_fm[s]
         return self._current_state_old.full_state_true_value(self.state_element_id)
 
-    def update_state(
+    def update_state_element(
         self,
         current: np.ndarray | None = None,
         apriori: np.ndarray | None = None,
@@ -277,6 +278,24 @@ class StateElementOldWrapper(StateElement):
             true_value,
         )
 
+    def update_state(
+        self,
+        results_list: np.ndarray,
+        do_not_update: list[StateElementIdentifier],
+        retrieval_config: RetrievalConfiguration | MeasurementId,
+        step: int,
+    ) -> np.ndarray | None:
+        '''Update the state based on results, and return a boolean array
+        indicating which coefficients were updated.'''
+        if(self.is_first):
+            self._current_state_old.update_state(
+                results_list, do_not_update, retrieval_config, step
+            )
+        r = self.fm_slice
+        if(r is None):
+            return None
+        return self._current_state_old.updated_fm_flag[r]
+
     def notify_new_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
@@ -284,22 +303,15 @@ class StateElementOldWrapper(StateElement):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        if(self.is_first):
-            self._current_state_old.notify_new_step(
-                current_strategy_step,
-                error_analysis,
-                retrieval_config,
-                skip_initial_guess_update,
-            )
+        pass
             
     def restart(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        if(self.is_first):
-            self._current_state_old.restart(current_strategy_step, retrieval_config)
-
+        pass
+    
 class StateElementOldWrapperHandle(StateElementHandle):
     def __init__(self) -> None:
         from .current_state import CurrentStateStateInfoOld
