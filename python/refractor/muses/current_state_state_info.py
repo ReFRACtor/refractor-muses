@@ -9,6 +9,7 @@ from .state_element_old_wrapper import StateElementOldWrapperHandle
 from .state_info import StateElementHandleSet
 import numpy as np
 import scipy # type: ignore
+import refractor.framework as rf # type: ignore
 import numpy.testing as npt
 from pathlib import Path
 from copy import copy
@@ -157,9 +158,6 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        if False:
-            res2 = self._current_state_old.apriori
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -200,9 +198,6 @@ class CurrentStateStateInfo(CurrentState):
             if tvalue is not None:
                 ps, pl = self.retrieval_sv_loc[sid]
                 res[ps : ps + pl] = tvalue
-        if False:
-            res2 = self._current_state_old.true_value
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -243,9 +238,6 @@ class CurrentStateStateInfo(CurrentState):
         if(len(blist) == 0):
             return None
         res = scipy.linalg.block_diag(*blist)
-        if False:
-            res2 = self._current_state_old.basis_matrix
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -259,9 +251,6 @@ class CurrentStateStateInfo(CurrentState):
         if(len(mlist) == 0):
             return None
         res = scipy.linalg.block_diag(*mlist)
-        if False:
-            res2 = self._current_state_old.map_to_parameter_matrix
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -424,9 +413,10 @@ class CurrentStateStateInfo(CurrentState):
     ) -> np.ndarray | None:
         """Return the spectral domain (as nm) for the given state_element_id, or None if
         there isn't an associated frequency for the given state_element_id"""
-        # TODO Remove current_state_old
-        selem = self._current_state_old.full_state_element_old(state_element_id)
-        return selem.spectral_domain_wavelength
+        sd = self._state_info[state_element_id].spectral_domain
+        if(sd is None):
+            return None
+        return sd.convert_wave(rf.Unit("nm"))
 
     def full_state_value(
         self, state_element_id: StateElementIdentifier
@@ -437,9 +427,6 @@ class CurrentStateStateInfo(CurrentState):
 
         """
         res = self._state_info[state_element_id].value_fm
-        if False:
-            res2 = self._current_state_old.full_state_value(state_element_id)
-            npt.assert_allclose(res, res2)
         return res
 
     def full_state_step_initial_value(
@@ -449,12 +436,7 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        # TODO Remove current_state_old
-        res = self._state_info[state_element_id].step_initial_value_fm
-        res2 = self._current_state_old.full_state_step_initial_value(state_element_id)
-        # TODO Fix this, an issue with data being left in log form
-        # npt.assert_allclose(res, res2)
-        return res
+        return self._state_info[state_element_id].step_initial_value_fm
 
     def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
@@ -473,9 +455,6 @@ class CurrentStateStateInfo(CurrentState):
         If we don't have a true value, return None
         """
         res = self._state_info[state_element_id].true_value_fm
-        if False:
-            res2 = self._current_state_old.full_state_true_value(state_element_id)
-            npt.assert_allclose(res, res2)
         return res
 
     def full_state_retrieval_initial_value(
@@ -486,11 +465,6 @@ class CurrentStateStateInfo(CurrentState):
         there is only one value put that in a length 1 np.array.
         """
         res = self._state_info[state_element_id].retrieval_initial_value_fm
-        if False:
-            res2 = self._current_state_old.full_state_retrieval_initial_value(
-                state_element_id
-            )
-            npt.assert_allclose(res, res2)
         return res
 
     def full_state_apriori_value(
@@ -500,8 +474,6 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        # TODO Fix this
-        # return self._current_state_old.full_state_apriori_value(state_element_id)
         return self._state_info[state_element_id].apriori_value_fm
 
     def full_state_apriori_covariance(
@@ -509,9 +481,6 @@ class CurrentStateStateInfo(CurrentState):
     ) -> ForwardModelGridArray:
         """Return the covariance of the apriori value of the given state element identification."""
         res = self._state_info[state_element_id].apriori_cov_fm
-        if False:
-            res2 = self._current_state_old.full_state_apriori_covariance(state_element_id)
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -555,8 +524,7 @@ class CurrentStateStateInfo(CurrentState):
         we have a more general mapping type like a scale retrieval or something like
         that. But for now, supply the old map type. The string will be something
         like "log" or "linear" """
-        # TODO Remove current_state_old
-        return self._current_state_old.map_type(state_element_id)
+        return self._state_info[state_element_id].map_type
 
     def pressure_list(
         self, state_element_id: StateElementIdentifier

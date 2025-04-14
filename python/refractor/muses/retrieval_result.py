@@ -105,7 +105,7 @@ class RetrievalResult:
             if(d is not None):
                 pdata.append(d)
             else:
-                pdata.append([-2.0])
+                pdata.append(np.array([-2.0]))
         return np.concatenate(pdata)
 
     @property

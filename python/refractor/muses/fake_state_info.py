@@ -40,6 +40,11 @@ class FakeStateInfo:
         self._constraint: dict[str, Any] = {}
         self._true: dict[str, Any] = {}
         self.current_state = current_state
+        # If we have an observation, fill in information into the default dict
+        obs_dict = {}
+        if obs_list is not None:
+            for obs in obs_list:
+                obs_dict[obs.instrument_name] = obs
 
         self._current["PCLOUD"] = current_state.full_state_value(
             StateElementIdentifier("PCLOUD")
@@ -57,7 +62,11 @@ class FakeStateInfo:
         self._current["scalePressure"] = self.state_value("scalePressure")
 
         # I think this is a fixed list
-        self._species = ['TATM', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'SO2', 'NH3', 'HNO3', 'OCS', 'N2', 'HCN', 'SF6', 'HCOOH', 'CCL4', 'CFC11', 'CFC12', 'CFC22', 'HDO', 'CH3OH', 'C2H4', 'PAN']
+        if InstrumentIdentifier("TROPOMI") in obs_dict:
+            self._species = ['TATM', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'SO2', 'NO2', 'NH3', 'HNO3', 'OCS', 'N2', 'HCN', 'SF6', 'HCOOH', 'CCL4', 'CFC11', 'CFC12', 'CFC22', 'HDO', 'CH3OH', 'C2H4', 'PAN']
+        else:
+            self._species = ['TATM', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'SO2', 'NH3', 'HNO3', 'OCS', 'N2', 'HCN', 'SF6', 'HCOOH', 'CCL4', 'CFC11', 'CFC12', 'CFC22', 'HDO', 'CH3OH', 'C2H4', 'PAN']
+            
         self._num_species = len(self._species)
         t = current_state.full_state_value(StateElementIdentifier("TATM"))
         varr = np.zeros((len(self._species), t.shape[0]))
@@ -171,11 +180,6 @@ class FakeStateInfo:
         self._current["tropomi"] = self.default_tropomi()
         self._current["nir"] = self.default_nir()
         self._current["tes"] = self.default_tes()
-        # If we have an observation, fill in information into the default dict
-        obs_dict = {}
-        if obs_list is not None:
-            for obs in obs_list:
-                obs_dict[obs.instrument_name] = obs
         # print(current_state._state_info.state_info_dict["current"]["tes"])
         if InstrumentIdentifier("OMI") in obs_dict:
             self.fill_omi(current_state, obs_dict[InstrumentIdentifier("OMI")])

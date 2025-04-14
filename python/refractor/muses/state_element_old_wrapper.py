@@ -38,16 +38,8 @@ class StateElementOldWrapper(StateElement):
     def spectral_domain(self) -> rf.SpectralDomain | None:
         """For StateElementWithFrequency, this returns the frequency associated
         with it. For all other StateElement, just return None."""
-        return rf.SpectralDomain(self.spectral_domain_wavelength, rf.Unit("nm"))
+        return self._current_state_old.full_state_element_old(self.state_element_id).spectral_domain
 
-    @property
-    def spectral_domain_wavelength(self) -> np.ndarray | None:
-        """Short cut to return the spectral domain in units of nm."""
-        return self._current_state_old.full_state_spectral_domain_wavelength(
-            self.state_element_id
-        )
-
-    
     @property
     def retrieval_slice(self) -> slice | None:
         if self.state_element_id in self._current_state_old.retrieval_sv_loc:
@@ -106,9 +98,20 @@ class StateElementOldWrapper(StateElement):
         if self.state_element_id not in self._current_state_old.fm_sv_loc:
             return 0
         return self._current_state_old.fm_sv_loc[self.state_element_id][1]
+
+    @property
+    def map_type(self) -> str:
+        """For ReFRACtor we use a general rf.StateMapping, which can mostly
+        replace the map type py-retrieve uses. However there are some places
+        where old code depends on the map type strings (for example, writing
+        metadata to an output file). It isn't clear what we will need to do if
+        we have a more general mapping type like a scale retrieval or something like
+        that. But for now, supply the old map type. The string will be something
+        like "log" or "linear" """
+        return self._current_state_old.map_type(self.state_element_id)
     
     @property
-    def altitude_list(self) -> RetrievalGridArray:
+    def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
         res = self._current_state_old.altitude_list(self.state_element_id)
@@ -118,7 +121,7 @@ class StateElementOldWrapper(StateElement):
         return res
 
     @property
-    def altitude_list_fm(self) -> ForwardModelGridArray:
+    def altitude_list_fm(self) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
         res = self._current_state_old.altitude_list_fm(self.state_element_id)
@@ -128,7 +131,7 @@ class StateElementOldWrapper(StateElement):
         return res
     
     @property
-    def pressure_list(self) -> RetrievalGridArray:
+    def pressure_list(self) -> RetrievalGridArray| None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
         res = self._current_state_old.pressure_list(self.state_element_id)
@@ -139,7 +142,7 @@ class StateElementOldWrapper(StateElement):
 
 
     @property
-    def pressure_list_fm(self) -> ForwardModelGridArray:
+    def pressure_list_fm(self) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
         res = self._current_state_old.pressure_list_fm(self.state_element_id)

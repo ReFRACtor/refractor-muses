@@ -57,14 +57,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
         with it. For all other StateElement, just return None."""
         return None
 
-    @property
-    def spectral_domain_wavelength(self) -> np.ndarray | None:
-        """Short cut to return the spectral domain in units of nm."""
-        sd = self.spectral_domain
-        if sd is None:
-            return None
-        return sd.convert_wave(rf.Unit("nm"))
-
     @abc.abstractproperty
     def basis_matrix(self) -> np.ndarray | None:
         """Basis matrix going from retrieval vector to forward model
@@ -92,25 +84,36 @@ class StateElement(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def altitude_list(self) -> RetrievalGridArray:
+    def map_type(self) -> str:
+        """For ReFRACtor we use a general rf.StateMapping, which can mostly
+        replace the map type py-retrieve uses. However there are some places
+        where old code depends on the map type strings (for example, writing
+        metadata to an output file). It isn't clear what we will need to do if
+        we have a more general mapping type like a scale retrieval or something like
+        that. But for now, supply the old map type. The string will be something
+        like "log" or "linear" """
+        raise NotImplementedError()
+    
+    @abc.abstractproperty
+    def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def altitude_list_fm(self) -> ForwardModelGridArray:
+    def altitude_list_fm(self) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
         raise NotImplementedError()
     
     @abc.abstractproperty
-    def pressure_list(self) -> RetrievalGridArray:
+    def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def pressure_list_fm(self) -> ForwardModelGridArray:
+    def pressure_list_fm(self) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
         raise NotImplementedError()
