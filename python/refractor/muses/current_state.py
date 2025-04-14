@@ -619,12 +619,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         larger list than retrieval_state_element_id"""
         raise NotImplementedError()
 
-    @abc.abstractproperty
-    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
-        """Subset of full_state_element_id for species that are on levels, so things like
-        H2O"""
-        raise NotImplementedError()
-
     def full_state_desc(self) -> str:
         """Return a description of the full state."""
         res = ""
@@ -900,12 +894,6 @@ class CurrentStateUip(CurrentState):
         larger list than retrieval_state_element_id"""
         # I think we could come up with something here if needed, but for now
         # just punt on this
-        raise NotImplementedError()
-
-    @property
-    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
-        """Subset of full_state_element_id for species that are on levels, so things like
-        H2O"""
         raise NotImplementedError()
 
     @property
@@ -1195,12 +1183,6 @@ class CurrentStateDict(CurrentState):
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element_id"""
         return list(self.state_element_dict.keys())
-
-    @property
-    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
-        """Subset of full_state_element_id for species that are on levels, so things like
-        H2O"""
-        raise NotImplementedError()
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
@@ -1564,14 +1546,6 @@ class CurrentStateStateInfoOld(CurrentState):
         """Return list of state elements that make up the full state, generally a
         larger list than retrieval_state_element_id"""
         return [i.name for i in self.state_info.state_element_list()]
-
-    @property
-    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
-        """Subset of full_state_element_id for species that are on levels, so things like
-        H2O"""
-        return [
-            StateElementIdentifier(i) for i in self.state_info.state_element_on_levels
-        ]
 
     @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:

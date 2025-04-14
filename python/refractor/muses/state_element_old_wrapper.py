@@ -108,6 +108,47 @@ class StateElementOldWrapper(StateElement):
         return self._current_state_old.fm_sv_loc[self.state_element_id][1]
     
     @property
+    def altitude_list(self) -> RetrievalGridArray:
+        """For state elements that are on pressure level, this returns
+        the altitude levels (None otherwise)"""
+        res = self._current_state_old.altitude_list(self.state_element_id)
+        # Kind of obscure, but species are the only items with a pressumre list > 2
+        if(res is None or len(res) < 3):
+            return None
+        return res
+
+    @property
+    def altitude_list_fm(self) -> ForwardModelGridArray:
+        """For state elements that are on pressure level, this returns
+        the altitude levels (None otherwise)"""
+        res = self._current_state_old.altitude_list_fm(self.state_element_id)
+        # Kind of obscure, but species are the only items with a pressumre list > 2
+        if(res is None or len(res) < 3):
+            return None
+        return res
+    
+    @property
+    def pressure_list(self) -> RetrievalGridArray:
+        """For state elements that are on pressure level, this returns
+        the pressure levels (None otherwise)"""
+        res = self._current_state_old.pressure_list(self.state_element_id)
+        # Kind of obscure, but species are the only items with a pressumre list > 2
+        if(res is None or len(res) < 3):
+            return None
+        return res
+
+
+    @property
+    def pressure_list_fm(self) -> ForwardModelGridArray:
+        """For state elements that are on pressure level, this returns
+        the pressure levels (None otherwise)"""
+        res = self._current_state_old.pressure_list_fm(self.state_element_id)
+        # Kind of obscure, but species are the only items with a pressumre list > 2
+        if(res is None or len(res) < 3):
+            return None
+        return res
+    
+    @property
     def value(self) -> RetrievalGridArray:
         """Current value of StateElement"""
         raise NotImplementedError()

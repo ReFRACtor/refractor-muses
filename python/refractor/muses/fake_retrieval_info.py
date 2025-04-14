@@ -231,39 +231,55 @@ class FakeRetrievalInfo:
 
     @property
     def altitudeListFM(self) -> np.ndarray:
-        return np.concatenate(
-            [
-                self.current_state.altitude_list_fm(sid)
-                for sid in self.current_state.retrieval_state_element_id
-            ]
-        )
+        pdata = []
+        # Convention of muses-py is to use [-2] for items that aren't on
+        # pressure levels
+        for sid in self.current_state.retrieval_state_element_id:
+            d = self.current_state.altitude_list_fm(sid)
+            if(d is not None):
+                pdata.append(d)
+            else:
+                pdata.append([-2.0])
+        return np.concatenate(pdata)
 
     @property
     def altitudeList(self) -> np.ndarray:
-        return np.concatenate(
-            [
-                self.current_state.altitude_list(sid)
-                for sid in self.current_state.retrieval_state_element_id
-            ]
-        )
+        pdata = []
+        # Convention of muses-py is to use [-2] for items that aren't on
+        # pressure levels
+        for sid in self.current_state.retrieval_state_element_id:
+            d = self.current_state.altitude_list(sid)
+            if(d is not None):
+                pdata.append(d)
+            else:
+                pdata.append([-2.0])
+        return np.concatenate(pdata)
 
     @property
     def pressureListFM(self) -> np.ndarray:
-        return np.concatenate(
-            [
-                self.current_state.pressure_list_fm(sid)
-                for sid in self.current_state.retrieval_state_element_id
-            ]
-        )
+        pdata = []
+        # Convention of muses-py is to use [-2] for items that aren't on
+        # pressure levels
+        for sid in self.current_state.retrieval_state_element_id:
+            d = self.current_state.pressure_list_fm(sid)
+            if(d is not None):
+                pdata.append(d)
+            else:
+                pdata.append([-2.0])
+        return np.concatenate(pdata)
 
     @property
     def pressureList(self) -> np.ndarray:
-        return np.concatenate(
-            [
-                self.current_state.pressure_list(sid)
-                for sid in self.current_state.retrieval_state_element_id
-            ]
-        )
+        pdata = []
+        # Convention of muses-py is to use [-2] for items that aren't on
+        # pressure levels
+        for sid in self.current_state.retrieval_state_element_id:
+            d = self.current_state.pressure_list(sid)
+            if(d is not None):
+                pdata.append(d)
+            else:
+                pdata.append([-2.0])
+        return np.concatenate(pdata)
 
 
 __all__ = [

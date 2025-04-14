@@ -56,7 +56,8 @@ class FakeStateInfo:
         self._current["heightKm"] = current_state.sounding_metadata.height.value
         self._current["scalePressure"] = self.state_value("scalePressure")
 
-        self._species = [str(i) for i in current_state.full_state_element_on_levels_id]
+        # I think this is a fixed list
+        self._species = ['TATM', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'SO2', 'NH3', 'HNO3', 'OCS', 'N2', 'HCN', 'SF6', 'HCOOH', 'CCL4', 'CFC11', 'CFC12', 'CFC22', 'HDO', 'CH3OH', 'C2H4', 'PAN']
         self._num_species = len(self._species)
         t = current_state.full_state_value(StateElementIdentifier("TATM"))
         varr = np.zeros((len(self._species), t.shape[0]))

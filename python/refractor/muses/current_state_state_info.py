@@ -272,7 +272,7 @@ class CurrentStateStateInfo(CurrentState):
 
     @step_directory.setter
     def step_directory(self, val: Path) -> None:
-        # TODO Remove current_state_old
+        # TODO Remove current_state_old. Does this even get called? Can possibly remove
         self._step_directory = val
         self._current_state_old.step_directory = val
 
@@ -351,14 +351,6 @@ class CurrentStateStateInfo(CurrentState):
         larger list than retrieval_state_element_id"""
         # TODO Remove current_state_old
         return self._current_state_old.full_state_element_id
-
-    # TODO Perhaps this can go away. Only used in FakeStateInfo
-    @property
-    def full_state_element_on_levels_id(self) -> list[StateElementIdentifier]:
-        """Subset of full_state_element_id for species that are on levels, so things like
-        H2O"""
-        # TODO Remove current_state_old
-        return self._current_state_old.full_state_element_on_levels_id
 
     @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
@@ -573,8 +565,7 @@ class CurrentStateStateInfo(CurrentState):
         the pressure levels.  This is for the retrieval state vector
         levels (generally smaller than the pressure_list_fm).
         """
-        # TODO Remove current_state_old
-        return self._current_state_old.pressure_list(state_element_id)
+        return self._state_info[state_element_id].pressure_list
 
     def pressure_list_fm(
         self, state_element_id: StateElementIdentifier
@@ -583,8 +574,7 @@ class CurrentStateStateInfo(CurrentState):
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
         """
-        # TODO Remove current_state_old
-        return self._current_state_old.pressure_list_fm(state_element_id)
+        return self._state_info[state_element_id].pressure_list_fm
 
     def altitude_list(
         self, state_element_id: StateElementIdentifier
@@ -593,8 +583,7 @@ class CurrentStateStateInfo(CurrentState):
         the altitude levels.  This is for the retrieval state vector
         levels (generally smaller than the altitude_list_fm).
         """
-        # TODO Remove current_state_old
-        return self._current_state_old.altitude_list(state_element_id)
+        return self._state_info[state_element_id].altitude_list
 
     def altitude_list_fm(
         self, state_element_id: StateElementIdentifier
@@ -603,8 +592,7 @@ class CurrentStateStateInfo(CurrentState):
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
         """
-        # TODO Remove current_state_old
-        return self._current_state_old.altitude_list_fm(state_element_id)
+        return self._state_info[state_element_id].altitude_list_fm
 
     def notify_update_target(
         self,

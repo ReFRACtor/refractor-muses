@@ -90,6 +90,30 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def forward_model_sv_length(self) -> int:
         raise NotImplementedError()
+
+    @abc.abstractproperty
+    def altitude_list(self) -> RetrievalGridArray:
+        """For state elements that are on pressure level, this returns
+        the altitude levels (None otherwise)"""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def altitude_list_fm(self) -> ForwardModelGridArray:
+        """For state elements that are on pressure level, this returns
+        the altitude levels (None otherwise)"""
+        raise NotImplementedError()
+    
+    @abc.abstractproperty
+    def pressure_list(self) -> RetrievalGridArray:
+        """For state elements that are on pressure level, this returns
+        the pressure levels (None otherwise)"""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def pressure_list_fm(self) -> ForwardModelGridArray:
+        """For state elements that are on pressure level, this returns
+        the pressure levels (None otherwise)"""
+        raise NotImplementedError()
     
     @abc.abstractproperty
     def value(self) -> RetrievalGridArray:
