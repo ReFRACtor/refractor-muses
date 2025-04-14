@@ -7,6 +7,9 @@ import typing
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier
     from .current_state import CurrentStateStateInfoOld
+    from .muses_observation import ObservationHandleSet, MeasurementId
+    from .muses_strategy import MusesStrategy
+    from .retrieval_configuration import RetrievalConfiguration
 
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
@@ -23,9 +26,14 @@ class StateElementOldWrapper(StateElement):
         self,
         state_element_id: StateElementIdentifier,
         current_state_old: CurrentStateStateInfoOld,
+        is_first
     ) -> None:
         super().__init__(state_element_id)
         self._current_state_old = current_state_old
+        # Bit klunky, but way to push notifications down a bit so
+        # it looks like we are just notifying StateElement, even though
+        # we forward that to self._current_state_old
+        self.is_first = is_first
 
     def sa_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
         """Return the cross covariance matrix with selem 2. This returns None
@@ -269,17 +277,54 @@ class StateElementOldWrapper(StateElement):
             true_value,
         )
 
+    def notify_new_step(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        if(self.is_first):
+            self._current_state_old.notify_new_step(
+                current_strategy_step,
+                error_analysis,
+                retrieval_config,
+                skip_initial_guess_update,
+            )
+            
+    def restart(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        if(self.is_first):
+            self._current_state_old.restart(current_strategy_step, retrieval_config)
 
 class StateElementOldWrapperHandle(StateElementHandle):
     def __init__(self) -> None:
         from .current_state import CurrentStateStateInfoOld
-
         self._current_state_old = CurrentStateStateInfoOld(None)
+        self.is_first = True
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        self._current_state_old.notify_update_target(
+            measurement_id, retrieval_config, strategy, observation_handle_set
+        )
+        self.is_first = True
 
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
-        return StateElementOldWrapper(state_element_id, self._current_state_old)
+        r = StateElementOldWrapper(state_element_id, self._current_state_old, self.is_first)
+        self.is_first = False
+        return r
 
 
 __all__ = ["StateElementOldWrapper", "StateElementOldWrapperHandle"]

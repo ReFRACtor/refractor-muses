@@ -259,22 +259,13 @@ class CurrentStateStateInfo(CurrentState):
             raise RuntimeError("Set step directory first")
         return self._step_directory
 
-    @step_directory.setter
-    def step_directory(self, val: Path) -> None:
-        # TODO Remove current_state_old. Does this even get called? Can possibly remove
-        self._step_directory = val
-        self._current_state_old.step_directory = val
-
     @property
     def propagated_qa(self) -> PropagatedQA:
         return self._state_info.propagated_qa
 
     @property
     def brightness_temperature_data(self) -> dict:
-        # TODO Remove current_state_old
-        # Right now, need the old brightness_temperature_data.
-        # We can probably straighten this out later
-        return self._current_state_old.state_info.brightness_temperature_data
+        return self._state_info.brightness_temperature_data
 
     @property
     def updated_fm_flag(self) -> ForwardModelGridArray:
@@ -315,8 +306,6 @@ class CurrentStateStateInfo(CurrentState):
         
     def clear_cache(self) -> None:
         super().clear_cache()
-        # TODO Remove current_state_old
-        self._current_state_old.clear_cache()
 
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
@@ -383,8 +372,7 @@ class CurrentStateStateInfo(CurrentState):
         Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
         that makes more sense.
         """
-        # TODO Remove current_state_old
-        return self._current_state_old.sounding_metadata
+        return self._state_info.sounding_metadata
 
     def full_state_element(
         self, state_element_id: StateElementIdentifier
@@ -570,11 +558,7 @@ class CurrentStateStateInfo(CurrentState):
         observation_handle_set: ObservationHandleSet,
     ) -> None:
         """Have updated the target we are processing."""
-        # TODO Remove current_state_old
-        self._current_state_old.notify_update_target(
-            measurement_id, retrieval_config, strategy, observation_handle_set
-        )
-        self._state_info.notify_update_target(measurement_id)
+        self._state_info.notify_update_target(measurement_id, retrieval_config, strategy, observation_handle_set)
         self.clear_cache()
 
     @property
@@ -598,15 +582,21 @@ class CurrentStateStateInfo(CurrentState):
         complicated and confusing. For now we duplicate this behavior, in some cases we do
         this and in others we don't. We can hopefully sort this out, the logic should be
         straight forward"""
-        # TODO Remove current_state_old
-        self._current_state_old.notify_new_step(
-            current_strategy_step,
-            error_analysis,
-            retrieval_config,
-            skip_initial_guess_update,
-        )
-        self._step_directory = self._current_state_old.step_directory
-        self.clear_cache()
+        # current_strategy_step being None means we are past the last step in our
+        # MusesStrategy, so we just skip doing anything
+        if current_strategy_step is not None:
+            self._step_directory = (
+                retrieval_config["run_dir"]
+                / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
+            )
+            for sid in self.full_state_element_id:
+                self._state_info[sid].notify_new_step(
+                    current_strategy_step,
+                    error_analysis,
+                    retrieval_config,
+                    skip_initial_guess_update,
+                )
+            self.clear_cache()
 
     def restart(
         self,
@@ -614,9 +604,17 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_config: RetrievalConfiguration,
     ) -> None:
         """Called when muses_strategy_executor has restarted"""
-        # TODO Remove current_state_old
-        self._current_state_old.restart(current_strategy_step, retrieval_config)
-        self._step_directory = self._current_state_old.step_directory
+        if current_strategy_step is not None:
+            self._step_directory = (
+                retrieval_config["run_dir"]
+                / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
+            )
+            for sid in self.full_state_element_id:
+                self._state_info[sid].restart(
+                    current_strategy_step,
+                    retrieval_config,
+                )
+            self.clear_cache()
 
 
 # Right now, only fall back to old py-retrieve code

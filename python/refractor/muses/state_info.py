@@ -11,7 +11,11 @@ from collections import UserDict
 
 if typing.TYPE_CHECKING:
     from .identifier import StateElementIdentifier
-    from .muses_observation import MeasurementId
+    from .muses_observation import MeasurementId, ObservationHandleSet
+    from .muses_strategy import MusesStrategy, CurrentStrategyStep
+    from .retrieval_configuration import RetrievalConfiguration
+    from .error_analysis import ErrorAnalysis
+
 
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
@@ -199,6 +203,21 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    def notify_new_step(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        pass
+
+    def restart(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        pass
 
 class StateElementHandle(CreatorHandle):
     """Return StateElement objects, for a given StateElementIdentifier
@@ -208,7 +227,13 @@ class StateElementHandle(CreatorHandle):
     caching for things that don't change when the target being retrieved is the same from
     one call to the next."""
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # Default is to do nothing
         pass
@@ -234,11 +259,17 @@ class StateElementHandleSet(CreatorHandleSet):
     def state_element(self, state_element_id: StateElementIdentifier) -> StateElement:
         return self.handle(state_element_id)
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(measurement_id)
+                h.notify_update_target(measurement_id, retrieval_config, strategy, observation_handle_set)
 
 
 class StateInfo(UserDict):
@@ -264,13 +295,36 @@ class StateInfo(UserDict):
             )
         self._state_element: dict[StateElementIdentifier, StateElement] = {}
         self.propagated_qa = PropagatedQA()
-        self.brightness_temperature_data: dict[int, dict[str, float | None]] = {}
+        # Temp, clumsy but this will go away
+        for p in sorted(
+            self.state_element_handle_set.handle_set.keys(), reverse=True
+        ):
+            for h in self.state_element_handle_set.handle_set[p]:
+                if hasattr(h, "_current_state_old"):
+                    self._current_state_old = h._current_state_old
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
-        self.state_element_handle_set.notify_update_target(measurement_id)
+    @property
+    def brightness_temperature_data(self) -> dict[int, dict[str, float | None]]:
+        # Right now, need the old brightness_temperature_data.
+        # We can probably straighten this out later, but as we forward stuff
+        # to the old current_state_old we need to have the data there
+        return self._current_state_old.state_info.brightness_temperature_data
+
+    @property
+    def sounding_metadata(self) -> SoundingMetadata:
+        # Right now, use the old SoundingMetadata. We'll want to move this over,
+        # but that can wait a bit
+        return self._current_state_old.sounding_metadata
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
+        self.state_element_handle_set.notify_update_target(measurement_id, retrieval_config, strategy, observation_handle_set)
         self.data = {}
         self.propagated_qa = PropagatedQA()
-        self.brightness_temperature_data = {}
 
     def __missing__(self, state_element_id: StateElementIdentifier) -> StateElement:
         self.data[state_element_id] = self.state_element_handle_set.state_element(
