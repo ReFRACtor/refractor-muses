@@ -374,17 +374,6 @@ class CurrentStateStateInfo(CurrentState):
         so we will just need to revisit those few spots if this becomes an issue."""
         return self._state_info[state_element_id]
 
-    def full_state_element_old(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement:
-        """Return the StateElement for the state_element_id. I'm not sure if we want to
-        have this exposed or not, but there is a bit of useful information we have in
-        each StateElement (such as the sa_cross_covariance). We can have this exposed for
-        now, and revisit it if we end up deciding this is too much coupling. There are
-        only a few spots that use full_state_element vs something like full_state_value,
-        so we will just need to revisit those few spots if this becomes an issue."""
-        return self._current_state_old.full_state_element_old(state_element_id)
-
     def full_state_spectral_domain_wavelength(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:

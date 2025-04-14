@@ -67,7 +67,7 @@ class ErrorAnalysis:
         """
         selem_list = []
         for sname in covariance_state_element_name:
-            selem = current_state.full_state_element_old(sname)
+            selem = current_state.full_state_element(sname)
             # Note clear why, but we get slightly different results if we
             # update the original state_info. May want to track this down,
             # but as a work around we just copy this. This is just needed
@@ -94,7 +94,7 @@ class ErrorAnalysis:
         for selem in selem_list:
             matrix, pressureSa = selem.sa_covariance()
             pressure_list.extend(pressureSa)
-            species_list.extend([selem.name] * matrix.shape[0])
+            species_list.extend([str(selem.state_element_id)] * matrix.shape[0])
             matrix_list.append(matrix)
             map_list.extend([selem.map_type] * matrix.shape[0])
 

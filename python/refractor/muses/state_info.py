@@ -6,6 +6,7 @@ from .current_state import PropagatedQA
 import numpy as np
 import abc
 import typing
+from typing import Any
 import copy
 from collections import UserDict
 
@@ -47,6 +48,16 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def __init__(self, state_element_id: StateElementIdentifier):
         self._state_element_id = state_element_id
 
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Some StateElement have extra metadata. There is really only one example
+        now, emissivity has camel_distance and prior_source. It isn't clear the best
+        way to handle this, but the current design just returns a dictionary with
+        any extra metadata values. We can perhaps rework this if needed in the future.
+        For most StateElement this will just be a empty dict."""
+        res : dict[str, Any] = {}
+        return res
+        
     @property
     def state_element_id(self) -> StateElementIdentifier:
         return self._state_element_id

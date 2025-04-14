@@ -1,11 +1,12 @@
 from __future__ import annotations
 from .state_info import StateElement, StateElementHandle
+from .identifier import StateElementIdentifier
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
+from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .identifier import StateElementIdentifier
     from .current_state import CurrentStateStateInfoOld
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
@@ -35,19 +36,47 @@ class StateElementOldWrapper(StateElement):
         # it looks like we are just notifying StateElement, even though
         # we forward that to self._current_state_old
         self.is_first = is_first
+        if hasattr(self._old_selem, "update_initial_guess"):
+            self.update_initial_guess = self._update_initial_guess
 
+    @property
+    def _old_selem(self):
+        return self._current_state_old.full_state_element_old(self.state_element_id)
+    
+    # Used by error_analysis. Isn't clear if this can go away and be replaced by
+    # something, but for now leave this in place
+    def _update_initial_guess(self, current_strategy_step : CurrentStrategyStep):
+        self._old_selem.update_initial_guess(current_strategy_step)
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Some StateElement have extra metadata. There is really only one example
+        now, emissivity has camel_distance and prior_source. It isn't clear the best
+        way to handle this, but the current design just returns a dictionary with
+        any extra metadata values. We can perhaps rework this if needed in the future.
+        For most StateElement this will just be a empty dict."""
+        # Kind of klunky, that this should be just a placeholder
+        res : dict[str, Any] = {}
+        if self.state_element_id == StateElementIdentifier("emissivity"):
+           res["camel_distance"] = self._old_selem.camel_distance
+           res["prior_source"] = self._old_selem.prior_source
+        return res
+        
+    def sa_covariance(self):
+        return self._old_selem.sa_covariance()
+        
     def sa_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
-        selem_old = self._current_state_old.full_state_element(self.state_element_id)
-        selem2_old = self._current_state_old.full_state_element(selem2.state_element_id)
+        selem_old = self._old_selem
+        selem2_old = selem2._old_selem
         return selem_old.sa_cross_covariance(selem2_old)
 
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
         """For StateElementWithFrequency, this returns the frequency associated
         with it. For all other StateElement, just return None."""
-        return self._current_state_old.full_state_element_old(self.state_element_id).spectral_domain
+        return self._old_selem.spectral_domain
 
     @property
     def retrieval_slice(self) -> slice | None:

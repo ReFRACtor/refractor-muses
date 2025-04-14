@@ -957,16 +957,16 @@ class RetrievalL2Output(RetrievalOutput):
                     "native_emissivity"
                 )
 
-            selem = self.current_state.full_state_element_old(
+            selem = self.current_state.full_state_element(
                 StateElementIdentifier("emissivity")
             )
             species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(
                 [
-                    selem.camel_distance,
+                    selem.metadata["camel_distance"],
                 ]
             )
             runtime_attributes.setdefault("EMISSIVITY_INITIAL", dict())
-            runtime_attributes["EMISSIVITY_INITIAL"]["database"] = selem.prior_source
+            runtime_attributes["EMISSIVITY_INITIAL"]["database"] = selem.metadata["prior_source"]
 
         # AT_LINE 631 write_products_one.pro
         # for CH4 add in N2O results, constraint vector, calculate
