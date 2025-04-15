@@ -28,6 +28,8 @@ if typing.TYPE_CHECKING:
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
 ForwardModelGridArray = np.ndarray
+RetrievalGrid2dArray = np.ndarray
+ForwardModelGri2ddArray = np.ndarray
 
 
 class CurrentStateStateInfo(CurrentState):
@@ -106,7 +108,7 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     @property
-    def apriori_cov(self) -> RetrievalGridArray:
+    def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         if self.do_systematic:
             return np.zeros((1,1))
@@ -115,12 +117,22 @@ class CurrentStateStateInfo(CurrentState):
             for sid in self.retrieval_state_element_id
         ]
         res = scipy.linalg.block_diag(*blist)
+        for i, selem1_sid in enumerate(self.retrieval_state_element_id):
+            for selem2_sid in self.retrieval_state_element_id[i+1:]:
+                m = self._state_info[selem1_sid].apriori_cross_covariance(self._state_info[selem2_sid])
+                if m is not None:
+                    p1,plen1 = self.retrieval_sv_loc[selem1_sid]
+                    p2,plen2 = self.retrieval_sv_loc[selem2_sid]
+                    r1 = slice(p1,p1+plen1)
+                    r2 = slice(p2,p2+plen2)
+                    res[r1, r2] = m
+                    res[r2, r1] = np.transpose(m)
         # TODO Remove current_state_old
         if True:
             res2 = self._current_state_old.apriori_cov
             # Need to fix
-            #npt.assert_allclose(res, res2)
-        return res2
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
@@ -153,7 +165,7 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     @property
-    def apriori_fm(self) -> ForwardModelGridArray:
+    def apriori_fm(self) -> ForwardModelGrid2dArray:
         """Apriori value on forward model"""
         if len(self.retrieval_state_element_id) == 0:
             # Oddly muses-py doesn't use the normal convention of returning [0],
@@ -461,7 +473,7 @@ class CurrentStateStateInfo(CurrentState):
     
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
+    ) -> ForwardModelGrid2dArray:
         """Return the covariance of the apriori value of the given state element identification."""
         res = self._state_info[state_element_id].apriori_cov_fm
         return res

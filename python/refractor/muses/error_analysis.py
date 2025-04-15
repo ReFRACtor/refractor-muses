@@ -108,7 +108,7 @@ class ErrorAnalysis:
         # Off diagonal blocks for covariance.
         for i, selem1 in enumerate(selem_list):
             for selem2 in selem_list[i + 1 :]:
-                matrix = selem1.apriori_cross_covariance(selem2)
+                matrix = selem1.apriori_cross_covariance_fm(selem2)
                 if matrix is not None:
                     initial[np.array(species_list) == str(selem1.state_element_id), :][
                         :, np.array(species_list) == str(selem2.state_element_id)

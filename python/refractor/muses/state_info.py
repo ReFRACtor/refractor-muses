@@ -22,6 +22,8 @@ if typing.TYPE_CHECKING:
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
 ForwardModelGridArray = np.ndarray
+RetrievalGrid2dArray = np.ndarray
+ForwardModelGrid2dArray = np.ndarray
 
 
 class StateElement(object, metaclass=abc.ABCMeta):
@@ -61,11 +63,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @property
     def state_element_id(self) -> StateElementIdentifier:
         return self._state_element_id
-
-    def apriori_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
-        """Return the cross covariance matrix with selem 2. This returns None
-        if there is no cross covariance."""
-        return None
 
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
@@ -164,15 +161,30 @@ class StateElement(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def apriori_value_fm(self) -> ForwardModelGridArray:
+    def apriori_value_fm(self) -> ForwardModelGrid2dArray:
         """Apriori value of StateElement"""
         raise NotImplementedError()
 
     @property
-    def apriori_cov(self) -> RetrievalGridArray:
+    def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         raise NotImplementedError()
 
+    def apriori_cross_covariance(self, selem2: StateElement) -> RetrievalGrid2dArray | None:
+        """Return the cross covariance matrix with selem 2. This returns None
+        if there is no cross covariance."""
+        return None
+
+    @property
+    def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
+        """Apriori Covariance"""
+        raise NotImplementedError()
+
+    def apriori_cross_covariance_fm(self, selem2: StateElement) -> ForwardGrid2dArray | None:
+        """Return the cross covariance matrix with selem 2. This returns None
+        if there is no cross covariance."""
+        return None
+    
     @abc.abstractproperty
     def retrieval_initial_value(self) -> RetrievalGridArray:
         """Value StateElement had at the start of the retrieval."""
@@ -222,7 +234,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         do_not_update: list[StateElementIdentifier],
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """Update the state based on results, and return a boolean array
         indicating which coefficients were updated."""
         raise NotImplementedError()

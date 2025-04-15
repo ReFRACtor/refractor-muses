@@ -16,6 +16,8 @@ if typing.TYPE_CHECKING:
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
 ForwardModelGridArray = np.ndarray
+RetrievalGrid2dArray = np.ndarray
+ForwardModel2dGridArray = np.ndarray
 
 
 class StateElementOldWrapper(StateElement):
@@ -61,13 +63,6 @@ class StateElementOldWrapper(StateElement):
             res["camel_distance"] = self._old_selem.camel_distance
             res["prior_source"] = self._old_selem.prior_source
         return res
-
-    def apriori_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
-        """Return the cross covariance matrix with selem 2. This returns None
-        if there is no cross covariance."""
-        selem_old = self._old_selem
-        selem2_old = cast(StateElementOldWrapper, selem2)._old_selem
-        return selem_old.sa_cross_covariance(selem2_old)
 
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
@@ -235,15 +230,39 @@ class StateElementOldWrapper(StateElement):
         return res
 
     @property
-    def apriori_cov(self) -> RetrievalGridArray:
+    def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
-        return self._old_selem.constraintMatrix
+        r = self.retrieval_slice
+        if(r is None):
+            raise RuntimeError("retrieval_slice is None")
+        return self._current_state_old.apriori_cov[r,r]
 
+    def apriori_cross_covariance(self, selem2: StateElement) -> ForwardModel2dGridArray | None:
+        """Return the cross covariance matrix with selem 2. This returns None
+        if there is no cross covariance."""
+        r1 = self.retrieval_slice
+        r2 = cast(StateElementOldWrapper, selem2).retrieval_slice
+        if(r1 is None or r2 is None):
+            return None
+        res = self._current_state_old.apriori_cov[r1,r2]
+        if(np.count_nonzero(res) == 0):
+            return None
+        return res
+    
     @property
-    def apriori_cov_fm(self) -> ForwardModelGridArray:
+    def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
         """Apriori Covariance"""
         return self._old_selem.sa_covariance()[0]
 
+    def apriori_cross_covariance_fm(self, selem2: StateElement) -> ForwardModel2dGridArray | None:
+        """Return the cross covariance matrix with selem 2. This returns None
+        if there is no cross covariance."""
+        selem_old = self._old_selem
+        selem2_old = cast(StateElementOldWrapper, selem2)._old_selem
+        res = selem_old.sa_cross_covariance(selem2_old)
+        return res
+
+    
     @property
     def retrieval_initial_value(self) -> RetrievalGridArray:
         raise NotImplementedError()

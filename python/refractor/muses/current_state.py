@@ -166,6 +166,8 @@ class SoundingMetadata:
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
 ForwardModelGridArray = np.ndarray
+RetrievalGrid2dArray = np.ndarray
+ForwardModelGrid2dArray = np.ndarray
 
 
 class CurrentState(object, metaclass=abc.ABCMeta):
@@ -347,7 +349,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def apriori_cov(self) -> RetrievalGridArray:
+    def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         raise NotImplementedError()
 
@@ -362,7 +364,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def apriori_fm(self) -> ForwardModelGridArray:
+    def apriori_fm(self) -> ForwardModelGrid2dArray:
         """Apriori value"""
         raise NotImplementedError()
 
@@ -738,7 +740,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
+    ) -> ForwardModelGrid2dArray:
         """Return the covariance of the apriori value of the given state element identification."""
         raise NotImplementedError()
 
@@ -810,12 +812,12 @@ class CurrentStateUip(CurrentState):
         self.ret_info = ret_info
 
     @property
-    def initial_guess(self) -> np.ndarray:
+    def initial_guess(self) -> RetrievalGridArray:
         """Initial guess"""
         return copy(self._initial_guess)
 
     @property
-    def apriori_cov(self) -> np.ndarray:
+    def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         # Don't think we need this. We can calculate something frm
         # sqrt_constraint if needed, but for now just leave
@@ -823,7 +825,7 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     @property
-    def sqrt_constraint(self) -> np.ndarray:
+    def sqrt_constraint(self) -> RetrievalGrid:
         """Sqrt matrix from covariance"""
         if self.ret_info:
             return self.ret_info["sqrt_constraint"]
@@ -844,7 +846,7 @@ class CurrentStateUip(CurrentState):
             return np.eye(len(self.initial_guess))
 
     @property
-    def apriori(self) -> np.ndarray:
+    def apriori(self) -> RetrievalGrid:
         """Apriori value"""
         if self.ret_info:
             return self.ret_info["const_vec"]
@@ -927,7 +929,7 @@ class CurrentStateUip(CurrentState):
 
     def full_state_element(
         self, state_element_id: StateElementIdentifier
-    ) -> StateElementOld:
+    ) -> StateElement:
         raise NotImplementedError()
 
     def full_state_spectral_domain_wavelength(
@@ -937,7 +939,7 @@ class CurrentStateUip(CurrentState):
         there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
-    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
+    def full_state_value(self, state_element_id: StateElementIdentifier) -> ForwardModelGridArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
@@ -1089,7 +1091,7 @@ class CurrentStateUip(CurrentState):
 
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier, use_map=False
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1104,7 +1106,7 @@ class CurrentStateUip(CurrentState):
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1115,7 +1117,7 @@ class CurrentStateUip(CurrentState):
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initialInitial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1124,7 +1126,7 @@ class CurrentStateUip(CurrentState):
 
     def full_state_apriori_value(
             self, state_element_id: StateElementIdentifier, use_map=False
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1139,7 +1141,7 @@ class CurrentStateUip(CurrentState):
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGrid2dArray:
         """Return the covariance of the apriori value of the given state element identification."""
         raise NotImplementedError()
 
@@ -1235,7 +1237,7 @@ class CurrentStateDict(CurrentState):
         there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
-    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
+    def full_state_value(self, state_element_id: StateElementIdentifier) -> ForwardModelGridArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
@@ -1254,7 +1256,7 @@ class CurrentStateDict(CurrentState):
 
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier, use_map=False
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1279,7 +1281,7 @@ class CurrentStateDict(CurrentState):
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1290,7 +1292,7 @@ class CurrentStateDict(CurrentState):
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initialInitial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1299,7 +1301,7 @@ class CurrentStateDict(CurrentState):
 
     def full_state_apriori_value(
             self, state_element_id: StateElementIdentifier, use_map=False
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1314,7 +1316,7 @@ class CurrentStateDict(CurrentState):
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGrid2dArray:
         """Return the covariance of the apriori value of the given state element identification."""
         raise NotImplementedError()
 
@@ -1386,7 +1388,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return res
 
     @property
-    def initial_guess(self) -> np.ndarray:
+    def initial_guess(self) -> RetrievalGridArray:
         """Initial guess"""
         # Not sure about systematic handling here. I think this is all
         # zeros, not sure if that is right or not.
@@ -1400,7 +1402,7 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self._retrieval_info.initial_guess_list)
 
     @property
-    def initial_guess_fm(self) -> np.ndarray:
+    def initial_guess_fm(self) -> ForwardModelGridArray:
         """Initial guess on forward mode"""
         # TODO
         # Not clear why this isn't directly calculated from initial_guess, but the
@@ -1415,7 +1417,7 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self._retrieval_info.initial_guess_list_fm)
 
     @property
-    def apriori_cov(self) -> np.ndarray:
+    def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         # Not sure about systematic handling here.
         if self.do_systematic:
@@ -1426,7 +1428,7 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self._retrieval_info.apriori_cov)
 
     @property
-    def sqrt_constraint(self) -> np.ndarray:
+    def sqrt_constraint(self) -> RetrievalGridArray:
         """Sqrt matrix from covariance"""
         # Not sure about systematic handling here.
         if self.do_systematic:
@@ -1435,7 +1437,7 @@ class CurrentStateStateInfoOld(CurrentState):
             return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
 
     @property
-    def apriori(self) -> np.ndarray:
+    def apriori(self) -> RetrievalGridArray:
         """Apriori value"""
         # Not sure about systematic handling here.
         if self.do_systematic:
@@ -1446,7 +1448,7 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self.retrieval_info.apriori)
 
     @property
-    def apriori_fm(self) -> np.ndarray:
+    def apriori_fm(self) -> ForwardModelGridArray:
         """Apriori value"""
         # Not sure about systematic handling here.
         if self.do_systematic:
@@ -1457,14 +1459,14 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self.retrieval_info.apriori_fm)
 
     @property
-    def true_value(self) -> np.ndarray:
+    def true_value(self) -> RetrievalGridArray:
         """Apriori value"""
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         return copy(self.retrieval_info.true_value)
 
     @property
-    def true_value_fm(self) -> np.ndarray:
+    def true_value_fm(self) -> ForwardModelGridArray:
         """Apriori value"""
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
@@ -1513,7 +1515,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return self.state_info.brightness_temperature_data
 
     @property
-    def updated_fm_flag(self) -> np.ndarray:
+    def updated_fm_flag(self) -> ForwardModelGridArray:
         """This is array of boolean flag indicating which parts of the forward
         model state vector got updated when we last called update_state. A 1 means
         it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
@@ -1663,7 +1665,7 @@ class CurrentStateStateInfoOld(CurrentState):
         selem = self.state_info.state_element(state_element_id)
         return selem.spectral_domain_wavelength
 
-    def full_state_value(self, state_element_id: StateElementIdentifier) -> np.ndarray:
+    def full_state_value(self, state_element_id: StateElementIdentifier) -> ForwardModelGridArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so if
         there is only one value put that in a length 1 np.ndarray.
@@ -1674,7 +1676,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier, use_map=False
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1704,7 +1706,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1716,7 +1718,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the initialInitial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1727,7 +1729,7 @@ class CurrentStateStateInfoOld(CurrentState):
     def full_state_apriori_value(
             self, state_element_id: StateElementIdentifier,
             use_map=False
-    ) -> np.ndarray:
+    ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1743,7 +1745,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray:
+    ) -> ForwardModelGrid2dArray:
         """Return the covariance of the apriori value of the given state element identification."""
         selem = self.state_info.state_element(state_element_id)
         return copy(selem.sa_covariance)
@@ -1800,7 +1802,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def pressure_list(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the retrieval state vector
         levels (generally smaller than the pressure_list_fm).
@@ -1812,7 +1814,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def pressure_list_fm(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
@@ -1824,7 +1826,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def altitude_list(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels.  This is for the retrieval state vector
         levels (generally smaller than the altitude_list_fm).
@@ -1836,7 +1838,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def altitude_list_fm(
         self, state_element_id: StateElementIdentifier
-    ) -> np.ndarray | None:
+    ) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels.  This is for the forward model state
         vector levels (generally larger than the altitude_list).
