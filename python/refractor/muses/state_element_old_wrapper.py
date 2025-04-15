@@ -237,14 +237,12 @@ class StateElementOldWrapper(StateElement):
     @property
     def apriori_cov(self) -> RetrievalGridArray:
         """Apriori Covariance"""
-        return self._old_selem.sa_covariance()[0]
+        return self._old_selem.constraintMatrix
 
     @property
     def apriori_cov_fm(self) -> ForwardModelGridArray:
         """Apriori Covariance"""
-        return self._current_state_old.full_state_apriori_covariance(
-            self.state_element_id
-        )
+        return self._old_selem.sa_covariance()[0]
 
     @property
     def retrieval_initial_value(self) -> RetrievalGridArray:

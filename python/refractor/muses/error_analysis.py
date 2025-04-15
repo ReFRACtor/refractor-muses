@@ -92,7 +92,7 @@ class ErrorAnalysis:
         matrix_list = []
         # AT_LINE 25 get_prior_error.pro
         for selem in selem_list:
-            matrix = selem.apriori_cov
+            matrix = selem.apriori_cov_fm
             plist = selem.pressure_list_fm
             if(plist is not None):
                 pressure_list.extend(selem.pressure_list_fm)

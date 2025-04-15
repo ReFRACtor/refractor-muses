@@ -118,8 +118,7 @@ class CurrentStateStateInfo(CurrentState):
         # TODO Remove current_state_old
         if True:
             res2 = self._current_state_old.apriori_cov
-            # Fix, apriori_cov looks like it is ForwardModelGridArray
-            # rather than
+            # Need to fix
             #npt.assert_allclose(res, res2)
         return res2
 
