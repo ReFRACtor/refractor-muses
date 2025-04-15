@@ -108,8 +108,20 @@ class CurrentStateStateInfo(CurrentState):
     @property
     def apriori_cov(self) -> RetrievalGridArray:
         """Apriori Covariance"""
+        if self.do_systematic:
+            return np.zeros((1,1))
+        blist = [
+            self._state_info[sid].apriori_cov
+            for sid in self.retrieval_state_element_id
+        ]
+        res = scipy.linalg.block_diag(*blist)
         # TODO Remove current_state_old
-        return self._current_state_old.apriori_cov
+        if True:
+            res2 = self._current_state_old.apriori_cov
+            # Fix, apriori_cov looks like it is ForwardModelGridArray
+            # rather than
+            #npt.assert_allclose(res, res2)
+        return res2
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
@@ -155,12 +167,7 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        # TODO Remove current_state_old
-        if True:
-            res2 = self._current_state_old.apriori_fm
-            # Needs fix
-            #npt.assert_allclose(res, res2)
-        return res2
+        return res
 
     @property
     def true_value(self) -> RetrievalGridArray:
@@ -395,7 +402,7 @@ class CurrentStateStateInfo(CurrentState):
 
         Where this is used in the muses-py code it sometimes assumes this has been
         mapped (so a log initial guess gets exp applied). This is a bit confusing,
-        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
         We handle this just by requiring a use_map=True to be passed in, meaning we apply
         the map_type in reverse.
         """
@@ -436,13 +443,22 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     def full_state_apriori_value(
-        self, state_element_id: StateElementIdentifier
+            self, state_element_id: StateElementIdentifier, use_map=False
     ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log apriori gets exp applied). This is a bit confusing,
+        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
-        return self._state_info[state_element_id].apriori_value_fm
+        res = self._state_info[state_element_id].apriori_value_fm
+        if use_map and self.map_type(state_element_id).lower() == "log":
+            res = np.exp(res)
+        return res
     
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier

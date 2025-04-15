@@ -128,7 +128,7 @@ class FakeStateInfo:
                 StateElementIdentifier(s)
             )
             varr2[self.species.index(s), :] = current_state.full_state_apriori_value(
-                StateElementIdentifier(s)
+                StateElementIdentifier(s), use_map=True
             )
             varr3[self.species.index(s), :] = (
                 current_state.full_state_step_initial_value(
@@ -150,7 +150,7 @@ class FakeStateInfo:
         )
         self._num_pressures = self._current["pressure"].shape[0]
         self._constraint["pressure"] = current_state.full_state_apriori_value(
-            StateElementIdentifier("pressure")
+            StateElementIdentifier("pressure"), use_map=True
         )
         self._initial["pressure"] = current_state.full_state_step_initial_value(
             StateElementIdentifier("pressure"), use_map=True
@@ -165,7 +165,7 @@ class FakeStateInfo:
         )
 
         self._constraint["TSUR"] = current_state.full_state_apriori_value(
-            StateElementIdentifier("TSUR")
+            StateElementIdentifier("TSUR"), use_map=True
         )[0]
         self._gmao_tropopause_pressure = current_state.full_state_value(
             StateElementIdentifier("gmaoTropopausePressure")
@@ -198,7 +198,7 @@ class FakeStateInfo:
             StateElementIdentifier("emissivity")
         )
         self._constraint["emissivity"] = current_state.full_state_apriori_value(
-            StateElementIdentifier("emissivity")
+            StateElementIdentifier("emissivity"), use_map=True
         )
         self._true["emissivity"] = np.zeros(self._current["emissivity"].shape)
         self._calibration_pars: dict[str, Any] = {}

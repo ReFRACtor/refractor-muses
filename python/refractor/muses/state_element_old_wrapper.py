@@ -224,17 +224,14 @@ class StateElementOldWrapper(StateElement):
         # apriori is updated in RetrievalInfo, it wasn't being passed on to other
         # parts of the code. We change this to use the constraint RetrievalInfo gets.
         if self.state_element_id not in self._current_state_old.retrieval_state_element_id:
-            return self._current_state_old.full_state_apriori_value(self.state_element_id)
-        res = self._current_state_old.retrieval_info.species_constraint(str(self.state_element_id))
-        if isinstance(res, float):
-            return np.array([res,])
-        if False:
-            s = self.fm_slice
-            if s is not None:
-                return self._current_state_old.apriori_fm[s]
-            return self._current_state_old.full_state_apriori_value(
-                self.state_element_id
-            )
+            res = self._current_state_old.full_state_apriori_value(self.state_element_id)
+        else:
+            res = self._current_state_old.retrieval_info.species_constraint(str(self.state_element_id))
+            if(isinstance(res, float)):
+                res = np.array([res,])
+        # This already has map applied, so reverse to get parameters
+        if(self.map_type.lower() == "log"):
+            res = np.log(res)
         return res
 
     @property

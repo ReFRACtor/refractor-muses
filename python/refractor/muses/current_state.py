@@ -691,7 +691,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
         Where this is used in the muses-py code it sometimes assumes this has been
         mapped (so a log initial guess gets exp applied). This is a bit confusing,
-        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
         We handle this just by requiring a use_map=True to be passed in, meaning we apply
         the map_type in reverse.
         """
@@ -721,11 +721,17 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def full_state_apriori_value(
-        self, state_element_id: StateElementIdentifier
+            self, state_element_id: StateElementIdentifier, use_map=False
     ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log apriori gets exp applied). This is a bit confusing,
+        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
         raise NotImplementedError()
 
@@ -1090,7 +1096,7 @@ class CurrentStateUip(CurrentState):
 
         Where this is used in the muses-py code it sometimes assumes this has been
         mapped (so a log initial guess gets exp applied). This is a bit confusing,
-        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
         We handle this just by requiring a use_map=True to be passed in, meaning we apply
         the map_type in reverse.
         """
@@ -1117,11 +1123,17 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     def full_state_apriori_value(
-        self, state_element_id: StateElementIdentifier
+            self, state_element_id: StateElementIdentifier, use_map=False
     ) -> np.ndarray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log apriori gets exp applied). This is a bit confusing,
+        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
         raise NotImplementedError()
 
@@ -1286,11 +1298,17 @@ class CurrentStateDict(CurrentState):
         raise NotImplementedError()
 
     def full_state_apriori_value(
-        self, state_element_id: StateElementIdentifier
+            self, state_element_id: StateElementIdentifier, use_map=False
     ) -> np.ndarray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log apriori gets exp applied). This is a bit confusing,
+        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
         raise NotImplementedError()
 
@@ -1665,7 +1683,7 @@ class CurrentStateStateInfoOld(CurrentState):
 
         Where this is used in the muses-py code it sometimes assumes this has been
         mapped (so a log initial guess gets exp applied). This is a bit confusing,
-        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
         We handle this just by requiring a use_map=True to be passed in, meaning we apply
         the map_type in reverse.
         """
@@ -1707,11 +1725,18 @@ class CurrentStateStateInfoOld(CurrentState):
         return copy(selem.value)
 
     def full_state_apriori_value(
-        self, state_element_id: StateElementIdentifier
+            self, state_element_id: StateElementIdentifier,
+            use_map=False
     ) -> np.ndarray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log apriori gets exp applied). This is a bit confusing,
+        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
         selem = self.state_info.state_element(state_element_id)
         return copy(selem.apriori_value)
