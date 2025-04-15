@@ -966,7 +966,9 @@ class RetrievalL2Output(RetrievalOutput):
                 ]
             )
             runtime_attributes.setdefault("EMISSIVITY_INITIAL", dict())
-            runtime_attributes["EMISSIVITY_INITIAL"]["database"] = selem.metadata["prior_source"]
+            runtime_attributes["EMISSIVITY_INITIAL"]["database"] = selem.metadata[
+                "prior_source"
+            ]
 
         # AT_LINE 631 write_products_one.pro
         # for CH4 add in N2O results, constraint vector, calculate

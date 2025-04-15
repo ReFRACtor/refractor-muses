@@ -1,13 +1,13 @@
 from __future__ import annotations
 from .state_info import StateElement, StateElementHandle
 from .identifier import StateElementIdentifier
+from .current_state import CurrentStateStateInfoOld
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
-from typing import Any
+from typing import Any, cast
 
 if typing.TYPE_CHECKING:
-    from .current_state import CurrentStateStateInfoOld
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
@@ -28,7 +28,7 @@ class StateElementOldWrapper(StateElement):
         self,
         state_element_id: StateElementIdentifier,
         current_state_old: CurrentStateStateInfoOld,
-        is_first
+        is_first,
     ) -> None:
         super().__init__(state_element_id)
         self._current_state_old = current_state_old
@@ -41,11 +41,11 @@ class StateElementOldWrapper(StateElement):
 
     @property
     def _old_selem(self):
-        return self._current_state_old.full_state_element_old(self.state_element_id)
-    
+        return cast(CurrentStateStateInfoOld, self._current_state_old).full_state_element_old(self.state_element_id)
+
     # Used by error_analysis. Isn't clear if this can go away and be replaced by
     # something, but for now leave this in place
-    def _update_initial_guess(self, current_strategy_step : CurrentStrategyStep):
+    def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self._old_selem.update_initial_guess(current_strategy_step)
 
     @property
@@ -56,20 +56,17 @@ class StateElementOldWrapper(StateElement):
         any extra metadata values. We can perhaps rework this if needed in the future.
         For most StateElement this will just be a empty dict."""
         # Kind of klunky, that this should be just a placeholder
-        res : dict[str, Any] = {}
+        res: dict[str, Any] = {}
         if self.state_element_id == StateElementIdentifier("emissivity"):
-           res["camel_distance"] = self._old_selem.camel_distance
-           res["prior_source"] = self._old_selem.prior_source
+            res["camel_distance"] = self._old_selem.camel_distance
+            res["prior_source"] = self._old_selem.prior_source
         return res
-        
-    def sa_covariance(self):
-        return self._old_selem.sa_covariance()
-        
-    def sa_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
+
+    def apriori_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         selem_old = self._old_selem
-        selem2_old = selem2._old_selem
+        selem2_old = cast(StateElementOldWrapper, selem2)._old_selem
         return selem_old.sa_cross_covariance(selem2_old)
 
     @property
@@ -82,16 +79,16 @@ class StateElementOldWrapper(StateElement):
     def retrieval_slice(self) -> slice | None:
         if self.state_element_id in self._current_state_old.retrieval_sv_loc:
             ps, pl = self._current_state_old.retrieval_sv_loc[self.state_element_id]
-            return slice(ps, ps+pl)
+            return slice(ps, ps + pl)
         return None
 
     @property
     def fm_slice(self) -> slice | None:
         if self.state_element_id in self._current_state_old.fm_sv_loc:
             ps, pl = self._current_state_old.fm_sv_loc[self.state_element_id]
-            return slice(ps, ps+pl)
+            return slice(ps, ps + pl)
         return None
-    
+
     @property
     def basis_matrix(self) -> np.ndarray | None:
         """Basis matrix going from retrieval vector to forward model
@@ -125,12 +122,12 @@ class StateElementOldWrapper(StateElement):
     @property
     def sys_sv_length(self) -> int:
         cstate = self._current_state_old.current_state_override(
-            do_systematic=True,
-            retrieval_state_element_override=None)
+            do_systematic=True, retrieval_state_element_override=None
+        )
         if self.state_element_id not in cstate.fm_sv_loc:
             return 0
         return cstate.fm_sv_loc[self.state_element_id][1]
-    
+
     @property
     def forward_model_sv_length(self) -> int:
         if self.state_element_id not in self._current_state_old.fm_sv_loc:
@@ -147,14 +144,14 @@ class StateElementOldWrapper(StateElement):
         that. But for now, supply the old map type. The string will be something
         like "log" or "linear" """
         return self._current_state_old.map_type(self.state_element_id)
-    
+
     @property
     def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
         res = self._current_state_old.altitude_list(self.state_element_id)
         # Kind of obscure, but species are the only items with a pressumre list > 2
-        if(res is None or len(res) < 3):
+        if res is None or len(res) < 3:
             return None
         return res
 
@@ -164,20 +161,19 @@ class StateElementOldWrapper(StateElement):
         the altitude levels (None otherwise)"""
         res = self._current_state_old.altitude_list_fm(self.state_element_id)
         # Kind of obscure, but species are the only items with a pressumre list > 2
-        if(res is None or len(res) < 3):
+        if res is None or len(res) < 3:
             return None
         return res
-    
+
     @property
-    def pressure_list(self) -> RetrievalGridArray| None:
+    def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
         res = self._current_state_old.pressure_list(self.state_element_id)
         # Kind of obscure, but species are the only items with a pressumre list > 2
-        if(res is None or len(res) < 3):
+        if res is None or len(res) < 3:
             return None
         return res
-
 
     @property
     def pressure_list_fm(self) -> ForwardModelGridArray | None:
@@ -185,10 +181,10 @@ class StateElementOldWrapper(StateElement):
         the pressure levels (None otherwise)"""
         res = self._current_state_old.pressure_list_fm(self.state_element_id)
         # Kind of obscure, but species are the only items with a pressumre list > 2
-        if(res is None or len(res) < 3):
+        if res is None or len(res) < 3:
             return None
         return res
-    
+
     @property
     def value(self) -> RetrievalGridArray:
         """Current value of StateElement"""
@@ -217,7 +213,7 @@ class StateElementOldWrapper(StateElement):
     def apriori_value(self) -> RetrievalGridArray:
         """Apriori value of StateElement"""
         s = self.retrieval_slice
-        if(s is not None):
+        if s is not None:
             return self._current_state_old.apriori[s]
         raise RuntimeError("apriori only present for stuff in state vector")
 
@@ -229,12 +225,19 @@ class StateElementOldWrapper(StateElement):
         res = self._current_state_old.retrieval_info.species_constraint(str(self.state_element_id))
         if isinstance(res, float):
             return np.array([res,])
+        if False:
+            s = self.fm_slice
+            if s is not None:
+                return self._current_state_old.apriori_fm[s]
+            return self._current_state_old.full_state_apriori_value(
+                self.state_element_id
+            )
         return res
 
     @property
     def apriori_cov(self) -> RetrievalGridArray:
         """Apriori Covariance"""
-        raise NotImplementedError()
+        return self._old_selem.sa_covariance()[0]
 
     @property
     def apriori_cov_fm(self) -> ForwardModelGridArray:
@@ -260,7 +263,7 @@ class StateElementOldWrapper(StateElement):
     @property
     def step_initial_value(self) -> RetrievalGridArray:
         s = self.retrieval_slice
-        if(s is not None):
+        if s is not None:
             return self._current_state_old.initial_guess[s]
         raise RuntimeError("step_initial_value only present for stuff in state vector")
 
@@ -270,6 +273,16 @@ class StateElementOldWrapper(StateElement):
         # TODO It is not clear why this isn't directly calculated from step_initial_value,
         # but it is different. For now, we use the existing value. We will want to sort this
         # out, this function may end up going away.
+        s = self.fm_slice
+        if s is not None:
+            return self._current_state_old.initial_guess_fm[s]
+        # This may have already been mapped by type, if so map back
+        if self.map_type.lower() == "log":
+            return np.log(
+                self._current_state_old.full_state_step_initial_value(
+                    self.state_element_id
+                )
+            )
         return self._current_state_old.full_state_step_initial_value(
             self.state_element_id
         )
@@ -282,7 +295,7 @@ class StateElementOldWrapper(StateElement):
         # but it is different. For now, we use the existing value. We will want to sort this
         # out, this function may end up going away.
         s = self.fm_slice
-        if(s is not None):
+        if s is not None:
             return self._current_state_old.true_value_fm[s]
         return self._current_state_old.full_state_true_value(self.state_element_id)
 
@@ -314,14 +327,14 @@ class StateElementOldWrapper(StateElement):
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
     ) -> np.ndarray | None:
-        '''Update the state based on results, and return a boolean array
-        indicating which coefficients were updated.'''
-        if(self.is_first):
+        """Update the state based on results, and return a boolean array
+        indicating which coefficients were updated."""
+        if self.is_first:
             self._current_state_old.update_state(
                 results_list, do_not_update, retrieval_config, step
             )
         r = self.fm_slice
-        if(r is None):
+        if r is None:
             return None
         return self._current_state_old.updated_fm_flag[r]
 
@@ -333,17 +346,19 @@ class StateElementOldWrapper(StateElement):
         skip_initial_guess_update: bool = False,
     ) -> None:
         pass
-            
+
     def restart(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
         pass
-    
+
+
 class StateElementOldWrapperHandle(StateElementHandle):
     def __init__(self) -> None:
         from .current_state import CurrentStateStateInfoOld
+
         self._current_state_old = CurrentStateStateInfoOld(None)
         self.is_first = True
 
@@ -363,7 +378,9 @@ class StateElementOldWrapperHandle(StateElementHandle):
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
-        r = StateElementOldWrapper(state_element_id, self._current_state_old, self.is_first)
+        r = StateElementOldWrapper(
+            state_element_id, self._current_state_old, self.is_first
+        )
         self.is_first = False
         return r
 

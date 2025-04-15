@@ -55,14 +55,14 @@ class StateElement(object, metaclass=abc.ABCMeta):
         way to handle this, but the current design just returns a dictionary with
         any extra metadata values. We can perhaps rework this if needed in the future.
         For most StateElement this will just be a empty dict."""
-        res : dict[str, Any] = {}
+        res: dict[str, Any] = {}
         return res
-        
+
     @property
     def state_element_id(self) -> StateElementIdentifier:
         return self._state_element_id
 
-    def sa_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
+    def apriori_cross_covariance(self, selem2: StateElement) -> np.ndarray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         return None
@@ -94,7 +94,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def sys_sv_length(self) -> int:
         raise NotImplementedError()
-    
+
     @abc.abstractproperty
     def forward_model_sv_length(self) -> int:
         raise NotImplementedError()
@@ -109,7 +109,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         that. But for now, supply the old map type. The string will be something
         like "log" or "linear" """
         raise NotImplementedError()
-    
+
     @abc.abstractproperty
     def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
@@ -121,7 +121,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
         raise NotImplementedError()
-    
+
     @abc.abstractproperty
     def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
@@ -133,7 +133,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
         raise NotImplementedError()
-    
+
     @abc.abstractproperty
     def value(self) -> RetrievalGridArray:
         """Current value of StateElement"""
@@ -223,8 +223,8 @@ class StateElement(object, metaclass=abc.ABCMeta):
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
     ) -> np.ndarray | None:
-        '''Update the state based on results, and return a boolean array
-        indicating which coefficients were updated.'''
+        """Update the state based on results, and return a boolean array
+        indicating which coefficients were updated."""
         raise NotImplementedError()
 
     def notify_new_step(
@@ -242,6 +242,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         retrieval_config: RetrievalConfiguration,
     ) -> None:
         pass
+
 
 class StateElementHandle(CreatorHandle):
     """Return StateElement objects, for a given StateElementIdentifier
@@ -293,7 +294,9 @@ class StateElementHandleSet(CreatorHandleSet):
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
-                h.notify_update_target(measurement_id, retrieval_config, strategy, observation_handle_set)
+                h.notify_update_target(
+                    measurement_id, retrieval_config, strategy, observation_handle_set
+                )
 
 
 class StateInfo(UserDict):
@@ -320,9 +323,7 @@ class StateInfo(UserDict):
         self._state_element: dict[StateElementIdentifier, StateElement] = {}
         self.propagated_qa = PropagatedQA()
         # Temp, clumsy but this will go away
-        for p in sorted(
-            self.state_element_handle_set.handle_set.keys(), reverse=True
-        ):
+        for p in sorted(self.state_element_handle_set.handle_set.keys(), reverse=True):
             for h in self.state_element_handle_set.handle_set[p]:
                 if hasattr(h, "_current_state_old"):
                     self._current_state_old = h._current_state_old
@@ -339,7 +340,7 @@ class StateInfo(UserDict):
         # Right now, use the old SoundingMetadata. We'll want to move this over,
         # but that can wait a bit
         return self._current_state_old.sounding_metadata
-    
+
     def notify_update_target(
         self,
         measurement_id: MeasurementId,
@@ -347,7 +348,9 @@ class StateInfo(UserDict):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
     ) -> None:
-        self.state_element_handle_set.notify_update_target(measurement_id, retrieval_config, strategy, observation_handle_set)
+        self.state_element_handle_set.notify_update_target(
+            measurement_id, retrieval_config, strategy, observation_handle_set
+        )
         self.data = {}
         self.propagated_qa = PropagatedQA()
 
@@ -375,8 +378,7 @@ class StateInfo(UserDict):
                 current_strategy_step,
                 retrieval_config,
             )
-        
-        
+
     def restart(
         self,
         current_strategy_step: CurrentStrategyStep | None,

@@ -181,7 +181,7 @@ class RetrievalOutput:
     def state_step_initial_value_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
         return self.current_state.full_state_step_initial_value(
-            StateElementIdentifier(state_name)
+            StateElementIdentifier(state_name), use_map=True
         )
 
     def state_retrieval_initial_value_vec(self, state_name: str) -> np.ndarray:

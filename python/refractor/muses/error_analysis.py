@@ -92,8 +92,14 @@ class ErrorAnalysis:
         matrix_list = []
         # AT_LINE 25 get_prior_error.pro
         for selem in selem_list:
-            matrix, pressureSa = selem.sa_covariance()
-            pressure_list.extend(pressureSa)
+            matrix = selem.apriori_cov
+            plist = selem.pressure_list_fm
+            if(plist is not None):
+                pressure_list.extend(selem.pressure_list_fm)
+            else:
+                # Convention for elements not on a pressure grid is to use a single
+                # -2
+                pressure_list.extend(np.array([-2.0]))
             species_list.extend([str(selem.state_element_id)] * matrix.shape[0])
             matrix_list.append(matrix)
             map_list.extend([selem.map_type] * matrix.shape[0])
@@ -102,13 +108,13 @@ class ErrorAnalysis:
         # Off diagonal blocks for covariance.
         for i, selem1 in enumerate(selem_list):
             for selem2 in selem_list[i + 1 :]:
-                matrix = selem1.sa_cross_covariance(selem2)
+                matrix = selem1.apriori_cross_covariance(selem2)
                 if matrix is not None:
-                    initial[np.array(species_list) == selem1.name, :][
-                        :, np.array(species_list) == selem2.name
+                    initial[np.array(species_list) == str(selem1.state_element_id), :][
+                        :, np.array(species_list) == str(selem2.state_element_id)
                     ] = matrix
-                    initial[np.array(species_list) == selem2.name, :][
-                        :, np.array(species_list) == selem1.name
+                    initial[np.array(species_list) == str(selem2.state_element_id), :][
+                        :, np.array(species_list) == str(selem1.state_element_id)
                     ] = np.transpose(matrix)
         return mpy.constraint_data(
             initial, pressure_list, [str(i) for i in species_list], map_list

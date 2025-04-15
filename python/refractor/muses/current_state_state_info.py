@@ -2,19 +2,17 @@ from __future__ import annotations
 from . import muses_py as mpy  # type: ignore
 from .current_state import (
     CurrentState,
-    CurrentStateStateInfoOld,
 )
 from .identifier import StateElementIdentifier
 from .state_element_old_wrapper import StateElementOldWrapperHandle
 from .state_info import StateElementHandleSet
 import numpy as np
-import scipy # type: ignore
-import refractor.framework as rf # type: ignore
+import scipy  # type: ignore
+import refractor.framework as rf  # type: ignore
 import numpy.testing as npt
 from pathlib import Path
 from copy import copy
 import typing
-from typing import cast
 
 if typing.TYPE_CHECKING:
     from .current_state import PropagatedQA, SoundingMetadata
@@ -44,13 +42,8 @@ class CurrentStateStateInfo(CurrentState):
 
         super().__init__()
         self._state_info = StateInfo()
-        # Temp, clumsy but this will go away
-        for p in sorted(
-            self._state_info.state_element_handle_set.handle_set.keys(), reverse=True
-        ):
-            for h in self._state_info.state_element_handle_set.handle_set[p]:
-                if hasattr(h, "_current_state_old"):
-                    self._current_state_old = h._current_state_old
+        # Temp
+        self._current_state_old = self._state_info._current_state_old
         self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
             None
         )
@@ -71,7 +64,6 @@ class CurrentStateStateInfo(CurrentState):
     @property
     def initial_guess(self) -> RetrievalGridArray:
         """Initial guess"""
-        # TODO Remove current_state_old
         # TODO
         # By convention, muses-py returns a length 1 array even if we don't
         # have any retrieval_state_element_id. I think this was just to avoid
@@ -80,23 +72,24 @@ class CurrentStateStateInfo(CurrentState):
         # up at some point by tracking down where this gets used and handling empty
         # arrays - it is cleaner than having a "special rule". But for now, conform
         # to the convention
-        # if len(self.retrieval_state_element_id) == 0:
-        #    res = np.zeros((1,))
-        # else:
-        #    res =  np.concatenate(
-        #        [
-        #            self._state_info[sid].step_initial_value
-        #            for sid in self.retrieval_state_element_id
-        #        ]
-        #    )
-        res2 = self._current_state_old.initial_guess
-        # npt.assert_allclose(res, res2)
-        return res2
+        if len(self.retrieval_state_element_id) == 0:
+            res = np.zeros((1,))
+        else:
+            res = np.concatenate(
+                [
+                    self._state_info[sid].step_initial_value
+                    for sid in self.retrieval_state_element_id
+                ]
+            )
+        # TODO Remove current_state_old
+        if True:
+            res2 = self._current_state_old.initial_guess
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
     def initial_guess_fm(self) -> ForwardModelGridArray:
         """Initial guess on forward mode"""
-        # TODO Remove current_state_old
         # TODO
         # By convention, muses-py returns a length 1 array even if we don't
         # have any retrieval_state_element_id. I think this was just to avoid
@@ -105,18 +98,20 @@ class CurrentStateStateInfo(CurrentState):
         # up at some point by tracking down where this gets used and handling empty
         # arrays - it is cleaner than having a "special rule". But for now, conform
         # to the convention
-        # if len(self.retrieval_state_element_id) == 0:
-        #    res = np.zeros((1,))
-        # else:
-        #    res = np.concatenate(
-        #        [
-        #            self._state_info[sid].step_initial_value_fm
-        #            for sid in self.retrieval_state_element_id
-        #        ]
-        #    )
-        res2 = self._current_state_old.initial_guess_fm
-        # npt.assert_allclose(res, res2)
-        return res2
+        if len(self.retrieval_state_element_id) == 0:
+            res = np.zeros((1,))
+        else:
+            res = np.concatenate(
+                [
+                    self._state_info[sid].step_initial_value_fm
+                    for sid in self.retrieval_state_element_id
+                ]
+            )
+        # TODO Remove current_state_old
+        if True:
+            res2 = self._current_state_old.initial_guess_fm
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
     def apriori_cov(self) -> RetrievalGridArray:
@@ -152,12 +147,14 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
+        if True:
+            res2 = self._current_state_old.apriori
+            npt.assert_allclose(res, res2)
         return res
 
     @property
     def apriori_fm(self) -> ForwardModelGridArray:
         """Apriori value on forward model"""
-        # TODO Remove current_state_old
         if len(self.retrieval_state_element_id) == 0:
             # Oddly muses-py doesn't use the normal convention of returning [0],
             # but instead returns []
@@ -169,9 +166,11 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        res2 = self._current_state_old.apriori_fm
-        # TODO Fix this
-        # npt.assert_allclose(res, res2)
+        # TODO Remove current_state_old
+        if True:
+            res2 = self._current_state_old.apriori_fm
+            # Needs fix
+            #npt.assert_allclose(res, res2)
         return res2
 
     @property
@@ -197,7 +196,6 @@ class CurrentStateStateInfo(CurrentState):
     @property
     def true_value_fm(self) -> ForwardModelGridArray:
         """Apriori value"""
-        # TODO Remove current_state_old
         # Note muses_py always has a true value vector, even if we don't have
         # a true value (so full_state_true_value is None). It just puts zeros
         # in for any missing data.
@@ -208,14 +206,16 @@ class CurrentStateStateInfo(CurrentState):
                 )
             )
         )
-        # for sid in self.retrieval_state_element_id:
-        #    tvalue = self._state_info[sid].true_value_fm
-        #    if(tvalue is not None):
-        #        ps, pl = self.fm_sv_loc[sid]
-        #        res[ps:ps+pl] = tvalue
-        res2 = self._current_state_old.true_value_fm
-        # npt.assert_allclose(res, res2)
-        return res2
+        for sid in self.retrieval_state_element_id:
+            tvalue = self._state_info[sid].true_value_fm
+            if tvalue is not None:
+                ps, pl = self.fm_sv_loc[sid]
+                res[ps : ps + pl] = tvalue
+        # TODO Remove current_state_old
+        if True:
+            res2 = self._current_state_old.true_value_fm
+            npt.assert_allclose(res, res2)
+        return res
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
@@ -226,10 +226,12 @@ class CurrentStateStateInfo(CurrentState):
         """
         if self.do_systematic:
             return None
-        blist = [self._state_info[sid].basis_matrix
-                 for sid in self.retrieval_state_element_id]
+        blist = [
+            self._state_info[sid].basis_matrix
+            for sid in self.retrieval_state_element_id
+        ]
         blist = [i for i in blist if i is not None]
-        if(len(blist) == 0):
+        if len(blist) == 0:
             return None
         res = scipy.linalg.block_diag(*blist)
         return res
@@ -239,10 +241,12 @@ class CurrentStateStateInfo(CurrentState):
         """Go the other direction from basis matrix"""
         if self.do_systematic:
             return None
-        mlist = [self._state_info[sid].map_to_parameter_matrix
-                 for sid in self.retrieval_state_element_id]
+        mlist = [
+            self._state_info[sid].map_to_parameter_matrix
+            for sid in self.retrieval_state_element_id
+        ]
         mlist = [i for i in mlist if i is not None]
-        if(len(mlist) == 0):
+        if len(mlist) == 0:
             return None
         res = scipy.linalg.block_diag(*mlist)
         return res
@@ -266,7 +270,7 @@ class CurrentStateStateInfo(CurrentState):
         """This is array of boolean flag indicating which parts of the forward
         model state vector got updated when we last called update_state. A 1 means
         it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
-        if(self._updated_fm_flag is None):
+        if self._updated_fm_flag is None:
             raise RuntimeError("Need to call update_state before updated_fm_flag")
         return self._updated_fm_flag
 
@@ -278,9 +282,10 @@ class CurrentStateStateInfo(CurrentState):
         step: int,
     ) -> None:
         """Update the state info"""
-        bdata = [ selem.update_state(results_list, do_not_update,
-                                     retrieval_config, step)
-                  for selem in self._state_info.values()]
+        bdata = [
+            selem.update_state(results_list, do_not_update, retrieval_config, step)
+            for selem in self._state_info.values()
+        ]
         self._updated_fm_flag = np.concatenate([i for i in bdata if i is not None])
 
     def update_full_state_element(
@@ -294,9 +299,10 @@ class CurrentStateStateInfo(CurrentState):
     ) -> None:
         """This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
-        self._state_info[state_element_id].update_state_element(current, apriori, step_initial,
-                                                                retrieval_initial, true)
-        
+        self._state_info[state_element_id].update_state_element(
+            current, apriori, step_initial, retrieval_initial, true
+        )
+
     def clear_cache(self) -> None:
         super().clear_cache()
         self._updated_fm_flag = None
@@ -342,7 +348,7 @@ class CurrentStateStateInfo(CurrentState):
                 # py-retrieve convention. This can generally only
                 # happen if we have retrieval_state_element_override
                 # set, i.e., we are doing RetrievalStrategyStepBT.
-                if(self.do_systematic):
+                if self.do_systematic:
                     plen = self._state_info[sid].sys_sv_length
                 else:
                     plen = self._state_info[sid].forward_model_sv_length
@@ -380,7 +386,7 @@ class CurrentStateStateInfo(CurrentState):
         """Return the spectral domain (as nm) for the given state_element_id, or None if
         there isn't an associated frequency for the given state_element_id"""
         sd = self._state_info[state_element_id].spectral_domain
-        if(sd is None):
+        if sd is None:
             return None
         return sd.convert_wave(rf.Unit("nm"))
 
@@ -396,15 +402,31 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier, use_map=False
     ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
-        """
-        return self._state_info[state_element_id].step_initial_value_fm
 
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log initial guess gets exp applied). This is a bit confusing,
+        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
+        """
+        res = self._state_info[state_element_id].step_initial_value_fm
+        if use_map and self.map_type(state_element_id).lower() == "log":
+            res = np.exp(res)
+        if True:
+            res2 = self._current_state_old.full_state_step_initial_value(
+                state_element_id
+            )
+            npt.assert_allclose(res, res2)
+        return res
+
+    def full_state_value_str(
+        self, state_element_id: StateElementIdentifier
+    ) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
@@ -440,13 +462,22 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        return self._state_info[state_element_id].apriori_value_fm
-
+        res = self._state_info[state_element_id].apriori_value_fm
+        if True:
+            res2 = self._current_state_old.full_state_apriori_value(
+                state_element_id
+            )
+            #npt.assert_allclose(res, res2)
+        return res
+    
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
         """Return the covariance of the apriori value of the given state element identification."""
         res = self._state_info[state_element_id].apriori_cov_fm
+        if True:
+            res2 = self._current_state_old.full_state_apriori_covariance(state_element_id)
+            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -534,7 +565,9 @@ class CurrentStateStateInfo(CurrentState):
         observation_handle_set: ObservationHandleSet,
     ) -> None:
         """Have updated the target we are processing."""
-        self._state_info.notify_update_target(measurement_id, retrieval_config, strategy, observation_handle_set)
+        self._state_info.notify_update_target(
+            measurement_id, retrieval_config, strategy, observation_handle_set
+        )
         self.clear_cache()
 
     @property

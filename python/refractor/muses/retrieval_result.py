@@ -102,7 +102,7 @@ class RetrievalResult:
         # pressure levels
         for sid in self.current_state.retrieval_state_element_id:
             d = self.current_state.pressure_list_fm(sid)
-            if(d is not None):
+            if d is not None:
                 pdata.append(d)
             else:
                 pdata.append(np.array([-2.0]))

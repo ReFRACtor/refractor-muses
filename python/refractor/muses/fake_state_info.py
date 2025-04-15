@@ -63,10 +63,59 @@ class FakeStateInfo:
 
         # I think this is a fixed list
         if InstrumentIdentifier("TROPOMI") in obs_dict:
-            self._species = ['TATM', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'SO2', 'NO2', 'NH3', 'HNO3', 'OCS', 'N2', 'HCN', 'SF6', 'HCOOH', 'CCL4', 'CFC11', 'CFC12', 'CFC22', 'HDO', 'CH3OH', 'C2H4', 'PAN']
+            self._species = [
+                "TATM",
+                "H2O",
+                "CO2",
+                "O3",
+                "N2O",
+                "CO",
+                "CH4",
+                "SO2",
+                "NO2",
+                "NH3",
+                "HNO3",
+                "OCS",
+                "N2",
+                "HCN",
+                "SF6",
+                "HCOOH",
+                "CCL4",
+                "CFC11",
+                "CFC12",
+                "CFC22",
+                "HDO",
+                "CH3OH",
+                "C2H4",
+                "PAN",
+            ]
         else:
-            self._species = ['TATM', 'H2O', 'CO2', 'O3', 'N2O', 'CO', 'CH4', 'SO2', 'NH3', 'HNO3', 'OCS', 'N2', 'HCN', 'SF6', 'HCOOH', 'CCL4', 'CFC11', 'CFC12', 'CFC22', 'HDO', 'CH3OH', 'C2H4', 'PAN']
-            
+            self._species = [
+                "TATM",
+                "H2O",
+                "CO2",
+                "O3",
+                "N2O",
+                "CO",
+                "CH4",
+                "SO2",
+                "NH3",
+                "HNO3",
+                "OCS",
+                "N2",
+                "HCN",
+                "SF6",
+                "HCOOH",
+                "CCL4",
+                "CFC11",
+                "CFC12",
+                "CFC22",
+                "HDO",
+                "CH3OH",
+                "C2H4",
+                "PAN",
+            ]
+
         self._num_species = len(self._species)
         t = current_state.full_state_value(StateElementIdentifier("TATM"))
         varr = np.zeros((len(self._species), t.shape[0]))
@@ -82,7 +131,9 @@ class FakeStateInfo:
                 StateElementIdentifier(s)
             )
             varr3[self.species.index(s), :] = (
-                current_state.full_state_step_initial_value(StateElementIdentifier(s))
+                current_state.full_state_step_initial_value(
+                    StateElementIdentifier(s), use_map=True
+                )
             )
             varr4[self.species.index(s), :] = (
                 current_state.full_state_retrieval_initial_value(
@@ -102,7 +153,7 @@ class FakeStateInfo:
             StateElementIdentifier("pressure")
         )
         self._initial["pressure"] = current_state.full_state_step_initial_value(
-            StateElementIdentifier("pressure")
+            StateElementIdentifier("pressure"), use_map=True
         )
         self._initial_initial["pressure"] = (
             current_state.full_state_retrieval_initial_value(

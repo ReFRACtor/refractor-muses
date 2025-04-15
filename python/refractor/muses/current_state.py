@@ -623,7 +623,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Return a description of the full state."""
         res = ""
         for selem in self.full_state_element_id:
-            if(self.full_state_value_str(selem) is not None):
+            if self.full_state_value_str(selem) is not None:
                 res += f"{str(selem)}:\n{self.full_state_value_str(selem)}\n"
             else:
                 res += f"{str(selem)}:\n{self.full_state_value(selem)}\n"
@@ -672,7 +672,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
+    def full_state_value_str(
+        self, state_element_id: StateElementIdentifier
+    ) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead. Return None if this doesn't apply.
@@ -681,11 +683,17 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier, use_map=False
     ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log initial guess gets exp applied). This is a bit confusing,
+        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
         raise NotImplementedError()
 
@@ -1064,7 +1072,9 @@ class CurrentStateUip(CurrentState):
             pass
         raise RuntimeError(f"Don't recognize {state_element_id}")
 
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
+    def full_state_value_str(
+        self, state_element_id: StateElementIdentifier
+    ) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
@@ -1072,11 +1082,17 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier, use_map=False
     ) -> np.ndarray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log initial guess gets exp applied). This is a bit confusing,
+        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
         raise NotImplementedError()
 
@@ -1225,15 +1241,24 @@ class CurrentStateDict(CurrentState):
         )
 
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier, use_map=False
     ) -> np.ndarray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log initial guess gets exp applied). This is a bit confusing,
+        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
         raise NotImplementedError()
 
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
+    def full_state_value_str(
+        self, state_element_id: StateElementIdentifier
+    ) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
@@ -1630,16 +1655,26 @@ class CurrentStateStateInfoOld(CurrentState):
         return copy(selem.value)
 
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier, use_map=False
     ) -> np.ndarray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+
+
+        Where this is used in the muses-py code it sometimes assumes this has been
+        mapped (so a log initial guess gets exp applied). This is a bit confusing,
+        it means full_state_step_initial_value and initial_guess_value aren't the same.
+        We handle this just by requiring a use_map=True to be passed in, meaning we apply
+        the map_type in reverse.
         """
         selem = self.state_info.state_element(state_element_id, step="initial")
         return copy(selem.value)
 
-    def full_state_value_str(self, state_element_id: StateElementIdentifier) -> str | None:
+    def full_state_value_str(
+        self, state_element_id: StateElementIdentifier
+    ) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
         StateElementIdentifier("nh3type"). This is like full_state_value, but we
         return a str instead.
