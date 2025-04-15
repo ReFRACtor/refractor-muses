@@ -220,6 +220,9 @@ class StateElementOldWrapper(StateElement):
     @property
     def apriori_value_fm(self) -> ForwardModelGridArray:
         """Apriori value of StateElement"""
+        # Note, this is *different* than what muse-py use to do. Although the
+        # apriori is updated in RetrievalInfo, it wasn't being passed on to other
+        # parts of the code. We change this to use the constraint RetrievalInfo gets.
         if self.state_element_id not in self._current_state_old.retrieval_state_element_id:
             return self._current_state_old.full_state_apriori_value(self.state_element_id)
         res = self._current_state_old.retrieval_info.species_constraint(str(self.state_element_id))

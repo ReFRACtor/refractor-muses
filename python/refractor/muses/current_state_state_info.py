@@ -81,10 +81,6 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        # TODO Remove current_state_old
-        if True:
-            res2 = self._current_state_old.initial_guess
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -107,10 +103,6 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        # TODO Remove current_state_old
-        if True:
-            res2 = self._current_state_old.initial_guess_fm
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -147,9 +139,6 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        if True:
-            res2 = self._current_state_old.apriori
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -211,10 +200,6 @@ class CurrentStateStateInfo(CurrentState):
             if tvalue is not None:
                 ps, pl = self.fm_sv_loc[sid]
                 res[ps : ps + pl] = tvalue
-        # TODO Remove current_state_old
-        if True:
-            res2 = self._current_state_old.true_value_fm
-            npt.assert_allclose(res, res2)
         return res
 
     @property
@@ -417,11 +402,6 @@ class CurrentStateStateInfo(CurrentState):
         res = self._state_info[state_element_id].step_initial_value_fm
         if use_map and self.map_type(state_element_id).lower() == "log":
             res = np.exp(res)
-        if True:
-            res2 = self._current_state_old.full_state_step_initial_value(
-                state_element_id
-            )
-            npt.assert_allclose(res, res2)
         return res
 
     def full_state_value_str(
@@ -462,22 +442,13 @@ class CurrentStateStateInfo(CurrentState):
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
         """
-        res = self._state_info[state_element_id].apriori_value_fm
-        if True:
-            res2 = self._current_state_old.full_state_apriori_value(
-                state_element_id
-            )
-            #npt.assert_allclose(res, res2)
-        return res
+        return self._state_info[state_element_id].apriori_value_fm
     
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
         """Return the covariance of the apriori value of the given state element identification."""
         res = self._state_info[state_element_id].apriori_cov_fm
-        if True:
-            res2 = self._current_state_old.full_state_apriori_covariance(state_element_id)
-            npt.assert_allclose(res, res2)
         return res
 
     @property
