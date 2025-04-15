@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
 RetrievalGridArray = np.ndarray
 ForwardModelGridArray = np.ndarray
 RetrievalGrid2dArray = np.ndarray
-ForwardModelGri2ddArray = np.ndarray
+ForwardModelGrid2dArray = np.ndarray
 
 
 class CurrentStateStateInfo(CurrentState):
@@ -111,20 +111,21 @@ class CurrentStateStateInfo(CurrentState):
     def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         if self.do_systematic:
-            return np.zeros((1,1))
+            return np.zeros((1, 1))
         blist = [
-            self._state_info[sid].apriori_cov
-            for sid in self.retrieval_state_element_id
+            self._state_info[sid].apriori_cov for sid in self.retrieval_state_element_id
         ]
         res = scipy.linalg.block_diag(*blist)
         for i, selem1_sid in enumerate(self.retrieval_state_element_id):
-            for selem2_sid in self.retrieval_state_element_id[i+1:]:
-                m = self._state_info[selem1_sid].apriori_cross_covariance(self._state_info[selem2_sid])
+            for selem2_sid in self.retrieval_state_element_id[i + 1 :]:
+                m = self._state_info[selem1_sid].apriori_cross_covariance(
+                    self._state_info[selem2_sid]
+                )
                 if m is not None:
-                    p1,plen1 = self.retrieval_sv_loc[selem1_sid]
-                    p2,plen2 = self.retrieval_sv_loc[selem2_sid]
-                    r1 = slice(p1,p1+plen1)
-                    r2 = slice(p2,p2+plen2)
+                    p1, plen1 = self.retrieval_sv_loc[selem1_sid]
+                    p2, plen2 = self.retrieval_sv_loc[selem2_sid]
+                    r1 = slice(p1, p1 + plen1)
+                    r2 = slice(p2, p2 + plen2)
                     res[r1, r2] = m
                     res[r2, r1] = np.transpose(m)
         # TODO Remove current_state_old
@@ -405,7 +406,7 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -454,7 +455,7 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     def full_state_apriori_value(
-            self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -470,7 +471,7 @@ class CurrentStateStateInfo(CurrentState):
         if use_map and self.map_type(state_element_id).lower() == "log":
             res = np.exp(res)
         return res
-    
+
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGrid2dArray:

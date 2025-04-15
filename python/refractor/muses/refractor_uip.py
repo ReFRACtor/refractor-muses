@@ -15,11 +15,21 @@ from collections import UserDict, defaultdict
 import copy
 from pathlib import Path
 import math
+from typing import Any, Generator, Self
+import typing
+
+if typing.TYPE_CHECKING:
+    from .fake_state_info import FakeStateInfo
 
 if mpy.have_muses_py:
 
     class _FakeUipExecption(Exception):
-        def __init__(self, uip, ret_info, retrieval_vec):
+        def __init__(
+            self,
+            uip: mpy.ObjectView,
+            ret_info: mpy.ObjectView,
+            retrieval_vec: mpy.ObjectView,
+        ) -> None:
             self.uip = uip
             self.ret_info = ret_info
             self.retrieval_vec = retrieval_vec
@@ -31,10 +41,12 @@ if mpy.have_muses_py:
         count the number of run_retrieval calls, but once the total is reached
         we replace only the *next* levmar_nllsq_elanor call."""
 
-        def __init__(self, func_count=1):
+        def __init__(self, func_count: int = 1):
             self.func_count = func_count
 
-        def should_replace_function(self, func_name, parms):
+        def should_replace_function(
+            self, func_name: str, parms: dict[str, Any]
+        ) -> bool:
             if func_name == "run_retrieval":
                 self.func_count -= 1
                 print(f"In run_retrieval, func_count is {self.func_count}")
@@ -42,7 +54,7 @@ if mpy.have_muses_py:
                 return True
             return False
 
-        def replace_function(self, func_name, parms):
+        def replace_function(self, func_name: str, parms: dict[str, Any]) -> Any:
             # The UIP passed in is *before* updating with xInit. We
             # want this after the update, so call that before passing
             # value back.
@@ -54,7 +66,7 @@ if mpy.have_muses_py:
 
 
 @contextmanager
-def _all_output_disabled():
+def _all_output_disabled() -> Generator[None, None, None]:
     """Suppress stdout, stderr, and logging"""
     previous_level = logging.root.manager.disable
     try:
@@ -82,7 +94,7 @@ class RefractorCache(UserDict):
 
     """
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: Any) -> RefractorCache:
         return RefractorCache()
 
 
@@ -140,7 +152,12 @@ class RefractorUip:
 
     """
 
-    def __init__(self, uip=None, basis_matrix=None, state_info=None):
+    def __init__(
+        self,
+        uip: dict[str, Any] | mpy.ObjectView = None,
+        basis_matrix: np.ndarray | None = None,
+        state_info: dict[str, Any] | mpy.ObjectView | None = None,
+    ) -> None:
         """Constructor. This takes the uip structure (the muses-py dictionary)
         and a basis_matrix if available
         """
@@ -168,7 +185,7 @@ class RefractorUip:
         # RefractorFmObjectCreator.
         self.state_info = state_info
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
         """Pickling grabs attributes, which includes properties.
         We don't actually want that, so just explicitly list what
         we want saved."""
@@ -178,10 +195,10 @@ class RefractorUip:
             "capture_directory": self.capture_directory,
         }
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__.update(state)
 
-    def uip_all(self, instrument_name: InstrumentIdentifier | str):
+    def uip_all(self, instrument_name: InstrumentIdentifier | str) -> dict[str, Any]:
         """Add in the stuff for the given instrument name. This is
         used in a number of places in muses-py calls."""
         # Depending on where this comes from, it may or may not have the
@@ -200,11 +217,11 @@ class RefractorUip:
         return Path(self.capture_directory.rundir)
 
     @run_dir.setter
-    def run_dir(self, v: Path):
+    def run_dir(self, v: Path) -> None:
         self.capture_directory.rundir = v
 
     @property
-    def refractor_cache(self):
+    def refractor_cache(self) -> RefractorCache:
         """Return a simple dict we use for caching values. Note that
         by design this really is a cache, if this is missing or
         anything in it is then we just create on first use. Note this
@@ -219,13 +236,13 @@ class RefractorUip:
     @classmethod
     def create_from_table(
         cls,
-        strategy_table,
-        step=1,
-        capture_directory=False,
-        save_pickle_file=None,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
-        suppress_noisy_output=True,
-    ):
+        strategy_table: str,
+        step: int = 1,
+        capture_directory: bool = False,
+        save_pickle_file: str | None = None,
+        vlidort_cli: str = "~/muses/muses-vlidort/build/release/vlidort_cli",
+        suppress_noisy_output: bool = True,
+    ) -> Self:
         """This creates a UIP from a run directory (e.g., created
         by earlier steps of amuse-me).  The table is passed in that
         points to everything, usually this is called 'Table.asc' in
@@ -292,7 +309,7 @@ class RefractorUip:
             pickle.dump(res, open(save_pickle_file, "wb"))
         return res
 
-    def tar_directory(self, strategy_table):
+    def tar_directory(self, strategy_table: str) -> None:
         vlidort_input = None
         if "uip_OMI" in self.uip:
             vlidort_input = self.uip["uip_OMI"]["vlidort_input"]
@@ -307,20 +324,20 @@ class RefractorUip:
         return (self.run_dir / self.vlidort_input).parent.parent
 
     @property
-    def current_state_x(self):
+    def current_state_x(self) -> np.ndarray:
         """Return the current guess. This is the same thing as retrieval_vec,
         update_uip sets this so we know this."""
         return self.uip["currentGuessList"]
 
     @property
-    def current_state_x_fm(self):
+    def current_state_x_fm(self) -> np.ndarray:
         """Return the current guess for the full state model (called fm_vec
         in some places) This is the same thing as retrieval_vec @ basis_matrix
         update_uip sets this so we know this."""
         return self.uip["currentGuessListFM"]
 
     @property
-    def vlidort_input(self):
+    def vlidort_input(self) -> str:
         if self.uip_omi:
             return self.uip_omi["vlidort_input"]
         elif self.uip_tropomi:
@@ -329,7 +346,7 @@ class RefractorUip:
             raise RuntimeError("Only support omi and tropomi")
 
     @property
-    def vlidort_output(self):
+    def vlidort_output(self) -> str:
         if self.uip_omi:
             return self.uip_omi["vlidort_output"]
         elif self.uip_tropomi:
@@ -340,12 +357,12 @@ class RefractorUip:
     @classmethod
     def load_uip(
         cls,
-        save_pickle_file,
-        path=".",
-        change_to_dir=False,
-        osp_dir=None,
-        gmao_dir=None,
-    ):
+        save_pickle_file: str,
+        path: str = ".",
+        change_to_dir: bool = False,
+        osp_dir: str | None = None,
+        gmao_dir: str | None = None,
+    ) -> RefractorUip:
         """This is the pair to create_from_table, it loads a RefractorUip
         from a pickle file, extracts the saved directory, and optionally
         changes to that directory."""
@@ -356,14 +373,18 @@ class RefractorUip:
         return uip
 
     def instrument_sub_basis_matrix(
-        self, instrument_name: InstrumentIdentifier | str, use_full_state_vector=True
-    ):
+        self,
+        instrument_name: InstrumentIdentifier | str,
+        use_full_state_vector: bool = True,
+    ) -> np.ndarray:
         """Return the portion of the basis matrix that includes jacobians
         for the given instrument. This is what the various muses-py forward
         models return - only the subset of jacobians actually relevant for
         that instrument.
         """
         if not use_full_state_vector:
+            if self.basis_matrix is None:
+                raise RuntimeError("basis_matrix is None")
             return self.basis_matrix[
                 :,
                 [
@@ -381,7 +402,7 @@ class RefractorUip:
         ]
 
     @property
-    def is_bt_retrieval(self):
+    def is_bt_retrieval(self) -> bool:
         """For BT retrievals, the species aren't set. This means we
         need to do special handling in some cases. Determine if we are
         doing a BT retrieval and return True if we are."""
@@ -396,16 +417,18 @@ class RefractorUip:
             ]
         )
 
-    def species_basis_matrix(self, species_name):
+    def species_basis_matrix(self, species_name: list[str]) -> np.ndarray:
         """Muses does the retrieval on a subset of the full forward model
         grid. The mapping between the two sets is handled by the
         basis_matrix. We subset this for just this particular species_name
         (e.g, O3)."""
         t1 = np.array(self.uip["speciesList"]) == species_name
         t2 = np.array(self.uip["speciesListFM"]) == species_name
+        if self.basis_matrix is None:
+            raise RuntimeError("basis_matrix is None")
         return self.basis_matrix[t1, :][:, t2]
 
-    def species_basis_matrix_calc(self, species_name):
+    def species_basis_matrix_calc(self, species_name: list[str]) -> np.ndarray:
         """Rather than return the basis matrix in ret_info, calculate
         this like get_species_information does in muses-py.
 
@@ -427,7 +450,7 @@ class RefractorUip:
             plev, self.species_retrieval_level_subset(species_name) + 1
         )["toState"]
 
-    def species_retrieval_level_subset(self, species_name):
+    def species_retrieval_level_subset(self, species_name: list[str]) -> int:
         """This is the levels of the forward model grid that we do
         the retrieval on.
 
@@ -445,7 +468,7 @@ class RefractorUip:
         ).nonzero()[0]
         return i_levels
 
-    def atmosphere_column(self, species_name):
+    def atmosphere_column(self, species_name: str) -> np.ndarray:
         """Return the atmospheric column. Note that MUSES use
         a decreasing pressure order (to surface to TOA). This is
         the opposite of the normal ReFRACtor convention. This is
@@ -458,26 +481,26 @@ class RefractorUip:
         return self.uip["atmosphere"][param_index, :]
 
     @property
-    def uip_omi(self):
+    def uip_omi(self) -> dict[str, Any]:
         """Short cut to uip_OMI"""
         return self.uip.get("uip_OMI")
 
     @property
-    def omi_params(self):
+    def omi_params(self) -> dict[str, Any]:
         """Short cut for omiPars"""
         return self.uip.get("omiPars")
 
     @property
-    def uip_tropomi(self):
+    def uip_tropomi(self) -> dict[str, Any]:
         """Short cut to uip_TROPOMI"""
         return self.uip.get("uip_TROPOMI")
 
     @property
-    def tropomi_params(self):
+    def tropomi_params(self) -> dict[str, Any]:
         """Short cut for tropomiPars"""
         return self.uip.get("tropomiPars")
 
-    def frequency_list(self, instrument_name: InstrumentIdentifier | str):
+    def frequency_list(self, instrument_name: InstrumentIdentifier | str) -> np.ndarray:
         return self.uip[f"uip_{instrument_name}"]["frequencyList"]
 
     @property
@@ -491,7 +514,7 @@ class RefractorUip:
         """List of instruments that are part of the UIP"""
         return [InstrumentIdentifier(i) for i in self.uip["instruments"]]
 
-    def freq_index(self, instrument_name: InstrumentIdentifier | str):
+    def freq_index(self, instrument_name: InstrumentIdentifier | str) -> np.ndarray:
         """Return frequency index for given instrument"""
         if str(instrument_name) == "OMI":
             return self.uip_omi["freqIndex"]
@@ -502,7 +525,7 @@ class RefractorUip:
 
     def freqfilter(
         self, instrument_name: InstrumentIdentifier | str, sensor_index: int
-    ):
+    ) -> np.ndarray:
         """freq_index is subsetted by the microwindow. This version gives
         the full set of indices for a particular sensor index"""
         if str(instrument_name) == "OMI":
@@ -519,9 +542,9 @@ class RefractorUip:
     def measured_radiance(
         self,
         instrument_name: InstrumentIdentifier | str,
-        sensor_index=None,
-        full_freq=False,
-    ):
+        sensor_index: int = -1,
+        full_freq: bool = False,
+    ) -> dict[str, Any]:
         """Note muses-py handles the radiance data in pretty much the reverse
         way that ReFRACtor does.
 
@@ -570,7 +593,9 @@ class RefractorUip:
             "odwav_slope_jac": rad["odwav_slope_jac"][freqindex],
         }
 
-    def nfreq_mw(self, mw_index, instrument_name: InstrumentIdentifier | str):
+    def nfreq_mw(
+        self, mw_index: int, instrument_name: InstrumentIdentifier | str
+    ) -> int:
         """Number of frequencies for microwindow."""
         if str(instrument_name) == "OMI":
             # It is a bit odd that mw_index get used twice here, but this
@@ -585,8 +610,10 @@ class RefractorUip:
         return endmw_fm - startmw_fm + 1
 
     def atm_params(
-        self, instrument_name: InstrumentIdentifier | str, set_pointing_angle_zero=True
-    ):
+        self,
+        instrument_name: InstrumentIdentifier | str,
+        set_pointing_angle_zero: bool = True,
+    ) -> dict[str, Any]:
         uall = self.uip_all(instrument_name)
         # tropomi_fm and omi_fm set this to zero before calling raylayer_nadir.
         # I'm not sure if always want to do this or not. Note that uall
@@ -598,9 +625,9 @@ class RefractorUip:
     def ray_info(
         self,
         instrument_name: InstrumentIdentifier | str,
-        set_pointing_angle_zero=True,
-        set_cloud_extinction_one=False,
-    ):
+        set_pointing_angle_zero: bool = True,
+        set_cloud_extinction_one: bool = False,
+    ) -> dict[str, Any]:
         uall = self.uip_all(instrument_name)
         # tropomi_fm and omi_fm set this to zero before calling raylayer_nadir.
         # I'm not sure if always want to do this or not. Note that uall
@@ -614,40 +641,40 @@ class RefractorUip:
         )
 
     @property
-    def omi_cloud_fraction(self):
+    def omi_cloud_fraction(self) -> float:
         """Cloud fraction for OMI"""
         return self.omi_params["cloud_fraction"]
 
     @property
-    def tropomi_cloud_fraction(self):
+    def tropomi_cloud_fraction(self) -> float:
         """Cloud fraction for TROPOMI"""
         return self.tropomi_params["cloud_fraction"]
 
     @property
-    def omi_obs_table(self):
+    def omi_obs_table(self) -> dict[str, Any] | None:
         """Short cut to omi_obs_table"""
         if self.uip_omi is not None:
             return self.uip_omi["omi_obs_table"]
         return None
 
     @property
-    def tropomi_obs_table(self):
+    def tropomi_obs_table(self) -> dict[str, Any] | None:
         """Short cut to tropomi_obs_table"""
         if self.uip_tropomi:
             return self.uip_tropomi["tropomi_obs_table"]
         return None
 
     @property
-    def number_micro_windows(self):
+    def number_micro_windows(self) -> int:
         """Total number of microwindows. This is like a channel_index,
         except muses-py can retrieve multiple instruments."""
         return len(self.uip["microwindows_all"])
 
-    def instrument_name(self, ii_mw) -> InstrumentIdentifier:
+    def instrument_name(self, ii_mw: int) -> InstrumentIdentifier:
         """Instrument name for the micro_window index ii_mw"""
         return InstrumentIdentifier(self.uip["microwindows_all"][ii_mw]["instrument"])
 
-    def micro_windows(self, ii_mw):
+    def micro_windows(self, ii_mw: int) -> rf.ArrayWithUnit:
         """Return start and end of microwindow"""
         return rf.ArrayWithUnit(
             np.array(
@@ -662,11 +689,13 @@ class RefractorUip:
         )
 
     @property
-    def jacobian_all(self):
+    def jacobian_all(self) -> np.ndarray:
         """List of jacobians we are including in the state vector"""
         return self.uip["jacobians_all"]
 
-    def state_vector_species_index(self, species_name, use_full_state_vector=True):
+    def state_vector_species_index(
+        self, species_name: str, use_full_state_vector: bool = True
+    ) -> tuple[int, int]:
         """Index and length for the location of the species_name in
         our state vector. We either do this for the retrieval state vector
         or the full state vector."""
@@ -685,11 +714,15 @@ class RefractorUip:
             plen = list(self.uip["speciesListFM"]).count(species_name)
         return pstart, plen
 
-    def state_vector_params(self, instrument_name: InstrumentIdentifier | str):
+    def state_vector_params(
+        self, instrument_name: InstrumentIdentifier | str
+    ) -> list[str]:
         """List of parameter types to include in the state vector."""
         return self.uip[f"uip_{instrument_name}"]["jacobians"]
 
-    def state_vector_names(self, instrument_name: InstrumentIdentifier | str):
+    def state_vector_names(
+        self, instrument_name: InstrumentIdentifier | str
+    ) -> list[str]:
         """Full list of the name for each state vector list item"""
         sv_list = []
         for jac_name in self.uip["speciesListFM"]:
@@ -697,7 +730,9 @@ class RefractorUip:
                 sv_list.append(jac_name)
         return sv_list
 
-    def state_vector_update_indexes(self, instrument_name: InstrumentIdentifier | str):
+    def state_vector_update_indexes(
+        self, instrument_name: InstrumentIdentifier | str
+    ) -> np.ndarray:
         """Indexes for this instrument's state vector element updates from the full update vector"""
         sv_extract_index = []
         for full_idx, jac_name in enumerate(self.uip["speciesListFM"]):
@@ -728,17 +763,21 @@ class RefractorUip:
         else:
             return output_map
 
-    def earth_sun_distance(self, instrument_name: InstrumentIdentifier | str):
+    def earth_sun_distance(self, instrument_name: InstrumentIdentifier | str) -> float:
         """Earth sun distance, in meters. Right now this is OMI specific"""
         # Same value for all the bands, so just grab the first one
         if str(instrument_name) == "OMI":
+            if self.omi_obs_table is None:
+                raise RuntimeError("omi_obs_table is None")
             return self.omi_obs_table["EarthSunDistance"][0]
         elif str(instrument_name) == "TROPOMI":
+            if self.tropomi_obs_table is None:
+                raise RuntimeError("omi_obs_table is None")
             return self.tropomi_obs_table["EarthSunDistance"][0]
         else:
-            RuntimeError("Didn't find a observation table")
+            raise RuntimeError("Didn't find a observation table")
 
-    def sample_grid(self, mw_index, ii_mw):
+    def sample_grid(self, mw_index: int, ii_mw: int) -> rf.SpectralDomain:
         """This is the full set of samples. We only actually use a subset of
         these, but these are the values before the microwindow gets applied.
 
@@ -767,7 +806,9 @@ class RefractorUip:
                 all_freq[np.where(filt_loc == self.filter_name(ii_mw))], rf.Unit("nm")
             )
 
-    def ils_params(self, mw_index, instrument_name: InstrumentIdentifier | str):
+    def ils_params(
+        self, mw_index: int, instrument_name: InstrumentIdentifier | str
+    ) -> dict[str, Any]:
         """Returns ILS information for the given microwindow"""
         if str(instrument_name) == "OMI":
             return self.uip_omi["ils_%02d" % (mw_index + 1)]
@@ -778,7 +819,9 @@ class RefractorUip:
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def ils_method(self, mw_index, instrument_name: InstrumentIdentifier | str):
+    def ils_method(
+        self, mw_index: int, instrument_name: InstrumentIdentifier | str
+    ) -> str:
         """Returns a string describing the ILS method configured by MUSES"""
         if str(instrument_name) == "OMI":
             return self.uip_omi["ils_omi_xsection"]
@@ -787,7 +830,9 @@ class RefractorUip:
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def radiance_info(self, instrument_name: InstrumentIdentifier | str):
+    def radiance_info(
+        self, instrument_name: InstrumentIdentifier | str
+    ) -> dict[str, Any]:
         """This is a bit convoluted. It comes from a python pickle file that
         gets created before the retrieval starts. So this is
         "control coupling". On the other hand, most of the UIP is sort of
@@ -808,7 +853,9 @@ class RefractorUip:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return pickle.load(open(fname, "rb"))
 
-    def mw_slice(self, filter_name, instrument_name: InstrumentIdentifier | str):
+    def mw_slice(
+        self, filter_name: str, instrument_name: InstrumentIdentifier | str
+    ) -> slice:
         """Variation of mw_slice that uses startmw and endmw. I think these are
         the same if we aren't doing an ILS, but different if we are. Should track
         this through, but for now just try this out"""
@@ -836,7 +883,9 @@ class RefractorUip:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return slice(startmw_fm, endmw_fm + 1)
 
-    def mw_fm_slice(self, filter_name, instrument_name: InstrumentIdentifier | str):
+    def mw_fm_slice(
+        self, filter_name: str, instrument_name: InstrumentIdentifier | str
+    ) -> slice:
         """This is the portion of the full microwindow frequencies that we are
         using in calculations such as RamanSioris. This is a bit
         bigger than the instrument_spectral_domain in
@@ -867,7 +916,9 @@ class RefractorUip:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         return slice(startmw_fm, endmw_fm + 1)
 
-    def full_band_frequency(self, instrument_name: InstrumentIdentifier | str):
+    def full_band_frequency(
+        self, instrument_name: InstrumentIdentifier | str
+    ) -> np.ndarray:
         """This is the full frequency range for the instrument. I believe
         this is the same as the wavelengths found in the radiance pickle
         file (self.radiance_info), but this comes for a different source in
@@ -879,7 +930,9 @@ class RefractorUip:
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
 
-    def rad_wavelength(self, filter_name, instrument_name: InstrumentIdentifier | str):
+    def rad_wavelength(
+        self, filter_name: str, instrument_name: InstrumentIdentifier | str
+    ) -> rf.SpectralDomain:
         """This is the wavelengths that the L1B data was measured at, truncated
         to fit our microwindow"""
         slc = self.mw_fm_slice(filter_name, instrument_name)
@@ -889,8 +942,8 @@ class RefractorUip:
         )
 
     def solar_irradiance(
-        self, filter_name, instrument_name: InstrumentIdentifier | str
-    ):
+        self, filter_name: str, instrument_name: InstrumentIdentifier | str
+    ) -> rf.Spectrum:
         """This is currently just used for the Raman calculation of the
         RefractorRtfOmi class. This has been adjusted for the
         """
@@ -912,21 +965,25 @@ class RefractorUip:
         )
         return rf.Spectrum(sol_domain, sol_range)
 
-    def filter_name(self, ii_mw):
+    def filter_name(self, ii_mw: int) -> str:
         """The filter name (e.g., UV1 or UV2)"""
         return self.uip["microwindows_all"][ii_mw]["filter"]
 
-    def channel_indexes(self, ii_mw):
+    def channel_indexes(self, ii_mw: int) -> np.ndarray:
         """Determine the channel indexes that we are processing."""
         # You would think this would just be an argument, but it
         # isn't. We need to get the filter name from one place, and
         # use that to look up the channel index in another.
         if self.instrument_name(ii_mw) == InstrumentIdentifier("OMI"):
+            if self.omi_obs_table is None:
+                raise RuntimeError("omi_obs_table is None")
             return np.where(
                 np.asarray(self.omi_obs_table["Filter_Band_Name"])
                 == self.filter_name(ii_mw)
             )[0]
         if self.instrument_name(ii_mw) == InstrumentIdentifier("TROPOMI"):
+            if self.tropomi_obs_table is None:
+                raise RuntimeError("tropomi_obs_table is None")
             return np.where(
                 np.asarray(self.tropomi_obs_table["Filter_Band_Name"])
                 == self.filter_name(ii_mw)
@@ -934,7 +991,7 @@ class RefractorUip:
         else:
             raise RuntimeError("Don't know how to find observation table")
 
-    def _avg_obs(self, nm, filter_name):
+    def _avg_obs(self, nm: str, filter_name: str) -> float:
         """Average values that match the self.channel_indexes.
 
         Not sure if this makes sense or not, but it is what py_retrieve
@@ -957,67 +1014,67 @@ class RefractorUip:
             return np.mean(np.asarray(self.tropomi_obs_table[nm])[cindex])
         raise RuntimeError("Don't know how to find observation table")
 
-    def observation_zenith(self, filter_name):
+    def observation_zenith(self, filter_name: str) -> float:
         """Observation zenith angle for the microwindow index filter_name"""
         return self._avg_obs("ViewingZenithAngle", filter_name)
 
-    def observation_zenith_with_unit(self, filter_name):
+    def observation_zenith_with_unit(self, filter_name: str) -> rf.DoubleWithUnit:
         """Observation zenith angle for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.observation_zenith(filter_name)), "deg")
 
-    def observation_azimuth(self, filter_name):
+    def observation_azimuth(self, filter_name: str) -> float:
         """Observation azimuth angle for the microwindow index filter_name"""
         return self._avg_obs("ViewingAzimuthAngle", filter_name)
 
-    def observation_azimuth_with_unit(self, filter_name):
+    def observation_azimuth_with_unit(self, filter_name: str) -> rf.DoubleWithUnit:
         """Observation azimuth angle for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.observation_azimuth(filter_name)), "deg")
 
-    def solar_azimuth(self, filter_name):
+    def solar_azimuth(self, filter_name: str) -> float:
         """Solar azimuth angle for the microwindow index filter_name"""
         return self._avg_obs("SolarAzimuthAngle", filter_name)
 
-    def solar_azimuth_with_unit(self, filter_name):
+    def solar_azimuth_with_unit(self, filter_name: str) -> rf.DoubleWithUnit:
         """Solar azimuth angle for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.solar_azimuth(filter_name)), "deg")
 
-    def solar_zenith(self, filter_name):
+    def solar_zenith(self, filter_name: str) -> float:
         """Solar zenith angle for the microwindow index filter_name"""
         return self._avg_obs("SolarZenithAngle", filter_name)
 
-    def solar_zenith_with_unit(self, filter_name):
+    def solar_zenith_with_unit(self, filter_name: str) -> rf.DoubleWithUnit:
         """Solar zenith angle for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.solar_zenith(filter_name)), "deg")
 
-    def relative_azimuth(self, filter_name):
+    def relative_azimuth(self, filter_name: str) -> float:
         """Relative azimuth angle for the microwindow index filter_name"""
         return self._avg_obs("RelativeAzimuthAngle", filter_name)
 
-    def relative_azimuth_with_unit(self, filter_name):
+    def relative_azimuth_with_unit(self, filter_name: str) -> rf.DoubleWithUnit:
         """Relative azimuth angle for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.relative_azimuth(filter_name)), "deg")
 
-    def latitude(self, filter_name):
+    def latitude(self, filter_name: str) -> float:
         """Latitude for the microwindow index filter_name"""
         return self._avg_obs("Latitude", filter_name)
 
-    def latitude_with_unit(self, filter_name):
+    def latitude_with_unit(self, filter_name: str) -> rf.DoubleWithUnit:
         """Latitude for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.latitude(filter_name)), "deg")
 
-    def longitude(self, filter_name):
+    def longitude(self, filter_name: str) -> float:
         """Longitude for the microwindow index filter_name"""
         return self._avg_obs("Longitude", filter_name)
 
-    def longitude_with_unit(self, filter_name):
+    def longitude_with_unit(self, filter_name: str) -> rf.DoubleWithUnit:
         """Longitude for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.longitude(filter_name)), "deg")
 
-    def surface_height(self, filter_name):
+    def surface_height(self, filter_name: str) -> float:
         """Surface height for the microwindow index filter_name"""
         return self._avg_obs("TerrainHeight", filter_name)
 
-    def surface_height_with_unit(self, filter_name):
+    def surface_height_with_unit(self, filter_name: str) -> rf.DoubleWithUnit:
         """Surface height for the microwindow index filter_name"""
         return rf.DoubleWithUnit(float(self.surface_height(filter_name)), "m")
 
@@ -1025,13 +1082,15 @@ class RefractorUip:
         self,
         filter_name: FilterIdentifier | str,
         instrument_name: InstrumentIdentifier | str,
-    ):
+    ) -> np.ndarray:
         """Across track indexes for the microwindow index ii_mw.
 
         Right now this is omi specific"""
         # Can't really average these to have anything that makes sense.
         # So for now we just pick the first one that matches
         if str(instrument_name) == "OMI":
+            if self.omi_obs_table is None:
+                raise RuntimeError("omi_obs_table is None")
             cindex = np.where(
                 np.asarray(self.omi_obs_table["Filter_Band_Name"]) == str(filter_name)
             )[0]
@@ -1039,6 +1098,8 @@ class RefractorUip:
                 raise RuntimeError(f"Bad filter name {filter_name}")
             return np.asarray(self.omi_obs_table["XTRACK"])[cindex]
         if str(instrument_name) == "TROPOMI":
+            if self.tropomi_obs_table is None:
+                raise RuntimeError("tropomi_obs_table is None")
             cindex = np.where(
                 np.asarray(self.tropomi_obs_table["Filter_Band_Name"])
                 == str(filter_name)
@@ -1048,7 +1109,7 @@ class RefractorUip:
             return np.asarray(self.tropomi_obs_table["XTRACK"])[cindex]
         raise RuntimeError("Don't know how to find observation table")
 
-    def update_uip(self, i_retrieval_vec):
+    def update_uip(self, i_retrieval_vec: np.ndarray) -> None:
         """This updates the underlying UIP with the new retrieval_vec,
         e.g., this is the muses-py equivalent up updating the
         StateVector in ReFRACtor.
@@ -1311,7 +1372,7 @@ class RefractorUip:
                 o_uip.nirPars["aerw"] = fm_vec[ind_fm]
 
             elif specie == "NIRALBBRDF" or specie == "ALBBRDF":
-                mult = 1
+                mult = 1.0
                 if o_uip.nirPars["albtype"] == 1:
                     mult = 0.07  # convert species BRDF to uip lambertian
                 # npoly = N_ELEMENTS(fs_vec[indfs])/3
@@ -1319,7 +1380,7 @@ class RefractorUip:
                 # ;uip.nirPars.alb[0:npoly-1,*] = fs_vec[indfs] * mult
                 o_uip.nirPars["albpl"] = fm_vec[ind_fm] * mult
             elif specie == "NIRALBLAMB" or specie == "ALBLAMB":
-                mult = 1
+                mult = 1.0
                 if o_uip.nirPars["albtype"] == 2:
                     mult = 1 / 0.07  # convert species lambertian to uip BRDF
                 # npoly = N_ELEMENTS(fs_vec[indfs])/3
@@ -1337,7 +1398,7 @@ class RefractorUip:
                 or specie == "NIRALBLAMBPL"
                 or specie == "ALBLAMBPL"
             ):
-                mult = 1
+                mult = 1.0
                 if o_uip.nirPars["albtype"] == 2 and (
                     specie == "NIRALBLAMBPL" or specie == "ALBLAMBPL"
                 ):
@@ -1450,7 +1511,7 @@ class RefractorUip:
 
                     # this is for negative VMRs.  Small VMRs also cause
                     # issues (get large Jacobians for very small VMRs)
-                    threshold = -999
+                    threshold = -999.0
                     if specie == "HCN":
                         threshold = 1e-12
 
@@ -1498,20 +1559,20 @@ class RefractorUip:
     @classmethod
     def create_uip(
         cls,
-        i_stateInfo,
-        i_strategy_table,
-        i_windows,
-        i_retrievalInfo,
-        i_airs,
-        i_tes,
-        i_cris,
-        i_omi,
-        i_tropomi,
-        i_oco2,
-        jacobian_speciesIn=None,
-        only_create_instrument=None,
+        i_stateInfo: dict[str, Any] | mpy.ObjectView | FakeStateInfo,
+        i_strategy_table: dict[str, Any],
+        i_windows: list[Any],
+        i_retrievalInfo: dict[str, Any],
+        i_airs: dict[str, Any] | None,
+        i_tes: dict[str, Any] | None,
+        i_cris: dict[str, Any] | None,
+        i_omi: dict[str, Any] | None,
+        i_tropomi: dict[str, Any] | None,
+        i_oco2: dict[str, Any] | None,
+        jacobian_speciesIn: list[str] | None = None,
+        only_create_instrument: InstrumentIdentifier | None = None,
         pointing_angle: rf.DoubleWithUnit | None = None,
-    ):
+    ) -> RefractorUip:
         """We duplicate what mpy.run_retrieval does to make the uip.
 
         To help reduce coupling, you can give the instrument you want, we'll create
@@ -1689,6 +1750,8 @@ class RefractorUip:
             # have something to do with the BT retrieval handling, which seems
             # to have been crammed in breaking stuff. We need to conform
             # to the existing code
+            if i_airs is None:
+                raise RuntimeError("Need to supply i_airs")
             if jacobian_speciesIn is None:
                 uip["uip_AIRS"] = mpy.make_uip_airs(
                     i_state,
@@ -1721,6 +1784,8 @@ class RefractorUip:
             # have something to do with the BT retrieval handling, which seems
             # to have been crammed in breaking stuff. We need to conform
             # to the existing code
+            if i_cris is None:
+                raise RuntimeError("Need to supply i_cris")
             if jacobian_speciesIn is None:
                 uip["uip_CRIS"] = mpy.make_uip_cris(
                     i_state,
@@ -1745,6 +1810,8 @@ class RefractorUip:
                 )
 
         if "TES" in inst_to_window:
+            if i_tes is None:
+                raise RuntimeError("Need to supply i_tes")
             uip["uip_TES"] = mpy.make_uip_tes(
                 i_state,
                 i_state.current,

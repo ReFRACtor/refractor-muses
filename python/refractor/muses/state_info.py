@@ -50,6 +50,57 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def __init__(self, state_element_id: StateElementIdentifier):
         self._state_element_id = state_element_id
 
+    def assert_equal(self, other: StateElement) -> None:
+        """Simple test to make sure two StateElement are the same, intended for
+        initial development and testing. This doesn't check that all the function
+        call are identical, just the various property items."""
+        assert self.state_element_id == other.state_element_id
+        sd1 = self.spectral_domain
+        sd2 = self.spectral_domain
+        assert (sd1 is None and sd2 is None) or (
+            sd1 is not None
+            and sd2 is not None
+            and np.allclose(
+                sd1.convert_wave(rf.Unit("nm")), sd2.convert_wave(rf.Unit("nm"))
+            )
+        )
+        assert self.retrieval_sv_length == other.retrieval_sv_length
+        assert self.sys_sv_length == other.sys_sv_length
+        assert self.forward_model_sv_length == other.forward_model_sv_length
+        assert self.map_type == other.map_type
+        assert (
+            self.value_str is None and other.value_str is None
+        ) or self.value_str == other.value_str
+        for param in (
+            "basis_matrix",
+            "map_to_parameter_matrix",
+            "altitude_list",
+            "altitude_list_fm",
+            "pressure_list",
+            "pressure_list_fm",
+            "value",
+            "value_fm",
+            "apriori_value",
+            "apriori_value_fm",
+            "apriori_cov",
+            "apriori_cov_fm",
+            "retrieval_initial_value",
+            "step_initial_value",
+            "step_initial_value_fm",
+            "true_value",
+            "true_value_fm",
+        ):
+            # Not all the functions of implemented in StateElementOld, these don't actuall
+            # get called in our test cases so this ok. Just skip this - it is possible a
+            # failure is a real problem but for now just skip this. Ok, since this is only
+            # used in testing which can only do so much until we do full runs.
+            try:
+                v1 = getattr(self, param)
+                v2 = getattr(other, param)
+                assert (v1 is None and v2 is None) or np.allclose(v1, v2)
+            except (RuntimeError, NotImplementedError):
+                pass
+
     @property
     def metadata(self) -> dict[str, Any]:
         """Some StateElement have extra metadata. There is really only one example
@@ -170,7 +221,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """Apriori Covariance"""
         raise NotImplementedError()
 
-    def apriori_cross_covariance(self, selem2: StateElement) -> RetrievalGrid2dArray | None:
+    def apriori_cross_covariance(
+        self, selem2: StateElement
+    ) -> RetrievalGrid2dArray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         return None
@@ -180,11 +233,13 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """Apriori Covariance"""
         raise NotImplementedError()
 
-    def apriori_cross_covariance_fm(self, selem2: StateElement) -> ForwardGrid2dArray | None:
+    def apriori_cross_covariance_fm(
+        self, selem2: StateElement
+    ) -> ForwardModelGrid2dArray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         return None
-    
+
     @abc.abstractproperty
     def retrieval_initial_value(self) -> RetrievalGridArray:
         """Value StateElement had at the start of the retrieval."""

@@ -363,7 +363,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self,
         do_systematic: bool = False,
         include_bad_sample: bool = False,
-        use_empty_apriori=False,
+        use_empty_apriori: bool = False,
         jacobian_speciesIn: None | list[StateElementIdentifier] = None,
     ) -> CostFunction:
         """Create a CostFunction, for use either in retrieval or just
@@ -610,6 +610,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
                 return
             self.notify_update(ProcessLocation("starting run_step"))
             self.notify_new_step()
+            self.notify_update(ProcessLocation("notify_new_step done"))
             self.run_step()
             self.next_step()
         self.notify_update("retrieval done")

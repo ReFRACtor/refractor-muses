@@ -84,7 +84,7 @@ class ErrorAnalysis:
         # get_prior_error uses the map type to look up files, and
         # rather than "linear" or "log" it needs "Linear" or "Log"
 
-        pressure_list = []
+        pressure_list: list[float] = []
         species_list = []
         map_list = []
 
@@ -94,8 +94,8 @@ class ErrorAnalysis:
         for selem in selem_list:
             matrix = selem.apriori_cov_fm
             plist = selem.pressure_list_fm
-            if(plist is not None):
-                pressure_list.extend(selem.pressure_list_fm)
+            if plist is not None:
+                pressure_list.extend(plist)
             else:
                 # Convention for elements not on a pressure grid is to use a single
                 # -2
@@ -108,14 +108,14 @@ class ErrorAnalysis:
         # Off diagonal blocks for covariance.
         for i, selem1 in enumerate(selem_list):
             for selem2 in selem_list[i + 1 :]:
-                matrix = selem1.apriori_cross_covariance_fm(selem2)
-                if matrix is not None:
+                matrix2 = selem1.apriori_cross_covariance_fm(selem2)
+                if matrix2 is not None:
                     initial[np.array(species_list) == str(selem1.state_element_id), :][
                         :, np.array(species_list) == str(selem2.state_element_id)
-                    ] = matrix
+                    ] = matrix2
                     initial[np.array(species_list) == str(selem2.state_element_id), :][
                         :, np.array(species_list) == str(selem1.state_element_id)
-                    ] = np.transpose(matrix)
+                    ] = np.transpose(matrix2)
         return mpy.constraint_data(
             initial, pressure_list, [str(i) for i in species_list], map_list
         )

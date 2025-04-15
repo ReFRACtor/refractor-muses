@@ -12,12 +12,13 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .error_analysis import ErrorAnalysis
+    from refractor.old_py_retrieve_wrapper import StateElementOld  # type: ignore
 
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
 ForwardModelGridArray = np.ndarray
 RetrievalGrid2dArray = np.ndarray
-ForwardModel2dGridArray = np.ndarray
+ForwardModelGrid2dArray = np.ndarray
 
 
 class StateElementOldWrapper(StateElement):
@@ -30,7 +31,7 @@ class StateElementOldWrapper(StateElement):
         self,
         state_element_id: StateElementIdentifier,
         current_state_old: CurrentStateStateInfoOld,
-        is_first,
+        is_first: bool,
     ) -> None:
         super().__init__(state_element_id)
         self._current_state_old = current_state_old
@@ -42,12 +43,14 @@ class StateElementOldWrapper(StateElement):
             self.update_initial_guess = self._update_initial_guess
 
     @property
-    def _old_selem(self):
-        return cast(CurrentStateStateInfoOld, self._current_state_old).full_state_element_old(self.state_element_id)
+    def _old_selem(self) -> StateElementOld:
+        return cast(
+            CurrentStateStateInfoOld, self._current_state_old
+        ).full_state_element_old(self.state_element_id)
 
     # Used by error_analysis. Isn't clear if this can go away and be replaced by
     # something, but for now leave this in place
-    def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
+    def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
         self._old_selem.update_initial_guess(current_strategy_step)
 
     @property
@@ -218,14 +221,25 @@ class StateElementOldWrapper(StateElement):
         # Note, this is *different* than what muse-py use to do. Although the
         # apriori is updated in RetrievalInfo, it wasn't being passed on to other
         # parts of the code. We change this to use the constraint RetrievalInfo gets.
-        if self.state_element_id not in self._current_state_old.retrieval_state_element_id:
-            res = self._current_state_old.full_state_apriori_value(self.state_element_id)
+        if (
+            self.state_element_id
+            not in self._current_state_old.retrieval_state_element_id
+        ):
+            res = self._current_state_old.full_state_apriori_value(
+                self.state_element_id
+            )
         else:
-            res = self._current_state_old.retrieval_info.species_constraint(str(self.state_element_id))
-            if(isinstance(res, float)):
-                res = np.array([res,])
+            res = self._current_state_old.retrieval_info.species_constraint(
+                str(self.state_element_id)
+            )
+            if isinstance(res, float):
+                res = np.array(
+                    [
+                        res,
+                    ]
+                )
         # This already has map applied, so reverse to get parameters
-        if(self.map_type.lower() == "log"):
+        if self.map_type.lower() == "log":
             res = np.log(res)
         return res
 
@@ -233,28 +247,32 @@ class StateElementOldWrapper(StateElement):
     def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         r = self.retrieval_slice
-        if(r is None):
+        if r is None:
             raise RuntimeError("retrieval_slice is None")
-        return self._current_state_old.apriori_cov[r,r]
+        return self._current_state_old.apriori_cov[r, r]
 
-    def apriori_cross_covariance(self, selem2: StateElement) -> ForwardModel2dGridArray | None:
+    def apriori_cross_covariance(
+        self, selem2: StateElement
+    ) -> ForwardModelGrid2dArray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         r1 = self.retrieval_slice
         r2 = cast(StateElementOldWrapper, selem2).retrieval_slice
-        if(r1 is None or r2 is None):
+        if r1 is None or r2 is None:
             return None
-        res = self._current_state_old.apriori_cov[r1,r2]
-        if(np.count_nonzero(res) == 0):
+        res = self._current_state_old.apriori_cov[r1, r2]
+        if np.count_nonzero(res) == 0:
             return None
         return res
-    
+
     @property
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
         """Apriori Covariance"""
         return self._old_selem.sa_covariance()[0]
 
-    def apriori_cross_covariance_fm(self, selem2: StateElement) -> ForwardModel2dGridArray | None:
+    def apriori_cross_covariance_fm(
+        self, selem2: StateElement
+    ) -> ForwardModelGrid2dArray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         selem_old = self._old_selem
@@ -262,7 +280,6 @@ class StateElementOldWrapper(StateElement):
         res = selem_old.sa_cross_covariance(selem2_old)
         return res
 
-    
     @property
     def retrieval_initial_value(self) -> RetrievalGridArray:
         raise NotImplementedError()

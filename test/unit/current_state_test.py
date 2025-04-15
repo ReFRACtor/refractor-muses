@@ -175,6 +175,7 @@ def test_update_cloudfraction(omi_step_0):
     # Test all the initial values at step 1, after an update
     assert selement.map_type == "linear"
 
+
 def test_noupdate_cloudfraction(omi_step_0):
     """Repeat the previous test, but label the update as "do_not_update". This
     tests the handling of that case."""
@@ -185,7 +186,7 @@ def test_noupdate_cloudfraction(omi_step_0):
     selement.update_initial_guess(rs.current_strategy_step)
     # Test all the initial values at step 0
     assert selement.map_type == "linear"
-    
+
     # Update results, and make sure element gets updated
     rs.current_state.notify_new_step(
         rs.current_strategy_step, rs.error_analysis, rs.retrieval_config

@@ -685,7 +685,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -723,7 +723,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def full_state_apriori_value(
-            self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -825,7 +825,7 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     @property
-    def sqrt_constraint(self) -> RetrievalGrid:
+    def sqrt_constraint(self) -> RetrievalGridArray:
         """Sqrt matrix from covariance"""
         if self.ret_info:
             return self.ret_info["sqrt_constraint"]
@@ -846,7 +846,7 @@ class CurrentStateUip(CurrentState):
             return np.eye(len(self.initial_guess))
 
     @property
-    def apriori(self) -> RetrievalGrid:
+    def apriori(self) -> RetrievalGridArray:
         """Apriori value"""
         if self.ret_info:
             return self.ret_info["const_vec"]
@@ -939,7 +939,9 @@ class CurrentStateUip(CurrentState):
         there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
-    def full_state_value(self, state_element_id: StateElementIdentifier) -> ForwardModelGridArray:
+    def full_state_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> ForwardModelGridArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
@@ -1090,7 +1092,7 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -1125,7 +1127,7 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     def full_state_apriori_value(
-            self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -1237,7 +1239,9 @@ class CurrentStateDict(CurrentState):
         there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
-    def full_state_value(self, state_element_id: StateElementIdentifier) -> ForwardModelGridArray:
+    def full_state_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> ForwardModelGridArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so
         if there is only one value put that in a length 1 np.ndarray.
@@ -1255,7 +1259,7 @@ class CurrentStateDict(CurrentState):
         )
 
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -1300,7 +1304,7 @@ class CurrentStateDict(CurrentState):
         raise NotImplementedError()
 
     def full_state_apriori_value(
-            self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -1665,7 +1669,9 @@ class CurrentStateStateInfoOld(CurrentState):
         selem = self.state_info.state_element(state_element_id)
         return selem.spectral_domain_wavelength
 
-    def full_state_value(self, state_element_id: StateElementIdentifier) -> ForwardModelGridArray:
+    def full_state_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> ForwardModelGridArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.ndarray, so if
         there is only one value put that in a length 1 np.ndarray.
@@ -1675,7 +1681,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return copy(selem.value)
 
     def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
@@ -1727,8 +1733,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return copy(selem.value)
 
     def full_state_apriori_value(
-            self, state_element_id: StateElementIdentifier,
-            use_map=False
+        self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
