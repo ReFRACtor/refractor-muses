@@ -36,4 +36,4 @@ def test_omi_state_element(
     print([str(i) for i in cstate.full_state_element_id])
     selem = cstate.full_state_element(StateElementIdentifier("OMIODWAVUV1"))
     # Doesn't work yet
-    #selem.assert_equal(selem)
+    # selem.assert_equal(selem)

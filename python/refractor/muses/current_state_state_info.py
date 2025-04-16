@@ -5,6 +5,7 @@ from .current_state import (
 )
 from .identifier import StateElementIdentifier
 from .state_element_old_wrapper import StateElementOldWrapperHandle
+from .state_element import StateElementScaffoldHandle, StateElementTemplate
 from .state_info import StateElementHandleSet
 import numpy as np
 import scipy  # type: ignore
@@ -625,11 +626,9 @@ class CurrentStateStateInfo(CurrentState):
 
 
 # Right now, only fall back to old py-retrieve code
-
-StateElementHandleSet.add_default_handle(
-    StateElementOldWrapperHandle(), priority_order=-1
-)
-
+hold = StateElementOldWrapperHandle()
+StateElementHandleSet.add_default_handle(hold, priority_order=-1)
+StateElementHandleSet.add_default_handle(StateElementScaffoldHandle(StateElementTemplate, StateElementIdentifier("OMIODWAVUV1"), hold))
 __all__ = [
     "CurrentStateStateInfo",
 ]

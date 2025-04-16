@@ -158,29 +158,29 @@ class StateElement(object, metaclass=abc.ABCMeta):
         like "log" or "linear" """
         raise NotImplementedError()
 
-    @abc.abstractproperty
+    @property
     def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
-        raise NotImplementedError()
+        return None
 
-    @abc.abstractproperty
+    @property
     def altitude_list_fm(self) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
-        raise NotImplementedError()
+        return None
 
-    @abc.abstractproperty
+    @property
     def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
-        raise NotImplementedError()
+        return None
 
-    @abc.abstractproperty
+    @property
     def pressure_list_fm(self) -> ForwardModelGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
-        raise NotImplementedError()
+        return None
 
     @abc.abstractproperty
     def value(self) -> RetrievalGridArray:
@@ -216,7 +216,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """Apriori value of StateElement"""
         raise NotImplementedError()
 
-    @property
+    @abc.abstractproperty
     def apriori_cov(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         raise NotImplementedError()
@@ -228,7 +228,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         if there is no cross covariance."""
         return None
 
-    @property
+    @abc.abstractproperty
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
         """Apriori Covariance"""
         raise NotImplementedError()
@@ -282,6 +282,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    # TODO Perhaps this can go away, replaced with being a StateVector observer?
     @abc.abstractmethod
     def update_state(
         self,
