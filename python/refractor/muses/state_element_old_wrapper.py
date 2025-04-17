@@ -186,7 +186,9 @@ class StateElementOldWrapper(StateElement):
     @property
     def value(self) -> RetrievalGridArray:
         """Current value of StateElement"""
-        return self._current_state_old.full_state_element_old(self.state_element_id).value
+        return self._current_state_old.full_state_element_old(
+            self.state_element_id
+        ).value
 
     @property
     def value_fm(self) -> ForwardModelGridArray:

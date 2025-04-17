@@ -156,12 +156,12 @@ class StateElementTemplate(StateElement):
             skip_initial_guess_update,
         )
 
-    def restart(
+    def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        self._sold.restart(current_strategy_step, retrieval_config)
+        self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
 
 
 # Start with just this one element, we can hopefully generalize this but work through
@@ -230,11 +230,11 @@ class StateElementOmiodWavUv(StateElement):
 
     @property
     def value(self) -> RetrievalGridArray:
-        #breakpoint()
+        # breakpoint()
         res = self._v
         if True:
             res2 = self._sold.value
-            #npt.assert_allclose(res, res2)
+            # npt.assert_allclose(res, res2)
         return res2
 
     @property
@@ -243,7 +243,7 @@ class StateElementOmiodWavUv(StateElement):
         res = self._v
         if True:
             res2 = self._sold.value_fm
-            #npt.assert_allclose(res, res2)
+            # npt.assert_allclose(res, res2)
         return res2
 
     @property
@@ -310,7 +310,7 @@ class StateElementOmiodWavUv(StateElement):
             retrieval_config,
             skip_initial_guess_update,
         )
-        
+
     def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,

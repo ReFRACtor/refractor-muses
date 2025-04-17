@@ -26,18 +26,18 @@ class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
     """Small adapter class to map framework observer to notify StateElement
     when parameters change"""
 
-    def __init__(self, selem: StateElement, slc : slice):
+    def __init__(self, selem: StateElement, slc: slice):
         super().__init__()
         self.slc = slc
         # We want this object to be kept alive, but not force selem to
         # be kept alive. This set of references does that
         self.selem = weakref.ref(selem)
         self._cost_function_notify_helper = self
-        
 
     def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
-        if(self.selem() is not None):
-            self.selem().notify_parameter_update(mstand.parameters[self.slc])
+        s = self.selem()
+        if s is not None:
+            s.notify_parameter_update(mstand.parameters[self.slc])
 
 
 class CostFunctionCreator:
@@ -198,12 +198,14 @@ class CostFunctionCreator:
         # object is still there but don't carry around it lifetime and if the
         # object is deleted then we just don't notify it.
         # skip for CurrentStateUip, we already handle the UIP separately.
-        if(not isinstance(current_state, CurrentStateUip)):
+        if not isinstance(current_state, CurrentStateUip):
             for sid in current_state.retrieval_state_element_id:
                 pstart, plen = current_state.retrieval_sv_loc[sid]
                 cfunc.max_a_posteriori.add_observer(
-                    CostFunctionStateElementNotify(current_state.full_state_element(sid),
-                                                   slice(pstart,pstart+plen))
+                    CostFunctionStateElementNotify(
+                        current_state.full_state_element(sid),
+                        slice(pstart, pstart + plen),
+                    )
                 )
 
         # TODO

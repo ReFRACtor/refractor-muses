@@ -608,7 +608,7 @@ class CurrentStateStateInfo(CurrentState):
             )
             self.clear_cache()
 
-    def restart(
+    def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
@@ -621,7 +621,9 @@ class CurrentStateStateInfo(CurrentState):
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
-            self._state_info.restart(current_strategy_step, retrieval_config)
+            self._state_info.notify_start_retrieval(
+                current_strategy_step, retrieval_config
+            )
             self.clear_cache()
 
 

@@ -43,11 +43,9 @@ format:
 # just by giving a explicit path to our source code skipping going through the installed
 # version. This is only for type checking, all our other tests/check use the pip installed
 # version.
-mypy:
+mypy-simpler:
 	PYTHONPATH=$(PWD)/python mypy python/refractor
 
-# This adds options to check for missing typing info. Right now we have a lot
-# of this, we'll slowly fix this class by class. No rush, but useful to have
-# full typing information to find the occasinal problem
-mypy-missing:
+# This adds options to check for missing typing info. We usually want this
+mypy:
 	PYTHONPATH=$(PWD)/python mypy --disallow-untyped-defs python/refractor

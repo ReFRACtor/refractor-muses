@@ -452,13 +452,15 @@ class StateInfo(UserDict):
                 retrieval_config,
             )
 
-    def restart(
+    def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
         # TODO, we want to remove this
-        self._current_state_old.restart(current_strategy_step, retrieval_config)
+        self._current_state_old.notify_start_retrieval(
+            current_strategy_step, retrieval_config
+        )
         # Since we aren't actually doing the init stuff yet in our
         # new StateElement, make sure everything get created (since
         # this happens on first use)
