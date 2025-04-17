@@ -9,6 +9,7 @@ import copy
 from loguru import logger
 from collections.abc import Callable
 import typing
+import weakref
 from typing import Any
 import numpy as np
 
@@ -18,6 +19,25 @@ if typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
     from .retrieval_strategy import RetrievalStrategy
     from .identifier import InstrumentIdentifier
+    from .state_info import StateElement
+
+
+class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
+    """Small adapter class to map framework observer to notify StateElement
+    when parameters change"""
+
+    def __init__(self, selem: StateElement, slc : slice):
+        super().__init__()
+        self.slc = slc
+        # We want this object to be kept alive, but not force selem to
+        # be kept alive. This set of references does that
+        self.selem = weakref.ref(selem)
+        self._cost_function_notify_helper = self
+        
+
+    def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
+        if(self.selem() is not None):
+            self.selem().notify_parameter_update(mstand.parameters[self.slc])
 
 
 class CostFunctionCreator:
@@ -93,7 +113,9 @@ class CostFunctionCreator:
         use_empty_apriori: bool = False,
         **kwargs: Any,
     ) -> CostFunction:
-        """Return cost function for the RetrievalStrategy.
+        """Return cost function for the RetrievalStrategy. This also
+        attaches all the StateElement in CurrentState to be notified
+        when the cost function parameters are updated.
 
         You can optional leave off the augmented/apriori piece. This is
         useful if you are just running to forward model. The muses-py
@@ -163,6 +185,27 @@ class CostFunctionCreator:
                 cfunc.max_a_posteriori.add_observer_and_keep_reference(
                     MaxAPosterioriSqrtConstraintUpdateUip(uip)
                 )
+        # Attach StateElement to get notified when current state changes.
+        #
+        # A note on the different lifetimes. For the CostFunction, if we
+        # have a UIP than the UIP state observer is *required*. If we pickle
+        # and reload the cost function, it should have the UIP and observer.
+        # So we use "add_observer_and_keep_reference". However, for the
+        # StateElement these are outside of the CostFunction. You can
+        # have a CostFunction without any StateElement, if we pickle and reload
+        # we don't want to pull all the StateElement along. So for this
+        # we use "add_observer" which uses weak pointers - we notify if the
+        # object is still there but don't carry around it lifetime and if the
+        # object is deleted then we just don't notify it.
+        # skip for CurrentStateUip, we already handle the UIP separately.
+        if(not isinstance(current_state, CurrentStateUip)):
+            for sid in current_state.retrieval_state_element_id:
+                pstart, plen = current_state.retrieval_sv_loc[sid]
+                cfunc.max_a_posteriori.add_observer(
+                    CostFunctionStateElementNotify(current_state.full_state_element(sid),
+                                                   slice(pstart,pstart+plen))
+                )
+
         # TODO
         # If we are using use_empty_apriori, then our initial guess is just a
         # set of zeros. This is really kind of arcane, but muses-py

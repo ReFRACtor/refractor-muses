@@ -186,7 +186,7 @@ class StateElementOldWrapper(StateElement):
     @property
     def value(self) -> RetrievalGridArray:
         """Current value of StateElement"""
-        raise NotImplementedError()
+        return self._current_state_old.full_state_element_old(self.state_element_id).value
 
     @property
     def value_fm(self) -> ForwardModelGridArray:
@@ -381,7 +381,7 @@ class StateElementOldWrapper(StateElement):
     ) -> None:
         pass
 
-    def restart(
+    def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,

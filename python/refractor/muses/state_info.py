@@ -115,6 +115,11 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def state_element_id(self) -> StateElementIdentifier:
         return self._state_element_id
 
+    def notify_parameter_update(self, param_subset: np.ndarray) -> None:
+        """Called with the subset of parameters for this StateElement
+        when the cost function changes."""
+        pass
+
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
         """For StateElementWithFrequency, this returns the frequency associated
@@ -304,7 +309,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     ) -> None:
         pass
 
-    def restart(
+    def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
@@ -442,7 +447,7 @@ class StateInfo(UserDict):
         for sid in self._current_state_old.full_state_element_id:
             _ = self[sid]
         for selem in self.values():
-            selem.restart(
+            selem.notify_start_retrieval(
                 current_strategy_step,
                 retrieval_config,
             )
@@ -460,7 +465,7 @@ class StateInfo(UserDict):
         for sid in self._current_state_old.full_state_element_id:
             _ = self[sid]
         for selem in self.values():
-            selem.restart(
+            selem.notify_start_retrieval(
                 current_strategy_step,
                 retrieval_config,
             )

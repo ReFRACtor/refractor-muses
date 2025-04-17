@@ -755,7 +755,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def restart(
+    def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
@@ -894,6 +894,22 @@ class CurrentStateUip(CurrentState):
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
 
+    @property
+    def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
+        """Like fm_sv_loc, but for the retrieval state vactor (rather than the
+        forward model state vector). If we don't have a basis_matrix, these are the
+        same. With a basis_matrix, the total length of the fm_sv_loc is the
+        basis_matrix column size, and retrieval_vector_loc is the smaller basis_matrix
+        row size."""
+        if self._retrieval_sv_loc is None:
+            self._retrieval_sv_loc = {}
+            self._retrieval_state_vector_size = 0
+            for species_name in self.retrieval_state_element_id:
+                pstart, plen = self.rf_uip.state_vector_species_index(str(species_name), use_full_state_vector=False)
+                self._retrieval_sv_loc[species_name] = (pstart, plen)
+                self._retrieval_state_vector_size += plen
+        return self._retrieval_sv_loc
+    
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
         return [StateElementIdentifier(i) for i in self.rf_uip.jacobian_all]
@@ -1953,7 +1969,7 @@ class CurrentStateStateInfoOld(CurrentState):
                 current_strategy_step, error_analysis, retrieval_config
             )
 
-    def restart(
+    def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
@@ -1964,7 +1980,7 @@ class CurrentStateStateInfoOld(CurrentState):
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
-            self.state_info.restart()
+            self.state_info.notify_start_retrieval()
             self.state_info.copy_current_initialInitial()
             self.state_info.copy_current_initial()
 
