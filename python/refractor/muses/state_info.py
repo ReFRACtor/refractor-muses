@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .error_analysis import ErrorAnalysis
     from .current_state import SoundingMetadata
-
+    from .cost_function_creator import CostFunctionStateElementNotify
 
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
@@ -49,6 +49,15 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     def __init__(self, state_element_id: StateElementIdentifier):
         self._state_element_id = state_element_id
+        # Used to get notify_parameter_update called with CostFunction parameter
+        # gets changed
+        self._cost_function_notify_helper : CostFunctionStateElementNotify | None = None
+
+    def __getstate__(self):
+        # Don't include CostFunctionStateElementNotify when pickling
+        state = self.__dict__.copy()
+        state["_cost_function_notify_helper"] = None
+        return state
 
     def assert_equal(self, other: StateElement) -> None:
         """Simple test to make sure two StateElement are the same, intended for

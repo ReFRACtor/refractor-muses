@@ -31,13 +31,11 @@ class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
         self.slc = slc
         # We want this object to be kept alive, but not force selem to
         # be kept alive. This set of references does that
-        #self.selem = weakref.ref(selem)
-        self.s = selem
-        self._cost_function_notify_helper = self
+        self.selem = weakref.ref(selem)
+        selem._cost_function_notify_helper = self
 
     def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
-        #s = self.selem()
-        s = self.s
+        s = self.selem()
         if s is not None:
             s.notify_parameter_update(mstand.parameters[self.slc])
 
@@ -203,7 +201,7 @@ class CostFunctionCreator:
         if not isinstance(current_state, CurrentStateUip):
             for sid in current_state.retrieval_state_element_id:
                 pstart, plen = current_state.retrieval_sv_loc[sid]
-                cfunc.max_a_posteriori.add_observer_and_keep_reference(
+                cfunc.max_a_posteriori.add_observer(
                     CostFunctionStateElementNotify(
                         current_state.full_state_element(sid),
                         slice(pstart, pstart + plen),
@@ -349,4 +347,4 @@ class CostFunctionCreator:
         )
 
 
-__all__ = ["CostFunctionCreator"]
+__all__ = ["CostFunctionCreator", "CostFunctionStateElementNotify"]
