@@ -100,8 +100,8 @@ class StateElementTemplate(StateElement):
         return self._sold.apriori_value_fm
 
     @property
-    def apriori_cov(self) -> RetrievalGrid2dArray:
-        return self._sold.apriori_cov
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
+        return self._sold.constraint_matrix
 
     @property
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
@@ -254,8 +254,8 @@ class StateElementOmiodWavUv(StateElement):
         return self._sold.apriori_value_fm
 
     @property
-    def apriori_cov(self) -> RetrievalGrid2dArray:
-        return self._sold.apriori_cov
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
+        return self._sold.constraint_matrix
 
     @property
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:

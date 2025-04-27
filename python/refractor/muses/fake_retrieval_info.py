@@ -123,7 +123,7 @@ class FakeRetrievalInfo:
 
     @property
     def Constraint(self) -> np.ndarray:
-        return self.current_state.apriori_cov
+        return self.current_state.constraint_matrix
 
     @property
     def doUpdateFM(self) -> np.ndarray:

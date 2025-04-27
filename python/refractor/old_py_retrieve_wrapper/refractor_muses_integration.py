@@ -259,7 +259,7 @@ class RefractorMusesIntegration(mpy.ReplaceFunctionObject):
 
         # apriori and sqrt_constraint
         if isinstance(i_retrievalInfo, RetrievalInfo):
-            constraint = i_retrievalInfo.apriori_cov
+            constraint = i_retrievalInfo.constraint_matrix
             xa = i_retrievalInfo.apriori
         else:
             constraint = i_retrievalInfo.Constraint[

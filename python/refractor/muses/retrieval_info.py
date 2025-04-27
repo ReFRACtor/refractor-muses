@@ -127,7 +127,7 @@ class RetrievalInfo:
         return self.retrieval_dict["type"]
 
     @property
-    def apriori_cov(self) -> np.ndarray:
+    def constraint_matrix(self) -> np.ndarray:
         return self.retrieval_dict["Constraint"][
             0 : self.n_totalParameters, 0 : self.n_totalParameters
         ]

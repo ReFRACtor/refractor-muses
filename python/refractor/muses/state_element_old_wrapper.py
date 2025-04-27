@@ -246,14 +246,14 @@ class StateElementOldWrapper(StateElement):
         return res
 
     @property
-    def apriori_cov(self) -> RetrievalGrid2dArray:
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
         r = self.retrieval_slice
         if r is None:
             raise RuntimeError("retrieval_slice is None")
-        return self._current_state_old.apriori_cov[r, r]
+        return self._current_state_old.constraint_matrix[r, r]
 
-    def apriori_cross_covariance(
+    def constraint_cross_covariance(
         self, selem2: StateElement
     ) -> ForwardModelGrid2dArray | None:
         """Return the cross covariance matrix with selem 2. This returns None
@@ -262,7 +262,7 @@ class StateElementOldWrapper(StateElement):
         r2 = cast(StateElementOldWrapper, selem2).retrieval_slice
         if r1 is None or r2 is None:
             return None
-        res = self._current_state_old.apriori_cov[r1, r2]
+        res = self._current_state_old.constraint_matrix[r1, r2]
         if np.count_nonzero(res) == 0:
             return None
         return res

@@ -349,14 +349,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def apriori_cov(self) -> RetrievalGrid2dArray:
-        """Apriori Covariance"""
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
+        """Constraint matrix, the inverse of apriori_cov"""
         raise NotImplementedError()
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
         """Sqrt matrix from covariance"""
-        return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
+        return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
 
     @property
     def apriori(self) -> RetrievalGridArray:
@@ -817,8 +817,8 @@ class CurrentStateUip(CurrentState):
         return copy(self._initial_guess)
 
     @property
-    def apriori_cov(self) -> RetrievalGrid2dArray:
-        """Apriori Covariance"""
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
+        """Constraint matrix, the inverse of apriori_cov"""
         # Don't think we need this. We can calculate something frm
         # sqrt_constraint if needed, but for now just leave
         # unimplemented
@@ -1439,15 +1439,15 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self._retrieval_info.initial_guess_list_fm)
 
     @property
-    def apriori_cov(self) -> RetrievalGrid2dArray:
-        """Apriori Covariance"""
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
+        """Constraint matrix, the inverse of apriori_cov"""
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.zeros((1, 1))
         else:
             if self._retrieval_info is None:
                 raise RuntimeError("_retrieval_info is None")
-            return copy(self._retrieval_info.apriori_cov)
+            return copy(self._retrieval_info.constraint_matrix)
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
@@ -1456,7 +1456,7 @@ class CurrentStateStateInfoOld(CurrentState):
         if self.do_systematic:
             return np.eye(len(self.initial_guess))
         else:
-            return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
+            return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
 
     @property
     def apriori(self) -> RetrievalGridArray:

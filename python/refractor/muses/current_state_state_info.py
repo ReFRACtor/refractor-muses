@@ -109,17 +109,17 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     @property
-    def apriori_cov(self) -> RetrievalGrid2dArray:
-        """Apriori Covariance"""
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
+        """Constraint matrix, the inverse of apriori_cov"""
         if self.do_systematic:
             return np.zeros((1, 1))
         blist = [
-            self._state_info[sid].apriori_cov for sid in self.retrieval_state_element_id
+            self._state_info[sid].constraint_matrix for sid in self.retrieval_state_element_id
         ]
         res = scipy.linalg.block_diag(*blist)
         for i, selem1_sid in enumerate(self.retrieval_state_element_id):
             for selem2_sid in self.retrieval_state_element_id[i + 1 :]:
-                m = self._state_info[selem1_sid].apriori_cross_covariance(
+                m = self._state_info[selem1_sid].constraint_cross_covariance(
                     self._state_info[selem2_sid]
                 )
                 if m is not None:
@@ -131,7 +131,7 @@ class CurrentStateStateInfo(CurrentState):
                     res[r2, r1] = np.transpose(m)
         # TODO Remove current_state_old
         if True:
-            res2 = self._current_state_old.apriori_cov
+            res2 = self._current_state_old.constraint_matrix
             # Need to fix
             npt.assert_allclose(res, res2)
         return res
@@ -142,7 +142,7 @@ class CurrentStateStateInfo(CurrentState):
         if self.do_systematic:
             return np.eye(len(self.initial_guess))
         else:
-            return (mpy.sqrt_matrix(self.apriori_cov)).transpose()
+            return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
 
     @property
     def apriori(self) -> RetrievalGridArray:

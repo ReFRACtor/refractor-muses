@@ -91,7 +91,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
             "value_fm",
             "apriori_value",
             "apriori_value_fm",
-            "apriori_cov",
+            "constraint_matrix",
             "apriori_cov_fm",
             "retrieval_initial_value",
             "step_initial_value",
@@ -231,14 +231,14 @@ class StateElement(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def apriori_cov(self) -> RetrievalGrid2dArray:
-        """Apriori Covariance"""
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
+        """Constraint matrix, the inverse of apriori_cov"""
         raise NotImplementedError()
 
-    def apriori_cross_covariance(
+    def constraint_cross_covariance(
         self, selem2: StateElement
     ) -> RetrievalGrid2dArray | None:
-        """Return the cross covariance matrix with selem 2. This returns None
+        """Return the constraint cross matrix with selem 2. This returns None
         if there is no cross covariance."""
         return None
 

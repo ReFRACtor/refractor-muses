@@ -58,7 +58,7 @@ class RetrievalInfoOld:
         return self.retrieval_dict["type"]
 
     @property
-    def apriori_cov(self):
+    def constraint_matrix(self):
         return self.retrieval_dict["Constraint"][
             0 : self.n_totalParameters, 0 : self.n_totalParameters
         ]
