@@ -2,10 +2,12 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
+from .osp_reader import OspCovarianceMatrixReader
 import abc
+from pathlib import Path
 import numpy as np
 import numpy.testing as npt
-from typing import Any
+from typing import Any, cast
 import typing
 
 if typing.TYPE_CHECKING:
@@ -19,7 +21,6 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .error_analysis import ErrorAnalysis
     from .cost_function_creator import CostFunctionStateElementNotify
-    from refractor.old_py_retrieve_wrapper import StateElementOld  # type: ignore
 
 
 # A couple of aliases, just so we can clearly mark what grid data is on
@@ -429,8 +430,10 @@ class StateElementImplementation(StateElement):
         state_element_id: StateElementIdentifier,
         value: RetrievalGridArray,
         apriori_value: RetrievalGridArray,
-        apriori_cov: RetrievalGrid2dArray,
+        apriori_cov_fm: ForwardModelGrid2dArray,
+        constraint_matrix: RetrievalGrid2dArray,
         state_mapping: rf.StateMapping = rf.StateMappingLinear(),
+        map_type: str = "linear",
         initial_value: RetrievalGridArray | None = None,
         true_value: RetrievalGridArray | None = None,
         selem_wrapper: StateElementOldWrapper | None = None,
@@ -438,8 +441,11 @@ class StateElementImplementation(StateElement):
         super().__init__(state_element_id)
         self._value = value
         self._apriori_value = apriori_value
-        self._apriori_cov = apriori_cov
+        self._constraint_matrix = constraint_matrix
+        self._apriori_cov_fm = apriori_cov_fm
+        # TODO, get relationship between these two values
         self._state_mapping = state_mapping
+        self._map_type = map_type
         self._step_initial_value = (
             initial_value if initial_value is not None else apriori_value
         )
@@ -506,7 +512,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def map_type(self) -> str:
-        res = "linear"
+        res = self._map_type
         if self._sold is not None:
             res2 = self._sold.map_type
             assert res == res2
@@ -550,15 +556,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
-        # res = np.linalg.inv(self._apriori_cov)
-        # We need to get this straightened out
-        res = np.array(
-            [
-                [
-                    2500.0,
-                ]
-            ]
-        )
+        res = self._constraint_matrix
         if self._sold is not None:
             res2 = self._sold.constraint_matrix
             npt.assert_allclose(res, res2, rtol=1e-12)
@@ -566,8 +564,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
-        # TODO, get this mapped correctly
-        res = self._apriori_cov
+        res = self._apriori_cov_fm
         if self._sold is not None:
             res2 = self._sold.apriori_cov_fm
             npt.assert_allclose(res, res2, rtol=1e-12)
@@ -672,13 +669,20 @@ class StateElementImplementation(StateElement):
         self._retrieval_initial_value = self._step_initial_value.copy()
 
 
-# Start with just this one element, we can hopefully generalize this but work through
-# this one first
-class StateElementOmiodWavUv(StateElementImplementation):
+class StateElementOspFile(StateElementImplementation):
+    '''This implementation of StateElement gets the apriori/initial guess as a hard coded
+    value, and the constraint_matrix and apriori_cov_fm from OSP files. This seems a
+    bit convoluted to me - why not just have all the values given in the python configuration
+    file? But this is the way muses-py works, and at the very least we need to implementation
+    for backwards testing.  We may replace this StateElement, there doesn't seem to be any
+    good reason to spread everything across multiple files.
+    '''
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
+        apriori_value: np.ndarray,
         measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
         selem_wrapper: StateElementOldWrapper | None = None,
     ):
         # For OMI and TROPOMI parameters the initial value, and apriori are hard coded.
@@ -686,34 +690,39 @@ class StateElementOmiodWavUv(StateElementImplementation):
         # values. The apriori (called stateConstraint) and first guess (called stateInitial)
         # get identically set to this value. The covariance is separately read from a file.
         # Fill these in
-        value = np.array(
-            [
-                0.0,
-            ]
-        )
-        apriori = np.array(
-            [
-                0.0,
-            ]
-        )
-        apriori_cov = np.array([[0.00039999998989515007]])
+        value = apriori_value.copy()
+        apriori = apriori_value.copy()
+        map_type = "linear"
+        latitude = 10
+        r = OspCovarianceMatrixReader(Path(retrieval_config['covarianceDirectory']))
+        # TODO Determine if we really want this as float32 type. That is what muses-py
+        # uses, and we need that to match. But doesn't seem to be any strong reason not to
+        # just use float64
+        apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude).astype(np.float32)
+        constraint_matrix = np.array([[2500.0]])
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
         if selem_wrapper is not None:
             value = selem_wrapper.value
         super().__init__(
-            state_element_id, value, apriori, apriori_cov, selem_wrapper=selem_wrapper
+            state_element_id, value, apriori, apriori_cov_fm, constraint_matrix,
+            map_type=map_type,
+            selem_wrapper=selem_wrapper
         )
 
-class StateElementScaffoldHandle(StateElementHandle):
+class StateElementOspFileHandle(StateElementHandle):
     def __init__(
-        self, cls: type, sid: StateElementIdentifier, hold: StateElementOldWrapperHandle
+       self, sid: StateElementIdentifier, apriori_value : np.ndarray,
+       hold: StateElementOldWrapperHandle,
+       cls : type[StateElementOspFile] = StateElementOspFile
     ) -> None:
         self.obs_cls = cls
         self.sid = sid
         self.hold = hold
+        self.apriori_value = apriori_value
         self.measurement_id: MeasurementId | None = None
+        self.retrieval_config: RetrievalConfiguration | None = None
 
     def notify_update_target(
         self,
@@ -723,22 +732,24 @@ class StateElementScaffoldHandle(StateElementHandle):
         observation_handle_set: ObservationHandleSet,
     ) -> None:
         self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
 
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
+        from .state_element_old_wrapper import StateElementOldWrapper
         if state_element_id != self.sid:
             return None
-        if self.measurement_id is None:
+        if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
-        sold = self.hold.state_element(state_element_id)
-        return self.obs_cls(state_element_id, self.measurement_id, sold)
-
+        sold = cast(StateElementOldWrapper, self.hold.state_element(state_element_id))
+        return self.obs_cls(state_element_id, self.apriori_value, self.measurement_id,
+                            self.retrieval_config, sold)
 
 __all__ = [
     "StateElement",
     "StateElementHandle",
     "StateElementHandleSet",
-    "StateElementScaffoldHandle",
-    "StateElementOmiodWavUv",
+    "StateElementOspFileHandle",
+    "StateElementOspFile",
 ]

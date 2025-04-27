@@ -37,7 +37,7 @@ class RangeFind:
         raise KeyError()
 
 
-class OspCovarianceMatrix:
+class OspCovarianceMatrixReader:
     """This reads file found in OSP/Covariance/Covariance"""
 
     def __init__(self, covariance_directory: Path) -> None:
@@ -80,4 +80,4 @@ class OspCovarianceMatrix:
         return cls(covariance_directory)
 
 
-__all__ = ["RangeFind", "OspCovarianceMatrix"]
+__all__ = ["RangeFind", "OspCovarianceMatrixReader"]
