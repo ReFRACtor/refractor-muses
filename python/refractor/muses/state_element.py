@@ -1,11 +1,12 @@
 # Might end up breaking this file up, for now have all the stuff here
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from .state_info import StateElement, StateElementHandle
+from .creator_handle import CreatorHandle, CreatorHandleSet
+import abc
 import numpy as np
 import numpy.testing as npt
+from typing import Any
 import typing
-from loguru import logger
 
 if typing.TYPE_CHECKING:
     from .state_element_old_wrapper import (
@@ -17,6 +18,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .error_analysis import ErrorAnalysis
+    from .cost_function_creator import CostFunctionStateElementNotify
     from refractor.old_py_retrieve_wrapper import StateElementOld  # type: ignore
 
 
@@ -26,26 +28,421 @@ ForwardModelGridArray = np.ndarray
 RetrievalGrid2dArray = np.ndarray
 ForwardModelGrid2dArray = np.ndarray
 
+
+class StateElement(object, metaclass=abc.ABCMeta):
+    """This handles a single StateElement, identified by
+    a StateElementIdentifier (e.g., the name "TATM" or
+    "pressure".
+
+    A StateElement has a current value, a apriori value, a
+    retrieval_initial_value (at the start of a full multi-step retrieval)
+    and step_initial_value (at the start the current retrieval step).
+    In addition, we possibly have "true" value, e.g, we know the answer
+    because we are simulating data or something like that. Not
+    every state element has a "true" value, is None in those cases.
+
+    See the documentation at the start of CurrentState for a discussion
+    of the various state vectors.
+
+    Note as a convention, we always return the values as a np.ndarray,
+    even for single scalar values. This just saves on needing to have lots
+    of "if ndarray else if scalar" code. A scalar is returned as a np.ndarray
+    of size 1.
+
+    Note that we have a separate apriori_cov_fm and constraint_matrix. Most of
+    the time these aren't actually independent, for a MaxAPosteriori type cost
+    function the constraint matrix is just inv(apriori_cov). However, StateElement
+    maintains these as two separate things for two reasons:
+
+    1. One minor, in the existing muses-py code these can come from
+       different sources.  It is often the case that while
+       constraint_matrix is close to inv(apriori_cov), there may be
+       small roundoff differences so if we replace constraint_matrix
+       with inv(apriori_cov) we get slightly different output. This is a minor
+       problem, we currently use in our tests the requirement that we generate
+       the same output as muses-py runs. But it is actually ok if these aren't
+       the same, we just need to update our expected results. We tend to not
+       do this, just because it is easier to find "real problem differences" if
+       we keep all differences from occuring.
+
+    2. A bigger difference is actually a real change. muses-py has the
+       convention that the constraint_matrix might be different from
+       one retrieval step to the next. For example, the ig_refine
+       steps used in the brightness temperature steps to determine
+       cloud fraction has a constraint matrix inflated by a factor of
+       100. This has the effect of reducing the cost of varying a
+       parameter like cloud fraction, which is a reasonable thing to
+       do when we are really doing something close to calculating
+       this. So for an particular step, constraint_matrix might not be
+       even close to inv(apriori_cov). There is probably some name for
+       a scaled cost function - we might check with Edwin about
+       this. But the idea makes sense.  Note that in practice
+       apriori_cov_fm gets used just by the ErrorAnalysis, and
+       constraint_matrix get used just by CostFunction, so I don't
+       think the inconsistency here is an actually problem.
+    """
+
+    def __init__(self, state_element_id: StateElementIdentifier):
+        self._state_element_id = state_element_id
+        # Used to get notify_parameter_update called with CostFunction parameter
+        # gets changed
+        self._cost_function_notify_helper: CostFunctionStateElementNotify | None = None
+
+    def __getstate__(self) -> dict[str, Any]:
+        # Don't include CostFunctionStateElementNotify when pickling
+        state = self.__dict__.copy()
+        state["_cost_function_notify_helper"] = None
+        return state
+
+    def assert_equal(self, other: StateElement) -> None:
+        """Simple test to make sure two StateElement are the same, intended for
+        initial development and testing. This doesn't check that all the function
+        call are identical, just the various property items."""
+        assert self.state_element_id == other.state_element_id
+        sd1 = self.spectral_domain
+        sd2 = self.spectral_domain
+        assert (sd1 is None and sd2 is None) or (
+            sd1 is not None
+            and sd2 is not None
+            and np.allclose(
+                sd1.convert_wave(rf.Unit("nm")), sd2.convert_wave(rf.Unit("nm"))
+            )
+        )
+        assert self.retrieval_sv_length == other.retrieval_sv_length
+        assert self.sys_sv_length == other.sys_sv_length
+        assert self.forward_model_sv_length == other.forward_model_sv_length
+        assert self.map_type == other.map_type
+        assert (
+            self.value_str is None and other.value_str is None
+        ) or self.value_str == other.value_str
+        for param in (
+            "basis_matrix",
+            "map_to_parameter_matrix",
+            "altitude_list",
+            "altitude_list_fm",
+            "pressure_list",
+            "pressure_list_fm",
+            "value",
+            "value_fm",
+            "apriori_value",
+            "apriori_value_fm",
+            "constraint_matrix",
+            "apriori_cov_fm",
+            "retrieval_initial_value",
+            "step_initial_value",
+            "step_initial_value_fm",
+            "true_value",
+            "true_value_fm",
+        ):
+            # Not all the functions of implemented in StateElementOld, these don't actuall
+            # get called in our test cases so this ok. Just skip this - it is possible a
+            # failure is a real problem but for now just skip this. Ok, since this is only
+            # used in testing which can only do so much until we do full runs.
+            try:
+                v1 = getattr(self, param)
+                v2 = getattr(other, param)
+                assert (v1 is None and v2 is None) or np.allclose(v1, v2)
+            except (RuntimeError, NotImplementedError):
+                pass
+
+    @property
+    def metadata(self) -> dict[str, Any]:
+        """Some StateElement have extra metadata. There is really only one example
+        now, emissivity has camel_distance and prior_source. It isn't clear the best
+        way to handle this, but the current design just returns a dictionary with
+        any extra metadata values. We can perhaps rework this if needed in the future.
+        For most StateElement this will just be a empty dict."""
+        res: dict[str, Any] = {}
+        return res
+
+    @property
+    def state_element_id(self) -> StateElementIdentifier:
+        return self._state_element_id
+
+    def notify_parameter_update(self, param_subset: np.ndarray) -> None:
+        """Called with the subset of parameters for this StateElement
+        when the cost function changes."""
+        pass
+
+    @property
+    def spectral_domain(self) -> rf.SpectralDomain | None:
+        """For StateElementWithFrequency, this returns the frequency associated
+        with it. For all other StateElement, just return None."""
+        return None
+
+    @property
+    def basis_matrix(self) -> np.ndarray | None:
+        """Basis matrix going from retrieval vector to forward model
+        vector. Would be nice to replace this with a general
+        rf.StateMapping, but for now this is assumed in a lot of
+        muses-py code."""
+        return None
+
+    @property
+    def map_to_parameter_matrix(self) -> np.ndarray | None:
+        """Go the other direction from the basis matrix, going from
+        the forward model vector the retrieval vector."""
+        return None
+
+    @abc.abstractproperty
+    def retrieval_sv_length(self) -> int:
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def sys_sv_length(self) -> int:
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def forward_model_sv_length(self) -> int:
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def map_type(self) -> str:
+        """For ReFRACtor we use a general rf.StateMapping, which can mostly
+        replace the map type py-retrieve uses. However there are some places
+        where old code depends on the map type strings (for example, writing
+        metadata to an output file). It isn't clear what we will need to do if
+        we have a more general mapping type like a scale retrieval or something like
+        that. But for now, supply the old map type. The string will be something
+        like "log" or "linear" """
+        raise NotImplementedError()
+
+    @property
+    def altitude_list(self) -> RetrievalGridArray | None:
+        """For state elements that are on pressure level, this returns
+        the altitude levels (None otherwise)"""
+        return None
+
+    @property
+    def altitude_list_fm(self) -> ForwardModelGridArray | None:
+        """For state elements that are on pressure level, this returns
+        the altitude levels (None otherwise)"""
+        return None
+
+    @property
+    def pressure_list(self) -> RetrievalGridArray | None:
+        """For state elements that are on pressure level, this returns
+        the pressure levels (None otherwise)"""
+        return None
+
+    @property
+    def pressure_list_fm(self) -> ForwardModelGridArray | None:
+        """For state elements that are on pressure level, this returns
+        the pressure levels (None otherwise)"""
+        return None
+
+    @abc.abstractproperty
+    def value(self) -> RetrievalGridArray:
+        """Current value of StateElement"""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def value_fm(self) -> ForwardModelGridArray:
+        """Current value of StateElement"""
+        raise NotImplementedError()
+
+    @property
+    def value_str(self) -> str | None:
+        """A small number of values in the full state are actually str (e.g.,
+        StateElementIdentifier("nh3type"). This is like value, but we
+        return a str instead. For most StateElement, this returns "None"
+        instead which indicates we don't have a str value.
+
+        It isn't clear that this is the best interface, on the other hand these
+        str values don't have an obvious other place to go. And these value are
+        at least in the spirit of other StateElement. So at least for now we
+        will support this, possibly reworking this in the future.
+        """
+        return None
+
+    @abc.abstractproperty
+    def apriori_value(self) -> RetrievalGridArray:
+        """Apriori value of StateElement"""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def apriori_value_fm(self) -> ForwardModelGridArray:
+        """Apriori value of StateElement"""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def constraint_matrix(self) -> RetrievalGrid2dArray:
+        """Constraint matrix, generally the inverse of apriori_cov, although see the
+        discussion in StateElement class about how this might be different."""
+        raise NotImplementedError()
+
+    def constraint_cross_covariance(
+        self, selem2: StateElement
+    ) -> RetrievalGrid2dArray | None:
+        """Return the constraint cross matrix with selem 2. This returns None
+        if there is no cross covariance."""
+        return None
+
+    @abc.abstractproperty
+    def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
+        """Apriori Covariance"""
+        raise NotImplementedError()
+
+    def apriori_cross_covariance_fm(
+        self, selem2: StateElement
+    ) -> ForwardModelGrid2dArray | None:
+        """Return the cross covariance matrix with selem 2. This returns None
+        if there is no cross covariance."""
+        return None
+
+    @abc.abstractproperty
+    def retrieval_initial_value(self) -> RetrievalGridArray:
+        """Value StateElement had at the start of the retrieval."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def step_initial_value(self) -> RetrievalGridArray:
+        """Value StateElement had at the start of the retrieval step."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def step_initial_value_fm(self) -> ForwardModelGridArray:
+        """Value StateElement had at the start of the retrieval step."""
+        raise NotImplementedError()
+
+    @property
+    def true_value(self) -> RetrievalGridArray | None:
+        """The "true" value if known (e.g., we are running a simulation).
+        "None" if we don't have a value."""
+        return None
+
+    @property
+    def true_value_fm(self) -> ForwardModelGridArray | None:
+        """The "true" value if known (e.g., we are running a simulation).
+        "None" if we don't have a value."""
+        return None
+
+    @abc.abstractmethod
+    def update_state_element(
+        self,
+        current: np.ndarray | None = None,
+        apriori: np.ndarray | None = None,
+        step_initial: np.ndarray | None = None,
+        retrieval_initial: np.ndarray | None = None,
+        true_value: np.ndarray | None = None,
+    ) -> None:
+        """Update the value of the StateElement. This function updates
+        each of the various values passed in.  A value of 'None' (the
+        default) means skip updating that part of the StateElement.
+        """
+        raise NotImplementedError()
+
+    # TODO Perhaps this can go away, replaced with being a StateVector observer?
+    @abc.abstractmethod
+    def update_state(
+        self,
+        results_list: np.ndarray,
+        do_not_update: list[StateElementIdentifier],
+        retrieval_config: RetrievalConfiguration | MeasurementId,
+        step: int,
+    ) -> ForwardModelGridArray | None:
+        """Update the state based on results, and return a boolean array
+        indicating which coefficients were updated."""
+        raise NotImplementedError()
+
+    def notify_new_step(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        pass
+
+    def notify_start_retrieval(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        pass
+
+
+class StateElementHandle(CreatorHandle):
+    """Return StateElement objects, for a given StateElementIdentifier
+
+    Note StateElementHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next."""
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        # Default is to do nothing
+        pass
+
+    @abc.abstractmethod
+    def state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement | None:
+        raise NotImplementedError()
+
+
+class StateElementHandleSet(CreatorHandleSet):
+    """This maps a StateElementIdentifier to a StateElement object that handles it.
+
+    Note StatElementHandle can assume that they are called for the same target, until
+    notify_update_target is called. So if it makes sense, these objects can do internal
+    caching for things that don't change when the target being retrieved is the same from
+    one call to the next."""
+
+    def __init__(self) -> None:
+        super().__init__("state_element")
+
+    def state_element(self, state_element_id: StateElementIdentifier) -> StateElement:
+        return self.handle(state_element_id)
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                h.notify_update_target(
+                    measurement_id, retrieval_config, strategy, observation_handle_set
+                )
+
+
 class StateElementImplementation(StateElement):
-    '''A very common implementation of a StateElement just populates member variables for
+    """A very common implementation of a StateElement just populates member variables for
     the value, apriori, etc. This class handles this common case, derived classes should
-    fill in handling the various notify functions.'''
+    fill in handling the various notify functions."""
+
     # TODO See if we want the RetrievalGrid or ForwardModelGrid here. We'll need to wait
     # until we get to some of the state elements on levels before figuring this out
-    def __init__(self, state_element_id: StateElementIdentifier,
-                 value : RetrievalGridArray, apriori_value : RetrievalGridArray,
-                 apriori_cov : RetrievalGrid2dArray, 
-                 state_mapping : rf.StateMapping = rf.StateMappingLinear(),
-                 initial_value : RetrievalGridArray | None = None,
-                 true_value : RetrievalGridArray | None = None,
-                 selem_wrapper: StateElementOldWrapper | None = None,
-                 ):
+    def __init__(
+        self,
+        state_element_id: StateElementIdentifier,
+        value: RetrievalGridArray,
+        apriori_value: RetrievalGridArray,
+        apriori_cov: RetrievalGrid2dArray,
+        state_mapping: rf.StateMapping = rf.StateMappingLinear(),
+        initial_value: RetrievalGridArray | None = None,
+        true_value: RetrievalGridArray | None = None,
+        selem_wrapper: StateElementOldWrapper | None = None,
+    ):
         super().__init__(state_element_id)
         self._value = value
         self._apriori_value = apriori_value
         self._apriori_cov = apriori_cov
         self._state_mapping = state_mapping
-        self._step_initial_value = initial_value if initial_value is not None else apriori_value
+        self._step_initial_value = (
+            initial_value if initial_value is not None else apriori_value
+        )
         self._retrieval_initial_value = self._step_initial_value.copy()
         self._true_value = true_value
         # Temp, until we have tested everything out
@@ -54,75 +451,69 @@ class StateElementImplementation(StateElement):
             self.update_initial_guess = self._update_initial_guess
 
     def notify_parameter_update(self, param_subset: np.ndarray) -> None:
-        """Called with the subset of parameters for this StateElement
-        when the cost function changes."""
         self._value = param_subset
 
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
-        if(self._sold is None):
+        if self._sold is None:
             raise RuntimeError("This shouldn't happen")
         self._sold.update_initial_guess(current_strategy_step)
-
 
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def basis_matrix(self) -> np.ndarray | None:
-        """Basis matrix going from retrieval vector to forward model
-        vector. Would be nice to replace this with a general
-        rf.StateMapping, but for now this is assumed in a lot of
-        muses-py code."""
         res = np.eye(self._value.shape[0])
-        if(self._sold is not None):
-           res2 = self._sold.basis_matrix
-           npt.assert_allclose(res, res2, rtol=1e-12)
+        if self._sold is not None:
+            res2 = self._sold.basis_matrix
+            if res2 is None:
+                raise RuntimeError("res2 should not be None")
+            npt.assert_allclose(res, res2, rtol=1e-12)
         return res
 
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
-        """Go the other direction from the basis matrix, going from
-        the forward model vector the retrieval vector."""
         res = np.eye(self._value.shape[0])
-        if(self._sold is not None):
-           res2 = self._sold.map_to_parameter_matrix
-           npt.assert_allclose(res, res2, rtol=1e-12)
+        if self._sold is not None:
+            res2 = self._sold.map_to_parameter_matrix
+            if res2 is None:
+                raise RuntimeError("res2 should not be None")
+            npt.assert_allclose(res, res2, rtol=1e-12)
         return res
-    
+
     @property
     def retrieval_sv_length(self) -> int:
         res = 0
-        if(self._sold is not None):
-           res2 = self._sold.retrieval_sv_length
-           #assert res == res2
+        if self._sold is not None:
+            res2 = self._sold.retrieval_sv_length
+            # assert res == res2
         return res2
 
     @property
     def sys_sv_length(self) -> int:
         res = 0
-        if(self._sold is not None):
-           res2 = self._sold.sys_sv_length
-           #assert res == res2
+        if self._sold is not None:
+            res2 = self._sold.sys_sv_length
+            # assert res == res2
         return res2
 
     @property
     def forward_model_sv_length(self) -> int:
         res = 0
-        if(self._sold is not None):
-           res2 = self._sold.forward_model_sv_length
-           #assert res == res2
+        if self._sold is not None:
+            res2 = self._sold.forward_model_sv_length
+            # assert res == res2
         return res2
 
     @property
     def map_type(self) -> str:
         res = "linear"
-        if(self._sold is not None):
-           res2 = self._sold.map_type
-           assert res == res2
+        if self._sold is not None:
+            res2 = self._sold.map_type
+            assert res == res2
         return res
-    
+
     @property
     def value(self) -> RetrievalGridArray:
-        """Current value of StateElement"""
         res = self._value
         if self._sold is not None:
             res2 = self._sold.value
@@ -139,6 +530,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_value(self) -> RetrievalGridArray:
+        #breakpoint()
         res = self._apriori_value
         if self._sold is not None:
             res2 = self._sold.apriori_value
@@ -147,19 +539,26 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_value_fm(self) -> ForwardModelGridArray:
-        """Apriori value of StateElement"""
-        res = self._state_mapping.mapped_state(rf.ArrayAd_double_1(self.apriori_value)).value
+        #breakpoint()
+        res = self._state_mapping.mapped_state(
+            rf.ArrayAd_double_1(self.apriori_value)
+        ).value
         if self._sold is not None:
             res2 = self._sold.apriori_value_fm
             npt.assert_allclose(res, res2, rtol=1e-12)
         return res
-    
+
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
-        """Apriori Covariance"""
-        #res = np.linalg.inv(self._apriori_cov)
+        # res = np.linalg.inv(self._apriori_cov)
         # We need to get this straightened out
-        res = np.array([[2500.0,]])
+        res = np.array(
+            [
+                [
+                    2500.0,
+                ]
+            ]
+        )
         if self._sold is not None:
             res2 = self._sold.constraint_matrix
             npt.assert_allclose(res, res2, rtol=1e-12)
@@ -173,7 +572,7 @@ class StateElementImplementation(StateElement):
             res2 = self._sold.apriori_cov_fm
             npt.assert_allclose(res, res2, rtol=1e-12)
         return res
-    
+
     @property
     def retrieval_initial_value(self) -> RetrievalGridArray:
         res = self._retrieval_initial_value
@@ -192,7 +591,9 @@ class StateElementImplementation(StateElement):
 
     @property
     def step_initial_value_fm(self) -> ForwardModelGridArray:
-        res = self._state_mapping.mapped_state(rf.ArrayAd_double_1(self.step_initial_value)).value
+        res = self._state_mapping.mapped_state(
+            rf.ArrayAd_double_1(self.step_initial_value)
+        ).value
         if self._sold is not None:
             res2 = self._sold.step_initial_value_fm
             npt.assert_allclose(res, res2, rtol=1e-12)
@@ -205,7 +606,7 @@ class StateElementImplementation(StateElement):
     @property
     def true_value_fm(self) -> ForwardModelGridArray | None:
         tv = self.true_value
-        if(tv is not None):
+        if tv is not None:
             return self._state_mapping.mapped_state(rf.ArrayAd_double_1(tv)).value
         return None
 
@@ -217,15 +618,15 @@ class StateElementImplementation(StateElement):
         retrieval_initial: np.ndarray | None = None,
         true_value: np.ndarray | None = None,
     ) -> None:
-        if(current is not None):
+        if current is not None:
             self._value = current
-        if(apriori is not None):
+        if apriori is not None:
             self._apriori = apriori
-        if(step_initial is not None):
+        if step_initial is not None:
             self._step_initial_value = step_initial
-        if(retrieval_initial is not None):
+        if retrieval_initial is not None:
             self._retrieval_initial_value = retrieval_initial
-        if(true_value is not None):
+        if true_value is not None:
             self._true_value = true_value
 
     def update_state(
@@ -235,7 +636,7 @@ class StateElementImplementation(StateElement):
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
     ) -> ForwardModelGridArray | None:
-        if(self._sold is not None):
+        if self._sold is not None:
             return self._sold.update_state(
                 results_list, do_not_update, retrieval_config, step
             )
@@ -248,7 +649,7 @@ class StateElementImplementation(StateElement):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        if(self._sold is not None):
+        if self._sold is not None:
             self._sold.notify_new_step(
                 current_strategy_step,
                 error_analysis,
@@ -264,12 +665,13 @@ class StateElementImplementation(StateElement):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        if(self._sold is not None):
+        if self._sold is not None:
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
         # Save the starting point at the start of the retrieval, this is used by the
         # error analysis
         self._retrieval_initial_value = self._step_initial_value.copy()
-    
+
+
 # Start with just this one element, we can hopefully generalize this but work through
 # this one first
 class StateElementOmiodWavUv(StateElementImplementation):
@@ -277,42 +679,32 @@ class StateElementOmiodWavUv(StateElementImplementation):
         self,
         state_element_id: StateElementIdentifier,
         measurement_id: MeasurementId,
-        selem_wrapper: StateElementOldWrapper,
+        selem_wrapper: StateElementOldWrapper | None = None,
     ):
+        # For OMI and TROPOMI parameters the initial value, and apriori are hard coded.
+        # These get set up in script_retrieval_setup_ms.py, so we can look there for the
+        # values. The apriori (called stateConstraint) and first guess (called stateInitial)
+        # get identically set to this value. The covariance is separately read from a file.
         # Fill these in
-        value = np.array([0.0,])
-        apriori = np.array([0.0,])
+        value = np.array(
+            [
+                0.0,
+            ]
+        )
+        apriori = np.array(
+            [
+                0.0,
+            ]
+        )
         apriori_cov = np.array([[0.00039999998989515007]])
-        super().__init__(state_element_id, value, apriori, apriori_cov,
-                         selem_wrapper = selem_wrapper)
-
-    # Couple of things needed to work with StateElementOldWrapper. These can
-    # perhaps go away once we have all the StateElementOldWrapper pulled out, but
-    # for now we need this
-    @property
-    def retrieval_slice(self) -> slice | None:
-        # I think this can go away
-        breakpoint()
-        if(self._sold is not None):
-            return self._sold.retrieval_slice
-        return None
-
-    @property
-    def fm_slice(self) -> slice | None:
-        # I think this can go away
-        breakpoint()
-        if(self._sold is not None):
-            return self._sold.retrieval_slice
-        return None
-
-    @property
-    def _old_selem(self) -> StateElementOld:
-        # I think this can go away
-        breakpoint()
-        if(self._sold is None):
-            raise RuntimeError("This should not happen")
-        return self._sold._old_selem
-
+        # This is to support testing. We currently have a way of populate StateInfoOld when
+        # we restart a step, but not StateInfo. Longer term we will fix this, but short term
+        # just propagate any values in selem_wrapper to this class
+        if selem_wrapper is not None:
+            value = selem_wrapper.value
+        super().__init__(
+            state_element_id, value, apriori, apriori_cov, selem_wrapper=selem_wrapper
+        )
 
 class StateElementScaffoldHandle(StateElementHandle):
     def __init__(
@@ -321,7 +713,7 @@ class StateElementScaffoldHandle(StateElementHandle):
         self.obs_cls = cls
         self.sid = sid
         self.hold = hold
-        self.measurement_id : MeasurementId | None = None
+        self.measurement_id: MeasurementId | None = None
 
     def notify_update_target(
         self,
@@ -344,6 +736,9 @@ class StateElementScaffoldHandle(StateElementHandle):
 
 
 __all__ = [
+    "StateElement",
+    "StateElementHandle",
+    "StateElementHandleSet",
     "StateElementScaffoldHandle",
     "StateElementOmiodWavUv",
 ]

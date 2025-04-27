@@ -2449,6 +2449,8 @@ class MusesPyOmiStateElementOld(MusesPyStateElementOld):
         self.mapToState = np.eye(1)
         self.mapToParameters = np.eye(1)
         # Not sure if the is covariance, or sqrt covariance
+        #if str(self.name) == "OMIODWAVUV1":
+        #    breakpoint()
         sfile = self.species_information_file(current_strategy_step.retrieval_type)
         sSubaDiagonalValues = float(sfile.sSubaDiagonalValues)
         self.constraintMatrix = np.diag(

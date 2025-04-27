@@ -114,7 +114,8 @@ class CurrentStateStateInfo(CurrentState):
         if self.do_systematic:
             return np.zeros((1, 1))
         blist = [
-            self._state_info[sid].constraint_matrix for sid in self.retrieval_state_element_id
+            self._state_info[sid].constraint_matrix
+            for sid in self.retrieval_state_element_id
         ]
         res = scipy.linalg.block_diag(*blist)
         for i, selem1_sid in enumerate(self.retrieval_state_element_id):

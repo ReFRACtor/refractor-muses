@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .state_info import StateElement, StateElementHandle
+from .state_element import StateElement, StateElementHandle
 from .identifier import StateElementIdentifier
 from .current_state import CurrentStateStateInfoOld
 import refractor.framework as rf  # type: ignore
