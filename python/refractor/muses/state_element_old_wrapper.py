@@ -259,7 +259,12 @@ class StateElementOldWrapper(StateElement):
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         r1 = self.retrieval_slice
-        r2 = cast(StateElementOldWrapper, selem2).retrieval_slice
+        if isinstance(selem2, StateElementOldWrapper):
+            r2 = cast(StateElementOldWrapper, selem2).retrieval_slice
+        elif hasattr(selem2, "_sold"):
+            r2 = selem2._sold.retrieval_slice
+        else:
+            raise RuntimeError("Not sure how to handle this")
         if r1 is None or r2 is None:
             return None
         res = self._current_state_old.constraint_matrix[r1, r2]
@@ -278,7 +283,12 @@ class StateElementOldWrapper(StateElement):
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         selem_old = self._old_selem
-        selem2_old = cast(StateElementOldWrapper, selem2)._old_selem
+        if isinstance(selem2, StateElementOldWrapper):
+            selem2_old = cast(StateElementOldWrapper, selem2)._old_selem
+        elif hasattr(selem2, "_sold"):
+            selem2_old = selem2._sold._old_selem
+        else:
+            raise RuntimeError("Not sure how to handle this")
         res = selem_old.sa_cross_covariance(selem2_old)
         return res
 

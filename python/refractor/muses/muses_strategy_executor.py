@@ -598,10 +598,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         while not self.is_done():
             self.notify_new_step(skip_initial_guess_update=True)
             self.next_step()
-        # Not sure that this is needed or used anywhere, but for now
-        # go ahead and this this until we know for sure it doesn't
-        # matter.
-        # self.current_state._state_info.copy_current_initialInitial()
         self.notify_update(ProcessLocation("starting retrieval steps"))
         self.restart()
         while not self.is_done():

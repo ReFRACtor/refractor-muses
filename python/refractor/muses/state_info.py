@@ -53,7 +53,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         # gets changed
         self._cost_function_notify_helper : CostFunctionStateElementNotify | None = None
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
         # Don't include CostFunctionStateElementNotify when pickling
         state = self.__dict__.copy()
         state["_cost_function_notify_helper"] = None
@@ -135,19 +135,19 @@ class StateElement(object, metaclass=abc.ABCMeta):
         with it. For all other StateElement, just return None."""
         return None
 
-    @abc.abstractproperty
+    @property
     def basis_matrix(self) -> np.ndarray | None:
         """Basis matrix going from retrieval vector to forward model
         vector. Would be nice to replace this with a general
         rf.StateMapping, but for now this is assumed in a lot of
         muses-py code."""
-        raise NotImplementedError()
+        return None
 
-    @abc.abstractproperty
+    @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
         """Go the other direction from the basis matrix, going from
         the forward model vector the retrieval vector."""
-        raise NotImplementedError()
+        return None
 
     @abc.abstractproperty
     def retrieval_sv_length(self) -> int:
@@ -226,7 +226,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def apriori_value_fm(self) -> ForwardModelGrid2dArray:
+    def apriori_value_fm(self) -> ForwardModelGridArray:
         """Apriori value of StateElement"""
         raise NotImplementedError()
 
@@ -351,7 +351,6 @@ class StateElementHandle(CreatorHandle):
     ) -> StateElement | None:
         raise NotImplementedError()
 
-
 class StateElementHandleSet(CreatorHandleSet):
     """This maps a StateElementIdentifier to a StateElement object that handles it.
 
@@ -456,9 +455,11 @@ class StateInfo(UserDict):
         for sid in self._current_state_old.full_state_element_id:
             _ = self[sid]
         for selem in self.values():
-            selem.notify_start_retrieval(
+            selem.notify_new_step(
                 current_strategy_step,
+                error_analysis,
                 retrieval_config,
+                skip_initial_guess_update,
             )
 
     def notify_start_retrieval(

@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any, Self
 from functools import cache
 import re
+import typing
 
+if typing.TYPE_CHECKING:
+    from .identifier import StateElementIdentifier
+    
 class RangeFind:
     '''This is a simple dict like object that allows us to find an item
     by seeing if it is in a range. This isn't super efficient for a large
