@@ -1473,7 +1473,10 @@ class RefractorUip:
                     continue
                     # raise RuntimeError(f'Retrieval parameter label not found {specie}')
 
-                if mapType == "linearscale":
+                if isinstance(mapType, rf.StateMapping):
+                    fm_vec[ind_fm] = mapType.mapped_state(rf.ArrayAd_double_1(fm_vec[ind_fm])).value
+                    o_uip.atmosphere[param_pos[0], :] = fm_vec[ind_fm]
+                elif mapType == "linearscale":
                     initial = o_uip.constraintVectorListFM[ind_fm]
                     o_uip.atmosphere[param_pos[0], :] = (
                         initial + o_retrieval_vec[ind[0]]
@@ -1505,6 +1508,7 @@ class RefractorUip:
                     fm_vec[ind_fm] = np.exp(fm_vec[ind_fm])
                     o_uip.atmosphere[param_pos[0], :] = fm_vec[ind_fm]
                 elif mapType == "linear":
+
                     value = fm_vec[
                         ind_fm
                     ]  # Note that in Python, the slice does not include the end point.

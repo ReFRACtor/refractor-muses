@@ -391,6 +391,16 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
+    def state_mapping(self) -> rf.StateMapping | None:
+        """Return StateMapping going from RetrievalGridArray to ForwardModelGridArray.
+        This is done by a basis_matrix in muses-py, but we are trying to move to a more
+        general StateMapping."""
+        bmatrix = self.basis_matrix
+        if(bmatrix is None):
+            return None
+        return rf.StateMappingBasisMatrix(bmatrix.transpose())
+
+    @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Dict that gives the starting location in the forward model
         state vector and length for a particular state element name

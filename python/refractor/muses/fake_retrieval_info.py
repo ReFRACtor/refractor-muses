@@ -22,8 +22,13 @@ class FakeRetrievalInfo:
     old code.
     """
 
-    def __init__(self, current_state: CurrentState) -> None:
+    def __init__(self, current_state: CurrentState, use_state_mapping : bool=False) -> None:
         self.current_state = current_state
+        # TODO
+        # We are trying to remove the use the map_type in the UIP and ErrorAnalysis, as
+        # well has the basis matrix and replace these with StateMapping. This flag allows
+        # us to do this with one but not the other. This is a work in progress.
+        self.use_state_mapping = use_state_mapping
 
     @property
     def retrieval_info_systematic(self) -> mpy.ObjectView:
@@ -85,7 +90,7 @@ class FakeRetrievalInfo:
         return len(self.current_state.systematic_state_element_id)
 
     @property
-    def mapTypeListFM(self) -> list[str]:
+    def mapTypeListFM(self) -> list[str | rf.StateMapping]:
         res = [
             "",
         ] * self.current_state.fm_state_vector_size
@@ -130,8 +135,10 @@ class FakeRetrievalInfo:
     def doUpdateFM(self) -> np.ndarray:
         return self.current_state.updated_fm_flag
 
-    def _map_type(self, sid:StateElementIdentifier) -> str:
+    def _map_type(self, sid:StateElementIdentifier) -> str | rf.StateMapping:
         smap = self.current_state.state_mapping(sid)
+        if(self.use_state_mapping):
+            return smap
         if isinstance(smap, rf.StateMappingLinear):
             return "linear"
         elif isinstance(smap, rf.StateMappingLog):
@@ -139,7 +146,7 @@ class FakeRetrievalInfo:
         raise RuntimeError(f"Don't recognize state mapping {smap}")
     
     @property
-    def map_type_systematic(self) -> list[str]:
+    def map_type_systematic(self) -> list[str | rf.StateMapping]:
         res = [
             "",
         ] * self.current_state.sys_state_vector_size
@@ -154,7 +161,7 @@ class FakeRetrievalInfo:
         return len(self.current_state.systematic_model_state_vector_element_list)
 
     @property
-    def mapType(self) -> list[str]:
+    def mapType(self) -> list[str | rf.StateMapping]:
         return [
             self._map_type(sid)
             for sid in self.current_state.retrieval_state_element_id
