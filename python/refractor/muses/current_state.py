@@ -311,11 +311,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         (mostly as a help in unit testing).
 
         """
-        if self.basis_matrix is not None:
-            mapping = rf.StateMappingBasisMatrix(self.basis_matrix.transpose())
-        else:
-            mapping = rf.StateMappingLinear()
-        return mapping.mapped_state(rf.ArrayAd_double_1(self.initial_guess)).value
+        return self.state_mapping.mapped_state(rf.ArrayAd_double_1(self.initial_guess)).value
 
     def update_full_state_element(
         self,
@@ -391,13 +387,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def state_mapping(self) -> rf.StateMapping | None:
+    def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         """Return StateMapping going from RetrievalGridArray to ForwardModelGridArray.
         This is done by a basis_matrix in muses-py, but we are trying to move to a more
         general StateMapping."""
         bmatrix = self.basis_matrix
         if(bmatrix is None):
-            return None
+            return rf.StateMappingLinear()
         return rf.StateMappingBasisMatrix(bmatrix.transpose())
 
     @property

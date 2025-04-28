@@ -238,7 +238,7 @@ class CostFunctionCreator:
         rf.StateVector,
         np.ndarray,
         np.ndarray,
-        np.ndarray | None,
+        rf.StateMapping,
     ]:
         self.obs_list = []
         fm_sv = rf.StateVector()
@@ -278,7 +278,7 @@ class CostFunctionCreator:
             )
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
-        bmatrix = current_state.basis_matrix
+        smap = current_state.state_mapping_retrieval_to_fm
         # Leave off the apriori part if requested
         if use_empty_apriori:
             # TODO
@@ -301,7 +301,7 @@ class CostFunctionCreator:
             fm_sv,
             retrieval_sv_apriori,
             retrieval_sv_sqrt_constraint,
-            bmatrix,
+            smap,
         )
 
     def cost_function_from_uip(
