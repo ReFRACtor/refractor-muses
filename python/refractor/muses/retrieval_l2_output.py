@@ -716,8 +716,10 @@ class RetrievalL2Output(RetrievalOutput):
         ind2FM = ind1FM + sz
 
         species_data.RETRIEVEINLOG = np.int32(0)
-        if isinstance(self.current_state.state_mapping(StateElementIdentifier(self.spcname)),
-                      rf.StateMappingLog):
+        if isinstance(
+            self.current_state.state_mapping(StateElementIdentifier(self.spcname)),
+            rf.StateMappingLog,
+        ):
             species_data.RETRIEVEINLOG = np.int32(1)
 
         # AT_LINE 342 write_products_one.pro

@@ -8,6 +8,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .identifier import StateElementIdentifier
 
+
 class FakeRetrievalInfo:
     """We are moving away from the RetrievalInfo structure used by
     muses-py. There is a lot of hidden functionality in this structure, and
@@ -22,7 +23,9 @@ class FakeRetrievalInfo:
     old code.
     """
 
-    def __init__(self, current_state: CurrentState, use_state_mapping : bool=False) -> None:
+    def __init__(
+        self, current_state: CurrentState, use_state_mapping: bool = False
+    ) -> None:
         self.current_state = current_state
         # TODO
         # We are trying to remove the use the map_type in the UIP and ErrorAnalysis, as
@@ -135,16 +138,16 @@ class FakeRetrievalInfo:
     def doUpdateFM(self) -> np.ndarray:
         return self.current_state.updated_fm_flag
 
-    def _map_type(self, sid:StateElementIdentifier) -> str | rf.StateMapping:
+    def _map_type(self, sid: StateElementIdentifier) -> str | rf.StateMapping:
         smap = self.current_state.state_mapping(sid)
-        if(self.use_state_mapping):
+        if self.use_state_mapping:
             return smap
         if isinstance(smap, rf.StateMappingLinear):
             return "linear"
         elif isinstance(smap, rf.StateMappingLog):
             return "log"
         raise RuntimeError(f"Don't recognize state mapping {smap}")
-    
+
     @property
     def map_type_systematic(self) -> list[str | rf.StateMapping]:
         res = [
@@ -163,8 +166,7 @@ class FakeRetrievalInfo:
     @property
     def mapType(self) -> list[str | rf.StateMapping]:
         return [
-            self._map_type(sid)
-            for sid in self.current_state.retrieval_state_element_id
+            self._map_type(sid) for sid in self.current_state.retrieval_state_element_id
         ]
 
     @property

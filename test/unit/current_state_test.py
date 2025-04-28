@@ -163,7 +163,6 @@ def test_update_cloudfraction(omi_step_0):
         rs.current_strategy_step.strategy_step.step_number,
     )
 
-
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_new_step()
@@ -271,7 +270,6 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
         rs.current_strategy_step.strategy_step.step_number,
     )
 
-
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_new_step()
@@ -341,7 +339,6 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
         rs.retrieval_config,
         rs.current_strategy_step.strategy_step.step_number,
     )
-
 
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()

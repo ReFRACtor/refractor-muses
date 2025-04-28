@@ -264,7 +264,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """StateMapping used to go between the RetrievalGridArray and
         ForwardModelGridArray (e.g., the basis matrix in muses-py)"""
         raise NotImplementedError()
-    
+
     @property
     def true_value(self) -> RetrievalGridArray | None:
         """The "true" value if known (e.g., we are running a simulation).
@@ -391,7 +391,7 @@ class StateElementImplementation(StateElement):
         apriori_value: RetrievalGridArray,
         apriori_cov_fm: ForwardModelGrid2dArray,
         constraint_matrix: RetrievalGrid2dArray,
-        state_mapping_retrieval_to_fm : rf.StateMapping = rf.StateMappingLinear(),
+        state_mapping_retrieval_to_fm: rf.StateMapping = rf.StateMappingLinear(),
         state_mapping: rf.StateMapping = rf.StateMappingLinear(),
         initial_value: RetrievalGridArray | None = None,
         true_value: RetrievalGridArray | None = None,
@@ -446,27 +446,27 @@ class StateElementImplementation(StateElement):
 
     @property
     def retrieval_sv_length(self) -> int:
-        res = 0
+        res = self._value.shape[0]
         if self._sold is not None:
             res2 = self._sold.retrieval_sv_length
-            # assert res == res2
-        return res2
+            assert res == res2
+        return res
 
     @property
     def sys_sv_length(self) -> int:
-        res = 0
+        res = self._value.shape[0]
         if self._sold is not None:
             res2 = self._sold.sys_sv_length
-            # assert res == res2
-        return res2
+            assert res == res2
+        return res
 
     @property
     def forward_model_sv_length(self) -> int:
-        res = 0
+        res = self._apriori_cov_fm.shape[0]
         if self._sold is not None:
             res2 = self._sold.forward_model_sv_length
-            # assert res == res2
-        return res2
+            assert res == res2
+        return res
 
     @property
     def value(self) -> RetrievalGridArray:
@@ -567,8 +567,8 @@ class StateElementImplementation(StateElement):
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         """StateMapping used to go between the RetrievalGridArray and
         ForwardModelGridArray (e.g., the basis matrix in muses-py)"""
-        return self._state_mapping_retrieval_to_fm        
-    
+        return self._state_mapping_retrieval_to_fm
+
     def update_state_element(
         self,
         current: np.ndarray | None = None,
@@ -655,9 +655,19 @@ class StateElementOspFile(StateElementImplementation):
         # Fill these in
         value = apriori_value.copy()
         apriori = apriori_value.copy()
-        self.osp_species_reader = OspSpeciesReader.read_dir(Path(retrieval_config['speciesDirectory']))
-        t = self.osp_species_reader.read_file(state_element_id, RetrievalType("default"))
+        self.osp_species_reader = OspSpeciesReader.read_dir(
+            Path(retrieval_config["speciesDirectory"])
+        )
+        t = self.osp_species_reader.read_file(
+            state_element_id, RetrievalType("default")
+        )
         map_type = t["mapType"].lower()
+        if map_type == "linear":
+            smap = rf.StateMappingLinear()
+        elif map_type == "log":
+            smap = rf.StateMappingLog()
+        else:
+            raise RuntimeError(f"Don't recognize map_type {map_type}")
         # TODO We should get this from whatever the new SoundingMetadata is
         for iname in ("TES", "AIRS", "CRIS", "OMI", "TROPOMI", "OCO2"):
             if f"{iname}_latitude" in measurement_id:
@@ -666,14 +676,18 @@ class StateElementOspFile(StateElementImplementation):
             if f"{iname}_Latitude" in measurement_id:
                 latitude = float(measurement_id[f"{iname}_Latitude"])
                 break
-        r = OspCovarianceMatrixReader.read_dir(Path(retrieval_config["covarianceDirectory"]))
+        r = OspCovarianceMatrixReader.read_dir(
+            Path(retrieval_config["covarianceDirectory"])
+        )
         # TODO Determine if we really want this as float32 type. That is what muses-py
         # uses, and we need that to match. But doesn't seem to be any strong reason not to
         # just use float64
         apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude).astype(
             np.float32
         )
-        constraint_matrix = np.array([[2500.0]])
+        constraint_matrix = self.osp_species_reader.read_constraint_matrix(
+            state_element_id, RetrievalType("default")
+        )
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
@@ -686,6 +700,7 @@ class StateElementOspFile(StateElementImplementation):
             apriori_cov_fm,
             constraint_matrix,
             selem_wrapper=selem_wrapper,
+            state_mapping=smap,
         )
 
 

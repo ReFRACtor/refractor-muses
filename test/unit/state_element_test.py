@@ -7,6 +7,7 @@ from refractor.muses import (
 )
 from fixtures.misc_fixture import all_output_disabled
 from typing import Any
+import numpy.testing as npt
 
 
 class RetrievalStrategyStop:
@@ -35,5 +36,19 @@ def test_omi_state_element(
     cstate = rs.current_state
     print([str(i) for i in cstate.full_state_element_id])
     selem = cstate.full_state_element(StateElementIdentifier("OMIODWAVUV1"))
-    # Doesn't work yet
-    # selem.assert_equal(selem)
+    npt.assert_allclose(
+        selem.value,
+        [
+            [
+                0.0,
+            ]
+        ],
+    )
+    npt.assert_allclose(
+        selem.constraint_matrix,
+        [
+            [
+                2500.0,
+            ]
+        ],
+    )

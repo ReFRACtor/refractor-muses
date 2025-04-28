@@ -363,7 +363,11 @@ class CurrentStateStateInfo(CurrentState):
     ) -> ForwardModelGridArray:
         res = self._state_info[state_element_id].step_initial_value_fm
         if use_map:
-            res = self._state_info[state_element_id].state_mapping.mapped_state(rf.ArrayAd_double_1(res)).value
+            res = (
+                self._state_info[state_element_id]
+                .state_mapping.mapped_state(rf.ArrayAd_double_1(res))
+                .value
+            )
         return res
 
     def full_state_value_str(
@@ -388,7 +392,11 @@ class CurrentStateStateInfo(CurrentState):
     ) -> ForwardModelGridArray:
         res = self._state_info[state_element_id].apriori_value_fm
         if use_map:
-            res = self._state_info[state_element_id].state_mapping.mapped_state(rf.ArrayAd_double_1(res)).value
+            res = (
+                self._state_info[state_element_id]
+                .state_mapping.mapped_state(rf.ArrayAd_double_1(res))
+                .value
+            )
         return res
 
     def full_state_apriori_covariance(

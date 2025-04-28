@@ -311,7 +311,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         (mostly as a help in unit testing).
 
         """
-        return self.state_mapping.mapped_state(rf.ArrayAd_double_1(self.initial_guess)).value
+        return self.state_mapping_retrieval_to_fm.mapped_state(
+            rf.ArrayAd_double_1(self.initial_guess)
+        ).value
 
     def update_full_state_element(
         self,
@@ -392,7 +394,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         This is done by a basis_matrix in muses-py, but we are trying to move to a more
         general StateMapping."""
         bmatrix = self.basis_matrix
-        if(bmatrix is None):
+        if bmatrix is None:
             return rf.StateMappingLinear()
         return rf.StateMappingBasisMatrix(bmatrix.transpose())
 
@@ -435,7 +437,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         row size."""
         raise NotImplementedError()
 
-    def state_mapping(self, state_element_id: StateElementIdentifier) -> rf.StateMapping:
+    def state_mapping(
+        self, state_element_id: StateElementIdentifier
+    ) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the ForwardModelGridArray
         and mapping to the internal object state)"""
         return self.full_state_element(state_element_id).state_mapping
@@ -1599,16 +1603,17 @@ class CurrentStateStateInfoOld(CurrentState):
                 self._retrieval_state_vector_size += plen
         return self._retrieval_sv_loc
 
-    def state_mapping(self, state_element_id: StateElementIdentifier) -> rf.StateMapping:
+    def state_mapping(
+        self, state_element_id: StateElementIdentifier
+    ) -> rf.StateMapping:
         selem = self.full_state_element_old(state_element_id)
         mtype = selem.map_type
-        if(mtype == "linear"):
+        if mtype == "linear":
             return rf.StateMappingLinear()
-        elif(mtype == "log"):
+        elif mtype == "log":
             return rf.StateMappingLog()
         else:
             raise RuntimeError(f"Don't recognize mtype {mtype}")
-        
 
     def pressure_list(
         self, state_element_id: StateElementIdentifier

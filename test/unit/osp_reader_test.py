@@ -19,7 +19,7 @@ def test_species(osp_dir):
         osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
     )
     t = r.read_file(
-        StateElementIdentifier("OMIODWAVSLOPEUV1"), RetrievalType("a_retrieval_type")
+        StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type")
     )
     t2 = r.read_file(
         StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("a_retrieval_type")
@@ -27,4 +27,23 @@ def test_species(osp_dir):
     t3 = r.read_file(
         StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("omicloud_ig_refine")
     )
-    #breakpoint()
+    assert t["mapType"].lower() == "linear"
+    assert t2["mapType"].lower() == "linear"
+    assert t3["mapType"].lower() == "linear"
+    cmatrix = r.read_constraint_matrix(
+        StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type")
+    )
+    npt.assert_allclose(cmatrix, [[2500.0]])
+    # Repeat, to make sure caching works
+    cmatrix = r.read_constraint_matrix(
+        StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type")
+    )
+    npt.assert_allclose(cmatrix, [[2500.0]])
+    cmatrix2 = r.read_constraint_matrix(
+        StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("a_retrieval_type")
+    )
+    cmatrix3 = r.read_constraint_matrix(
+        StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("omicloud_ig_refine")
+    )
+    npt.assert_allclose(cmatrix2, [[400.0]])
+    npt.assert_allclose(cmatrix3, [[4.0]])

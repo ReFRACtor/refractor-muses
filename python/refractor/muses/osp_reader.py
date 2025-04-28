@@ -103,6 +103,24 @@ class OspSpeciesReader:
                     self.filename_data[sid] = {}
                 self.filename_data[sid][rtype] = fname
 
+    def read_constraint_matrix(
+        self, sid: StateElementIdentifier, retrieval_type: RetrievalType
+    ) -> np.ndarray:
+        if retrieval_type in self.filename_data[sid] or sid not in self._default_cache:
+            t = self.read_file(sid, retrieval_type)
+            ctype = t["constraintType"].lower()
+            if ctype == "diagonal":
+                s = float(t["sSubaDiagonalValues"])
+                cov = np.array([[1.0 / (s * s)]])
+            else:
+                raise RuntimeError(f"Don't know how to handle {ctype}")
+            if retrieval_type not in self.filename_data[
+                sid
+            ] or retrieval_type == RetrievalType("default"):
+                self._default_cache[sid] = cov
+            return cov
+        return self._default_cache[sid]
+
     def read_file(
         self, sid: StateElementIdentifier, retrieval_type: RetrievalType
     ) -> TesFile:

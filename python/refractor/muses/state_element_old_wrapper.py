@@ -140,7 +140,7 @@ class StateElementOldWrapper(StateElement):
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         # TODO Fill this in
         return rf.StateMappingLinear()
-    
+
     @property
     def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
