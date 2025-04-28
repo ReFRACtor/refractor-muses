@@ -300,7 +300,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
         }
         fake_state_info = FakeStateInfo(self.current_state, obs_list=obs_list)
-        fake_retrieval_info = FakeRetrievalInfo(self.current_state, use_state_mapping=True)
+        #fake_retrieval_info = FakeRetrievalInfo(self.current_state, use_state_mapping=True)
+        fake_retrieval_info = FakeRetrievalInfo(self.current_state)
         if do_systematic:
             rinfo = fake_retrieval_info.retrieval_info_systematic
         else:
