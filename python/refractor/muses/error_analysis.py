@@ -1,5 +1,6 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.framework as rf  # type: ignore
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 import copy
@@ -102,7 +103,14 @@ class ErrorAnalysis:
                 pressure_list.extend(np.array([-2.0]))
             species_list.extend([str(selem.state_element_id)] * matrix.shape[0])
             matrix_list.append(matrix)
-            map_list.extend([selem.map_type] * matrix.shape[0])
+            smap = selem.state_mapping
+            if isinstance(smap, rf.StateMappingLinear):
+                mtype = "linear"
+            elif isinstance(smap, rf.StateMappingLog):
+                mtype = "log"
+            else:
+                raise RuntimeError(f"Don't recognize state mapping {smap}")
+            map_list.extend([mtype] * matrix.shape[0])
 
         initial = block_diag(*matrix_list)
         # Off diagonal blocks for covariance.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from loguru import logger
 import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.framework as rf  # type: ignore
 import os
 import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes, extra_l2_output
@@ -715,7 +716,8 @@ class RetrievalL2Output(RetrievalOutput):
         ind2FM = ind1FM + sz
 
         species_data.RETRIEVEINLOG = np.int32(0)
-        if self.current_state.map_type(StateElementIdentifier(self.spcname)) == "log":
+        if isinstance(self.current_state.state_mapping(StateElementIdentifier(self.spcname)),
+                      rf.StateMappingLog):
             species_data.RETRIEVEINLOG = np.int32(1)
 
         # AT_LINE 342 write_products_one.pro

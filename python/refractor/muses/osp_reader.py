@@ -6,10 +6,7 @@ from pathlib import Path
 from typing import Any, Self
 from functools import cache
 import re
-import typing
-
-if typing.TYPE_CHECKING:
-    from .identifier import StateElementIdentifier
+from .identifier import StateElementIdentifier, RetrievalType
 
 
 class RangeFind:
@@ -44,13 +41,13 @@ class OspCovarianceMatrixReader:
         """This looks through the given directory (e.g., OSP/Covariance/Covariance) and
         maps all the files found into a simple structure that we can use to look up
         the file to read for a particular StateElement"""
-        self.filename_data: dict[str, dict[str, RangeFind]] = {}
+        self.filename_data: dict[StateElementIdentifier, dict[str, RangeFind]] = {}
         for fname in covariance_directory.glob("Covariance_Matrix_*.asc"):
             m = re.match(
                 r"Covariance_Matrix_(\w+)_(\w+)_(\d+)([SN])_(\d+)([SN]).asc", fname.name
             )
             if m:
-                sid = m[1]
+                sid = StateElementIdentifier(m[1])
                 maptype = m[2].lower()
                 r1 = float(m[3]) * (-1 if m[4] == "S" else 1)
                 r2 = float(m[5]) * (-1 if m[6] == "S" else 1)
@@ -68,7 +65,7 @@ class OspCovarianceMatrixReader:
         # The table has a column with the species name, a column with pressure, a
         # column with map type, and then the data. So we just subset for that
         d = np.array(
-            TesFile(self.filename_data[str(sid)][map_type.lower()][latitude]).table
+            TesFile(self.filename_data[sid][map_type.lower()][latitude]).table
         )[:, 3:].astype(float)
         if d.shape != (1, 1):
             raise RuntimeError("Only handle scalar data right now")
@@ -80,4 +77,45 @@ class OspCovarianceMatrixReader:
         return cls(covariance_directory)
 
 
-__all__ = ["RangeFind", "OspCovarianceMatrixReader"]
+class OspSpeciesReader:
+    """This reads file found in directories like
+    OSP/Strategy_Tables/ops/OSP-OMI-AIRS-v10/Species-66"""
+
+    def __init__(self, species_directory: Path) -> None:
+        """This looks through the given directory (e.g.,
+        OSP/Strategy_Tables/ops/OSP-OMI-AIRS-v10/Species-66) and maps
+        all the files found into a simple structure that we can use to
+        look up the file to read for a particular StateElement
+
+        """
+        self.filename_data: dict[StateElementIdentifier, dict[RetrievalType, Path]] = {}
+        self._default_cache: dict[StateElementIdentifier, np.ndarray] = {}
+        for fname in species_directory.glob("*.asc"):
+            m = re.match(r"([A-Z0-9_]+)(_([a-z0-9_]+))?.asc", fname.name)
+            if m:
+                sid = StateElementIdentifier(m[1])
+                rtype = (
+                    RetrievalType(m[3])
+                    if m[3] is not None
+                    else RetrievalType("default")
+                )
+                if sid not in self.filename_data:
+                    self.filename_data[sid] = {}
+                self.filename_data[sid][rtype] = fname
+
+    def read_file(
+        self, sid: StateElementIdentifier, retrieval_type: RetrievalType
+    ) -> TesFile:
+        if retrieval_type in self.filename_data[sid]:
+            fname = self.filename_data[sid][retrieval_type]
+        else:
+            fname = self.filename_data[sid][RetrievalType("default")]
+        return TesFile(fname)
+
+    @classmethod
+    @cache
+    def read_dir(cls, species_directory: Path) -> Self:
+        return cls(species_directory)
+
+
+__all__ = ["RangeFind", "OspCovarianceMatrixReader", "OspSpeciesReader"]

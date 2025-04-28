@@ -2,7 +2,8 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
-from .osp_reader import OspCovarianceMatrixReader
+from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
+from .identifier import StateElementIdentifier, RetrievalType
 import abc
 from pathlib import Path
 import numpy as np
@@ -15,7 +16,6 @@ if typing.TYPE_CHECKING:
         StateElementOldWrapper,
         StateElementOldWrapperHandle,
     )
-    from .identifier import StateElementIdentifier
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
@@ -81,6 +81,15 @@ class StateElement(object, metaclass=abc.ABCMeta):
        apriori_cov_fm gets used just by the ErrorAnalysis, and
        constraint_matrix get used just by CostFunction, so I don't
        think the inconsistency here is an actually problem.
+
+    We have two state mappings, one that goes between the retrieval
+    state vector and the forward model state vector, and a second that
+    is used in the forward model. These are separated because
+    MaxAPosterioriSqrtConstraint needs to be able to go to the forward model
+    state vector separately (used by the error analysis). In py-retrieve,
+    state_mapping_retrieval_to_fm was the basis matrix, and state_mapping
+    what the mapTypeList. But we use the more generate rf.StateMapping here so
+    we aren't restricted to just these two.
     """
 
     def __init__(self, state_element_id: StateElementIdentifier):
@@ -94,57 +103,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
         state = self.__dict__.copy()
         state["_cost_function_notify_helper"] = None
         return state
-
-    def assert_equal(self, other: StateElement) -> None:
-        """Simple test to make sure two StateElement are the same, intended for
-        initial development and testing. This doesn't check that all the function
-        call are identical, just the various property items."""
-        assert self.state_element_id == other.state_element_id
-        sd1 = self.spectral_domain
-        sd2 = self.spectral_domain
-        assert (sd1 is None and sd2 is None) or (
-            sd1 is not None
-            and sd2 is not None
-            and np.allclose(
-                sd1.convert_wave(rf.Unit("nm")), sd2.convert_wave(rf.Unit("nm"))
-            )
-        )
-        assert self.retrieval_sv_length == other.retrieval_sv_length
-        assert self.sys_sv_length == other.sys_sv_length
-        assert self.forward_model_sv_length == other.forward_model_sv_length
-        assert self.map_type == other.map_type
-        assert (
-            self.value_str is None and other.value_str is None
-        ) or self.value_str == other.value_str
-        for param in (
-            "basis_matrix",
-            "map_to_parameter_matrix",
-            "altitude_list",
-            "altitude_list_fm",
-            "pressure_list",
-            "pressure_list_fm",
-            "value",
-            "value_fm",
-            "apriori_value",
-            "apriori_value_fm",
-            "constraint_matrix",
-            "apriori_cov_fm",
-            "retrieval_initial_value",
-            "step_initial_value",
-            "step_initial_value_fm",
-            "true_value",
-            "true_value_fm",
-        ):
-            # Not all the functions of implemented in StateElementOld, these don't actuall
-            # get called in our test cases so this ok. Just skip this - it is possible a
-            # failure is a real problem but for now just skip this. Ok, since this is only
-            # used in testing which can only do so much until we do full runs.
-            try:
-                v1 = getattr(self, param)
-                v2 = getattr(other, param)
-                assert (v1 is None and v2 is None) or np.allclose(v1, v2)
-            except (RuntimeError, NotImplementedError):
-                pass
 
     @property
     def metadata(self) -> dict[str, Any]:
@@ -195,17 +153,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def forward_model_sv_length(self) -> int:
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def map_type(self) -> str:
-        """For ReFRACtor we use a general rf.StateMapping, which can mostly
-        replace the map type py-retrieve uses. However there are some places
-        where old code depends on the map type strings (for example, writing
-        metadata to an output file). It isn't clear what we will need to do if
-        we have a more general mapping type like a scale retrieval or something like
-        that. But for now, supply the old map type. The string will be something
-        like "log" or "linear" """
         raise NotImplementedError()
 
     @property
@@ -306,6 +253,18 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """Value StateElement had at the start of the retrieval step."""
         raise NotImplementedError()
 
+    @abc.abstractproperty
+    def state_mapping(self) -> rf.StateMapping:
+        """StateMapping used by the forward model (so taking the ForwardModelGridArray
+        and mapping to the internal object state)"""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
+        """StateMapping used to go between the RetrievalGridArray and
+        ForwardModelGridArray (e.g., the basis matrix in muses-py)"""
+        raise NotImplementedError()
+    
     @property
     def true_value(self) -> RetrievalGridArray | None:
         """The "true" value if known (e.g., we are running a simulation).
@@ -432,20 +391,19 @@ class StateElementImplementation(StateElement):
         apriori_value: RetrievalGridArray,
         apriori_cov_fm: ForwardModelGrid2dArray,
         constraint_matrix: RetrievalGrid2dArray,
+        state_mapping_retrieval_to_fm : rf.StateMapping = rf.StateMappingLinear(),
         state_mapping: rf.StateMapping = rf.StateMappingLinear(),
-        map_type: str = "linear",
         initial_value: RetrievalGridArray | None = None,
         true_value: RetrievalGridArray | None = None,
         selem_wrapper: StateElementOldWrapper | None = None,
-    ):
+    ) -> None:
         super().__init__(state_element_id)
         self._value = value
         self._apriori_value = apriori_value
         self._constraint_matrix = constraint_matrix
         self._apriori_cov_fm = apriori_cov_fm
-        # TODO, get relationship between these two values
         self._state_mapping = state_mapping
-        self._map_type = map_type
+        self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
         self._step_initial_value = (
             initial_value if initial_value is not None else apriori_value
         )
@@ -511,14 +469,6 @@ class StateElementImplementation(StateElement):
         return res2
 
     @property
-    def map_type(self) -> str:
-        res = self._map_type
-        if self._sold is not None:
-            res2 = self._sold.map_type
-            assert res == res2
-        return res
-
-    @property
     def value(self) -> RetrievalGridArray:
         res = self._value
         if self._sold is not None:
@@ -536,7 +486,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_value(self) -> RetrievalGridArray:
-        #breakpoint()
+        # breakpoint()
         res = self._apriori_value
         if self._sold is not None:
             res2 = self._sold.apriori_value
@@ -545,7 +495,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_value_fm(self) -> ForwardModelGridArray:
-        #breakpoint()
+        # breakpoint()
         res = self._state_mapping.mapped_state(
             rf.ArrayAd_double_1(self.apriori_value)
         ).value
@@ -607,6 +557,18 @@ class StateElementImplementation(StateElement):
             return self._state_mapping.mapped_state(rf.ArrayAd_double_1(tv)).value
         return None
 
+    @property
+    def state_mapping(self) -> rf.StateMapping:
+        """StateMapping used by the forward model (so taking the ForwardModelGridArray
+        and mapping to the internal object state)"""
+        return self._state_mapping
+
+    @property
+    def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
+        """StateMapping used to go between the RetrievalGridArray and
+        ForwardModelGridArray (e.g., the basis matrix in muses-py)"""
+        return self._state_mapping_retrieval_to_fm        
+    
     def update_state_element(
         self,
         current: np.ndarray | None = None,
@@ -670,13 +632,14 @@ class StateElementImplementation(StateElement):
 
 
 class StateElementOspFile(StateElementImplementation):
-    '''This implementation of StateElement gets the apriori/initial guess as a hard coded
+    """This implementation of StateElement gets the apriori/initial guess as a hard coded
     value, and the constraint_matrix and apriori_cov_fm from OSP files. This seems a
     bit convoluted to me - why not just have all the values given in the python configuration
     file? But this is the way muses-py works, and at the very least we need to implementation
     for backwards testing.  We may replace this StateElement, there doesn't seem to be any
     good reason to spread everything across multiple files.
-    '''
+    """
+
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
@@ -692,13 +655,24 @@ class StateElementOspFile(StateElementImplementation):
         # Fill these in
         value = apriori_value.copy()
         apriori = apriori_value.copy()
-        map_type = "linear"
-        latitude = 10
-        r = OspCovarianceMatrixReader(Path(retrieval_config['covarianceDirectory']))
+        self.osp_species_reader = OspSpeciesReader.read_dir(Path(retrieval_config['speciesDirectory']))
+        t = self.osp_species_reader.read_file(state_element_id, RetrievalType("default"))
+        map_type = t["mapType"].lower()
+        # TODO We should get this from whatever the new SoundingMetadata is
+        for iname in ("TES", "AIRS", "CRIS", "OMI", "TROPOMI", "OCO2"):
+            if f"{iname}_latitude" in measurement_id:
+                latitude = float(measurement_id[f"{iname}_latitude"])
+                break
+            if f"{iname}_Latitude" in measurement_id:
+                latitude = float(measurement_id[f"{iname}_Latitude"])
+                break
+        r = OspCovarianceMatrixReader.read_dir(Path(retrieval_config["covarianceDirectory"]))
         # TODO Determine if we really want this as float32 type. That is what muses-py
         # uses, and we need that to match. But doesn't seem to be any strong reason not to
         # just use float64
-        apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude).astype(np.float32)
+        apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude).astype(
+            np.float32
+        )
         constraint_matrix = np.array([[2500.0]])
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
@@ -706,16 +680,22 @@ class StateElementOspFile(StateElementImplementation):
         if selem_wrapper is not None:
             value = selem_wrapper.value
         super().__init__(
-            state_element_id, value, apriori, apriori_cov_fm, constraint_matrix,
-            map_type=map_type,
-            selem_wrapper=selem_wrapper
+            state_element_id,
+            value,
+            apriori,
+            apriori_cov_fm,
+            constraint_matrix,
+            selem_wrapper=selem_wrapper,
         )
+
 
 class StateElementOspFileHandle(StateElementHandle):
     def __init__(
-       self, sid: StateElementIdentifier, apriori_value : np.ndarray,
-       hold: StateElementOldWrapperHandle,
-       cls : type[StateElementOspFile] = StateElementOspFile
+        self,
+        sid: StateElementIdentifier,
+        apriori_value: np.ndarray,
+        hold: StateElementOldWrapperHandle,
+        cls: type[StateElementOspFile] = StateElementOspFile,
     ) -> None:
         self.obs_cls = cls
         self.sid = sid
@@ -738,13 +718,20 @@ class StateElementOspFileHandle(StateElementHandle):
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
         from .state_element_old_wrapper import StateElementOldWrapper
+
         if state_element_id != self.sid:
             return None
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
         sold = cast(StateElementOldWrapper, self.hold.state_element(state_element_id))
-        return self.obs_cls(state_element_id, self.apriori_value, self.measurement_id,
-                            self.retrieval_config, sold)
+        return self.obs_cls(
+            state_element_id,
+            self.apriori_value,
+            self.measurement_id,
+            self.retrieval_config,
+            sold,
+        )
+
 
 __all__ = [
     "StateElement",

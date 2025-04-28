@@ -469,8 +469,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             ii = pstart
             jj = pstart + plen
             vmr = current_state.initial_guess_fm[ii:jj]
-            if current_state.map_type(selem_id) == "log":
-                vmr = np.exp(vmr)
+            vmr = current_state.state_mapping(selem_id).mapped_state(rf.ArrayAd_double_1(vmr)).value
             pressure = current_state.pressure_list_fm(selem_id)
 
             myirfk = copy.deepcopy(irk_array[ii:jj])

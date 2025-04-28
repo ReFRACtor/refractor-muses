@@ -145,8 +145,6 @@ def test_update_cloudfraction(omi_step_0):
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
-    # Test all the initial values at step 0
-    assert selement.map_type == "linear"
 
     # Update results, and make sure element gets updated
     rs.current_state.notify_new_step(
@@ -165,15 +163,12 @@ def test_update_cloudfraction(omi_step_0):
         rs.current_strategy_step.strategy_step.step_number,
     )
 
-    assert selement.map_type == "linear"
 
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_new_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
-    # Test all the initial values at step 1, after an update
-    assert selement.map_type == "linear"
 
 
 def test_noupdate_cloudfraction(omi_step_0):
@@ -184,8 +179,6 @@ def test_noupdate_cloudfraction(omi_step_0):
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
-    # Test all the initial values at step 0
-    assert selement.map_type == "linear"
 
     # Update results, and make sure element gets updated
     rs.current_state.notify_new_step(
@@ -208,8 +201,6 @@ def test_noupdate_cloudfraction(omi_step_0):
     rs._strategy_executor.notify_new_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
-    # Test all the initial values at step 1, after an update
-    assert selement.map_type == "linear"
 
 
 # Temp, skip. We need to create a new StateInfo and update OmiEofStateElement
@@ -262,8 +253,6 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
-    # Test all the initial values at step 0
-    assert selement.map_type == "linear"
 
     # Update results, and make sure element gets updated
     rs.current_state.notify_new_step(
@@ -282,15 +271,12 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
         rs.current_strategy_step.strategy_step.step_number,
     )
 
-    assert selement.map_type == "linear"
 
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_new_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
-    # Test all the initial values at step 1, after an update
-    assert selement.map_type == "linear"
 
 
 # Temp, skip. We need to create a new StateInfo and update OmiEofStateElement
@@ -338,8 +324,6 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
-    # Test all the initial values at step 0
-    assert selement.map_type == "linear"
 
     # Update results, and make sure element gets updated
     rs.current_state.notify_new_step(
@@ -358,12 +342,9 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
         rs.current_strategy_step.strategy_step.step_number,
     )
 
-    assert selement.map_type == "linear"
 
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_new_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
     selement.update_initial_guess(rs.current_strategy_step)
-    # Test all the initial values at step 1, after an update
-    assert selement.map_type == "linear"

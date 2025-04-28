@@ -1,11 +1,12 @@
 from __future__ import annotations
 from . import muses_py as mpy  # type: ignore
+import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
-
+    from .identifier import StateElementIdentifier
 
 class FakeRetrievalInfo:
     """We are moving away from the RetrievalInfo structure used by
@@ -90,7 +91,7 @@ class FakeRetrievalInfo:
         ] * self.current_state.fm_state_vector_size
         for sid, (pstart, plen) in self.current_state.fm_sv_loc.items():
             res[pstart : (pstart + plen)] = [
-                self.current_state.map_type(sid),
+                self._map_type(sid),
             ] * plen
         return res
 
@@ -129,6 +130,14 @@ class FakeRetrievalInfo:
     def doUpdateFM(self) -> np.ndarray:
         return self.current_state.updated_fm_flag
 
+    def _map_type(self, sid:StateElementIdentifier) -> str:
+        smap = self.current_state.state_mapping(sid)
+        if isinstance(smap, rf.StateMappingLinear):
+            return "linear"
+        elif isinstance(smap, rf.StateMappingLog):
+            return "log"
+        raise RuntimeError(f"Don't recognize state mapping {smap}")
+    
     @property
     def map_type_systematic(self) -> list[str]:
         res = [
@@ -136,7 +145,7 @@ class FakeRetrievalInfo:
         ] * self.current_state.sys_state_vector_size
         for sid, (pstart, plen) in self.current_state.sys_sv_loc.items():
             res[pstart : (pstart + plen)] = [
-                self.current_state.map_type(sid),
+                self._map_type(sid),
             ] * plen
         return res
 
@@ -147,7 +156,7 @@ class FakeRetrievalInfo:
     @property
     def mapType(self) -> list[str]:
         return [
-            self.current_state.map_type(sid)
+            self._map_type(sid)
             for sid in self.current_state.retrieval_state_element_id
         ]
 

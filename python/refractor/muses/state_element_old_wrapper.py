@@ -133,16 +133,14 @@ class StateElementOldWrapper(StateElement):
         return self._current_state_old.fm_sv_loc[self.state_element_id][1]
 
     @property
-    def map_type(self) -> str:
-        """For ReFRACtor we use a general rf.StateMapping, which can mostly
-        replace the map type py-retrieve uses. However there are some places
-        where old code depends on the map type strings (for example, writing
-        metadata to an output file). It isn't clear what we will need to do if
-        we have a more general mapping type like a scale retrieval or something like
-        that. But for now, supply the old map type. The string will be something
-        like "log" or "linear" """
-        return self._current_state_old.map_type(self.state_element_id)
+    def state_mapping(self) -> rf.StateMapping:
+        return self._current_state_old.state_mapping(self.state_element_id)
 
+    @property
+    def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
+        # TODO Fill this in
+        return rf.StateMappingLinear()
+    
     @property
     def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
@@ -241,8 +239,7 @@ class StateElementOldWrapper(StateElement):
                     ]
                 )
         # This already has map applied, so reverse to get parameters
-        if self.map_type.lower() == "log":
-            res = np.log(res)
+        res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
         return res
 
     @property
@@ -323,15 +320,11 @@ class StateElementOldWrapper(StateElement):
         if s is not None:
             return self._current_state_old.initial_guess_fm[s]
         # This may have already been mapped by type, if so map back
-        if self.map_type.lower() == "log":
-            return np.log(
-                self._current_state_old.full_state_step_initial_value(
-                    self.state_element_id
-                )
-            )
-        return self._current_state_old.full_state_step_initial_value(
+        res = self._current_state_old.full_state_step_initial_value(
             self.state_element_id
         )
+        res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
+        return res
 
     @property
     def true_value_fm(self) -> ForwardModelGridArray | None:

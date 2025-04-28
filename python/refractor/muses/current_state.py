@@ -429,15 +429,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         row size."""
         raise NotImplementedError()
 
-    def map_type(self, state_element_id: StateElementIdentifier) -> str:
-        """For ReFRACtor we use a general rf.StateMapping, which can mostly
-        replace the map type py-retrieve uses. However there are some places
-        where old code depends on the map type strings (for example, writing
-        metadata to an output file). It isn't clear what we will need to do if
-        we have a more general mapping type like a scale retrieval or something like
-        that. But for now, supply the old map type. The string will be something
-        like "log" or "linear" """
-        raise NotImplementedError()
+    def state_mapping(self, state_element_id: StateElementIdentifier) -> rf.StateMapping:
+        """StateMapping used by the forward model (so taking the ForwardModelGridArray
+        and mapping to the internal object state)"""
+        return self.full_state_element(state_element_id).state_mapping
 
     def pressure_list(
         self, state_element_id: StateElementIdentifier
@@ -695,7 +690,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         mapped (so a log initial guess gets exp applied). This is a bit confusing,
         it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
         We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the map_type in reverse.
+        the state_mapping in reverse.
         """
         raise NotImplementedError()
 
@@ -733,7 +728,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         mapped (so a log apriori gets exp applied). This is a bit confusing,
         it means full_state_step_aprior_value and apriori_value_fm aren't the same.
         We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the map_type in reverse.
+        the state_mapping in reverse.
         """
         raise NotImplementedError()
 
@@ -813,12 +808,10 @@ class CurrentStateUip(CurrentState):
 
     @property
     def initial_guess(self) -> RetrievalGridArray:
-        """Initial guess"""
         return copy(self._initial_guess)
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
-        """Constraint matrix, the inverse of apriori_cov"""
         # Don't think we need this. We can calculate something frm
         # sqrt_constraint if needed, but for now just leave
         # unimplemented
@@ -826,7 +819,6 @@ class CurrentStateUip(CurrentState):
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
-        """Sqrt matrix from covariance"""
         if self.ret_info:
             return self.ret_info["sqrt_constraint"]
         else:
@@ -847,7 +839,6 @@ class CurrentStateUip(CurrentState):
 
     @property
     def apriori(self) -> RetrievalGridArray:
-        """Apriori value"""
         if self.ret_info:
             return self.ret_info["const_vec"]
         else:
@@ -868,16 +859,10 @@ class CurrentStateUip(CurrentState):
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
-        """Basis matrix going from retrieval vector to full model
-        vector.  We don't always have this, so we return None if there
-        isn't a basis matrix.
-
-        """
         return self._basis_matrix
 
     @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
-        """Go the other direction from basis matrix"""
         raise NotImplementedError()
 
     # We don't have the other gas species working yet. Short term,
@@ -896,11 +881,6 @@ class CurrentStateUip(CurrentState):
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
-        """Like fm_sv_loc, but for the retrieval state vactor (rather than the
-        forward model state vector). If we don't have a basis_matrix, these are the
-        same. With a basis_matrix, the total length of the fm_sv_loc is the
-        basis_matrix column size, and retrieval_vector_loc is the smaller basis_matrix
-        row size."""
         if self._retrieval_sv_loc is None:
             self._retrieval_sv_loc = {}
             self._retrieval_state_vector_size = 0
@@ -918,14 +898,10 @@ class CurrentStateUip(CurrentState):
 
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
-        """Return list of state elements that are in the systematic list (used by the
-        ErrorAnalysis)."""
         raise NotImplementedError()
 
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
-        """Return list of state elements that make up the full state, generally a
-        larger list than retrieval_state_element_id"""
         # I think we could come up with something here if needed, but for now
         # just punt on this
         raise NotImplementedError()
@@ -936,13 +912,6 @@ class CurrentStateUip(CurrentState):
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
-        """Return the sounding metadata. It isn't clear if this really
-        belongs in CurrentState or not, but there isn't another
-        obvious place for this so for now we'll have this here.
-
-        Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
-        that makes more sense.
-        """
         raise NotImplementedError()
 
     def full_state_element(
@@ -953,18 +922,11 @@ class CurrentStateUip(CurrentState):
     def full_state_spectral_domain_wavelength(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:
-        """Return the spectral domain (as nm) for the given state_element_id, or None if
-        there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
     def full_state_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
-        """Return the full state value for the given state element
-        name.  Just as a convention we always return a np.ndarray, so
-        if there is only one value put that in a length 1 np.ndarray.
-
-        """
         # We've extracted this logic out from update_uip
         o_uip = mpy.ObjectView(self.rf_uip.uip)
         if str(state_element_id) == "TSUR":
@@ -1103,66 +1065,31 @@ class CurrentStateUip(CurrentState):
     def full_state_value_str(
         self, state_element_id: StateElementIdentifier
     ) -> str | None:
-        """A small number of values in the full state are actually str (e.g.,
-        StateElementIdentifier("nh3type"). This is like full_state_value, but we
-        return a str instead.
-        """
         raise NotImplementedError()
 
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
-        """Return the initial value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-        Where this is used in the muses-py code it sometimes assumes this has been
-        mapped (so a log initial guess gets exp applied). This is a bit confusing,
-        it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
-        We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the map_type in reverse.
-        """
         raise NotImplementedError()
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray | None:
-        """Return the true value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-        If we don't have a true value, return None
-        """
         raise NotImplementedError()
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
-        """Return the initialInitial value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-        """
         raise NotImplementedError()
 
     def full_state_apriori_value(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
-        """Return the initial value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-        Where this is used in the muses-py code it sometimes assumes this has been
-        mapped (so a log apriori gets exp applied). This is a bit confusing,
-        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
-        We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the map_type in reverse.
-        """
         raise NotImplementedError()
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGrid2dArray:
-        """Return the covariance of the apriori value of the given state element identification."""
         raise NotImplementedError()
 
 
@@ -1224,25 +1151,14 @@ class CurrentStateDict(CurrentState):
 
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
-        """Return list of state elements that are in the systematic list (used by the
-        ErrorAnalysis)."""
         raise NotImplementedError()
 
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
-        """Return list of state elements that make up the full state, generally a
-        larger list than retrieval_state_element_id"""
         return list(self.state_element_dict.keys())
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
-        """Return the sounding metadata. It isn't clear if this really
-        belongs in CurrentState or not, but there isn't another
-        obvious place for this so for now we'll have this here.
-
-        Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
-        that makes more sense.
-        """
         raise NotImplementedError()
 
     def full_state_element(
@@ -1253,18 +1169,11 @@ class CurrentStateDict(CurrentState):
     def full_state_spectral_domain_wavelength(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:
-        """Return the spectral domain (as nm) for the given state_element_id, or None if
-        there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
     def full_state_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
-        """Return the full state value for the given state element
-        name.  Just as a convention we always return a np.ndarray, so
-        if there is only one value put that in a length 1 np.ndarray.
-
-        """
         v = self.state_element_dict[state_element_id]
         if isinstance(v, np.ndarray):
             return v
@@ -1279,67 +1188,31 @@ class CurrentStateDict(CurrentState):
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
-        """Return the initial value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-
-        Where this is used in the muses-py code it sometimes assumes this has been
-        mapped (so a log initial guess gets exp applied). This is a bit confusing,
-        it means full_state_step_initial_value and initial_guess_value aren't the same.
-        We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the map_type in reverse.
-        """
         raise NotImplementedError()
 
     def full_state_value_str(
         self, state_element_id: StateElementIdentifier
     ) -> str | None:
-        """A small number of values in the full state are actually str (e.g.,
-        StateElementIdentifier("nh3type"). This is like full_state_value, but we
-        return a str instead.
-        """
         raise NotImplementedError()
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray | None:
-        """Return the true value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-        If we don't have a true value, return None
-        """
         raise NotImplementedError()
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
-        """Return the initialInitial value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-        """
         raise NotImplementedError()
 
     def full_state_apriori_value(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
-        """Return the apriori value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-        Where this is used in the muses-py code it sometimes assumes this has been
-        mapped (so a log apriori gets exp applied). This is a bit confusing,
-        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
-        We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the map_type in reverse.
-        """
         raise NotImplementedError()
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGrid2dArray:
-        """Return the covariance of the apriori value of the given state element identification."""
         raise NotImplementedError()
 
 
@@ -1411,7 +1284,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def initial_guess(self) -> RetrievalGridArray:
-        """Initial guess"""
         # Not sure about systematic handling here. I think this is all
         # zeros, not sure if that is right or not.
         if self._retrieval_info is None:
@@ -1425,7 +1297,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def initial_guess_fm(self) -> ForwardModelGridArray:
-        """Initial guess on forward mode"""
         # TODO
         # Not clear why this isn't directly calculated from initial_guess, but the
         # values are different. For now, just have this and we can try to sort this out
@@ -1440,7 +1311,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
-        """Constraint matrix, the inverse of apriori_cov"""
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.zeros((1, 1))
@@ -1451,7 +1321,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
-        """Sqrt matrix from covariance"""
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.eye(len(self.initial_guess))
@@ -1460,7 +1329,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def apriori(self) -> RetrievalGridArray:
-        """Apriori value"""
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.zeros((len(self.initial_guess),))
@@ -1471,7 +1339,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def apriori_fm(self) -> ForwardModelGridArray:
-        """Apriori value"""
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.zeros((len(self.initial_guess_fm),))
@@ -1482,25 +1349,18 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def true_value(self) -> RetrievalGridArray:
-        """Apriori value"""
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         return copy(self.retrieval_info.true_value)
 
     @property
     def true_value_fm(self) -> ForwardModelGridArray:
-        """Apriori value"""
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         return copy(self.retrieval_info.true_value_fm)
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
-        """Basis matrix going from retrieval vector to full model
-        vector.  We don't always have this, so we return None if there
-        isn't a basis matrix.
-
-        """
         if self.do_systematic:
             return None
         else:
@@ -1510,7 +1370,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
-        """Go the other direction from basis matrix"""
         if self.do_systematic:
             return None
         else:
@@ -1538,9 +1397,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def updated_fm_flag(self) -> ForwardModelGridArray:
-        """This is array of boolean flag indicating which parts of the forward
-        model state vector got updated when we last called update_state. A 1 means
-        it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
         return self.retrieval_info.retrieval_info_obj.doUpdateFM
 
     def update_state(
@@ -1550,7 +1406,6 @@ class CurrentStateStateInfoOld(CurrentState):
         retrieval_config: RetrievalConfiguration | MeasurementId,
         step: int,
     ) -> None:
-        """Update the state info"""
         self.state_info.update_state(
             self.retrieval_info, results_list, do_not_update, retrieval_config, step
         )
@@ -1564,9 +1419,6 @@ class CurrentStateStateInfoOld(CurrentState):
         retrieval_initial: np.ndarray | None = None,
         true_value: np.ndarray | None = None,
     ) -> None:
-        """We have a few places where we want to update a state element other than
-        update_initial_guess. This function updates each of the various values passed in.
-        A value of 'None' (the default) means skip updating that part of the state."""
         selem = self.state_info.state_element(state_element_id)
         selem.update_state(
             current, apriori, step_initial, retrieval_initial, true_value
@@ -1598,8 +1450,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
-        """Return list of state elements that are in the systematic list (used by the
-        ErrorAnalysis)."""
         if self.retrieval_state_element_override is not None:
             return self.retrieval_state_element_override
         if self.retrieval_info is None:
@@ -1610,17 +1460,10 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def full_state_element_id(self) -> list[StateElementIdentifier]:
-        """Return list of state elements that make up the full state, generally a
-        larger list than retrieval_state_element_id"""
         return [i.name for i in self.state_info.state_element_list()]
 
     @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
-        """Dict that gives the starting location in the forward model
-        state vector for a particular state element name (state
-        elements not being retrieved don't get listed here)
-
-        """
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         if self._fm_sv_loc is None:
@@ -1654,13 +1497,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
-        """Return the sounding metadata. It isn't clear if this really
-        belongs in CurrentState or not, but there isn't another
-        obvious place for this so for now we'll have this here.
-
-        Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
-        that makes more sense.
-        """
         return self.state_info.sounding_metadata()
 
     def full_state_element(
@@ -1671,58 +1507,29 @@ class CurrentStateStateInfoOld(CurrentState):
     def full_state_element_old(
         self, state_element_id: StateElementIdentifier
     ) -> StateElementOld:
-        """Return the StateElement for the state_element_id. I'm not sure if we want to
-        have this exposed or not, but there is a bit of useful information we have in
-        each StateElement (such as the sa_cross_covariance). We can have this exposed for
-        now, and revisit it if we end up deciding this is too much coupling. There are
-        only a few spots that use full_state_element vs something like full_state_value,
-        so we will just need to revisit those few spots if this becomes an issue."""
         return self.state_info.state_element(state_element_id)
 
     def full_state_spectral_domain_wavelength(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:
-        """Return the spectral domain (as nm) for the given state_element_id, or None if
-        there isn't an associated frequency for the given state_element_id"""
         selem = self.state_info.state_element(state_element_id)
         return selem.spectral_domain_wavelength
 
     def full_state_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
-        """Return the full state value for the given state element
-        name.  Just as a convention we always return a np.ndarray, so if
-        there is only one value put that in a length 1 np.ndarray.
-
-        """
         selem = self.state_info.state_element(state_element_id)
         return copy(selem.value)
 
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
-        """Return the initial value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-
-
-        Where this is used in the muses-py code it sometimes assumes this has been
-        mapped (so a log initial guess gets exp applied). This is a bit confusing,
-        it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
-        We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the map_type in reverse.
-        """
         selem = self.state_info.state_element(state_element_id, step="initial")
         return copy(selem.value)
 
     def full_state_value_str(
         self, state_element_id: StateElementIdentifier
     ) -> str | None:
-        """A small number of values in the full state are actually str (e.g.,
-        StateElementIdentifier("nh3type"). This is like full_state_value, but we
-        return a str instead.
-        """
         selem = self.state_info.state_element(state_element_id)
         if not hasattr(selem, "value_str"):
             return None
@@ -1731,55 +1538,29 @@ class CurrentStateStateInfoOld(CurrentState):
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray | None:
-        """Return the true value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-        If we don't have a true value, return None
-        """
         selem = self.state_info.state_element(state_element_id, step="true")
         return copy(selem.value)
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
-        """Return the initialInitial value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-        """
         selem = self.state_info.state_element(state_element_id, step="initialInitial")
         return copy(selem.value)
 
     def full_state_apriori_value(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
-        """Return the apriori value of the given state element identification.
-        Just as a convention we always return a np.array, so if
-        there is only one value put that in a length 1 np.array.
-
-        Where this is used in the muses-py code it sometimes assumes this has been
-        mapped (so a log apriori gets exp applied). This is a bit confusing,
-        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
-        We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the map_type in reverse.
-        """
         selem = self.state_info.state_element(state_element_id)
         return copy(selem.apriori_value)
 
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGrid2dArray:
-        """Return the covariance of the apriori value of the given state element identification."""
         selem = self.state_info.state_element(state_element_id)
         return copy(selem.sa_covariance)
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
-        """Like fm_sv_loc, but for the retrieval state vactor (rather than the
-        forward model state vector. If we don't have a basis_matrix, these are the
-        same. With a basis_matrix, the total length of the fm_sv_loc is the
-        basis_matrix column size, and retrieval_vector_loc is the smaller basis_matrix
-        row size."""
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         if self._retrieval_sv_loc is None:
@@ -1812,24 +1593,20 @@ class CurrentStateStateInfoOld(CurrentState):
                 self._retrieval_state_vector_size += plen
         return self._retrieval_sv_loc
 
-    def map_type(self, state_element_id: StateElementIdentifier) -> str:
-        """For ReFRACtor we use a general rf.StateMapping, which can mostly
-        replace the map type py-retrieve uses. However there are some places
-        where old code depends on the map type strings (for example, writing
-        metadata to an output file). It isn't clear what we will need to do if
-        we have a more general mapping type like a scale retrieval or something like
-        that. But for now, supply the old map type. The string will be something
-        like "log" or "linear" """
+    def state_mapping(self, state_element_id: StateElementIdentifier) -> rf.StateMapping:
         selem = self.full_state_element_old(state_element_id)
-        return selem.map_type
+        mtype = selem.map_type
+        if(mtype == "linear"):
+            return rf.StateMappingLinear()
+        elif(mtype == "log"):
+            return rf.StateMappingLog()
+        else:
+            raise RuntimeError(f"Don't recognize mtype {mtype}")
+        
 
     def pressure_list(
         self, state_element_id: StateElementIdentifier
     ) -> RetrievalGridArray | None:
-        """For state elements that are on pressure level, this returns
-        the pressure levels.  This is for the retrieval state vector
-        levels (generally smaller than the pressure_list_fm).
-        """
         selem = self.full_state_element_old(state_element_id)
         if hasattr(selem, "pressureList"):
             return selem.pressureList
@@ -1838,10 +1615,6 @@ class CurrentStateStateInfoOld(CurrentState):
     def pressure_list_fm(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray | None:
-        """For state elements that are on pressure level, this returns
-        the pressure levels.  This is for the forward model state
-        vector levels (generally larger than the pressure_list).
-        """
         selem = self.full_state_element_old(state_element_id)
         if hasattr(selem, "pressureListFM"):
             return selem.pressureListFM
@@ -1850,10 +1623,6 @@ class CurrentStateStateInfoOld(CurrentState):
     def altitude_list(
         self, state_element_id: StateElementIdentifier
     ) -> RetrievalGridArray | None:
-        """For state elements that are on pressure level, this returns
-        the altitude levels.  This is for the retrieval state vector
-        levels (generally smaller than the altitude_list_fm).
-        """
         selem = self.full_state_element_old(state_element_id)
         if hasattr(selem, "altitudeList"):
             return selem.altitudeList
@@ -1862,10 +1631,6 @@ class CurrentStateStateInfoOld(CurrentState):
     def altitude_list_fm(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray | None:
-        """For state elements that are on pressure level, this returns
-        the altitude levels.  This is for the forward model state
-        vector levels (generally larger than the altitude_list).
-        """
         selem = self.full_state_element_old(state_element_id)
         if hasattr(selem, "altitudeListFM"):
             return selem.altitudeListFM
@@ -1929,7 +1694,6 @@ class CurrentStateStateInfoOld(CurrentState):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
     ) -> None:
-        """Have updated the target we are processing."""
         self.state_info.notify_update_target(
             measurement_id, retrieval_config, strategy, observation_handle_set
         )
@@ -1949,12 +1713,6 @@ class CurrentStateStateInfoOld(CurrentState):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        """Called when MusesStrategy is starting a new step.
-
-        The logic for when to update the initial guess in the state info table is kind of
-        complicated and confusing. For now we duplicate this behavior, in some cases we do
-        this and in others we don't. We can hopefully sort this out, the logic should be
-        straight forward"""
         # current_strategy_step being None means we are past the last step in our
         # MusesStrategy, so we just skip doing anything
         if current_strategy_step is not None:
@@ -1976,7 +1734,6 @@ class CurrentStateStateInfoOld(CurrentState):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        """Called when muses_strategy_executor has restarted"""
         if current_strategy_step is not None:
             self.step_directory = (
                 retrieval_config["run_dir"]
