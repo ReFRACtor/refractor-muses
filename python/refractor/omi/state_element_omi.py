@@ -23,12 +23,6 @@ def add_handle(sname: str, apriori_value: float, cls: type[StateElementOspFile] 
     )
 
 
-#            omi_pars = {
-#            'surface_albedo_uv1': o_omi['SurfaceAlbedo']['MonthlyMinimumSurfaceReflectance'],
-#             'surface_albedo_uv2': o_omi['SurfaceAlbedo']['MonthlyMinimumSurfaceReflectance'],
-#             'cloud_fraction': o_omi['Cloud']['CloudFraction'],
-#            }
-
 class StateElementOmiCloudFraction(StateElementOspFile):
     '''Variation that gets the apriori/initial guess from the observation file'''
     def __init__(
@@ -67,8 +61,8 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         super().__init__(state_element_id, apriori_value, measurement_id, retrieval_config,
                          strategy, observation_handle_set, sounding_metadata, selem_wrapper)
         
-add_handle("OMISURFACEALBEDOUV1", -999.0, StateElementOmiSurfaceAlbedo)
-add_handle("OMISURFACEALBEDOUV2", -999.0, StateElementOmiSurfaceAlbedo)
+#add_handle("OMISURFACEALBEDOUV1", -999.0, StateElementOmiSurfaceAlbedo)
+#add_handle("OMISURFACEALBEDOUV2", -999.0, StateElementOmiSurfaceAlbedo)
 add_handle("OMISURFACEALBEDOSLOPEUV2", 0.0)
 add_handle("OMIRADWAVUV1", 0.0)
 add_handle("OMIRADWAVUV2", 0.0)

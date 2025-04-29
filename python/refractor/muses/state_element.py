@@ -651,11 +651,9 @@ class StateElementOspFile(StateElementImplementation):
         self,
         state_element_id: StateElementIdentifier,
         apriori_value: np.ndarray,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
+        latitude: float,
+        species_directory: Path,
+        covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
     ):
         # For OMI and TROPOMI parameters the initial value, and apriori are hard coded.
@@ -665,9 +663,7 @@ class StateElementOspFile(StateElementImplementation):
         # Fill these in
         value = apriori_value.copy()
         apriori = apriori_value.copy()
-        self.osp_species_reader = OspSpeciesReader.read_dir(
-            Path(retrieval_config["speciesDirectory"])
-        )
+        self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
         t = self.osp_species_reader.read_file(
             state_element_id, RetrievalType("default")
         )
@@ -678,10 +674,7 @@ class StateElementOspFile(StateElementImplementation):
             smap = rf.StateMappingLog()
         else:
             raise RuntimeError(f"Don't recognize map_type {map_type}")
-        latitude = sounding_metadata.latitude.value
-        r = OspCovarianceMatrixReader.read_dir(
-            Path(retrieval_config["covarianceDirectory"])
-        )
+        r = OspCovarianceMatrixReader.read_dir(covariance_directory)
         # TODO Determine if we really want this as float32 type. That is what muses-py
         # uses, and we need that to match. But doesn't seem to be any strong reason not to
         # just use float64
@@ -696,8 +689,6 @@ class StateElementOspFile(StateElementImplementation):
         # just propagate any values in selem_wrapper to this class
         if selem_wrapper is not None:
             value = selem_wrapper.value
-        #print(state_element_id)
-        #breakpoint()
         super().__init__(
             state_element_id,
             value,
@@ -708,7 +699,43 @@ class StateElementOspFile(StateElementImplementation):
             state_mapping=smap,
         )
 
+    @classmethod
+    def create_from_handle(cls,
+        state_element_id: StateElementIdentifier,
+        apriori_value: np.ndarray,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
+        selem_wrapper: StateElementOldWrapper | None = None,
+        ) -> Self:
+        '''Create object from the set of parameter the StateElementOspFileHandle supplies.
+        
+        We don't actually use all the arguments, but they are there for other classes
+        '''
+        res = cls(state_element_id, apriori_value, sounding_metadata.latitude.value,
+                  Path(retrieval_config["speciesDirectory"]),
+                  Path(retrieval_config["covarianceDirectory"]),
+                  selem_wrapper=selem_wrapper)
+        return res
+                  
 
+    def notify_new_step(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        super().notify_new_step(current_strategy_step, error_analysis, retrieval_config,
+                                skip_initial_guess_update)
+        # Most of the time this will just return the same value, but there might be
+        # certain steps with a different constraint matrix.
+        self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
+           self.state_element_id, current_strategy_step.retrieval_type
+        )
+        
 class StateElementOspFileHandle(StateElementHandle):
     def __init__(
         self,
@@ -748,7 +775,7 @@ class StateElementOspFileHandle(StateElementHandle):
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
         sold = cast(StateElementOldWrapper, self.hold.state_element(state_element_id))
-        return self.obs_cls(
+        return self.obs_cls.create_from_handle(
             state_element_id,
             self.apriori_value,
             self.measurement_id,
