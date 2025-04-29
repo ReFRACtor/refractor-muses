@@ -7,7 +7,9 @@ from pathlib import Path
 from copy import copy
 import os
 import typing
+from typing import Self
 from .identifier import StateElementIdentifier
+from .tes_file import TesFile
 
 if typing.TYPE_CHECKING:
     from refractor.old_py_retrieve_wrapper import (  # type: ignore
@@ -67,28 +69,87 @@ class SoundingMetadata:
     I'm not sure if that actually can happen, but there isn't another obvious place
     to put this metadata so we'll go ahead and keep this here."""
 
-    def __init__(self, state_info: StateInfoOld, step: str = "current") -> None:
+    def __init__(self):
+        '''Note you normally call one of the creator functions rather than __init__'''
+        self._latitude = rf.DoubleWithUnit(0, "deg")
+        self._longitude = rf.DoubleWithUnit(0,"deg")
+        self._surface_altitude = rf.DoubleWithUnit(0,"km")
+        self._day_flag = False
+        self._height = rf.ArrayWithUnit_double_1(
+            np.array([0,]), "km"
+        )
+        self._surface_type = ""
+        self._tai_time = 0.0
+        self._sounding_id = ""
+        self._utc_time = ""
+
+    @classmethod
+    def create_from_measurement_id(cls, measurement_id : MeasurementId, instrument : InstrumentIdentifier) -> Self:
+        res = cls()
+        instrument_name = str(instrument)
+        if f"{instrument_name}_latitude" in measurement_id:
+            res._latitude = rf.DoubleWithUnit(float(measurement_id[f"{instrument_name}_latitude"]), "deg")
+        else:
+            res._latitude = rf.DoubleWithUnit(float(measurement_id[f"{instrument_name}_Latitude"]), "deg")
+        if f"{instrument_name}_longitude" in measurement_id:
+            res._longitude = rf.DoubleWithUnit(float(measurement_id[f"{instrument_name}_longitude"]), "deg")
+        else:
+            res._longitude = rf.DoubleWithUnit(float(measurement_id[f"{instrument_name}_Longitude"]), "deg")
+        if "oceanFlag" in measurement_id:
+            oceanflag = int(measurement_id["oceanflag"])
+        else:
+            oceanflag = int(measurement_id["OCEANFLAG"])
+        res._surface_type = "OCEAN" if oceanflag == 1 else "LAND"
+        res._sounding_id =measurement_id["key"]
+        # Couple of things in the DateTime file
+        f = TesFile(measurement_id["run_dir"] / "DateTime.asc")
+        res._tai_time = float(f["TAI_Time_of_ZPD"])
+        res._utc_time = f["UTC_Time"]
+
+        date_struct = mpy.utc_from_string(res._utc_time)
+        i_date_struct = {}
+        i_date_struct["dateStruct"] = date_struct
+        i_date_struct["year"] = date_struct["utctime"].year
+        i_date_struct["month"] = date_struct["utctime"].month
+        i_date_struct["day"] = date_struct["utctime"].day
+        i_date_struct["hour"] = date_struct["utctime"].hour
+        i_date_struct["minute"] = date_struct["utctime"].minute
+        i_date_struct["second"] = date_struct["utctime"].second
+        res._day_flag = bool(mpy.daytime(i_date_struct, res._longitude.value))
+
+        # Need to fill these in
+        res._surface_altitude = rf.DoubleWithUnit(0,"km")
+        res._height = rf.ArrayWithUnit_double_1(
+            np.array([0,]), "km"
+        )
+        return res
+        
+    @classmethod
+    def create_from_old_state_info(cls, state_info: StateInfoOld, step: str = "current") -> Self:
         if step not in ("current", "initial", "initialInitial"):
             raise RuntimeError(
                 "Don't support anything other than the current, initial, or initialInitial step"
             )
-        self._latitude = rf.DoubleWithUnit(
+        res = cls()
+        res._latitude = rf.DoubleWithUnit(
             state_info.state_info_dict[step]["latitude"], "deg"
         )
-        self._longitude = rf.DoubleWithUnit(
+        res._longitude = rf.DoubleWithUnit(
             state_info.state_info_dict[step]["longitude"], "deg"
         )
-        self._surface_altitude = rf.DoubleWithUnit(
+        res._surface_altitude = rf.DoubleWithUnit(
             state_info.state_info_dict[step]["tsa"]["surfaceAltitudeKm"], "km"
         )
-        self._day_flag = bool(state_info.state_info_dict[step]["tsa"]["dayFlag"])
-        self._height = rf.ArrayWithUnit_double_1(
+        res._day_flag = bool(state_info.state_info_dict[step]["tsa"]["dayFlag"])
+        res._height = rf.ArrayWithUnit_double_1(
             state_info.state_info_dict[step]["heightKm"], "km"
         )
-        self._surface_type = state_info.state_info_dict[step]["surfaceType"].upper()
-        self._tai_time = state_info._tai_time
-        self._sounding_id = state_info._sounding_id
-        self._utc_time = state_info._utc_time
+        res._surface_type = state_info.state_info_dict[step]["surfaceType"].upper()
+        res._tai_time = state_info._tai_time
+        res._sounding_id = state_info._sounding_id
+        res._utc_time = state_info._utc_time
+        return res
+
 
     @property
     def latitude(self) -> rf.DoubleWithUnit:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .state_element import StateElement, StateElementHandle
 from .identifier import StateElementIdentifier
-from .current_state import CurrentStateStateInfoOld
+from .current_state import CurrentStateStateInfoOld, SoundingMetadata
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
@@ -407,6 +407,7 @@ class StateElementOldWrapperHandle(StateElementHandle):
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         self._current_state_old.notify_update_target(

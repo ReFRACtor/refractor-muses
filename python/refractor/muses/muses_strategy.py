@@ -122,7 +122,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     @property
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """List of instruments used in this step."""
-        return self.current_strategy_step_dict["instrument_name"]
+        return InstrumentIdentifier.sort_identifier(self.current_strategy_step_dict["instrument_name"])
 
     @property
     def retrieval_type(self) -> RetrievalType:
@@ -643,7 +643,7 @@ class MusesStrategyStepList(MusesStrategyImp):
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """Complete list of instrument names (so for all retrieval
         steps)"""
-        return self._instrument_name
+        return InstrumentIdentifier.sort_identifier(self._instrument_name)
 
     def restart(self) -> None:
         """Set step to the first one."""

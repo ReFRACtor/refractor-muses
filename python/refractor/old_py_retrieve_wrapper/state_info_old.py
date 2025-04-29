@@ -983,7 +983,7 @@ class StateInfoOld:
         self.reset_state_value = {}
 
     def sounding_metadata(self, step="current"):
-        return SoundingMetadata(self, step=step)
+        return SoundingMetadata.create_from_old_state_info(self, step=step)
 
     def has_true_values(self):
         """Indicate if we have true values in our state info."""

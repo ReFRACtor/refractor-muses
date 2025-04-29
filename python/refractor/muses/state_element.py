@@ -21,6 +21,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .error_analysis import ErrorAnalysis
     from .cost_function_creator import CostFunctionStateElementNotify
+    from .current_state import SoundingMetadata
 
 
 # A couple of aliases, just so we can clearly mark what grid data is on
@@ -336,6 +337,7 @@ class StateElementHandle(CreatorHandle):
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # Default is to do nothing
@@ -368,12 +370,17 @@ class StateElementHandleSet(CreatorHandleSet):
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
             for h in self.handle_set[p]:
                 h.notify_update_target(
-                    measurement_id, retrieval_config, strategy, observation_handle_set
+                    measurement_id,
+                    retrieval_config,
+                    strategy,
+                    observation_handle_set,
+                    sounding_metadata,
                 )
 
 
@@ -646,6 +653,9 @@ class StateElementOspFile(StateElementImplementation):
         apriori_value: np.ndarray,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
     ):
         # For OMI and TROPOMI parameters the initial value, and apriori are hard coded.
@@ -668,14 +678,7 @@ class StateElementOspFile(StateElementImplementation):
             smap = rf.StateMappingLog()
         else:
             raise RuntimeError(f"Don't recognize map_type {map_type}")
-        # TODO We should get this from whatever the new SoundingMetadata is
-        for iname in ("TES", "AIRS", "CRIS", "OMI", "TROPOMI", "OCO2"):
-            if f"{iname}_latitude" in measurement_id:
-                latitude = float(measurement_id[f"{iname}_latitude"])
-                break
-            if f"{iname}_Latitude" in measurement_id:
-                latitude = float(measurement_id[f"{iname}_Latitude"])
-                break
+        latitude = sounding_metadata.latitude.value
         r = OspCovarianceMatrixReader.read_dir(
             Path(retrieval_config["covarianceDirectory"])
         )
@@ -693,6 +696,8 @@ class StateElementOspFile(StateElementImplementation):
         # just propagate any values in selem_wrapper to this class
         if selem_wrapper is not None:
             value = selem_wrapper.value
+        #print(state_element_id)
+        #breakpoint()
         super().__init__(
             state_element_id,
             value,
@@ -725,9 +730,13 @@ class StateElementOspFileHandle(StateElementHandle):
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
     ) -> None:
         self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
+        self.strategy = strategy
+        self.observation_handle_set = observation_handle_set
+        self.sounding_metadata = sounding_metadata
 
     def state_element(
         self, state_element_id: StateElementIdentifier
@@ -744,6 +753,9 @@ class StateElementOspFileHandle(StateElementHandle):
             self.apriori_value,
             self.measurement_id,
             self.retrieval_config,
+            self.strategy,
+            self.observation_handle_set,
+            self.sounding_metadata,
             sold,
         )
 

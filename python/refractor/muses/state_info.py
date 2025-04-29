@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .current_state import PropagatedQA
+from .current_state import PropagatedQA, SoundingMetadata
 from .state_element import StateElementHandleSet, StateElement
 import numpy as np
 import typing
@@ -12,7 +12,6 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .error_analysis import ErrorAnalysis
-    from .current_state import SoundingMetadata
 
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
@@ -70,8 +69,13 @@ class StateInfo(UserDict):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
     ) -> None:
+        smeta = SoundingMetadata.create_from_measurement_id(measurement_id, strategy.instrument_name[0])
         self.state_element_handle_set.notify_update_target(
-            measurement_id, retrieval_config, strategy, observation_handle_set
+            measurement_id,
+            retrieval_config,
+            strategy,
+            observation_handle_set,
+            smeta,
         )
         self.data = {}
         self.propagated_qa = PropagatedQA()

@@ -408,6 +408,15 @@ class MusesObservationImp(MusesObservation):
         )
 
     @property
+    def cloud_fraction(self) -> float:
+        """Cloud pressure. I think all the instrument types handle
+        this the same way, if not we can push this down to omi and
+        tropomi only.
+
+        """
+        return float(self.muses_py_dict["Cloud"]["CloudFraction"])
+    
+    @property
     def observation_table(self) -> dict[str, Any]:
         return self.muses_py_dict["Earth_Radiance"]["ObservationTable"]
 
@@ -2301,6 +2310,10 @@ class MusesOmiObservation(MusesObservationReflectance):
             mp=mp,
         )
 
+    @property
+    def monthly_minimum_surface_reflectance(self):
+        return float(self.muses_py_dict["SurfaceAlbedo"]["MonthlyMinimumSurfaceReflectance"])
+    
     @classmethod
     def _read_data(
         cls,
