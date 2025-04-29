@@ -56,7 +56,12 @@ if _typing.TYPE_CHECKING:
         MusesStrategyHandle,
         MusesStrategyImp,
     )
-    from .state_element import StateElementOspFileHandle, StateElementHandleSet
+    from .state_element import (
+        StateElementOspFileHandle,
+        StateElementHandleSet,
+        StateElementOspFile,
+    )
+    from .state_element_old_wrapper import StateElementOldWrapper
     from .identifier import (
         FilterIdentifier,
         InstrumentIdentifier,

@@ -359,22 +359,11 @@ class StateElementOldWrapper(StateElement):
             true_value,
         )
 
-    def update_state(
-        self,
-        results_list: np.ndarray,
-        do_not_update: list[StateElementIdentifier],
-        retrieval_config: RetrievalConfiguration | MeasurementId,
-        step: int,
-    ) -> np.ndarray | None:
-        """Update the state based on results, and return a boolean array
-        indicating which coefficients were updated."""
-        if self.is_first:
-            self._current_state_old.update_state(
-                results_list, do_not_update, retrieval_config, step
-            )
+    @property
+    def updated_fm_flag(self) -> ForwardModelGridArray:
         r = self.fm_slice
         if r is None:
-            return None
+            return np.array([], dtype=bool)
         return self._current_state_old.updated_fm_flag[r]
 
     def notify_new_step(
@@ -393,6 +382,11 @@ class StateElementOldWrapper(StateElement):
     ) -> None:
         pass
 
+    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
+        """Update the state based on results, and return a boolean array
+        indicating which coefficients were updated."""
+        if self.is_first:
+            self._current_state_old.notify_step_solution(xsol)
 
 class StateElementOldWrapperHandle(StateElementHandle):
     def __init__(self) -> None:

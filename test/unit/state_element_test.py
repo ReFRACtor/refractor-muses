@@ -1,19 +1,30 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from refractor.muses import (
-    StateElementIdentifier,
-    StateElementOspFile
-)
+from refractor.muses import StateElementIdentifier, StateElementOspFile
 import numpy as np
 import numpy.testing as npt
 
+
 def test_osp_state_element(osp_dir):
-    apriori_value = np.array([0.0,])
-    latitude = 10.0 # Dummy value, most of the elements don't actually depend on latitude
-    species_directory = osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+    apriori_value = np.array(
+        [
+            0.0,
+        ]
+    )
+    latitude = (
+        10.0  # Dummy value, most of the elements don't actually depend on latitude
+    )
+    species_directory = (
+        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+    )
     covariance_directory = osp_dir / "Covariance" / "Covariance"
-    selem = StateElementOspFile(StateElementIdentifier("OMIODWAVUV1"), apriori_value,
-                                latitude, species_directory, covariance_directory)
+    selem = StateElementOspFile(
+        StateElementIdentifier("OMIODWAVUV1"),
+        apriori_value,
+        latitude,
+        species_directory,
+        covariance_directory,
+    )
     # Simulate a state vector update
     selem.notify_parameter_update(np.array([2.0]))
     assert selem.retrieval_sv_length == 1
@@ -40,4 +51,3 @@ def test_osp_state_element(osp_dir):
     # notify_start_retrieval
     # notify_new_step
     # Can update_state go away? Perhaps notify_solution?
-    

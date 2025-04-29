@@ -258,22 +258,12 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def updated_fm_flag(self) -> ForwardModelGridArray:
-        if self._updated_fm_flag is None:
-            raise RuntimeError("Need to call update_state before updated_fm_flag")
-        return self._updated_fm_flag
-
-    def update_state(
-        self,
-        results_list: np.ndarray,
-        do_not_update: list[StateElementIdentifier],
-        retrieval_config: RetrievalConfiguration | MeasurementId,
-        step: int,
-    ) -> None:
-        bdata = [
-            selem.update_state(results_list, do_not_update, retrieval_config, step)
-            for selem in self._state_info.values()
-        ]
-        self._updated_fm_flag = np.concatenate([i for i in bdata if i is not None])
+        return np.concatenate(
+            [
+                self._state_info[sid].updated_fm_flag
+                for sid in self.retrieval_state_element_id
+            ]
+        )
 
     def update_full_state_element(
         self,
@@ -450,6 +440,14 @@ class CurrentStateStateInfo(CurrentState):
     ) -> ForwardModelGridArray | None:
         return self._state_info[state_element_id].altitude_list_fm
 
+    @property
+    def state_element_handle_set(self) -> StateElementHandleSet:
+        return self._state_info.state_element_handle_set
+
+    @state_element_handle_set.setter
+    def state_element_handle_set(self, val: StateElementHandleSet) -> None:
+        self._state_info.state_element_handle_set = val
+
     def notify_update_target(
         self,
         measurement_id: MeasurementId,
@@ -462,13 +460,22 @@ class CurrentStateStateInfo(CurrentState):
         )
         self.clear_cache()
 
-    @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
-        return self._state_info.state_element_handle_set
-
-    @state_element_handle_set.setter
-    def state_element_handle_set(self, val: StateElementHandleSet) -> None:
-        self._state_info.state_element_handle_set = val
+    def notify_start_retrieval(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        if current_strategy_step is not None:
+            self._retrieval_element_id = current_strategy_step.retrieval_elements
+            self._sys_element_id = current_strategy_step.error_analysis_interferents
+            self._step_directory = (
+                retrieval_config["run_dir"]
+                / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
+            )
+            self._state_info.notify_start_retrieval(
+                current_strategy_step, retrieval_config
+            )
+            self.clear_cache()
 
     def notify_new_step(
         self,
@@ -494,22 +501,12 @@ class CurrentStateStateInfo(CurrentState):
             )
             self.clear_cache()
 
-    def notify_start_retrieval(
-        self,
-        current_strategy_step: CurrentStrategyStep | None,
-        retrieval_config: RetrievalConfiguration,
-    ) -> None:
-        if current_strategy_step is not None:
-            self._retrieval_element_id = current_strategy_step.retrieval_elements
-            self._sys_element_id = current_strategy_step.error_analysis_interferents
-            self._step_directory = (
-                retrieval_config["run_dir"]
-                / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
-            )
-            self._state_info.notify_start_retrieval(
-                current_strategy_step, retrieval_config
-            )
-            self.clear_cache()
+    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
+        for sid in self.retrieval_state_element_id:
+            ps, pl = self.retrieval_sv_loc[sid]
+            self._state_info[sid].notify_parameter_update(xsol[ps : ps + pl])
+        for selem in self._state_info.values():
+            selem.notify_step_solution(xsol)
 
 
 # Right now, only fall back to old py-retrieve code

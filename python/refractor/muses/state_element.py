@@ -8,7 +8,7 @@ import abc
 from pathlib import Path
 import numpy as np
 import numpy.testing as npt
-from typing import Any, cast
+from typing import Any, cast, Self
 import typing
 
 if typing.TYPE_CHECKING:
@@ -118,11 +118,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @property
     def state_element_id(self) -> StateElementIdentifier:
         return self._state_element_id
-
-    def notify_parameter_update(self, param_subset: np.ndarray) -> None:
-        """Called with the subset of parameters for this StateElement
-        when the cost function changes."""
-        pass
 
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
@@ -278,6 +273,13 @@ class StateElement(object, metaclass=abc.ABCMeta):
         "None" if we don't have a value."""
         return None
 
+    @abc.abstractproperty
+    def updated_fm_flag(self) -> ForwardModelGridArray:
+        """This is array of boolean flag indicating which parts of the forward
+        model state vector got updated when we called notify_solution. A 1 means
+        it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
+        raise NotImplementedError()
+
     @abc.abstractmethod
     def update_state_element(
         self,
@@ -293,26 +295,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    # TODO Perhaps this can go away, replaced with being a StateVector observer?
-    @abc.abstractmethod
-    def update_state(
-        self,
-        results_list: np.ndarray,
-        do_not_update: list[StateElementIdentifier],
-        retrieval_config: RetrievalConfiguration | MeasurementId,
-        step: int,
-    ) -> ForwardModelGridArray | None:
-        """Update the state based on results, and return a boolean array
-        indicating which coefficients were updated."""
-        raise NotImplementedError()
-
-    def notify_new_step(
-        self,
-        current_strategy_step: CurrentStrategyStep | None,
-        error_analysis: ErrorAnalysis,
-        retrieval_config: RetrievalConfiguration,
-        skip_initial_guess_update: bool = False,
-    ) -> None:
+    def notify_parameter_update(self, param_subset: np.ndarray) -> None:
+        """Called with the subset of parameters for this StateElement
+        when the cost function changes, or a solution has been found."""
         pass
 
     def notify_start_retrieval(
@@ -320,6 +305,22 @@ class StateElement(object, metaclass=abc.ABCMeta):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
+        pass
+
+    def notify_new_step(
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        error_analysis: ErrorAnalysis,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        pass
+
+    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
+        """Called with a retrieval step has a solution. Note that notify_parameter_update
+        is already called, so in most cases this function doesn't need to do anything. But
+        this is called in case a StateElement needs to do something other than just update
+        is value like notify_parameter_update does."""
         pass
 
 
@@ -416,12 +417,18 @@ class StateElementImplementation(StateElement):
         )
         self._retrieval_initial_value = self._step_initial_value.copy()
         self._true_value = true_value
+        self._updated_fm_flag = np.zeros((apriori_cov_fm.shape[0],)).astype(bool)
+        self._retrieved_this_step = False
         # Temp, until we have tested everything out
         self._sold = selem_wrapper
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
             self.update_initial_guess = self._update_initial_guess
 
     def notify_parameter_update(self, param_subset: np.ndarray) -> None:
+        if self._value.shape[0] != param_subset.shape[0]:
+            raise RuntimeError(
+                f"param_subset doesn't match value size {param_subset.shape[0]} vs {self._value.shape[0]}"
+            )
         self._value = param_subset
 
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
@@ -595,22 +602,27 @@ class StateElementImplementation(StateElement):
         if true_value is not None:
             self._true_value = true_value
 
-    def update_state(
+    @property
+    def updated_fm_flag(self) -> ForwardModelGridArray:
+        res = np.zeros((self.apriori_cov_fm.shape[0],), dtype=bool)
+        if self._retrieved_this_step:
+            res[:] = True
+        return res
+
+    def notify_start_retrieval(
         self,
-        results_list: np.ndarray,
-        do_not_update: list[StateElementIdentifier],
-        retrieval_config: RetrievalConfiguration | MeasurementId,
-        step: int,
-    ) -> ForwardModelGridArray | None:
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
         if self._sold is not None:
-            return self._sold.update_state(
-                results_list, do_not_update, retrieval_config, step
-            )
-        return None
+            self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
+        # Save the starting point at the start of the retrieval, this is used by the
+        # error analysis
+        self._retrieval_initial_value = self._step_initial_value.copy()
 
     def notify_new_step(
         self,
-        current_strategy_step: CurrentStrategyStep | None,
+        current_strategy_step: CurrentStrategyStep,
         error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
@@ -625,17 +637,13 @@ class StateElementImplementation(StateElement):
         # Default initial guess is whatever we ended up with at the end of the
         # last step
         self._step_initial_value = self._value.copy()
+        self._retrieved_this_step = (
+            self.state_element_id in current_strategy_step.retrieval_elements
+        )
 
-    def notify_start_retrieval(
-        self,
-        current_strategy_step: CurrentStrategyStep | None,
-        retrieval_config: RetrievalConfiguration,
-    ) -> None:
+    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
         if self._sold is not None:
-            self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
-        # Save the starting point at the start of the retrieval, this is used by the
-        # error analysis
-        self._retrieval_initial_value = self._step_initial_value.copy()
+            self._sold.notify_step_solution(xsol)
 
 
 class StateElementOspFile(StateElementImplementation):
@@ -700,7 +708,8 @@ class StateElementOspFile(StateElementImplementation):
         )
 
     @classmethod
-    def create_from_handle(cls,
+    def create_from_handle(
+        cls,
         state_element_id: StateElementIdentifier,
         apriori_value: np.ndarray,
         measurement_id: MeasurementId,
@@ -709,33 +718,41 @@ class StateElementOspFile(StateElementImplementation):
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
-        ) -> Self:
-        '''Create object from the set of parameter the StateElementOspFileHandle supplies.
-        
+    ) -> Self:
+        """Create object from the set of parameter the StateElementOspFileHandle supplies.
+
         We don't actually use all the arguments, but they are there for other classes
-        '''
-        res = cls(state_element_id, apriori_value, sounding_metadata.latitude.value,
-                  Path(retrieval_config["speciesDirectory"]),
-                  Path(retrieval_config["covarianceDirectory"]),
-                  selem_wrapper=selem_wrapper)
+        """
+        res = cls(
+            state_element_id,
+            apriori_value,
+            sounding_metadata.latitude.value,
+            Path(retrieval_config["speciesDirectory"]),
+            Path(retrieval_config["covarianceDirectory"]),
+            selem_wrapper=selem_wrapper,
+        )
         return res
-                  
 
     def notify_new_step(
         self,
-        current_strategy_step: CurrentStrategyStep | None,
+        current_strategy_step: CurrentStrategyStep,
         error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        super().notify_new_step(current_strategy_step, error_analysis, retrieval_config,
-                                skip_initial_guess_update)
+        super().notify_new_step(
+            current_strategy_step,
+            error_analysis,
+            retrieval_config,
+            skip_initial_guess_update,
+        )
         # Most of the time this will just return the same value, but there might be
         # certain steps with a different constraint matrix.
         self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
-           self.state_element_id, current_strategy_step.retrieval_type
+            self.state_element_id, current_strategy_step.retrieval_type
         )
-        
+
+
 class StateElementOspFileHandle(StateElementHandle):
     def __init__(
         self,

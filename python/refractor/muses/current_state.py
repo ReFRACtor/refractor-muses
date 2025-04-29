@@ -8,7 +8,7 @@ from copy import copy
 import os
 import typing
 from typing import Self
-from .identifier import StateElementIdentifier
+from .identifier import StateElementIdentifier, InstrumentIdentifier
 from .tes_file import TesFile
 
 if typing.TYPE_CHECKING:
@@ -69,14 +69,19 @@ class SoundingMetadata:
     I'm not sure if that actually can happen, but there isn't another obvious place
     to put this metadata so we'll go ahead and keep this here."""
 
-    def __init__(self):
-        '''Note you normally call one of the creator functions rather than __init__'''
+    def __init__(self) -> None:
+        """Note you normally call one of the creator functions rather than __init__"""
         self._latitude = rf.DoubleWithUnit(0, "deg")
-        self._longitude = rf.DoubleWithUnit(0,"deg")
-        self._surface_altitude = rf.DoubleWithUnit(0,"km")
+        self._longitude = rf.DoubleWithUnit(0, "deg")
+        self._surface_altitude = rf.DoubleWithUnit(0, "km")
         self._day_flag = False
         self._height = rf.ArrayWithUnit_double_1(
-            np.array([0,]), "km"
+            np.array(
+                [
+                    0,
+                ]
+            ),
+            "km",
         )
         self._surface_type = ""
         self._tai_time = 0.0
@@ -84,23 +89,33 @@ class SoundingMetadata:
         self._utc_time = ""
 
     @classmethod
-    def create_from_measurement_id(cls, measurement_id : MeasurementId, instrument : InstrumentIdentifier) -> Self:
+    def create_from_measurement_id(
+        cls, measurement_id: MeasurementId, instrument: InstrumentIdentifier
+    ) -> Self:
         res = cls()
         instrument_name = str(instrument)
         if f"{instrument_name}_latitude" in measurement_id:
-            res._latitude = rf.DoubleWithUnit(float(measurement_id[f"{instrument_name}_latitude"]), "deg")
+            res._latitude = rf.DoubleWithUnit(
+                float(measurement_id[f"{instrument_name}_latitude"]), "deg"
+            )
         else:
-            res._latitude = rf.DoubleWithUnit(float(measurement_id[f"{instrument_name}_Latitude"]), "deg")
+            res._latitude = rf.DoubleWithUnit(
+                float(measurement_id[f"{instrument_name}_Latitude"]), "deg"
+            )
         if f"{instrument_name}_longitude" in measurement_id:
-            res._longitude = rf.DoubleWithUnit(float(measurement_id[f"{instrument_name}_longitude"]), "deg")
+            res._longitude = rf.DoubleWithUnit(
+                float(measurement_id[f"{instrument_name}_longitude"]), "deg"
+            )
         else:
-            res._longitude = rf.DoubleWithUnit(float(measurement_id[f"{instrument_name}_Longitude"]), "deg")
+            res._longitude = rf.DoubleWithUnit(
+                float(measurement_id[f"{instrument_name}_Longitude"]), "deg"
+            )
         if "oceanFlag" in measurement_id:
             oceanflag = int(measurement_id["oceanflag"])
         else:
             oceanflag = int(measurement_id["OCEANFLAG"])
         res._surface_type = "OCEAN" if oceanflag == 1 else "LAND"
-        res._sounding_id =measurement_id["key"]
+        res._sounding_id = measurement_id["key"]
         # Couple of things in the DateTime file
         f = TesFile(measurement_id["run_dir"] / "DateTime.asc")
         res._tai_time = float(f["TAI_Time_of_ZPD"])
@@ -118,14 +133,21 @@ class SoundingMetadata:
         res._day_flag = bool(mpy.daytime(i_date_struct, res._longitude.value))
 
         # Need to fill these in
-        res._surface_altitude = rf.DoubleWithUnit(0,"km")
+        res._surface_altitude = rf.DoubleWithUnit(0, "km")
         res._height = rf.ArrayWithUnit_double_1(
-            np.array([0,]), "km"
+            np.array(
+                [
+                    0,
+                ]
+            ),
+            "km",
         )
         return res
-        
+
     @classmethod
-    def create_from_old_state_info(cls, state_info: StateInfoOld, step: str = "current") -> Self:
+    def create_from_old_state_info(
+        cls, state_info: StateInfoOld, step: str = "current"
+    ) -> Self:
         if step not in ("current", "initial", "initialInitial"):
             raise RuntimeError(
                 "Don't support anything other than the current, initial, or initialInitial step"
@@ -149,7 +171,6 @@ class SoundingMetadata:
         res._sounding_id = state_info._sounding_id
         res._utc_time = state_info._utc_time
         return res
-
 
     @property
     def latitude(self) -> rf.DoubleWithUnit:
@@ -393,18 +414,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def updated_fm_flag(self) -> ForwardModelGridArray:
         """This is array of boolean flag indicating which parts of the forward
-        model state vector got updated when we last called update_state. A 1 means
+        model state vector got updated when we called notify_solution. A 1 means
         it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
-        raise NotImplementedError()
-
-    def update_state(
-        self,
-        results_list: np.ndarray,
-        do_not_update: list[StateElementIdentifier],
-        retrieval_config: RetrievalConfiguration | MeasurementId,
-        step: int,
-    ) -> None:
-        """Update the state info"""
         raise NotImplementedError()
 
     @property
@@ -821,6 +832,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    @property
+    def state_element_handle_set(self) -> StateElementHandleSet:
+        raise NotImplementedError()
+
     def notify_start_retrieval(
         self,
         current_strategy_step: CurrentStrategyStep | None,
@@ -838,10 +853,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Have updated the target we are processing."""
         pass
 
-    @property
-    def state_element_handle_set(self) -> StateElementHandleSet:
-        raise NotImplementedError()
-
     def notify_new_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
@@ -850,6 +861,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         skip_initial_guess_update: bool = False,
     ) -> None:
         """Called when MusesStrategy has gone to the next step."""
+        pass
+
+    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
+        """Called with MusesStrategy has found a solution for the current step."""
         pass
 
 
@@ -1800,6 +1815,20 @@ class CurrentStateStateInfoOld(CurrentState):
             self.get_initial_guess(
                 current_strategy_step, error_analysis, retrieval_config
             )
+            # Save some data needed by notify_step_solution
+            self._retrieval_config = retrieval_config
+            self._do_not_update = current_strategy_step.retrieval_elements_not_updated
+            self._step = current_strategy_step.strategy_step.step_number
+
+    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
+        """Called with MusesStrategy has found a solution for the current step."""
+        self.state_info.update_state(
+            self.retrieval_info,
+            xsol,
+            self._do_not_update,
+            self._retrieval_config,
+            self._step,
+        )
 
     def notify_start_retrieval(
         self,

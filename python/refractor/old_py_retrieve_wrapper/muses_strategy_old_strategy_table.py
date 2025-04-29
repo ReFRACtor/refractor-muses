@@ -68,7 +68,7 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
     @property
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """Complete list of instrument names (so for all retrieval steps)"""
-        return self._stable.instrument_name(all_step=True)
+        return InstrumentIdentifier.sort_identifier(self._stable.instrument_name(all_step=True))
 
     def restart(self) -> None:
         """Set step to the first one."""

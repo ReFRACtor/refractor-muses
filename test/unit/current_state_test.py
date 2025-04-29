@@ -156,12 +156,7 @@ def test_update_cloudfraction(omi_step_0):
         == "OMICLOUDFRACTION"
     )
     results_list[msk] = 0.5
-    cstate.update_state(
-        results_list,
-        [],
-        rs.retrieval_config,
-        rs.current_strategy_step.strategy_step.step_number,
-    )
+    cstate.notify_step_solution(results_list)
 
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
@@ -189,12 +184,7 @@ def test_noupdate_cloudfraction(omi_step_0):
         == "OMICLOUDFRACTION"
     )
     results_list[msk] = 0.5
-    cstate.update_state(
-        results_list,
-        [StateElementIdentifier("OMICLOUDFRACTION")],
-        rs.retrieval_config,
-        rs.current_strategy_step.strategy_step.step_number,
-    )
+    cstate.notify_step_solution(results_list)
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_new_step()
@@ -263,12 +253,7 @@ def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in
         == "OMIEOFUV1"
     )
     results_list[msk] = [0.5, 0.3, 0.2]
-    cstate.update_state(
-        results_list,
-        [],
-        rs.retrieval_config,
-        rs.current_strategy_step.strategy_step.step_number,
-    )
+    cstate.notify_step_solution(results_list)
 
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
@@ -333,12 +318,7 @@ def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_
         == "OMIEOFUV1"
     )
     results_list[msk] = [0.5, 0.3, 0.2]
-    cstate.update_state(
-        results_list,
-        [StateElementIdentifier("OMIEOFUV1")],
-        rs.retrieval_config,
-        rs.current_strategy_step.strategy_step.step_number,
-    )
+    cstate.notify_step_solution(results_list)
 
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()

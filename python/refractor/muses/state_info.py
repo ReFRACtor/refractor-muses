@@ -69,7 +69,9 @@ class StateInfo(UserDict):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
     ) -> None:
-        smeta = SoundingMetadata.create_from_measurement_id(measurement_id, strategy.instrument_name[0])
+        smeta = SoundingMetadata.create_from_measurement_id(
+            measurement_id, strategy.instrument_name[0]
+        )
         self.state_element_handle_set.notify_update_target(
             measurement_id,
             retrieval_config,

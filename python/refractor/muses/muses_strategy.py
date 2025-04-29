@@ -25,6 +25,12 @@ if typing.TYPE_CHECKING:
     from .spectral_window_handle import SpectralWindowHandleSet
     from .retrieval_strategy import RetrievalStrategy
 
+# A couple of aliases, just so we can clearly mark what grid data is on
+RetrievalGridArray = np.ndarray
+ForwardModelGridArray = np.ndarray
+RetrievalGrid2dArray = np.ndarray
+ForwardModelGrid2dArray = np.ndarray
+
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     """This contains information about the current strategy step."""
@@ -32,6 +38,15 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def retrieval_elements(self) -> list[StateElementIdentifier]:
         """List of retrieval elements that we retrieve for this step."""
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def retrieval_elements_not_updated(self) -> list[StateElementIdentifier]:
+        """List of element that we include in the retrieval step, but
+        should go back to the original value in the next step. This is
+        always a subset of retrieval_elements (and often an empty
+        subset)
+        """
         raise NotImplementedError()
 
     @abc.abstractproperty
@@ -57,20 +72,6 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def update_state(
-        self,
-        current_state: CurrentState,
-        results_list: np.ndarray,
-    ) -> None:
-        """Update the CurrentState with the results. We have this as
-        part of CurrentStrategyStep so we can support any sort of more
-        complicated logic for updating the state (e.g., update the
-        apriori)
-
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
     def muses_microwindows_fname(self) -> str:
         """This is very specific, but there is some complicated code
         used to generate the microwindows file name. This is used to
@@ -92,6 +93,17 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     def strategy_step(self) -> StrategyStepIdentifier:
         """Return the strategy step identifier"""
         raise NotImplementedError()
+
+    @abc.abstractmethod
+    def notify_step_solution(
+        self, current_state: CurrentState, xsol: RetrievalGridArray
+    ) -> None:
+        """Update the CurrentState with the solution of a retrieval
+        step. We have this as part of CurrentStrategyStep so we can
+        support any sort of more complicated logic for updating the
+        state (e.g., update the apriori)
+        """
+        raise NotImplementedError
 
 
 class CurrentStrategyStepDict(CurrentStrategyStep):
@@ -120,9 +132,22 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         self.current_strategy_step_dict["retrieval_elements"] = v
 
     @property
+    def retrieval_elements_not_updated(self) -> list[StateElementIdentifier]:
+        """List of retrieval elements that we retrieve for this step."""
+        return StateElementIdentifier.sort_identifier(
+            self.current_strategy_step_dict["retrieval_elements_not_updated"]
+        )
+
+    @retrieval_elements_not_updated.setter
+    def retrieval_elements_not_updated(self, v: list[StateElementIdentifier]) -> None:
+        self.current_strategy_step_dict["retrieval_elements_not_updated"] = v
+
+    @property
     def instrument_name(self) -> list[InstrumentIdentifier]:
         """List of instruments used in this step."""
-        return InstrumentIdentifier.sort_identifier(self.current_strategy_step_dict["instrument_name"])
+        return InstrumentIdentifier.sort_identifier(
+            self.current_strategy_step_dict["instrument_name"]
+        )
 
     @property
     def retrieval_type(self) -> RetrievalType:
@@ -142,25 +167,10 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
             self.current_strategy_step_dict["error_analysis_interferents"]
         )
 
-    def update_state(
-        self,
-        current_state: CurrentState,
-        results_list: np.ndarray,
+    def notify_step_solution(
+        self, current_state: CurrentState, xsol: RetrievalGridArray
     ) -> None:
-        """Update the CurrentState with the results. We have this as part of
-        CurrentStrategyStep so we can support any sort of more complicated logic
-        for updating the state (e.g., update the apriori)"""
-        if self.measurement_id is None:
-            raise RuntimeError(
-                "Need to call notify_update_target before calling this function."
-            )
-
-        current_state.update_state(
-            results_list,
-            self.current_strategy_step_dict["do_not_update_list"],
-            self.measurement_id,
-            self.strategy_step.step_number,
-        )
+        current_state.notify_step_solution(xsol)
         for selem_id in self.current_strategy_step_dict["update_apriori_elements"]:
             v = current_state.full_state_value(selem_id)
             current_state.update_full_state_element(selem_id, apriori=v)
@@ -564,7 +574,9 @@ class MusesStrategyStepList(MusesStrategyImp):
                 "spectral_window_dict": None,
                 # List of elements that we include in this step, but then
                 # set back to their original value for the next step
-                "do_not_update_list": res._parse_state_elements(row["donotupdate"]),
+                "retrieval_elements_not_updated": res._parse_state_elements(
+                    row["donotupdate"]
+                ),
                 # List of elements that we update the apriori to match what
                 # we retrieve
                 "update_apriori_elements": [],
