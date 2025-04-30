@@ -6,9 +6,7 @@ from refractor.muses import (
     MusesRunDir,
     ProcessLocation,
     StateElementIdentifier,
-    modify_strategy_table,
 )
-from refractor.old_py_retrieve_wrapper import SingleSpeciesHandleOld
 import pytest
 import numpy.testing as npt
 import numpy as np
@@ -189,5 +187,3 @@ def test_noupdate_cloudfraction(omi_step_0):
     rs._strategy_executor.notify_start_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
-
-

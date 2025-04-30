@@ -67,7 +67,14 @@ def test_osp_state_element(osp_dir):
     npt.assert_allclose(selem.value, [0.0])
 
     # Have a step where we retrieve our element
-    cstep_ret = CurrentStrategyStepDict({"retrieval_elements" : [StateElementIdentifier("OMIODWAVUV1")], "retrieval_type" : RetrievalType("default"), "retrieval_elements_not_updated" : []}, None)
+    cstep_ret = CurrentStrategyStepDict(
+        {
+            "retrieval_elements": [StateElementIdentifier("OMIODWAVUV1")],
+            "retrieval_type": RetrievalType("default"),
+            "retrieval_elements_not_updated": [],
+        },
+        None,
+    )
     selem.update_state_element(step_initial=np.array([4.0]))
     npt.assert_allclose(selem.step_initial_value, [4.0])
     npt.assert_allclose(selem.value, [0.0])
@@ -75,7 +82,14 @@ def test_osp_state_element(osp_dir):
     npt.assert_allclose(selem.step_initial_value, [4.0])
     npt.assert_allclose(selem.value, [4.0])
     # Pretend like we got a solution to update
-    selem.notify_step_solution(np.array([5.0,]), slice(0,1))
+    selem.notify_step_solution(
+        np.array(
+            [
+                5.0,
+            ]
+        ),
+        slice(0, 1),
+    )
     # Initial guess isn't updated yet, although value is
     npt.assert_allclose(selem.step_initial_value, [4.0])
     npt.assert_allclose(selem.value, [5.0])
@@ -84,18 +98,29 @@ def test_osp_state_element(osp_dir):
     npt.assert_allclose(selem.step_initial_value, [5.0])
     npt.assert_allclose(selem.value, [5.0])
     # Repeat, but with item on the no update list. Check that we don't update the
-    # initial guess
-    cstep_ret.retrieval_elements_not_updated = [StateElementIdentifier("OMIODWAVUV1"),]
+    # initial guess, and the value gets reset to the original value
+    cstep_ret.retrieval_elements_not_updated = [
+        StateElementIdentifier("OMIODWAVUV1"),
+    ]
     selem.notify_start_step(cstep_ret, None, rconfig)
     npt.assert_allclose(selem.step_initial_value, [5.0])
     npt.assert_allclose(selem.value, [5.0])
-    selem.notify_step_solution(np.array([6.0,]), slice(0,1))
+    selem.notify_step_solution(
+        np.array(
+            [
+                6.0,
+            ]
+        ),
+        slice(0, 1),
+    )
     npt.assert_allclose(selem.step_initial_value, [5.0])
-    npt.assert_allclose(selem.value, [6.0])
-    # Value should get reset, and initial guess unchanged
+    # Value should get reset
+    npt.assert_allclose(selem.value, [5.0])
+    # Initial guess should remain unchanged
     selem.notify_start_step(cstep_ret, None, rconfig)
     npt.assert_allclose(selem.step_initial_value, [5.0])
     npt.assert_allclose(selem.value, [5.0])
+
 
 def test_osp_state_element_constraint(osp_dir):
     """Check that the constraint matrix update for specific retrieval types is handled correctly"""
@@ -117,22 +142,45 @@ def test_osp_state_element_constraint(osp_dir):
         species_directory,
         covariance_directory,
     )
-    cmatrix1 = np.array([[400.0,]])
+    cmatrix1 = np.array(
+        [
+            [
+                400.0,
+            ]
+        ]
+    )
     npt.assert_allclose(selem.constraint_matrix, cmatrix1)
-    cstep_ret = CurrentStrategyStepDict({"retrieval_elements" : [StateElementIdentifier("OMICLOUDFRACTION")], "retrieval_type" : RetrievalType("omicloud_ig_refine"), "retrieval_elements_not_updated" : []}, None)
+    cstep_ret = CurrentStrategyStepDict(
+        {
+            "retrieval_elements": [StateElementIdentifier("OMICLOUDFRACTION")],
+            "retrieval_type": RetrievalType("omicloud_ig_refine"),
+            "retrieval_elements_not_updated": [],
+        },
+        None,
+    )
     rconfig = RetrievalConfiguration()
     selem.notify_start_step(cstep_ret, None, rconfig)
-    cmatrix2 = np.array([[4.0,]])
+    cmatrix2 = np.array(
+        [
+            [
+                4.0,
+            ]
+        ]
+    )
     npt.assert_allclose(selem.constraint_matrix, cmatrix2)
     # And goes back when step changes
-    cstep_ret = CurrentStrategyStepDict({"retrieval_elements" : [StateElementIdentifier("OMICLOUDFRACTION")], "retrieval_type" : RetrievalType("not_special_step"), "retrieval_elements_not_updated" : []}, None)
+    cstep_ret = CurrentStrategyStepDict(
+        {
+            "retrieval_elements": [StateElementIdentifier("OMICLOUDFRACTION")],
+            "retrieval_type": RetrievalType("not_special_step"),
+            "retrieval_elements_not_updated": [],
+        },
+        None,
+    )
     selem.notify_start_step(cstep_ret, None, rconfig)
     npt.assert_allclose(selem.constraint_matrix, cmatrix1)
-    
-    
-    
-    
-    
+
+
 def test_osp_state_element_latitude(osp_dir):
     """Test an element that depends on latitude, to check correct handling of latitude"""
     apriori_value = np.array(
