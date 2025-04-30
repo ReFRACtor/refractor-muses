@@ -9,8 +9,12 @@ from refractor.muses import (
     StateElementOspFile,
     StateElementIdentifier,
     InstrumentIdentifier,
+    MusesOmiObservation,
+    MusesObservation,
 )
 import numpy as np
+from pathlib import Path
+from typing import cast, Self
 import typing
 
 if typing.TYPE_CHECKING:
@@ -44,43 +48,29 @@ class StateElementOmiCloudFraction(StateElementOspFile):
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
-        apriori_value: np.ndarray,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
+        obs: MusesObservation,
+        latitude: float,
+        species_directory: Path,
+        covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
-    ):
-        obs = observation_handle_set.observation(
-            InstrumentIdentifier("OMI"),
-            None,
-            None,
-            None,
-            osp_dir=retrieval_config.osp_dir,
-        )
+    ) -> None:
         apriori_value = np.array(
             [
                 obs.cloud_fraction,
             ]
         )
-        # super().__init__(
-        #    state_element_id,
-        #    apriori_value,
-        #    measurement_id,
-        #    retrieval_config,
-        #    strategy,
-        #    observation_handle_set,
-        #    sounding_metadata,
-        #    selem_wrapper,
-        # )
+        super().__init__(
+            state_element_id,
+            apriori_value,
+            latitude,
+            species_directory,
+            covariance_directory,
+            selem_wrapper,
+        )
 
-
-class StateElementOmiSurfaceAlbedo(StateElementOspFile):
-    """Variation that gets the apriori/initial guess from the observation file"""
-
-    def __init__(
-        self,
+    @classmethod
+    def create_from_handle(
+        cls,
         state_element_id: StateElementIdentifier,
         apriori_value: np.ndarray,
         measurement_id: MeasurementId,
@@ -89,7 +79,11 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
-    ):
+    ) -> Self:
+        """Create object from the set of parameter the StateElementOspFileHandle supplies.
+
+        We don't actually use all the arguments, but they are there for other classes
+        """
         obs = observation_handle_set.observation(
             InstrumentIdentifier("OMI"),
             None,
@@ -97,32 +91,93 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
             None,
             osp_dir=retrieval_config.osp_dir,
         )
+        res = cls(
+            state_element_id,
+            obs,
+            sounding_metadata.latitude.value,
+            Path(retrieval_config["speciesDirectory"]),
+            Path(retrieval_config["covarianceDirectory"]),
+            selem_wrapper=selem_wrapper,
+        )
+        return res
+
+
+class StateElementOmiSurfaceAlbedo(StateElementOspFile):
+    """Variation that gets the apriori/initial guess from the observation file"""
+
+    def __init__(
+        self,
+        state_element_id: StateElementIdentifier,
+        obs: MusesOmiObservation,
+        latitude: float,
+        species_directory: Path,
+        covariance_directory: Path,
+        selem_wrapper: StateElementOldWrapper | None = None,
+    ) -> None:
         apriori_value = np.array(
             [
                 obs.monthly_minimum_surface_reflectance,
             ]
         )
-        # super().__init__(
-        #    state_element_id,
-        #    apriori_value,
-        #    measurement_id,
-        #    retrieval_config,
-        #    strategy,
-        #    observation_handle_set,
-        #    sounding_metadata,
-        #    selem_wrapper,
-        # )
+        super().__init__(
+            state_element_id,
+            apriori_value,
+            latitude,
+            species_directory,
+            covariance_directory,
+            selem_wrapper,
+        )
+
+    @classmethod
+    def create_from_handle(
+        cls,
+        state_element_id: StateElementIdentifier,
+        apriori_value: np.ndarray,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
+        selem_wrapper: StateElementOldWrapper | None = None,
+    ) -> Self:
+        """Create object from the set of parameter the StateElementOspFileHandle supplies.
+
+        We don't actually use all the arguments, but they are there for other classes
+        """
+        obs = cast(
+            MusesOmiObservation,
+            observation_handle_set.observation(
+                InstrumentIdentifier("OMI"),
+                None,
+                None,
+                None,
+                osp_dir=retrieval_config.osp_dir,
+            ),
+        )
+        res = cls(
+            state_element_id,
+            obs,
+            sounding_metadata.latitude.value,
+            Path(retrieval_config["speciesDirectory"]),
+            Path(retrieval_config["covarianceDirectory"]),
+            selem_wrapper=selem_wrapper,
+        )
+        return res
 
 
-# add_handle("OMISURFACEALBEDOUV1", -999.0, StateElementOmiSurfaceAlbedo)
-# add_handle("OMISURFACEALBEDOUV2", -999.0, StateElementOmiSurfaceAlbedo)
-add_handle("OMISURFACEALBEDOSLOPEUV2", 0.0)
-add_handle("OMIRADWAVUV1", 0.0)
-add_handle("OMIRADWAVUV2", 0.0)
-add_handle("OMIODWAVUV1", 0.0)
-add_handle("OMIODWAVUV2", 0.0)
+#add_handle("OMICLOUDFRACTION", -999.0, StateElementOmiCloudFraction)
+add_handle("OMINRADWAVUV1", 0.0)
+add_handle("OMINRADWAVUV2", 0.0)
 add_handle("OMIODWAVSLOPEUV1", 0.0)
 add_handle("OMIODWAVSLOPEUV2", 0.0)
+add_handle("OMIODWAVUV1", 0.0)
+add_handle("OMIODWAVUV2", 0.0)
+# Doesn't actually seem to be in muses-py, although there is a species file for this
+# add_handle("OMIRESSCALE", 0.0)
 add_handle("OMIRINGSFUV1", 1.9)
 add_handle("OMIRINGSFUV2", 1.9)
-# add_handle("OMICLOUDFRACTION", -999.0, StateElementOmiCloudFraction)
+add_handle("OMISURFACEALBEDOSLOPEUV2", 0.0)
+#add_handle("OMISURFACEALBEDOUV1", -999.0, StateElementOmiSurfaceAlbedo)
+#add_handle("OMISURFACEALBEDOUV2", -999.0, StateElementOmiSurfaceAlbedo)
+
+__all__ = ["StateElementOmiCloudFraction", "StateElementOmiSurfaceAlbedo"]

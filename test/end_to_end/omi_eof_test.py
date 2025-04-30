@@ -52,8 +52,12 @@ def test_eof_omi(osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir, end_to_end_run
         use_pca=False, use_lrad=False, lrad_second_order=False, use_eof=True
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.state_element_handle_set.add_handle(OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV1")))
-    rs.state_element_handle_set.add_handle(OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV2")))
+    rs.state_element_handle_set.add_handle(
+        OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV1"))
+    )
+    rs.state_element_handle_set.add_handle(
+        OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV2"))
+    )
     rs.update_target(r.run_dir / "Table.asc")
     try:
         lognum = logger.add(dir / "retrieve.log")
@@ -141,22 +145,10 @@ def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir):
     # eof_dir = "./eof_stuff/EOFout")
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.state_element_handle_set.add_handle(
-        SingleSpeciesHandleOld(
-            "OMIEOFUV1",
-            OmiEofStateElement,
-            pass_state=False,
-            name=StateElementIdentifier("OMIEOFUV1"),
-            number_eof=3,
-        )
+        OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV1"))
     )
     rs.state_element_handle_set.add_handle(
-        SingleSpeciesHandleOld(
-            "OMIEOFUV2",
-            OmiEofStateElement,
-            pass_state=False,
-            name=StateElementIdentifier("OMIEOFUV2"),
-            number_eof=3,
-        )
+        OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV2"))
     )
     rs.update_target(r.run_dir / "Table.asc")
     try:
