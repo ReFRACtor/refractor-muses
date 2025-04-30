@@ -10,7 +10,7 @@ from loguru import logger
 from collections.abc import Callable
 import typing
 import weakref
-from typing import Any
+from typing import Any, cast
 import numpy as np
 
 if typing.TYPE_CHECKING:
@@ -200,11 +200,10 @@ class CostFunctionCreator:
         # skip for CurrentStateUip, we already handle the UIP separately.
         if not isinstance(current_state, CurrentStateUip):
             for sid in current_state.retrieval_state_element_id:
-                pstart, plen = current_state.retrieval_sv_loc[sid]
                 cfunc.max_a_posteriori.add_observer(
                     CostFunctionStateElementNotify(
                         current_state.full_state_element(sid),
-                        slice(pstart, pstart + plen),
+                        cast(slice, current_state.retrieval_sv_slice(sid)),
                     )
                 )
 

@@ -366,7 +366,7 @@ class StateElementOldWrapper(StateElement):
             return np.array([], dtype=bool)
         return self._current_state_old.updated_fm_flag[r]
 
-    def notify_new_step(
+    def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         error_analysis: ErrorAnalysis,
@@ -382,11 +382,12 @@ class StateElementOldWrapper(StateElement):
     ) -> None:
         pass
 
-    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
-        """Update the state based on results, and return a boolean array
-        indicating which coefficients were updated."""
+    def notify_step_solution(
+        self, xsol: RetrievalGridArray, retrieval_slice: slice | None
+    ) -> None:
         if self.is_first:
             self._current_state_old.notify_step_solution(xsol)
+
 
 class StateElementOldWrapperHandle(StateElementHandle):
     def __init__(self) -> None:

@@ -9,6 +9,7 @@ import os
 from functools import lru_cache
 import typing
 from typing import Iterator
+from loguru import logger
 
 
 class TesFile(collections.abc.Mapping):
@@ -41,6 +42,10 @@ class TesFile(collections.abc.Mapping):
         correctly.
         """
         self.file_name = Path(fname)
+        # Kind of noisy, so we don't normally log this. But can be useful occasionally to turn
+        # on
+        if False:
+            logger.debug(f"Reading file {self.file_name}")
         if use_mpy:
             _, d = mpy.read_all_tes(str(fname))
             self.mpy_d = d

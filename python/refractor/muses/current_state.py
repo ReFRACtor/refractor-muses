@@ -470,6 +470,15 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             return rf.StateMappingLinear()
         return rf.StateMappingBasisMatrix(bmatrix.transpose())
 
+    def fm_sv_slice(self, sid: StateElementIdentifier) -> slice | None:
+        """Slice object needed  to subset the forward model state vector to
+        the values for the StateElement. As a convention, this can be called
+        with StateElement that aren't being retrieved and we return None."""
+        if sid in self.fm_sv_loc:
+            p, plen = self.fm_sv_loc[sid]
+            return slice(p, p + plen)
+        return None
+
     @property
     def fm_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Dict that gives the starting location in the forward model
@@ -485,6 +494,18 @@ class CurrentState(object, metaclass=abc.ABCMeta):
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
 
+    def sys_sv_slice(self, sid: StateElementIdentifier) -> slice | None:
+        """Slice object needed to subset the systematic forward model
+        state vector to the values for the StateElement. As a
+        convention, this can be called with StateElement that aren't
+        being retrieved and we return None.
+
+        """
+        if sid in self.sys_sv_loc:
+            p, plen = self.sys_sv_loc[sid]
+            return slice(p, p + plen)
+        return None
+
     @property
     def sys_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
         """Dict that gives the starting location in the systematic forward model
@@ -499,6 +520,15 @@ class CurrentState(object, metaclass=abc.ABCMeta):
                 self._sys_sv_loc[state_element_id] = (self._sys_state_vector_size, plen)
                 self._sys_state_vector_size += plen
         return self._sys_sv_loc
+
+    def retrieval_sv_slice(self, sid: StateElementIdentifier) -> slice | None:
+        """Slice object needed  to subset the retrieval state vector to
+        the values for the StateElement. As a convention, this can be called
+        with StateElement that aren't being retrieved and we return None."""
+        if sid in self.retrieval_sv_loc:
+            p, plen = self.retrieval_sv_loc[sid]
+            return slice(p, p + plen)
+        return None
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
@@ -853,7 +883,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Have updated the target we are processing."""
         pass
 
-    def notify_new_step(
+    def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         error_analysis: ErrorAnalysis,
@@ -1793,7 +1823,7 @@ class CurrentStateStateInfoOld(CurrentState):
     def state_element_handle_set_old(self) -> StateElementHandleSetOld:
         return self.state_info.state_element_handle_set
 
-    def notify_new_step(
+    def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         error_analysis: ErrorAnalysis,

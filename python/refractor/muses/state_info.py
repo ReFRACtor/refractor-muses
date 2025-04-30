@@ -82,7 +82,7 @@ class StateInfo(UserDict):
         self.data = {}
         self.propagated_qa = PropagatedQA()
 
-    def notify_new_step(
+    def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         error_analysis: ErrorAnalysis,
@@ -90,7 +90,7 @@ class StateInfo(UserDict):
         skip_initial_guess_update: bool = False,
     ) -> None:
         # TODO, we want to remove this
-        self._current_state_old.notify_new_step(
+        self._current_state_old.notify_start_step(
             current_strategy_step,
             error_analysis,
             retrieval_config,
@@ -102,7 +102,7 @@ class StateInfo(UserDict):
         for sid in self._current_state_old.full_state_element_id:
             _ = self[sid]
         for selem in self.values():
-            selem.notify_new_step(
+            selem.notify_start_step(
                 current_strategy_step,
                 error_analysis,
                 retrieval_config,

@@ -6,7 +6,6 @@ from refractor.muses import (
     MusesRunDir,
     ProcessLocation,
     StateElementIdentifier,
-    OmiEofStateElement,
     modify_strategy_table,
 )
 from refractor.old_py_retrieve_wrapper import SingleSpeciesHandleOld
@@ -147,7 +146,7 @@ def test_update_cloudfraction(omi_step_0):
     selement.update_initial_guess(rs.current_strategy_step)
 
     # Update results, and make sure element gets updated
-    rs.current_state.notify_new_step(
+    rs.current_state.notify_start_step(
         rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
     )
     results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
@@ -160,7 +159,7 @@ def test_update_cloudfraction(omi_step_0):
 
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
-    rs._strategy_executor.notify_new_step()
+    rs._strategy_executor.notify_start_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
 
@@ -175,7 +174,7 @@ def test_noupdate_cloudfraction(omi_step_0):
     selement.update_initial_guess(rs.current_strategy_step)
 
     # Update results, and make sure element gets updated
-    rs.current_state.notify_new_step(
+    rs.current_state.notify_start_step(
         rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
     )
     results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
@@ -187,141 +186,8 @@ def test_noupdate_cloudfraction(omi_step_0):
     cstate.notify_step_solution(results_list)
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
-    rs._strategy_executor.notify_new_step()
+    rs._strategy_executor.notify_start_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
     selement.update_initial_guess(rs.current_strategy_step)
 
 
-# Temp, skip. We need to create a new StateInfo and update OmiEofStateElement
-@pytest.mark.skip
-def test_update_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir):
-    """Repeat the tests for OMICLOUDFRACTION for our own ReFRACtor only
-    StateElement. This is the OmiEofStateElement, but this should be pretty
-    much the same for any other ReFRACtor only StateElement."""
-    try:
-        with all_output_disabled():
-            r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, path_prefix=".")
-            rs = RetrievalStrategy(None)
-            # Modify the Table.asc to add a EOF element. This is just a short cut,
-            # so we don't need to make a new strategy table. Eventually a new table
-            # will be needed in the OSP directory, but it is too early for that.
-            modify_strategy_table(
-                rs,
-                0,
-                [
-                    StateElementIdentifier("OMICLOUDFRACTION"),
-                    StateElementIdentifier("OMIEOFUV1"),
-                    StateElementIdentifier("OMIEOFUV2"),
-                ],
-            )
-            rs.register_with_muses_py()
-            rs.clear_observers()
-            rs.add_observer(RetrievalStrategyStop())
-            rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandleOld(
-                    "OMIEOFUV1",
-                    OmiEofStateElement,
-                    pass_state=False,
-                    name=StateElementIdentifier("OMIEOFUV1"),
-                    number_eof=3,
-                )
-            )
-            rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandleOld(
-                    "OMIEOFUV2",
-                    OmiEofStateElement,
-                    pass_state=False,
-                    name=StateElementIdentifier("OMIEOFUV2"),
-                    number_eof=3,
-                )
-            )
-            rs.script_retrieval_ms(r.run_dir / "Table.asc")
-    except StopIteration:
-        pass
-    cstate = rs.current_state
-    rs._strategy_executor.restart()
-    selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
-    selement.update_initial_guess(rs.current_strategy_step)
-
-    # Update results, and make sure element gets updated
-    rs.current_state.notify_new_step(
-        rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
-    )
-    results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
-    msk = (
-        np.array([str(i) for i in rs.current_state.retrieval_state_vector_element_list])
-        == "OMIEOFUV1"
-    )
-    results_list[msk] = [0.5, 0.3, 0.2]
-    cstate.notify_step_solution(results_list)
-
-    # Go to the next step, and check that the state element is updated
-    rs._strategy_executor.next_step()
-    rs._strategy_executor.notify_new_step()
-    selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
-    selement.update_initial_guess(rs.current_strategy_step)
-
-
-# Temp, skip. We need to create a new StateInfo and update OmiEofStateElement
-@pytest.mark.skip
-def test_noupdate_omieof(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir):
-    """Repeat the previous test, but label the update as "do_not_update". This
-    tests the handling of that case."""
-    try:
-        with all_output_disabled():
-            r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, path_prefix=".")
-            rs = RetrievalStrategy(None)
-            # Modify the Table.asc to add a EOF element. This is just a short cut,
-            # so we don't need to make a new strategy table. Eventually a new table
-            # will be needed in the OSP directory, but it is too early for that.
-            modify_strategy_table(
-                rs,
-                0,
-                [
-                    StateElementIdentifier("OMICLOUDFRACTION"),
-                    StateElementIdentifier("OMIEOFUV1"),
-                    StateElementIdentifier("OMIEOFUV2"),
-                ],
-            )
-            rs.register_with_muses_py()
-            rs.clear_observers()
-            rs.add_observer(RetrievalStrategyStop())
-            rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandleOld(
-                    "OMIEOFUV1",
-                    OmiEofStateElement,
-                    pass_state=False,
-                )
-            )
-            rs.state_element_handle_set.add_handle(
-                SingleSpeciesHandleOld(
-                    "OMIEOFUV2",
-                    OmiEofStateElement,
-                    pass_state=False,
-                )
-            )
-            rs.script_retrieval_ms(r.run_dir / "Table.asc")
-    except StopIteration:
-        pass
-    cstate = rs.current_state
-    rs._strategy_executor.restart()
-    selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
-    selement.update_initial_guess(rs.current_strategy_step)
-
-    # Update results, and make sure element gets updated
-    rs.current_state.notify_new_step(
-        rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
-    )
-    results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
-    msk = (
-        np.array([str(i) for i in rs.current_state.retrieval_state_vector_element_list])
-        == "OMIEOFUV1"
-    )
-    results_list[msk] = [0.5, 0.3, 0.2]
-    cstate.notify_step_solution(results_list)
-
-    # Go to the next step, and check that the state element is updated
-    rs._strategy_executor.next_step()
-    rs._strategy_executor.notify_new_step()
-    selement = cstate.full_state_element(StateElementIdentifier("OMIEOFUV1"))
-    selement.update_initial_guess(rs.current_strategy_step)

@@ -120,10 +120,8 @@ class CurrentStateStateInfo(CurrentState):
                     self._state_info[selem2_sid]
                 )
                 if m is not None:
-                    p1, plen1 = self.retrieval_sv_loc[selem1_sid]
-                    p2, plen2 = self.retrieval_sv_loc[selem2_sid]
-                    r1 = slice(p1, p1 + plen1)
-                    r2 = slice(p2, p2 + plen2)
+                    r1 = self.retrieval_sv_slice(selem1_sid)
+                    r2 = self.retrieval_sv_slice(selem2_sid)
                     res[r1, r2] = m
                     res[r2, r1] = np.transpose(m)
         # TODO Remove current_state_old
@@ -191,8 +189,7 @@ class CurrentStateStateInfo(CurrentState):
         for sid in self.retrieval_state_element_id:
             tvalue = self._state_info[sid].true_value
             if tvalue is not None:
-                ps, pl = self.retrieval_sv_loc[sid]
-                res[ps : ps + pl] = tvalue
+                res[self.retrieval_sv_slice(sid)] = tvalue
         return res
 
     @property
@@ -210,8 +207,7 @@ class CurrentStateStateInfo(CurrentState):
         for sid in self.retrieval_state_element_id:
             tvalue = self._state_info[sid].true_value_fm
             if tvalue is not None:
-                ps, pl = self.fm_sv_loc[sid]
-                res[ps : ps + pl] = tvalue
+                res[self.fm_sv_slice(sid)] = tvalue
         return res
 
     @property
@@ -477,7 +473,7 @@ class CurrentStateStateInfo(CurrentState):
             )
             self.clear_cache()
 
-    def notify_new_step(
+    def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
         error_analysis: ErrorAnalysis,
@@ -493,7 +489,7 @@ class CurrentStateStateInfo(CurrentState):
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
-            self._state_info.notify_new_step(
+            self._state_info.notify_start_step(
                 current_strategy_step,
                 error_analysis,
                 retrieval_config,
@@ -502,11 +498,10 @@ class CurrentStateStateInfo(CurrentState):
             self.clear_cache()
 
     def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
-        for sid in self.retrieval_state_element_id:
-            ps, pl = self.retrieval_sv_loc[sid]
-            self._state_info[sid].notify_parameter_update(xsol[ps : ps + pl])
         for selem in self._state_info.values():
-            selem.notify_step_solution(xsol)
+            selem.notify_step_solution(
+                xsol, self.retrieval_sv_slice(selem.state_element_id)
+            )
 
 
 # Right now, only fall back to old py-retrieve code

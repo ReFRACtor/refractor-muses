@@ -46,10 +46,10 @@ class StateElement(object, metaclass=abc.ABCMeta):
     See the documentation at the start of CurrentState for a discussion
     of the various state vectors.
 
-    Note as a convention, we always return the values as a np.ndarray,
-    even for single scalar values. This just saves on needing to have lots
-    of "if ndarray else if scalar" code. A scalar is returned as a np.ndarray
-    of size 1.
+    As a convention, we always return the values as a np.ndarray, even
+    for single scalar values. This just saves on needing to have lots
+    of "if ndarray else if scalar" code. A scalar is returned as a
+    np.ndarray of size 1.
 
     Note that we have a separate apriori_cov_fm and constraint_matrix. Most of
     the time these aren't actually independent, for a MaxAPosteriori type cost
@@ -91,6 +91,23 @@ class StateElement(object, metaclass=abc.ABCMeta):
     state_mapping_retrieval_to_fm was the basis matrix, and state_mapping
     what the mapTypeList. But we use the more generate rf.StateMapping here so
     we aren't restricted to just these two.
+
+    The StateElement gets notified when various things happen in a retrieval. These
+    are:
+
+    1. notify_start_retrieval called at the very start of a retrieval. So this can
+       do things like update the value and step_initial_value to the retrieval_initial_value.
+    2. notify_start_step called at the start of a retrieval step. So this can do
+       things like update the value and step_initial_value to the next_step_initial_value
+       determined in the previous step
+    3. notify_step_solution called when a retrieval step reaches a solution. This can
+       determine the step_initial_value for the next step.
+    4. notify_parameter_update is called when the rf.StateVector in a rf.ForwardModel is updated
+       (e.g., the CostFunction gets updated parameters). This is somewhat redundant with
+       notify_step_solution, but it allows the StateElement to update its value for each
+       change to the rf.StateVector occurs. We don't have any code right now that actually
+       makes use of this, but it just seems more consistent with the normal "updating
+       a state vector updates objects that use that state" semantics in ReFRACtor.
     """
 
     def __init__(self, state_element_id: StateElementIdentifier):
@@ -307,7 +324,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     ) -> None:
         pass
 
-    def notify_new_step(
+    def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep,
         error_analysis: ErrorAnalysis,
@@ -316,11 +333,21 @@ class StateElement(object, metaclass=abc.ABCMeta):
     ) -> None:
         pass
 
-    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
-        """Called with a retrieval step has a solution. Note that notify_parameter_update
-        is already called, so in most cases this function doesn't need to do anything. But
-        this is called in case a StateElement needs to do something other than just update
-        is value like notify_parameter_update does."""
+    def notify_step_solution(
+        self, xsol: RetrievalGridArray, retrieval_slice: slice | None
+    ) -> None:
+        """Called when a retrieval step has a solution.
+
+        A note, the initial_value shouldn't be updated yet. classes that use the results want
+        to have the initial guess for *this* step, not what will be used in the next. Instead
+        the initial guess should be updated in notify_start_step. We do save what the next
+        initial guess should be, assuming it was updated.
+
+        We pass in the slice needed to get this StateElement values, or None if we aren't
+        actually retrieving this particular StateElement. It just is more natural to have
+        something outside this class maintain this information (e.g the CurrentState), since
+        this depends on access to all the StateElement in the StateInfo.
+        """
         pass
 
 
@@ -419,6 +446,8 @@ class StateElementImplementation(StateElement):
         self._true_value = true_value
         self._updated_fm_flag = np.zeros((apriori_cov_fm.shape[0],)).astype(bool)
         self._retrieved_this_step = False
+        self._initial_guess_not_updated = False
+        self._next_step_initial_value: np.ndarray | None = None
         # Temp, until we have tested everything out
         self._sold = selem_wrapper
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
@@ -607,6 +636,10 @@ class StateElementImplementation(StateElement):
         res = np.zeros((self.apriori_cov_fm.shape[0],), dtype=bool)
         if self._retrieved_this_step:
             res[:] = True
+        if self._sold is not None:
+            res2 = self._sold.updated_fm_flag
+            # Temp, see what the issue is
+            #npt.assert_allclose(res, res2, rtol=1e-12)
         return res
 
     def notify_start_retrieval(
@@ -616,11 +649,18 @@ class StateElementImplementation(StateElement):
     ) -> None:
         if self._sold is not None:
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
-        # Save the starting point at the start of the retrieval, this is used by the
-        # error analysis
-        self._retrieval_initial_value = self._step_initial_value.copy()
+        # The value and step initial guess should be set to the retrieval initial value
+        self._value = self._retrieval_initial_value.copy()
+        self._step_initial_value = self._retrieval_initial_value.copy()
+        # This is to support testing. We currently have a way of populate StateInfoOld when
+        # we restart a step, but not StateInfo. Longer term we will fix this, but short term
+        # just propagate any values in selem_wrapper to this class
+        if(self._sold):
+            self._value = self._sold.value
+            self._step_initial_value = self._sold.value
+        self._next_step_initial_value = None
 
-    def notify_new_step(
+    def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep,
         error_analysis: ErrorAnalysis,
@@ -628,22 +668,40 @@ class StateElementImplementation(StateElement):
         skip_initial_guess_update: bool = False,
     ) -> None:
         if self._sold is not None:
-            self._sold.notify_new_step(
+            self._sold.notify_start_step(
                 current_strategy_step,
                 error_analysis,
                 retrieval_config,
                 skip_initial_guess_update,
             )
-        # Default initial guess is whatever we ended up with at the end of the
-        # last step
-        self._step_initial_value = self._value.copy()
+        # Update the initial value if we have a setting from the previous step
+        if self._next_step_initial_value is not None:
+            self._step_initial_value = self._next_step_initial_value
+            self._next_step_initial_value = None
+        # Set value to initial value
+        self._value = self._step_initial_value.copy()
         self._retrieved_this_step = (
             self.state_element_id in current_strategy_step.retrieval_elements
         )
+        self._initial_guess_not_updated = (
+            self.state_element_id in current_strategy_step.retrieval_elements_not_updated
+        )
 
-    def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
+    def notify_step_solution(
+        self, xsol: RetrievalGridArray, retrieval_slice: slice | None
+    ) -> None:
+        # We've already called notify_parameter_update, so no need to update
+        # self._value here
         if self._sold is not None:
-            self._sold.notify_step_solution(xsol)
+            self._sold.notify_step_solution(xsol, retrieval_slice)
+        # Default is that the next initial value is whatever the solution was from
+        # this step. But skip if we are on the not updated list
+        if retrieval_slice is not None:
+            self._value = xsol[retrieval_slice]
+            if not self._initial_guess_not_updated:
+                self._next_step_initial_value = self._value.copy()
+            else:
+                self._next_step_initial_value = None
 
 
 class StateElementOspFile(StateElementImplementation):
@@ -697,6 +755,7 @@ class StateElementOspFile(StateElementImplementation):
         # just propagate any values in selem_wrapper to this class
         if selem_wrapper is not None:
             value = selem_wrapper.value
+            #breakpoint()
         super().__init__(
             state_element_id,
             value,
@@ -706,6 +765,9 @@ class StateElementOspFile(StateElementImplementation):
             selem_wrapper=selem_wrapper,
             state_mapping=smap,
         )
+        # Also update initial value, but not apriori
+        if selem_wrapper is not None:
+            self._step_initial_value = selem_wrapper.value
 
     @classmethod
     def create_from_handle(
@@ -733,14 +795,14 @@ class StateElementOspFile(StateElementImplementation):
         )
         return res
 
-    def notify_new_step(
+    def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep,
         error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        super().notify_new_step(
+        super().notify_start_step(
             current_strategy_step,
             error_analysis,
             retrieval_config,

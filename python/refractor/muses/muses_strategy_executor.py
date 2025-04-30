@@ -474,9 +474,9 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.current_strategy_step, self.retrieval_config
         )
 
-    def notify_new_step(self, skip_initial_guess_update: bool = False) -> None:
+    def notify_start_step(self, skip_initial_guess_update: bool = False) -> None:
         """Called to notify other object that we are on a new retrieval step."""
-        self.current_state.notify_new_step(
+        self.current_state.notify_start_step(
             self.current_strategy_step,
             self.error_analysis,
             self.retrieval_config,
@@ -489,7 +489,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             self._restart_and_error_analysis()
             while self.current_strategy_step.strategy_step.step_number < step_number:
-                self.notify_new_step(skip_initial_guess_update=True)
+                self.notify_start_step(skip_initial_guess_update=True)
                 self.next_step()
 
     def _restart_and_error_analysis(self) -> None:
@@ -597,7 +597,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # this in place until we understand this
         self.restart()
         while not self.is_done():
-            self.notify_new_step(skip_initial_guess_update=True)
+            self.notify_start_step(skip_initial_guess_update=True)
             self.next_step()
         self.notify_update(ProcessLocation("starting retrieval steps"))
         self.restart()
@@ -608,8 +608,8 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             ):
                 return
             self.notify_update(ProcessLocation("starting run_step"))
-            self.notify_new_step()
-            self.notify_update(ProcessLocation("notify_new_step done"))
+            self.notify_start_step()
+            self.notify_update(ProcessLocation("notify_start_step done"))
             self.run_step()
             self.next_step()
         self.notify_update("retrieval done")
@@ -619,7 +619,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         at that step to diagnose a problem."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             while not self.is_done():
-                self.notify_new_step()
+                self.notify_start_step()
                 self.notify_update(ProcessLocation("starting run_step"))
                 self.run_step()
                 if (

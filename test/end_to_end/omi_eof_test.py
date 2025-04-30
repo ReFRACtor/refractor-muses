@@ -3,19 +3,17 @@ from refractor.muses import (
     RetrievalStrategy,
     MusesRunDir,
     RetrievalStrategyCaptureObserver,
-    OmiEofStateElement,
+    OmiEofStateElementHandle,
     RetrievalStrategyMemoryUse,
     StateElementIdentifier,
     modify_strategy_table,
 )
-from refractor.old_py_retrieve_wrapper import SingleSpeciesHandleOld
 import subprocess
 import pytest
 from loguru import logger
 from pathlib import Path
 
 
-# Temp, until we get OmiEofStateElement working again
 @pytest.mark.skip
 @pytest.mark.long_test
 def test_eof_omi(osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir, end_to_end_run_dir):
@@ -54,24 +52,8 @@ def test_eof_omi(osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir, end_to_end_run
         use_pca=False, use_lrad=False, lrad_second_order=False, use_eof=True
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
-    rs.state_element_handle_set.add_handle(
-        SingleSpeciesHandleOld(
-            "OMIEOFUV1",
-            OmiEofStateElement,
-            pass_state=False,
-            name=StateElementIdentifier("OMIEOFUV1"),
-            number_eof=3,
-        )
-    )
-    rs.state_element_handle_set.add_handle(
-        SingleSpeciesHandleOld(
-            "OMIEOFUV2",
-            OmiEofStateElement,
-            pass_state=False,
-            name=StateElementIdentifier("OMIEOFUV2"),
-            number_eof=3,
-        )
-    )
+    rs.state_element_handle_set.add_handle(OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV1")))
+    rs.state_element_handle_set.add_handle(OmiEofStateElementHandle(StateElementIdentifier("OMIEOFUV2")))
     rs.update_target(r.run_dir / "Table.asc")
     try:
         lognum = logger.add(dir / "retrieve.log")
