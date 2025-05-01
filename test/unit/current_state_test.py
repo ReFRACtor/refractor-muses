@@ -141,35 +141,6 @@ def test_update_cloudfraction(omi_step_0):
     cstate = rs.current_state
     rs._strategy_executor.restart()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
-    selement.update_initial_guess(rs.current_strategy_step)
-
-    # Update results, and make sure element gets updated
-    rs.current_state.notify_start_step(
-        rs.current_strategy_step, rs.error_analysis, rs.retrieval_config
-    )
-    results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
-    msk = (
-        np.array([str(i) for i in rs.current_state.retrieval_state_vector_element_list])
-        == "OMICLOUDFRACTION"
-    )
-    results_list[msk] = 0.5
-    cstate.notify_step_solution(results_list)
-
-    # Go to the next step, and check that the state element is updated
-    rs._strategy_executor.next_step()
-    rs._strategy_executor.notify_start_step()
-    selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
-    selement.update_initial_guess(rs.current_strategy_step)
-
-
-def test_noupdate_cloudfraction(omi_step_0):
-    """Repeat the previous test, but label the update as "do_not_update". This
-    tests the handling of that case."""
-    rs, _, _ = omi_step_0
-    cstate = rs.current_state
-    rs._strategy_executor.restart()
-    selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
-    selement.update_initial_guess(rs.current_strategy_step)
 
     # Update results, and make sure element gets updated
     rs.current_state.notify_start_step(
@@ -186,4 +157,3 @@ def test_noupdate_cloudfraction(omi_step_0):
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_start_step()
     selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
-    selement.update_initial_guess(rs.current_strategy_step)

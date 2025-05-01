@@ -473,7 +473,7 @@ class StateElementImplementation(StateElement):
             res2 = self._sold.basis_matrix
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -485,7 +485,7 @@ class StateElementImplementation(StateElement):
             res2 = self._sold.map_to_parameter_matrix
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -518,7 +518,7 @@ class StateElementImplementation(StateElement):
         res = self._value
         if self._sold is not None:
             res2 = self._sold.value
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -527,7 +527,8 @@ class StateElementImplementation(StateElement):
         res = self._state_mapping.mapped_state(rf.ArrayAd_double_1(self.value)).value
         if self._sold is not None:
             res2 = self._sold.value_fm
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -535,7 +536,7 @@ class StateElementImplementation(StateElement):
         res = self._apriori_value
         if self._sold is not None:
             res2 = self._sold.apriori_value
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -546,7 +547,7 @@ class StateElementImplementation(StateElement):
         ).value
         if self._sold is not None:
             res2 = self._sold.apriori_value_fm
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -555,7 +556,7 @@ class StateElementImplementation(StateElement):
         res = self._constraint_matrix
         if self._sold is not None:
             res2 = self._sold.constraint_matrix
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -564,7 +565,7 @@ class StateElementImplementation(StateElement):
         res = self._apriori_cov_fm
         if self._sold is not None:
             res2 = self._sold.apriori_cov_fm
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -573,7 +574,7 @@ class StateElementImplementation(StateElement):
         res = self._retrieval_initial_value
         if self._sold is not None:
             res2 = self._sold.retrieval_initial_value
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -582,7 +583,7 @@ class StateElementImplementation(StateElement):
         res = self._step_initial_value
         if self._sold is not None:
             res2 = self._sold.step_initial_value
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -593,7 +594,7 @@ class StateElementImplementation(StateElement):
         ).value
         if self._sold is not None:
             res2 = self._sold.step_initial_value_fm
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
@@ -646,7 +647,7 @@ class StateElementImplementation(StateElement):
             res[:] = True
         if self._sold is not None:
             res2 = self._sold.updated_fm_flag
-            npt.assert_allclose(res, res2, rtol=1e-15)
+            npt.assert_allclose(res, res2)
         return res
 
     def notify_start_retrieval(
@@ -752,12 +753,7 @@ class StateElementOspFile(StateElementImplementation):
         else:
             raise RuntimeError(f"Don't recognize map_type {map_type}")
         r = OspCovarianceMatrixReader.read_dir(covariance_directory)
-        # TODO Determine if we really want this as float32 type. That is what muses-py
-        # uses, and we need that to match. But doesn't seem to be any strong reason not to
-        # just use float64
-        apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude).astype(
-            np.float32
-        )
+        apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude)
         constraint_matrix = self.osp_species_reader.read_constraint_matrix(
             state_element_id, RetrievalType("default")
         )
@@ -791,7 +787,7 @@ class StateElementOspFile(StateElementImplementation):
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
-    ) -> Self:
+    ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
         We don't actually use all the arguments, but they are there for other classes
@@ -831,7 +827,7 @@ class StateElementOspFileHandle(StateElementHandle):
         self,
         sid: StateElementIdentifier,
         apriori_value: np.ndarray,
-        hold: StateElementOldWrapperHandle,
+        hold: StateElementOldWrapperHandle | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
     ) -> None:
         self.obs_cls = cls
@@ -864,7 +860,10 @@ class StateElementOspFileHandle(StateElementHandle):
             return None
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
-        sold = cast(StateElementOldWrapper, self.hold.state_element(state_element_id))
+        if(self.hold is not None):
+            sold = cast(StateElementOldWrapper, self.hold.state_element(state_element_id))
+        else:
+            sold = None
         return self.obs_cls.create_from_handle(
             state_element_id,
             self.apriori_value,
@@ -876,6 +875,24 @@ class StateElementOspFileHandle(StateElementHandle):
             sold,
         )
 
+class StateElementFillValueHandle(StateElementHandle):
+    '''There are a few state element (like OMICLOUDFRACTION) that get created even
+    when we don't have the instrument data. These should just return a StateElement
+    with fill values. This handle is for these.'''
+    def __init__(
+        self,
+        sid: StateElementIdentifier,
+    ) -> None:
+        self.sid = sid
+
+    def state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement | None:
+        if state_element_id != self.sid:
+            return None
+        fill = np.array([-999.0,])
+        fill_2d = np.array([[-999.0,]])
+        return StateElementImplementation(self.sid, fill, fill, fill_2d, fill_2d)
 
 __all__ = [
     "StateElement",
@@ -883,4 +900,5 @@ __all__ = [
     "StateElementHandleSet",
     "StateElementOspFileHandle",
     "StateElementOspFile",
+    "StateElementFillValueHandle"
 ]

@@ -187,12 +187,12 @@ class StateElementOldWrapper(StateElement):
         """Current value of StateElement"""
         return self._current_state_old.full_state_element_old(
             self.state_element_id
-        ).value
+        ).value.astype(float)
 
     @property
     def value_fm(self) -> ForwardModelGridArray:
         """Current value of StateElement"""
-        return self._current_state_old.full_state_value(self.state_element_id)
+        return self._current_state_old.full_state_value(self.state_element_id).astype(float)
 
     @property
     def value_str(self) -> str | None:
@@ -213,7 +213,7 @@ class StateElementOldWrapper(StateElement):
         """Apriori value of StateElement"""
         s = self.retrieval_slice
         if s is not None:
-            return self._current_state_old.apriori[s]
+            return self._current_state_old.apriori[s].astype(float)
         raise RuntimeError("apriori only present for stuff in state vector")
 
     @property
@@ -228,7 +228,7 @@ class StateElementOldWrapper(StateElement):
         ):
             res = self._current_state_old.full_state_apriori_value(
                 self.state_element_id
-            )
+            ).astype(float)
         else:
             res = self._current_state_old.retrieval_info.species_constraint(
                 str(self.state_element_id)
@@ -238,7 +238,7 @@ class StateElementOldWrapper(StateElement):
                     [
                         res,
                     ]
-                )
+                ).astype(float)
         # This already has map applied, so reverse to get parameters
         res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
         return res
@@ -249,7 +249,7 @@ class StateElementOldWrapper(StateElement):
         r = self.retrieval_slice
         if r is None:
             raise RuntimeError("retrieval_slice is None")
-        return self._current_state_old.constraint_matrix[r, r]
+        return self._current_state_old.constraint_matrix[r, r].astype(float)
 
     def constraint_cross_covariance(
         self, selem2: StateElement
@@ -259,13 +259,13 @@ class StateElementOldWrapper(StateElement):
         r1 = self.retrieval_slice
         if isinstance(selem2, StateElementOldWrapper):
             r2 = cast(StateElementOldWrapper, selem2).retrieval_slice
-        elif hasattr(selem2, "_sold"):
+        elif hasattr(selem2, "_sold") and selem2._sold is not None:
             r2 = selem2._sold.retrieval_slice
         else:
-            raise RuntimeError("Not sure how to handle this")
+            return None
         if r1 is None or r2 is None:
             return None
-        res = self._current_state_old.constraint_matrix[r1, r2]
+        res = self._current_state_old.constraint_matrix[r1, r2].astype(float)
         if np.count_nonzero(res) == 0:
             return None
         return res
@@ -273,7 +273,7 @@ class StateElementOldWrapper(StateElement):
     @property
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
         """Apriori Covariance"""
-        return self._old_selem.sa_covariance()[0]
+        return self._old_selem.sa_covariance()[0].astype(float)
 
     def apriori_cross_covariance_fm(
         self, selem2: StateElement
@@ -283,11 +283,13 @@ class StateElementOldWrapper(StateElement):
         selem_old = self._old_selem
         if isinstance(selem2, StateElementOldWrapper):
             selem2_old = cast(StateElementOldWrapper, selem2)._old_selem
-        elif hasattr(selem2, "_sold"):
+        elif hasattr(selem2, "_sold") and selem2._sold is not None:
             selem2_old = selem2._sold._old_selem
         else:
-            raise RuntimeError("Not sure how to handle this")
+            return None
         res = selem_old.sa_cross_covariance(selem2_old)
+        if(res is not None):
+            res = res.astype(float)
         return res
 
     @property
@@ -302,7 +304,7 @@ class StateElementOldWrapper(StateElement):
         # out, this function may end up going away.
         return self._current_state_old.full_state_retrieval_initial_value(
             self.state_element_id
-        )
+        ).astype(float)
 
     @property
     def step_initial_value(self) -> RetrievalGridArray:
@@ -312,7 +314,7 @@ class StateElementOldWrapper(StateElement):
         # This may have already been mapped by type, if so map back
         res = self._current_state_old.full_state_step_initial_value(
             self.state_element_id
-        )
+        ).astype(float)
         res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
         res = self.state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(res)).value
         return res
@@ -326,7 +328,7 @@ class StateElementOldWrapper(StateElement):
         # This may have already been mapped by type, if so map back
         res = self._current_state_old.full_state_step_initial_value(
             self.state_element_id
-        )
+        ).astype(float)
         res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
         return res
 
@@ -339,8 +341,8 @@ class StateElementOldWrapper(StateElement):
         # out, this function may end up going away.
         s = self.fm_slice
         if s is not None:
-            return self._current_state_old.true_value_fm[s]
-        return self._current_state_old.full_state_true_value(self.state_element_id)
+            return self._current_state_old.true_value_fm[s].astype(float)
+        return self._current_state_old.full_state_true_value(self.state_element_id).astype(float)
 
     def update_state_element(
         self,

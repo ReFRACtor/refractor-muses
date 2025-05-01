@@ -76,10 +76,10 @@ class ErrorAnalysis:
             # needed. We should be able to pull that out from the full
             # initial guess update at some point, so we don't need to do
             # the full initial guess
+            selem = copy.deepcopy(selem)
             if hasattr(selem, "update_initial_guess"):
-                selem = copy.deepcopy(selem)
                 selem.update_initial_guess(current_strategy_step)
-                selem_list.append(selem)
+            selem_list.append(selem)
 
         # Note the odd seeming "capitalize" here. This is because
         # get_prior_error uses the map type to look up files, and

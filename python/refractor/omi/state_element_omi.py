@@ -1,11 +1,8 @@
 from __future__ import annotations
-
-# Note h_old will go away, right now this
-# is just to compare against StateInfoOld, until we have everything tested out.
-from refractor.muses.current_state_state_info import h_old
 from refractor.muses import (
     StateElementHandleSet,
     StateElementOspFileHandle,
+    StateElementFillValueHandle,
     StateElementOspFile,
     StateElementIdentifier,
     InstrumentIdentifier,
@@ -28,8 +25,6 @@ if typing.TYPE_CHECKING:
     )
 
 
-# Register all the OMI specific state elements. Note h_old will go away, right now this
-# is just to compare against StateInfoOld, until we have everything tested out.
 def add_handle(
     sname: str,
     apriori_value: float,
@@ -37,10 +32,18 @@ def add_handle(
 ) -> None:
     StateElementHandleSet.add_default_handle(
         StateElementOspFileHandle(
-            StateElementIdentifier(sname), np.array([apriori_value]), h_old, cls=cls
-        )
+            StateElementIdentifier(sname), np.array([apriori_value]), cls=cls
+        ), priority_order = 2
     )
 
+def add_fill_handle(
+    sname: str,
+) -> None:
+    StateElementHandleSet.add_default_handle(
+        StateElementFillValueHandle(
+            StateElementIdentifier(sname)
+        ), priority_order = 1
+    )
 
 class StateElementOmiCloudFraction(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
@@ -56,7 +59,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
     ) -> None:
         apriori_value = np.array(
             [
-                obs.cloud_fraction,
+                obs.cloud_fraction
             ]
         )
         super().__init__(
@@ -79,11 +82,13 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
-    ) -> Self:
+    ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
         We don't actually use all the arguments, but they are there for other classes
         """
+        if InstrumentIdentifier("OMI") not in strategy.instrument_name:
+            return None
         obs = observation_handle_set.observation(
             InstrumentIdentifier("OMI"),
             None,
@@ -116,7 +121,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
     ) -> None:
         apriori_value = np.array(
             [
-                obs.monthly_minimum_surface_reflectance,
+                obs.monthly_minimum_surface_reflectance
             ]
         )
         super().__init__(
@@ -139,11 +144,13 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
-    ) -> Self:
+    ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
         We don't actually use all the arguments, but they are there for other classes
         """
+        if InstrumentIdentifier("OMI") not in strategy.instrument_name:
+            return None
         obs = cast(
             MusesOmiObservation,
             observation_handle_set.observation(
@@ -165,7 +172,9 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         return res
 
 
-#add_handle("OMICLOUDFRACTION", -999.0, StateElementOmiCloudFraction)
+add_handle("OMICLOUDFRACTION", -999.0, StateElementOmiCloudFraction)
+# This gets created even if we don't have OMI data
+add_fill_handle("OMICLOUDFRACTION")
 add_handle("OMINRADWAVUV1", 0.0)
 add_handle("OMINRADWAVUV2", 0.0)
 add_handle("OMIODWAVSLOPEUV1", 0.0)
@@ -179,5 +188,7 @@ add_handle("OMIRINGSFUV2", 1.9)
 add_handle("OMISURFACEALBEDOSLOPEUV2", 0.0)
 add_handle("OMISURFACEALBEDOUV1", -999.0, StateElementOmiSurfaceAlbedo)
 add_handle("OMISURFACEALBEDOUV2", -999.0, StateElementOmiSurfaceAlbedo)
+add_fill_handle("OMISURFACEALBEDOUV1")
+add_fill_handle("OMISURFACEALBEDOUV2")
 
 __all__ = ["StateElementOmiCloudFraction", "StateElementOmiSurfaceAlbedo"]

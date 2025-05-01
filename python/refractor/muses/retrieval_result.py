@@ -520,27 +520,13 @@ class RetrievalResult:
             StateElementIdentifier("emissivity")
         )[ind]
 
-        # TODO
-        # I'm not sure if this is intended or not, but the logic in muses-py has this
-        # set before the values are updated - so this is the cloud fraction at the
-        # start of the retrieval *not* the results if we happen to update this.
-        # We duplicate this behaviour to get the same results as before, but we should
-        # perhaps determine if this is what is intended or not
-        if False:
-            o_results.omi_cloudfraction = self.current_state.full_state_value(
-                StateElementIdentifier("OMICLOUDFRACTION")
-            )[0]
-            o_results.tropomi_cloudfraction = self.current_state.full_state_value(
-                StateElementIdentifier("TROPOMICLOUDFRACTION")
-            )[0]
-        else:
-            o_results.omi_cloudfraction = self.current_state.full_state_step_initial_value(
-                StateElementIdentifier("OMICLOUDFRACTION")
-            )[0]
-            o_results.tropomi_cloudfraction = self.current_state.full_state_step_initial_value(
-                StateElementIdentifier("TROPOMICLOUDFRACTION")
-            )[0]
-
+        o_results.omi_cloudfraction = self.current_state.full_state_value(
+            StateElementIdentifier("OMICLOUDFRACTION")
+        )[0]
+        o_results.tropomi_cloudfraction = self.current_state.full_state_value(
+            StateElementIdentifier("TROPOMICLOUDFRACTION")
+        )[0]
+        
         return o_results
 
 
