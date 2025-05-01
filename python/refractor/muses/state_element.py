@@ -5,6 +5,7 @@ from .creator_handle import CreatorHandle, CreatorHandleSet
 from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
 from .identifier import StateElementIdentifier, RetrievalType
 import abc
+from loguru import logger
 from pathlib import Path
 import numpy as np
 import numpy.testing as npt
@@ -866,7 +867,7 @@ class StateElementOspFileHandle(StateElementHandle):
             )
         else:
             sold = None
-        return self.obs_cls.create_from_handle(
+        res = self.obs_cls.create_from_handle(
             state_element_id,
             self.apriori_value,
             self.measurement_id,
@@ -876,6 +877,9 @@ class StateElementOspFileHandle(StateElementHandle):
             self.sounding_metadata,
             sold,
         )
+        if res is not None:
+            logger.debug(f"Creating {self.obs_cls.__name__} for {state_element_id}")
+        return res
 
 
 class StateElementFillValueHandle(StateElementHandle):
@@ -894,6 +898,7 @@ class StateElementFillValueHandle(StateElementHandle):
     ) -> StateElement | None:
         if state_element_id != self.sid:
             return None
+        logger.debug(f"Creating StateElementFillValue for {state_element_id}")
         fill = np.array(
             [
                 -999.0,
