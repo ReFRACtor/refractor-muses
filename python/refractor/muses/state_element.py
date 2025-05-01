@@ -529,7 +529,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_value(self) -> RetrievalGridArray:
-        # breakpoint()
         res = self._apriori_value
         if self._sold is not None:
             res2 = self._sold.apriori_value
@@ -538,7 +537,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_value_fm(self) -> ForwardModelGridArray:
-        # breakpoint()
         res = self._state_mapping.mapped_state(
             rf.ArrayAd_double_1(self.apriori_value)
         ).value
@@ -638,8 +636,7 @@ class StateElementImplementation(StateElement):
             res[:] = True
         if self._sold is not None:
             res2 = self._sold.updated_fm_flag
-            # Temp, see what the issue is
-            # npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-12)
         return res
 
     def notify_start_retrieval(
