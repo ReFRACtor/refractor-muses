@@ -473,7 +473,8 @@ class StateElementImplementation(StateElement):
             res2 = self._sold.basis_matrix
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     # TODO This can perhaps go away? Replace with a mapping?
@@ -484,7 +485,8 @@ class StateElementImplementation(StateElement):
             res2 = self._sold.map_to_parameter_matrix
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -516,7 +518,8 @@ class StateElementImplementation(StateElement):
         res = self._value
         if self._sold is not None:
             res2 = self._sold.value
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -524,7 +527,7 @@ class StateElementImplementation(StateElement):
         res = self._state_mapping.mapped_state(rf.ArrayAd_double_1(self.value)).value
         if self._sold is not None:
             res2 = self._sold.value_fm
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
         return res
 
     @property
@@ -532,7 +535,8 @@ class StateElementImplementation(StateElement):
         res = self._apriori_value
         if self._sold is not None:
             res2 = self._sold.apriori_value
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -542,7 +546,8 @@ class StateElementImplementation(StateElement):
         ).value
         if self._sold is not None:
             res2 = self._sold.apriori_value_fm
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -550,7 +555,8 @@ class StateElementImplementation(StateElement):
         res = self._constraint_matrix
         if self._sold is not None:
             res2 = self._sold.constraint_matrix
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -558,7 +564,8 @@ class StateElementImplementation(StateElement):
         res = self._apriori_cov_fm
         if self._sold is not None:
             res2 = self._sold.apriori_cov_fm
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -566,15 +573,17 @@ class StateElementImplementation(StateElement):
         res = self._retrieval_initial_value
         if self._sold is not None:
             res2 = self._sold.retrieval_initial_value
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
     def step_initial_value(self) -> RetrievalGridArray:
         res = self._step_initial_value
-        if self._sold is not None and self._retrieved_this_step:
+        if self._sold is not None:
             res2 = self._sold.step_initial_value
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -584,7 +593,8 @@ class StateElementImplementation(StateElement):
         ).value
         if self._sold is not None:
             res2 = self._sold.step_initial_value_fm
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
+            assert res.dtype == res2.dtype
         return res
 
     @property
@@ -636,7 +646,7 @@ class StateElementImplementation(StateElement):
             res[:] = True
         if self._sold is not None:
             res2 = self._sold.updated_fm_flag
-            npt.assert_allclose(res, res2, rtol=1e-12)
+            npt.assert_allclose(res, res2, rtol=1e-15)
         return res
 
     def notify_start_retrieval(
