@@ -2,6 +2,7 @@ from __future__ import annotations
 from .state_element import StateElement, StateElementHandle
 from .identifier import StateElementIdentifier
 from .current_state import CurrentStateStateInfoOld, SoundingMetadata
+from loguru import logger
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
@@ -308,14 +309,17 @@ class StateElementOldWrapper(StateElement):
         s = self.retrieval_slice
         if s is not None:
             return self._current_state_old.initial_guess[s]
-        raise RuntimeError("step_initial_value only present for stuff in state vector")
+        # This may have already been mapped by type, if so map back
+        res = self._current_state_old.full_state_step_initial_value(
+            self.state_element_id
+        )
+        res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
+        res = self.state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(res)).value
+        return res
 
     @property
     def step_initial_value_fm(self) -> ForwardModelGridArray:
         """Value StateElement had at the start of the retrieval step."""
-        # TODO It is not clear why this isn't directly calculated from step_initial_value,
-        # but it is different. For now, we use the existing value. We will want to sort this
-        # out, this function may end up going away.
         s = self.fm_slice
         if s is not None:
             return self._current_state_old.initial_guess_fm[s]
@@ -413,6 +417,7 @@ class StateElementOldWrapperHandle(StateElementHandle):
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
+        logger.debug(f"Creating old state element wrapper for {state_element_id}")
         r = StateElementOldWrapper(
             state_element_id, self._current_state_old, self.is_first
         )

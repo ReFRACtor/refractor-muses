@@ -574,7 +574,7 @@ class StateElementImplementation(StateElement):
     @property
     def step_initial_value(self) -> RetrievalGridArray:
         res = self._step_initial_value
-        if self._sold is not None:
+        if self._sold is not None and self._retrieved_this_step:
             res2 = self._sold.step_initial_value
             npt.assert_allclose(res, res2, rtol=1e-12)
         return res
@@ -639,7 +639,7 @@ class StateElementImplementation(StateElement):
         if self._sold is not None:
             res2 = self._sold.updated_fm_flag
             # Temp, see what the issue is
-            #npt.assert_allclose(res, res2, rtol=1e-12)
+            # npt.assert_allclose(res, res2, rtol=1e-12)
         return res
 
     def notify_start_retrieval(
@@ -655,7 +655,7 @@ class StateElementImplementation(StateElement):
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
-        if(self._sold):
+        if self._sold:
             self._value = self._sold.value
             self._step_initial_value = self._sold.value
         self._next_step_initial_value = None
@@ -684,7 +684,8 @@ class StateElementImplementation(StateElement):
             self.state_element_id in current_strategy_step.retrieval_elements
         )
         self._initial_guess_not_updated = (
-            self.state_element_id in current_strategy_step.retrieval_elements_not_updated
+            self.state_element_id
+            in current_strategy_step.retrieval_elements_not_updated
         )
 
     def notify_step_solution(
@@ -696,12 +697,15 @@ class StateElementImplementation(StateElement):
             self._sold.notify_step_solution(xsol, retrieval_slice)
         # Default is that the next initial value is whatever the solution was from
         # this step. But skip if we are on the not updated list
+        self._next_step_initial_value = None
         if retrieval_slice is not None:
-            self._value = xsol[retrieval_slice]
             if not self._initial_guess_not_updated:
+                self._value = xsol[retrieval_slice]
                 self._next_step_initial_value = self._value.copy()
             else:
-                self._next_step_initial_value = None
+                # Reset value for any changes in solver run if we aren't allowing this to
+                # update
+                self._value = self._step_initial_value.copy()
 
 
 class StateElementOspFile(StateElementImplementation):
@@ -755,7 +759,7 @@ class StateElementOspFile(StateElementImplementation):
         # just propagate any values in selem_wrapper to this class
         if selem_wrapper is not None:
             value = selem_wrapper.value
-            #breakpoint()
+            # breakpoint()
         super().__init__(
             state_element_id,
             value,
