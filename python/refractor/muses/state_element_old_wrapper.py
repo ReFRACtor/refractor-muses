@@ -192,7 +192,9 @@ class StateElementOldWrapper(StateElement):
     @property
     def value_fm(self) -> ForwardModelGridArray:
         """Current value of StateElement"""
-        return self._current_state_old.full_state_value(self.state_element_id).astype(float)
+        return self._current_state_old.full_state_value(self.state_element_id).astype(
+            float
+        )
 
     @property
     def value_str(self) -> str | None:
@@ -288,7 +290,7 @@ class StateElementOldWrapper(StateElement):
         else:
             return None
         res = selem_old.sa_cross_covariance(selem2_old)
-        if(res is not None):
+        if res is not None:
             res = res.astype(float)
         return res
 
@@ -316,7 +318,9 @@ class StateElementOldWrapper(StateElement):
             self.state_element_id
         ).astype(float)
         res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
-        res = self.state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(res)).value
+        res = self.state_mapping_retrieval_to_fm.retrieval_state(
+            rf.ArrayAd_double_1(res)
+        ).value
         return res
 
     @property
@@ -342,7 +346,10 @@ class StateElementOldWrapper(StateElement):
         s = self.fm_slice
         if s is not None:
             return self._current_state_old.true_value_fm[s].astype(float)
-        return self._current_state_old.full_state_true_value(self.state_element_id).astype(float)
+        res = self._current_state_old.full_state_true_value(self.state_element_id)
+        if res is None:
+            return res
+        return res.astype(float)
 
     def update_state_element(
         self,

@@ -60,6 +60,7 @@ if _typing.TYPE_CHECKING:
         StateElementOspFileHandle,
         StateElementHandleSet,
         StateElementOspFile,
+        StateElementFillValueHandle,
     )
     from .state_element_old_wrapper import StateElementOldWrapper
     from .identifier import (

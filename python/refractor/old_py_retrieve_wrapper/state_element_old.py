@@ -2403,7 +2403,7 @@ class MusesPyOmiStateElementOld(MusesPyStateElementOld):
         ij = retrieval_info.species_names.index(str(self.name))
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
-        do_update_fm[ind1:ind2+1] = 1
+        do_update_fm[ind1 : ind2 + 1] = 1
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"
@@ -2560,7 +2560,7 @@ class MusesPyTropomiStateElementOld(MusesPyStateElementOld):
         ij = retrieval_info.species_names.index(str(self.name))
         ind1 = retrieval_info.retrieval_info_obj.parameterStartFM[ij]
         ind2 = retrieval_info.retrieval_info_obj.parameterEndFM[ij]
-        do_update_fm[ind1:ind2+1] = 1
+        do_update_fm[ind1 : ind2 + 1] = 1
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         self.mapType = "linear"

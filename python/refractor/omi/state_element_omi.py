@@ -33,17 +33,18 @@ def add_handle(
     StateElementHandleSet.add_default_handle(
         StateElementOspFileHandle(
             StateElementIdentifier(sname), np.array([apriori_value]), cls=cls
-        ), priority_order = 2
+        ),
+        priority_order=2,
     )
+
 
 def add_fill_handle(
     sname: str,
 ) -> None:
     StateElementHandleSet.add_default_handle(
-        StateElementFillValueHandle(
-            StateElementIdentifier(sname)
-        ), priority_order = 1
+        StateElementFillValueHandle(StateElementIdentifier(sname)), priority_order=1
     )
+
 
 class StateElementOmiCloudFraction(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
@@ -57,11 +58,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
     ) -> None:
-        apriori_value = np.array(
-            [
-                obs.cloud_fraction
-            ]
-        )
+        apriori_value = np.array([obs.cloud_fraction])
         super().__init__(
             state_element_id,
             apriori_value,
@@ -119,11 +116,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
     ) -> None:
-        apriori_value = np.array(
-            [
-                obs.monthly_minimum_surface_reflectance
-            ]
-        )
+        apriori_value = np.array([obs.monthly_minimum_surface_reflectance])
         super().__init__(
             state_element_id,
             apriori_value,

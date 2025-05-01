@@ -526,7 +526,7 @@ class RetrievalResult:
         o_results.tropomi_cloudfraction = self.current_state.full_state_value(
             StateElementIdentifier("TROPOMICLOUDFRACTION")
         )[0]
-        
+
         return o_results
 
 

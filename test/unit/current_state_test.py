@@ -140,7 +140,6 @@ def test_update_cloudfraction(omi_step_0):
     rs, _, _ = omi_step_0
     cstate = rs.current_state
     rs._strategy_executor.restart()
-    selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))
 
     # Update results, and make sure element gets updated
     rs.current_state.notify_start_step(
@@ -156,4 +155,3 @@ def test_update_cloudfraction(omi_step_0):
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_start_step()
-    selement = cstate.full_state_element(StateElementIdentifier("OMICLOUDFRACTION"))

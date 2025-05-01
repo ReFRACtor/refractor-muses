@@ -24,14 +24,11 @@ def test_omi_cloud_fraction_state_element(osp_dir, joint_omi_obs_step_8):
         species_directory,
         covariance_directory,
     )
-    vexpect = np.array(
-        [
-            0.32976987957954407
-        ]
-    )
+    vexpect = np.array([0.32976987957954407])
     npt.assert_allclose(selem.value, vexpect)
     npt.assert_allclose(selem.step_initial_value, vexpect)
     npt.assert_allclose(selem.retrieval_initial_value, vexpect)
+
 
 def test_omi_surface_state_element(osp_dir, joint_omi_obs_step_8):
     _, omi_obs = joint_omi_obs_step_8
@@ -50,12 +47,7 @@ def test_omi_surface_state_element(osp_dir, joint_omi_obs_step_8):
         species_directory,
         covariance_directory,
     )
-    vexpect = np.array(
-        [
-            0.052
-        ]
-    )
+    vexpect = np.array([0.052])
     npt.assert_allclose(selem.value, vexpect)
     npt.assert_allclose(selem.step_initial_value, vexpect)
     npt.assert_allclose(selem.retrieval_initial_value, vexpect)
-    

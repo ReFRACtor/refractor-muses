@@ -860,8 +860,10 @@ class StateElementOspFileHandle(StateElementHandle):
             return None
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
-        if(self.hold is not None):
-            sold = cast(StateElementOldWrapper, self.hold.state_element(state_element_id))
+        if self.hold is not None:
+            sold = cast(
+                StateElementOldWrapper, self.hold.state_element(state_element_id)
+            )
         else:
             sold = None
         return self.obs_cls.create_from_handle(
@@ -875,10 +877,12 @@ class StateElementOspFileHandle(StateElementHandle):
             sold,
         )
 
+
 class StateElementFillValueHandle(StateElementHandle):
-    '''There are a few state element (like OMICLOUDFRACTION) that get created even
+    """There are a few state element (like OMICLOUDFRACTION) that get created even
     when we don't have the instrument data. These should just return a StateElement
-    with fill values. This handle is for these.'''
+    with fill values. This handle is for these."""
+
     def __init__(
         self,
         sid: StateElementIdentifier,
@@ -890,9 +894,20 @@ class StateElementFillValueHandle(StateElementHandle):
     ) -> StateElement | None:
         if state_element_id != self.sid:
             return None
-        fill = np.array([-999.0,])
-        fill_2d = np.array([[-999.0,]])
+        fill = np.array(
+            [
+                -999.0,
+            ]
+        )
+        fill_2d = np.array(
+            [
+                [
+                    -999.0,
+                ]
+            ]
+        )
         return StateElementImplementation(self.sid, fill, fill, fill_2d, fill_2d)
+
 
 __all__ = [
     "StateElement",
@@ -900,5 +915,5 @@ __all__ = [
     "StateElementHandleSet",
     "StateElementOspFileHandle",
     "StateElementOspFile",
-    "StateElementFillValueHandle"
+    "StateElementFillValueHandle",
 ]
