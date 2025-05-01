@@ -177,7 +177,7 @@ add_handle("OMIODWAVUV2", 0.0)
 add_handle("OMIRINGSFUV1", 1.9)
 add_handle("OMIRINGSFUV2", 1.9)
 add_handle("OMISURFACEALBEDOSLOPEUV2", 0.0)
-#add_handle("OMISURFACEALBEDOUV1", -999.0, StateElementOmiSurfaceAlbedo)
-#add_handle("OMISURFACEALBEDOUV2", -999.0, StateElementOmiSurfaceAlbedo)
+add_handle("OMISURFACEALBEDOUV1", -999.0, StateElementOmiSurfaceAlbedo)
+add_handle("OMISURFACEALBEDOUV2", -999.0, StateElementOmiSurfaceAlbedo)
 
 __all__ = ["StateElementOmiCloudFraction", "StateElementOmiSurfaceAlbedo"]

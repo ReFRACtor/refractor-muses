@@ -526,7 +526,7 @@ class RetrievalResult:
         # start of the retrieval *not* the results if we happen to update this.
         # We duplicate this behaviour to get the same results as before, but we should
         # perhaps determine if this is what is intended or not
-        if True:
+        if False:
             o_results.omi_cloudfraction = self.current_state.full_state_value(
                 StateElementIdentifier("OMICLOUDFRACTION")
             )[0]
