@@ -7,7 +7,11 @@ from refractor.muses import (
     MeasurementIdFile,
     MusesTropomiObservation,
 )
-from refractor.tropomi import StateElementTropomiCloudFraction, StateElementTropomiCloudPressure, StateElementTropomiSurfaceAlbedoFixedCov, StateElementTropomiSurfaceAlbedo
+from refractor.tropomi import (
+    StateElementTropomiCloudFraction,
+    StateElementTropomiCloudPressure,
+    StateElementTropomiSurfaceAlbedo,
+)
 import numpy as np
 import numpy.testing as npt
 
@@ -29,14 +33,11 @@ def test_tropomi_cloud_fraction_state_element(osp_dir, joint_tropomi_obs_step_12
         species_directory,
         covariance_directory,
     )
-    vexpect = np.array(
-        [
-            0.219607874751091
-        ]
-    )
+    vexpect = np.array([0.219607874751091])
     npt.assert_allclose(selem.value, vexpect)
     npt.assert_allclose(selem.step_initial_value, vexpect)
     npt.assert_allclose(selem.retrieval_initial_value, vexpect)
+
 
 def test_tropomi_cloud_pressure_state_element(osp_dir, joint_tropomi_obs_step_12):
     _, tropomi_obs = joint_tropomi_obs_step_12
@@ -44,14 +45,11 @@ def test_tropomi_cloud_pressure_state_element(osp_dir, joint_tropomi_obs_step_12
         StateElementIdentifier("TROPOMICLOUDPRESSURE"),
         tropomi_obs,
     )
-    vexpect = np.array(
-        [
-            642.80609375
-        ]
-    )
+    vexpect = np.array([642.80609375])
     npt.assert_allclose(selem.value, vexpect)
     npt.assert_allclose(selem.step_initial_value, vexpect)
     npt.assert_allclose(selem.retrieval_initial_value, vexpect)
+
 
 def test_tropomi_surface_alebdo_band7_state_element(tropomi_swir, josh_osp_dir):
     r = tropomi_swir
@@ -72,10 +70,26 @@ def test_tropomi_surface_alebdo_band7_state_element(tropomi_swir, josh_osp_dir):
         None,
         osp_dir=josh_osp_dir,
     )
-    selem = StateElementTropomiSurfaceAlbedoFixedCov(
-        StateElementIdentifier("TROPOMICLOUDPRESSURE"),
+    # State element is just a StateElementOspFile (already tested), but with
+    # the apriori/initial guess coming from the tropomi_obs cloud fraction.
+    # Dummy value, most of the elements don't actually depend on latitude
+    latitude = 10.0
+    species_directory = (
+        josh_osp_dir
+        / "Strategy_Tables"
+        / "laughner"
+        / "OSP-CrIS-TROPOMI-swir-co-dev"
+        / "Species-66"
+    )
+    covariance_directory = josh_osp_dir / "Covariance" / "Covariance"
+    selem = StateElementTropomiSurfaceAlbedo(
+        StateElementIdentifier("TROPOMISURFACEALBEDOBAND7"),
         tropomi_obs,
-        band=7
+        latitude,
+        species_directory,
+        covariance_directory,
+        band=7,
+        cov_is_constraint=True,
     )
     vexpect = np.array(
         [
@@ -85,7 +99,7 @@ def test_tropomi_surface_alebdo_band7_state_element(tropomi_swir, josh_osp_dir):
     npt.assert_allclose(selem.value, vexpect)
     npt.assert_allclose(selem.step_initial_value, vexpect)
     npt.assert_allclose(selem.retrieval_initial_value, vexpect)
-    
+
 
 def test_tropomi_surface_albedo_state_element(osp_dir, joint_tropomi_obs_step_12):
     _, tropomi_obs = joint_tropomi_obs_step_12
@@ -103,14 +117,9 @@ def test_tropomi_surface_albedo_state_element(osp_dir, joint_tropomi_obs_step_12
         latitude,
         species_directory,
         covariance_directory,
-        band=3
+        band=3,
     )
-    vexpect = np.array(
-        [
-            0.04
-        ]
-    )
+    vexpect = np.array([0.04])
     npt.assert_allclose(selem.value, vexpect)
     npt.assert_allclose(selem.step_initial_value, vexpect)
     npt.assert_allclose(selem.retrieval_initial_value, vexpect)
-    

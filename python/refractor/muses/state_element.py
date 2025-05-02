@@ -54,14 +54,14 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     Note that we have a separate apriori_cov_fm and constraint_matrix. Most of
     the time these aren't actually independent, for a MaxAPosteriori type cost
-    function the constraint matrix is just inv(apriori_cov). However, StateElement
+    function the constraint matrix is just apriori_cov. However, StateElement
     maintains these as two separate things for two reasons:
 
     1. One minor, in the existing muses-py code these can come from
        different sources.  It is often the case that while
-       constraint_matrix is close to inv(apriori_cov), there may be
+       constraint_matrix is close to apriori_cov, there may be
        small roundoff differences so if we replace constraint_matrix
-       with inv(apriori_cov) we get slightly different output. This is a minor
+       with apriori_cov we get slightly different output. This is a minor
        problem, we currently use in our tests the requirement that we generate
        the same output as muses-py runs. But it is actually ok if these aren't
        the same, we just need to update our expected results. We tend to not
@@ -77,7 +77,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
        parameter like cloud fraction, which is a reasonable thing to
        do when we are really doing something close to calculating
        this. So for an particular step, constraint_matrix might not be
-       even close to inv(apriori_cov). There is probably some name for
+       even close to apriori_cov_fm. There is probably some name for
        a scaled cost function - we might check with Edwin about
        this. But the idea makes sense.  Note that in practice
        apriori_cov_fm gets used just by the ErrorAnalysis, and
@@ -540,7 +540,7 @@ class StateElementImplementation(StateElement):
                 res2 = self._sold.apriori_value
             except (AssertionError, RuntimeError):
                 res2 = None
-            if(res2 is not None):
+            if res2 is not None:
                 npt.assert_allclose(res, res2)
                 assert res.dtype == res2.dtype
         return res
@@ -555,7 +555,7 @@ class StateElementImplementation(StateElement):
                 res2 = self._sold.apriori_value_fm
             except (AssertionError, RuntimeError):
                 res2 = None
-            if(res2 is not None):
+            if res2 is not None:
                 npt.assert_allclose(res, res2)
                 assert res.dtype == res2.dtype
         return res
@@ -573,11 +573,11 @@ class StateElementImplementation(StateElement):
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
         res = self._apriori_cov_fm
         if self._sold is not None:
-            try: 
+            try:
                 res2 = self._sold.apriori_cov_fm
             except AssertionError:
                 res2 = None
-            if(res2 is not None):
+            if res2 is not None:
                 npt.assert_allclose(res, res2)
                 assert res.dtype == res2.dtype
         return res
@@ -652,9 +652,10 @@ class StateElementImplementation(StateElement):
             self._retrieval_initial_value = retrieval_initial
         if true_value is not None:
             self._true_value = true_value
-        if(self._sold is not None):
-            self._sold.update_state_element(current, apriori, step_initial, retrieval_initial,
-                                            true_value)
+        if self._sold is not None:
+            self._sold.update_state_element(
+                current, apriori, step_initial, retrieval_initial, true_value
+            )
 
     @property
     def updated_fm_flag(self) -> ForwardModelGridArray:
@@ -739,6 +740,10 @@ class StateElementOspFile(StateElementImplementation):
     file? But this is the way muses-py works, and at the very least we need to implementation
     for backwards testing.  We may replace this StateElement, there doesn't seem to be any
     good reason to spread everything across multiple files.
+
+    In some cases, we have the species in the covariance species_directory but not the
+    covariance_directory. You can optionally request that we just use the constraint
+    matrix as the apriori_cov_fm
     """
 
     def __init__(
@@ -749,6 +754,7 @@ class StateElementOspFile(StateElementImplementation):
         species_directory: Path,
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
+        cov_is_constraint: bool = False,
     ):
         # For OMI and TROPOMI parameters the initial value, and apriori are hard coded.
         # These get set up in script_retrieval_setup_ms.py, so we can look there for the
@@ -768,11 +774,14 @@ class StateElementOspFile(StateElementImplementation):
             smap = rf.StateMappingLog()
         else:
             raise RuntimeError(f"Don't recognize map_type {map_type}")
-        r = OspCovarianceMatrixReader.read_dir(covariance_directory)
-        apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude)
         constraint_matrix = self.osp_species_reader.read_constraint_matrix(
             state_element_id, RetrievalType("default")
         )
+        if cov_is_constraint:
+            apriori_cov_fm = constraint_matrix
+        else:
+            r = OspCovarianceMatrixReader.read_dir(covariance_directory)
+            apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude)
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
@@ -803,6 +812,7 @@ class StateElementOspFile(StateElementImplementation):
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
+        cov_is_constraint: bool = False,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -815,6 +825,7 @@ class StateElementOspFile(StateElementImplementation):
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
+            cov_is_constraint=cov_is_constraint,
         )
         return res
 
@@ -845,6 +856,7 @@ class StateElementOspFileHandle(StateElementHandle):
         apriori_value: np.ndarray,
         hold: StateElementOldWrapperHandle | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
+        cov_is_constraint: bool = False,
     ) -> None:
         self.obs_cls = cls
         self.sid = sid
@@ -852,6 +864,7 @@ class StateElementOspFileHandle(StateElementHandle):
         self.apriori_value = apriori_value
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
+        self.cov_is_constraint = cov_is_constraint
 
     def notify_update_target(
         self,
@@ -891,6 +904,7 @@ class StateElementOspFileHandle(StateElementHandle):
             self.observation_handle_set,
             self.sounding_metadata,
             sold,
+            self.cov_is_constraint,
         )
         if res is not None:
             logger.debug(f"Creating {self.obs_cls.__name__} for {state_element_id}")
@@ -935,8 +949,8 @@ class StateElementFixedValueHandle(StateElementHandle):
     def __init__(
         self,
         sid: StateElementIdentifier,
-        apriori : np.ndarray,
-        apriori_cov_fm : np.ndarray
+        apriori: np.ndarray,
+        apriori_cov_fm: np.ndarray,
     ) -> None:
         self.sid = sid
         self.apriori = apriori
@@ -948,9 +962,14 @@ class StateElementFixedValueHandle(StateElementHandle):
         if state_element_id != self.sid:
             return None
         logger.debug(f"Creating StateElementFixedValue for {state_element_id}")
-        return StateElementImplementation(self.sid, self.apriori, self.apriori,
-                                          self.apriori_cov_fm, np.linalg.inv(self.apriori_cov_fm))
-    
+        return StateElementImplementation(
+            self.sid,
+            self.apriori,
+            self.apriori,
+            self.apriori_cov_fm,
+            np.linalg.inv(self.apriori_cov_fm),
+        )
+
 
 __all__ = [
     "StateElement",

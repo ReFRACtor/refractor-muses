@@ -57,6 +57,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         species_directory: Path,
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
+        cov_is_constraint: bool = False,
     ) -> None:
         apriori_value = np.array([obs.cloud_fraction])
         super().__init__(
@@ -66,6 +67,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
             species_directory,
             covariance_directory,
             selem_wrapper,
+            cov_is_constraint,
         )
 
     @classmethod
@@ -79,6 +81,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
+        cov_is_constraint: bool = False,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -100,6 +103,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
+            cov_is_constraint=cov_is_constraint,
         )
         return res
 
@@ -115,6 +119,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         species_directory: Path,
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
+        cov_is_constraint: bool = False,
     ) -> None:
         apriori_value = np.array([obs.monthly_minimum_surface_reflectance])
         super().__init__(
@@ -124,6 +129,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
             species_directory,
             covariance_directory,
             selem_wrapper,
+            cov_is_constraint,
         )
 
     @classmethod
@@ -137,6 +143,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
+        cov_is_constraint: bool = False,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -161,6 +168,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
+            cov_is_constraint=cov_is_constraint,
         )
         return res
 

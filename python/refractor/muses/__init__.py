@@ -66,7 +66,10 @@ if _typing.TYPE_CHECKING:
         StateElementFillValueHandle,
         StateElementFixedValueHandle,
     )
-    from .state_element_old_wrapper import StateElementOldWrapper, StateElementOldWrapperHandle
+    from .state_element_old_wrapper import (
+        StateElementOldWrapper,
+        StateElementOldWrapperHandle,
+    )
     from .identifier import (
         FilterIdentifier,
         InstrumentIdentifier,
