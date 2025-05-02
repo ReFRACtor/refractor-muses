@@ -312,7 +312,7 @@ class StateElementOldWrapper(StateElement):
     def step_initial_value(self) -> RetrievalGridArray:
         s = self.retrieval_slice
         if s is not None:
-            return self._current_state_old.initial_guess[s]
+            return self._current_state_old.initial_guess[s].astype(float)
         # This may have already been mapped by type, if so map back
         res = self._current_state_old.full_state_step_initial_value(
             self.state_element_id
@@ -328,7 +328,7 @@ class StateElementOldWrapper(StateElement):
         """Value StateElement had at the start of the retrieval step."""
         s = self.fm_slice
         if s is not None:
-            return self._current_state_old.initial_guess_fm[s]
+            return self._current_state_old.initial_guess_fm[s].astype(float)
         # This may have already been mapped by type, if so map back
         res = self._current_state_old.full_state_step_initial_value(
             self.state_element_id

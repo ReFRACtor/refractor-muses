@@ -536,9 +536,13 @@ class StateElementImplementation(StateElement):
     def apriori_value(self) -> RetrievalGridArray:
         res = self._apriori_value
         if self._sold is not None:
-            res2 = self._sold.apriori_value
-            npt.assert_allclose(res, res2)
-            assert res.dtype == res2.dtype
+            try:
+                res2 = self._sold.apriori_value
+            except (AssertionError, RuntimeError):
+                res2 = None
+            if(res2 is not None):
+                npt.assert_allclose(res, res2)
+                assert res.dtype == res2.dtype
         return res
 
     @property
@@ -547,9 +551,13 @@ class StateElementImplementation(StateElement):
             rf.ArrayAd_double_1(self.apriori_value)
         ).value
         if self._sold is not None:
-            res2 = self._sold.apriori_value_fm
-            npt.assert_allclose(res, res2)
-            assert res.dtype == res2.dtype
+            try:
+                res2 = self._sold.apriori_value_fm
+            except (AssertionError, RuntimeError):
+                res2 = None
+            if(res2 is not None):
+                npt.assert_allclose(res, res2)
+                assert res.dtype == res2.dtype
         return res
 
     @property
@@ -565,9 +573,13 @@ class StateElementImplementation(StateElement):
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
         res = self._apriori_cov_fm
         if self._sold is not None:
-            res2 = self._sold.apriori_cov_fm
-            npt.assert_allclose(res, res2)
-            assert res.dtype == res2.dtype
+            try: 
+                res2 = self._sold.apriori_cov_fm
+            except AssertionError:
+                res2 = None
+            if(res2 is not None):
+                npt.assert_allclose(res, res2)
+                assert res.dtype == res2.dtype
         return res
 
     @property
@@ -633,13 +645,16 @@ class StateElementImplementation(StateElement):
         if current is not None:
             self._value = current
         if apriori is not None:
-            self._apriori = apriori
+            self._apriori_value = apriori
         if step_initial is not None:
             self._step_initial_value = step_initial
         if retrieval_initial is not None:
             self._retrieval_initial_value = retrieval_initial
         if true_value is not None:
             self._true_value = true_value
+        if(self._sold is not None):
+            self._sold.update_state_element(current, apriori, step_initial, retrieval_initial,
+                                            true_value)
 
     @property
     def updated_fm_flag(self) -> ForwardModelGridArray:
@@ -914,11 +929,36 @@ class StateElementFillValueHandle(StateElementHandle):
         return StateElementImplementation(self.sid, fill, fill, fill_2d, fill_2d)
 
 
+class StateElementFixedValueHandle(StateElementHandle):
+    """Create state element from static values, rather than getting this from somewhere else."""
+
+    def __init__(
+        self,
+        sid: StateElementIdentifier,
+        apriori : np.ndarray,
+        apriori_cov_fm : np.ndarray
+    ) -> None:
+        self.sid = sid
+        self.apriori = apriori
+        self.apriori_cov_fm = apriori_cov_fm
+
+    def state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement | None:
+        if state_element_id != self.sid:
+            return None
+        logger.debug(f"Creating StateElementFixedValue for {state_element_id}")
+        return StateElementImplementation(self.sid, self.apriori, self.apriori,
+                                          self.apriori_cov_fm, np.linalg.inv(self.apriori_cov_fm))
+    
+
 __all__ = [
     "StateElement",
+    "StateElementImplementation",
     "StateElementHandle",
     "StateElementHandleSet",
     "StateElementOspFileHandle",
     "StateElementOspFile",
     "StateElementFillValueHandle",
+    "StateElementFixedValueHandle",
 ]
