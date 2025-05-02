@@ -267,6 +267,55 @@ class StateElementTropomiCloudPressure(StateElementImplementation):
             np.array([[-999.0]]),
             selem_wrapper,
         )
+
+class StateElementTropomiSurfaceAlbedoFixedCov(StateElementImplementation):
+    """Variation that gets the apriori/initial guess from the observation file"""
+    def __init__(
+        self,
+        state_element_id: StateElementIdentifier,
+        obs: MusesObservation,
+        selem_wrapper: StateElementOldWrapper | None = None,
+        band: int = -1,
+    ) -> None:
+        apriori_value = np.array(
+            [
+                float(obs.muses_py_dict["SurfaceAlbedo"][f"BAND{band}_MonthlyMinimumSurfaceReflectance"])
+            ]
+        )
+        super().__init__(
+            state_element_id,
+            apriori_value,
+            apriori_value,
+            np.array([[2.5e-3]]),
+            np.array([[1.0/2.5e-3]]),
+            selem_wrapper,
+        )
+
+class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
+    """Variation that gets the apriori/initial guess from the observation file"""
+    def __init__(
+        self,
+        state_element_id: StateElementIdentifier,
+        obs: MusesObservation,
+        latitude: float,
+        species_directory: Path,
+        covariance_directory: Path,
+        selem_wrapper: StateElementOldWrapper | None = None,
+        band: int = -1,
+    ) -> None:
+        apriori_value = np.array(
+            [
+                float(obs.muses_py_dict["SurfaceAlbedo"][f"BAND{band}_MonthlyMinimumSurfaceReflectance"])
+            ]
+        )
+        super().__init__(
+            state_element_id,
+            apriori_value,
+            latitude,
+            species_directory,
+            covariance_directory,
+            selem_wrapper,
+        )
         
 
 add_tropomi_file_handle("TROPOMICLOUDFRACTION", StateElementTropomiCloudFraction)
@@ -303,10 +352,10 @@ add_handle("TROPOMISOLARSHIFTBAND1", 0.0)
 add_handle("TROPOMISOLARSHIFTBAND2", 0.0)
 add_handle("TROPOMISOLARSHIFTBAND3", 0.0)
 add_fixed_handle("TROPOMISOLARSHIFTBAND7", 0.0, 4e-4)
-#add_handle("TROPOMISURFACEALBEDOBAND1", 0.0)
-#add_handle("TROPOMISURFACEALBEDOBAND2", 0.0)
-#add_handle("TROPOMISURFACEALBEDOBAND3", 0.0)
-#add_handle("TROPOMISURFACEALBEDOBAND7", 0.0)
+add_tropomi_file_handle("TROPOMISURFACEALBEDOBAND1", StateElementTropomiSurfaceAlbedo, band=1)
+add_tropomi_file_handle("TROPOMISURFACEALBEDOBAND2", StateElementTropomiSurfaceAlbedo, band=2)
+add_tropomi_file_handle("TROPOMISURFACEALBEDOBAND3", StateElementTropomiSurfaceAlbedo, band=3)
+add_tropomi_file_fixed_handle("TROPOMISURFACEALBEDOBAND7", StateElementTropomiSurfaceAlbedoFixedCov)
 add_handle("TROPOMISURFACEALBEDOSLOPEBAND1", 0.0)
 add_handle("TROPOMISURFACEALBEDOSLOPEBAND2", 0.0)
 add_handle("TROPOMISURFACEALBEDOSLOPEBAND3", 0.0)
@@ -319,4 +368,6 @@ add_handle("TROPOMITEMPSHIFTBAND2", 1.0)
 add_handle("TROPOMITEMPSHIFTBAND3", 1.0)
 add_fixed_handle("TROPOMITEMPSHIFTBAND7", 1.0, 1.0)
 
-__all__ = ["StateElementTropomiCloudFraction", "StateElementTropomiCloudPressure"]
+__all__ = ["StateElementTropomiCloudFraction", "StateElementTropomiCloudPressure",
+           "StateElementTropomiSurfaceAlbedoFixedCov",
+           "StateElementTropomiSurfaceAlbedo"]
