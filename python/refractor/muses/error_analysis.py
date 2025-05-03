@@ -136,12 +136,16 @@ class ErrorAnalysis:
         # same as retrieval_result
         fstate_info = FakeStateInfo(retrieval_result.current_state)
         fretrieval_info = FakeRetrievalInfo(retrieval_result.current_state)
-        _ = self.error_analysis(
-            retrieval_result.rstep.__dict__,
-            fstate_info,
+        # Updates error_current and retrieval_result in place
+        self.error_analysis_wrapper(
+            retrieval_result.rstep,
             fretrieval_info,
+            fstate_info,
+            self.error_initial,
+            self.error_current,
             retrieval_result,
         )
+        # Updates retrieval_result in place
         _ = mpy.write_retrieval_summary(
             None,
             fretrieval_info,
@@ -157,67 +161,14 @@ class ErrorAnalysis:
             errorInitial=self.error_initial,
         )
 
-    def error_analysis(
-        self,
-        radiance_step: dict,
-        fstate_info: FakeStateInfo,
-        retrieval_info: FakeRetrievalInfo,
-        retrieval_result: RetrievalResult,
-    ) -> mpy.ObjectView:
-        """Update results and error_current"""
-        # Doesn't seem to be used for anything, but we need to pass in. I think
-        # this might have been something that was used in the past?
-        radiance_noise = {"radiance": np.zeros_like(radiance_step["radiance"])}
-        (results, self.error_current) = self.error_analysis_wrapper(
-            None,
-            None,
-            radiance_step,
-            radiance_noise,
-            retrieval_info,
-            fstate_info,
-            self.error_initial,
-            self.error_current,
-            None,
-            retrieval_result,
-        )
-        return results
-
     def error_analysis_wrapper(
             self,
-            stepNumber,
-            outputDirectory,
-            radiance,
-            radianceNoise,
-            retrieval,
-            stateInfo,
-            errorInitial,
-            errorCurrent,
-            microwindows,
-            results,
-            jacTemp=None,
-            nowriteFlag=False):
-    
-        # IDL_LEGACY_NOTE: This function error_analysis_wrapper is the same as Error_Analysis_Wrapper in Error_Analysis_Wrapper.pro file.
-        function_name = "error_analysis_wrapper: "
-    
-        # Convert any dict to mpy.ObjectView so we can have a consistent way of referring to our input.
-        if isinstance(radiance, dict):
-            radiance = mpy.ObjectView(radiance)
-    
-        if isinstance(radianceNoise, dict):
-            radianceNoise = mpy.ObjectView(radianceNoise)
-    
-        if isinstance(retrieval, dict):
-            retrieval = mpy.ObjectView(retrieval)
-    
-        if isinstance(stateInfo, dict):
-            stateInfo = mpy.ObjectView(stateInfo)
-    
-        if isinstance(results, dict):
-            results = mpy.ObjectView(results)
-    
-        # AT_LINE 20 Error_Analysis_Wrapper.pro
-    
+            radiance : mpy.ObjectView,
+            retrieval : FakeRetrievalInfo,
+            stateInfo : FakeStateInfo,
+            errorInitial : mpy.ObjectView,
+            errorCurrent : mpy.ObjectView,
+            results : RetrievalResult) -> None:
         # expected noise
         dataError = radiance.NESR
         if len(dataError.shape) == 1:
@@ -249,17 +200,6 @@ class ErrorAnalysis:
         # result is jacobian[pars, frequency]
         jacobian = mpy.glom(results.jacobian, 0, 2)  # Function glom() likes 2-D array or more
         jacobian[:, indNegFreq] = 0
-    
-        # actual noise (might be sign error)
-        # AT_LINE 56 Error_Analysis_Wrapper.pro
-        actualDataError = radianceNoise.radiance
-        if len(actualDataError.shape) == 1:
-            my_shape = (1, len(actualDataError)) # Convert (442,) to (1,442)
-        else:
-            my_shape = actualDataError.shape 
-        
-        actualDataError = mpy.glom(np.reshape(actualDataError, my_shape), 0, 1)  # Function glom() likes 2-D array or more
-        actualDataError[indNegFreq] = 0
     
         # actual residual, fit - observed
         # AT_LINE 62 Error_Analysis_Wrapper.pro
@@ -470,7 +410,6 @@ class ErrorAnalysis:
             jacobianFM[:, ind] = 0
             if jacobianSys is not None:
                 jacobianSys[:, ind] = 0
-            actualDataError[ind] = 0
             actualDataResidual[ind] = 0
         # end part of if len(ind) > 0:
     
@@ -485,7 +424,7 @@ class ErrorAnalysis:
     
         # AT_LINE 256 Error_Analysis_Wrapper.pro
         (result, offDiagonalSys) = mpy.error_analysis(
-            stepNumber,
+            None,
             my_map,
             jacobian,
             jacobianFM,
@@ -499,7 +438,7 @@ class ErrorAnalysis:
             initialVector,
             resultVector,
             dataError,
-            actualDataError,
+            None,
             actualDataResidual,
             results,
             retrieval,
