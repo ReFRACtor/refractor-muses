@@ -420,7 +420,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
-        """Constraint matrix, the inverse of apriori_cov"""
+        """Constraint matrix"""
         raise NotImplementedError()
 
     @property
