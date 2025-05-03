@@ -168,7 +168,7 @@ class ErrorAnalysis:
         # Doesn't seem to be used for anything, but we need to pass in. I think
         # this might have been something that was used in the past?
         radiance_noise = {"radiance": np.zeros_like(radiance_step["radiance"])}
-        (results, self.error_current) = mpy.error_analysis_wrapper(
+        (results, self.error_current) = self.error_analysis_wrapper(
             None,
             None,
             radiance_step,
@@ -182,6 +182,362 @@ class ErrorAnalysis:
         )
         return results
 
+    def error_analysis_wrapper(
+            self,
+            stepNumber,
+            outputDirectory,
+            radiance,
+            radianceNoise,
+            retrieval,
+            stateInfo,
+            errorInitial,
+            errorCurrent,
+            microwindows,
+            results,
+            jacTemp=None,
+            nowriteFlag=False):
+    
+        # IDL_LEGACY_NOTE: This function error_analysis_wrapper is the same as Error_Analysis_Wrapper in Error_Analysis_Wrapper.pro file.
+        function_name = "error_analysis_wrapper: "
+    
+        # Convert any dict to mpy.ObjectView so we can have a consistent way of referring to our input.
+        if isinstance(radiance, dict):
+            radiance = mpy.ObjectView(radiance)
+    
+        if isinstance(radianceNoise, dict):
+            radianceNoise = mpy.ObjectView(radianceNoise)
+    
+        if isinstance(retrieval, dict):
+            retrieval = mpy.ObjectView(retrieval)
+    
+        if isinstance(stateInfo, dict):
+            stateInfo = mpy.ObjectView(stateInfo)
+    
+        if isinstance(results, dict):
+            results = mpy.ObjectView(results)
+    
+        # AT_LINE 20 Error_Analysis_Wrapper.pro
+    
+        # expected noise
+        dataError = radiance.NESR
+        if len(dataError.shape) == 1:
+            my_shape = (1, len(dataError)) # Convert (442,) to (1,442)
+        else:
+            my_shape = dataError.shape
+    
+        dataError = mpy.glom(np.reshape(dataError, my_shape), 0, 1)  # Function glom() likes 2-D array or more
+    
+        # AT_LINE 25 Error_Analysis_Wrapper.pro
+        # Because the code was IDL specific of restoring variable, Python did not implement lines 25 through 35.
+    
+        # get good frequencies
+        # AT_LINE 38 Error_Analysis_Wrapper.pro
+        indPosFreq = np.where(dataError > 0)[0]
+        indNegFreq = np.where(dataError < 0)[0]
+    
+        # make maps:  FM -> ret & vice versa
+        # AT_LINE 42 Error_Analysis_Wrapper.pro
+        mmm = retrieval.n_totalParameters
+        nnn = retrieval.n_totalParametersFM
+        my_map = {
+            'toPars': np.copy(retrieval.mapToParameters[0:nnn, 0:mmm]), 
+            'toState': np.copy(retrieval.mapToState[0:mmm, 0:nnn])
+        }      
+    
+        my_map = mpy.ObjectView(my_map)
+    
+        # result is jacobian[pars, frequency]
+        jacobian = mpy.glom(results.jacobian, 0, 2)  # Function glom() likes 2-D array or more
+        jacobian[:, indNegFreq] = 0
+    
+        # actual noise (might be sign error)
+        # AT_LINE 56 Error_Analysis_Wrapper.pro
+        actualDataError = radianceNoise.radiance
+        if len(actualDataError.shape) == 1:
+            my_shape = (1, len(actualDataError)) # Convert (442,) to (1,442)
+        else:
+            my_shape = actualDataError.shape 
+        
+        actualDataError = mpy.glom(np.reshape(actualDataError, my_shape), 0, 1)  # Function glom() likes 2-D array or more
+        actualDataError[indNegFreq] = 0
+    
+        # actual residual, fit - observed
+        # AT_LINE 62 Error_Analysis_Wrapper.pro
+    
+        # PYTHON_NOTE: It is possible that the size of results.radiance and radiance.radiance are different.
+        # If that is the case, we shrink to the smaller of the two.
+        # ValueError: operands could not be broadcast together with shapes (1,370) (220,) 
+        if len(results.radiance.shape) == 2:
+            if results.radiance.shape[1] > len(radiance.radiance):
+                results.radiance = np.resize(results.radiance, (results.radiance.shape[0], len(radiance.radiance)))  # Shrink from (1,370) to (1,220) 
+    
+        actualDataResidual = results.radiance - radiance.radiance
+        if len(actualDataResidual.shape) == 1:
+            my_shape = (1, len(actualDataResidual)) # Convert (442,) to (1,442)
+        else:
+            my_shape = actualDataResidual.shape
+    
+        actualDataResidual = mpy.glom(np.reshape(actualDataResidual, my_shape), 0, 1)
+        actualDataResidual[indNegFreq] = 0
+    
+        # AT_LINE 67 Error_Analysis_Wrapper.pro
+        if np.all(np.isfinite(actualDataResidual)) == False:
+            logger.error("actualDataResidual NOT FINITE!")
+            assert False
+    
+        if np.all(np.isfinite(dataError)) == False:
+            logger.error("dataError NOT FINITE!")
+            assert False
+    
+        if np.all(np.isfinite(jacobian)) == False:
+            logger.error("jacobian NOT FINITE!")
+            assert False
+    
+        # AT_LINE 90 Error_Analysis_Wrapper.pro
+    
+        # Get normalized (by nesr) systematic jacobian
+        nSys = retrieval.n_totalParametersSys
+        jacobianSys = None
+    
+        # For now, we need to assign these variables below so they have some values because
+        # for AIRS run, the value of nSys is 0.
+        Sb = None
+        Db = None
+        constraintMatrix = None
+    
+        if nSys > 0:
+            jacobianSys = results.jacobianSys
+            if len(jacobianSys.shape) == 1:
+                my_shape = (1, len(jacobianSys)) # Convert (442,) to (1,442)
+            else:
+                my_shape = jacobianSys.shape
+            jacobianSys = mpy.glom(jacobianSys, 0, 2)
+            jacobianSys[:, indNegFreq] = 0
+    
+            # AT_LINE 97 Error_Analysis_Wrapper.pro
+            if np.all(np.isfinite(jacobianSys)) == False:
+                logger.error("jacobianSys NOT FINITE!")
+                assert False
+    
+            # AT_LINE 104 Error_Analysis_Wrapper.pro
+            for ii in range(retrieval.n_totalParametersSys):
+                jacobianSys[ii, :] = jacobianSys[ii, :] / dataError
+    
+            # AT_LINE 107 Error_Analysis_Wrapper.pro
+            speciesList = retrieval.speciesSys[0:retrieval.n_speciesSys]
+            Sb = mpy.constraint_get(errorCurrent.__dict__, speciesList)
+            results.Sb = Sb
+            SbSpecies = mpy.constraint_get_species(errorCurrent, speciesList)
+            SbPressures = mpy.constraint_get_pressures(errorCurrent.__dict__, speciesList)
+    
+            # AT_LINE 107 Error_Analysis_Wrapper.pro
+            # get actual error in systematic species
+            specSys = []
+            for one_species in SbSpecies:
+                if one_species not in specSys:
+                    specSys.append(one_species)
+    
+            # loop through each systematic species
+            # get the true for it 
+            # get the estimate for it
+    
+            for ii in range(0, len(specSys)):
+                if specSys[ii] == 'EMIS':
+                    n_count = stateInfo.emisPars['num_frequencies']
+                    myState = stateInfo.current['emissivity'][0:n_count]
+                    myTrue = stateInfo.true['emissivity'][0:n_count]
+                elif specSys[ii] == 'CLOUDEXT':
+                    n_count = stateInfo.cloudPars['num_frequencies']
+                    myState = stateInfo.current['cloudEffExt'][0, 0:n_count]
+                    myTrue = stateInfo.true['cloudEffExt'][0, 0:n_count] + stateInfo.true['cloudEffExt'][1, 0:n_count]
+                elif specSys[ii] == 'CALSCALE':
+                    n_count = stateInfo.calibrationPars['num_frequencies']
+                    myState = stateInfo.current['calibrationScale'][0:n_count]
+                    myTrue = stateInfo.true['calibrationScale'][0:n_count]
+                elif specSys[ii] == 'PCLOUD':
+                    myState = stateInfo.current['PCLOUD'][0]
+                    myTrue = stateInfo.true['PCLOUD'][0]
+                elif specSys[ii] == 'TSUR':
+                    myState = stateInfo.current['TSUR']
+                    myTrue = stateInfo.current['TSUR']
+                elif specSys[ii] == 'PTGANG':
+                    myState = stateInfo.current['tes']['boresightNadirRadians']
+                    myTrue = stateInfo.current['tes']['boresightNadirRadians']
+                elif specSys[ii] == 'PSUR':
+                    myState = stateInfo.current['PSUR']
+                    myTrue = stateInfo.current['PSUR']
+                else:
+                    n_count = stateInfo.num_pressures
+                    loc = np.where(np.asarray(stateInfo.species) == specSys[ii])[0]
+                    myState = copy.deepcopy(stateInfo.current['values'][loc, 0:n_count])
+                    myTrue = copy.deepcopy(stateInfo.true['values'][loc, 0:n_count])
+    
+                db0 = myTrue - myState  # Calculate the delta.
+    
+                # Because the shape of db0 may be weird: (1, 64) (1, 64), we fix it to just a vector.
+                if isinstance(db0, np.ndarray):
+                    if len(db0.shape) == 2 and db0.shape[0] == 1:
+                        db0 = np.reshape(db0, (db0.shape[1]))    # Change shape from (1,64) to (64)
+                elif np.isscalar(db0):
+                    db0 = np.asarray([db0])  # Make a list of one element.
+                else:
+                    logger.error("This function does not handle this type of db0 yet", type(db0))
+                    assert False
+    
+                linear = (specSys[ii] == 'TATM' or specSys[ii] == 'TSUR' or specSys[ii] == 'EMIS')
+                if not linear:
+                    db0 = np.log(myTrue)-np.log(myState)
+    
+                # Because the shape of db0 may be weird: (1, 64) (1, 64), we fix it to just a vector.
+                if isinstance(db0, np.ndarray):
+                    if len(db0.shape) == 2 and db0.shape[0] == 1:
+                        db0 = np.reshape(db0, (db0.shape[1]))    # Change shape from (1,64) to (64)
+                elif np.isscalar(db0):
+                    db0 = np.asarray([db0])  # Make a list of one element.
+                else:
+                    logger.error("This function does not handle this type of db0 yet", type(db0))
+                    assert False
+    
+                if ii == 0:
+                    Db = db0   # Use uppercase 'D' for Db because variables below uses 'Db'
+                else:
+                    Db = np.append(Db, db0, axis=0)
+                # end else portion of if (ii == 0):
+            # end for ii in range(0,len(specSys)):
+        # end part of if (nSys > 0):
+    
+        # AT_LINE 167 Error_Analysis_Wrapper.pro
+        # Get normalized (by nesr) jacobian
+        nf = retrieval.n_totalParametersFM
+    
+        # PYTHON_NOTE: It is possible that the size of jacobian.shape[1] is greater than dataError.
+        # If that is the case, we shrink to the smaller of the two.
+        # ValueError: operands could not be broadcast together with shapes (370,) (220,) 
+        if jacobian.shape[1] > len(dataError):
+            jacobian = np.resize(jacobian, (jacobian.shape[0], len(dataError)))
+    
+        for ii in range(nf):
+            jacobian[ii, :] = np.divide(jacobian[ii, :], dataError)
+    
+        jacobianFM = np.copy(jacobian)
+        jacobian = my_map.toState @ jacobianFM
+    
+        # AT_LINE 177 Error_Analysis_Wrapper.pro
+        n = retrieval.n_totalParameters
+        Sa = mpy.constraint_get(errorInitial.__dict__, retrieval.species[0:retrieval.n_species])
+    
+        constraintMatrix = np.copy(retrieval.Constraint[0:n, 0:n])
+        results.Sa[:, :] = Sa[:, :]
+    
+        # Nobody uses these 2 variables yet.
+        trueVector = retrieval.trueParameterListFM[0:nf]
+        initialVector = retrieval.initialGuessListFM[0:nf]
+    
+        ret_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
+        con_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
+        FM_Flag = True
+        INITIAL_Flag = True
+        TRUE_Flag = False
+        CONSTRAINT_Flag = False
+    
+        for ispecie in range(retrieval.n_species):
+            species_name = retrieval.species[ispecie]
+            ind1 = retrieval.parameterStart[ispecie]
+            ind2 = retrieval.parameterEnd[ispecie]
+            ind1FM = retrieval.parameterStartFM[ispecie]
+            ind2FM = retrieval.parameterEndFM[ispecie]
+            
+            # PYTHON_NOTE: Because the slices does not include the end, we have to add 1 to the end of the slice.
+            ret_vector[ind1FM:ind2FM+1] = mpy.get_vector(results.resultsList, retrieval, species_name, FM_Flag, INITIAL_Flag, TRUE_Flag, CONSTRAINT_Flag)
+            con_vector[ind1FM:ind2FM+1] = mpy.get_vector(retrieval.constraintVector, retrieval, species_name, FM_Flag, INITIAL_Flag, TRUE_Flag, CONSTRAINT_Flag)
+    
+            if retrieval.mapType[ispecie].lower() == 'log':  # Note the spelling of 'mapType' in retrieval object.
+                # PYTHON_NOTE: Because the slices does not include the end, we have to add 1 to the end of the slice.
+                ret_vector[ind1FM:ind2FM+1] = np.log(ret_vector[ind1FM:ind2FM+1])
+                con_vector[ind1FM:ind2FM+1] = np.log(con_vector[ind1FM:ind2FM+1])
+        # end for ispecie in range(retrieval.n_species):
+    
+        # AT_LINE 204 Error_Analysis_Wrapper.pro
+        constraintVector = con_vector
+        resultVector = ret_vector
+    
+        # AT_LINE 208 Error_Analysis_Wrapper.pro
+    
+        # select out non-spike indices
+        ind = np.where(dataError < 0)[0]
+        if len(ind) > 0:
+            jacobian[:, ind] = 0
+            jacobianFM[:, ind] = 0
+            if jacobianSys is not None:
+                jacobianSys[:, ind] = 0
+            actualDataError[ind] = 0
+            actualDataResidual[ind] = 0
+        # end part of if len(ind) > 0:
+    
+        # if not updating, keep current error analysis
+        currentSpecies = retrieval.species[0:retrieval.n_species]
+        errorCurrentValues = mpy.constraint_get(errorCurrent.__dict__, currentSpecies)
+    
+        # AT_LINE 251 Error_Analysis_Wrapper.pro
+    
+        speciesList = retrieval.speciesList
+        speciesListFM = retrieval.speciesListFM
+    
+        # AT_LINE 256 Error_Analysis_Wrapper.pro
+        (result, offDiagonalSys) = mpy.error_analysis(
+            stepNumber,
+            my_map,
+            jacobian,
+            jacobianFM,
+            Sa,
+            jacobianSys,
+            Sb,
+            Db,
+            constraintMatrix,
+            constraintVector,
+            trueVector,
+            initialVector,
+            resultVector,
+            dataError,
+            actualDataError,
+            actualDataResidual,
+            results,
+            retrieval,
+            stateInfo.current['heightKm'],
+            errorCurrentValues)
+    
+        # AT_LINE 280 Error_Analysis_Wrapper.pro
+        speciesList = retrieval.speciesList
+        speciesListFM = retrieval.speciesListFM
+    
+        # AT_LINE 336 Error_Analysis_Wrapper.pro
+        # update errorCurrent
+        # first clear correlations between current retrieved species and all
+        # others then set error based on current error analysis
+        errorCurrent = mpy.constraint_clear(errorCurrent.__dict__, currentSpecies)
+        errorCurrent = mpy.constraint_set(errorCurrent.__dict__, results.Sx, currentSpecies)
+        if jacobianSys is not None:
+            # set block and transpose of block
+            my_ind = np.where(np.asarray(retrieval.parameterEndSys) > 0)[0]
+    
+            # The following function constraint_set_subblock() updates the 'data' portion of errorCurrent structure.
+            # Call twice with the last two parameters swapped.
+            errorCurrent = mpy.constraint_set_subblock(
+                errorCurrent, 
+                np.transpose(offDiagonalSys), 
+                np.asarray(currentSpecies), 
+                np.asarray(retrieval.speciesSys[0:len(my_ind)])
+            )
+            
+            errorCurrent = mpy.constraint_set_subblock(
+                errorCurrent, 
+                offDiagonalSys, 
+                np.asarray(retrieval.speciesSys[0:len(my_ind)]), 
+                np.asarray(currentSpecies)
+            )
+        # end if jacobianSys is not None:
+    
+        return (result, errorCurrent)
 
 __all__ = [
     "ErrorAnalysis",
