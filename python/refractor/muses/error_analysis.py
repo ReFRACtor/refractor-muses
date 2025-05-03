@@ -12,6 +12,7 @@ from loguru import logger
 from pprint import pprint
 from scipy.linalg import block_diag  # type: ignore
 import typing
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
@@ -143,18 +144,11 @@ class ErrorAnalysis:
             retrieval_result,
         )
         # Updates retrieval_result in place
-        _ = self.write_retrieval_summary(
-            None,
+        self.write_retrieval_summary(
             fretrieval_info,
             fstate_info,
-            None,
             retrieval_result,
-            {},
-            None,
-            None,
-            None,
             self.error_current,
-            writeOutputFlag=False,
         )
 
     def error_analysis_wrapper(
@@ -259,26 +253,20 @@ class ErrorAnalysis:
         speciesList = retrieval.speciesList
     
         # AT_LINE 256 Error_Analysis_Wrapper.pro
-        (result, offDiagonalSys) = self.error_analysis(
-            None,
+        offDiagonalSys = self.error_analysis(
             my_map,
             jacobian,
             jacobian_fm,
             Sa,
             jacobian_sys,
             Sb,
-            None,
             cstate.constraint_matrix,
             constraintVector,
-            None,
-            None,
             resultVector,
             data_error,
-            None,
             actual_data_residual,
             retrieval_result,
             retrieval,
-            None,
             errorCurrentValues)
     
         # AT_LINE 280 Error_Analysis_Wrapper.pro
@@ -290,7 +278,7 @@ class ErrorAnalysis:
         # others then set error based on current error analysis
         self.error_current = mpy.constraint_clear(self.error_current.__dict__, currentSpecies)
         self.error_current = mpy.constraint_set(self.error_current.__dict__, retrieval_result.Sx, currentSpecies)  # type: ignore[attr-defined]
-        if jacobian_sys is not None:
+        if jacobian_sys is not None and offDiagonalSys is not None:
             # set block and transpose of block
             my_ind = np.where(np.asarray(retrieval.parameterEndSys) > 0)[0]
     
@@ -318,30 +306,25 @@ class ErrorAnalysis:
     
     def error_analysis(
             self,
-            stepNumber,
-            my_map,
-            jacobian,
-            jacobianFM,
-            Sa,
-            jacobianSys,
-            Sb,
-            Db,
-            constraintMatrix,
-            constraintVector,
-            trueVector,
-            initialVector,
-            resultVector,
-            dataError,
-            actualDataError,
-            actualDataResidual,
-            result,
-            retrieval,
-            heightKm,
-            errorCurrentValues):
+            my_map : mpy.ObjectView,
+            jacobian : np.ndarray,
+            jacobianFM : np.ndarray,
+            Sa : np.ndarray,
+            jacobianSys : np.ndarray | None,
+            Sb : np.ndarray | None,
+            constraintMatrix : np.ndarray,
+            constraintVector : np.ndarray,
+            resultVector : np.ndarray,
+            dataError : np.ndarray,
+            actualDataResidual : np.ndarray,
+            retrieval_result : Any, # Lots of attributes mypy can't see, so just have the
+                                    # type here Any
+            retrieval : FakeRetrievalInfo,
+            errorCurrentValues : mpy.ObjectView) -> np.ndarray | None:
         
         # Output variables
         o_offDiagonalSys = None
-        result_dict = result.__dict__
+        retrieval_result_dict = retrieval_result.__dict__
     
         # It is possible that these variables can be None: {Sb, Db, constraintMatrix}
     
@@ -361,11 +344,11 @@ class ErrorAnalysis:
         S_inv = np.linalg.inv(kappa + constraintMatrix) @ my_map.toState
         
         # AT_LINE 100 Error_Analysis.pro
-        result.KtSyK = kappa
+        retrieval_result.KtSyK = kappa
     
-        if 'KtSyKFM' in result_dict:
-            result.KtSyKFM = kappaFM
-        result.KtSyKFM = kappaFM
+        if 'KtSyKFM' in retrieval_result_dict:
+            retrieval_result.KtSyKFM = kappaFM
+        retrieval_result.KtSyKFM = kappaFM
     
         doUpdateFM = retrieval.doUpdateFM[0:retrieval.n_totalParametersFM]
         dontUpdateFM = 1 - doUpdateFM
@@ -376,30 +359,30 @@ class ErrorAnalysis:
             logger.warning("constraintMatrix is None. Cannot calculate my_id, Sx_smooth and Sx_rand")
         else:
             my_id = np.asarray(np.identity(S_inv.shape[1]), dtype=np.float64)
-            result.Sx_smooth = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
-            result.Sx_rand = S_inv.T @ kappa @ S_inv
+            retrieval_result.Sx_smooth = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
+            retrieval_result.Sx_rand = S_inv.T @ kappa @ S_inv
     
         # AT_LINE 120 Error_Analysis.pro
-        if jacobianSys is not None:
+        if jacobianSys is not None and Sb is not None:
             kappaInt = np.matmul(jacobianSys, np.transpose(jacobian))
-            result.Sx_sys = np.matmul(np.matmul(np.matmul(np.transpose(np.matmul(kappaInt, S_inv)), Sb), kappaInt), S_inv)
+            retrieval_result.Sx_sys = np.matmul(np.matmul(np.matmul(np.transpose(np.matmul(kappaInt, S_inv)), Sb), kappaInt), S_inv)
     
             # get expected error in radianceResidualRMS from sys error
             sys = np.zeros(shape=(len(jacobianSys[0, :])), dtype=np.float64)
             for ii in range(len(jacobianSys[0, :])):
                 sys[ii] = np.matmul(np.matmul(np.transpose(jacobianSys[:, ii]), Sb), jacobianSys[:, ii])
-            result.radianceResidualRMSSys = math.sqrt(np.sum(sys) / sys.size)
+            retrieval_result.radianceResidualRMSSys = math.sqrt(np.sum(sys) / sys.size)
     
             # AT_LINE 134 Error_Analysis.pro
             o_offDiagonalSys = np.matmul(np.matmul(Sb, kappaInt), -S_inv)
         else:
-            result.Sx_sys = copy.deepcopy(result.Sx_rand)
-            result.Sx_sys[:] = 0
+            retrieval_result.Sx_sys = copy.deepcopy(retrieval_result.Sx_rand)
+            retrieval_result.Sx_sys[:] = 0
         # end if jacobianSys is not None:
     
         # AT_LINE 162 Error_Analysis.pro
-        result.Sx[:, :] = (result.Sx_smooth + result.Sx_rand + result.Sx_sys)[:, :]
-        result.A[:, :] = np.matmul(kappaFM, S_inv)[:, :]
+        retrieval_result.Sx[:, :] = (retrieval_result.Sx_smooth + retrieval_result.Sx_rand + retrieval_result.Sx_sys)[:, :]
+        retrieval_result.A[:, :] = np.matmul(kappaFM, S_inv)[:, :]
     
         # AT_LINE 179 Error_Analysis.pro
         # find actual GN step
@@ -413,111 +396,31 @@ class ErrorAnalysis:
         # PYTHON_NOTE: It is possible that the size of gainRet and  result.GMatrix are different.
         # If that is the case, we shrink to the smaller of the two.
         # ValueError: could not broadcast input array from shape (220,62) into shape (370,62)
-        if result.GMatrix.shape[0] > gainRet.shape[0]:
-            result.GMatrix = np.resize(result.GMatrix, (gainRet.shape[0], result.GMatrix.shape[1]))
+        if retrieval_result.GMatrix.shape[0] > gainRet.shape[0]:
+            retrieval_result.GMatrix = np.resize(retrieval_result.GMatrix, (gainRet.shape[0], retrieval_result.GMatrix.shape[1]))
     
         # PYTHON_NOTE: It is possible that the size of G_matrix and result.GMatrixFM are different.
-        if result.GMatrixFM.shape[0] > G_matrix.shape[0]:
-            result.GMatrixFM = np.resize(result.GMatrixFM, (G_matrix.shape[0], result.GMatrixFM.shape[1]))
+        if retrieval_result.GMatrixFM.shape[0] > G_matrix.shape[0]:
+            retrieval_result.GMatrixFM = np.resize(retrieval_result.GMatrixFM, (G_matrix.shape[0], retrieval_result.GMatrixFM.shape[1]))
     
-        result.GMatrix[:, :] = gainRet[:, :]
-        result.GMatrixFM[:, :] = G_matrix[:, :]
-    
-        # AT_LINE 188 Error_Analysis.pro
-        # if len(G_matrix.shape) > 1:
-        #     result.resultsListGN[:] = (constraintVector + np.matmul(actualDataResidual, G_matrix) + np.matmul((initialVector-constraintVector), result.A))[:]
-        # else:
-        #     result.resultsListGN = constraintVector + np.sum(G_matrix*actualDataResidual) + result.A * (initialVector-constraintVector)
+        retrieval_result.GMatrix[:, :] = gainRet[:, :]
+        retrieval_result.GMatrixFM[:, :] = G_matrix[:, :]
     
         # AT_LINE 211 Error_Analysis.pro
         # some species, like emis, are retrieved in step 1 for a particular spectral region and not updated following this.  In that case, keep errors when they are not moved.  If this is the case, set the error to the previous error, and all error components to zero.
         ind = np.where(dontUpdateFM == 1)[0]
     
         if len(ind) > 0:
-            result.Sx[ind, ind] = errorCurrentValues[ind, ind]
-            result.Sx_rand[ind, ind] = 0
-            result.Sx_smooth[ind, ind] = 0
-            result.Sx_sys[ind, ind] = 0
-    
-        # AT_LINE 204 Error_Analysis.pro
-        # actual and pseudo retrieval and errors
-        # error = trueVector - resultVector
-    
-        # AT_LINE 208 Error_Analysis.pro
-        # track systematic error
-        # if jacobianSys is not None: 
-        #     if S_inv.size > 1:
-        #         result.estErrorSys = np.matmul(np.matmul(Db, kappaInt), S_inv)
-        #         result.resultsListPseudo = result.resultsListPseudo + result.estErrorSys
-    
-        #         # by species
-        #         for kk in range(retrieval.n_speciesSys):
-        #             startt = retrieval.parameterStartSys[kk]
-        #             endd = retrieval.parameterEndSys[kk]
-        #             result.estErrorSysSpecies[kk, :] = np.matmul(np.matmul(Db[startt:endd+1], kappaInt[startt:endd+1, :]), S_inv)  # Add 1 to Python slice.
-        #             result.estErrorSysSpeciesList[kk] = retrieval.speciesSys[kk]
-        #     else:
-        #         result.estErrorSys = S_inv * np.sum(kappaInt * Db)
-        #         result.resultsListPseudo = result.resultsListPseudo + result.estErrorSys
-    
-        #         # by species
-        #         result.estErrorSysSpecies[0, :] = S_inv * np.sum(kappaInt * Db)
-        #         result.estErrorSysSpeciesList[0] = retrieval.speciesSys[0]
-        # # end if jacobianSys is not None: 
-    
-        # AT_LINE 272 Error_Analysis.pro
-        # calc true "cross state" error.  This is any error that is not accounted
-        # for by the individual species' averaging kernel.  This is collected
-        # for each species pair.  For the linear estimate, since true is
-        # known, the actual effect on the retrieved species is calculated
-        # using x-state[indMe] = res.A[indYou,indMe,*] ## (xtrue - x)[indYou].  
-    
-        # This is species by species - only if true state is known
-        # for ii in range(retrieval.n_species):
-        #     m1f = retrieval.parameterStartFM[ii]
-        #     m2f = retrieval.parameterEndFM[ii]
-        #     ind = np.arange(retrieval.n_totalParametersFM)
-        #     indMe = np.where((ind >= m1f) & (ind <= m2f))[0]
-    
-        #     tot = retrieval.n_species
-    
-        #     for jj in range(tot):
-        #         n1f = retrieval.parameterStartFM[jj]
-        #         n2f = retrieval.parameterEndFM[jj]
-    
-        #         ind = np.arange(retrieval.n_totalParametersFM)
-        #         indYou = np.where((ind >= n1f) & (ind <= n2f))[0]
-    
-        #         d = (trueVector - constraintVector)[indYou]
-    
-        #         if len(indYou) > 0 and ii != jj:
-        #             result.estErrorCrossStateSpeciesList[jj] = retrieval.species[jj]
-        #             if len(indMe) == 1:
-        #                 result.estErrorCrossStateSpecies[jj, indMe] = np.sum(result.A[indYou, indMe] * d)
-        #             else:
-        #                 array_2d_indices = np.ix_(indYou, indMe)
-        # # end for ii in range(retrieval.n_species):
-    
-        # AT_LINE 273 Error_Analysis.pro
-    
-        # first set res.Sx_smooth_self to 0
-        # set res.Sx_crosstate to the FULL values
-        # Set smoooth_self error as the error as if JUST that one
-        # specie is retrieved. 
-        # cross-state error for the block diagonal terms the error from all
-        # other species on that species
-        
-        # FULL "smoothing" error = smooth_self plus crossstate
-        
-        # IDL:
-        # id = IDENTITY(N_ELEMENTS(S_inv[0,*]),/DOUBLE)
-        # res.Sx_smooth = (id - S_inv ## kappaFM) ## Sa ## TRANSPOSE(id - S_inv ## kappaFM)
-    
+            retrieval_result.Sx[ind, ind] = errorCurrentValues[ind, ind]
+            retrieval_result.Sx_rand[ind, ind] = 0
+            retrieval_result.Sx_smooth[ind, ind] = 0
+            retrieval_result.Sx_sys[ind, ind] = 0
+            
         my_id = np.identity(S_inv.shape[1], dtype=np.float64)
-        result.Sx_smooth[:, :] = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
+        retrieval_result.Sx_smooth[:, :] = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
         
-        result.Sx_smooth_self[:, :] = 0
-        result.Sx_crossState[:, :] = result.Sx_smooth[:, :]
+        retrieval_result.Sx_smooth_self[:, :] = 0
+        retrieval_result.Sx_crossState[:, :] = retrieval_result.Sx_smooth[:, :]
     
         # override the block diagonal terms with smooth_self and crossstate
         species_list_fs = np.asarray(retrieval.speciesListFM)
@@ -544,7 +447,7 @@ class ErrorAnalysis:
     
             # self-smooth
             if len(indMe) == 1:
-                result.Sx_smooth_self[indMe, indMe] = (1 - result.A[indMe, indMe]) * Sa[indMe, indMe] * (1 - result.A[indMe, indMe])
+                retrieval_result.Sx_smooth_self[indMe, indMe] = (1 - retrieval_result.A[indMe, indMe]) * Sa[indMe, indMe] * (1 - retrieval_result.A[indMe, indMe])
             else:
                 # IDL:
                 # id = IDENTITY(N_ELEMENTS(indMe))
@@ -553,19 +456,19 @@ class ErrorAnalysis:
                 
                 my_id = np.identity(len(indMe))
                 ind_me_2d = np.ix_(indMe, indMe)
-                result.Sx_smooth_self[ind_me_2d] = (my_id - result.A[ind_me_2d]).T @ Sa[ind_me_2d] @ (my_id - result.A[ind_me_2d])
+                retrieval_result.Sx_smooth_self[ind_me_2d] = (my_id - retrieval_result.A[ind_me_2d]).T @ Sa[ind_me_2d] @ (my_id - retrieval_result.A[ind_me_2d])
             # end if len(indMe) == 1:
     
             # interferent on and off diagonal
             if len(indYou) == 0:
-                result.Sx_crossState[:, :] = 0
+                retrieval_result.Sx_crossState[:, :] = 0
             elif len(indMe) == 1 and len(indYou) == 1:
                 # IDL:
                 # temp = res.A[indYou,indMe,*] * Sa[indYou,indYou] * res.A[indYou, indMe]
                 # res.Sx_crossState[indMe,indMe] = temp
                 
-                temp = result.A[indYou, indMe] * Sa[indYou, indYou] * result.A[indYou, indMe]
-                result.Sx_crossState[indMe, indMe] = temp
+                temp = retrieval_result.A[indYou, indMe] * Sa[indYou, indYou] * retrieval_result.A[indYou, indMe]
+                retrieval_result.Sx_crossState[indMe, indMe] = temp
             elif len(indMe) == 1 and len(indYou) > 1:
                 # IDL:
                 # temp = res.A[indYou,indMe,*] ## Sa[indYou,indYou,*] ## Transpose(res.A[indYou, indMe,*])
@@ -574,10 +477,10 @@ class ErrorAnalysis:
                 ind_you_you = np.ix_(indYou, indYou)
                 ind_you_me = np.ix_(indYou, indMe) 
                 
-                temp = result.A[ind_you_me].T @ Sa[ind_you_you] @ result.A[ind_you_me]
+                temp = retrieval_result.A[ind_you_me].T @ Sa[ind_you_you] @ retrieval_result.A[ind_you_me]
     
                 ind_me_me = np.ix_(indMe, indMe) 
-                result.Sx_crossState[indMe, indMe] = temp 
+                retrieval_result.Sx_crossState[indMe, indMe] = temp 
             elif len(indMe) > 1 and len(indYou) == 1:
                 # IDL: 
                 # temp = res.A[indYou,indMe,*] ## Sa[indYou,indYou] ## Transpose(res.A[indYou, indMe,*])
@@ -586,10 +489,10 @@ class ErrorAnalysis:
                 ind_you_you = np.ix_(indYou, indYou)
                 ind_you_me = np.ix_(indYou, indMe) 
     
-                temp = result.A[ind_you_me].T @ Sa[ind_you_you] @ result.A[ind_you_me]
+                temp = retrieval_result.A[ind_you_me].T @ Sa[ind_you_you] @ retrieval_result.A[ind_you_me]
                 
                 ind_me_me = np.ix_(indMe, indMe) 
-                result.Sx_crossState[ind_me_me] = temp[:, :]
+                retrieval_result.Sx_crossState[ind_me_me] = temp[:, :]
             else:
                 # IDL:
                 # temp = res.A[indYou,indMe,*] ## Sa[indYou,indYou,*] ## Transpose(res.A[indYou, indMe,*])
@@ -598,10 +501,10 @@ class ErrorAnalysis:
                 ind_you_you = np.ix_(indYou, indYou)
                 ind_you_me = np.ix_(indYou, indMe) 
     
-                temp = result.A[ind_you_me].T @ Sa[ind_you_you] @ result.A[ind_you_me]
+                temp = retrieval_result.A[ind_you_me].T @ Sa[ind_you_you] @ retrieval_result.A[ind_you_me]
                 
                 ind_me_me = np.ix_(indMe, indMe) 
-                result.Sx_crossState[ind_me_me] = temp[:, :]
+                retrieval_result.Sx_crossState[ind_me_me] = temp[:, :]
         # end for ii in range(retrieval.n_species):
     
         # TODO: implement
@@ -620,7 +523,7 @@ class ErrorAnalysis:
         # res.sa_ret = sa_ret
     
         Sa_ret = my_map.toPars.T @ Sa @ my_map.toPars
-        result.Sa_ret[:, :] = Sa_ret
+        retrieval_result.Sa_ret[:, :] = Sa_ret
     
         # IDL:
         # S_inv_ret = invert(kappa + constraint)
@@ -635,7 +538,7 @@ class ErrorAnalysis:
     
         # mapping error:  compare sx_smooth_ret_fm and res.Sx_smooth
         # mapping error from choice of retrieval levels
-        result.Sx_mapping[:, :] = result.Sx_smooth - Sx_smooth_ret_fm
+        retrieval_result.Sx_mapping[:, :] = retrieval_result.Sx_smooth - Sx_smooth_ret_fm
     
         # map error covariances to retrieval grid
     
@@ -645,41 +548,41 @@ class ErrorAnalysis:
         # rand = map.toPars ## res.Sx_rand ## transpose(map.toPars)
         # sys = map.toPars ## res.Sx_sys ## transpose(map.toPars)
     
-        smooth = my_map.toPars.T @ result.Sx_smooth_self @ my_map.toPars
-        cross = my_map.toPars.T @ result.Sx_crossState @ my_map.toPars
-        rand = my_map.toPars.T @ result.Sx_rand @ my_map.toPars
-        sys = my_map.toPars.T @ result.Sx_sys @ my_map.toPars
+        smooth = my_map.toPars.T @ retrieval_result.Sx_smooth_self @ my_map.toPars
+        cross = my_map.toPars.T @ retrieval_result.Sx_crossState @ my_map.toPars
+        rand = my_map.toPars.T @ retrieval_result.Sx_rand @ my_map.toPars
+        sys = my_map.toPars.T @ retrieval_result.Sx_sys @ my_map.toPars
     
-        result.Sx_ret_smooth[:, :] = smooth
-        result.Sx_ret_crossState[:, :] = cross
-        result.Sx_ret_rand[:, :] = rand
-        result.Sx_ret_sys[:, :] = sys
+        retrieval_result.Sx_ret_smooth[:, :] = smooth
+        retrieval_result.Sx_ret_crossState[:, :] = cross
+        retrieval_result.Sx_ret_rand[:, :] = rand
+        retrieval_result.Sx_ret_sys[:, :] = sys
     
         #  mapping error from choice of retrieval levels
-        result.Sx_ret_mapping[:, :] = smooth + cross - Sx_smooth_ret    
+        retrieval_result.Sx_ret_mapping[:, :] = smooth + cross - Sx_smooth_ret    
         
         # IDL:
         # res.A_ret = map.toPars ## S_Inv ## kappa
-        result.A_ret = kappa @ S_inv @ my_map.toPars
+        retrieval_result.A_ret = kappa @ S_inv @ my_map.toPars
     
         # AT_LINE 524 Error_Analysis.pro
-        result.deviationVsErrorSpecies[:] = 0
-        result.deviationVsRetrievalCovarianceSpecies[:] = 0
-        result.deviationVsAprioriCovarianceSpecies[:] = 0
+        retrieval_result.deviationVsErrorSpecies[:] = 0
+        retrieval_result.deviationVsRetrievalCovarianceSpecies[:] = 0
+        retrieval_result.deviationVsAprioriCovarianceSpecies[:] = 0
         
         # AT_LINE 531 Error_Analysis.pro
         for ii in range(retrieval.n_species):
             m1f = retrieval.parameterStartFM[ii]
             m2f = retrieval.parameterEndFM[ii]
-            x = result.A[m1f:m2f+1, m1f:m2f+1]
+            x = retrieval_result.A[m1f:m2f+1, m1f:m2f+1]
     
             # AT_LINE 535 Error_Analysis.pro
             if (m2f-m1f) > 0:
-                result.degreesOfFreedomForSignal[ii] = np.trace(x)
-                result.degreesOfFreedomNoise[ii] = (m2f-m1f+1) - np.trace(x)
+                retrieval_result.degreesOfFreedomForSignal[ii] = np.trace(x)
+                retrieval_result.degreesOfFreedomNoise[ii] = (m2f-m1f+1) - np.trace(x)
             else:
-                result.degreesOfFreedomForSignal[ii] = x
-                result.degreesOfFreedomNoise[ii] = 1 - x
+                retrieval_result.degreesOfFreedomForSignal[ii] = x
+                retrieval_result.degreesOfFreedomNoise[ii] = 1 - x
             # end else part of if (m2f-m1f) > 0:
     
             # AT_LINE 545 Error_Analysis.pro
@@ -701,8 +604,8 @@ class ErrorAnalysis:
             if not np.all(np.isfinite(S_inv)):
                 raise RuntimeError("S_inv  is not finite")
             
-            if not np.all(np.isfinite(result.Sx_smooth)):
-                raise RuntimeError("result.Sx_smooth is not finite")
+            if not np.all(np.isfinite(retrieval_result.Sx_smooth)):
+                raise RuntimeError("retrieval_result.Sx_smooth is not finite")
     
             # AT_LINE 579 Error_Analysis.pro
             if Sb is not None:
@@ -712,8 +615,8 @@ class ErrorAnalysis:
                 if not np.all(np.isfinite(kappaInt)):
                     raise RuntimeError("kappaInt is not finite")
     
-                if not np.all(np.isfinite(result.Sx_sys)):
-                    raise RuntimeError("result.Sx_sys is not finite")
+                if not np.all(np.isfinite(retrieval_result.Sx_sys)):
+                    raise RuntimeError("retrieval_result.Sx_sys is not finite")
                 
         # end for ii in range(retrieval.n_species):
         # AT_LINE 607 Error_Analysis.pro
@@ -721,16 +624,16 @@ class ErrorAnalysis:
         # AT_LINE 621 Error_Analysis.pro
         # these quantities should be done on the retrieval grid because they
         # are better posed on that grid.
-        indf = np.arange(len(result.frequency))
+        indf = np.arange(len(retrieval_result.frequency))
     
-        # PYTHON_NOTE: It is possible that the size of result.frequency is greater than size of jacobian.shape[1]
+        # PYTHON_NOTE: It is possible that the size of retrieval_result.frequency is greater than size of jacobian.shape[1]
         #
         #     jacobian.shape (x,220)
         #
         # so we cannot not use ind as is an index because that would cause an out of bound:
         # IndexError: index 220 is out of bounds for axis 1 with size 220
         # To fix the issue, we make a reduced_index with indices smaller than the size of jacobian.shape[1]
-        if len(result.frequency) > jacobian.shape[1]:
+        if len(retrieval_result.frequency) > jacobian.shape[1]:
             reduced_index = np.where(indf < jacobian.shape[1])[0]
             indf = indf[reduced_index]
     
@@ -786,15 +689,15 @@ class ErrorAnalysis:
         # end part of for ii in range(retrieval.n_totalParametersFM):
     
         # AT_LINE 687 Error_Analysis.pro
-        result.KDotDL_list = valueRet
-        result.KDotDL = np.amax(np.abs(value))
+        retrieval_result.KDotDL_list = valueRet
+        retrieval_result.KDotDL = np.amax(np.abs(value))
     
         # get max for each species 
         for ii in range(retrieval.n_species):
             m1 = retrieval.parameterStart[ii]
             m2 = retrieval.parameterEnd[ii]
-            result.KDotDL_species[ii] = retrieval.speciesList[m1]
-            result.KDotDL_byspecies[ii] = np.amax(np.abs(result.KDotDL_list[m1:m2+1]))
+            retrieval_result.KDotDL_species[ii] = retrieval.speciesList[m1]
+            retrieval_result.KDotDL_byspecies[ii] = np.amax(np.abs(retrieval_result.KDotDL_list[m1:m2+1]))
         # end for ii in range(retrieval.n_species):
     
     
@@ -803,32 +706,32 @@ class ErrorAnalysis:
     
         # Just in case the filter_list is not unique, we try to make a unique list with GetUniqueValues() function.
         utilList = mpy.UtilList()
-        unique_filters = utilList.GetUniqueValues(result.filter_list)
+        unique_filters = utilList.GetUniqueValues(retrieval_result.filter_list)
         for ii in range(len(unique_filters)):
-            start = result.filterStart[ii]
-            endd = result.filterEnd[ii]
+            start = retrieval_result.filterStart[ii]
+            endd = retrieval_result.filterEnd[ii]
             if start >= 0:
                 x1 = actualDataResidual[start:endd+1]
                 # For some reason, the radiance dimension may be 2 with the first dimension being 1 [1,442]
-                if len(result.radiance.shape) == 2:
-                    if result.radiance.shape[0] == 1:         # This case: [1,442]
-                        x2 = result.radiance[0, start:endd+1]   # For [1,442] we just get the first row.
+                if len(retrieval_result.radiance.shape) == 2:
+                    if retrieval_result.radiance.shape[0] == 1:         # This case: [1,442]
+                        x2 = retrieval_result.radiance[0, start:endd+1]   # For [1,442] we just get the first row.
                     else:
-                        logger.error("This function does not know how to handle result.radiance with shape", result.radiance.shape)
+                        logger.error("This function does not know how to handle retrieval_result.radiance with shape", retrieval_result.radiance.shape)
                         assert False
                 else:
-                    x2 = result.radiance[start:endd+1]
+                    x2 = retrieval_result.radiance[start:endd+1]
     
-                result.LDotDL_byfilter[ii] = np.sum(x1*x2) / math.sqrt(np.sum(x1*x1)) / math.sqrt(np.sum(x2*x2))
+                retrieval_result.LDotDL_byfilter[ii] = np.sum(x1*x2) / math.sqrt(np.sum(x1*x1)) / math.sqrt(np.sum(x2*x2))
             # end if start >= 0:
         # end for ii in range(len(unique_filters)):
     
-        result.LDotDL = result.LDotDL_byfilter[0]
+        retrieval_result.LDotDL = retrieval_result.LDotDL_byfilter[0]
     
         # AT_LINE 712 Error_Analysis.pro
         for ii in range(len(unique_filters)):
-            v1 = result.filterStart[ii]
-            v2 = result.filterEnd[ii]
+            v1 = retrieval_result.filterStart[ii]
+            v2 = retrieval_result.filterEnd[ii]
             if v1 > 0:
                 dL = actualDataResidual / dataError
                 K = np.copy(jacobianFM)
@@ -846,11 +749,11 @@ class ErrorAnalysis:
                     # end if np.sum(myK*myK) > 0: # when K is very small, k*k becomes zero.
                 # end for kk in range(retrieval.n_totalParametersFM):
                 
-                result.KDotDL_byfilter[ii] = np.amax(np.abs(value))
+                retrieval_result.KDotDL_byfilter[ii] = np.amax(np.abs(value))
         # end for ii in range(len(unique_filters)):
     
         # AT_LINE 740 Error_Analysis.pro
-        if retrieval.n_totalParametersSys > 0:
+        if retrieval.n_totalParametersSys > 0 and jacobianSys is not None:
             logger.warning("This section of the code for retrieval.n_totalParametersSys has not been tested.")
             # now look at residual dotted into the systematic species
             value = np.zeros(shape=(retrieval.n_totalParametersSys), dtype=np.float64)
@@ -864,17 +767,17 @@ class ErrorAnalysis:
                 # end if np.sum(K*K) > 0: # when K is very small, K*K becomes zero.
             # end for ii in range(retrieval.n_totalParametersSys):
     
-            result.maxKDotDLSys = np.amax(np.abs(value))
+            retrieval_result.maxKDotDLSys = np.amax(np.abs(value))
         # end part of if retrieval.n_totalParametersSys > 0:
     
         # AT_LINE 758 Error_Analysis.pro
-        Sx = result.Sx
-        Sx_rand = result.Sx_rand
+        Sx = retrieval_result.Sx
+        Sx_rand = retrieval_result.Sx_rand
     
         # AT_LINE 761 Error_Analysis.pro
         for is_index in range(retrieval.n_totalParametersFM):
-            result.errorFM[is_index] = np.sqrt(Sx[is_index, is_index])
-            result.precision[is_index] = np.sqrt(Sx_rand[is_index, is_index])
+            retrieval_result.errorFM[is_index] = np.sqrt(Sx[is_index, is_index])
+            retrieval_result.precision[is_index] = np.sqrt(Sx_rand[is_index, is_index])
         # end for is_index in range(retrieval.n_totalParametersFM):
     
     
@@ -898,14 +801,14 @@ class ErrorAnalysis:
                 GdL[jj, :] = G_matrix[jj, :] * actualDataResidual[jj]
     
         # AT_LINE 790 Error_Analysis.pro
-        #result.GdL[:] = GdL[:]
-        result.GdL = GdL
+        #retrieval_result.GdL[:] = GdL[:]
+        retrieval_result.GdL = GdL
     
         # AT_LINE 792 Error_Analysis.pro
         ind = utilList.WhereEqualIndices(retrieval.speciesListFM, 'CH4')
         
-        # Eventhough we are not doing special processing, we will still need to calculate the result.ch4_evs field.
-        # Also, only calculate the result.ch4_evs field. if 'CH4' is in retrieval.speciesListFM.
+        # Eventhough we are not doing special processing, we will still need to calculate the retrieval_result.ch4_evs field.
+        # Also, only calculate the retrieval_result.ch4_evs field. if 'CH4' is in retrieval.speciesListFM.
         calculate_evs_field_flag = True
         if len(ind) > 10 and calculate_evs_field_flag:
             pp = retrieval.pressureListFM[ind]
@@ -942,24 +845,17 @@ class ErrorAnalysis:
                 dots[jj] = np.sum(vmatrix[jj, :] * mydiff)
     
             # look at the first 2 eV's versus eV 3-10
-            result.ch4_evs = np.abs(dots[0:9+1]) # ratio of use of 1st two vs. next 8 eVs
+            retrieval_result.ch4_evs = np.abs(dots[0:9+1]) # ratio of use of 1st two vs. next 8 eVs
     
-        return (result, o_offDiagonalSys)
+        return o_offDiagonalSys
 
     def write_retrieval_summary(
             self,
-            directory,
-            retrievalInfo,
-            stateInfo,
-            radiance,
-            results,
-            microwindows,
-            plotPressures,
-            qualityName,
-            step,
-            errorCurrent,
-            writeOutputFlag,
-            errorInitial=None):
+            retrievalInfo : FakeRetrievalInfo,
+            stateInfo : FakeStateInfo,
+            retrieval_result : Any, # Lots of attributes mypy can't see, so just have the
+                                    # type here Any
+            errorCurrent : mpy.ObjectView) -> None:
         utilGeneral = mpy.UtilGeneral()
         utilList = mpy.UtilList()
     
@@ -994,19 +890,19 @@ class ErrorAnalysis:
         
         # AT_LINE 42 Write_Retrieval_Summary.pro
         tropopausePressure = stateInfo.current['pressure'][tropopause_level]
-        results.tropopausePressure = tropopausePressure
+        retrieval_result.tropopausePressure = tropopausePressure
     
         if stateInfo.gmaoTropopausePressure > -990:
             # AT_LINE 46 Write_Retrieval_Summary.pro
             tropopausePressure = stateInfo.gmaoTropopausePressure
-            results.tropopausePressure = stateInfo.gmaoTropopausePressure
+            retrieval_result.tropopausePressure = stateInfo.gmaoTropopausePressure
         else:
             raise RuntimeError("GMAO tropopause pressure is not defined")
         # AT_LINE 54 Write_Retrieval_Summary.pro
     
-        results.cloudODAve = 0
-        results.cloudODVar = 0
-        results.cloudODAveError = 0
+        retrieval_result.cloudODAve = 0
+        retrieval_result.cloudODVar = 0
+        retrieval_result.cloudODAveError = 0
     
         # AT_LINE 57 Write_Retrieval_Summary.pro
         indt = np.where(np.array(stateInfo.species) == 'TATM')[0][0]
@@ -1033,7 +929,7 @@ class ErrorAnalysis:
             )[0]
     
             if len(ind) > 0:
-                results.cloudODAve = np.sum(stateInfo.current['cloudEffExt'][0, ind]) / len(stateInfo.current['cloudEffExt'][0, ind]) * factor
+                retrieval_result.cloudODAve = np.sum(stateInfo.current['cloudEffExt'][0, ind]) / len(stateInfo.current['cloudEffExt'][0, ind]) * factor
     
             # step = 1
             # stepName = TATM,H2O,HDO,N2O,CH4,TSUR,CLOUDEXT,EMIS
@@ -1048,9 +944,9 @@ class ErrorAnalysis:
             # AT_LINE 77 Write_Retrieval_Summary.pro
             if len(ind) > 0:
                 # map error to ret
-                errlog = results.errorFM[indFM] @ my_map['toPars']
+                errlog = retrieval_result.errorFM[indFM] @ my_map['toPars']
     
-                cloudod = np.exp(results.resultsList[ind]) * factor
+                cloudod = np.exp(retrieval_result.resultsList[ind]) * factor
                 err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
                 myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
     
@@ -1067,36 +963,36 @@ class ErrorAnalysis:
                     err[:] = myMean
     
                 x = np.var((cloudod - myMean) / err, ddof=1)
-                results.cloudODVar = math.sqrt(x)
+                retrieval_result.cloudODVar = math.sqrt(x)
             else:
                 # cloud not retrieved... use 975-1200
                 # NOTE: code has not been tested.
     
                 # Look through all indices that meet the pressure criteria, and look to see if same index in errorCurrent.species matches with 'CLOUDEXT'.
-                ind = []
+                ind4 : list[int] = []
                 for ii in range(0, len(errorCurrent.pressure)):
                     if (errorCurrent.pressure[ii] >= 975 and errorCurrent.pressure[ii] <= 1200) and (errorCurrent.species[ii] == 'CLOUDEXT'):
-                        if ii not in ind:
-                            ind.append(ii)
+                        if ii not in ind4:
+                            ind4.append(ii)
     
-                if len(ind) > 0:
+                if len(ind4) > 0:
                     # found 975-1200
                     # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
-                    error_current = errorCurrent.data[ind, ind]
+                    error_current = errorCurrent.data[ind4, ind4]
     
-                    results.cloudODAveError = math.sqrt(np.sum(error_current)) / len(ind) * results.cloudODAve
+                    retrieval_result.cloudODAveError = math.sqrt(np.sum(error_current)) / len(ind4) * retrieval_result.cloudODAve
     
-                    ind = np.where(
+                    ind3 = np.where(
                         (stateInfo.cloudPars['frequency'] >= 974) & 
                         (stateInfo.cloudPars['frequency'] <= 1201)
                     )[0]
     
-                    cloudod = stateInfo.current['cloudEffExt'][0, ind] * factor
+                    cloudod = stateInfo.current['cloudEffExt'][0, ind3] * factor
     
                     # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
-                    error_current = errorCurrent.data[ind, ind]
+                    error_current = errorCurrent.data[ind3, ind3]
     
-                    err = stateInfo.current['cloudEffExt'][0, ind] * np.sqrt(error_current)
+                    err = stateInfo.current['cloudEffExt'][0, ind3] * np.sqrt(error_current)
                     myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
     
                     if myMean == np.nan:
@@ -1119,7 +1015,7 @@ class ErrorAnalysis:
         # AT_LINE 107 Write_Retrieval_Summary.pro
         if stateInfo.cloudPars['use'] == 'yes':
             if stateInfo.current['scalePressure'] == 0:
-                stateInfo.current.scalePressure = 0.1
+                stateInfo.current['scalePressure'] = 0.1
     
             factor = mpy.compute_cloud_factor(
                 stateInfo.current['pressure'],
@@ -1143,21 +1039,21 @@ class ErrorAnalysis:
             my_map = mpy.get_one_map(retrievalInfo, 'CLOUDEXT')
             
             if len(ind) > 0:
-                errlog = results.errorFM[indFM] @ my_map['toPars']
+                errlog = retrieval_result.errorFM[indFM] @ my_map['toPars']
     
-                cloudod = np.exp(results.resultsList[ind]) * factor
+                cloudod = np.exp(retrieval_result.resultsList[ind]) * factor
                 err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
                 myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
                 
                 x = np.var((cloudod - myMean) / err, ddof=1)
-                results.cloudODVar = math.sqrt(x)
+                retrieval_result.cloudODVar = math.sqrt(x)
             # end if (len(ind) > 0):
         # end if stateInfo.cloudPars['use'] == 'yes':
     
         # AT_LINE 144 Write_Retrieval_Summary.pro
         # calculate emisDev, the emissivity difference from the true state
         # between 975 and 1200 cm-1
-        results.emisDev = 0
+        retrieval_result.emisDev = 0
         
         ind = np.where(
             (stateInfo.emisPars['frequency'] >= 975) & 
@@ -1165,18 +1061,18 @@ class ErrorAnalysis:
         )[0]
     
         if len(ind) > 0:
-            results.emisDev = np.mean(stateInfo.current['emissivity'][ind]) - np.mean(stateInfo.constraint['emissivity'][ind])
+            retrieval_result.emisDev = np.mean(stateInfo.current['emissivity'][ind]) - np.mean(stateInfo.constraint['emissivity'][ind])
     
         # AT_LINE 159 Write_Retrieval_Summary.pro
         # emission layer flag
-        results.emissionLayer = 0
+        retrieval_result.emissionLayer = 0
     
-        ind2 = np.asarray([])  # Start with an empty list so we have the variable set.
+        ind10 = np.asarray([])  # Start with an empty list so we have the variable set.
         if 'O3' in retrievalInfo.speciesListFM:
-            ind2 = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, 'O3')
+            ind10 = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, 'O3')
     
         # AT_LINE 162 Write_Retrieval_Summary.pro
-        if len(ind2) > 0:
+        if len(ind10) > 0:
             indt = np.where(np.array(stateInfo.species) == 'TATM')[0][0]
             TATM = stateInfo.current['values'][indt, :]
             TSUR = stateInfo.current['TSUR']
@@ -1185,19 +1081,19 @@ class ErrorAnalysis:
             o3 = stateInfo.current['values'][indo3, :]
             o3ig = stateInfo.constraint['values'][indo3, :]
             
-            aveTATM = 0
-            my_sum = 0
+            aveTATM = 0.0
+            my_sum = 0.0
             for ii in range(0, 3):
                 my_sum = my_sum + o3[ii] - o3ig[ii]
                 aveTATM = aveTATM + TATM[ii]
             
             aveTATM = aveTATM / 3
             if my_sum/3 >= 1.5e-9:
-                results.emissionLayer = aveTATM - TSUR
+                retrieval_result.emissionLayer = aveTATM - TSUR
     
         # AT_LINE 181 Write_Retrieval_Summary.pro
         # ozone ccurve flag PRE-R12
-        results.ozoneCcurve = 1
+        retrieval_result.ozoneCcurve = 1
     
         ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, 'O3')
         
@@ -1215,7 +1111,7 @@ class ErrorAnalysis:
                 ratio1 = np.mean(o3[indLow]) / np.mean(o3ig[indLow])
                 ratio2 = np.mean(o3[indLow]) / np.mean(o3[indHigh])
                 if ratio1 >= 1.6 and ratio2 >= 1.4:
-                    results.ozoneCcurve = 0
+                    retrieval_result.ozoneCcurve = 0
             # end if len(indLow) > 0 and len(indHigh) > 0
         # if len(ind) > 0:
     
@@ -1233,8 +1129,8 @@ class ErrorAnalysis:
         #                // or 2) maxlo/minhi > 2 and maxlo/surf > 1.1 (use of 1.05 - 1.1
         # if any condition is true then ccurve = 1
     
-        results.ozoneCcurve = 1
-        results.ozone_slope_QA = 1
+        retrieval_result.ozoneCcurve = 1
+        retrieval_result.ozone_slope_QA = 1
     
         ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, 'O3')
         
@@ -1258,7 +1154,7 @@ class ErrorAnalysis:
                 # This may not be correct.
                 # AK = results.A[ind, ind, :]
                 # Let's use the manual way.
-                AK = utilGeneral.ManualArrayGetWithRHSIndices(results.A, ind, ind)
+                AK = utilGeneral.ManualArrayGetWithRHSIndices(retrieval_result.A, ind, ind)
     
                 AKzz = np.matmul(np.matmul(my_map['toState'], AK), my_map['toPars'])
                 meanAKlo = np.var(AKzz[indLow, indLow])
@@ -1266,7 +1162,7 @@ class ErrorAnalysis:
                 if maxlo * 1e9 > 150 or \
                     ((maxlo*1e9 > 100 or meanlo / meanloig > 1.8) and (meanAKlo < 0.1)) or \
                     ((maxlo / minhi > 2.5 or maxlo / minhi >= 2) and (maxlo / surf >= 1.1)):
-                    results.ozoneCcurve = 0
+                    retrieval_result.ozoneCcurve = 0
             # end if len(indLow) > 0 and len(indHigh) > 0:
     
             # slope c-curve flag
@@ -1276,13 +1172,13 @@ class ErrorAnalysis:
             o3 = o3[indp]
     
             slope = mpy.ccurve_jessica(altitude, o3)
-            results.ozone_slope_QA = slope
+            retrieval_result.ozone_slope_QA = slope
         # end if len(ind) > 0:
     
         # AT_LINE 255 Write_Retrieval_Summary.pro
         # Now get species dependent preferences
         for ispecie in range(0, num_species):
-            my_sum = np.float64(0.0)
+            my_sum = 0.0
     
             species_name = retrievalInfo.species[ispecie]
     
@@ -1292,9 +1188,9 @@ class ErrorAnalysis:
     
             # AT_LINE 269 Write_Retrieval_Summary.pro
             # deviation quality flag - refined for O3 and HCN
-            results.deviation_QA[ispecie] = 1
-            results.num_deviations_QA[ispecie] = 1
-            results.DeviationBad_QA[ispecie] = 1
+            retrieval_result.deviation_QA[ispecie] = 1
+            retrieval_result.num_deviations_QA[ispecie] = 1
+            retrieval_result.DeviationBad_QA[ispecie] = 1
             pressure = stateInfo.current['pressure']
             
             if loc != -1:
@@ -1304,20 +1200,15 @@ class ErrorAnalysis:
             
             ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, species_name)
     
-            ak_diag = results.A[ind, ind]
+            ak_diag = retrieval_result.A[ind, ind]
     
             # Also note that the value of profile is only set above if loc is not -1 above.
             if loc != -1:
                 # AT_LINE 279 Write_Retrieval_Summary.pro
                 result_quality = mpy.quality_deviation(pressure, profile, constraint, ak_diag, species_name)
-                results.deviation_QA[ispecie] = result_quality.deviation_QA
-                results.num_deviations_QA[ispecie] = result_quality.num_deviations
-                results.DeviationBad_QA[ispecie] = result_quality.deviationBad
-    
-                # AT_LINE 285 Write_Retrieval_Summary.pro
-                # get part of state that is used for this retrieval (helpful for emis or cloud)
-                ind1 = retrievalInfo.parameterStartFM[ispecie]
-                ind2 = retrievalInfo.parameterEndFM[ispecie]
+                retrieval_result.deviation_QA[ispecie] = result_quality.deviation_QA
+                retrieval_result.num_deviations_QA[ispecie] = result_quality.num_deviations
+                retrieval_result.DeviationBad_QA[ispecie] = result_quality.deviationBad
     
             # AT_LINE 292 Write_Retrieval_Summary.pro
             species_name = retrievalInfo.species[ispecie]
@@ -1330,12 +1221,12 @@ class ErrorAnalysis:
                 # get index of column species
                 # Note: When results.columnSpecies was first allocated, all the elements are empty strings.  As we are processing
                 #       each species, the specie name will be added to the array.
-                indcol = utilList.WhereEqualIndices(results.columnSpecies, '')
+                indcol = utilList.WhereEqualIndices(retrieval_result.columnSpecies, '')
     
                 indcol = indcol[0]
     
                 # Add the species_name to the current index.
-                results.columnSpecies[indcol] = species_name
+                retrieval_result.columnSpecies[indcol] = species_name
     
                 # AT_LINE 301 Write_Retrieval_Summary.pro
     
@@ -1346,13 +1237,13 @@ class ErrorAnalysis:
                         my_type = 'Column'
     
                         minPressure = 0
-                        minIndex = len(stateInfo.current['pressure']) - 1
+                        minIndex = np.int64(len(stateInfo.current['pressure']) - 1)
     
                         maxPressure = np.amax(stateInfo.current['pressure'])
                     elif ij == 1:
                         my_type = 'Trop' 
     
-                        minPressure = results.tropopausePressure
+                        minPressure = retrieval_result.tropopausePressure
                         minIndex = np.argmin(np.abs(stateInfo.current['pressure'] - minPressure))
     
                         maxPressure = np.amax(stateInfo.current['pressure'])
@@ -1362,7 +1253,7 @@ class ErrorAnalysis:
     
                         maxPressure = 500
     
-                        minPressure = results.tropopausePressure
+                        minPressure = retrieval_result.tropopausePressure
                         minIndex = np.argmin(np.abs(stateInfo.current['pressure'] - minPressure))
                     elif ij == 3:
                         # lower troposphere
@@ -1376,9 +1267,9 @@ class ErrorAnalysis:
                         # Stratosphere
                         my_type = 'Strato'
                         minPressure = 0
-                        minIndex = len(stateInfo.current['pressure']) - 1
+                        minIndex = np.int64(len(stateInfo.current['pressure']) - 1)
     
-                        maxPressure = results.tropopausePressure
+                        maxPressure = retrieval_result.tropopausePressure
                         if maxPressure == 0:
                             maxPressure = 200.
                     else:
@@ -1386,16 +1277,15 @@ class ErrorAnalysis:
                     # end if (ij == 0):
     
                     # AT_LINE 336 Write_Retrieval_Summary.pro
-                    results.columnPressureMin[ij] = minPressure
-                    results.columnPressureMax[ij] = maxPressure
+                    retrieval_result.columnPressureMin[ij] = minPressure
+                    retrieval_result.columnPressureMax[ij] = maxPressure
     
-                    ind1 = retrievalInfo.parameterStart[ispecie]
-                    ind2 = retrievalInfo.parameterEnd[ispecie]
                     
                     ind1FM = retrievalInfo.parameterStartFM[ispecie]
                     ind2FM = retrievalInfo.parameterEndFM[ispecie]
-    
-                    my_map = retrievalInfo.mapToState[0:ind2 - ind1 + 1, 0:ind2FM - ind1FM + 1]
+                    my_map = retrievalInfo.mapToState
+                    if(my_map is None):
+                        raise RuntimeError("basis matrix missing")
                     
                     mapType = retrievalInfo.mapType[ispecie]
                     
@@ -1423,7 +1313,7 @@ class ErrorAnalysis:
                         pge=None
                     )
     
-                    results.columnPrior[ij, indcol] = x['column']
+                    retrieval_result.columnPrior[ij, indcol] = x['column']
     
                     # AT_LINE 368 Write_Retrieval_Summary.pro
                     x = mpy.column(
@@ -1439,7 +1329,7 @@ class ErrorAnalysis:
                         pge=None
                     )
                     
-                    results.columnInitial[ij, indcol] = x['column']
+                    retrieval_result.columnInitial[ij, indcol] = x['column']
     
                     # AT_LINE 379 Write_Retrieval_Summary.pro
                     x = mpy.column(
@@ -1455,7 +1345,7 @@ class ErrorAnalysis:
                         pge=None
                     )
     
-                    results.columnInitialInitial[ij, indcol] = x['column']
+                    retrieval_result.columnInitialInitial[ij, indcol] = x['column']
     
                     # AT_LINE 390 Write_Retrieval_Summary.pro
                     x = mpy.column(
@@ -1470,7 +1360,7 @@ class ErrorAnalysis:
                         linear,
                         pge=None)
                     
-                    results.column[ij, indcol] = x['column']
+                    retrieval_result.column[ij, indcol] = x['column']
     
                     # AT_LINE 400 Write_Retrieval_Summary.pro
                     # air column
@@ -1487,15 +1377,15 @@ class ErrorAnalysis:
                         pge=None
                     )
     
-                    results.columnAir[ij] = x['columnAir']
+                    retrieval_result.columnAir[ij] = x['columnAir']
     
                     # AT_LINE 411 Write_Retrieval_Summary.pro
                     if species_name == 'O3' and my_type == 'Trop':
                         # compare initial gues for this step to retrieved.
-                        ret = results.column[ij, indcol]
-                        ig = results.columnInitial[ij, indcol]
+                        ret = retrieval_result.column[ij, indcol]
+                        ig = retrieval_result.columnInitial[ij, indcol]
                         ratio = (ret / ig) - 1.0
-                        results.O3_tropo_consistency = ratio
+                        retrieval_result.O3_tropo_consistency = ratio
                     # end if species_name == 'O3' and my_type == 'Trop':
     
                     # AT_LINE 420 Write_Retrieval_Summary.pro
@@ -1515,10 +1405,10 @@ class ErrorAnalysis:
                             pge=None
                         )
     
-                        results.columnTrue[ij, indcol] = x['column']
+                        retrieval_result.columnTrue[ij, indcol] = x['column']
     
                     # AT_LINE 435 Write_Retrieval_Summary.pro
-                    Sx = results.Sx[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
+                    Sx = retrieval_result.Sx[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
     
                     derivativeFinal = np.copy(x['derivative'])
     
@@ -1533,7 +1423,7 @@ class ErrorAnalysis:
                     # error = SQRT(derivativeFinal[0:minIndex] ## Sx[0:minIndex,0:minIndex] ## TRANSPOSE(derivativeFinal[0:minIndex])
     
                     error = np.sqrt(derivativeFinal[0:minIndex+1].T @ Sx[0:minIndex+1, 0:minIndex+1] @ derivativeFinal[0:minIndex+1])
-                    results.columnError[ij, indcol] = error
+                    retrieval_result.columnError[ij, indcol] = error
     
                     # AT_LINE 446 Write_Retrieval_Summary.pro
                     # multipy prior covariance to calc predicted prior error
@@ -1546,16 +1436,16 @@ class ErrorAnalysis:
                     # IDL: 
                     # error = SQRT(derivativeFinal[0:minIndex] ## results.Sa[0:minIndex,0:minIndex] ## TRANSPOSE(derivativeFinal[0:minIndex])
                     
-                    error = np.sqrt(derivativeFinal[0:minIndex+1].T @ results.Sa[0:minIndex+1, 0:minIndex+1] @ derivativeFinal[0:minIndex+1])
+                    error = np.sqrt(derivativeFinal[0:minIndex+1].T @ retrieval_result.Sa[0:minIndex+1, 0:minIndex+1] @ derivativeFinal[0:minIndex+1])
     
-                    results.columnPriorError[ij, indcol] = error
+                    retrieval_result.columnPriorError[ij, indcol] = error
     
                     # AT_LINE 455 Write_Retrieval_Summary.pro
                     if species_name == 'O3' and my_type == 'Column':
-                        results.O3_columnErrorDU = results.columnError[ij, indcol] / 2.69e+16
+                        retrieval_result.O3_columnErrorDU = retrieval_result.columnError[ij, indcol] / 2.69e+16
                         # temporary fix
-                        results.omi_cloudfraction = stateInfo.current['omi']['cloud_fraction']
-                        results.tropomi_cloudfraction = stateInfo.current['tropomi']['cloud_fraction']
+                        retrieval_result.omi_cloudfraction = stateInfo.current['omi']['cloud_fraction']
+                        retrieval_result.tropomi_cloudfraction = stateInfo.current['tropomi']['cloud_fraction']
                     # end if species_name == 'O3' and my_type == 'Column':
     
                     if my_type == 'Column' and species_name == 'H2O':
@@ -1564,8 +1454,8 @@ class ErrorAnalysis:
                         
                         if len(ind4) > 0 and len(ind5) > 0:
                             # in H2O/HDO step, check H2O column - H2O column from O3 step / error
-                            results.H2O_H2OQuality = \
-                                (results.column[ij, indcol] - results.columnInitial[ij, indcol]) / results.columnPriorError[ij, indcol]
+                            retrieval_result.H2O_H2OQuality = \
+                                (retrieval_result.column[ij, indcol] - retrieval_result.columnInitial[ij, indcol]) / retrieval_result.columnPriorError[ij, indcol]
                         # end if len(ind4) > 0 and len(ind5) > 0
                     # end if my_type == 'Column' and species_name == 'H2O':
     
@@ -1581,7 +1471,7 @@ class ErrorAnalysis:
                     ispecie = utilList.WhereEqualIndices(retrievalInfo.species, species_name)[0]
                     ind1FM = retrievalInfo.parameterStartFM[ispecie]
                     ind2FM = retrievalInfo.parameterEndFM[ispecie]
-                    ak = mpy.get_diagonal(results.A)
+                    ak = mpy.get_diagonal(retrieval_result.A)
                     ak = ak[ind1FM:ind2FM+1]
                     na = len(ak)
     
@@ -1600,7 +1490,7 @@ class ErrorAnalysis:
                     #              as opposed to IDL which does it it one step: indp1 = max(where(pressureLayers GT maxPressure))
                     max_indices = np.where(pressureLayers > maxPressure)[0]
     
-                    indp1 = -1 
+                    indp1 = np.int64(-1)
                     if len(max_indices) > 0:
                         indp1 = np.amax(max_indices)
     
@@ -1608,7 +1498,7 @@ class ErrorAnalysis:
                         fraction1 = (maxPressure - pressureLayers[indp1+1]) / (pressureLayers[indp1] - pressureLayers[indp1+1])
                         dof = dof + fraction1 * ak[indp1]
     
-                    indp2 = -1
+                    indp2 = np.int64(-1)
                     min_indices = np.where(pressureLayers < minPressure)[0]
                     if len(min_indices) > 0:
                         indp2 = np.amin(min_indices)
@@ -1617,31 +1507,17 @@ class ErrorAnalysis:
                         fraction2 = (minPressure - pressureLayers[indp2-1]) / (pressureLayers[indp2] - pressureLayers[indp2-1])
                         dof = dof + fraction2 * ak[indp2]
     
-                    results.columnDOFS[ij, indcol] = dof
+                    retrieval_result.columnDOFS[ij, indcol] = dof
                 # end for ij in range(0, 5):
     
                 # AT_LINE 505 Write_Retrieval_Summary.pro
             # end if (loc >= 0) and (species_name != 'TATM'):
             continue
         # end for ispecie in range(0,num_species):
-    
-        # AT_LINE 509 Write_Retrieval_Summary.pro
-        if(qualityName is None):
-            # Allow skipping of quality flags. This is to support ReFRACtor, where
-            # we can handle the qa flags outside this call
-            results.masterQuality = 0
-            return results
-            
-        master = mpy.write_quality_flags(directory + "/QualityFlags.asc", qualityName, results, stateInfo, writeOutputFlag)
-    
-        results.masterQuality = 0
-        if master == 'GOOD':
-            results.masterQuality = 1
-    
-        logger.info(f"Master Quality: {results.masterQuality} ({master})")
-    
-        return results
-    
+
+        # This gets filled in later
+        retrieval_result.masterQuality = 0
+        
 __all__ = [
     "ErrorAnalysis",
 ]
