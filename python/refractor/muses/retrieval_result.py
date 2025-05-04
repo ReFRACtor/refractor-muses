@@ -2,6 +2,7 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
 from .identifier import StateElementIdentifier
+import math
 import numpy as np
 from typing import Any
 import typing
@@ -63,8 +64,7 @@ class RetrievalResult:
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
         self.__dict__.update(d)
-        mpy.set_retrieval_results_derived(
-            self,
+        self.set_retrieval_results_derived(
             self.rstep,
             propagated_qa.tatm_qa,
             propagated_qa.o3_qa,
@@ -170,7 +170,9 @@ class RetrievalResult:
         # Not sure how important this is, but old muses-py code had this
         # as float32. Match this for now, we might remove this at some point,
         # but this does has small changes to the output
-        return self.ret_res.radiance["radiance"][np.newaxis,:].astype(np.float32)
+        if(len(self.ret_res.radiance["radiance"].shape) == 1):
+            return self.ret_res.radiance["radiance"][np.newaxis,:].astype(np.float32)
+        return self.ret_res.radiance["radiance"].astype(np.float32)
 
     @property
     def radianceObserved(self) -> np.ndarray:
@@ -553,9 +555,233 @@ class RetrievalResult:
             "ch4_evs": np.zeros(shape=(10), dtype=np.float32),  # FLTARR(10)
         }
         o_results.update(struct2)
-
         return o_results
 
+    def set_retrieval_results_derived( 
+            self,
+            i_radianceStep, 
+            i_propagatedTATMQA, 
+            i_propagatedO3QA, 
+            i_propagatedH2OQA, 
+            detectorsUsed=0):
+
+        radianceStep = i_radianceStep
+        if isinstance(radianceStep, dict):
+            radianceStep = mpy.ObjectView(radianceStep)
+    
+        # AT_LINE 13 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        self.propagatedTATMQA = i_propagatedTATMQA
+        self.propagatedO3QA = i_propagatedO3QA
+        self.propagatedH2OQA = i_propagatedH2OQA
+    
+        # calc radianceResidualMean and radianceResidualRMS
+        rObs = radianceStep.radiance
+        rIter = self.radiance
+        rInitial = self.radianceInitial
+    
+        NESR = radianceStep.NESR
+        freq = radianceStep.frequency
+        self.frequency[:] = freq[:]
+    
+        # AT_LINE 26 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        ind = np.where(radianceStep.frequency > 0.0)[0]
+    
+        # PYTHON_NOTE: It is possible that the size of freq is greater than NESR and rObs
+        #
+        #     NESR.shape (220, )
+        #     freq.shape (370, )
+        #     ind.shape 370
+        #     rObs.shape (220, )
+        #
+        # so we cannot not use ind as is an index because that would cause an out of bound:
+        # IndexError: index 220 is out of bounds for axis 1 with size 220
+        # To fix the issue, we make a reduced_index with indices smaller than the size of NESR.
+    
+        if len(freq) > len(NESR):
+            # Get the indices of ind where the values are smaller than the size of NESR.
+            reduced_index = np.where(ind < NESR.shape[0])[0]
+            # Use the reduced_index to index ind so we don't index pass the size of rObs and NESR 
+            self.radianceMaximumSNR = np.amax(rObs[ind[reduced_index]] / NESR[ind[reduced_index]])
+        else:
+            self.radianceMaximumSNR = np.amax(rObs[ind] / NESR[ind])
+    
+        # take out spikes
+        # AT_LINE 30 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results
+        # We have to use slow method.
+        ind = []
+        for ii in range(len(NESR)):
+            if NESR[ii] >= 0.0 and NESR[ii] <= abs(np.mean(NESR)*100.0):
+                ind.append(ii)
+    
+        ind = np.asarray(ind)
+    
+        # AT_LINE 32 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        if len(ind) > 0:
+            rObs = rObs[ind]
+            rIter = rIter[0, ind]
+            rInitial = rInitial[0, ind]
+    
+            NESR = NESR[ind]
+    
+            freq = freq[ind]
+        else:
+            raise RuntimeError("No good radiances, all NESRs < 0")
+    
+        # AT_LINE 51 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+    
+        # note:  if we have:
+        #    chi_orig = moment(scaledDifference)[1] and 
+        #    chi = moment(scaledDifferenceZeroMean)[1] and 
+        #    resMean = moment(scaledDifference)[0], 
+        # then:
+        # chi_orig = sqrt(chi^2 + resMean^2)
+    
+        # # AT_LINE 71 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        # scaledDifferenceZeroMean = scaledDifference - y
+        # y = np.var(scaledDifferenceZeroMean)
+        # self.radianceResidualRMSInitial = math.sqrt(y)
+    
+        # # calculate mean
+        # # AT_LINE 77 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        # scaledDifference = (rObs - rIter) / NESR
+        # y = np.mean(scaledDifference)
+        # self.radianceResidualMean[0] = y
+    
+        # note:  if we have:
+        #    chi_orig = moment(scaledDifference)[1] and 
+        #    chi = moment(scaledDifferenceZeroMean)[1] and 
+        #    resMean = moment(scaledDifference)[0], 
+        # then:
+        # chi_orig = sqrt(chi^2 + resMean^2)
+    
+        # AT_LINE 87 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        #scaledDifferenceZeroMean = scaledDifference - y
+        #y = np.var(scaledDifferenceZeroMean)
+        #self.radianceResidualRMS[0] = math.sqrt(y)
+    
+        # AT_LINE 91 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        for ii in range(detectorsUsed):
+            scaledDifference = (rObs - rIter) / NESR
+            y = np.mean(scaledDifference[ii, :])
+            self.radianceResidualMeanDet[ii] = y
+            y = np.var(scaledDifference[ii, :])
+            self.radianceResidualRMSDet[ii] = math.sqrt(y)
+    
+        # AT_LINE 103 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        # ordered by frequency
+        self.radianceResidualRMS[1:] = -999.0
+        self.radianceResidualMean[1:] = -999.0
+        self.residualSlope[:] = -999 
+        self.residualQuadratic[:] = -999 
+    
+    
+        if len(self.filter_list) > 1:
+            # Start at 1 for the loop.
+            for jj in range(0, len(self.filter_list)):
+                if jj == 0:
+                    start = 0
+                    endd = len(radianceStep.NESR)
+                else:
+                    start = self.filterStart[jj]
+                    endd = self.filterEnd[jj]
+    
+                if start >= 0 and endd >= 0:
+                    ind = np.where(radianceStep.NESR[start:endd+1] > 0)[0]  # Note that we use 'endd+1' because in Python, the slice does not include the end point.
+                    
+                    if len(ind) > 5:
+                        scaledDifference = (radianceStep.radiance[start+ind]- self.radiance[0, start+ind]) / radianceStep.NESR[start+ind]
+                        uu_mean = np.mean(scaledDifference)
+                        uu_var = np.var(scaledDifference)
+                        self.radianceResidualRMS[jj] = math.sqrt(uu_var) # actual stdev NOT RMS
+                        self.radianceResidualMean[jj] = uu_mean
+    
+                        scaledDifferenceInitial = (radianceStep.radiance[start+ind]- self.radianceInitial[0, start+ind]) / radianceStep.NESR[start+ind]
+                        uu_mean = np.mean(scaledDifferenceInitial)
+                        uu_var = np.var(scaledDifferenceInitial)
+                        self.radianceResidualRMSInitial[jj] = math.sqrt(uu_var) # actual stdev NOT RMS
+                        self.radianceResidualMeanInitial[jj] = uu_mean
+    
+                        # get stdev relative to maximum (top 2% of radiances in fit)
+                        vals = np.sort(self.radiance[0, start+ind])
+                        nx = len(vals)
+                        if nx > 50:
+                            vals = np.mean(vals[int(len(vals)*49/50):len(vals)])
+                        else:
+                            vals = np.max(vals)
+                        difference = (radianceStep.radiance[start+ind]- self.radiance[0, start+ind])
+                        uu_var = np.var(difference)
+                        uu_mean = np.mean(difference)
+                        self.radianceResidualRMSRelativeContinuum[jj] = math.sqrt(uu_var + uu_mean * uu_mean) / vals
+    
+                        self.radianceContinuum[jj] = vals
+                        self.radianceSNR[jj] = np.mean(self.radiance[0, start+ind] / radianceStep.NESR[start+ind])
+    
+                        # get first and second derivative of normalized residual versus radiance / continuum
+                        # this looks for patterns such as issues at the line core
+                        myx = self.radiance[0, start+ind].copy() / vals
+                        myy = scaledDifference.copy()
+                        indx = np.argsort(myx)
+                        myx = myx[indx]
+                        myy = myy[indx]
+    
+                        # cut off the very few points "above" the continuum
+                        indx = (np.where((myx > 0.0)*(myx < 1.00)))[0]
+                        myx = myx[indx]
+                        myy = myy[indx]
+    
+    
+                        # linear fit and quadratic fit.  Save linear value from linear fit, and quadratic value from quadratic fit.
+                        linear_fit = np.polyfit(myx, myy, 1) # return has highest order fit first
+                        quadratic_fit = np.polyfit(myx, myy, 2) # return has highest order fit first
+                        self.residualSlope[jj] = linear_fit[0]
+                        self.residualQuadratic[jj] = quadratic_fit[0]
+    
+                        if jj < -999:
+                            # alternative method
+                            indstart, indend = mpy.frequency_get_bands(self.frequency)
+                            radiance = self.radiance[0, :]
+                            radiance_obs = radianceStep.radiance
+                            nesr = radianceStep.NESR
+    
+                            inds = np.argsort(radiance[indstart[jj-1]:indend[jj-1]+1])
+                            # get top 5% of values in each band
+                            # sort by radiance size
+                            if len(inds) > 20:
+                                indx = int(len(inds)*0.98)
+                                continuum = np.mean(radiance[indstart[jj-1]+inds[indx]])
+                            else:
+                                continuum = radiance[indstart[jj-1]+inds[len(inds)-1]]
+    
+                            # band values
+                            # divide radiance by continuum to get a relative radiance (0-1.0+)
+                            myrad = radiance[indstart[jj-1]:indend[jj-1]+1].copy() / continuum
+                            myerror = (radiance_obs[indstart[jj-1]:indend[jj-1]+1]-radiance[indstart[jj-1]:indend[jj-1]+1])/nesr[indstart[jj-1]:indend[jj-1]+1]
+    
+                            # order by radiance size
+                            inds = np.argsort(myrad)
+                            myrad = myrad[inds]
+                            myerror = myerror[inds]
+    
+                            inds = (np.where((myrad > 0.0)*(myrad < 1.00)))[0]
+                            myrad = myrad[inds]
+                            myerror = myerror[inds]
+    
+                # end if start >= 0 and endd >= 0:
+            # end for jj in range(1, len(self.filter)):
+        # end if len(self.filter) > 1:
+    
+        # AT_LINE 124 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
+        # calc residualNormInitial and residualNormFinal
+        # NOT chi2, but chi
+        self.residualNormInitial = math.sqrt(
+            self.radianceResidualMeanInitial[0] * self.radianceResidualMeanInitial[0] + \
+            self.radianceResidualRMSInitial[0] * self.radianceResidualRMSInitial[0]
+        )
+        
+        self.residualNormFinal = math.sqrt(
+            self.radianceResidualMean[0] * self.radianceResidualMean[0] + \
+            self.radianceResidualRMS[0] * self.radianceResidualRMS[0]
+        )
 
 __all__ = [
     "RetrievalResult",
