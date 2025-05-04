@@ -63,16 +63,14 @@ class RetrievalResult:
         self.jacobianSys = jacobian_sys
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
-        d.__dict__["radianceInitial"] = self.radianceInitial
-        d = mpy.set_retrieval_results_derived(
-            d,
+        self.__dict__.update(d.__dict__)
+        mpy.set_retrieval_results_derived(
+            self,
             self.rstep,
             propagated_qa.tatm_qa,
             propagated_qa.o3_qa,
             propagated_qa.h2o_qa,
         )
-        del d.__dict__["radianceInitial"]
-        self.__dict__.update(d.__dict__)
 
     def update_jacobian_sys(self, cfunc_sys: CostFunction) -> None:
         """Run the forward model in cfunc to get the jacobian_sys set."""
@@ -120,6 +118,41 @@ class RetrievalResult:
     def radianceInitial(self) -> np.ndarray:
         return self.radiance_initial
     
+    @property
+    def LMResults_costThresh(self) -> np.ndarray:
+        return self.ret_res.stopCriteria[:, 0]
+
+    @property
+    def LMResults_resNorm(self) -> np.ndarray:
+        return self.ret_res.resdiag[:, 0]
+
+    @property
+    def LMResults_resNormNext(self) -> np.ndarray:
+        return self.ret_res.resdiag[:, 1]
+
+    @property
+    def LMResults_jacresNorm(self) -> np.ndarray:
+        return self.ret_res.resdiag[:, 2]
+
+    @property
+    def LMResults_jacResNormNext(self) -> np.ndarray:
+        return self.ret_res.resdiag[:, 3]
+
+    @property
+    def LMResults_pnorm(self) -> np.ndarray:
+        return self.ret_res.resdiag[:, 4]
+
+    @property
+    def LMResults_delta(self) -> np.ndarray:
+        return self.ret_res.delta
+
+    @property
+    def LMResults_iterList(self) -> np.ndarray:
+        res = [self.current_state.initial_guess]
+        for i in range(1, self.ret_res.num_iterations + 1):
+            res.append(self.ret_res.xretIterations[i, :])
+        return np.vstack(res)
+
     @property
     def num_iterations(self) -> int:
         return self.ret_res.num_iterations
@@ -180,8 +213,6 @@ class RetrievalResult:
         # way of referring to our input.
         num_species = len(self.current_state.retrieval_state_element_id)
         nfreqs = len(self.rstep.frequency)
-
-        niter = len(self.ret_res.resdiag[:, 0])
 
         detectorsUsed = 0
         num_detectors = 1
@@ -347,14 +378,6 @@ class RetrievalResult:
             "jacobianSys": None,
             #  radiances - for all steps + IG, true
             "frequency": np.zeros(shape=(num_detectors, nfreqs), dtype=np.float64),
-            "LMResults_costThresh": np.full((niter), -999, dtype=np.float32),
-            "LMResults_iterList": np.full((niter, rows), -999, dtype=np.float32),
-            "LMResults_resNorm": np.full((niter), -999, dtype=np.float32),
-            "LMResults_resNormNext": np.full((niter), -999, dtype=np.float32),
-            "LMResults_jacresNorm": np.full((niter), -999, dtype=np.float32),
-            "LMResults_jacResNormNext": np.full((niter), -999, dtype=np.float32),
-            "LMResults_pnorm": np.full((niter), -999, dtype=np.float32),
-            "LMResults_delta": np.full((niter,), -999, dtype=np.float64),
             "radianceObserved": np.zeros(
                 shape=(num_detectors, nfreqs), dtype=np.float32
             ),  # fit
@@ -484,26 +507,6 @@ class RetrievalResult:
         # Convert to ObjectView from now on.
         o_results = mpy.ObjectView(o_results)
 
-        o_results.LMResults_costThresh[0:niter] = self.ret_res.stopCriteria[
-            :, 0
-        ]  # Note the spelling of stopCriteria to match the actual key.
-        o_results.LMResults_resNorm[0:niter] = self.ret_res.resdiag[
-            :, 0
-        ]  # Note the spelling of resdiag to match the actual key.
-        o_results.LMResults_resNormNext[0:niter] = self.ret_res.resdiag[
-            :, 1
-        ]  # Note the spelling of resdiag to match the actual key.
-        o_results.LMResults_jacresNorm[0:niter] = self.ret_res.resdiag[
-            :, 2
-        ]  # Note the spelling of resdiag to match the actual key.
-        o_results.LMResults_jacResNormNext[0:niter] = self.ret_res.resdiag[
-            :, 3
-        ]  # Note the spelling of resdiag to match the actual key.
-        o_results.LMResults_pnorm[0:niter] = self.ret_res.resdiag[
-            :, 4
-        ]  # Note the spelling of resdiag to match the actual key.
-        o_results.LMResults_delta[0:niter] = self.ret_res.delta
-
         # get retrieval vector result (for all species) for best iteration
         ii = o_results.bestIteration
         if ii == 0:
@@ -513,16 +516,6 @@ class RetrievalResult:
 
         o_results.resultsList[:] = result[:]
         o_results.resultsListFM[:] = self.ret_res.xretFM
-
-        # get retrieval vector result (for all species) for all iterations
-
-        for iq in range(self.ret_res.num_iterations + 1):
-            if iq == 0:
-                o_results.LMResults_iterList[iq, :] = self.current_state.initial_guess[
-                    0:rows
-                ]
-            else:
-                o_results.LMResults_iterList[iq, :] = self.ret_res.xretIterations[iq, :]
 
         # AT_LINE 328 Set_Retrieval_Results.pro Set_Retrieval_Results
         o_results.frequency = self.rstep.frequency
