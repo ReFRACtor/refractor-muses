@@ -61,9 +61,9 @@ class RetrievalResult:
         self.sounding_metadata = current_state.sounding_metadata
         self.ret_res = mpy.ObjectView(ret_res)
         self.jacobianSys = jacobian_sys
-        self.num_iterations = 0
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
+        d.__dict__["radianceInitial"] = self.radianceInitial
         d = mpy.set_retrieval_results_derived(
             d,
             self.rstep,
@@ -71,6 +71,7 @@ class RetrievalResult:
             propagated_qa.o3_qa,
             propagated_qa.h2o_qa,
         )
+        del d.__dict__["radianceInitial"]
         self.__dict__.update(d.__dict__)
 
     def update_jacobian_sys(self, cfunc_sys: CostFunction) -> None:
@@ -106,6 +107,23 @@ class RetrievalResult:
     def tropomi_cloudfraction(self) -> float:
         return self.state_value("TROPOMICLOUDFRACTION")
 
+    @property
+    def radiance_initial(self) -> np.ndarray:
+        # Not sure how important this is, but old muses-py code had this
+        # as float32. Match this for now, we might remove this at some point,
+        # but this does has small changes to the output
+        if(self.num_iterations == 0):
+            return self.ret_res.radiance["radiance"][:, :].astype(np.float32)
+        return self.ret_res.radianceIterations[0, :, :].astype(np.float32)
+
+    @property
+    def radianceInitial(self) -> np.ndarray:
+        return self.radiance_initial
+    
+    @property
+    def num_iterations(self) -> int:
+        return self.ret_res.num_iterations
+    
     @property
     def species_list_fm(self) -> list[str]:
         """This is the length of the forward model state vector, with a
@@ -280,12 +298,10 @@ class RetrievalResult:
             rowsSys = 1
 
         o_results: dict[str, Any] | mpy.ObjectView = {
-            "retrieval": "",
             "is_ocean": self.current_state.sounding_metadata.is_ocean,
             "badRetrieval": -999,
             "retIteration": self.ret_res.xretIterations,
             "bestIteration": self.ret_res.bestIteration,
-            "num_iterations": self.ret_res.num_iterations,
             "stopCode": self.ret_res.stopCode,
             "filter_index": filter_index,
             "radianceResidualMean": np.zeros(shape=(num_filters), dtype=np.float32),
@@ -345,9 +361,6 @@ class RetrievalResult:
             "radiance": np.zeros(
                 shape=(num_detectors, nfreqs), dtype=np.float32
             ),  # fit
-            "radianceInitial": np.zeros(
-                shape=(num_detectors, nfreqs), dtype=np.float32
-            ),  # fit initial
             # error stuff follows - calc later
             "A": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float32),
             "A_ret": np.zeros(shape=(rows, rows), dtype=np.float32),
@@ -519,16 +532,6 @@ class RetrievalResult:
         ]  # Note that we have chosen 'jacobian_data' as the key in jacobian dict.
         o_results.radiance[:] = self.ret_res.radiance["radiance"]
         o_results.radianceObserved[:] = self.rstep.radiance
-
-        o_results.retrieval = "true"
-        if o_results.num_iterations == 0:
-            logger.warning(
-                f"Retrieval files not found.  Value of o_results.num_iterations {o_results.num_iterations}"
-            )
-            o_results.retrieval = "false"
-            o_results.radianceInitial[:, :] = self.ret_res.radiance["radiance"][:, :]
-        else:
-            o_results.radianceInitial[:, :] = self.ret_res.radianceIterations[0, :, :]
 
         o_results.NESR = self.rstep.NESR
 

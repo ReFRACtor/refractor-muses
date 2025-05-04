@@ -424,11 +424,7 @@ class RetrievalL2Output(RetrievalOutput):
 
         species_data = mpy.ObjectView(species_datad)
 
-        # AT_LINE 121 write_products_one.pro
-        gpress = self.state_value("gmaoTropopausePressure")
-        species_data.TROPOPAUSEPRESSURE = (
-            gpress if gpress > 0 else self.results.tropopausePressure
-        )
+        species_data.TROPOPAUSEPRESSURE = self.results.tropopause_pressure
 
         # AT_LINE 126 write_products_one.pro
         species_data.DESERT_EMISS_QA = self.results.Desert_Emiss_QA

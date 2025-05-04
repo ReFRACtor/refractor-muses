@@ -146,7 +146,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
         my_data.nesrFullBand = fullNESR
 
         my_data.radianceFit = self.results.radiance[0, :].astype(np.float32)
-        my_data.radianceFitInitial = self.results.radianceInitial[0, :].astype(
+        my_data.radianceFitInitial = self.results.radiance_initial[0, :].astype(
             np.float32
         )
         my_data.radianceObserved = self.radiance_step.radiance.astype(np.float32)
