@@ -322,47 +322,21 @@ class ErrorAnalysis:
             retrieval : FakeRetrievalInfo,
             errorCurrentValues : mpy.ObjectView) -> np.ndarray | None:
         
-        # Output variables
         o_offDiagonalSys = None
-        retrieval_result_dict = retrieval_result.__dict__
-    
-        # It is possible that these variables can be None: {Sb, Db, constraintMatrix}
-    
-        #;;;;;;;;;;; intermediate equations (Section 4.2.2) ;;;;;;;;;;
-        # AT_LINE 47 Error_Analysis.pro
-    
-        # IDL:
-        # kappa = TRANSPOSE(jacobian) ## jacobian
-        # kappaFM = TRANSPOSE(jacobian) ## jacobianFM
     
         kappa = jacobian @ jacobian.T
         kappaFM = jacobianFM @ jacobian.T # [parameter,frequency]
-    
-        # IDL:
-        # S_inv = map.toState ## INVERT(kappa + constraint)
-    
         S_inv = np.linalg.inv(kappa + constraintMatrix) @ my_map.toState
-        
-        # AT_LINE 100 Error_Analysis.pro
         retrieval_result.KtSyK = kappa
-    
-        if 'KtSyKFM' in retrieval_result_dict:
-            retrieval_result.KtSyKFM = kappaFM
         retrieval_result.KtSyKFM = kappaFM
     
         doUpdateFM = retrieval.doUpdateFM[0:retrieval.n_totalParametersFM]
         dontUpdateFM = 1 - doUpdateFM
     
-        # equations (Section 4.2.3)
-        # AT_LINE 109 Error_Analysis.pro
-        if constraintMatrix is None:
-            logger.warning("constraintMatrix is None. Cannot calculate my_id, Sx_smooth and Sx_rand")
-        else:
-            my_id = np.asarray(np.identity(S_inv.shape[1]), dtype=np.float64)
-            retrieval_result.Sx_smooth = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
-            retrieval_result.Sx_rand = S_inv.T @ kappa @ S_inv
+        my_id = np.asarray(np.identity(S_inv.shape[1]), dtype=np.float64)
+        retrieval_result.Sx_smooth = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
+        retrieval_result.Sx_rand = S_inv.T @ kappa @ S_inv
     
-        # AT_LINE 120 Error_Analysis.pro
         if jacobianSys is not None and Sb is not None:
             kappaInt = np.matmul(jacobianSys, np.transpose(jacobian))
             retrieval_result.Sx_sys = np.matmul(np.matmul(np.matmul(np.transpose(np.matmul(kappaInt, S_inv)), Sb), kappaInt), S_inv)
@@ -876,29 +850,6 @@ class ErrorAnalysis:
     
         # AT_LINE 35 Write_Retrieval_Summary.pro
         num_species = retrievalInfo.n_species
-        
-        # get tropopause presure
-        indTATM = utilList.WhereEqualIndices(stateInfo.species, 'TATM')
-    
-        # PYTHON_NOTE: The shape of stateInfo.current['values'][indTATM,:] is (1,64), we need to reshape it back to (64,) to make life easier for TropopauseTES() function.
-        tropopause_level = mpy.tropopause_tes(
-            stateInfo.current['pressure'], 
-            np.reshape(stateInfo.current['values'][indTATM, :], (stateInfo.current['values'].shape[1])),
-            stateInfo.current['latitude'],
-            np.amax(stateInfo.current['pressure'])
-        )
-        
-        # AT_LINE 42 Write_Retrieval_Summary.pro
-        tropopausePressure = stateInfo.current['pressure'][tropopause_level]
-        retrieval_result.tropopausePressure = tropopausePressure
-    
-        if stateInfo.gmaoTropopausePressure > -990:
-            # AT_LINE 46 Write_Retrieval_Summary.pro
-            tropopausePressure = stateInfo.gmaoTropopausePressure
-            retrieval_result.tropopausePressure = stateInfo.gmaoTropopausePressure
-        else:
-            raise RuntimeError("GMAO tropopause pressure is not defined")
-        # AT_LINE 54 Write_Retrieval_Summary.pro
     
         retrieval_result.cloudODAve = 0
         retrieval_result.cloudODVar = 0
@@ -1443,9 +1394,6 @@ class ErrorAnalysis:
                     # AT_LINE 455 Write_Retrieval_Summary.pro
                     if species_name == 'O3' and my_type == 'Column':
                         retrieval_result.O3_columnErrorDU = retrieval_result.columnError[ij, indcol] / 2.69e+16
-                        # temporary fix
-                        retrieval_result.omi_cloudfraction = stateInfo.current['omi']['cloud_fraction']
-                        retrieval_result.tropomi_cloudfraction = stateInfo.current['tropomi']['cloud_fraction']
                     # end if species_name == 'O3' and my_type == 'Column':
     
                     if my_type == 'Column' and species_name == 'H2O':

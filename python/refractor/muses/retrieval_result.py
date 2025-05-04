@@ -81,6 +81,31 @@ class RetrievalResult:
             ]
         )
 
+    def state_value(self, state_name : str) -> float:
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))[0]
+
+    def state_value_vec(self, state_name : str) -> np.ndarray:
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))
+    
+    @property
+    def tropopause_pressure(self) -> float:
+        res = self.state_value("gmaoTropopausePressure")
+        if(res <= -990):
+            raise RuntimeError("GMA tropopause pressure is not defined")
+        return res
+
+    @property
+    def tropopausePressure(self) -> float:
+        return self.tropopause_pressure
+    
+    @property
+    def omi_cloudfraction(self) -> float:
+        return self.state_value("OMICLOUDFRACTION")
+
+    @property
+    def tropomi_cloudfraction(self) -> float:
+        return self.state_value("TROPOMICLOUDFRACTION")
+
     @property
     def species_list_fm(self) -> list[str]:
         """This is the length of the forward model state vector, with a
@@ -398,7 +423,6 @@ class RetrievalResult:
             "propagatedO3QA": 0.0,
             "propagatedH2OQA": 0.0,
             "masterQuality": -999,
-            "tropopausePressure": -999.0,
             "columnAir": np.full((5), -999, dtype=np.float64),
             "column": np.full((5, 20), -999, dtype=np.float64),  # DBLARR(4, 20)-999.0
             "columnError": np.full(
@@ -435,8 +459,6 @@ class RetrievalResult:
             "DeviationBad_QA": np.full(
                 (num_species), -999, dtype=np.int32
             ),  # INTARR(num_species)-999
-            "omi_cloudfraction": 0.0,  # cloud fraction in UV, if used
-            "tropomi_cloudfraction": 0.0,  # cloud fraction in UV for tropomi, possibly worth combining the omi and tropomi values
             "O3_columnErrorDU": 0.0,  # total colummn error
             "O3_tropo_consistency": 0.0,  # tropospheric column change from initial
             "ch4_evs": np.zeros(shape=(10), dtype=np.float32),  # FLTARR(10)
@@ -519,13 +541,6 @@ class RetrievalResult:
         o_results.Desert_Emiss_QA = self.current_state.full_state_value(
             StateElementIdentifier("emissivity")
         )[ind]
-
-        o_results.omi_cloudfraction = self.current_state.full_state_value(
-            StateElementIdentifier("OMICLOUDFRACTION")
-        )[0]
-        o_results.tropomi_cloudfraction = self.current_state.full_state_value(
-            StateElementIdentifier("TROPOMICLOUDFRACTION")
-        )[0]
 
         return o_results
 
