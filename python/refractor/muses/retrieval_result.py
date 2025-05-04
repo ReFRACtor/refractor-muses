@@ -3,7 +3,6 @@ import refractor.muses.muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
 from .identifier import StateElementIdentifier
 import numpy as np
-from loguru import logger
 from typing import Any
 import typing
 
@@ -63,7 +62,7 @@ class RetrievalResult:
         self.jacobianSys = jacobian_sys
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
-        self.__dict__.update(d.__dict__)
+        self.__dict__.update(d)
         mpy.set_retrieval_results_derived(
             self,
             self.rstep,
@@ -154,9 +153,81 @@ class RetrievalResult:
         return np.vstack(res)
 
     @property
+    def frequency(self) -> np.ndarray:
+        return self.rstep.frequency
+
+    @frequency.setter
+    def frequency(self, v : np.ndarray) -> None:
+        # Kind of a kludge, but set_retrieval_results_derived wants to set this
+        # value, even though we already have it. Just ignore this, so we
+        # don't need to mess with set_retrieval_results_derived. Long term,
+        # we should pull out the set_retrieval_results_derived stuff into this class, but
+        # for now just punt on that.
+        pass
+
+    @property
+    def radiance(self) -> np.ndarray:
+        # Not sure how important this is, but old muses-py code had this
+        # as float32. Match this for now, we might remove this at some point,
+        # but this does has small changes to the output
+        return self.ret_res.radiance["radiance"][np.newaxis,:].astype(np.float32)
+
+    @property
+    def radianceObserved(self) -> np.ndarray:
+        # Not sure how important this is, but old muses-py code had this
+        # as float32. Match this for now, we might remove this at some point,
+        # but this does has small changes to the output
+        return self.rstep.radiance.astype(np.float32)
+
+    @property
+    def NESR(self) -> np.ndarray:
+        # Not sure how important this is, but old muses-py code had this
+        # as float32. Match this for now, we might remove this at some point,
+        # but this does has small changes to the output
+        return self.rstep.NESR.astype(np.float32)
+
+    @property
+    def jacobian(self) -> np.ndarray:
+        return self.ret_res.jacobian["jacobian_data"][np.newaxis,:,:]
+    
+    @property
+    def resultsList(self) -> np.ndarray:
+        return self.current_state.initial_guess if self.best_iteration == 0 else self.ret_res.xretIterations[self.best_iteration, :]
+
+    @property
+    def resultsListFM(self) -> np.ndarray:
+        return self.ret_res.xretFM
+
+    @property
+    def is_ocean(self) -> bool:
+        return self.current_state.sounding_metadata.is_ocean
+
+    @property
+    def retIteration(self) -> int:
+        return self.ret_res.xretIterations
+    
+    @property
+    def bestIteration(self) -> int:
+        return self.ret_res.bestIteration
+    
+    @property
     def num_iterations(self) -> int:
         return self.ret_res.num_iterations
-    
+
+    @property
+    def stopCode(self) -> int:
+        return self.ret_res.stopCode
+
+    @property
+    def Desert_Emiss_QA(self) -> float:
+        wlen = self.current_state.full_state_spectral_domain_wavelength(
+            StateElementIdentifier("emissivity")
+        )
+        if wlen is None:
+            raise RuntimeError("Expected to find emissivity frequencies")
+        ind = np.argmin(np.abs(wlen - 1025))
+        return self.state_value_vec("emissivity")[ind]
+        
     @property
     def species_list_fm(self) -> list[str]:
         """This is the length of the forward model state vector, with a
@@ -328,12 +399,8 @@ class RetrievalResult:
         if rowsSys == 0:
             rowsSys = 1
 
-        o_results: dict[str, Any] | mpy.ObjectView = {
-            "is_ocean": self.current_state.sounding_metadata.is_ocean,
+        o_results: dict[str, Any] = {
             "badRetrieval": -999,
-            "retIteration": self.ret_res.xretIterations,
-            "bestIteration": self.ret_res.bestIteration,
-            "stopCode": self.ret_res.stopCode,
             "filter_index": filter_index,
             "radianceResidualMean": np.zeros(shape=(num_filters), dtype=np.float32),
             "radianceResidualMeanInitial": np.zeros(
@@ -364,26 +431,13 @@ class RetrievalResult:
             "radianceResidualMax": 0.0,
             "chiLM": np.copy(self.ret_res.residualRMS[self.ret_res.bestIteration]),
             "num_radiance ": 0,
-            "resultsList": np.zeros(shape=(rows), dtype=np.float64),
-            "resultsListFM": np.zeros(shape=(rowsFM), dtype=np.float64),
             "error": np.zeros(shape=(rows), dtype=np.float64),
             "errorFM": np.zeros(shape=(rowsFM), dtype=np.float64),
             "precision": np.zeros(shape=(rowsFM), dtype=np.float64),
             "resolution": np.zeros(shape=(rowsFM), dtype=np.float64),
             # jacobians - for last outputStep
             "GdL": np.zeros(shape=(nfreqs, rowsFM), dtype=np.float64),
-            "jacobian": np.zeros(
-                shape=(num_detectors, rowsFM, nfreqs), dtype=np.float64
-            ),
             "jacobianSys": None,
-            #  radiances - for all steps + IG, true
-            "frequency": np.zeros(shape=(num_detectors, nfreqs), dtype=np.float64),
-            "radianceObserved": np.zeros(
-                shape=(num_detectors, nfreqs), dtype=np.float32
-            ),  # fit
-            "radiance": np.zeros(
-                shape=(num_detectors, nfreqs), dtype=np.float32
-            ),  # fit
             # error stuff follows - calc later
             "A": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float32),
             "A_ret": np.zeros(shape=(rows, rows), dtype=np.float32),
@@ -450,7 +504,6 @@ class RetrievalResult:
             "emisDev": 0.0,
             "cloudODVar": 0.0,
             "calscaleMean": 0.0,
-            "Desert_Emiss_QA": 0.0,
             "H2O_H2OQuality": 0.0,
             "emissionLayer": 0.0,
             "ozoneCcurve": 0.0,
@@ -498,45 +551,8 @@ class RetrievalResult:
             "O3_columnErrorDU": 0.0,  # total colummn error
             "O3_tropo_consistency": 0.0,  # tropospheric column change from initial
             "ch4_evs": np.zeros(shape=(10), dtype=np.float32),  # FLTARR(10)
-            "NESR": np.zeros(
-                shape=(num_detectors, nfreqs), dtype=np.float32
-            ),  # FLTARR(num_detectors, nfreqs) $ ; nesr
         }
         o_results.update(struct2)
-
-        # Convert to ObjectView from now on.
-        o_results = mpy.ObjectView(o_results)
-
-        # get retrieval vector result (for all species) for best iteration
-        ii = o_results.bestIteration
-        if ii == 0:
-            result = self.current_state.initial_guess[0:rows]
-        else:
-            result = self.ret_res.xretIterations[o_results.bestIteration, :]
-
-        o_results.resultsList[:] = result[:]
-        o_results.resultsListFM[:] = self.ret_res.xretFM
-
-        # AT_LINE 328 Set_Retrieval_Results.pro Set_Retrieval_Results
-        o_results.frequency = self.rstep.frequency
-
-        o_results.jacobian[:] = self.ret_res.jacobian[
-            "jacobian_data"
-        ]  # Note that we have chosen 'jacobian_data' as the key in jacobian dict.
-        o_results.radiance[:] = self.ret_res.radiance["radiance"]
-        o_results.radianceObserved[:] = self.rstep.radiance
-
-        o_results.NESR = self.rstep.NESR
-
-        wlen = self.current_state.full_state_spectral_domain_wavelength(
-            StateElementIdentifier("emissivity")
-        )
-        if wlen is None:
-            raise RuntimeError("Expected to find emissivity frequencies")
-        ind = np.argmin(np.abs(wlen - 1025))
-        o_results.Desert_Emiss_QA = self.current_state.full_state_value(
-            StateElementIdentifier("emissivity")
-        )[ind]
 
         return o_results
 
