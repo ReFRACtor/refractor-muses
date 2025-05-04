@@ -1,7 +1,7 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
-from .identifier import StateElementIdentifier
+from .identifier import StateElementIdentifier, FilterIdentifier
 import math
 import numpy as np
 from typing import Any
@@ -18,27 +18,22 @@ class RetrievalResult:
     retrieval_results. Pull all this together into an object so we can clearly
     see the interface and possibly change things.
 
-    Unlike a number of things that we want to elevate to a class, this
-    really does look like just a structure of various calculated
-    things that then get reported in the output files - so I think
-    this is probably little more than wrapping up stuff in one place.
-
     The coupling of this isn't great, we may want to break this up. The current
     set of steps needed to fully generate this can be found in
     RetrievalStrategyStepRetrieve
 
     1. Use results of the run_retrieval to create RetrievalResult using the
        constructor (__init__).
-    2. Pass this object along with other object to update the StateInfo
-       (StateInfo.update_state)
-    3. Generate the systematic Jacobian using this updated StateInfo, and
+    2. Generate the systematic Jacobian using this updated StateInfo, and
        store results in RetrievalResult
-    4. Run the error analysis (ErrorAnalysis.update_retrieval_result) and
+    3. Run the error analysis (ErrorAnalysis.update_retrieval_result) and
        store the results in RetrievalResult
-    5. Run the QA analysis (QaDataHandleSet.qa_update_retrieval_result) and
+    4. Run the QA analysis (QaDataHandleSet.qa_update_retrieval_result) and
        store the results in RetrievalResult
 
-    TODO Not sure how to unpack this, but we'll work on it.
+    We may also want to break this up into smaller pieces (e.g., put all the column stuff
+    together). But this really is just "a bunch of stuff we generate from a retrieval step
+    solution", so the design may be fine.
     """
 
     def __init__(
@@ -61,15 +56,11 @@ class RetrievalResult:
         self.sounding_metadata = current_state.sounding_metadata
         self.ret_res = mpy.ObjectView(ret_res)
         self.jacobianSys = jacobian_sys
+        self.propagated_qa = propagated_qa
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
         self.__dict__.update(d)
-        self.set_retrieval_results_derived(
-            self.rstep,
-            propagated_qa.tatm_qa,
-            propagated_qa.o3_qa,
-            propagated_qa.h2o_qa,
-        )
+        self.set_retrieval_results_derived()
 
     def update_jacobian_sys(self, cfunc_sys: CostFunction) -> None:
         """Run the forward model in cfunc to get the jacobian_sys set."""
@@ -155,15 +146,6 @@ class RetrievalResult:
     @property
     def frequency(self) -> np.ndarray:
         return self.rstep.frequency
-
-    @frequency.setter
-    def frequency(self, v : np.ndarray) -> None:
-        # Kind of a kludge, but set_retrieval_results_derived wants to set this
-        # value, even though we already have it. Just ignore this, so we
-        # don't need to mess with set_retrieval_results_derived. Long term,
-        # we should pull out the set_retrieval_results_derived stuff into this class, but
-        # for now just punt on that.
-        pass
 
     @property
     def radiance(self) -> np.ndarray:
@@ -277,6 +259,57 @@ class RetrievalResult:
     def jacobian_sys(self) -> np.ndarray | None:
         return self.jacobianSys
 
+    @property
+    def filter_index(self) -> list[int]:
+        res = [0]
+        res.extend(i.filter_index for i in self.rstep.filterNames)
+        # Reorder, if needed
+        sorder = FilterIdentifier.spectral_order([FilterIdentifier("ALL"), *self.rstep.filterNames])
+        return [res[i] for i in sorder]
+    
+    @property
+    def filter_list(self) -> list[str]:
+        res = ['ALL']
+        res.extend(i.spectral_name for i in self.rstep.filterNames)
+        # Reorder, if needed
+        sorder = FilterIdentifier.spectral_order([FilterIdentifier("ALL"), *self.rstep.filterNames])
+        return [res[i] for i in sorder]
+    
+    @property
+    def filterStart(self) -> list[int]:
+        res = [0]
+        istart = 0
+        for fs in self.rstep.filterSizes:
+            res.append(istart)
+            istart += fs
+        # Reorder, if needed
+        sorder = FilterIdentifier.spectral_order([FilterIdentifier("ALL"), *self.rstep.filterNames])
+        return [res[i] for i in sorder]
+
+    @property
+    def filterEnd(self) -> list[int]:
+        res = [0]
+        iend = -1
+        for fs in self.rstep.filterSizes:
+            iend += fs
+            res.append(iend)
+        res[0] = iend
+        # Reorder, if needed
+        sorder = FilterIdentifier.spectral_order([FilterIdentifier("ALL"), *self.rstep.filterNames])
+        return [res[i] for i in sorder]
+
+    @property
+    def propagatedTATMQA(self) -> int:
+        return self.propagated_qa.tatm_qa
+    
+    @property
+    def propagatedO3QA(self) -> int:
+        return self.propagated_qa.o3_qa
+    
+    @property
+    def propagatedH2OQA(self) -> int:
+        return self.propagated_qa.h2o_qa
+        
     def set_retrieval_results(self) -> dict:
         """This is our own copy of mpy.set_retrieval_results, so we
         can start making changes to clean up the coupling of this.
@@ -290,109 +323,8 @@ class RetrievalResult:
         detectorsUsed = 0
         num_detectors = 1
 
-        # get filters start and end
-        # have standard list of filters
-        # We need a better way of instantiating this
-        ff0 = []
-        for i in range(len(self.rstep.filterNames)):
-            ff0.append(
-                [
-                    str(self.rstep.filterNames[i]),
-                ]
-                * self.rstep.filterSizes[i]
-            )
-        ff1 = np.concatenate(ff0)
-        # TODO Replace this logic
-        filtersName = [
-            "ALL",
-            "UV1",
-            "UV2",
-            "VIS",
-            "CrIS-fsr-lw",
-            "CrIS-fsr-mw",
-            "CrIS-fsr-sw",
-            "2B1",
-            "1B2",
-            "2A1",
-            "1A1",
-            "BAND1",
-            "BAND2",
-            "BAND3",
-            "BAND4",
-            "BAND5",
-            "BAND6",
-            "BAND7",
-            "BAND8",
-            "O2A",
-            "WCO2",
-            "SCO2",
-            "CH4",
-        ]
-        filtersMap = [
-            "ALL",
-            "UV1",
-            "UV2",
-            "VIS",
-            "TIR1",
-            "TIR3",
-            "TIR4",
-            "TIR1",
-            "TIR2",
-            "TIR3",
-            "TIR4",
-            "UV1",
-            "UV2",
-            "UVIS",
-            "VIS",
-            "NIR1",
-            "NIR2",
-            "SWIR3",
-            "SWIR4",
-            "NIR1",
-            "SWIR1",
-            "SWIR2",
-            "SWIR3",
-        ]
-        filters = [
-            "ALL",
-            "UV1",
-            "UV2",
-            "VIS",
-            "UVIS",
-            "NIR1",
-            "NIR2",
-            "SWIR1",
-            "SWIR2",
-            "SWIR3",
-            "SWIR4",
-            "TIR1",
-            "TIR2",
-            "TIR3",
-            "TIR4",
-        ]
-        num_filters = len(filters)
-        filterStart = [0]
-        filterEnd = [len(ff1) - 1]
-        filter_index = [0]
-        filter_list = ["ALL"]
-
-        for jj in range(
-            1, len(filtersName)
-        ):  # Start jj with 1 since we are leaving the first value alone.
-            ind1 = np.where(ff1 == filtersName[jj])[0]
-            ind2 = np.where(np.array(filters) == filtersMap[jj])[0][0]
-            if len(ind1) > 0:
-                filter_index.append(ind2)
-                filter_list.append(filters[ind2])
-                filterStart.append(int(np.amin(ind1)))
-                filterEnd.append(int(np.amax(ind1)))
-
-        num_filters = len(filter_index)
-        if num_filters == 1:
-            raise RuntimeError(
-                "Update set_retrieval_results.  Filter not found in list: ", ff1
-            )
-
+        num_filters = len(self.filter_index)
+        
         # get the total number of frequency points in all microwindows for the
         # gain matrix
         rows = len(self.current_state.retrieval_state_vector_element_list)
@@ -403,7 +335,6 @@ class RetrievalResult:
 
         o_results: dict[str, Any] = {
             "badRetrieval": -999,
-            "filter_index": filter_index,
             "radianceResidualMean": np.zeros(shape=(num_filters), dtype=np.float32),
             "radianceResidualMeanInitial": np.zeros(
                 shape=(num_filters), dtype=np.float32
@@ -492,9 +423,6 @@ class RetrievalResult:
             "KDotDL_byspecies": np.zeros(shape=(num_species), dtype=np.float32),
             "KDotDL_species": ["" for x in range(num_species)],
             "KDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float32),
-            "filter_list": filter_list,  #  Note, we changed 'filter' to 'filter_list' since 'filter' is a Python keyword.
-            "filterStart": filterStart,
-            "filterEnd": filterEnd,
             "maxKDotDLSys": 0.0,
         }
 
@@ -557,34 +485,17 @@ class RetrievalResult:
         o_results.update(struct2)
         return o_results
 
-    def set_retrieval_results_derived( 
-            self,
-            i_radianceStep, 
-            i_propagatedTATMQA, 
-            i_propagatedO3QA, 
-            i_propagatedH2OQA, 
-            detectorsUsed=0):
-
-        radianceStep = i_radianceStep
-        if isinstance(radianceStep, dict):
-            radianceStep = mpy.ObjectView(radianceStep)
-    
-        # AT_LINE 13 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-        self.propagatedTATMQA = i_propagatedTATMQA
-        self.propagatedO3QA = i_propagatedO3QA
-        self.propagatedH2OQA = i_propagatedH2OQA
-    
+    def set_retrieval_results_derived(self) -> None:
         # calc radianceResidualMean and radianceResidualRMS
-        rObs = radianceStep.radiance
+        rObs = self.rstep.radiance
         rIter = self.radiance
         rInitial = self.radianceInitial
     
-        NESR = radianceStep.NESR
-        freq = radianceStep.frequency
-        self.frequency[:] = freq[:]
+        NESR = self.rstep.NESR
+        freq = self.rstep.frequency
     
         # AT_LINE 26 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-        ind = np.where(radianceStep.frequency > 0.0)[0]
+        ind = np.where(self.rstep.frequency > 0.0)[0]
     
         # PYTHON_NOTE: It is possible that the size of freq is greater than NESR and rObs
         #
@@ -608,12 +519,12 @@ class RetrievalResult:
         # take out spikes
         # AT_LINE 30 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results
         # We have to use slow method.
-        ind = []
+        indv = []
         for ii in range(len(NESR)):
             if NESR[ii] >= 0.0 and NESR[ii] <= abs(np.mean(NESR)*100.0):
-                ind.append(ii)
+                indv.append(ii)
     
-        ind = np.asarray(ind)
+        ind = np.asarray(indv)
     
         # AT_LINE 32 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
         if len(ind) > 0:
@@ -627,48 +538,6 @@ class RetrievalResult:
         else:
             raise RuntimeError("No good radiances, all NESRs < 0")
     
-        # AT_LINE 51 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-    
-        # note:  if we have:
-        #    chi_orig = moment(scaledDifference)[1] and 
-        #    chi = moment(scaledDifferenceZeroMean)[1] and 
-        #    resMean = moment(scaledDifference)[0], 
-        # then:
-        # chi_orig = sqrt(chi^2 + resMean^2)
-    
-        # # AT_LINE 71 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-        # scaledDifferenceZeroMean = scaledDifference - y
-        # y = np.var(scaledDifferenceZeroMean)
-        # self.radianceResidualRMSInitial = math.sqrt(y)
-    
-        # # calculate mean
-        # # AT_LINE 77 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-        # scaledDifference = (rObs - rIter) / NESR
-        # y = np.mean(scaledDifference)
-        # self.radianceResidualMean[0] = y
-    
-        # note:  if we have:
-        #    chi_orig = moment(scaledDifference)[1] and 
-        #    chi = moment(scaledDifferenceZeroMean)[1] and 
-        #    resMean = moment(scaledDifference)[0], 
-        # then:
-        # chi_orig = sqrt(chi^2 + resMean^2)
-    
-        # AT_LINE 87 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-        #scaledDifferenceZeroMean = scaledDifference - y
-        #y = np.var(scaledDifferenceZeroMean)
-        #self.radianceResidualRMS[0] = math.sqrt(y)
-    
-        # AT_LINE 91 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-        for ii in range(detectorsUsed):
-            scaledDifference = (rObs - rIter) / NESR
-            y = np.mean(scaledDifference[ii, :])
-            self.radianceResidualMeanDet[ii] = y
-            y = np.var(scaledDifference[ii, :])
-            self.radianceResidualRMSDet[ii] = math.sqrt(y)
-    
-        # AT_LINE 103 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-        # ordered by frequency
         self.radianceResidualRMS[1:] = -999.0
         self.radianceResidualMean[1:] = -999.0
         self.residualSlope[:] = -999 
@@ -680,22 +549,22 @@ class RetrievalResult:
             for jj in range(0, len(self.filter_list)):
                 if jj == 0:
                     start = 0
-                    endd = len(radianceStep.NESR)
+                    endd = len(self.rstep.NESR)
                 else:
                     start = self.filterStart[jj]
                     endd = self.filterEnd[jj]
     
                 if start >= 0 and endd >= 0:
-                    ind = np.where(radianceStep.NESR[start:endd+1] > 0)[0]  # Note that we use 'endd+1' because in Python, the slice does not include the end point.
+                    ind = np.where(self.rstep.NESR[start:endd+1] > 0)[0]  # Note that we use 'endd+1' because in Python, the slice does not include the end point.
                     
                     if len(ind) > 5:
-                        scaledDifference = (radianceStep.radiance[start+ind]- self.radiance[0, start+ind]) / radianceStep.NESR[start+ind]
+                        scaledDifference = (self.rstep.radiance[start+ind]- self.radiance[0, start+ind]) / self.rstep.NESR[start+ind]
                         uu_mean = np.mean(scaledDifference)
                         uu_var = np.var(scaledDifference)
                         self.radianceResidualRMS[jj] = math.sqrt(uu_var) # actual stdev NOT RMS
                         self.radianceResidualMean[jj] = uu_mean
     
-                        scaledDifferenceInitial = (radianceStep.radiance[start+ind]- self.radianceInitial[0, start+ind]) / radianceStep.NESR[start+ind]
+                        scaledDifferenceInitial = (self.rstep.radiance[start+ind]- self.radianceInitial[0, start+ind]) / self.rstep.NESR[start+ind]
                         uu_mean = np.mean(scaledDifferenceInitial)
                         uu_var = np.var(scaledDifferenceInitial)
                         self.radianceResidualRMSInitial[jj] = math.sqrt(uu_var) # actual stdev NOT RMS
@@ -708,13 +577,13 @@ class RetrievalResult:
                             vals = np.mean(vals[int(len(vals)*49/50):len(vals)])
                         else:
                             vals = np.max(vals)
-                        difference = (radianceStep.radiance[start+ind]- self.radiance[0, start+ind])
+                        difference = (self.rstep.radiance[start+ind]- self.radiance[0, start+ind])
                         uu_var = np.var(difference)
                         uu_mean = np.mean(difference)
                         self.radianceResidualRMSRelativeContinuum[jj] = math.sqrt(uu_var + uu_mean * uu_mean) / vals
     
                         self.radianceContinuum[jj] = vals
-                        self.radianceSNR[jj] = np.mean(self.radiance[0, start+ind] / radianceStep.NESR[start+ind])
+                        self.radianceSNR[jj] = np.mean(self.radiance[0, start+ind] / self.rstep.NESR[start+ind])
     
                         # get first and second derivative of normalized residual versus radiance / continuum
                         # this looks for patterns such as issues at the line core
@@ -740,15 +609,15 @@ class RetrievalResult:
                             # alternative method
                             indstart, indend = mpy.frequency_get_bands(self.frequency)
                             radiance = self.radiance[0, :]
-                            radiance_obs = radianceStep.radiance
-                            nesr = radianceStep.NESR
+                            radiance_obs = self.rstep.radiance
+                            nesr = self.rstep.NESR
     
                             inds = np.argsort(radiance[indstart[jj-1]:indend[jj-1]+1])
                             # get top 5% of values in each band
                             # sort by radiance size
                             if len(inds) > 20:
-                                indx = int(len(inds)*0.98)
-                                continuum = np.mean(radiance[indstart[jj-1]+inds[indx]])
+                                indxv = int(len(inds)*0.98)
+                                continuum = np.mean(radiance[indstart[jj-1]+inds[indxv]])
                             else:
                                 continuum = radiance[indstart[jj-1]+inds[len(inds)-1]]
     
