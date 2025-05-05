@@ -60,7 +60,48 @@ class RetrievalResult:
         # Get old retrieval results structure, and merge in with this object
         d = self.set_retrieval_results()
         self.__dict__.update(d)
-        self.set_retrieval_results_derived()
+        # Filled in with ErrorAnalysis.write_retrieval_summary. We may move some of
+        # this calculation to this class, but for now it gets done there.
+        rowsSys = len(self.current_state.systematic_model_state_vector_element_list)
+        rowsFM = len(self.current_state.forward_model_state_vector_element_list)
+        num_species = len(self.current_state.retrieval_state_element_id)
+        # This really is exactly 5. See the column calculation. This is
+        # ["Column", "Trop", "UpperTrop", "LowerTrop", ""Strato
+        num_col = 5 
+        # TODO Would be good to calculate this somewhat
+        max_num_species = 20
+        if rowsSys == 0:
+            rowsSys = 1
+        self.cloudODAve = 0.0
+        self.cloudODVar = 0.0
+        self.cloudODAveError = 0.0
+        self.emisDev = 0.0
+        self.emissionLayer = 0.0
+        self.H2O_H2OQuality = 0.0
+        self.O3_columnErrorDU = 0.0
+        self.O3_tropo_consistency = 0.0
+        self.ozoneCcurve = 0.0
+        self.ozone_slope_QA = -999.0
+        self.errorFM = np.zeros(shape=(rowsFM), dtype=np.float64)
+        self.columnDOFS = np.zeros(shape=(num_col, max_num_species), dtype=np.float32)
+        self.A =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float32)
+        self.Sa =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
+        self.Sb =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
+        self.Sx =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
+        self.columnPriorError = np.full((num_col, max_num_species), -999, dtype=np.float64)
+        self.columnInitial = np.full((num_col, max_num_species), -999, dtype=np.float64)
+        self.columnInitialInitial = np.full((num_col, max_num_species), -999, dtype=np.float64)
+        self.columnError= np.full((num_col, max_num_species), -999, dtype=np.float64)
+        self.columnPrior= np.full((num_col, max_num_species), -999, dtype=np.float64)
+        self.column = np.full((num_col, max_num_species), -999, dtype=np.float64)
+        self.columnAir = np.full((num_col), -999, dtype=np.float64)
+        self.columnTrue = np.full((num_col, max_num_species), -999, dtype=np.float64)
+        self.columnPressureMax = np.zeros(shape=(num_col), dtype=np.float32)
+        self.columnPressureMin = np.zeros(shape=(num_col), dtype=np.float32)
+        self.columnSpecies = ["",] * max_num_species
+        self.DeviationBad_QA = np.full((num_species), -999, dtype=np.int32)
+        self.num_deviations_QA = np.full((num_species), -999, dtype=np.int32)
+        self.deviation_QA = np.full((num_species), -999, dtype=np.float32)
 
     def update_jacobian_sys(self, cfunc_sys: CostFunction) -> None:
         """Run the forward model in cfunc to get the jacobian_sys set."""
@@ -419,6 +460,71 @@ class RetrievalResult:
                 res.append(0)
         return np.array(res).astype(np.float32)
     
+
+    @property
+    def residualNormInitial(self) -> float:
+        t1 = self.radianceResidualMeanInitial[0]
+        t2 = self.radianceResidualRMSInitial[0]
+        return math.sqrt(t1*t1+t2*t2)
+
+    @property
+    def residualNormFinal(self) -> float:
+        t1 = self.radianceResidualMean[0]
+        t2 = self.radianceResidualRMS[0]
+        return math.sqrt(t1*t1+t2*t2)
+
+    @property
+    def residualSlope(self) -> np.ndarray:
+        res = []
+        for s,e in zip(self.filterStart, self.filterEnd):
+            slc = slice(s,e+1)
+            gpt = self.rstep.NESR[slc] > 0
+            if(np.count_nonzero(gpt) > 5):
+                valsv = np.sort(self.radiance[0,slc][gpt])
+                if(len(valsv) > 50):
+                    # TODO I don't think this actually does what is intended.
+                    # Should this be np.mean(vals[-50:]?
+                    vals = np.mean(valsv[int(len(valsv)*49/50):len(valsv)])
+                else:
+                    vals = np.max(valsv)
+                myx = self.radiance[0, slc][gpt] / vals
+                myy = (self.rstep.radiance[slc][gpt] - self.radiance[0, slc][gpt]) / self.rstep.NESR[slc][gpt]
+                # cut off the very few points "above" the continuum
+                indx = (np.where((myx > 0.0)*(myx < 1.00)))[0]
+                myx = myx[indx]
+                myy = myy[indx]
+                linear_fit = np.polyfit(myx, myy, 1)                
+                res.append(linear_fit[0])
+            else:
+                res.append(-999.0)
+        return np.array(res).astype(np.float32)
+
+    @property
+    def residualQuadratic(self) -> np.ndarray:
+        res = []
+        for s,e in zip(self.filterStart, self.filterEnd):
+            slc = slice(s,e+1)
+            gpt = self.rstep.NESR[slc] > 0
+            if(np.count_nonzero(gpt) > 5):
+                valsv = np.sort(self.radiance[0,slc][gpt])
+                if(len(valsv) > 50):
+                    # TODO I don't think this actually does what is intended.
+                    # Should this be np.mean(vals[-50:]?
+                    vals = np.mean(valsv[int(len(valsv)*49/50):len(valsv)])
+                else:
+                    vals = np.max(valsv)
+                myx = self.radiance[0, slc][gpt] / vals
+                myy = (self.rstep.radiance[slc][gpt] - self.radiance[0, slc][gpt]) / self.rstep.NESR[slc][gpt]
+                # cut off the very few points "above" the continuum
+                indx = (np.where((myx > 0.0)*(myx < 1.00)))[0]
+                myx = myx[indx]
+                myy = myy[indx]
+                quadratic_fit = np.polyfit(myx, myy, 2) 
+                res.append(quadratic_fit[0])
+            else:
+                res.append(-999.0)
+        return np.array(res).astype(np.float32)
+    
     def set_retrieval_results(self) -> dict:
         """This is our own copy of mpy.set_retrieval_results, so we
         can start making changes to clean up the coupling of this.
@@ -428,9 +534,6 @@ class RetrievalResult:
         # way of referring to our input.
         num_species = len(self.current_state.retrieval_state_element_id)
         nfreqs = len(self.rstep.frequency)
-
-        num_detectors = 1
-
         num_filters = len(self.filter_index)
         
         # get the total number of frequency points in all microwindows for the
@@ -442,39 +545,22 @@ class RetrievalResult:
             rowsSys = 1
 
         o_results: dict[str, Any] = {
-            "residualSlope": np.zeros(shape=(num_filters), dtype=np.float32),
-            "residualQuadratic": np.zeros(shape=(num_filters), dtype=np.float32),
-            "residualNormInitial": 0.0,
-            "residualNormFinal": 0.0,
-            "radianceResidualMeanDet": np.zeros(
-                shape=(num_detectors), dtype=np.float64
-            ),
-            "radianceResidualRMSDet": np.zeros(shape=(num_detectors), dtype=np.float64),
             "radianceResidualRMSSys": 0.0,
-            "chiApriori": 0.0,
-            "radianceResidualMax": 0.0,
-            "chiLM": np.copy(self.ret_res.residualRMS[self.ret_res.bestIteration]),
-            "num_radiance ": 0,
             "error": np.zeros(shape=(rows), dtype=np.float64),
-            "errorFM": np.zeros(shape=(rowsFM), dtype=np.float64),
             "precision": np.zeros(shape=(rowsFM), dtype=np.float64),
             "resolution": np.zeros(shape=(rowsFM), dtype=np.float64),
             # jacobians - for last outputStep
             "GdL": np.zeros(shape=(nfreqs, rowsFM), dtype=np.float64),
             "jacobianSys": None,
             # error stuff follows - calc later
-            "A": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float32),
             "A_ret": np.zeros(shape=(rows, rows), dtype=np.float32),
             "KtSyK": np.zeros(shape=(rows, rows), dtype=np.float32),
-            "Sx": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
             "Sa_ret": np.zeros(shape=(rows, rows), dtype=np.float64),
             "Sx_ret_smooth": np.zeros(shape=(rows, rows), dtype=np.float64),
             "Sx_ret_crossState": np.zeros(shape=(rows, rows), dtype=np.float64),
             "Sx_ret_rand": np.zeros(shape=(rows, rows), dtype=np.float64),
             "Sx_ret_sys": np.zeros(shape=(rows, rows), dtype=np.float64),
             "Sx_ret_mapping": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "Sa": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "Sb": np.zeros(shape=(rowsSys, rowsSys), dtype=np.float64),
             "Sx_smooth_self": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
             "Sx_smooth": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
             "Sx_crossState": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
@@ -520,157 +606,15 @@ class RetrievalResult:
         struct2 = {
             "LDotDL": 0.0,
             "LDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float32),
-            "cloudODAve": 0.0,
-            "cloudODAveError": 0.0,
-            "emisDev": 0.0,
-            "cloudODVar": 0.0,
             "calscaleMean": 0.0,
-            "H2O_H2OQuality": 0.0,
-            "emissionLayer": 0.0,
-            "ozoneCcurve": 0.0,
-            "ozone_slope_QA": -999.0,
             "masterQuality": -999,
-            "columnAir": np.full((5), -999, dtype=np.float64),
-            "column": np.full((5, 20), -999, dtype=np.float64),  # DBLARR(4, 20)-999.0
-            "columnError": np.full(
-                (5, 20), -999, dtype=np.float64
-            ),  # DBLARR(4, 20)-999.0
-            "columnPriorError": np.full(
-                (5, 20), -999, dtype=np.float64
-            ),  #  DBLARR(4, 20)-999.0
-            "columnInitialInitial": np.full(
-                (5, 20), -999, dtype=np.float64
-            ),  # DBLARR(4, 20)-999.0
-            "columnInitial": np.full(
-                (5, 20), -999, dtype=np.float64
-            ),  # DBLARR(4, 20)-999.0
-            "columnPrior": np.full(
-                (5, 20), -999, dtype=np.float64
-            ),  # DBLARR(4, 20)-999.0
-            "columnTrue": np.full(
-                (5, 20), -999, dtype=np.float64
-            ),  # DBLARR(4, 20)-999.0
-            "columnSpecies": ["" for x in range(20)],  # STRARR(20)
             # EM NOTE - Modified to increase vector size to allow for stratosphere capture
-            "columnPressureMax": np.zeros(shape=(5), dtype=np.float32),  # FLTARR(4)
-            "columnPressureMin": np.zeros(shape=(5), dtype=np.float32),  # FLTARR(4)
-            "columnDOFS": np.zeros(shape=(5, 20), dtype=np.float32),  # FLTARR(4, 20)
             "tsur_minus_tatm0": -999.0,
             "tsur_minus_prior": -999.0,
-            "deviation_QA": np.full(
-                (num_species), -999, dtype=np.float32
-            ),  # FLTARR(num_species)-999
-            "num_deviations_QA": np.full(
-                (num_species), -999, dtype=np.int32
-            ),  # INTARR(num_species)-999
-            "DeviationBad_QA": np.full(
-                (num_species), -999, dtype=np.int32
-            ),  # INTARR(num_species)-999
-            "O3_columnErrorDU": 0.0,  # total colummn error
-            "O3_tropo_consistency": 0.0,  # tropospheric column change from initial
             "ch4_evs": np.zeros(shape=(10), dtype=np.float32),  # FLTARR(10)
         }
         o_results.update(struct2)
         return o_results
-
-    def set_retrieval_results_derived(self) -> None:
-        self.residualSlope[:] = -999 
-        self.residualQuadratic[:] = -999 
-    
-        if len(self.filter_list) > 1:
-            # Start at 1 for the loop.
-            for jj in range(0, len(self.filter_list)):
-                if jj == 0:
-                    start = 0
-                    endd = len(self.rstep.NESR)
-                else:
-                    start = self.filterStart[jj]
-                    endd = self.filterEnd[jj]
-    
-                if start >= 0 and endd >= 0:
-                    ind = np.where(self.rstep.NESR[start:endd+1] > 0)[0]  # Note that we use 'endd+1' because in Python, the slice does not include the end point.
-                    
-                    if len(ind) > 5:
-                        # get stdev relative to maximum (top 2% of radiances in fit)
-                        vals = np.sort(self.radiance[0, start+ind])
-                        nx = len(vals)
-                        if nx > 50:
-                            # TODO I don't think this actually does what is intended.
-                            # Should this be np.mean(vals[-50:]?
-                            vals = np.mean(vals[int(len(vals)*49/50):len(vals)])
-                        else:
-                            vals = np.max(vals)
-                        difference = (self.rstep.radiance[start+ind]- self.radiance[0, start+ind])
-                        uu_var = np.var(difference)
-                        uu_mean = np.mean(difference)
-    
-                        # get first and second derivative of normalized residual versus radiance / continuum
-                        # this looks for patterns such as issues at the line core
-                        myx = self.radiance[0, start+ind].copy() / vals
-                        scaledDifference = (self.rstep.radiance[start+ind]- self.radiance[0, start+ind]) / self.rstep.NESR[start+ind]
-                        myy = scaledDifference.copy()
-                        indx = np.argsort(myx)
-                        myx = myx[indx]
-                        myy = myy[indx]
-    
-                        # cut off the very few points "above" the continuum
-                        indx = (np.where((myx > 0.0)*(myx < 1.00)))[0]
-                        myx = myx[indx]
-                        myy = myy[indx]
-    
-    
-                        # linear fit and quadratic fit.  Save linear value from linear fit, and quadratic value from quadratic fit.
-                        linear_fit = np.polyfit(myx, myy, 1) # return has highest order fit first
-                        quadratic_fit = np.polyfit(myx, myy, 2) # return has highest order fit first
-                        self.residualSlope[jj] = linear_fit[0]
-                        self.residualQuadratic[jj] = quadratic_fit[0]
-    
-                        if jj < -999:
-                            # alternative method
-                            indstart, indend = mpy.frequency_get_bands(self.frequency)
-                            radiance = self.radiance[0, :]
-                            radiance_obs = self.rstep.radiance
-                            nesr = self.rstep.NESR
-    
-                            inds = np.argsort(radiance[indstart[jj-1]:indend[jj-1]+1])
-                            # get top 5% of values in each band
-                            # sort by radiance size
-                            if len(inds) > 20:
-                                indxv = int(len(inds)*0.98)
-                                continuum = np.mean(radiance[indstart[jj-1]+inds[indxv]])
-                            else:
-                                continuum = radiance[indstart[jj-1]+inds[len(inds)-1]]
-    
-                            # band values
-                            # divide radiance by continuum to get a relative radiance (0-1.0+)
-                            myrad = radiance[indstart[jj-1]:indend[jj-1]+1].copy() / continuum
-                            myerror = (radiance_obs[indstart[jj-1]:indend[jj-1]+1]-radiance[indstart[jj-1]:indend[jj-1]+1])/nesr[indstart[jj-1]:indend[jj-1]+1]
-    
-                            # order by radiance size
-                            inds = np.argsort(myrad)
-                            myrad = myrad[inds]
-                            myerror = myerror[inds]
-    
-                            inds = (np.where((myrad > 0.0)*(myrad < 1.00)))[0]
-                            myrad = myrad[inds]
-                            myerror = myerror[inds]
-    
-                # end if start >= 0 and endd >= 0:
-            # end for jj in range(1, len(self.filter)):
-        # end if len(self.filter) > 1:
-    
-        # AT_LINE 124 Set_Retrieval_Results_Derived.pro Set_Retrieval_Results_Derived
-        # calc residualNormInitial and residualNormFinal
-        # NOT chi2, but chi
-        self.residualNormInitial = math.sqrt(
-            self.radianceResidualMeanInitial[0] * self.radianceResidualMeanInitial[0] + \
-            self.radianceResidualRMSInitial[0] * self.radianceResidualRMSInitial[0]
-        )
-        
-        self.residualNormFinal = math.sqrt(
-            self.radianceResidualMean[0] * self.radianceResidualMean[0] + \
-            self.radianceResidualRMS[0] * self.radianceResidualRMS[0]
-        )
 
 __all__ = [
     "RetrievalResult",

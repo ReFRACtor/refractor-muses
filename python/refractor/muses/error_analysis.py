@@ -827,8 +827,7 @@ class ErrorAnalysis:
             self,
             retrievalInfo : FakeRetrievalInfo,
             stateInfo : FakeStateInfo,
-            retrieval_result : Any, # Lots of attributes mypy can't see, so just have the
-                                    # type here Any
+            retrieval_result : RetrievalResult,
             errorCurrent : mpy.ObjectView) -> None:
         utilGeneral = mpy.UtilGeneral()
         utilList = mpy.UtilList()
@@ -1187,7 +1186,7 @@ class ErrorAnalysis:
                     if ij == 0:
                         my_type = 'Column'
     
-                        minPressure = 0
+                        minPressure = 0.0
                         minIndex = np.int64(len(stateInfo.current['pressure']) - 1)
     
                         maxPressure = np.amax(stateInfo.current['pressure'])
