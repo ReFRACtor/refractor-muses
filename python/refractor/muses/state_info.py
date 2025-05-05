@@ -129,6 +129,18 @@ class StateInfo(UserDict):
                 retrieval_config,
             )
 
+    def update_with_old(self):
+        '''Temporary, we have the StateInfoOld saved but not the new StateInfo in our
+        capture tests. We will get to doing StateInfo, but for now use the old data to
+        update the new data for the purpose of unit tests.'''
+        for k, v in self.items():
+            try:
+                v.update_state_element(current = self._current_state_old.full_state_value(k),
+                                       apriori = self._current_state_old.full_state_apriori_value(k))
+            except NotImplementedError:
+                # Not all the old elements exist, we just skip any one that doesn't
+                pass
+
     def __missing__(self, state_element_id: StateElementIdentifier) -> StateElement:
         self.data[state_element_id] = self.state_element_handle_set.state_element(
             state_element_id

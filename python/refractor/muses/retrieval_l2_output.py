@@ -489,21 +489,21 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.COLUMN_PRIOR = copy.deepcopy(
                 self.results.columnPrior[:, indcol]
             )
-        species_data.RADIANCERESIDUALRMS_FILTER = self.results.radianceResidualRMS[1:]
-        species_data.RADIANCERESIDUALMEAN_FILTER = self.results.radianceResidualMean[1:]
+        species_data.RADIANCERESIDUALRMS_FILTER = self.results.radianceResidualRMS[1:].astype(np.float32)
+        species_data.RADIANCERESIDUALMEAN_FILTER = self.results.radianceResidualMean[1:].astype(np.float32)
         species_data.radianceResidualRMSRelativeContinuum_FILTER = (
-            self.results.radianceResidualRMSRelativeContinuum[1:]
+            self.results.radianceResidualRMSRelativeContinuum[1:].astype(np.float32)
         )
-        species_data.RADIANCE_CONTINUUM_FILTER = self.results.radianceContinuum[1:]
-        species_data.RADIANCESNR_FILTER = self.results.radianceSNR[1:]
+        species_data.RADIANCE_CONTINUUM_FILTER = self.results.radianceContinuum[1:].astype(np.float32)
+        species_data.RADIANCESNR_FILTER = self.results.radianceSNR[1:].astype(np.float32)
         species_data.FILTER_INDEX = self.results.filter_index[1:]
-        species_data.RADIANCERESIDUALSLOPE_FILTER = self.results.residualSlope[1:]
+        species_data.RADIANCERESIDUALSLOPE_FILTER = self.results.residualSlope[1:].astype(np.float32)
         species_data.RADIANCERESIDUALQUADRATIC_FILTER = self.results.residualQuadratic[
             1:
-        ]
-        species_data.RADIANCERESIDUALRMS = self.results.radianceResidualRMS[0]
-        species_data.RADIANCERESIDUALMEAN = self.results.radianceResidualMean[0]
-        species_data.RADIANCE_RESIDUAL_STDEV_CHANGE = (
+        ].astype(np.float32)
+        species_data.RADIANCERESIDUALRMS = np.float32(self.results.radianceResidualRMS[0])
+        species_data.RADIANCERESIDUALMEAN = np.float32(self.results.radianceResidualMean[0])
+        species_data.RADIANCE_RESIDUAL_STDEV_CHANGE = np.float32(
             self.results.radianceResidualRMSInitial[0]
             - self.results.radianceResidualRMS[0]
         )

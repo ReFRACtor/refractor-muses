@@ -137,12 +137,9 @@ class RetrievalResult:
 
     @property
     def radiance_initial(self) -> np.ndarray:
-        # Not sure how important this is, but old muses-py code had this
-        # as float32. Match this for now, we might remove this at some point,
-        # but this does has small changes to the output
         if(self.num_iterations == 0):
-            return self.ret_res.radiance["radiance"][:, :].astype(np.float32)
-        return self.ret_res.radianceIterations[0, :, :].astype(np.float32)
+            return self.ret_res.radiance["radiance"][:, :]
+        return self.ret_res.radianceIterations[0, :, :]
 
     @property
     def radianceInitial(self) -> np.ndarray:
@@ -189,26 +186,17 @@ class RetrievalResult:
 
     @property
     def radiance(self) -> np.ndarray:
-        # Not sure how important this is, but old muses-py code had this
-        # as float32. Match this for now, we might remove this at some point,
-        # but this does has small changes to the output
         if(len(self.ret_res.radiance["radiance"].shape) == 1):
-            return self.ret_res.radiance["radiance"][np.newaxis,:].astype(np.float32)
-        return self.ret_res.radiance["radiance"].astype(np.float32)
+            return self.ret_res.radiance["radiance"][np.newaxis,:]
+        return self.ret_res.radiance["radiance"]
 
     @property
     def radianceObserved(self) -> np.ndarray:
-        # Not sure how important this is, but old muses-py code had this
-        # as float32. Match this for now, we might remove this at some point,
-        # but this does has small changes to the output
-        return self.rstep.radiance.astype(np.float32)
+        return self.rstep.radiance
 
     @property
     def NESR(self) -> np.ndarray:
-        # Not sure how important this is, but old muses-py code had this
-        # as float32. Match this for now, we might remove this at some point,
-        # but this does has small changes to the output
-        return self.rstep.NESR.astype(np.float32)
+        return self.rstep.NESR
 
     @property
     def jacobian(self) -> np.ndarray:
@@ -365,7 +353,7 @@ class RetrievalResult:
                 res.append(np.mean(scaled_diff))
             else:
                 res.append(0 if len(res) == 0 else -999.0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
 
     @property
     def radianceResidualRMS(self) -> np.ndarray:
@@ -378,7 +366,7 @@ class RetrievalResult:
                 res.append(math.sqrt(np.var(scaled_diff)))
             else:
                 res.append(0 if len(res) == 0 else -999.0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
 
     @property
     def radianceResidualMeanInitial(self) -> np.ndarray:
@@ -391,7 +379,7 @@ class RetrievalResult:
                 res.append(np.mean(scaled_diff))
             else:
                 res.append(0 if len(res) == 0 else -999.0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
 
     @property
     def radianceResidualRMSInitial(self) -> np.ndarray:
@@ -404,7 +392,7 @@ class RetrievalResult:
                 res.append(math.sqrt(np.var(scaled_diff)))
             else:
                 res.append(0 if len(res) == 0 else -999.0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
 
     @property
     def radianceResidualRMSRelativeContinuum(self) -> np.ndarray:
@@ -426,7 +414,7 @@ class RetrievalResult:
                 res.append(math.sqrt(uu_var + uu_mean * uu_mean) / vals)
             else:
                 res.append(0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
 
     @property
     def radianceContinuum(self) -> np.ndarray:
@@ -445,7 +433,7 @@ class RetrievalResult:
                 res.append(vals)
             else:
                 res.append(0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
 
     @property
     def radianceSNR(self) -> np.ndarray:
@@ -457,7 +445,7 @@ class RetrievalResult:
                 res.append(np.mean(self.radiance[0,slc][gpt] / self.rstep.NESR[slc][gpt]))
             else:
                 res.append(0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
     
 
     @property
@@ -496,7 +484,7 @@ class RetrievalResult:
                 res.append(linear_fit[0])
             else:
                 res.append(-999.0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
 
     @property
     def residualQuadratic(self) -> np.ndarray:
@@ -522,7 +510,7 @@ class RetrievalResult:
                 res.append(quadratic_fit[0])
             else:
                 res.append(-999.0)
-        return np.array(res).astype(np.float32)
+        return np.array(res)
 
     @property
     def cloud_factor(self) -> float:
