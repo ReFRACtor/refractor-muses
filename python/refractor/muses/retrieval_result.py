@@ -2,6 +2,7 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
 from .identifier import StateElementIdentifier, FilterIdentifier
+from .filter_result_summary import FilterResultSummary
 import math
 import numpy as np
 from typing import Any
@@ -31,9 +32,6 @@ class RetrievalResult:
     4. Run the QA analysis (QaDataHandleSet.qa_update_retrieval_result) and
        store the results in RetrievalResult
 
-    We may also want to break this up into smaller pieces (e.g., put all the column stuff
-    together). But this really is just "a bunch of stuff we generate from a retrieval step
-    solution", so the design may be fine.
     """
 
     def __init__(
@@ -49,6 +47,7 @@ class RetrievalResult:
         self.rstep = mpy.ObjectView(
             mpy_radiance_from_observation_list(obs_list, include_bad_sample=True)
         )
+        self._filter_result_summary = FilterResultSummary(self.rstep)
         self.radiance_full = radiance_full
         self.obs_list = obs_list
         self.instruments = [obs.instrument_name for obs in self.obs_list]
@@ -289,43 +288,20 @@ class RetrievalResult:
 
     @property
     def filter_index(self) -> list[int]:
-        res = [0]
-        res.extend(i.filter_index for i in self.rstep.filterNames)
-        # Reorder, if needed
-        sorder = FilterIdentifier.spectral_order([FilterIdentifier("ALL"), *self.rstep.filterNames])
-        return [res[i] for i in sorder]
+        return self._filter_result_summary.filter_index
     
     @property
     def filter_list(self) -> list[str]:
-        res = ['ALL']
-        res.extend(i.spectral_name for i in self.rstep.filterNames)
-        # Reorder, if needed
-        sorder = FilterIdentifier.spectral_order([FilterIdentifier("ALL"), *self.rstep.filterNames])
-        return [res[i] for i in sorder]
+        return self._filter_result_summary.filter_list
     
     @property
     def filterStart(self) -> list[int]:
-        res = [0]
-        istart = 0
-        for fs in self.rstep.filterSizes:
-            res.append(istart)
-            istart += fs
-        # Reorder, if needed
-        sorder = FilterIdentifier.spectral_order([FilterIdentifier("ALL"), *self.rstep.filterNames])
-        return [res[i] for i in sorder]
+        return self._filter_result_summary.filter_start
 
     @property
     def filterEnd(self) -> list[int]:
-        res = [0]
-        iend = -1
-        for fs in self.rstep.filterSizes:
-            iend += fs
-            res.append(iend)
-        res[0] = iend
-        # Reorder, if needed
-        sorder = FilterIdentifier.spectral_order([FilterIdentifier("ALL"), *self.rstep.filterNames])
-        return [res[i] for i in sorder]
-
+        return self._filter_result_summary.filter_end
+    
     @property
     def propagatedTATMQA(self) -> int:
         return self.propagated_qa.tatm_qa
@@ -340,7 +316,8 @@ class RetrievalResult:
 
     @property
     def radianceMaximumSNR(self) -> float:
-        return np.amax(self.rstep.radiance[self.rstep.frequency > 0.0] / self.rstep.NESR[self.rstep.frequency > 0.0])
+        gpt = self.rstep.frequency > 0.0
+        return np.amax(self.rstep.radiance[gpt] / self.rstep.NESR[gpt])
     
     @property
     def radianceResidualMean(self) -> np.ndarray:
