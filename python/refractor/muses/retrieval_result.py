@@ -72,7 +72,6 @@ class RetrievalResult:
         max_num_species = 20
         if rowsSys == 0:
             rowsSys = 1
-        self.cloudODAve = 0.0
         self.cloudODVar = 0.0
         self.cloudODAveError = 0.0
         self.emisDev = 0.0
@@ -524,6 +523,44 @@ class RetrievalResult:
             else:
                 res.append(-999.0)
         return np.array(res).astype(np.float32)
+
+    @property
+    def cloud_factor(self) -> float:
+        scale_pressure = self.state_value("scalePressure")
+        if(scale_pressure == 0):
+            scale_pressure = 0.1
+        res = mpy.compute_cloud_factor(
+            self.state_value_vec("pressure"),
+            self.state_value_vec("TATM"),
+            self.state_value_vec("H2O"),
+            self.state_value("PCLOUD"),
+            scale_pressure,
+            self.current_state.sounding_metadata.surface_altitude.value*1000,
+            self.current_state.sounding_metadata.latitude.value,
+        )
+        # TODO Rounding currently done. I', not sure this makes a lot of sense,
+        # this was to match the old IDL code. I don't know that we actually want
+        # to do that, but for now have this in place.
+        res = round(res, 7)
+        return res
+
+    @property
+    def cloudODAve(self) -> float:
+        freq = self.current_state.full_state_spectral_domain_wavelength(
+            StateElementIdentifier("cloudEffExt")
+        )
+        if(freq is None):
+            raise RuntimeError("This shouldn't happen")
+        ind = np.where(
+            (freq >= 974) & 
+            (freq <= 1201)
+        )[0]
+        ceffect = self.state_value_vec("cloudEffExt")
+        if len(ind) > 0:
+            res = np.sum(ceffect[0, ind]) / len(ceffect[0, ind]) * self.cloud_factor
+        else:
+            res = 0
+        return res
     
     def set_retrieval_results(self) -> dict:
         """This is our own copy of mpy.set_retrieval_results, so we

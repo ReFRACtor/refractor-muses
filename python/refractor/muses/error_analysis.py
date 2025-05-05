@@ -850,54 +850,74 @@ class ErrorAnalysis:
         # AT_LINE 35 Write_Retrieval_Summary.pro
         num_species = retrievalInfo.n_species
     
-        retrieval_result.cloudODAve = 0
         retrieval_result.cloudODVar = 0
         retrieval_result.cloudODAveError = 0
     
         # AT_LINE 57 Write_Retrieval_Summary.pro
-        indt = np.where(np.array(stateInfo.species) == 'TATM')[0][0]
-        indh = np.where(np.array(stateInfo.species) == 'H2O')[0][0]
-        if stateInfo.cloudPars['use'] == 'yes':
-            factor = mpy.compute_cloud_factor(
-                stateInfo.current['pressure'],
-                stateInfo.current['values'][indt, :],
-                stateInfo.current['values'][indh, :],
-                stateInfo.current['PCLOUD'][0],
-                stateInfo.current['scalePressure'],
-                stateInfo.current['tsa']['surfaceAltitudeKm']*1000,
-                stateInfo.current['latitude']
-            )
-            # Do some rounding to match IDL: 
-            #     IDL output for factor: 1.2542310
-            #     Python output  factor: 1.2542897673405733 
-            factor = round(factor, 7)
+        factor = retrieval_result.cloud_factor
     
-            # AT_LINE 67 Write_Retrieval_Summary.pro
-            ind = np.where(
-                (stateInfo.cloudPars['frequency'] >= 974) & 
-                (stateInfo.cloudPars['frequency'] <= 1201)
-            )[0]
-    
-            if len(ind) > 0:
-                retrieval_result.cloudODAve = np.sum(stateInfo.current['cloudEffExt'][0, ind]) / len(stateInfo.current['cloudEffExt'][0, ind]) * factor
-    
-            # step = 1
-            # stepName = TATM,H2O,HDO,N2O,CH4,TSUR,CLOUDEXT,EMIS
-            # product name Products_Jacobian-TATM,H2O,HDO,N2O,CH4,TSUR,CLOUDEXT-bar_land.nc
+        # step = 1
+        # stepName = TATM,H2O,HDO,N2O,CH4,TSUR,CLOUDEXT,EMIS
+        # product name Products_Jacobian-TATM,H2O,HDO,N2O,CH4,TSUR,CLOUDEXT-bar_land.nc
             
-            ind = np.where(np.asarray(retrievalInfo.speciesList) == 'CLOUDEXT')[0]
-            indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == 'CLOUDEXT')[0]
+        ind = np.where(np.asarray(retrievalInfo.speciesList) == 'CLOUDEXT')[0]
+        indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == 'CLOUDEXT')[0]
     
-            # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
-            my_map = mpy.get_one_map(retrievalInfo, 'CLOUDEXT')
+        # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
+        my_map = mpy.get_one_map(retrievalInfo, 'CLOUDEXT')
     
-            # AT_LINE 77 Write_Retrieval_Summary.pro
-            if len(ind) > 0:
-                # map error to ret
-                errlog = retrieval_result.errorFM[indFM] @ my_map['toPars']
+        # AT_LINE 77 Write_Retrieval_Summary.pro
+        if len(ind) > 0:
+            # map error to ret
+            errlog = retrieval_result.errorFM[indFM] @ my_map['toPars']
+            
+            cloudod = np.exp(retrieval_result.resultsList[ind]) * factor
+            err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
+            myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
     
-                cloudod = np.exp(retrieval_result.resultsList[ind]) * factor
-                err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
+            if myMean == np.nan:
+                myMean = np.mean(cloudod)
+                err[:] = myMean
+    
+            if np.nan in err:
+                myMean = np.mean(cloudod)
+                err[:] = myMean
+    
+            if np.inf in err:
+                myMean = np.mean(cloudod)
+                err[:] = myMean
+    
+            x = np.var((cloudod - myMean) / err, ddof=1)
+            retrieval_result.cloudODVar = math.sqrt(x)
+        else:
+            # cloud not retrieved... use 975-1200
+            # NOTE: code has not been tested.
+    
+            # Look through all indices that meet the pressure criteria, and look to see if same index in errorCurrent.species matches with 'CLOUDEXT'.
+            ind4 : list[int] = []
+            for ii in range(0, len(errorCurrent.pressure)):
+                if (errorCurrent.pressure[ii] >= 975 and errorCurrent.pressure[ii] <= 1200) and (errorCurrent.species[ii] == 'CLOUDEXT'):
+                    if ii not in ind4:
+                        ind4.append(ii)
+    
+            if len(ind4) > 0:
+                # found 975-1200
+                # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
+                error_current = errorCurrent.data[ind4, ind4]
+    
+                retrieval_result.cloudODAveError = math.sqrt(np.sum(error_current)) / len(ind4) * retrieval_result.cloudODAve
+    
+                ind3 = np.where(
+                    (stateInfo.cloudPars['frequency'] >= 974) & 
+                    (stateInfo.cloudPars['frequency'] <= 1201)
+                )[0]
+    
+                cloudod = stateInfo.current['cloudEffExt'][0, ind3] * factor
+    
+                # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
+                error_current = errorCurrent.data[ind3, ind3]
+    
+                err = stateInfo.current['cloudEffExt'][0, ind3] * np.sqrt(error_current)
                 myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
     
                 if myMean == np.nan:
@@ -913,98 +933,26 @@ class ErrorAnalysis:
                     err[:] = myMean
     
                 x = np.var((cloudod - myMean) / err, ddof=1)
-                retrieval_result.cloudODVar = math.sqrt(x)
-            else:
-                # cloud not retrieved... use 975-1200
-                # NOTE: code has not been tested.
-    
-                # Look through all indices that meet the pressure criteria, and look to see if same index in errorCurrent.species matches with 'CLOUDEXT'.
-                ind4 : list[int] = []
-                for ii in range(0, len(errorCurrent.pressure)):
-                    if (errorCurrent.pressure[ii] >= 975 and errorCurrent.pressure[ii] <= 1200) and (errorCurrent.species[ii] == 'CLOUDEXT'):
-                        if ii not in ind4:
-                            ind4.append(ii)
-    
-                if len(ind4) > 0:
-                    # found 975-1200
-                    # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
-                    error_current = errorCurrent.data[ind4, ind4]
-    
-                    retrieval_result.cloudODAveError = math.sqrt(np.sum(error_current)) / len(ind4) * retrieval_result.cloudODAve
-    
-                    ind3 = np.where(
-                        (stateInfo.cloudPars['frequency'] >= 974) & 
-                        (stateInfo.cloudPars['frequency'] <= 1201)
-                    )[0]
-    
-                    cloudod = stateInfo.current['cloudEffExt'][0, ind3] * factor
-    
-                    # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
-                    error_current = errorCurrent.data[ind3, ind3]
-    
-                    err = stateInfo.current['cloudEffExt'][0, ind3] * np.sqrt(error_current)
-                    myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
-    
-                    if myMean == np.nan:
-                        myMean = np.mean(cloudod)
-                        err[:] = myMean
-    
-                    if np.nan in err:
-                        myMean = np.mean(cloudod)
-                        err[:] = myMean
-    
-                    if np.inf in err:
-                        myMean = np.mean(cloudod)
-                        err[:] = myMean
-    
-                    x = np.var((cloudod - myMean) / err, ddof=1)
-                # end if len(ind) > 0:
-            # end else part of if (len(ind) > 0):
-        # end if stateInfo.cloudPars['use'] == 'yes':
+            # end if len(ind) > 0:
+        # end else part of if (len(ind) > 0):
     
         # AT_LINE 107 Write_Retrieval_Summary.pro
-        if stateInfo.cloudPars['use'] == 'yes':
-            if stateInfo.current['scalePressure'] == 0:
-                stateInfo.current['scalePressure'] = 0.1
+        ind = np.where(np.asarray(retrievalInfo.speciesList) == 'CLOUDEXT')[0]
+        indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == 'CLOUDEXT')[0]
     
-            factor = mpy.compute_cloud_factor(
-                stateInfo.current['pressure'],
-                stateInfo.current['values'][stateInfo.species.index('TATM'), :],
-                stateInfo.current['values'][stateInfo.species.index('H2O'), :],
-                stateInfo.current['PCLOUD'][0],
-                stateInfo.current['scalePressure'],
-                stateInfo.current['tsa']['surfaceAltitudeKm']*1000,
-                stateInfo.current['latitude']
-            )
-    
-            # Do some rounding to match IDL: 
-            #     IDL output for factor: 1.2542310
-            #     Python output  factor: 1.2542897673405733 
-            factor = round(factor, 7)
+        # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
+        my_map = mpy.get_one_map(retrievalInfo, 'CLOUDEXT')
             
-            ind = np.where(np.asarray(retrievalInfo.speciesList) == 'CLOUDEXT')[0]
-            indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == 'CLOUDEXT')[0]
+        if len(ind) > 0:
+            errlog = retrieval_result.errorFM[indFM] @ my_map['toPars']
     
-            # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
-            my_map = mpy.get_one_map(retrievalInfo, 'CLOUDEXT')
-            
-            if len(ind) > 0:
-                errlog = retrieval_result.errorFM[indFM] @ my_map['toPars']
-    
-                cloudod = np.exp(retrieval_result.resultsList[ind]) * factor
-                err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
-                myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
+            cloudod = np.exp(retrieval_result.resultsList[ind]) * factor
+            err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
+            myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
                 
-                x = np.var((cloudod - myMean) / err, ddof=1)
-                retrieval_result.cloudODVar = math.sqrt(x)
-            # end if (len(ind) > 0):
-        # end if stateInfo.cloudPars['use'] == 'yes':
+            x = np.var((cloudod - myMean) / err, ddof=1)
+            retrieval_result.cloudODVar = math.sqrt(x)
     
-        # AT_LINE 144 Write_Retrieval_Summary.pro
-        # calculate emisDev, the emissivity difference from the true state
-        # between 975 and 1200 cm-1
-        retrieval_result.emisDev = 0
-        
         ind = np.where(
             (stateInfo.emisPars['frequency'] >= 975) & 
             (stateInfo.emisPars['frequency'] <= 1200)
@@ -1012,10 +960,6 @@ class ErrorAnalysis:
     
         if len(ind) > 0:
             retrieval_result.emisDev = np.mean(stateInfo.current['emissivity'][ind]) - np.mean(stateInfo.constraint['emissivity'][ind])
-    
-        # AT_LINE 159 Write_Retrieval_Summary.pro
-        # emission layer flag
-        retrieval_result.emissionLayer = 0
     
         ind10 = np.asarray([])  # Start with an empty list so we have the variable set.
         if 'O3' in retrievalInfo.speciesListFM:
@@ -1041,49 +985,10 @@ class ErrorAnalysis:
             if my_sum/3 >= 1.5e-9:
                 retrieval_result.emissionLayer = aveTATM - TSUR
     
-        # AT_LINE 181 Write_Retrieval_Summary.pro
-        # ozone ccurve flag PRE-R12
-        retrieval_result.ozoneCcurve = 1
-    
-        ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, 'O3')
-        
-        if len(ind) > 0:
-            pressure = stateInfo.current['pressure']
-            
-            indo3 = np.where(np.array(stateInfo.species) == 'O3')[0][0]
-            o3 = stateInfo.current['values'][indo3, :]
-            o3ig = stateInfo.initial['values'][indo3, :]
-            
-            indLow = np.where(pressure >= 700)[0]
-            indHigh = np.where((pressure >= 200) & (pressure <= 350))[0]
-    
-            if len(indLow) > 0 and len(indHigh) > 0:
-                ratio1 = np.mean(o3[indLow]) / np.mean(o3ig[indLow])
-                ratio2 = np.mean(o3[indLow]) / np.mean(o3[indHigh])
-                if ratio1 >= 1.6 and ratio2 >= 1.4:
-                    retrieval_result.ozoneCcurve = 0
-            # end if len(indLow) > 0 and len(indHigh) > 0
-        # if len(ind) > 0:
-    
-        # AT_LINE 200 Write_Retrieval_Summary.pro
-        # ozone ccurve flag R12 and beyond (from c++ code 9/2012)
-        # test 1 max ozone below 700 mb > 150 ppb
-        # test 2 below 700 mb:  ozone > 100 ppb or retrieval / prior > 1.8 and average
-        # diagonal AK for these levels < 0.1
-        # test 3 c-shaped 
-        #                //let maxlo be the largest value for levels greater than 700 hPa
-        #                // and minhi be the smallest value for levels from 700 hPa to 200 hPa
-        #                // and surf be the surface concentration
-        #                // the C-curve is considered if :
-        #                // 1) maxlo/minhi > 2.5
-        #                // or 2) maxlo/minhi > 2 and maxlo/surf > 1.1 (use of 1.05 - 1.1
-        # if any condition is true then ccurve = 1
     
         retrieval_result.ozoneCcurve = 1
         retrieval_result.ozone_slope_QA = 1
-    
         ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, 'O3')
-        
         if len(ind) > 0:
             pressure = stateInfo.current['pressure']
             o3 = stateInfo.current['values'][stateInfo.species.index('O3'),:]
