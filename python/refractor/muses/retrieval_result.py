@@ -3,6 +3,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
 from .identifier import StateElementIdentifier, FilterIdentifier
 from .filter_result_summary import FilterResultSummary
+from .radiance_result_summary import RadianceResultSummary
 import math
 import numpy as np
 from typing import Any
@@ -101,6 +102,11 @@ class RetrievalResult:
         self.num_deviations_QA = np.full((num_species), -999, dtype=np.int32)
         self.deviation_QA = np.full((num_species), -999, dtype=np.float32)
 
+        self._radiance_result_summary = [RadianceResultSummary(self.rstep.radiance[slc],
+                                                               self.radiance[0,slc],
+                                                               self.rstep.NESR[slc])
+                                         for slc in self._filter_result_summary.filter_slice]
+        
     def update_jacobian_sys(self, cfunc_sys: CostFunction) -> None:
         """Run the forward model in cfunc to get the jacobian_sys set."""
         self.jacobianSys = (
@@ -318,19 +324,19 @@ class RetrievalResult:
     def radianceMaximumSNR(self) -> float:
         gpt = self.rstep.frequency > 0.0
         return np.amax(self.rstep.radiance[gpt] / self.rstep.NESR[gpt])
-    
+
+    def _handle_fill(self, r : list[float|None], fill_zero : float = 0.0,
+                     fill_rest : float = -999.0) -> list[float]:
+        # Different fill value for first entry. Odd, but the output separate these
+        # out and treats the "ALL" filter at the front differently
+        if(r[0] is None):
+            r[0] = fill_zero
+        return([ fill_rest if i is None else i for i in r])
+            
     @property
     def radianceResidualMean(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                scaled_diff = (self.rstep.radiance[slc][gpt] - self.radiance[0,slc][gpt])/ self.rstep.NESR[slc][gpt]
-                res.append(np.mean(scaled_diff))
-            else:
-                res.append(0 if len(res) == 0 else -999.0)
-        return np.array(res)
+        res = [ r.radiance_residual_mean for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res))
 
     @property
     def radianceResidualRMS(self) -> np.ndarray:
