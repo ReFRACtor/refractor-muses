@@ -129,7 +129,7 @@ class StateInfo(UserDict):
                 retrieval_config,
             )
 
-    def update_with_old(self):
+    def update_with_old(self) -> None:
         '''Temporary, we have the StateInfoOld saved but not the new StateInfo in our
         capture tests. We will get to doing StateInfo, but for now use the old data to
         update the new data for the purpose of unit tests.'''

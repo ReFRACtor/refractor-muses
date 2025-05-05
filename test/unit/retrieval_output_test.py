@@ -9,7 +9,7 @@ from refractor.muses import (
     RetrievalInputOutput,
     ProcessLocation,
 )
-from fixtures.compare_run import compare_run
+#from fixtures.compare_run import compare_run
 import pytest
 from pathlib import Path
 
@@ -25,8 +25,8 @@ def joint_tropomi_output(
     # just blunt force update the data
     rs.current_state._state_info.update_with_old()
     yield rs, rstep, kwargs
-    compare_dir = joint_tropomi_test_refractor_expected_dir
-    diff_is_error = True
+    #compare_dir = joint_tropomi_test_refractor_expected_dir
+    #diff_is_error = True
     # Skip, not fully working. We need to update the captured data, but wait until
     # we finish making changes to the StateInfo stuff
     #compare_run(compare_dir, rs.run_dir.parent, diff_is_error=diff_is_error, from_run_dir=True)
@@ -121,6 +121,6 @@ def test_retrieval_irk_output(airs_irk_step_6, airs_irk_test_expected_dir):
     jout.notify_update(
         rs, ProcessLocation("IRK step"), retrieval_strategy_step=rstep, **kwargs
     )
-    compare_dir = airs_irk_test_expected_dir
-    diff_is_error = True
+    #compare_dir = airs_irk_test_expected_dir
+    #diff_is_error = True
     #compare_run(compare_dir, rs.run_dir.parent, diff_is_error=diff_is_error, from_run_dir=True)

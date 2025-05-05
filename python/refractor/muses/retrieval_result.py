@@ -1,7 +1,7 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
-from .identifier import StateElementIdentifier, FilterIdentifier
+from .identifier import StateElementIdentifier
 from .filter_result_summary import FilterResultSummary
 from .radiance_result_summary import RadianceResultSummary
 import math
@@ -104,6 +104,7 @@ class RetrievalResult:
 
         self._radiance_result_summary = [RadianceResultSummary(self.rstep.radiance[slc],
                                                                self.radiance[0,slc],
+                                                               self.radianceInitial[0,slc],
                                                                self.rstep.NESR[slc])
                                          for slc in self._filter_result_summary.filter_slice]
         
@@ -340,95 +341,33 @@ class RetrievalResult:
 
     @property
     def radianceResidualRMS(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                scaled_diff = (self.rstep.radiance[slc][gpt] - self.radiance[0,slc][gpt])/ self.rstep.NESR[slc][gpt]
-                res.append(math.sqrt(np.var(scaled_diff)))
-            else:
-                res.append(0 if len(res) == 0 else -999.0)
-        return np.array(res)
+        res = [ r.radiance_residual_rms for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res))
 
     @property
     def radianceResidualMeanInitial(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                scaled_diff = (self.rstep.radiance[slc][gpt] - self.radianceInitial[0,slc][gpt])/ self.rstep.NESR[slc][gpt]
-                res.append(np.mean(scaled_diff))
-            else:
-                res.append(0 if len(res) == 0 else -999.0)
-        return np.array(res)
+        res = [ r.radiance_residual_mean_initial for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res))
 
     @property
     def radianceResidualRMSInitial(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                scaled_diff = (self.rstep.radiance[slc][gpt] - self.radianceInitial[0,slc][gpt])/ self.rstep.NESR[slc][gpt]
-                res.append(math.sqrt(np.var(scaled_diff)))
-            else:
-                res.append(0 if len(res) == 0 else -999.0)
-        return np.array(res)
+        res = [ r.radiance_residual_rms_initial for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res))
 
     @property
     def radianceResidualRMSRelativeContinuum(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                valsv = np.sort(self.radiance[0,slc][gpt])
-                if(len(valsv) > 50):
-                    # TODO I don't think this actually does what is intended.
-                    # Should this be np.mean(vals[-50:]?
-                    vals = np.mean(valsv[int(len(valsv)*49/50):len(valsv)])
-                else:
-                    vals = np.max(valsv)
-                diff = (self.rstep.radiance[slc][gpt] - self.radiance[0,slc][gpt])
-                uu_var = np.var(diff)
-                uu_mean = np.mean(diff)
-                res.append(math.sqrt(uu_var + uu_mean * uu_mean) / vals)
-            else:
-                res.append(0)
-        return np.array(res)
+        res = [ r.radiance_residual_rms_relative_continuum for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res,0.0,0.0))
 
     @property
     def radianceContinuum(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                valsv = np.sort(self.radiance[0,slc][gpt])
-                if(len(valsv) > 50):
-                    # TODO I don't think this actually does what is intended.
-                    # Should this be np.mean(vals[-50:]?
-                    vals = np.mean(valsv[int(len(valsv)*49/50):len(valsv)])
-                else:
-                    vals = np.max(valsv)
-                res.append(vals)
-            else:
-                res.append(0)
-        return np.array(res)
+        res = [ r.radiance_continuum for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res,0.0,0.0))
 
     @property
     def radianceSNR(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                res.append(np.mean(self.radiance[0,slc][gpt] / self.rstep.NESR[slc][gpt]))
-            else:
-                res.append(0)
-        return np.array(res)
+        res = [ r.radiance_snr for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res,0.0,0.0))
     
 
     @property
@@ -445,55 +384,13 @@ class RetrievalResult:
 
     @property
     def residualSlope(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                valsv = np.sort(self.radiance[0,slc][gpt])
-                if(len(valsv) > 50):
-                    # TODO I don't think this actually does what is intended.
-                    # Should this be np.mean(vals[-50:]?
-                    vals = np.mean(valsv[int(len(valsv)*49/50):len(valsv)])
-                else:
-                    vals = np.max(valsv)
-                myx = self.radiance[0, slc][gpt] / vals
-                myy = (self.rstep.radiance[slc][gpt] - self.radiance[0, slc][gpt]) / self.rstep.NESR[slc][gpt]
-                # cut off the very few points "above" the continuum
-                indx = (np.where((myx > 0.0)*(myx < 1.00)))[0]
-                myx = myx[indx]
-                myy = myy[indx]
-                linear_fit = np.polyfit(myx, myy, 1)                
-                res.append(linear_fit[0])
-            else:
-                res.append(-999.0)
-        return np.array(res)
+        res = [ r.residual_slope for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res,-999.0,-999.0))
 
     @property
     def residualQuadratic(self) -> np.ndarray:
-        res = []
-        for s,e in zip(self.filterStart, self.filterEnd):
-            slc = slice(s,e+1)
-            gpt = self.rstep.NESR[slc] > 0
-            if(np.count_nonzero(gpt) > 5):
-                valsv = np.sort(self.radiance[0,slc][gpt])
-                if(len(valsv) > 50):
-                    # TODO I don't think this actually does what is intended.
-                    # Should this be np.mean(vals[-50:]?
-                    vals = np.mean(valsv[int(len(valsv)*49/50):len(valsv)])
-                else:
-                    vals = np.max(valsv)
-                myx = self.radiance[0, slc][gpt] / vals
-                myy = (self.rstep.radiance[slc][gpt] - self.radiance[0, slc][gpt]) / self.rstep.NESR[slc][gpt]
-                # cut off the very few points "above" the continuum
-                indx = (np.where((myx > 0.0)*(myx < 1.00)))[0]
-                myx = myx[indx]
-                myy = myy[indx]
-                quadratic_fit = np.polyfit(myx, myy, 2) 
-                res.append(quadratic_fit[0])
-            else:
-                res.append(-999.0)
-        return np.array(res)
+        res = [ r.residual_quadratic for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res,-999.0,-999.0))
 
     @property
     def cloud_factor(self) -> float:
