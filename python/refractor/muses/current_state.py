@@ -848,13 +848,23 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def Sa(self) -> np.ndarray:
         '''This combines the retrieval state element apriori_cov_fm and cross terms into
-        a apriori_cov of those elements. This S_a in the paper
+        a apriori_cov_fm of those elements. This S_a in the paper
         
         Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis
         V. ERROR CHARACTERIZATION
         (https://ieeexplore.ieee.org/document/1624609)
         '''
-        selem_list = [self.full_state_element(sname) for sname in self.retrieval_state_element_id]
+        return self.apriori_cov_fm(self.retrieval_state_element_id)
+
+    def apriori_cov_fm(self, list_state_element_id: list[StateElementIdentifier]) -> np.ndarray:
+        '''Return apriori covariance for the given list of state elements, including cross
+        terms. When the list is the retrieval_state_element_id this is S_a in the paper
+
+        Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis
+        V. ERROR CHARACTERIZATION
+        (https://ieeexplore.ieee.org/document/1624609)
+        '''
+        selem_list = [self.full_state_element(sname) for sname in list_state_element_id]
 
         # Make block diagonal covariance.
         species_list = []
@@ -864,7 +874,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             species_list.extend([str(selem.state_element_id)] * matrix.shape[0])
             matrix_list.append(matrix)
 
-        initial = block_diag(*matrix_list)
+        res = block_diag(*matrix_list)
         # TODO Replace this with cross term state elements when we put those
         # into place
         # Off diagonal blocks for covariance.
@@ -872,13 +882,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             for selem2 in selem_list[i + 1 :]:
                 matrix2 = selem1.apriori_cross_covariance_fm(selem2)
                 if matrix2 is not None:
-                    initial[np.array(species_list) == str(selem1.state_element_id), :][
+                    res[np.array(species_list) == str(selem1.state_element_id), :][
                         :, np.array(species_list) == str(selem2.state_element_id)
                     ] = matrix2
-                    initial[np.array(species_list) == str(selem2.state_element_id), :][
+                    res[np.array(species_list) == str(selem2.state_element_id), :][
                         :, np.array(species_list) == str(selem1.state_element_id)
                     ] = np.transpose(matrix2)
-        return initial
+        return res
 
 
     @abc.abstractmethod

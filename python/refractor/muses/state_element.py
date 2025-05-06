@@ -54,35 +54,31 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     Note that we have a separate apriori_cov_fm and constraint_matrix. Most of
     the time these aren't actually independent, for a MaxAPosteriori type cost
-    function the constraint matrix is just apriori_cov. However, StateElement
-    maintains these as two separate things for two reasons:
+    function the constraint matrix is just apriori_cov.
 
-    1. One minor, in the existing muses-py code these can come from
-       different sources.  It is often the case that while
-       constraint_matrix is close to apriori_cov, there may be
-       small roundoff differences so if we replace constraint_matrix
-       with apriori_cov we get slightly different output. This is a minor
-       problem, we currently use in our tests the requirement that we generate
-       the same output as muses-py runs. But it is actually ok if these aren't
-       the same, we just need to update our expected results. We tend to not
-       do this, just because it is easier to find "real problem differences" if
-       we keep all differences from occuring.
+    However the uses of these are different. The constraint matrix is used to
+    regularize the solver, it is added as augmented terms to the cost function
+    as a penalty for moving away from the apriori_value. When the constraint
+    matrix is apriori covariance this is a maximum a posteriori problem, which
+    is a common step used in the retrieval strategy. However we can also just
+    use an ad hoc constraint providing e.g. smoothness (see II.B of the paper
+    mentioned below). For example the ig_refine step after getting the OMI
+    or TropOMI cloud fraction in a brightness temperature uses a tighter constraint
+    than the apriori covariance.
 
-    2. A bigger difference is actually a real change. muses-py has the
-       convention that the constraint_matrix might be different from
-       one retrieval step to the next. For example, the ig_refine
-       steps used in the brightness temperature steps to determine
-       cloud fraction has a constraint matrix inflated by a factor of
-       100. This has the effect of reducing the cost of varying a
-       parameter like cloud fraction, which is a reasonable thing to
-       do when we are really doing something close to calculating
-       this. So for an particular step, constraint_matrix might not be
-       even close to apriori_cov_fm. There is probably some name for
-       a scaled cost function - we might check with Edwin about
-       this. But the idea makes sense.  Note that in practice
-       apriori_cov_fm gets used just by the ErrorAnalysis, and
-       constraint_matrix get used just by CostFunction, so I don't
-       think the inconsistency here is an actually problem.
+    The apriori_cov_fm is used in the error analysis, and really should be the
+    apriori covariance matrix in all cases (this is the state elements portion of
+    S_a, in the terminology of the paper listed below).
+
+    In addition, we use the a posterior from previous steps in the error analysis of
+    the current retrieval step. We maintain this as previous_posteriori_cov_fm, which is
+    a portion of S_b for that StateElement.
+
+    See the paper:
+
+    "Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis"
+    (https://ieeexplore.ieee.org/document/1624609).
+    
 
     We have two state mappings, one that goes between the retrieval
     state vector and the forward model state vector, and a second that
@@ -90,8 +86,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
     MaxAPosterioriSqrtConstraint needs to be able to go to the forward model
     state vector separately (used by the error analysis). In py-retrieve,
     state_mapping_retrieval_to_fm was the basis matrix, and state_mapping
-    what the mapTypeList. But we use the more generate rf.StateMapping here so
-    we aren't restricted to just these two.
+    were the mapTypeList. But we use the more generate rf.StateMapping here so
+    we aren't restricted to just these two types of mappings (e.g., we
+    might want to do a shape retrieval like OCO-2 does).
 
     The StateElement gets notified when various things happen in a retrieval. These
     are:

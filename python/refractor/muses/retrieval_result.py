@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
     from .current_state import CurrentState, PropagatedQA
     from .error_analysis import ErrorAnalysis
+    from .muses_levmar_solver import SolverResult
 
 
 class RetrievalResult:
@@ -40,7 +41,7 @@ class RetrievalResult:
 
     def __init__(
         self,
-        ret_res: dict,
+        ret_res: SolverResult,
         current_state: CurrentState,
         obs_list: list[MusesObservation],
         radiance_full: dict,
@@ -57,7 +58,7 @@ class RetrievalResult:
         self.instruments = [obs.instrument_name for obs in self.obs_list]
         self.current_state = current_state
         self.sounding_metadata = current_state.sounding_metadata
-        self.ret_res = mpy.ObjectView(ret_res)
+        self.ret_res = ret_res
         self.jacobianSys = jacobian_sys
         self.propagated_qa = propagated_qa
         # Get old retrieval results structure, and merge in with this object
@@ -119,7 +120,7 @@ class RetrievalResult:
             ]
         )
 
-    def update_error_analysis(self, error_analysis : ErrorAnalysis):
+    def update_error_analysis(self, error_analysis : ErrorAnalysis) -> None:
         self._cloud_result_summary = CloudResultSummary(self, error_analysis)
         self._column_result_summary = ColumnResultSummary(self, error_analysis)
 
@@ -228,7 +229,7 @@ class RetrievalResult:
         return self.current_state.sounding_metadata.is_ocean
 
     @property
-    def retIteration(self) -> int:
+    def retIteration(self) -> np.ndarray:
         return self.ret_res.xretIterations
     
     @property

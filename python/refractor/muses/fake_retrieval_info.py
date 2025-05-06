@@ -13,7 +13,7 @@ class FakeRetrievalInfo:
     """We are moving away from the RetrievalInfo structure used by
     muses-py. There is a lot of hidden functionality in this structure, and
     we want to move this into StateInfo and CurrentState. However there
-    are a handful of muses-[y functions that we want to call which is
+    are a handful of muses-py functions that we want to call which is
     tightly coupled to the old RetrievalInfo structure. The content of this
     is pretty much what is in CurrentState, but in a format that is
     substantially different. This class produces a "fake" RetrievalInfo that

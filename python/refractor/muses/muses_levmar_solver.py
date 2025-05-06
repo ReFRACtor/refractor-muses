@@ -4,14 +4,36 @@ import numpy as np
 from .replace_function_helper import register_replacement_function_in_block
 import refractor.muses.muses_py as mpy  # type: ignore
 import os
+import numpy as np
 from pathlib import Path
 from typing import Any
+from attrs import frozen
 
+@frozen
+class SolverResult:
+    bestIteration: int
+    num_iterations: int
+    stopCode : int
+    xret: np.ndarray
+    xretFM: np.ndarray
+    radiance: dict[str, Any]
+    jacobian: dict[str, Any]
+    radianceIterations: np.ndarray
+    xretIterations: np.ndarray
+    stopCriteria: np.ndarray
+    resdiag: np.ndarray
+    residualRMS: np.ndarray
+    delta: np.ndarray
+    rho: np.ndarray
+    lambdav: np.ndarray
+    
 
 class MusesLevmarSolver:
     """This is a wrapper around levmar_nllsq_elanor that makes it look like
     a NLLSSolver. Right now we don't actually derive from that, we can perhaps
     put that in place if useful. But for now, just provide a "solve" function.
+
+    We set up self.cfunc.parameters to whatever the final best iteration solution is.
     """
 
     def __init__(
@@ -82,12 +104,8 @@ class MusesLevmarSolver:
         self.best_iter = d["best_iter"]
         self.residual_rms = np.array(d["residual_rms"])
 
-    def retrieval_results(self) -> dict[str, Any]:
-        """Return the retrieval results dict. Hopefully this can go away, this
-        is just used in mpy.set_retrieval_results (another function we would like
-        to remove). It would probably be better for things
-        to get this directly from this solver and the cost function. But for
-        now we have this.
+    def retrieval_results(self) -> SolverResult:
+        """Return the retrieval results.
 
         Note that this works even in solve() hasn't been called - this returns
         what is expected if max_iter is 0."""
@@ -109,25 +127,23 @@ class MusesLevmarSolver:
         if self.iter_num == 0:
             radianceOut2["radiance"] = radiance_fm[np.newaxis, :]
 
-        return {
-            "bestIteration": int(self.best_iter),
-            "num_iterations": self.iter_num,
-            "stopCode": self.stop_code,
-            "xret": self.cfunc.parameters,
-            "xretFM": self.cfunc.parameters_fm(),
-            "radiance": radianceOut2,
-            "jacobian": jacobianOut2,
-            "radianceIterations": self.radiance_iter[:, np.newaxis, :],
-            "xretIterations": self.cfunc.parameters
-            if self.iter_num == 0
-            else self.x_iter,
-            "stopCriteria": np.copy(self.stopcrit),
-            "resdiag": np.copy(self.resdiag),
-            "residualRMS": self.residual_rms,
-            "delta": self.diag_lambda_rho_delta[:, 2],
-            "rho": self.diag_lambda_rho_delta[:, 1],
-            "lambda": self.diag_lambda_rho_delta[:, 0],
-        }
+        return SolverResult(
+            bestIteration=int(self.best_iter),
+            num_iterations=self.iter_num,
+            stopCode=self.stop_code,
+            xret=self.cfunc.parameters,
+            xretFM=self.cfunc.parameters_fm(),
+            radiance=radianceOut2,
+            jacobian=jacobianOut2,
+            radianceIterations=self.radiance_iter[:, np.newaxis, :],
+            xretIterations=self.cfunc.parameters if self.iter_num == 0 else self.x_iter,
+            stopCriteria=np.copy(self.stopcrit),
+            resdiag=np.copy(self.resdiag),
+            residualRMS=self.residual_rms,
+            delta=self.diag_lambda_rho_delta[:, 2],
+            rho=self.diag_lambda_rho_delta[:, 1],
+            lambdav=self.diag_lambda_rho_delta[:, 0],
+        )
 
     def solve(self) -> None:
         # py-retrieve expects the directory to already be there, so create if
@@ -179,3 +195,5 @@ class MusesLevmarSolver:
             )
             self.best_iter = int(np.argmin(rms))
             self.residual_rms = rms
+
+__all__ = ["SolverResult", "MusesLevmarSolver"]            

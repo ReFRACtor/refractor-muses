@@ -17,6 +17,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_result import RetrievalResult
     from .cost_function import CostFunction
+    from .muses_levmar_solver import SolverResult
 
 # TODO clean up the usage for various internal objects of
 # RetrievalStrategy, we want to rework this anyways as we introduce
@@ -244,34 +245,26 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
         Path(f"{rs.run_dir}/-run_token.asc").touch()
 
-        ret_res = self.run_retrieval(rs, **kwargs)
+        self.ret_res = self.run_retrieval(rs, **kwargs)
         if self.cfunc is None:
             raise RuntimeError("self.cfunc should not be None")
+        # self.cfunc.parameters set to the best iteration solution in MusesLevmarSolver
+        rs.current_strategy_step.notify_step_solution(cstate, self.cfunc.parameters)
+        logger.info("\n---")
+        logger.info(str(rs.strategy_step))
+        logger.info(
+            f"Best iteration {self.ret_res.bestIteration} out of {self.ret_res.num_iterations}"
+        )
+        logger.info("---\n")
+        rs.notify_update(
+            ProcessLocation("run_retrieval_step"), retrieval_strategy_step=self
+        )
         self.results = RetrievalResult(
-            ret_res,
+            self.ret_res,
             cstate,
             self.cfunc.obs_list,
             self.radiance_full(rs),
             cstate.propagated_qa,
-        )
-        logger.info("\n---")
-        logger.info(str(rs.strategy_step))
-        logger.info(
-            f"Best iteration {self.results.best_iteration} out of {self.results.num_iterations}"
-        )
-        logger.info("---\n")
-
-        rs.current_strategy_step.notify_step_solution(cstate, self.results.results_list)
-
-        # I don't think we actually want this in here. 1) we don't currently
-        # support OCO2 and 2) we would just use a direct PressureSigma object
-        # along with a new state element name if we did. But leave this commented
-        # here to document that py-retrieve did this by we aren't
-        # if 'OCO2' in rs.current_strategy_step.instrument_name:
-        #    rs.strategy_executor.stable.strategy_table_dict['pressureFM'] = rs.state_info.next_state_dict.pressure
-        self.extra_after_run_retrieval_step(rs)
-        rs.notify_update(
-            ProcessLocation("run_retrieval_step"), retrieval_strategy_step=self
         )
 
         # TODO jacobian_sys is only used in error_analysis_wrapper and
@@ -310,7 +303,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
 
     def run_retrieval(
         self, rs: RetrievalStrategy, cost_function_params: dict = {}, **kwargs: Any
-    ) -> dict[str, Any]:
+    ) -> SolverResult:
         """run_retrieval"""
         self.cfunc = rs.create_cost_function()
         rs.notify_update(
@@ -342,12 +335,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                 self.slv.solve()
         logger.info(f"Solved State vector:\n{self.cfunc.fm_sv}")
         return self.slv.retrieval_results()
-
-    def extra_after_run_retrieval_step(self, rs: RetrievalStrategy) -> None:
-        """We have a couple of steps that just do some extra adjustments before
-        we go into the systematic_jacobian/error_analysis stuff. This is just a hook
-        for putting this in place."""
-        pass
 
 
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepNotImplemented())
