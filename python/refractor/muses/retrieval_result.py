@@ -4,6 +4,8 @@ from .observation_handle import mpy_radiance_from_observation_list
 from .identifier import StateElementIdentifier
 from .filter_result_summary import FilterResultSummary
 from .radiance_result_summary import RadianceResultSummary
+from .cloud_result_summary import CloudResultSummary
+from .column_result_summary import ColumnResultSummary
 import math
 import numpy as np
 from typing import Any
@@ -13,6 +15,7 @@ if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
     from .muses_observation import MusesObservation
     from .current_state import CurrentState, PropagatedQA
+    from .error_analysis import ErrorAnalysis
 
 
 class RetrievalResult:
@@ -115,6 +118,10 @@ class RetrievalResult:
                 np.newaxis, :, :
             ]
         )
+
+    def update_error_analysis(self, error_analysis : ErrorAnalysis):
+        self._cloud_result_summary = CloudResultSummary(self, error_analysis)
+        self._column_result_summary = ColumnResultSummary(self, error_analysis)
 
     def state_value(self, state_name : str) -> float:
         return self.current_state.full_state_value(StateElementIdentifier(state_name))[0]

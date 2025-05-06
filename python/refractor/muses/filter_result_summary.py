@@ -59,3 +59,4 @@ class FilterResultSummary:
         '''Filter start and end presented as a slice, as a convenience'''
         return [slice(s,e+1) for (s,e) in zip(self.filter_start, self.filter_end)]
     
+__all__ = ["FilterResultSummary"]

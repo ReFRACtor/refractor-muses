@@ -89,3 +89,4 @@ class RadianceResultSummary:
     def residual_quadratic(self) -> float | None:
         return self._residual_quadratic
     
+__all__ = ["RadianceResultSummary"]
