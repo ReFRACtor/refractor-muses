@@ -278,7 +278,7 @@ class RetrievalInfo:
         if len(sys_tokens) == 0:
             return
         myspec = list(
-            mpy.constraint_get_species(error_analysis.error_initial, sys_tokens)
+            mpy.constraint_get_species(error_analysis.error_current, sys_tokens)
         )
         o_retrievalInfo.n_totalParametersSys = len(myspec)
         for tk in sys_tokens:

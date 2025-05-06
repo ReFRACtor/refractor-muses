@@ -34,13 +34,9 @@ class ErrorAnalysis:
         current_strategy_step: CurrentStrategyStep,
         covariance_state_element_name: list[StateElementIdentifier],
     ) -> None:
-        self.error_initial = self.initialize_error_initial(
+        self.error_current = mpy.ObjectView(self.initialize_error_initial(
             current_state, current_strategy_step, covariance_state_element_name
-        )
-        self.error_current: dict | mpy.ObjectView = copy.deepcopy(self.error_initial)
-        # Code seems to assume these are object view.
-        self.error_initial = mpy.ObjectView(self.error_initial)
-        self.error_current = mpy.ObjectView(self.error_current)
+        ))
 
     def snapshot_to_file(self, fname: str | os.PathLike[str]) -> None:
         """py-retrieve is big on having functions with unintended side effects. It can
@@ -51,7 +47,7 @@ class ErrorAnalysis:
             with open(fname, "w") as fh:
                 pprint(
                     {
-                        "error_initial": self.error_initial.__dict__,
+                        #"error_initial": self.error_initial.__dict__,
                         "error_current": self.error_current.__dict__,
                     },
                     stream=fh,
@@ -206,10 +202,9 @@ class ErrorAnalysis:
         jacobian = my_map.toState @ jacobian_fm
     
         # AT_LINE 177 Error_Analysis_Wrapper.pro
-        Sa = mpy.constraint_get(self.error_initial.__dict__, retrieval.species[0:retrieval.n_species])
+        Sa = cstate.Sa
     
         retrieval_result.Sa[:, :] = Sa[:, :]  # type: ignore[attr-defined]
-        #breakpoint()
     
         ret_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
         con_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)

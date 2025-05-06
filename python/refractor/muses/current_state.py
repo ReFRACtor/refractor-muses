@@ -10,6 +10,7 @@ import typing
 from typing import Self
 from .identifier import StateElementIdentifier, InstrumentIdentifier
 from .tes_file import TesFile
+from scipy.linalg import block_diag  # type: ignore
 
 if typing.TYPE_CHECKING:
     from refractor.old_py_retrieve_wrapper import (  # type: ignore
@@ -843,6 +844,42 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         the state_mapping in reverse.
         """
         raise NotImplementedError()
+
+    @property
+    def Sa(self) -> np.ndarray:
+        '''This combines the retrieval state element apriori_cov_fm and cross terms into
+        a apriori_cov of those elements. This S_a in the paper
+        
+        Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis
+        V. ERROR CHARACTERIZATION
+        (https://ieeexplore.ieee.org/document/1624609)
+        '''
+        selem_list = [self.full_state_element(sname) for sname in self.retrieval_state_element_id]
+
+        # Make block diagonal covariance.
+        species_list = []
+        matrix_list = []
+        for selem in selem_list:
+            matrix = selem.apriori_cov_fm
+            species_list.extend([str(selem.state_element_id)] * matrix.shape[0])
+            matrix_list.append(matrix)
+
+        initial = block_diag(*matrix_list)
+        # TODO Replace this with cross term state elements when we put those
+        # into place
+        # Off diagonal blocks for covariance.
+        for i, selem1 in enumerate(selem_list):
+            for selem2 in selem_list[i + 1 :]:
+                matrix2 = selem1.apriori_cross_covariance_fm(selem2)
+                if matrix2 is not None:
+                    initial[np.array(species_list) == str(selem1.state_element_id), :][
+                        :, np.array(species_list) == str(selem2.state_element_id)
+                    ] = matrix2
+                    initial[np.array(species_list) == str(selem2.state_element_id), :][
+                        :, np.array(species_list) == str(selem1.state_element_id)
+                    ] = np.transpose(matrix2)
+        return initial
+
 
     @abc.abstractmethod
     def full_state_apriori_covariance(
