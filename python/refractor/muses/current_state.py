@@ -781,6 +781,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         name.  Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
 
+        Also, the value returned is generally the *same*
+        np.ndarray as used internally. Generally this is fine, the values tend
+        to get used right away so there is no reason to return a copy. However
+        if you are stashing the value for an internal state or something like that,
+        you will want to make a copy of the returned value so it doesn't mysteriously
+        change underneath you when the StateElement is updated.        
         """
         raise NotImplementedError()
 
@@ -807,6 +813,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
         We handle this just by requiring a use_map=True to be passed in, meaning we apply
         the state_mapping in reverse.
+
+        Also, the value returned is generally the *same*
+        np.ndarray as used internally. Generally this is fine, the values tend
+        to get used right away so there is no reason to return a copy. However
+        if you are stashing the value for an internal state or something like that,
+        you will want to make a copy of the returned value so it doesn't mysteriously
+        change underneath you when the StateElement is updated.        
         """
         raise NotImplementedError()
 
@@ -819,6 +832,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         there is only one value put that in a length 1 np.array.
 
         If we don't have a true value, return None
+
+        Also, the value returned is generally the *same*
+        np.ndarray as used internally. Generally this is fine, the values tend
+        to get used right away so there is no reason to return a copy. However
+        if you are stashing the value for an internal state or something like that,
+        you will want to make a copy of the returned value so it doesn't mysteriously
+        change underneath you when the StateElement is updated.        
         """
         raise NotImplementedError()
 
@@ -829,6 +849,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Return the initialInitial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
+
+        Also, the value returned is generally the *same*
+        np.ndarray as used internally. Generally this is fine, the values tend
+        to get used right away so there is no reason to return a copy. However
+        if you are stashing the value for an internal state or something like that,
+        you will want to make a copy of the returned value so it doesn't mysteriously
+        change underneath you when the StateElement is updated.        
         """
         raise NotImplementedError()
 
@@ -845,6 +872,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         it means full_state_step_aprior_value and apriori_value_fm aren't the same.
         We handle this just by requiring a use_map=True to be passed in, meaning we apply
         the state_mapping in reverse.
+
+        Also, the value returned is generally the *same*
+        np.ndarray as used internally. Generally this is fine, the values tend
+        to get used right away so there is no reason to return a copy. However
+        if you are stashing the value for an internal state or something like that,
+        you will want to make a copy of the returned value so it doesn't mysteriously
+        change underneath you when the StateElement is updated.        
         """
         raise NotImplementedError()
 
@@ -878,7 +912,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         v = np.zeros((self._previous_posteriori_cov_fm.shape[0]),dtype=bool)
         for sid in list_state_element_id:
             v[self._posteriori_slice[sid]] = True
-        return self._previous_posteriori_cov_fm[:,v][v,:]
+        return self._previous_posteriori_cov_fm[:,v][v,:].copy()
 
     @property
     def Sb(self) -> np.ndarray:
@@ -956,7 +990,15 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGrid2dArray:
-        """Return the covariance of the apriori value of the given state element identification."""
+        """Return the covariance of the apriori value of the given state element identification.
+
+        Also, the value returned is generally the *same*
+        np.ndarray as used internally. Generally this is fine, the values tend
+        to get used right away so there is no reason to return a copy. However
+        if you are stashing the value for an internal state or something like that,
+        you will want to make a copy of the returned value so it doesn't mysteriously
+        change underneath you when the StateElement is updated.        
+        """
         raise NotImplementedError()
 
     @property

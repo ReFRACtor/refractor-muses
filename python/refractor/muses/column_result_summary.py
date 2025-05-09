@@ -17,7 +17,6 @@ class ColumnResultSummary:
         utilGeneral = mpy.UtilGeneral()
         stateInfo = FakeStateInfo(retrieval_result.current_state)
         retrievalInfo = FakeRetrievalInfo(retrieval_result.current_state)
-        errorCurrent = error_analysis.error_current
 
         if np.max(stateInfo.true['values']) > 0:
             have_true = True

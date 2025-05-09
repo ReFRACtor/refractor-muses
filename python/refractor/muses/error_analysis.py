@@ -6,11 +6,8 @@ from .fake_retrieval_info import FakeRetrievalInfo
 import copy
 import numpy as np
 import numpy.testing as npt
-import sys
-import os
 import math
 from loguru import logger
-from pprint import pprint
 from scipy.linalg import block_diag  # type: ignore
 import typing
 from typing import Any
@@ -35,26 +32,13 @@ class ErrorAnalysis:
         current_strategy_step: CurrentStrategyStep,
         covariance_state_element_name: list[StateElementIdentifier],
     ) -> None:
+        # Need to remove usage in retrieval_info.py and cloud_result_summary before
+        # removing here. However we don't use this in ErrorAnalysis any longer
         self.error_current = mpy.ObjectView(self.initialize_error_initial(
             current_state, current_strategy_step, covariance_state_element_name
         ))
         current_state.setup_previous_aposteriori_cov_fm(covariance_state_element_name,
                                                         current_strategy_step)
-
-    def snapshot_to_file(self, fname: str | os.PathLike[str]) -> None:
-        """py-retrieve is big on having functions with unintended side effects. It can
-        be hard to determine what changes when. This writes a complete text dump of
-        this object, which we can then diff against other snapshots to see what has
-        changed."""
-        with np.printoptions(precision=None, threshold=sys.maxsize):
-            with open(fname, "w") as fh:
-                pprint(
-                    {
-                        #"error_initial": self.error_initial.__dict__,
-                        "error_current": self.error_current.__dict__,
-                    },
-                    stream=fh,
-                )
 
     def initialize_error_initial(
         self,
@@ -154,7 +138,6 @@ class ErrorAnalysis:
         bad_pixel = data_error < 0
 
         cstate = retrieval_result.current_state
-        npt.assert_allclose(cstate._previous_posteriori_cov_fm, self.error_current.data)
         if(cstate.map_to_parameter_matrix is None or cstate.basis_matrix is None):
             raise RuntimeError("Missing basis matrix")
         my_map = mpy.ObjectView({
@@ -194,11 +177,10 @@ class ErrorAnalysis:
                 jacobian_sys[i, :] /= data_error
     
             # AT_LINE 107 Error_Analysis_Wrapper.pro
-            speciesList = retrieval.speciesSys[0:retrieval.n_speciesSys]
-            Sb = mpy.constraint_get(self.error_current.__dict__, speciesList)
+            Sb2 = mpy.constraint_get(self.error_current.__dict__, retrieval.speciesSys[0:retrieval.n_speciesSys])
+            Sb = cstate.Sb
             retrieval_result.Sb = Sb  # type: ignore[attr-defined]
-            Sb2 = cstate.Sb
-            #npt.assert_allclose(Sb, Sb2)
+            npt.assert_allclose(Sb, Sb2, atol=1e-12)
     
         for ii in range(jacobian.shape[0]):
             jacobian[ii, :] /= data_error
@@ -240,13 +222,6 @@ class ErrorAnalysis:
     
         # if not updating, keep current error analysis
         currentSpecies = retrieval.species[0:retrieval.n_species]
-        errorCurrentValues = mpy.constraint_get(self.error_current.__dict__, currentSpecies)
-        error_current_values2 = cstate.error_current_values
-        #npt.assert_allclose(errorCurrentValues, error_current_values2)
-    
-        # AT_LINE 251 Error_Analysis_Wrapper.pro
-    
-        speciesList = retrieval.speciesList
     
         # AT_LINE 256 Error_Analysis_Wrapper.pro
         offDiagonalSys = self.error_analysis(
@@ -263,17 +238,12 @@ class ErrorAnalysis:
             actual_data_residual,
             retrieval_result,
             retrieval,
-            errorCurrentValues)
+            cstate.error_current_values)
 
         cstate.update_previous_aposteriori_cov_fm(retrieval_result.Sx, offDiagonalSys)
-    
-        # AT_LINE 280 Error_Analysis_Wrapper.pro
-        speciesList = retrieval.speciesList
-    
-        # AT_LINE 336 Error_Analysis_Wrapper.pro
-        # update errorCurrent
-        # first clear correlations between current retrieved species and all
-        # others then set error based on current error analysis
+
+        # Only needed by CloudResultSummary
+        currentSpecies = retrieval.species[0:retrieval.n_species]
         self.error_current = mpy.constraint_clear(self.error_current.__dict__, currentSpecies)
         self.error_current = mpy.constraint_set(self.error_current.__dict__, retrieval_result.Sx, currentSpecies)  # type: ignore[attr-defined]
         if jacobian_sys is not None and offDiagonalSys is not None:

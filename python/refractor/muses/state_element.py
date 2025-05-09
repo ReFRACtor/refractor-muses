@@ -50,7 +50,12 @@ class StateElement(object, metaclass=abc.ABCMeta):
     As a convention, we always return the values as a np.ndarray, even
     for single scalar values. This just saves on needing to have lots
     of "if ndarray else if scalar" code. A scalar is returned as a
-    np.ndarray of size 1.
+    np.ndarray of size 1. Also, the value returned is generally the *same*
+    np.ndarray as used internally. Generally this is fine, the values tend
+    to get used right away so there is no reason to return a copy. However
+    if you are stashing the value for an internal state or something like that,
+    you will want to make a copy of the returned value so it doesn't mysteriously
+    change underneath you when the StateElement is updated.
 
     Note that we have a separate apriori_cov_fm and constraint_matrix. Most of
     the time these aren't actually independent, for a MaxAPosteriori type cost
