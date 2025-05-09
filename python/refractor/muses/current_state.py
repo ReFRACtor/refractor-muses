@@ -4,7 +4,7 @@ import refractor.framework as rf  # type: ignore
 import numpy as np
 import abc
 from pathlib import Path
-from copy import copy
+from copy import copy, deepcopy
 import os
 import typing
 from typing import Self
@@ -352,6 +352,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             None
         )
         self._retrieval_state_vector_size = -1
+        # Temp
+        self._posteriori_slice: dict[StateElementIdentifier, slice] = {}
+        self._previous_posteriori_cov_fm = np.zeros((0,0))
 
     def current_state_override(
         self,
@@ -856,7 +859,60 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         '''
         return self.apriori_cov_fm(self.retrieval_state_element_id)
 
-    def apriori_cov_fm(self, list_state_element_id: list[StateElementIdentifier]) -> np.ndarray:
+    def setup_previous_aposteriori_cov_fm(self, covariance_state_element_name : list[StateElementIdentifier], current_strategy_step: CurrentStrategyStep) -> None:
+        '''Kludge, pass in list of elements. This will go away, but right now
+        we do this. Also the update_initial_guess is needed by the old state element wrappers,
+        this can go away with new ones'''
+        pstart = 0
+        for sid in covariance_state_element_name:
+            selem = deepcopy(self.full_state_element(sid))
+            if hasattr(selem, "update_initial_guess"):
+                selem.update_initial_guess(current_strategy_step)
+            plen = selem.apriori_cov_fm.shape[0]
+            self._posteriori_slice[sid] = slice(pstart,pstart+plen)
+            pstart += plen
+        self._previous_posteriori_cov_fm = self.apriori_cov_fm(covariance_state_element_name, current_strategy_step)
+        
+    def previous_aposteriori_cov_fm(self, list_state_element_id: list[StateElementIdentifier]) -> np.ndarray:
+        # Select only the elements requested
+        v = np.zeros((self._previous_posteriori_cov_fm.shape[0]),dtype=bool)
+        for sid in list_state_element_id:
+            v[self._posteriori_slice[sid]] = True
+        return self._previous_posteriori_cov_fm[:,v][v,:]
+
+    @property
+    def Sb(self) -> np.ndarray:
+        '''previous_aposteriori_cov_fm for the systematic_state_element_id'''
+        return self.previous_aposteriori_cov_fm(self.systematic_state_element_id)
+
+    @property
+    def error_current_values(self) -> np.ndarray:
+        '''previous_aposteriori_cov_fm for the retrieval_state_element_id. This is closely
+        related to Sx, but has a different name in ErrorAnalysis'''
+        return self.previous_aposteriori_cov_fm(self.retrieval_state_element_id)
+
+    def update_previous_aposteriori_cov_fm(self, Sx : np.ndarray, off_diagonal_sys: np.ndarray | None) -> None:
+        '''Update the previous_aposteriori_cov_fm for this retrieval step. Comes from
+        ErrorAnalysis. We have the previous_aposteriori_cov_fm for retrieval_state_element_id,
+        and the retrieval_state_element_id x systematic_state_element_id off diagonal matrix.'''
+        # Zero out all the cross terms with retrieval_state_element_id
+        v1 = np.zeros((self._previous_posteriori_cov_fm.shape[0]),dtype=bool)
+        for sid in self.retrieval_state_element_id:
+            v1[self._posteriori_slice[sid]] = True
+        self._previous_posteriori_cov_fm[v1,:] = 0
+        self._previous_posteriori_cov_fm[:,v1] = 0
+        # Set Sx
+        self._previous_posteriori_cov_fm[np.ix_(v1,v1)] = Sx
+        # Populate the retrieval_state_element_id, systematic_state_element_id cross terms
+        if(off_diagonal_sys is not None):
+            v2 = np.zeros((self._previous_posteriori_cov_fm.shape[0]),dtype=bool)
+            for sid in self.systematic_state_element_id:
+                v2[self._posteriori_slice[sid]] = True
+            self._previous_posteriori_cov_fm[np.ix_(v2,v1)] = off_diagonal_sys
+            self._previous_posteriori_cov_fm[np.ix_(v1,v2)] = off_diagonal_sys.transpose()
+    
+    def apriori_cov_fm(self, list_state_element_id: list[StateElementIdentifier],
+                       current_strategy_step: CurrentStrategyStep | None = None) -> np.ndarray:
         '''Return apriori covariance for the given list of state elements, including cross
         terms. When the list is the retrieval_state_element_id this is S_a in the paper
 
@@ -864,7 +920,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         V. ERROR CHARACTERIZATION
         (https://ieeexplore.ieee.org/document/1624609)
         '''
-        selem_list = [self.full_state_element(sname) for sname in list_state_element_id]
+        # TODO deepcopy is temp, only needed for old state elements
+        if(current_strategy_step is not None):
+            selem_list = [deepcopy(self.full_state_element(sname)) for sname in list_state_element_id]
+            for selem in selem_list:
+                if hasattr(selem, "update_initial_guess"):
+                    selem.update_initial_guess(current_strategy_step)
+        else:
+            selem_list = [self.full_state_element(sname) for sname in list_state_element_id]
 
         # Make block diagonal covariance.
         species_list = []
@@ -881,13 +944,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         for i, selem1 in enumerate(selem_list):
             for selem2 in selem_list[i + 1 :]:
                 matrix2 = selem1.apriori_cross_covariance_fm(selem2)
+                r1 = np.array(species_list) == str(selem1.state_element_id)
+                r2 = np.array(species_list) == str(selem2.state_element_id)
                 if matrix2 is not None:
-                    res[np.array(species_list) == str(selem1.state_element_id), :][
-                        :, np.array(species_list) == str(selem2.state_element_id)
-                    ] = matrix2
-                    res[np.array(species_list) == str(selem2.state_element_id), :][
-                        :, np.array(species_list) == str(selem1.state_element_id)
-                    ] = np.transpose(matrix2)
+                    res[np.ix_(r1,r2)] = matrix2
+                    res[np.ix_(r2,r1)] = matrix2.transpose()
         return res
 
 

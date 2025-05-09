@@ -7,6 +7,7 @@ import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
 from typing import Any, cast
+from functools import cached_property
 
 if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
@@ -272,7 +273,7 @@ class StateElementOldWrapper(StateElement):
             return None
         return res
 
-    @property
+    @cached_property
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
         """Apriori Covariance"""
         return self._old_selem.sa_covariance()[0].astype(float)

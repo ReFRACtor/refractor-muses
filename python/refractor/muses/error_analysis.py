@@ -5,6 +5,7 @@ from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 import copy
 import numpy as np
+import numpy.testing as npt
 import sys
 import os
 import math
@@ -37,6 +38,8 @@ class ErrorAnalysis:
         self.error_current = mpy.ObjectView(self.initialize_error_initial(
             current_state, current_strategy_step, covariance_state_element_name
         ))
+        current_state.setup_previous_aposteriori_cov_fm(covariance_state_element_name,
+                                                        current_strategy_step)
 
     def snapshot_to_file(self, fname: str | os.PathLike[str]) -> None:
         """py-retrieve is big on having functions with unintended side effects. It can
@@ -83,7 +86,6 @@ class ErrorAnalysis:
         # Note the odd seeming "capitalize" here. This is because
         # get_prior_error uses the map type to look up files, and
         # rather than "linear" or "log" it needs "Linear" or "Log"
-
         pressure_list: list[float] = []
         species_list = []
         map_list = []
@@ -152,6 +154,7 @@ class ErrorAnalysis:
         bad_pixel = data_error < 0
 
         cstate = retrieval_result.current_state
+        npt.assert_allclose(cstate._previous_posteriori_cov_fm, self.error_current.data)
         if(cstate.map_to_parameter_matrix is None or cstate.basis_matrix is None):
             raise RuntimeError("Missing basis matrix")
         my_map = mpy.ObjectView({
@@ -194,6 +197,8 @@ class ErrorAnalysis:
             speciesList = retrieval.speciesSys[0:retrieval.n_speciesSys]
             Sb = mpy.constraint_get(self.error_current.__dict__, speciesList)
             retrieval_result.Sb = Sb  # type: ignore[attr-defined]
+            Sb2 = cstate.Sb
+            #npt.assert_allclose(Sb, Sb2)
     
         for ii in range(jacobian.shape[0]):
             jacobian[ii, :] /= data_error
@@ -236,6 +241,8 @@ class ErrorAnalysis:
         # if not updating, keep current error analysis
         currentSpecies = retrieval.species[0:retrieval.n_species]
         errorCurrentValues = mpy.constraint_get(self.error_current.__dict__, currentSpecies)
+        error_current_values2 = cstate.error_current_values
+        #npt.assert_allclose(errorCurrentValues, error_current_values2)
     
         # AT_LINE 251 Error_Analysis_Wrapper.pro
     
@@ -257,6 +264,8 @@ class ErrorAnalysis:
             retrieval_result,
             retrieval,
             errorCurrentValues)
+
+        cstate.update_previous_aposteriori_cov_fm(retrieval_result.Sx, offDiagonalSys)
     
         # AT_LINE 280 Error_Analysis_Wrapper.pro
         speciesList = retrieval.speciesList
@@ -287,7 +296,7 @@ class ErrorAnalysis:
                 np.asarray(currentSpecies)
             )
         # end if jacobian_sys is not None:
-
+        #npt.assert_allclose(cstate._previous_posteriori_cov_fm, self.error_current.data)
 
     # see: https://ieeexplore.ieee.org/document/1624609
     # Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis

@@ -498,6 +498,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # List of state elements we need covariance from. This is all the elements
         # we will retrieve, plus any interferents that get added in. This list
         # is unique elements, sorted by the order_species sorting
+        #
+        # I'm pretty sure this is the only place in the code that we use MusesStrategy
+        # all retrieval_elements and all error_analysis_interferents - when we remove this
+        # code we should be able to remove these from MusesStrategy
         covariance_state_element_name = [
             StateElementIdentifier(i)
             for i in order_species(
