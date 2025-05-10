@@ -783,7 +783,7 @@ class ErrorAnalysis:
             mydiff = resultVector[ind] - constraintVector[ind]
     
             # figure out amount of each vector in the result
-            dots = np.zeros(shape=(num_pp_elements), dtype=np.float32)
+            dots = np.zeros(shape=(num_pp_elements), dtype=np.float64)
             for jj in range(num_pp_elements):
                 dots[jj] = np.sum(vmatrix[jj, :] * mydiff)
     
@@ -820,8 +820,8 @@ class ErrorAnalysis:
             "GdL": np.zeros(shape=(nfreqs, rowsFM), dtype=np.float64),
             "jacobianSys": None,
             # error stuff follows - calc later
-            "A_ret": np.zeros(shape=(rows, rows), dtype=np.float32),
-            "KtSyK": np.zeros(shape=(rows, rows), dtype=np.float32),
+            "A_ret": np.zeros(shape=(rows, rows), dtype=np.float64),
+            "KtSyK": np.zeros(shape=(rows, rows), dtype=np.float64),
             "Sa_ret": np.zeros(shape=(rows, rows), dtype=np.float64),
             "Sx_ret_smooth": np.zeros(shape=(rows, rows), dtype=np.float64),
             "Sx_ret_crossState": np.zeros(shape=(rows, rows), dtype=np.float64),
@@ -863,27 +863,27 @@ class ErrorAnalysis:
             ),
             # quality and general
             "KDotDL": 0.0,
-            "KDotDL_list": np.zeros(shape=(rows), dtype=np.float32),
-            "KDotDL_byspecies": np.zeros(shape=(num_species), dtype=np.float32),
+            "KDotDL_list": np.zeros(shape=(rows), dtype=np.float64),
+            "KDotDL_byspecies": np.zeros(shape=(num_species), dtype=np.float64),
             "KDotDL_species": ["" for x in range(num_species)],
-            "KDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float32),
+            "KDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float64),
             "maxKDotDLSys": 0.0,
         }
 
         struct2 = {
             "LDotDL": 0.0,
-            "LDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float32),
+            "LDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float64),
             "calscaleMean": 0.0,
             "masterQuality": -999,
             # EM NOTE - Modified to increase vector size to allow for stratosphere capture
             "tsur_minus_tatm0": -999.0,
             "tsur_minus_prior": -999.0,
-            "ch4_evs": np.zeros(shape=(10), dtype=np.float32),  # FLTARR(10)
+            "ch4_evs": np.zeros(shape=(10), dtype=np.float64),  # FLTARR(10)
         }
         o_results.update(struct2)
         self.__dict__.update(o_results)
         self.errorFM = np.zeros(shape=(rowsFM), dtype=np.float64)
-        self.A =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float32)
+        self.A =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
         self.Sa =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
         self.Sb =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
         self.Sx =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
