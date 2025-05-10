@@ -658,7 +658,7 @@ class RetrievalL2Output(RetrievalOutput):
         indx = utilList.WhereEqualIndices(self.species_list_fm, "PCLOUD")
         if len(indx) > 0:
             indx = indx[0]
-            species_data.CLOUDTOPPRESSUREDOF = self.results.A[indx, indx]
+            species_data.CLOUDTOPPRESSUREDOF = np.float32(self.results.A[indx, indx])
             species_data.CLOUDTOPPRESSUREERROR = self.results.errorFM[indx]
 
         # AT_LINE 288 write_products_one.pro
@@ -671,7 +671,7 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.H2O_H2O_CORR_QA = self.results.H2O_H2OQuality
         species_data.KDOTDL_QA = self.results.KDotDL
         species_data.KDOTDLSYS_QA = self.results.maxKDotDLSys
-        species_data.LDOTDL_QA = self.results.LDotDL
+        species_data.LDOTDL_QA = np.float32(self.results.LDotDL)
         species_data.QUALITY = np.int16(self.results.masterQuality)
         species_data.SURFACEEMISSMEAN_QA = self.results.emisDev
         species_data.SURFACEEMISSIONLAYER_QA = self.results.emissionLayer
@@ -719,9 +719,9 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.RETRIEVEINLOG = np.int32(1)
 
         # AT_LINE 342 write_products_one.pro
-        species_data.DOFS = np.sum(
+        species_data.DOFS = np.float32(np.sum(
             mpy.get_diagonal(self.results.A[ind1FM:ind2FM, ind1FM:ind2FM])
-        )
+        ))
         species_data.PRECISION[pslice] = np.sqrt(
             mpy.get_diagonal(self.results.Sx_rand[ind1FM:ind2FM, ind1FM:ind2FM])
         )
@@ -997,11 +997,11 @@ class RetrievalL2Output(RetrievalOutput):
 
                 # AT_LINE 642 write_products_one.pro
                 species_data.N2O_DOFS = 0.0
-                species_data.N2O_DOFS = np.sum(
+                species_data.N2O_DOFS = np.float32(np.sum(
                     mpy.get_diagonal(
                         self.results.A[ind1FMN2O:ind2FMN2O, ind1FMN2O:ind2FMN2O]
                     )
-                )
+                ))
                 species_data.N2O_SPECIES[pslice] = self.state_value_vec("N2O")
                 species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec(
                     "N2O"

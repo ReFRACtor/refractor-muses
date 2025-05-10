@@ -85,12 +85,7 @@ class RetrievalResult:
         self.O3_tropo_consistency = 0.0
         self.ozoneCcurve = 0.0
         self.ozone_slope_QA = -999.0
-        self.errorFM = np.zeros(shape=(rowsFM), dtype=np.float64)
         self.columnDOFS = np.zeros(shape=(num_col, max_num_species), dtype=np.float32)
-        self.A =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float32)
-        self.Sa =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
-        self.Sb =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
-        self.Sx =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
         self.columnPriorError = np.full((num_col, max_num_species), -999, dtype=np.float64)
         self.columnInitial = np.full((num_col, max_num_species), -999, dtype=np.float64)
         self.columnInitialInitial = np.full((num_col, max_num_species), -999, dtype=np.float64)
@@ -121,6 +116,7 @@ class RetrievalResult:
         )
 
     def update_error_analysis(self, error_analysis : ErrorAnalysis) -> None:
+        self._error_analysis = error_analysis
         self._cloud_result_summary = CloudResultSummary(self, error_analysis)
         self._column_result_summary = ColumnResultSummary(self, error_analysis)
 
@@ -437,6 +433,155 @@ class RetrievalResult:
         else:
             res = 0
         return res
+
+    @property
+    def Sb(self) -> np.ndarray:
+        return self._error_analysis.Sb
+
+    @property
+    def Sa(self) -> np.ndarray:
+        return self._error_analysis.Sa
+
+    @property
+    def Sa_ret(self) -> np.ndarray:
+        return self._error_analysis.Sa_ret
+    
+    @property
+    def KtSyK(self) -> np.ndarray:
+        return self._error_analysis.KtSyK
+    
+    @property
+    def KtSyKFM(self) -> np.ndarray:
+        return self._error_analysis.KtSyKFM
+
+    @property
+    def Sx(self) -> np.ndarray:
+        return self._error_analysis.Sx
+
+    @property
+    def Sx_smooth(self) -> np.ndarray:
+        return self._error_analysis.Sx_smooth
+
+    @property
+    def Sx_ret_smooth(self) -> np.ndarray:
+        return self._error_analysis.Sx_ret_smooth
+    
+    @property
+    def Sx_smooth_self(self) -> np.ndarray:
+        return self._error_analysis.Sx_smooth_self
+
+    @property
+    def Sx_crossState(self) -> np.ndarray:
+        return self._error_analysis.Sx_crossState
+
+    @property
+    def Sx_ret_crossState(self) -> np.ndarray:
+        return self._error_analysis.Sx_ret_crossState
+    
+    @property
+    def Sx_rand(self) -> np.ndarray:
+        return self._error_analysis.Sx_rand
+
+    @property
+    def Sx_ret_rand(self) -> np.ndarray:
+        return self._error_analysis.Sx_ret_rand
+
+    @property
+    def Sx_ret_mapping(self) -> np.ndarray:
+        return self._error_analysis.Sx_ret_mapping
+    
+    @property
+    def Sx_sys(self) -> np.ndarray:
+        return self._error_analysis.Sx_sys
+
+    @property
+    def Sx_ret_sys(self) -> np.ndarray:
+        return self._error_analysis.Sx_ret_sys
+    
+    @property
+    def radianceResidualRMSSys(self) -> float:
+        return self._error_analysis.radianceResidualRMSSys
+
+    @property
+    def A(self) -> np.ndarray:
+        return self._error_analysis.A
+
+    @property
+    def A_ret(self) -> np.ndarray:
+        return self._error_analysis.A_ret
+    
+    @property
+    def GMatrix(self) -> np.ndarray:
+        return self._error_analysis.GMatrix
+
+    @property
+    def GMatrixFM(self) -> np.ndarray:
+        return self._error_analysis.GMatrixFM
+    
+    @property
+    def deviationVsErrorSpecies(self) -> np.ndarray:
+        return self._error_analysis.deviationVsErrorSpecies
+
+    @property
+    def deviationVsRetrievalCovarianceSpecies(self) -> np.ndarray:
+        return self._error_analysis.deviationVsRetrievalCovarianceSpecies
+        
+    @property
+    def deviationVsAprioriCovarianceSpecies(self) -> np.ndarray:
+        return self._error_analysis.deviationVsAprioriCovarianceSpecies
+            
+    @property
+    def degreesOfFreedomForSignal(self) -> np.ndarray:
+        return self._error_analysis.degreesOfFreedomForSignal
+                
+    @property
+    def degreesOfFreedomNoise(self) -> np.ndarray:
+        return self._error_analysis.degreesOfFreedomNoise
+
+    @property
+    def KDotDL_list(self) -> np.ndarray:
+        return self._error_analysis.KDotDL_list
+        
+    @property
+    def KDotDL(self) -> float:
+        return self._error_analysis.KDotDL
+            
+    @property
+    def KDotDL_species(self) -> list[str]:
+        return self._error_analysis.KDotDL_species
+                
+    @property
+    def KDotDL_byspecies(self) -> np.ndarray:
+        return self._error_analysis.KDotDL_byspecies
+                    
+    @property
+    def LDotDL(self) -> np.ndarray:
+        return self._error_analysis.LDotDL
+                        
+    @property
+    def KDotDL_byfilter(self) -> np.ndarray:
+        return self._error_analysis.KDotDL_byfilter
+                            
+    @property
+    def maxKDotDLSys(self) -> float:
+        return self._error_analysis.maxKDotDLSys
+                                
+    @property
+    def errorFM(self) -> np.ndarray:
+        return self._error_analysis.errorFM
+                                    
+    @property
+    def precision(self) -> np.ndarray:
+        return self._error_analysis.precision
+                                        
+    @property
+    def GdL(self) -> np.ndarray:
+        return self._error_analysis.GdL
+                                            
+    @property
+    def ch4_evs(self) -> np.ndarray:
+        return self._error_analysis.ch4_evs
+    
     
     def set_retrieval_results(self) -> dict:
         """This is our own copy of mpy.set_retrieval_results, so we
@@ -458,73 +603,23 @@ class RetrievalResult:
             rowsSys = 1
 
         o_results: dict[str, Any] = {
-            "radianceResidualRMSSys": 0.0,
-            "error": np.zeros(shape=(rows), dtype=np.float64),
-            "precision": np.zeros(shape=(rowsFM), dtype=np.float64),
-            "resolution": np.zeros(shape=(rowsFM), dtype=np.float64),
-            # jacobians - for last outputStep
-            "GdL": np.zeros(shape=(nfreqs, rowsFM), dtype=np.float64),
-            "jacobianSys": None,
             # error stuff follows - calc later
-            "A_ret": np.zeros(shape=(rows, rows), dtype=np.float32),
-            "KtSyK": np.zeros(shape=(rows, rows), dtype=np.float32),
-            "Sa_ret": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "Sx_ret_smooth": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "Sx_ret_crossState": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "Sx_ret_rand": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "Sx_ret_sys": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "Sx_ret_mapping": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "Sx_smooth_self": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "Sx_smooth": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "Sx_crossState": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "Sx_sys": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "Sx_rand": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "Sx_mapping": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
             "SxActual": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "GMatrix": np.zeros(shape=(nfreqs, rows), dtype=np.float64),
-            "GMatrixFM": np.zeros(shape=(nfreqs, rowsFM), dtype=np.float64),
             # by species
             "informationContentSpecies": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            "degreesOfFreedomNoise": np.zeros(shape=(num_species), dtype=np.float64),
-            "degreesOfFreedomForSignal": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            "degreesOfFreedomForSignalTrop": np.zeros(
                 shape=(num_species), dtype=np.float64
             ),
             "bestDegreesOfFreedomList": ["" for x in range(num_species)],
             "bestDegreesOfFreedomTotal": ["" for x in range(num_species)],
             "verticalResolution": np.zeros(shape=(num_species), dtype=np.float64),
-            "deviationVsError": 0.0,
-            "deviationVsRetrievalCovariance": 0.0,
-            "deviationVsAprioriCovariance": 0.0,
-            "deviationVsErrorSpecies": np.zeros(shape=(num_species), dtype=np.float64),
-            "deviationVsRetrievalCovarianceSpecies": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            "deviationVsAprioriCovarianceSpecies": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            # quality and general
-            "KDotDL": 0.0,
-            "KDotDL_list": np.zeros(shape=(rows), dtype=np.float32),
-            "KDotDL_byspecies": np.zeros(shape=(num_species), dtype=np.float32),
-            "KDotDL_species": ["" for x in range(num_species)],
-            "KDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float32),
-            "maxKDotDLSys": 0.0,
         }
 
         struct2 = {
-            "LDotDL": 0.0,
-            "LDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float32),
             "calscaleMean": 0.0,
             "masterQuality": -999,
             # EM NOTE - Modified to increase vector size to allow for stratosphere capture
             "tsur_minus_tatm0": -999.0,
             "tsur_minus_prior": -999.0,
-            "ch4_evs": np.zeros(shape=(10), dtype=np.float32),  # FLTARR(10)
         }
         o_results.update(struct2)
         return o_results
