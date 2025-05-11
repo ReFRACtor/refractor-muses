@@ -177,11 +177,8 @@ class ErrorAnalysis:
             for i in range(jacobian_sys.shape[0]):
                 jacobian_sys[i, :] /= data_error
     
-            # AT_LINE 107 Error_Analysis_Wrapper.pro
-            Sb2 = mpy.constraint_get(self.error_current.__dict__, retrieval.speciesSys[0:retrieval.n_speciesSys])
             Sb = cstate.Sb
-            self._Sb = Sb  # type: ignore[attr-defined]
-            npt.assert_allclose(Sb, Sb2, atol=1e-12)
+            self._Sb = Sb 
     
         for ii in range(jacobian.shape[0]):
             jacobian[ii, :] /= data_error
@@ -191,8 +188,7 @@ class ErrorAnalysis:
     
         # AT_LINE 177 Error_Analysis_Wrapper.pro
         Sa = cstate.Sa
-    
-        self._Sa[:, :] = Sa[:, :]  # type: ignore[attr-defined]
+        self._Sa = Sa
     
         ret_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
         con_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
@@ -266,8 +262,6 @@ class ErrorAnalysis:
                 np.asarray(retrieval.speciesSys[0:len(my_ind)]), 
                 np.asarray(currentSpecies)
             )
-        # end if jacobian_sys is not None:
-        #npt.assert_allclose(cstate._previous_posteriori_cov_fm, self.error_current.data)
 
     # see: https://ieeexplore.ieee.org/document/1624609
     # Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis
@@ -286,8 +280,7 @@ class ErrorAnalysis:
             resultVector : np.ndarray,
             dataError : np.ndarray,
             actualDataResidual : np.ndarray,
-            retrieval_result : Any, # Lots of attributes mypy can't see, so just have the
-                                    # type here Any
+            retrieval_result : RetrievalResult,
             retrieval : FakeRetrievalInfo,
             errorCurrentValues : mpy.ObjectView) -> np.ndarray | None:
         
@@ -309,45 +302,23 @@ class ErrorAnalysis:
         if jacobianSys is not None and Sb is not None:
             kappaInt = np.matmul(jacobianSys, np.transpose(jacobian))
             self._Sx_sys = np.matmul(np.matmul(np.matmul(np.transpose(np.matmul(kappaInt, S_inv)), Sb), kappaInt), S_inv)
-    
-            # get expected error in radianceResidualRMS from sys error
             sys = np.zeros(shape=(len(jacobianSys[0, :])), dtype=np.float64)
             for ii in range(len(jacobianSys[0, :])):
                 sys[ii] = np.matmul(np.matmul(np.transpose(jacobianSys[:, ii]), Sb), jacobianSys[:, ii])
             self._radianceResidualRMSSys = math.sqrt(np.sum(sys) / sys.size)
-    
-            # AT_LINE 134 Error_Analysis.pro
             o_offDiagonalSys = np.matmul(np.matmul(Sb, kappaInt), -S_inv)
         else:
-            self._Sx_sys = copy.deepcopy(self._Sx_rand)
-            self._Sx_sys[:] = 0
-        # end if jacobianSys is not None:
+            self._Sx_sys = np.zeros(self._Sx_rand.shape)
+            self._radianceResidualRMSSys = 0.0
     
-        # AT_LINE 162 Error_Analysis.pro
-        self._Sx[:, :] = (self._Sx_smooth + self._Sx_rand + self._Sx_sys)[:, :]
-        self._A[:, :] = np.matmul(kappaFM, S_inv)[:, :]
+        self._Sx = (self._Sx_smooth + self._Sx_rand + self._Sx_sys)
+        self._A = np.matmul(kappaFM, S_inv)
     
-        # AT_LINE 179 Error_Analysis.pro
-        # find actual GN step
-        G_matrix = np.matmul(np.transpose(jacobian), S_inv)    # PYTHON_NOTE: Changed G to G_matrix so we can easily find this variable.
+        G_matrix = np.matmul(np.transpose(jacobian), S_inv) 
         for jj in range(G_matrix.shape[1]):
-            G_matrix[:, jj] = G_matrix[:, jj] / dataError
-    
-        # AT_LINE 183 Error_Analysis.pro
-        gainRet = np.matmul(G_matrix, my_map.toPars)
-    
-        # PYTHON_NOTE: It is possible that the size of gainRet and  result.GMatrix are different.
-        # If that is the case, we shrink to the smaller of the two.
-        # ValueError: could not broadcast input array from shape (220,62) into shape (370,62)
-        if self._GMatrix.shape[0] > gainRet.shape[0]:
-            self._GMatrix = np.resize(self._GMatrix, (gainRet.shape[0], self._GMatrix.shape[1]))
-    
-        # PYTHON_NOTE: It is possible that the size of G_matrix and result.GMatrixFM are different.
-        if self._GMatrixFM.shape[0] > G_matrix.shape[0]:
-            self._GMatrixFM = np.resize(self._GMatrixFM, (G_matrix.shape[0], self._GMatrixFM.shape[1]))
-    
-        self._GMatrix[:, :] = gainRet[:, :]
-        self._GMatrixFM[:, :] = G_matrix[:, :]
+            G_matrix[:, jj] /=  dataError
+        self._GMatrix = np.matmul(G_matrix, my_map.toPars)
+        self._GMatrixFM = G_matrix
     
         # AT_LINE 211 Error_Analysis.pro
         # some species, like emis, are retrieved in step 1 for a particular spectral region and not updated following this.  In that case, keep errors when they are not moved.  If this is the case, set the error to the previous error, and all error components to zero.
@@ -812,7 +783,6 @@ class ErrorAnalysis:
             rowsSys = 1
 
         o_results: dict[str, Any] = {
-            "_radianceResidualRMSSys": 0.0,
             "_error": np.zeros(shape=(rows), dtype=np.float64),
             "_precision": np.zeros(shape=(rowsFM), dtype=np.float64),
             "_resolution": np.zeros(shape=(rowsFM), dtype=np.float64),
@@ -821,7 +791,6 @@ class ErrorAnalysis:
             "_jacobianSys": None,
             # error stuff follows - calc later
             "_A_ret": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "_KtSyK": np.zeros(shape=(rows, rows), dtype=np.float64),
             "_Sa_ret": np.zeros(shape=(rows, rows), dtype=np.float64),
             "_Sx_ret_smooth": np.zeros(shape=(rows, rows), dtype=np.float64),
             "_Sx_ret_crossState": np.zeros(shape=(rows, rows), dtype=np.float64),
@@ -829,14 +798,8 @@ class ErrorAnalysis:
             "_Sx_ret_sys": np.zeros(shape=(rows, rows), dtype=np.float64),
             "_Sx_ret_mapping": np.zeros(shape=(rows, rows), dtype=np.float64),
             "_Sx_smooth_self": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "_Sx_smooth": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
             "_Sx_crossState": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "_Sx_sys": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "_Sx_rand": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
             "_Sx_mapping": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "_SxActual": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "_GMatrix": np.zeros(shape=(nfreqs, rows), dtype=np.float64),
-            "_GMatrixFM": np.zeros(shape=(nfreqs, rowsFM), dtype=np.float64),
             # by species
             "_informationContentSpecies": np.zeros(
                 shape=(num_species), dtype=np.float64
@@ -884,8 +847,6 @@ class ErrorAnalysis:
         self.__dict__.update(o_results)
         self._errorFM = np.zeros(shape=(rowsFM), dtype=np.float64)
         self._A =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
-        self._Sa =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
-        self._Sb =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
         self._Sx =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
 
     @property
