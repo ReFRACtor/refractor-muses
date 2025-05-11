@@ -478,7 +478,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         """Called to notify other object that we are on a new retrieval step."""
         self.current_state.notify_start_step(
             self.current_strategy_step,
-            self.error_analysis,
             self.retrieval_config,
             skip_initial_guess_update=skip_initial_guess_update,
         )

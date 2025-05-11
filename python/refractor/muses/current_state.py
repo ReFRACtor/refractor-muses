@@ -21,7 +21,6 @@ if typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_observation import MeasurementId
-    from .error_analysis import ErrorAnalysis
     from .muses_strategy import CurrentStrategyStep
     from .retrieval_info import RetrievalInfo
     from .muses_strategy import MusesStrategy
@@ -1055,7 +1054,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
@@ -1927,7 +1925,6 @@ class CurrentStateStateInfoOld(CurrentState):
     def get_initial_guess(
         self,
         current_strategy_step: CurrentStrategyStep,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
         """Set retrieval_info, errorInitial and errorCurrent for the current step."""
@@ -1939,17 +1936,7 @@ class CurrentStateStateInfoOld(CurrentState):
             selem = self.full_state_element_old(selem_id)
             selem.update_initial_guess(current_strategy_step)
 
-        if False:
-            self.state_info.snapshot_to_file(
-                f"state_step{current_strategy_step.strategy_step.step_number}_1.txt"
-            )
-            error_analysis.snapshot_to_file(
-                f"error_analysis_step{current_strategy_step.strategy_step.step_number}_1.txt"
-            )
-
-        # TODO, we'd like to get rid of RetrievalInfo
         self._retrieval_info = RetrievalInfo(
-            error_analysis,
             Path(retrieval_config["speciesDirectory"]),
             current_strategy_step,
             self,
@@ -1995,7 +1982,6 @@ class CurrentStateStateInfoOld(CurrentState):
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
@@ -2011,9 +1997,7 @@ class CurrentStateStateInfoOld(CurrentState):
                 self.state_info.copy_current_initial()
             # Doesn't seem right that we update initial *before* doing get_initial_guess,
             # but that seems to be what happens
-            self.get_initial_guess(
-                current_strategy_step, error_analysis, retrieval_config
-            )
+            self.get_initial_guess(current_strategy_step, retrieval_config)
             # Save some data needed by notify_step_solution
             self._retrieval_config = retrieval_config
             self._do_not_update = current_strategy_step.retrieval_elements_not_updated

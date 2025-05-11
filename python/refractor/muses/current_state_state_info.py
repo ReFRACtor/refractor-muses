@@ -18,7 +18,6 @@ if typing.TYPE_CHECKING:
     from .current_state import PropagatedQA, SoundingMetadata
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import CurrentStrategyStep
-    from .error_analysis import ErrorAnalysis
     from .muses_strategy import MusesStrategy
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
@@ -476,7 +475,6 @@ class CurrentStateStateInfo(CurrentState):
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
@@ -491,7 +489,6 @@ class CurrentStateStateInfo(CurrentState):
             )
             self._state_info.notify_start_step(
                 current_strategy_step,
-                error_analysis,
                 retrieval_config,
                 skip_initial_guess_update,
             )

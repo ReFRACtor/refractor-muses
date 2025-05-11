@@ -1,5 +1,6 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.framework as rf  # type: ignore
 from .identifier import StateElementIdentifier
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
@@ -8,8 +9,7 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .current_state import CurrentStateStateInfoOld
-    from .error_analysis import ErrorAnalysis
+    from .current_state import CurrentStateStateInfoOld, CurrentState
     from .muses_strategy_executor import CurrentStrategyStep
     from .retrieval_result import RetrievalResult
 
@@ -24,18 +24,25 @@ class RetrievalInfo:
 
     def __init__(
         self,
-        error_analysis: ErrorAnalysis,
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentStateStateInfoOld,
     ):
         self.retrieval_dict = self.init_data(
-            error_analysis, species_dir, current_strategy_step, current_state
+            species_dir, current_strategy_step, current_state
         )
         self.retrieval_dict = self.retrieval_dict.__dict__
-        self._map_type_systematic = mpy.constraint_get_maptype(
-            error_analysis.error_current, self.species_list_sys
-        )
+        self._map_type_systematic = [
+            self._map_type(current_state, i) for i in self.species_list_sys
+        ]
+
+    def _map_type(self, current_state: CurrentState, sid: str) -> str:
+        smap = current_state.state_mapping(StateElementIdentifier(sid))
+        if isinstance(smap, rf.StateMappingLinear):
+            return "linear"
+        elif isinstance(smap, rf.StateMappingLog):
+            return "log"
+        raise RuntimeError(f"Don't recognize state mapping {smap}")
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
@@ -268,29 +275,23 @@ class RetrievalInfo:
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentStateStateInfoOld,
         o_retrievalInfo: mpy.ObjectView,
-        error_analysis: ErrorAnalysis,
     ) -> None:
         """Update the various "Sys" stuff in o_retrievalInfo to add in
         the error analysis interferents"""
-        sys_tokens = [str(i) for i in current_strategy_step.error_analysis_interferents]
-        o_retrievalInfo.n_speciesSys = len(sys_tokens)
-        o_retrievalInfo.speciesSys.extend(sys_tokens)
-        if len(sys_tokens) == 0:
-            return
-        myspec = list(
-            mpy.constraint_get_species(error_analysis.error_current, sys_tokens)
+        o_retrievalInfo.n_speciesSys = len(
+            current_strategy_step.error_analysis_interferents
         )
-        o_retrievalInfo.n_totalParametersSys = len(myspec)
-        for tk in sys_tokens:
-            cnt = sum(t == tk for t in myspec)
-            if cnt > 0:
-                pstart = myspec.index(tk)
-                o_retrievalInfo.parameterStartSys.append(pstart)
-                o_retrievalInfo.parameterEndSys.append(pstart + cnt - 1)
-                o_retrievalInfo.speciesListSys.extend([tk] * cnt)
-            else:
-                o_retrievalInfo.parameterStartSys.append(-1)
-                o_retrievalInfo.parameterEndSys.append(-1)
+        o_retrievalInfo.speciesSys.extend(
+            [str(i) for i in current_strategy_step.error_analysis_interferents]
+        )
+        pstart = 0
+        for sid in current_strategy_step.error_analysis_interferents:
+            plen = len(current_state.full_state_value(sid))
+            o_retrievalInfo.parameterStartSys.append(pstart)
+            o_retrievalInfo.parameterEndSys.append(pstart + plen - 1)
+            o_retrievalInfo.speciesListSys.extend([str(sid)] * plen)
+            pstart += plen
+        o_retrievalInfo.n_totalParametersSys = pstart
 
     def add_species(
         self,
@@ -453,7 +454,6 @@ class RetrievalInfo:
 
     def init_data(
         self,
-        error_analysis: ErrorAnalysis,
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentStateStateInfoOld,
@@ -544,10 +544,7 @@ class RetrievalInfo:
                 )
 
             self.init_interferents(
-                current_strategy_step,
-                current_state,
-                o_retrievalInfo,
-                error_analysis,
+                current_strategy_step, current_state, o_retrievalInfo
             )
 
         self.init_joint(o_retrievalInfo, species_dir, current_state)

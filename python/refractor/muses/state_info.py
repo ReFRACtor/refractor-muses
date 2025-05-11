@@ -11,7 +11,6 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId, ObservationHandleSet
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .error_analysis import ErrorAnalysis
 
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
@@ -85,14 +84,12 @@ class StateInfo(UserDict):
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
         # TODO, we want to remove this
         self._current_state_old.notify_start_step(
             current_strategy_step,
-            error_analysis,
             retrieval_config,
             skip_initial_guess_update,
         )
@@ -104,7 +101,6 @@ class StateInfo(UserDict):
         for selem in self.values():
             selem.notify_start_step(
                 current_strategy_step,
-                error_analysis,
                 retrieval_config,
                 skip_initial_guess_update,
             )
