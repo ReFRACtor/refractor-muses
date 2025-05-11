@@ -61,13 +61,9 @@ class RetrievalResult:
         self.ret_res = ret_res
         self.jacobianSys = jacobian_sys
         self.propagated_qa = propagated_qa
-        # Get old retrieval results structure, and merge in with this object
-        d = self.set_retrieval_results()
-        self.__dict__.update(d)
         # Filled in with ErrorAnalysis.write_retrieval_summary. We may move some of
         # this calculation to this class, but for now it gets done there.
         rowsSys = len(self.current_state.systematic_model_state_vector_element_list)
-        rowsFM = len(self.current_state.forward_model_state_vector_element_list)
         num_species = len(self.current_state.retrieval_state_element_id)
         # This really is exactly 5. See the column calculation. This is
         # ["Column", "Trop", "UpperTrop", "LowerTrop", ""Strato
@@ -76,15 +72,9 @@ class RetrievalResult:
         max_num_species = 20
         if rowsSys == 0:
             rowsSys = 1
-        self.cloudODVar = 0.0
-        self.cloudODAveError = 0.0
-        self.emisDev = 0.0
-        self.emissionLayer = 0.0
         self.H2O_H2OQuality = 0.0
         self.O3_columnErrorDU = 0.0
         self.O3_tropo_consistency = 0.0
-        self.ozoneCcurve = 0.0
-        self.ozone_slope_QA = -999.0
         self.columnDOFS = np.zeros(shape=(num_col, max_num_species), dtype=np.float32)
         self.columnPriorError = np.full((num_col, max_num_species), -999, dtype=np.float64)
         self.columnInitial = np.full((num_col, max_num_species), -999, dtype=np.float64)
@@ -97,9 +87,6 @@ class RetrievalResult:
         self.columnPressureMax = np.zeros(shape=(num_col), dtype=np.float32)
         self.columnPressureMin = np.zeros(shape=(num_col), dtype=np.float32)
         self.columnSpecies = ["",] * max_num_species
-        self.DeviationBad_QA = np.full((num_species), -999, dtype=np.int32)
-        self.num_deviations_QA = np.full((num_species), -999, dtype=np.int32)
-        self.deviation_QA = np.full((num_species), -999, dtype=np.float32)
 
         self._radiance_result_summary = [RadianceResultSummary(self.rstep.radiance[slc],
                                                                self.radiance[0,slc],
@@ -279,11 +266,11 @@ class RetrievalResult:
 
     @property
     def best_iteration(self) -> int:
-        return self.bestIteration  # type: ignore[attr-defined]
+        return self.bestIteration
 
     @property
     def results_list(self) -> np.ndarray:
-        return self.resultsList  # type: ignore[attr-defined]
+        return self.resultsList
 
     @property
     def master_quality(self) -> int:
@@ -395,44 +382,6 @@ class RetrievalResult:
     def residualQuadratic(self) -> np.ndarray:
         res = [ r.residual_quadratic for r in self._radiance_result_summary]
         return np.array(self._handle_fill(res,-999.0,-999.0))
-
-    @property
-    def cloud_factor(self) -> float:
-        scale_pressure = self.state_value("scalePressure")
-        if(scale_pressure == 0):
-            scale_pressure = 0.1
-        res = mpy.compute_cloud_factor(
-            self.state_value_vec("pressure"),
-            self.state_value_vec("TATM"),
-            self.state_value_vec("H2O"),
-            self.state_value("PCLOUD"),
-            scale_pressure,
-            self.current_state.sounding_metadata.surface_altitude.value*1000,
-            self.current_state.sounding_metadata.latitude.value,
-        )
-        # TODO Rounding currently done. I', not sure this makes a lot of sense,
-        # this was to match the old IDL code. I don't know that we actually want
-        # to do that, but for now have this in place.
-        res = round(res, 7)
-        return res
-
-    @property
-    def cloudODAve(self) -> float:
-        freq = self.current_state.full_state_spectral_domain_wavelength(
-            StateElementIdentifier("cloudEffExt")
-        )
-        if(freq is None):
-            raise RuntimeError("This shouldn't happen")
-        ind = np.where(
-            (freq >= 974) & 
-            (freq <= 1201)
-        )[0]
-        ceffect = self.state_value_vec("cloudEffExt")
-        if len(ind) > 0:
-            res = np.sum(ceffect[0, ind]) / len(ceffect[0, ind]) * self.cloud_factor
-        else:
-            res = 0
-        return res
 
     @property
     def Sb(self) -> np.ndarray:
@@ -582,48 +531,64 @@ class RetrievalResult:
     def ch4_evs(self) -> np.ndarray:
         return self._error_analysis.ch4_evs
     
+    @property
+    def cloudODAve(self) -> float:
+        return self._cloud_result_summary.cloudODAve
+
+    @property
+    def cloudODVar(self) -> float:
+        return self._cloud_result_summary.cloudODVar
+
+    @property
+    def cloudODAveError(self) -> float:
+        return self._cloud_result_summary.cloudODAveError
+
+    @property
+    def emisDev(self) -> float:
+        return self._cloud_result_summary.emisDev
+
+    @property
+    def emissionLayer(self) -> float:
+        return self._cloud_result_summary.emissionLayer
+
+    @property
+    def ozoneCcurve(self) -> float:
+        return self._cloud_result_summary.ozoneCcurve
+
+    @property
+    def ozone_slope_QA(self) -> float:
+        return self._cloud_result_summary.ozone_slope_QA
+
+    @property
+    def deviation_QA(self) -> np.ndarray:
+        return self._cloud_result_summary.deviation_QA
+
+    @property
+    def num_deviations_QA(self) -> np.ndarray:
+        return self._cloud_result_summary.num_deviations_QA
+
+    @property
+    def DeviationBad_QA(self) -> np.ndarray:
+        return self._cloud_result_summary.DeviationBad_QA
+
+    @property
+    def calscaleMean(self) -> float:
+        # Seems to be an old value, not actually calculated anymore. But still needed
+        # for output
+        return 0.0
+
+    @property
+    def tsur_minus_prior(self) -> float:
+        # Seems to be an old value, not actually calculated anymore. But still needed
+        # for output
+        return -999.0
+
+    @property
+    def tsur_minus_tatm0(self) -> float:
+        # Seems to be an old value, not actually calculated anymore. But still needed
+        # for output
+        return -999.0
     
-    def set_retrieval_results(self) -> dict:
-        """This is our own copy of mpy.set_retrieval_results, so we
-        can start making changes to clean up the coupling of this.
-
-        """
-        # Convert any dict to ObjectView so we can have a consistent
-        # way of referring to our input.
-        num_species = len(self.current_state.retrieval_state_element_id)
-        nfreqs = len(self.rstep.frequency)
-        num_filters = len(self.filter_index)
-        
-        # get the total number of frequency points in all microwindows for the
-        # gain matrix
-        rows = len(self.current_state.retrieval_state_vector_element_list)
-        rowsSys = len(self.current_state.systematic_model_state_vector_element_list)
-        rowsFM = len(self.current_state.forward_model_state_vector_element_list)
-        if rowsSys == 0:
-            rowsSys = 1
-
-        o_results: dict[str, Any] = {
-            # error stuff follows - calc later
-            "SxActual": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            # by species
-            "informationContentSpecies": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            "bestDegreesOfFreedomList": ["" for x in range(num_species)],
-            "bestDegreesOfFreedomTotal": ["" for x in range(num_species)],
-            "verticalResolution": np.zeros(shape=(num_species), dtype=np.float64),
-        }
-
-        struct2 = {
-            "calscaleMean": 0.0,
-            "masterQuality": -999,
-            # EM NOTE - Modified to increase vector size to allow for stratosphere capture
-            "tsur_minus_tatm0": -999.0,
-            "tsur_minus_prior": -999.0,
-        }
-        o_results.update(struct2)
-        return o_results
-
 __all__ = [
     "RetrievalResult",
 ]

@@ -5,12 +5,10 @@ from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 import copy
 import numpy as np
-import numpy.testing as npt
 import math
 from loguru import logger
 from scipy.linalg import block_diag  # type: ignore
 import typing
-from typing import Any
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
@@ -67,9 +65,6 @@ class ErrorAnalysis:
                 selem.update_initial_guess(current_strategy_step)
             selem_list.append(selem)
 
-        # Note the odd seeming "capitalize" here. This is because
-        # get_prior_error uses the map type to look up files, and
-        # rather than "linear" or "log" it needs "Linear" or "Log"
         pressure_list: list[float] = []
         species_list = []
         map_list = []
@@ -147,10 +142,10 @@ class ErrorAnalysis:
         })
     
         # result is jacobian[pars, frequency]
-        jacobian = retrieval_result.jacobian[0,:,:].copy() # type: ignore[attr-defined]
+        jacobian = retrieval_result.jacobian[0,:,:].copy()
         jacobian[:, bad_pixel] = 0
     
-        actual_data_residual = retrieval_result.radiance[0,:] - radiance.radiance  # type: ignore[attr-defined]
+        actual_data_residual = retrieval_result.radiance[0,:] - radiance.radiance
         actual_data_residual[bad_pixel] = 0
         
         if not np.all(np.isfinite(actual_data_residual)):
@@ -202,25 +197,16 @@ class ErrorAnalysis:
             ind1FM = retrieval.parameterStartFM[ispecie]
             ind2FM = retrieval.parameterEndFM[ispecie]
             
-            # PYTHON_NOTE: Because the slices does not include the end, we have to add 1 to the end of the slice.
-            ret_vector[ind1FM:ind2FM+1] = mpy.get_vector(retrieval_result.resultsList, retrieval, species_name, FM_Flag, INITIAL_Flag, TRUE_Flag, CONSTRAINT_Flag)  # type: ignore[attr-defined]
+            ret_vector[ind1FM:ind2FM+1] = mpy.get_vector(retrieval_result.resultsList, retrieval, species_name, FM_Flag, INITIAL_Flag, TRUE_Flag, CONSTRAINT_Flag)
             con_vector[ind1FM:ind2FM+1] = mpy.get_vector(retrieval.constraintVector, retrieval, species_name, FM_Flag, INITIAL_Flag, TRUE_Flag, CONSTRAINT_Flag)
     
             if retrieval.mapType[ispecie].lower() == 'log':  # Note the spelling of 'mapType' in retrieval object.
-                # PYTHON_NOTE: Because the slices does not include the end, we have to add 1 to the end of the slice.
                 ret_vector[ind1FM:ind2FM+1] = np.log(ret_vector[ind1FM:ind2FM+1])
                 con_vector[ind1FM:ind2FM+1] = np.log(con_vector[ind1FM:ind2FM+1])
-        # end for ispecie in range(retrieval.n_species):
     
-        # AT_LINE 204 Error_Analysis_Wrapper.pro
         constraintVector = con_vector
         resultVector = ret_vector
     
-    
-        # if not updating, keep current error analysis
-        currentSpecies = retrieval.species[0:retrieval.n_species]
-    
-        # AT_LINE 256 Error_Analysis_Wrapper.pro
         offDiagonalSys = self.error_analysis(
             my_map,
             jacobian,
@@ -242,7 +228,7 @@ class ErrorAnalysis:
         # Only needed by CloudResultSummary
         currentSpecies = retrieval.species[0:retrieval.n_species]
         self.error_current = mpy.constraint_clear(self.error_current.__dict__, currentSpecies)
-        self.error_current = mpy.constraint_set(self.error_current.__dict__, self.Sx, currentSpecies)  # type: ignore[attr-defined]
+        self.error_current = mpy.constraint_set(self.error_current.__dict__, self.Sx, currentSpecies)
         if jacobian_sys is not None and offDiagonalSys is not None:
             # set block and transpose of block
             my_ind = np.where(np.asarray(retrieval.parameterEndSys) > 0)[0]
@@ -426,7 +412,6 @@ class ErrorAnalysis:
             if not np.all(np.isfinite(self._Sx_smooth)):
                 raise RuntimeError("self._Sx_smooth is not finite")
     
-            # AT_LINE 579 Error_Analysis.pro
             if Sb is not None:
                 if not np.all(np.isfinite(Sb)):
                     raise RuntimeError("Sb is not finite")
@@ -476,9 +461,6 @@ class ErrorAnalysis:
                 if not np.all(np.isfinite(value[ii])):
                     raise RuntimeError("KDotDL is not finite")
     
-        # AT_LINE 663 Error_Analysis.pro
-        # now duplicate PGE, which is on FM grid and with unnormalized K and
-        # normalized L
         dL = actualDataResidual / dataError
         K = np.copy(jacobianFM)
         for jj in range(retrieval.n_totalParametersFM):
@@ -493,10 +475,7 @@ class ErrorAnalysis:
                 value[ii] = np.sum(myK *resid_vector) / math.sqrt(np.sum(myK * myK)) / math.sqrt(np.sum(resid_vector * resid_vector))
                 if not np.all(np.isfinite(value[ii])):
                     raise RuntimeError("KDotDL is not not finite")
-            # end if np.sum(myK*myK) > 0: # when K is very small, k*k becomes zero.
-        # end part of for ii in range(retrieval.n_totalParametersFM):
     
-        # AT_LINE 687 Error_Analysis.pro
         self._KDotDL_list = valueRet
         self._KDotDL = np.amax(np.abs(value))
         self._KDotDL_species = []
@@ -515,21 +494,11 @@ class ErrorAnalysis:
             endd = retrieval_result.filterEnd[ii]
             if start >= 0:
                 x1 = actualDataResidual[start:endd+1]
-                # For some reason, the radiance dimension may be 2 with the first dimension being 1 [1,442]
-                if len(retrieval_result.radiance.shape) == 2:
-                    if retrieval_result.radiance.shape[0] == 1:         # This case: [1,442]
-                        x2 = retrieval_result.radiance[0, start:endd+1]   # For [1,442] we just get the first row.
-                    else:
-                        logger.error("This function does not know how to handle retrieval_result.radiance with shape", retrieval_result.radiance.shape)
-                        assert False
-                else:
-                    x2 = retrieval_result.radiance[start:endd+1]
-    
+                x2 = retrieval_result.radiance[0, start:endd+1]
                 self._LDotDL_byfilter[ii] = np.sum(x1*x2) / math.sqrt(np.sum(x1*x1)) / math.sqrt(np.sum(x2*x2))
     
         self._LDotDL = self._LDotDL_byfilter[0]
         self._KDotDL_byfilter = np.zeros((len(unique_filters),))
-        # AT_LINE 712 Error_Analysis.pro
         for ii in range(len(unique_filters)):
             v1 = retrieval_result.filterStart[ii]
             v2 = retrieval_result.filterEnd[ii]
@@ -547,16 +516,10 @@ class ErrorAnalysis:
                         value[kk] = np.sum(myK *resid_vector) / math.sqrt(np.sum(myK * myK)) / math.sqrt(np.sum(resid_vector * resid_vector))
                         if not np.all(np.isfinite(value[kk])):
                             raise RuntimeError("KDotDL of jacobianFM is not finite")
-                    # end if np.sum(myK*myK) > 0: # when K is very small, k*k becomes zero.
-                # end for kk in range(retrieval.n_totalParametersFM):
-                
                 self._KDotDL_byfilter[ii] = np.amax(np.abs(value))
-        # end for ii in range(len(unique_filters)):
     
-        # AT_LINE 740 Error_Analysis.pro
         if retrieval.n_totalParametersSys > 0 and jacobianSys is not None:
             logger.warning("This section of the code for retrieval.n_totalParametersSys has not been tested.")
-            # now look at residual dotted into the systematic species
             value = np.zeros(shape=(retrieval.n_totalParametersSys), dtype=np.float64)
             for ii in range(retrieval.n_totalParametersSys):
                 K = jacobianSys[ii, :]
@@ -569,20 +532,15 @@ class ErrorAnalysis:
         else:
             self._maxKDotDLSys = 0.0
     
-        # AT_LINE 758 Error_Analysis.pro
         Sx = self._Sx
         Sx_rand = self._Sx_rand
 
         self._errorFM = np.zeros((retrieval.n_totalParametersFM,))
         self._precision = np.zeros((retrieval.n_totalParametersFM,))
-        # AT_LINE 761 Error_Analysis.pro
         for is_index in range(retrieval.n_totalParametersFM):
             self._errorFM[is_index] = np.sqrt(Sx[is_index, is_index])
             self._precision[is_index] = np.sqrt(Sx_rand[is_index, is_index])
-        # end for is_index in range(retrieval.n_totalParametersFM):
     
-    
-        # AT_LINE 769 Error_Analysis.pro
         # this is a new diagnostic 3/13/2015
         # it is the change in all parameters from each spectral point
         # the result is something the size of the FM Jacobian
@@ -600,12 +558,7 @@ class ErrorAnalysis:
             GdL = G_matrix * 0
             for jj in range(len(actualDataResidual)):
                 GdL[jj, :] = G_matrix[jj, :] * actualDataResidual[jj]
-    
-        # AT_LINE 790 Error_Analysis.pro
-        #self._GdL[:] = GdL[:]
         self._GdL = GdL
-    
-        # AT_LINE 792 Error_Analysis.pro
         ind = utilList.WhereEqualIndices(retrieval.speciesListFM, 'CH4')
         
         # Eventhough we are not doing special processing, we will still need to calculate the self._ch4_evs field.
@@ -613,39 +566,12 @@ class ErrorAnalysis:
         calculate_evs_field_flag = True
         if len(ind) > 10 and calculate_evs_field_flag:
             pp = retrieval.pressureListFM[ind]
-    
-            # IDL:
-            # svdc, jacobianfm[ind,*], w, u, v  
-    
-            # TODO: IDL code uses SVDC which is diffrent from np.linalg.svd
             (wmatrix, svmatrix, vmatrix) = np.linalg.svd(np.transpose(jacobianFM[ind, :]), full_matrices=True)
-            
-            num_pp_elements = len(pp) # PYTHON_NOTE: Variable 'np' is a reserved word, changed np to num_pp_elements.
-    
-            # Error_Analysis:jacobianfm[ind,*]
-            # <Expression>    DOUBLE    = Array[64, 442]
-            # Error_Analysis:id
-            # ID              DOUBLE    = Array[64, 2]
-            # Error_Analysis:v
-            # V               DOUBLE    = Array[64, 64]
-            # Error_Analysis:vt
-            # VT              DOUBLE    = Array[64, 2]
-            # (442,442) and (64,2) not aligned: 442 (dim 1) != 64 (dim 0)
-    
-            my_id = np.zeros(shape=(num_pp_elements, 3), dtype=np.float64)
-            my_id[0, 0] = 1
-            my_id[1, 1] = 1
-            my_id[2, 2] = 1
-            
-            # these on FM grid, and log
+            num_pp_elements = len(pp)
             mydiff = resultVector[ind] - constraintVector[ind]
-    
-            # figure out amount of each vector in the result
             dots = np.zeros(shape=(num_pp_elements), dtype=np.float64)
             for jj in range(num_pp_elements):
                 dots[jj] = np.sum(vmatrix[jj, :] * mydiff)
-    
-            # look at the first 2 eV's versus eV 3-10
             self._ch4_evs = np.abs(dots[0:9+1]) # ratio of use of 1st two vs. next 8 eVs
     
         return o_offDiagonalSys

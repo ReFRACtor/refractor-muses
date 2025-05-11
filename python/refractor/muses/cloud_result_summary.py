@@ -2,6 +2,7 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
+from .identifier import StateElementIdentifier
 import numpy as np
 import math
 import typing
@@ -13,19 +14,20 @@ if typing.TYPE_CHECKING:
 # Needs a lot of cleanup, we are just shoving stuff into place
 class CloudResultSummary:
     def __init__(self, retrieval_result: RetrievalResult, error_analysis : ErrorAnalysis) -> None:
+        self.current_state = retrieval_result.current_state
         utilList = mpy.UtilList()
         utilGeneral = mpy.UtilGeneral()
-        stateInfo = FakeStateInfo(retrieval_result.current_state)
-        retrievalInfo = FakeRetrievalInfo(retrieval_result.current_state)
+        stateInfo = FakeStateInfo(self.current_state)
+        retrievalInfo = FakeRetrievalInfo(self.current_state)
         errorCurrent = error_analysis.error_current
 
         num_species = retrievalInfo.n_species
         
-        retrieval_result.cloudODVar = 0
-        retrieval_result.cloudODAveError = 0
+        self._cloudODVar = 0
+        self._cloudODAveError = 0
     
         # AT_LINE 57 Write_Retrieval_Summary.pro
-        factor = retrieval_result.cloud_factor
+        factor = self.cloud_factor
     
         # step = 1
         # stepName = TATM,H2O,HDO,N2O,CH4,TSUR,CLOUDEXT,EMIS
@@ -59,7 +61,7 @@ class CloudResultSummary:
                 err[:] = myMean
     
             x = np.var((cloudod - myMean) / err, ddof=1)
-            retrieval_result.cloudODVar = math.sqrt(x)
+            self._cloudODVar = math.sqrt(x)
         else:
             # cloud not retrieved... use 975-1200
             # NOTE: code has not been tested.
@@ -76,7 +78,7 @@ class CloudResultSummary:
                 # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
                 error_current = errorCurrent.data[ind4, ind4]
     
-                retrieval_result.cloudODAveError = math.sqrt(np.sum(error_current)) / len(ind4) * retrieval_result.cloudODAve
+                self._cloudODAveError = math.sqrt(np.sum(error_current)) / len(ind4) * self.cloudODAve
     
                 ind3 = np.where(
                     (stateInfo.cloudPars['frequency'] >= 974) & 
@@ -122,15 +124,17 @@ class CloudResultSummary:
             myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
                 
             x = np.var((cloudod - myMean) / err, ddof=1)
-            retrieval_result.cloudODVar = math.sqrt(x)
+            self._cloudODVar = math.sqrt(x)
     
         ind = np.where(
             (stateInfo.emisPars['frequency'] >= 975) & 
             (stateInfo.emisPars['frequency'] <= 1200)
         )[0]
     
+        self._emissionLayer = 0
+        self._emisDev = -999.0
         if len(ind) > 0:
-            retrieval_result.emisDev = np.mean(stateInfo.current['emissivity'][ind]) - np.mean(stateInfo.constraint['emissivity'][ind])
+            self._emisDev = np.mean(stateInfo.current['emissivity'][ind]) - np.mean(stateInfo.constraint['emissivity'][ind])
     
         ind10 = np.asarray([])  # Start with an empty list so we have the variable set.
         if 'O3' in retrievalInfo.speciesListFM:
@@ -154,11 +158,11 @@ class CloudResultSummary:
             
             aveTATM = aveTATM / 3
             if my_sum/3 >= 1.5e-9:
-                retrieval_result.emissionLayer = aveTATM - TSUR
+                self._emissionLayer = aveTATM - TSUR
     
     
-        retrieval_result.ozoneCcurve = 1
-        retrieval_result.ozone_slope_QA = 1
+        self._ozoneCcurve = 1
+        self._ozone_slope_QA = 1
         ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, 'O3')
         if len(ind) > 0:
             pressure = stateInfo.current['pressure']
@@ -188,7 +192,7 @@ class CloudResultSummary:
                 if maxlo * 1e9 > 150 or \
                     ((maxlo*1e9 > 100 or meanlo / meanloig > 1.8) and (meanAKlo < 0.1)) or \
                     ((maxlo / minhi > 2.5 or maxlo / minhi >= 2) and (maxlo / surf >= 1.1)):
-                    retrieval_result.ozoneCcurve = 0
+                    self._ozoneCcurve = 0
             # end if len(indLow) > 0 and len(indHigh) > 0:
     
             # slope c-curve flag
@@ -198,11 +202,14 @@ class CloudResultSummary:
             o3 = o3[indp]
     
             slope = mpy.ccurve_jessica(altitude, o3)
-            retrieval_result.ozone_slope_QA = slope
+            self._ozone_slope_QA = slope
         # end if len(ind) > 0:
     
         # AT_LINE 255 Write_Retrieval_Summary.pro
         # Now get species dependent preferences
+        self._deviation_QA = np.zeros((num_species,))
+        self._num_deviations_QA = np.zeros((num_species,), dtype=int)
+        self._DeviationBad_QA = np.zeros((num_species,), dtype=int)
         for ispecie in range(0, num_species):
             my_sum = 0.0
     
@@ -214,9 +221,9 @@ class CloudResultSummary:
     
             # AT_LINE 269 Write_Retrieval_Summary.pro
             # deviation quality flag - refined for O3 and HCN
-            retrieval_result.deviation_QA[ispecie] = 1
-            retrieval_result.num_deviations_QA[ispecie] = 1
-            retrieval_result.DeviationBad_QA[ispecie] = 1
+            self._deviation_QA[ispecie] = 1
+            self._num_deviations_QA[ispecie] = 1
+            self._DeviationBad_QA[ispecie] = 1
             pressure = stateInfo.current['pressure']
             
             if loc != -1:
@@ -232,9 +239,91 @@ class CloudResultSummary:
             if loc != -1:
                 # AT_LINE 279 Write_Retrieval_Summary.pro
                 result_quality = mpy.quality_deviation(pressure, profile, constraint, ak_diag, species_name)
-                retrieval_result.deviation_QA[ispecie] = result_quality.deviation_QA
-                retrieval_result.num_deviations_QA[ispecie] = result_quality.num_deviations
-                retrieval_result.DeviationBad_QA[ispecie] = result_quality.deviationBad
+                self._deviation_QA[ispecie] = result_quality.deviation_QA
+                self._num_deviations_QA[ispecie] = result_quality.num_deviations
+                self._DeviationBad_QA[ispecie] = result_quality.deviationBad
 
+    @property
+    def cloudODAve(self) -> float:
+        freq = self.current_state.full_state_spectral_domain_wavelength(
+            StateElementIdentifier("cloudEffExt")
+        )
+        if(freq is None):
+            raise RuntimeError("This shouldn't happen")
+        ind = np.where(
+            (freq >= 974) & 
+            (freq <= 1201)
+        )[0]
+        ceffect = self.state_value_vec("cloudEffExt")
+        if len(ind) > 0:
+            res = np.sum(ceffect[0, ind]) / len(ceffect[0, ind]) * self.cloud_factor
+        else:
+            res = 0
+        return res
+                
+    @property
+    def cloudODVar(self) -> float:
+        return self._cloudODVar
+
+    @property
+    def cloudODAveError(self) -> float:
+        return self._cloudODAveError
+
+    @property
+    def emisDev(self) -> float:
+        return self._emisDev
+
+    @property
+    def emissionLayer(self) -> float:
+        return self._emissionLayer
+
+    @property
+    def ozoneCcurve(self) -> float:
+        return self._ozoneCcurve
+
+    @property
+    def ozone_slope_QA(self) -> float:
+        return self._ozone_slope_QA
+
+    @property
+    def deviation_QA(self) -> np.ndarray:
+        return self._deviation_QA
+
+    @property
+    def num_deviations_QA(self) -> np.ndarray:
+        return self._num_deviations_QA
+
+    @property
+    def DeviationBad_QA(self) -> np.ndarray:
+        return self._DeviationBad_QA
+    
+    def state_value(self, state_name : str) -> float:
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))[0]
+
+    def state_value_vec(self, state_name : str) -> np.ndarray:
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))
+
+    @property
+    def cloud_factor(self) -> float:
+        scale_pressure = self.state_value("scalePressure")
+        if(scale_pressure == 0):
+            scale_pressure = 0.1
+        res = mpy.compute_cloud_factor(
+            self.state_value_vec("pressure"),
+            self.state_value_vec("TATM"),
+            self.state_value_vec("H2O"),
+            self.state_value("PCLOUD"),
+            scale_pressure,
+            self.current_state.sounding_metadata.surface_altitude.value*1000,
+            self.current_state.sounding_metadata.latitude.value,
+        )
+        # TODO Rounding currently done. I', not sure this makes a lot of sense,
+        # this was to match the old IDL code. I don't know that we actually want
+        # to do that, but for now have this in place.
+        res = round(res, 7)
+        return res
+    
+    
+    
                 
 __all__ = ["CloudResultSummary"]

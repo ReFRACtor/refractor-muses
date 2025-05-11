@@ -145,10 +145,8 @@ class RetrievalOutput:
     def step_name(self) -> str:
         return self.retrieval_strategy.strategy_step.step_name
 
-    # This is actually a RetrievalResult, but because we directly update __dict_
-    # this seriously confuses mypy. Just mark as "Any" to work aroun this.
     @property
-    def results(self) -> Any:
+    def results(self) -> RetrievalResult:
         if (
             self.retrieval_strategy_step is None
             or self.retrieval_strategy_step.results is None

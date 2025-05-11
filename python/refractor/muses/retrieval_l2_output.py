@@ -704,9 +704,9 @@ class RetrievalL2Output(RetrievalOutput):
             StateElementIdentifier(self.spcname)
         )
 
-        species_data.DEVIATION_QA = self.results.deviation_QA[ispecie]
-        species_data.NUM_DEVIATIONS_QA = self.results.num_deviations_QA[ispecie]
-        species_data.DEVIATIONBAD_QA = self.results.DeviationBad_QA[ispecie]
+        species_data.DEVIATION_QA = np.float32(self.results.deviation_QA[ispecie])
+        species_data.NUM_DEVIATIONS_QA = np.int32(self.results.num_deviations_QA[ispecie])
+        species_data.DEVIATIONBAD_QA = np.int32(self.results.DeviationBad_QA[ispecie])
 
         ind1FM, sz = self.current_state.fm_sv_loc[StateElementIdentifier(self.spcname)]
         ind2FM = ind1FM + sz
