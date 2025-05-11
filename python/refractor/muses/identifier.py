@@ -134,6 +134,7 @@ class ProcessLocation(IdentifierStr):
 
 class FilterIdentifier(IdentifierStr):
     """Identify a filter in l1b data."""
+
     # The L2 output has hard coded mappings from the filter
     # identifier name (e.g., "CrIS-fsr-lw") to a band name
     # (e.g., "TIR1"). In addition to the hard coded names, it
@@ -142,32 +143,32 @@ class FilterIdentifier(IdentifierStr):
     # support this. For data that doesn't fit we'll return and index of
     # -999 and a name of the identifier
     _filter_map = {
-            "ALL" : (0, "ALL"),
-            "UV1" : (1, "UV1"),
-            "UV2" : (2, "UV2"),
-            "VIS" : (3, "VIS"),
-            "CrIS-fsr-lw" : (11, "TIR1"),
-            "CrIS-fsr-mw" : (13, "TIR3"),
-            "CrIS-fsr-sw" : (14, "TIR4"),
-            "2B1" : (11, "TIR1"),
-            "1B2" : (12, "TIR2"),
-            "2A1" : (13, "TIR3"),
-            "1A1" : (14, "TIR4"),
-            "BAND1" : (1, "UV1"),
-            "BAND2" : (2, "UV2"),
-            "BAND3" : (4, "UVIS"),
-            "BAND4" : (3, "VIS"), 
-            "BAND5" : (5, "NIR1"),
-            "BAND6" : (6, "NIR2"),
-            "BAND7" : (9, "SWIR3"),
-            "BAND8" : (10, "SWIR4"),
-            "O2A" : (5, "NIR1"),
-            "WCO2" : (7, "SWIR1"),
-            "SCO2" : (8, "SWIR2"),
-            "CH4" : (9, "SWIR3"),
-        }
+        "ALL": (0, "ALL"),
+        "UV1": (1, "UV1"),
+        "UV2": (2, "UV2"),
+        "VIS": (3, "VIS"),
+        "CrIS-fsr-lw": (11, "TIR1"),
+        "CrIS-fsr-mw": (13, "TIR3"),
+        "CrIS-fsr-sw": (14, "TIR4"),
+        "2B1": (11, "TIR1"),
+        "1B2": (12, "TIR2"),
+        "2A1": (13, "TIR3"),
+        "1A1": (14, "TIR4"),
+        "BAND1": (1, "UV1"),
+        "BAND2": (2, "UV2"),
+        "BAND3": (4, "UVIS"),
+        "BAND4": (3, "VIS"),
+        "BAND5": (5, "NIR1"),
+        "BAND6": (6, "NIR2"),
+        "BAND7": (9, "SWIR3"),
+        "BAND8": (10, "SWIR4"),
+        "O2A": (5, "NIR1"),
+        "WCO2": (7, "SWIR1"),
+        "SCO2": (8, "SWIR2"),
+        "CH4": (9, "SWIR3"),
+    }
     # From
-    #filters = [
+    # filters = [
     #    "ALL", 0
     #    "UV1", 1
     #    "UV2", 2
@@ -183,7 +184,7 @@ class FilterIdentifier(IdentifierStr):
     #    "TIR2", 12
     #    "TIR3", 13
     #    "TIR4", 14
-    #]
+    # ]
     _filters_order = [
         "ALL",
         "UV1",
@@ -211,9 +212,9 @@ class FilterIdentifier(IdentifierStr):
     ]
 
     @classmethod
-    def spectral_order(cls, lst : list[FilterIdentifier]) -> list[int]:
-        '''In addition to the name translation, the output has a particular order
-        that is wants things. order the data by list'''
+    def spectral_order(cls, lst: list[FilterIdentifier]) -> list[int]:
+        """In addition to the name translation, the output has a particular order
+        that is wants things. order the data by list"""
         filter_order = list(cls._filters_order)
         # Extend by anything not in hardcoded list, just in the order it is found (i.e., move
         # all this stuff to the end, in the order it came in)
@@ -222,12 +223,12 @@ class FilterIdentifier(IdentifierStr):
         res = sorted(lst, key=lambda i: filter_order.index(str(i)))
         # And translate to an index
         return [lst.index(i) for i in res]
-    
+
     @property
     def spectral_name(self) -> str:
-        '''Translate the filter identifier to the spectral name. For
+        """Translate the filter identifier to the spectral name. For
         identifiers not in the hard coded list, we just return the
-        filter identifiers'''
+        filter identifiers"""
         filname = str(self)
         if filname in self._filter_map:
             return self._filter_map[filname][1]
@@ -235,12 +236,13 @@ class FilterIdentifier(IdentifierStr):
 
     @property
     def filter_index(self) -> int:
-        '''Return the hard code filter index for the given filter identifier. If
-        this isn't in the hard coded list, we return -999'''
+        """Return the hard code filter index for the given filter identifier. If
+        this isn't in the hard coded list, we return -999"""
         filname = str(self)
         if filname in self._filter_map:
             return self._filter_map[filname][0]
         return -999
+
 
 class IdentifierSortByWaveLength:
     """muses-py assumes that InstrumentIdentifier and FilterIdentifier

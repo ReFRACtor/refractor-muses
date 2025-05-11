@@ -473,7 +473,9 @@ class RetrievalL2Output(RetrievalOutput):
 
             species_data.COLUMN = copy.deepcopy(self.results.column[:, indcol])
             species_data.COLUMN_AIR = copy.deepcopy(self.results.columnAir[:])
-            species_data.COLUMN_DOFS = copy.deepcopy(self.results.columnDOFS[:, indcol]).astype(np.float32)
+            species_data.COLUMN_DOFS = copy.deepcopy(
+                self.results.columnDOFS[:, indcol]
+            ).astype(np.float32)
             species_data.COLUMN_ERROR = copy.deepcopy(
                 self.results.columnError[:, indcol]
             )
@@ -489,20 +491,34 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.COLUMN_PRIOR = copy.deepcopy(
                 self.results.columnPrior[:, indcol]
             )
-        species_data.RADIANCERESIDUALRMS_FILTER = self.results.radianceResidualRMS[1:].astype(np.float32)
-        species_data.RADIANCERESIDUALMEAN_FILTER = self.results.radianceResidualMean[1:].astype(np.float32)
+        species_data.RADIANCERESIDUALRMS_FILTER = self.results.radianceResidualRMS[
+            1:
+        ].astype(np.float32)
+        species_data.RADIANCERESIDUALMEAN_FILTER = self.results.radianceResidualMean[
+            1:
+        ].astype(np.float32)
         species_data.radianceResidualRMSRelativeContinuum_FILTER = (
             self.results.radianceResidualRMSRelativeContinuum[1:].astype(np.float32)
         )
-        species_data.RADIANCE_CONTINUUM_FILTER = self.results.radianceContinuum[1:].astype(np.float32)
-        species_data.RADIANCESNR_FILTER = self.results.radianceSNR[1:].astype(np.float32)
+        species_data.RADIANCE_CONTINUUM_FILTER = self.results.radianceContinuum[
+            1:
+        ].astype(np.float32)
+        species_data.RADIANCESNR_FILTER = self.results.radianceSNR[1:].astype(
+            np.float32
+        )
         species_data.FILTER_INDEX = self.results.filter_index[1:]
-        species_data.RADIANCERESIDUALSLOPE_FILTER = self.results.residualSlope[1:].astype(np.float32)
+        species_data.RADIANCERESIDUALSLOPE_FILTER = self.results.residualSlope[
+            1:
+        ].astype(np.float32)
         species_data.RADIANCERESIDUALQUADRATIC_FILTER = self.results.residualQuadratic[
             1:
         ].astype(np.float32)
-        species_data.RADIANCERESIDUALRMS = np.float32(self.results.radianceResidualRMS[0])
-        species_data.RADIANCERESIDUALMEAN = np.float32(self.results.radianceResidualMean[0])
+        species_data.RADIANCERESIDUALRMS = np.float32(
+            self.results.radianceResidualRMS[0]
+        )
+        species_data.RADIANCERESIDUALMEAN = np.float32(
+            self.results.radianceResidualMean[0]
+        )
         species_data.RADIANCE_RESIDUAL_STDEV_CHANGE = np.float32(
             self.results.radianceResidualRMSInitial[0]
             - self.results.radianceResidualRMS[0]
@@ -705,7 +721,9 @@ class RetrievalL2Output(RetrievalOutput):
         )
 
         species_data.DEVIATION_QA = np.float32(self.results.deviation_QA[ispecie])
-        species_data.NUM_DEVIATIONS_QA = np.int32(self.results.num_deviations_QA[ispecie])
+        species_data.NUM_DEVIATIONS_QA = np.int32(
+            self.results.num_deviations_QA[ispecie]
+        )
         species_data.DEVIATIONBAD_QA = np.int32(self.results.DeviationBad_QA[ispecie])
 
         ind1FM, sz = self.current_state.fm_sv_loc[StateElementIdentifier(self.spcname)]
@@ -719,9 +737,9 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.RETRIEVEINLOG = np.int32(1)
 
         # AT_LINE 342 write_products_one.pro
-        species_data.DOFS = np.float32(np.sum(
-            mpy.get_diagonal(self.results.A[ind1FM:ind2FM, ind1FM:ind2FM])
-        ))
+        species_data.DOFS = np.float32(
+            np.sum(mpy.get_diagonal(self.results.A[ind1FM:ind2FM, ind1FM:ind2FM]))
+        )
         species_data.PRECISION[pslice] = np.sqrt(
             mpy.get_diagonal(self.results.Sx_rand[ind1FM:ind2FM, ind1FM:ind2FM])
         )
@@ -997,11 +1015,13 @@ class RetrievalL2Output(RetrievalOutput):
 
                 # AT_LINE 642 write_products_one.pro
                 species_data.N2O_DOFS = 0.0
-                species_data.N2O_DOFS = np.float32(np.sum(
-                    mpy.get_diagonal(
-                        self.results.A[ind1FMN2O:ind2FMN2O, ind1FMN2O:ind2FMN2O]
+                species_data.N2O_DOFS = np.float32(
+                    np.sum(
+                        mpy.get_diagonal(
+                            self.results.A[ind1FMN2O:ind2FMN2O, ind1FMN2O:ind2FMN2O]
+                        )
                     )
-                ))
+                )
                 species_data.N2O_SPECIES[pslice] = self.state_value_vec("N2O")
                 species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec(
                     "N2O"

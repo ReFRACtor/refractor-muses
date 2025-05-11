@@ -2,6 +2,7 @@ import glob
 import subprocess
 import os
 
+
 def compare_run(expected_dir, run_dir, diff_is_error=True, from_run_dir=False):
     """Compare products from two runs."""
     expected_dir = str(expected_dir)

@@ -1,7 +1,7 @@
-import refractor.muses.muses_py as mpy  # type: ignore
 from refractor.muses import CloudResultSummary
 from pytest import approx
 import numpy.testing as npt
+
 
 def test_cloud_result_summary(joint_tropomi_step_12_output):
     rs, rstp, _ = joint_tropomi_step_12_output
@@ -28,6 +28,8 @@ def test_cloud_result_summary(joint_tropomi_step_12_output):
     assert csum.emissionLayer == approx(-6.990282365802727)
     assert csum.ozoneCcurve == approx(1.0)
     assert csum.ozone_slope_QA == approx(7.187930140233559)
-    npt.assert_allclose(csum.deviation_QA, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+    npt.assert_allclose(
+        csum.deviation_QA, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    )
     npt.assert_allclose(csum.num_deviations_QA, [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
     npt.assert_allclose(csum.DeviationBad_QA, [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])

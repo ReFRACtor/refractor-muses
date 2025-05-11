@@ -83,7 +83,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     "Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis"
     (https://ieeexplore.ieee.org/document/1624609).
-    
+
 
     We have two state mappings, one that goes between the retrieval
     state vector and the forward model state vector, and a second that

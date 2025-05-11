@@ -143,7 +143,7 @@ class StateElementTropomiFileFixedHandle(StateElementHandle):
         self.band = band
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
-        self.cov_is_constraint=cov_is_constraint
+        self.cov_is_constraint = cov_is_constraint
 
     def notify_update_target(
         self,
@@ -184,7 +184,13 @@ class StateElementTropomiFileFixedHandle(StateElementHandle):
             )
         else:
             sold = None
-        res = self.obj_cls(state_element_id, obs, selem_wrapper=sold, band=self.band, cov_is_constraint=self.cov_is_constraint)
+        res = self.obj_cls(
+            state_element_id,
+            obs,
+            selem_wrapper=sold,
+            band=self.band,
+            cov_is_constraint=self.cov_is_constraint,
+        )
         return res
 
 
@@ -203,14 +209,14 @@ def add_tropomi_file_handle(
 
 
 def add_tropomi_file_fixed_handle(
-    sname: str,
-    cls: Any,
-    band: int = -1,
-    cov_is_constraint: bool=False
+    sname: str, cls: Any, band: int = -1, cov_is_constraint: bool = False
 ) -> None:
     StateElementHandleSet.add_default_handle(
         StateElementTropomiFileFixedHandle(
-            StateElementIdentifier(sname), cls, band=band, cov_is_constraint=cov_is_constraint
+            StateElementIdentifier(sname),
+            cls,
+            band=band,
+            cov_is_constraint=cov_is_constraint,
         ),
         priority_order=2,
     )
@@ -228,7 +234,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
         band: int = -1,
-        cov_is_constraint: bool = False
+        cov_is_constraint: bool = False,
     ) -> None:
         apriori_value = np.array([obs.cloud_fraction])
         super().__init__(
@@ -238,7 +244,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
             species_directory,
             covariance_directory,
             selem_wrapper,
-            cov_is_constraint=cov_is_constraint
+            cov_is_constraint=cov_is_constraint,
         )
 
 
@@ -251,7 +257,7 @@ class StateElementTropomiCloudPressure(StateElementImplementation):
         obs: MusesObservation,
         selem_wrapper: StateElementOldWrapper | None = None,
         band: int = -1,
-        cov_is_constraint: bool = False
+        cov_is_constraint: bool = False,
     ) -> None:
         apriori_value = np.array([obs.cloud_pressure.value])
         super().__init__(

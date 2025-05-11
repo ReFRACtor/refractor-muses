@@ -8,7 +8,6 @@ from .cloud_result_summary import CloudResultSummary
 from .column_result_summary import ColumnResultSummary
 import math
 import numpy as np
-from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -61,24 +60,16 @@ class RetrievalResult:
         self.ret_res = ret_res
         self.jacobianSys = jacobian_sys
         self.propagated_qa = propagated_qa
-        # Filled in with ErrorAnalysis.write_retrieval_summary. We may move some of
-        # this calculation to this class, but for now it gets done there.
-        rowsSys = len(self.current_state.systematic_model_state_vector_element_list)
-        num_species = len(self.current_state.retrieval_state_element_id)
-        # This really is exactly 5. See the column calculation. This is
-        # ["Column", "Trop", "UpperTrop", "LowerTrop", ""Strato
-        num_col = 5 
-        # TODO Would be good to calculate this somewhat
-        max_num_species = 20
-        if rowsSys == 0:
-            rowsSys = 1
+        self._radiance_result_summary = [
+            RadianceResultSummary(
+                self.rstep.radiance[slc],
+                self.radiance[0, slc],
+                self.radianceInitial[0, slc],
+                self.rstep.NESR[slc],
+            )
+            for slc in self._filter_result_summary.filter_slice
+        ]
 
-        self._radiance_result_summary = [RadianceResultSummary(self.rstep.radiance[slc],
-                                                               self.radiance[0,slc],
-                                                               self.radianceInitial[0,slc],
-                                                               self.rstep.NESR[slc])
-                                         for slc in self._filter_result_summary.filter_slice]
-        
     def update_jacobian_sys(self, cfunc_sys: CostFunction) -> None:
         """Run the forward model in cfunc to get the jacobian_sys set."""
         self.jacobianSys = (
@@ -87,28 +78,30 @@ class RetrievalResult:
             ]
         )
 
-    def update_error_analysis(self, error_analysis : ErrorAnalysis) -> None:
+    def update_error_analysis(self, error_analysis: ErrorAnalysis) -> None:
         self._error_analysis = error_analysis
         self._cloud_result_summary = CloudResultSummary(self, error_analysis)
         self._column_result_summary = ColumnResultSummary(self, error_analysis)
 
-    def state_value(self, state_name : str) -> float:
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))[0]
+    def state_value(self, state_name: str) -> float:
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+            0
+        ]
 
-    def state_value_vec(self, state_name : str) -> np.ndarray:
+    def state_value_vec(self, state_name: str) -> np.ndarray:
         return self.current_state.full_state_value(StateElementIdentifier(state_name))
-    
+
     @property
     def tropopause_pressure(self) -> float:
         res = self.state_value("gmaoTropopausePressure")
-        if(res <= -990):
+        if res <= -990:
             raise RuntimeError("GMA tropopause pressure is not defined")
         return res
 
     @property
     def tropopausePressure(self) -> float:
         return self.tropopause_pressure
-    
+
     @property
     def omi_cloudfraction(self) -> float:
         return self.state_value("OMICLOUDFRACTION")
@@ -119,14 +112,14 @@ class RetrievalResult:
 
     @property
     def radiance_initial(self) -> np.ndarray:
-        if(self.num_iterations == 0):
+        if self.num_iterations == 0:
             return self.ret_res.radiance["radiance"][:, :]
         return self.ret_res.radianceIterations[0, :, :]
 
     @property
     def radianceInitial(self) -> np.ndarray:
         return self.radiance_initial
-    
+
     @property
     def LMResults_costThresh(self) -> np.ndarray:
         return self.ret_res.stopCriteria[:, 0]
@@ -168,8 +161,8 @@ class RetrievalResult:
 
     @property
     def radiance(self) -> np.ndarray:
-        if(len(self.ret_res.radiance["radiance"].shape) == 1):
-            return self.ret_res.radiance["radiance"][np.newaxis,:]
+        if len(self.ret_res.radiance["radiance"].shape) == 1:
+            return self.ret_res.radiance["radiance"][np.newaxis, :]
         return self.ret_res.radiance["radiance"]
 
     @property
@@ -182,11 +175,15 @@ class RetrievalResult:
 
     @property
     def jacobian(self) -> np.ndarray:
-        return self.ret_res.jacobian["jacobian_data"][np.newaxis,:,:]
-    
+        return self.ret_res.jacobian["jacobian_data"][np.newaxis, :, :]
+
     @property
     def resultsList(self) -> np.ndarray:
-        return self.current_state.initial_guess if self.best_iteration == 0 else self.ret_res.xretIterations[self.best_iteration, :]
+        return (
+            self.current_state.initial_guess
+            if self.best_iteration == 0
+            else self.ret_res.xretIterations[self.best_iteration, :]
+        )
 
     @property
     def resultsListFM(self) -> np.ndarray:
@@ -199,11 +196,11 @@ class RetrievalResult:
     @property
     def retIteration(self) -> np.ndarray:
         return self.ret_res.xretIterations
-    
+
     @property
     def bestIteration(self) -> int:
         return self.ret_res.bestIteration
-    
+
     @property
     def num_iterations(self) -> int:
         return self.ret_res.num_iterations
@@ -221,7 +218,7 @@ class RetrievalResult:
             raise RuntimeError("Expected to find emissivity frequencies")
         ind = np.argmin(np.abs(wlen - 1025))
         return self.state_value_vec("emissivity")[ind]
-        
+
     @property
     def species_list_fm(self) -> list[str]:
         """This is the length of the forward model state vector, with a
@@ -272,11 +269,11 @@ class RetrievalResult:
     @property
     def filter_index(self) -> list[int]:
         return self._filter_result_summary.filter_index
-    
+
     @property
     def filter_list(self) -> list[str]:
         return self._filter_result_summary.filter_list
-    
+
     @property
     def filterStart(self) -> list[int]:
         return self._filter_result_summary.filter_start
@@ -284,15 +281,15 @@ class RetrievalResult:
     @property
     def filterEnd(self) -> list[int]:
         return self._filter_result_summary.filter_end
-    
+
     @property
     def propagatedTATMQA(self) -> int:
         return self.propagated_qa.tatm_qa
-    
+
     @property
     def propagatedO3QA(self) -> int:
         return self.propagated_qa.o3_qa
-    
+
     @property
     def propagatedH2OQA(self) -> int:
         return self.propagated_qa.h2o_qa
@@ -302,71 +299,74 @@ class RetrievalResult:
         gpt = self.rstep.frequency > 0.0
         return np.amax(self.rstep.radiance[gpt] / self.rstep.NESR[gpt])
 
-    def _handle_fill(self, r : list[float|None], fill_zero : float = 0.0,
-                     fill_rest : float = -999.0) -> list[float]:
+    def _handle_fill(
+        self, r: list[float | None], fill_zero: float = 0.0, fill_rest: float = -999.0
+    ) -> list[float]:
         # Different fill value for first entry. Odd, but the output separate these
         # out and treats the "ALL" filter at the front differently
-        if(r[0] is None):
+        if r[0] is None:
             r[0] = fill_zero
-        return([ fill_rest if i is None else i for i in r])
-            
+        return [fill_rest if i is None else i for i in r]
+
     @property
     def radianceResidualMean(self) -> np.ndarray:
-        res = [ r.radiance_residual_mean for r in self._radiance_result_summary]
+        res = [r.radiance_residual_mean for r in self._radiance_result_summary]
         return np.array(self._handle_fill(res))
 
     @property
     def radianceResidualRMS(self) -> np.ndarray:
-        res = [ r.radiance_residual_rms for r in self._radiance_result_summary]
+        res = [r.radiance_residual_rms for r in self._radiance_result_summary]
         return np.array(self._handle_fill(res))
 
     @property
     def radianceResidualMeanInitial(self) -> np.ndarray:
-        res = [ r.radiance_residual_mean_initial for r in self._radiance_result_summary]
+        res = [r.radiance_residual_mean_initial for r in self._radiance_result_summary]
         return np.array(self._handle_fill(res))
 
     @property
     def radianceResidualRMSInitial(self) -> np.ndarray:
-        res = [ r.radiance_residual_rms_initial for r in self._radiance_result_summary]
+        res = [r.radiance_residual_rms_initial for r in self._radiance_result_summary]
         return np.array(self._handle_fill(res))
 
     @property
     def radianceResidualRMSRelativeContinuum(self) -> np.ndarray:
-        res = [ r.radiance_residual_rms_relative_continuum for r in self._radiance_result_summary]
-        return np.array(self._handle_fill(res,0.0,0.0))
+        res = [
+            r.radiance_residual_rms_relative_continuum
+            for r in self._radiance_result_summary
+        ]
+        return np.array(self._handle_fill(res, 0.0, 0.0))
 
     @property
     def radianceContinuum(self) -> np.ndarray:
-        res = [ r.radiance_continuum for r in self._radiance_result_summary]
-        return np.array(self._handle_fill(res,0.0,0.0))
+        res = [r.radiance_continuum for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res, 0.0, 0.0))
 
     @property
     def radianceSNR(self) -> np.ndarray:
-        res = [ r.radiance_snr for r in self._radiance_result_summary]
-        return np.array(self._handle_fill(res,0.0,0.0))
-    
+        res = [r.radiance_snr for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res, 0.0, 0.0))
 
     @property
     def residualNormInitial(self) -> float:
         t1 = self.radianceResidualMeanInitial[0]
         t2 = self.radianceResidualRMSInitial[0]
-        return math.sqrt(t1*t1+t2*t2)
+        return math.sqrt(t1 * t1 + t2 * t2)
 
     @property
     def residualNormFinal(self) -> float:
         t1 = self.radianceResidualMean[0]
         t2 = self.radianceResidualRMS[0]
-        return math.sqrt(t1*t1+t2*t2)
+        return math.sqrt(t1 * t1 + t2 * t2)
 
     @property
     def residualSlope(self) -> np.ndarray:
-        res = [ r.residual_slope for r in self._radiance_result_summary]
-        return np.array(self._handle_fill(res,-999.0,-999.0))
+        res = [r.residual_slope for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res, -999.0, -999.0))
 
     @property
     def residualQuadratic(self) -> np.ndarray:
-        res = [ r.residual_quadratic for r in self._radiance_result_summary]
-        return np.array(self._handle_fill(res,-999.0,-999.0))
+        res = [r.residual_quadratic for r in self._radiance_result_summary]
+        return np.array(self._handle_fill(res, -999.0, -999.0))
 
     @property
     def Sb(self) -> np.ndarray:
@@ -379,11 +379,11 @@ class RetrievalResult:
     @property
     def Sa_ret(self) -> np.ndarray:
         return self._error_analysis.Sa_ret
-    
+
     @property
     def KtSyK(self) -> np.ndarray:
         return self._error_analysis.KtSyK
-    
+
     @property
     def KtSyKFM(self) -> np.ndarray:
         return self._error_analysis.KtSyKFM
@@ -399,7 +399,7 @@ class RetrievalResult:
     @property
     def Sx_ret_smooth(self) -> np.ndarray:
         return self._error_analysis.Sx_ret_smooth
-    
+
     @property
     def Sx_smooth_self(self) -> np.ndarray:
         return self._error_analysis.Sx_smooth_self
@@ -411,7 +411,7 @@ class RetrievalResult:
     @property
     def Sx_ret_crossState(self) -> np.ndarray:
         return self._error_analysis.Sx_ret_crossState
-    
+
     @property
     def Sx_rand(self) -> np.ndarray:
         return self._error_analysis.Sx_rand
@@ -423,7 +423,7 @@ class RetrievalResult:
     @property
     def Sx_ret_mapping(self) -> np.ndarray:
         return self._error_analysis.Sx_ret_mapping
-    
+
     @property
     def Sx_sys(self) -> np.ndarray:
         return self._error_analysis.Sx_sys
@@ -431,7 +431,7 @@ class RetrievalResult:
     @property
     def Sx_ret_sys(self) -> np.ndarray:
         return self._error_analysis.Sx_ret_sys
-    
+
     @property
     def radianceResidualRMSSys(self) -> float:
         return self._error_analysis.radianceResidualRMSSys
@@ -443,7 +443,7 @@ class RetrievalResult:
     @property
     def A_ret(self) -> np.ndarray:
         return self._error_analysis.A_ret
-    
+
     @property
     def GMatrix(self) -> np.ndarray:
         return self._error_analysis.GMatrix
@@ -451,7 +451,7 @@ class RetrievalResult:
     @property
     def GMatrixFM(self) -> np.ndarray:
         return self._error_analysis.GMatrixFM
-    
+
     @property
     def deviationVsErrorSpecies(self) -> np.ndarray:
         return self._error_analysis.deviationVsErrorSpecies
@@ -459,15 +459,15 @@ class RetrievalResult:
     @property
     def deviationVsRetrievalCovarianceSpecies(self) -> np.ndarray:
         return self._error_analysis.deviationVsRetrievalCovarianceSpecies
-        
+
     @property
     def deviationVsAprioriCovarianceSpecies(self) -> np.ndarray:
         return self._error_analysis.deviationVsAprioriCovarianceSpecies
-            
+
     @property
     def degreesOfFreedomForSignal(self) -> np.ndarray:
         return self._error_analysis.degreesOfFreedomForSignal
-                
+
     @property
     def degreesOfFreedomNoise(self) -> np.ndarray:
         return self._error_analysis.degreesOfFreedomNoise
@@ -475,47 +475,47 @@ class RetrievalResult:
     @property
     def KDotDL_list(self) -> np.ndarray:
         return self._error_analysis.KDotDL_list
-        
+
     @property
     def KDotDL(self) -> float:
         return self._error_analysis.KDotDL
-            
+
     @property
     def KDotDL_species(self) -> list[str]:
         return self._error_analysis.KDotDL_species
-                
+
     @property
     def KDotDL_byspecies(self) -> np.ndarray:
         return self._error_analysis.KDotDL_byspecies
-                    
+
     @property
     def LDotDL(self) -> np.ndarray:
         return self._error_analysis.LDotDL
-                        
+
     @property
     def KDotDL_byfilter(self) -> np.ndarray:
         return self._error_analysis.KDotDL_byfilter
-                            
+
     @property
     def maxKDotDLSys(self) -> float:
         return self._error_analysis.maxKDotDLSys
-                                
+
     @property
     def errorFM(self) -> np.ndarray:
         return self._error_analysis.errorFM
-                                    
+
     @property
     def precision(self) -> np.ndarray:
         return self._error_analysis.precision
-                                        
+
     @property
     def GdL(self) -> np.ndarray:
         return self._error_analysis.GdL
-                                            
+
     @property
     def ch4_evs(self) -> np.ndarray:
         return self._error_analysis.ch4_evs
-    
+
     @property
     def cloudODAve(self) -> float:
         return self._cloud_result_summary.cloudODAve
@@ -559,63 +559,63 @@ class RetrievalResult:
     @property
     def H2O_H2OQuality(self) -> float:
         return self._column_result_summary.H2O_H2OQuality
-    
+
     @property
     def O3_columnErrorDU(self) -> float:
         return self._column_result_summary.O3_columnErrorDU
-    
+
     @property
     def O3_tropo_consistency(self) -> float:
         return self._column_result_summary.O3_tropo_consistency
-    
+
     @property
     def columnDOFS(self) -> np.ndarray:
         return self._column_result_summary.columnDOFS
-    
+
     @property
     def columnPriorError(self) -> np.ndarray:
         return self._column_result_summary.columnPriorError
-    
+
     @property
     def columnInitial(self) -> np.ndarray:
         return self._column_result_summary.columnInitial
-    
+
     @property
     def columnInitialInitial(self) -> np.ndarray:
         return self._column_result_summary.columnInitialInitial
-    
+
     @property
     def columnError(self) -> np.ndarray:
         return self._column_result_summary.columnError
-    
+
     @property
     def columnPrior(self) -> np.ndarray:
         return self._column_result_summary.columnPrior
-    
+
     @property
     def column(self) -> np.ndarray:
         return self._column_result_summary.column
-    
+
     @property
     def columnAir(self) -> np.ndarray:
         return self._column_result_summary.columnAir
-    
+
     @property
     def columnTrue(self) -> np.ndarray:
         return self._column_result_summary.columnTrue
-    
+
     @property
     def columnPressureMax(self) -> np.ndarray:
         return self._column_result_summary.columnPressureMax
-    
+
     @property
     def columnPressureMin(self) -> np.ndarray:
         return self._column_result_summary.columnPressureMin
-    
+
     @property
     def columnSpecies(self) -> list[str]:
         return self._column_result_summary.columnSpecies
-        
+
     @property
     def calscaleMean(self) -> float:
         # Seems to be an old value, not actually calculated anymore. But still needed
@@ -633,7 +633,8 @@ class RetrievalResult:
         # Seems to be an old value, not actually calculated anymore. But still needed
         # for output
         return -999.0
-    
+
+
 __all__ = [
     "RetrievalResult",
 ]

@@ -8,11 +8,12 @@ from pathlib import Path
 from typing import Any
 from attrs import frozen
 
+
 @frozen
 class SolverResult:
     bestIteration: int
     num_iterations: int
-    stopCode : int
+    stopCode: int
     xret: np.ndarray
     xretFM: np.ndarray
     radiance: dict[str, Any]
@@ -25,7 +26,7 @@ class SolverResult:
     delta: np.ndarray
     rho: np.ndarray
     lambdav: np.ndarray
-    
+
 
 class MusesLevmarSolver:
     """This is a wrapper around levmar_nllsq_elanor that makes it look like
@@ -195,4 +196,5 @@ class MusesLevmarSolver:
             self.best_iter = int(np.argmin(rms))
             self.residual_rms = rms
 
-__all__ = ["SolverResult", "MusesLevmarSolver"]            
+
+__all__ = ["SolverResult", "MusesLevmarSolver"]
