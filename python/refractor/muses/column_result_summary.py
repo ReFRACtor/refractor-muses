@@ -23,8 +23,27 @@ class ColumnResultSummary:
         else:
             have_true = False
         num_species = retrievalInfo.n_species
+        num_cols = 5
         # AT_LINE 255 Write_Retrieval_Summary.pro
         # Now get species dependent preferences
+        self._columnSpecies = []
+        self._column = np.zeros((num_cols, num_species))
+        self._columnDOFS = np.zeros(self._column.shape)
+        self._columnPriorError =  np.full(self._column.shape, -999.0)
+        self._columnInitial = np.full(self._column.shape, -999.0)
+        self._columnInitialInitial = np.full(self._column.shape, -999.0)
+        self._columnError= np.full(self._column.shape, -999.0)
+        self._columnPrior= np.full(self._column.shape, -999.0)
+        self._column = np.full(self._column.shape, -999.0)
+        self._columnTrue = np.full(self._column.shape, -999.0)
+        
+        self._columnAir = np.full((self._column.shape[0],), -999.0)
+        self._columnPressureMax = np.zeros(self._columnAir.shape)
+        self._columnPressureMin = np.zeros(self._columnAir.shape)
+        self._H2O_H2OQuality = 0.0
+        self._O3_columnErrorDU = 0.0
+        self._O3_tropo_consistency = 0.0
+        
         for ispecie in range(0, num_species):
             # AT_LINE 292 Write_Retrieval_Summary.pro
             species_name = retrievalInfo.species[ispecie]
@@ -34,15 +53,9 @@ class ColumnResultSummary:
     
             # AT_LINE 294 Write_Retrieval_Summary.pro
             if (loc >= 0) and (species_name != 'TATM'):
-                # get index of column species
-                # Note: When results.columnSpecies was first allocated, all the elements are empty strings.  As we are processing
-                #       each species, the specie name will be added to the array.
-                indcol = utilList.WhereEqualIndices(retrieval_result.columnSpecies, '')
-    
-                indcol = indcol[0]
-    
                 # Add the species_name to the current index.
-                retrieval_result.columnSpecies[indcol] = species_name
+                self._columnSpecies.append(species_name)
+                indcol = len(self._columnSpecies) - 1
     
                 # AT_LINE 301 Write_Retrieval_Summary.pro
     
@@ -93,8 +106,8 @@ class ColumnResultSummary:
                     # end if (ij == 0):
     
                     # AT_LINE 336 Write_Retrieval_Summary.pro
-                    retrieval_result.columnPressureMin[ij] = minPressure
-                    retrieval_result.columnPressureMax[ij] = maxPressure
+                    self._columnPressureMin[ij] = minPressure
+                    self._columnPressureMax[ij] = maxPressure
     
                     
                     ind1FM = retrievalInfo.parameterStartFM[ispecie]
@@ -129,7 +142,7 @@ class ColumnResultSummary:
                         pge=None
                     )
     
-                    retrieval_result.columnPrior[ij, indcol] = x['column']
+                    self._columnPrior[ij, indcol] = x['column']
     
                     # AT_LINE 368 Write_Retrieval_Summary.pro
                     x = mpy.column(
@@ -145,7 +158,7 @@ class ColumnResultSummary:
                         pge=None
                     )
                     
-                    retrieval_result.columnInitial[ij, indcol] = x['column']
+                    self._columnInitial[ij, indcol] = x['column']
     
                     # AT_LINE 379 Write_Retrieval_Summary.pro
                     x = mpy.column(
@@ -161,7 +174,7 @@ class ColumnResultSummary:
                         pge=None
                     )
     
-                    retrieval_result.columnInitialInitial[ij, indcol] = x['column']
+                    self._columnInitialInitial[ij, indcol] = x['column']
     
                     # AT_LINE 390 Write_Retrieval_Summary.pro
                     x = mpy.column(
@@ -176,7 +189,7 @@ class ColumnResultSummary:
                         linear,
                         pge=None)
                     
-                    retrieval_result.column[ij, indcol] = x['column']
+                    self._column[ij, indcol] = x['column']
     
                     # AT_LINE 400 Write_Retrieval_Summary.pro
                     # air column
@@ -193,15 +206,15 @@ class ColumnResultSummary:
                         pge=None
                     )
     
-                    retrieval_result.columnAir[ij] = x['columnAir']
+                    self._columnAir[ij] = x['columnAir']
     
                     # AT_LINE 411 Write_Retrieval_Summary.pro
                     if species_name == 'O3' and my_type == 'Trop':
                         # compare initial gues for this step to retrieved.
-                        ret = retrieval_result.column[ij, indcol]
-                        ig = retrieval_result.columnInitial[ij, indcol]
+                        ret = self._column[ij, indcol]
+                        ig = self._columnInitial[ij, indcol]
                         ratio = (ret / ig) - 1.0
-                        retrieval_result.O3_tropo_consistency = ratio
+                        self._O3_tropo_consistency = ratio
                     # end if species_name == 'O3' and my_type == 'Trop':
     
                     # AT_LINE 420 Write_Retrieval_Summary.pro
@@ -221,7 +234,7 @@ class ColumnResultSummary:
                             pge=None
                         )
     
-                        retrieval_result.columnTrue[ij, indcol] = x['column']
+                        self._columnTrue[ij, indcol] = x['column']
     
                     # AT_LINE 435 Write_Retrieval_Summary.pro
                     Sx = retrieval_result.Sx[ind1FM:ind2FM+1, ind1FM:ind2FM+1]
@@ -239,7 +252,7 @@ class ColumnResultSummary:
                     # error = SQRT(derivativeFinal[0:minIndex] ## Sx[0:minIndex,0:minIndex] ## TRANSPOSE(derivativeFinal[0:minIndex])
     
                     error = np.sqrt(derivativeFinal[0:minIndex+1].T @ Sx[0:minIndex+1, 0:minIndex+1] @ derivativeFinal[0:minIndex+1])
-                    retrieval_result.columnError[ij, indcol] = error
+                    self._columnError[ij, indcol] = error
     
                     # AT_LINE 446 Write_Retrieval_Summary.pro
                     # multipy prior covariance to calc predicted prior error
@@ -254,11 +267,11 @@ class ColumnResultSummary:
                     
                     error = np.sqrt(derivativeFinal[0:minIndex+1].T @ retrieval_result.Sa[0:minIndex+1, 0:minIndex+1] @ derivativeFinal[0:minIndex+1])
     
-                    retrieval_result.columnPriorError[ij, indcol] = error
+                    self._columnPriorError[ij, indcol] = error
     
                     # AT_LINE 455 Write_Retrieval_Summary.pro
                     if species_name == 'O3' and my_type == 'Column':
-                        retrieval_result.O3_columnErrorDU = retrieval_result.columnError[ij, indcol] / 2.69e+16
+                        self._O3_columnErrorDU = self._columnError[ij, indcol] / 2.69e+16
                     # end if species_name == 'O3' and my_type == 'Column':
     
                     if my_type == 'Column' and species_name == 'H2O':
@@ -267,8 +280,8 @@ class ColumnResultSummary:
                         
                         if len(ind4) > 0 and len(ind5) > 0:
                             # in H2O/HDO step, check H2O column - H2O column from O3 step / error
-                            retrieval_result.H2O_H2OQuality = \
-                                (retrieval_result.column[ij, indcol] - retrieval_result.columnInitial[ij, indcol]) / retrieval_result.columnPriorError[ij, indcol]
+                            self._H2O_H2OQuality = \
+                                (self._column[ij, indcol] - self._columnInitial[ij, indcol]) / self._columnPriorError[ij, indcol]
                         # end if len(ind4) > 0 and len(ind5) > 0
                     # end if my_type == 'Column' and species_name == 'H2O':
     
@@ -320,7 +333,7 @@ class ColumnResultSummary:
                         fraction2 = (minPressure - pressureLayers[indp2-1]) / (pressureLayers[indp2] - pressureLayers[indp2-1])
                         dof = dof + fraction2 * ak[indp2]
     
-                    retrieval_result.columnDOFS[ij, indcol] = dof
+                    self._columnDOFS[ij, indcol] = dof
                 # end for ij in range(0, 5):
     
                 # AT_LINE 505 Write_Retrieval_Summary.pro
@@ -328,8 +341,65 @@ class ColumnResultSummary:
             continue
         # end for ispecie in range(0,num_species):
 
-        # This gets filled in later
-        retrieval_result.masterQuality = 0
+    @property
+    def H2O_H2OQuality(self) -> float:
+        return self._H2O_H2OQuality
+    
+    @property
+    def O3_columnErrorDU(self) -> float:
+        return self._O3_columnErrorDU
+    
+    @property
+    def O3_tropo_consistency(self) -> float:
+        return self._O3_tropo_consistency
+    
+    @property
+    def columnDOFS(self) -> np.ndarray:
+        return self._columnDOFS
+    
+    @property
+    def columnPriorError(self) -> np.ndarray:
+        return self._columnPriorError
+    
+    @property
+    def columnInitial(self) -> np.ndarray:
+        return self._columnInitial
+    
+    @property
+    def columnInitialInitial(self) -> np.ndarray:
+        return self._columnInitialInitial
+    
+    @property
+    def columnError(self) -> np.ndarray:
+        return self._columnError
+    
+    @property
+    def columnPrior(self) -> np.ndarray:
+        return self._columnPrior
+    
+    @property
+    def column(self) -> np.ndarray:
+        return self._column
+    
+    @property
+    def columnAir(self) -> np.ndarray:
+        return self._columnAir
+    
+    @property
+    def columnTrue(self) -> np.ndarray:
+        return self._columnTrue
+    
+    @property
+    def columnPressureMax(self) -> np.ndarray:
+        return self._columnPressureMax
+    
+    @property
+    def columnPressureMin(self) -> np.ndarray:
+        return self._columnPressureMin
+    
+    @property
+    def columnSpecies(self) -> list[str]:
+        return self._columnSpecies
         
 __all__ = [
     "ColumnResultSummary",

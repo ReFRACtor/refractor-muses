@@ -72,21 +72,6 @@ class RetrievalResult:
         max_num_species = 20
         if rowsSys == 0:
             rowsSys = 1
-        self.H2O_H2OQuality = 0.0
-        self.O3_columnErrorDU = 0.0
-        self.O3_tropo_consistency = 0.0
-        self.columnDOFS = np.zeros(shape=(num_col, max_num_species), dtype=np.float32)
-        self.columnPriorError = np.full((num_col, max_num_species), -999, dtype=np.float64)
-        self.columnInitial = np.full((num_col, max_num_species), -999, dtype=np.float64)
-        self.columnInitialInitial = np.full((num_col, max_num_species), -999, dtype=np.float64)
-        self.columnError= np.full((num_col, max_num_species), -999, dtype=np.float64)
-        self.columnPrior= np.full((num_col, max_num_species), -999, dtype=np.float64)
-        self.column = np.full((num_col, max_num_species), -999, dtype=np.float64)
-        self.columnAir = np.full((num_col), -999, dtype=np.float64)
-        self.columnTrue = np.full((num_col, max_num_species), -999, dtype=np.float64)
-        self.columnPressureMax = np.zeros(shape=(num_col), dtype=np.float32)
-        self.columnPressureMin = np.zeros(shape=(num_col), dtype=np.float32)
-        self.columnSpecies = ["",] * max_num_species
 
         self._radiance_result_summary = [RadianceResultSummary(self.rstep.radiance[slc],
                                                                self.radiance[0,slc],
@@ -571,6 +556,66 @@ class RetrievalResult:
     def DeviationBad_QA(self) -> np.ndarray:
         return self._cloud_result_summary.DeviationBad_QA
 
+    @property
+    def H2O_H2OQuality(self) -> float:
+        return self._column_result_summary.H2O_H2OQuality
+    
+    @property
+    def O3_columnErrorDU(self) -> float:
+        return self._column_result_summary.O3_columnErrorDU
+    
+    @property
+    def O3_tropo_consistency(self) -> float:
+        return self._column_result_summary.O3_tropo_consistency
+    
+    @property
+    def columnDOFS(self) -> np.ndarray:
+        return self._column_result_summary.columnDOFS
+    
+    @property
+    def columnPriorError(self) -> np.ndarray:
+        return self._column_result_summary.columnPriorError
+    
+    @property
+    def columnInitial(self) -> np.ndarray:
+        return self._column_result_summary.columnInitial
+    
+    @property
+    def columnInitialInitial(self) -> np.ndarray:
+        return self._column_result_summary.columnInitialInitial
+    
+    @property
+    def columnError(self) -> np.ndarray:
+        return self._column_result_summary.columnError
+    
+    @property
+    def columnPrior(self) -> np.ndarray:
+        return self._column_result_summary.columnPrior
+    
+    @property
+    def column(self) -> np.ndarray:
+        return self._column_result_summary.column
+    
+    @property
+    def columnAir(self) -> np.ndarray:
+        return self._column_result_summary.columnAir
+    
+    @property
+    def columnTrue(self) -> np.ndarray:
+        return self._column_result_summary.columnTrue
+    
+    @property
+    def columnPressureMax(self) -> np.ndarray:
+        return self._column_result_summary.columnPressureMax
+    
+    @property
+    def columnPressureMin(self) -> np.ndarray:
+        return self._column_result_summary.columnPressureMin
+    
+    @property
+    def columnSpecies(self) -> list[str]:
+        return self._column_result_summary.columnSpecies
+        
     @property
     def calscaleMean(self) -> float:
         # Seems to be an old value, not actually calculated anymore. But still needed

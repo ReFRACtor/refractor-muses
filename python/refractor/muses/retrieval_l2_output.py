@@ -473,7 +473,7 @@ class RetrievalL2Output(RetrievalOutput):
 
             species_data.COLUMN = copy.deepcopy(self.results.column[:, indcol])
             species_data.COLUMN_AIR = copy.deepcopy(self.results.columnAir[:])
-            species_data.COLUMN_DOFS = copy.deepcopy(self.results.columnDOFS[:, indcol])
+            species_data.COLUMN_DOFS = copy.deepcopy(self.results.columnDOFS[:, indcol]).astype(np.float32)
             species_data.COLUMN_ERROR = copy.deepcopy(
                 self.results.columnError[:, indcol]
             )
@@ -482,10 +482,10 @@ class RetrievalL2Output(RetrievalOutput):
             )
             species_data.COLUMN_PRESSUREMAX = copy.deepcopy(
                 self.results.columnPressureMax[:]
-            )
+            ).astype(np.float32)
             species_data.COLUMN_PRESSUREMIN = copy.deepcopy(
                 self.results.columnPressureMin[:]
-            )
+            ).astype(np.float32)
             species_data.COLUMN_PRIOR = copy.deepcopy(
                 self.results.columnPrior[:, indcol]
             )
