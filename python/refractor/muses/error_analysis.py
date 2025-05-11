@@ -320,36 +320,30 @@ class ErrorAnalysis:
         self._GMatrix = np.matmul(G_matrix, my_map.toPars)
         self._GMatrixFM = G_matrix
     
-        # AT_LINE 211 Error_Analysis.pro
-        # some species, like emis, are retrieved in step 1 for a particular spectral region and not updated following this.  In that case, keep errors when they are not moved.  If this is the case, set the error to the previous error, and all error components to zero.
+        # some species, like emis, are retrieved in step 1 for a
+        # particular spectral region and not updated following this.
+        # In that case, keep errors when they are not moved.  If this
+        # is the case, set the error to the previous error, and all
+        # error components to zero.
         ind = np.where(dontUpdateFM == 1)[0]
     
         if len(ind) > 0:
             self._Sx[ind, ind] = errorCurrentValues[ind, ind]
             self._Sx_rand[ind, ind] = 0
-            self._Sx_smooth[ind, ind] = 0
             self._Sx_sys[ind, ind] = 0
             
         my_id = np.identity(S_inv.shape[1], dtype=np.float64)
-        self._Sx_smooth[:, :] = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
+        self._Sx_smooth = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
         
-        self._Sx_smooth_self[:, :] = 0
-        self._Sx_crossState[:, :] = self._Sx_smooth[:, :]
+        self._Sx_smooth_self = np.zeros(self._Sx.shape)
+        self._Sx_crossState = self._Sx_smooth.copy()
     
         # override the block diagonal terms with smooth_self and crossstate
         species_list_fs = np.asarray(retrieval.speciesListFM)
         for ii in range(retrieval.n_species):
-    
-            # previous (wrong) code
-            # species = retrieval.species[ii]
-            # indMe = np.where(species_list_fs == species)[0]
-            # indYou = np.where(species_list_fs != species)[0]
-    
-            # update 4/13/2021 to match ssund version
             species = retrieval.species[ii]
             indMe0 = np.where(species_list_fs == species)[0]
     
-            #  also include in indMe anything that has off-diagonal Sa elements
             if len(indMe0) > 1:
                 ss = mpy.my_total(abs(Sa[indMe0, :]), 0)
                 indMe = np.where(ss > 0)[0]
@@ -358,125 +352,47 @@ class ErrorAnalysis:
                 ss = Sa[indMe0, :][0]
                 indMe = np.where(ss > 0)[0]
                 indYou = np.where(ss == 0)[0]
-    
-            # self-smooth
             if len(indMe) == 1:
                 self._Sx_smooth_self[indMe, indMe] = (1 - self._A[indMe, indMe]) * Sa[indMe, indMe] * (1 - self._A[indMe, indMe])
             else:
-                # IDL:
-                # id = IDENTITY(N_ELEMENTS(indMe))
-                # res.Sx_Smooth_self[indMe,indMe,*] = $
-                # (id - res.A[indMe,indMe,*]) ## Sa[indMe,indMe,*] ## Transpose(id - res.A[indMe, indMe,*])
-                
                 my_id = np.identity(len(indMe))
                 ind_me_2d = np.ix_(indMe, indMe)
                 self._Sx_smooth_self[ind_me_2d] = (my_id - self._A[ind_me_2d]).T @ Sa[ind_me_2d] @ (my_id - self._A[ind_me_2d])
-            # end if len(indMe) == 1:
     
             # interferent on and off diagonal
             if len(indYou) == 0:
                 self._Sx_crossState[:, :] = 0
             elif len(indMe) == 1 and len(indYou) == 1:
-                # IDL:
-                # temp = res.A[indYou,indMe,*] * Sa[indYou,indYou] * res.A[indYou, indMe]
-                # res.Sx_crossState[indMe,indMe] = temp
-                
-                temp = self._A[indYou, indMe] * Sa[indYou, indYou] * self._A[indYou, indMe]
-                self._Sx_crossState[indMe, indMe] = temp
+                self._Sx_crossState[indMe, indMe] = self._A[indYou, indMe] * Sa[indYou, indYou] * self._A[indYou, indMe]
             elif len(indMe) == 1 and len(indYou) > 1:
-                # IDL:
-                # temp = res.A[indYou,indMe,*] ## Sa[indYou,indYou,*] ## Transpose(res.A[indYou, indMe,*])
-                # res.Sx_crossState[indMe,indMe] = temp[*]                  
-    
                 ind_you_you = np.ix_(indYou, indYou)
                 ind_you_me = np.ix_(indYou, indMe) 
-                
-                temp = self._A[ind_you_me].T @ Sa[ind_you_you] @ self._A[ind_you_me]
-    
-                ind_me_me = np.ix_(indMe, indMe) 
-                self._Sx_crossState[indMe, indMe] = temp 
+                self._Sx_crossState[np.ix_(indMe, indMe)] = self._A[ind_you_me].T @ Sa[ind_you_you] @ self._A[ind_you_me]
             elif len(indMe) > 1 and len(indYou) == 1:
-                # IDL: 
-                # temp = res.A[indYou,indMe,*] ## Sa[indYou,indYou] ## Transpose(res.A[indYou, indMe,*])
-                # res.Sx_crossState[indMe,indMe,*] = temp
-    
                 ind_you_you = np.ix_(indYou, indYou)
                 ind_you_me = np.ix_(indYou, indMe) 
-    
-                temp = self._A[ind_you_me].T @ Sa[ind_you_you] @ self._A[ind_you_me]
-                
-                ind_me_me = np.ix_(indMe, indMe) 
-                self._Sx_crossState[ind_me_me] = temp[:, :]
+                self._Sx_crossState[np.ix_(indMe, indMe)] = self._A[ind_you_me].T @ Sa[ind_you_you] @ self._A[ind_you_me]
             else:
-                # IDL:
-                # temp = res.A[indYou,indMe,*] ## Sa[indYou,indYou,*] ## Transpose(res.A[indYou, indMe,*])
-                # res.Sx_crossState[indMe,indMe,*] = temp
-                
                 ind_you_you = np.ix_(indYou, indYou)
                 ind_you_me = np.ix_(indYou, indMe) 
+                self._Sx_crossState[np.ix_(indMe, indMe)] = self._A[ind_you_me].T @ Sa[ind_you_you] @ self._A[ind_you_me]
     
-                temp = self._A[ind_you_me].T @ Sa[ind_you_you] @ self._A[ind_you_me]
-                
-                ind_me_me = np.ix_(indMe, indMe) 
-                self._Sx_crossState[ind_me_me] = temp[:, :]
-        # end for ii in range(retrieval.n_species):
+        self._Sa_ret = my_map.toPars.T @ Sa @ my_map.toPars
     
-        # TODO: implement
-        # only sa_ret and sx_smooth_ret is needed from the block below
-        #  
-        # ; estimate mapping error
-        # ; Compare error analysis on FM grid vs error analysis on retrieval
-        # ; grid mapped to FM grid
-        # ; Calculate total errors, then subtract
-    
-        # ak_ret = INVERT(kappa + constraint) ## kappa
-        
-        # IDL:
-        # m = map.toPars
-        # Sa_ret = m ## Sa ## Transpose(m)
-        # res.sa_ret = sa_ret
-    
-        Sa_ret = my_map.toPars.T @ Sa @ my_map.toPars
-        self._Sa_ret[:, :] = Sa_ret
-    
-        # IDL:
-        # S_inv_ret = invert(kappa + constraint)
-        # id = IDENTITY(N_ELEMENTS(S_inv_ret[0,*]),/DOUBLE)
-        # sx_smooth_ret = (id - S_inv_ret ## kappa) ## Sa_ret ## TRANSPOSE(id - S_inv_ret ## kappa)
-        # sx_smooth_ret_fm = map.toState ## sx_smooth_ret ## transpose(map.toState)
-        
         S_inv_ret = np.linalg.inv(kappa + constraintMatrix)
         my_id = np.identity(S_inv_ret.shape[1], dtype=np.float64)
-        Sx_smooth_ret = (my_id - kappa @ S_inv_ret).T @ Sa_ret @ (my_id - kappa @ S_inv_ret)
+        Sx_smooth_ret = (my_id - kappa @ S_inv_ret).T @ self._Sa_ret @ (my_id - kappa @ S_inv_ret)
         Sx_smooth_ret_fm = my_map.toState.T @ Sx_smooth_ret @ my_map.toState
     
-        # mapping error:  compare sx_smooth_ret_fm and res.Sx_smooth
-        # mapping error from choice of retrieval levels
-        self._Sx_mapping[:, :] = self._Sx_smooth - Sx_smooth_ret_fm
+        self._Sx_mapping = self._Sx_smooth - Sx_smooth_ret_fm
     
-        # map error covariances to retrieval grid
-    
-        # IDL:
-        # smooth = map.toPars ## res.Sx_Smooth_self ## transpose(map.toPars)
-        # cross = map.toPars ## res.Sx_crossState ## transpose(map.toPars)
-        # rand = map.toPars ## res.Sx_rand ## transpose(map.toPars)
-        # sys = map.toPars ## res.Sx_sys ## transpose(map.toPars)
-    
-        smooth = my_map.toPars.T @ self._Sx_smooth_self @ my_map.toPars
-        cross = my_map.toPars.T @ self._Sx_crossState @ my_map.toPars
-        rand = my_map.toPars.T @ self._Sx_rand @ my_map.toPars
-        sys = my_map.toPars.T @ self._Sx_sys @ my_map.toPars
-    
-        self._Sx_ret_smooth[:, :] = smooth
-        self._Sx_ret_crossState[:, :] = cross
-        self._Sx_ret_rand[:, :] = rand
-        self._Sx_ret_sys[:, :] = sys
+        self._Sx_ret_smooth = my_map.toPars.T @ self._Sx_smooth_self @ my_map.toPars
+        self._Sx_ret_crossState = my_map.toPars.T @ self._Sx_crossState @ my_map.toPars
+        self._Sx_ret_rand = my_map.toPars.T @ self._Sx_rand @ my_map.toPars
+        self._Sx_ret_sys = my_map.toPars.T @ self._Sx_sys @ my_map.toPars
     
         #  mapping error from choice of retrieval levels
-        self._Sx_ret_mapping[:, :] = smooth + cross - Sx_smooth_ret    
-        
-        # IDL:
-        # res.A_ret = map.toPars ## S_Inv ## kappa
+        self._Sx_ret_mapping =  self._Sx_ret_smooth + self._Sx_ret_crossState - Sx_smooth_ret    
         self._A_ret = kappa @ S_inv @ my_map.toPars
     
         # AT_LINE 524 Error_Analysis.pro
@@ -786,24 +702,7 @@ class ErrorAnalysis:
             "_error": np.zeros(shape=(rows), dtype=np.float64),
             "_precision": np.zeros(shape=(rowsFM), dtype=np.float64),
             "_resolution": np.zeros(shape=(rowsFM), dtype=np.float64),
-            # jacobians - for last outputStep
             "_GdL": np.zeros(shape=(nfreqs, rowsFM), dtype=np.float64),
-            "_jacobianSys": None,
-            # error stuff follows - calc later
-            "_A_ret": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "_Sa_ret": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "_Sx_ret_smooth": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "_Sx_ret_crossState": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "_Sx_ret_rand": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "_Sx_ret_sys": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "_Sx_ret_mapping": np.zeros(shape=(rows, rows), dtype=np.float64),
-            "_Sx_smooth_self": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "_Sx_crossState": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            "_Sx_mapping": np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64),
-            # by species
-            "_informationContentSpecies": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
             "_degreesOfFreedomNoise": np.zeros(shape=(num_species), dtype=np.float64),
             "_degreesOfFreedomForSignal": np.zeros(
                 shape=(num_species), dtype=np.float64
@@ -811,9 +710,6 @@ class ErrorAnalysis:
             "_degreesOfFreedomForSignalTrop": np.zeros(
                 shape=(num_species), dtype=np.float64
             ),
-            "_bestDegreesOfFreedomList": ["" for x in range(num_species)],
-            "_bestDegreesOfFreedomTotal": ["" for x in range(num_species)],
-            "_verticalResolution": np.zeros(shape=(num_species), dtype=np.float64),
             "_deviationVsError": 0.0,
             "_deviationVsRetrievalCovariance": 0.0,
             "_deviationVsAprioriCovariance": 0.0,
@@ -836,18 +732,10 @@ class ErrorAnalysis:
         struct2 = {
             "_LDotDL": 0.0,
             "_LDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float64),
-            "_calscaleMean": 0.0,
-            "_masterQuality": -999,
-            # EM NOTE - Modified to increase vector size to allow for stratosphere capture
-            "_tsur_minus_tatm0": -999.0,
-            "_tsur_minus_prior": -999.0,
-            "_ch4_evs": np.zeros(shape=(10), dtype=np.float64),  # FLTARR(10)
         }
         o_results.update(struct2)
         self.__dict__.update(o_results)
         self._errorFM = np.zeros(shape=(rowsFM), dtype=np.float64)
-        self._A =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
-        self._Sx =  np.zeros(shape=(rowsFM, rowsFM), dtype=np.float64)
 
     @property
     def Sb(self) -> np.ndarray:
