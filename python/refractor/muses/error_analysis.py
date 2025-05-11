@@ -133,7 +133,7 @@ class ErrorAnalysis:
             retrieval : FakeRetrievalInfo,
             stateInfo : FakeStateInfo,
             retrieval_result : RetrievalResult) -> None:
-        self.set_retrieval_results(retrieval_result)
+        
         # expected noise
         data_error = radiance.NESR
         bad_pixel = data_error < 0
@@ -391,40 +391,29 @@ class ErrorAnalysis:
         self._Sx_ret_rand = my_map.toPars.T @ self._Sx_rand @ my_map.toPars
         self._Sx_ret_sys = my_map.toPars.T @ self._Sx_sys @ my_map.toPars
     
-        #  mapping error from choice of retrieval levels
         self._Sx_ret_mapping =  self._Sx_ret_smooth + self._Sx_ret_crossState - Sx_smooth_ret    
         self._A_ret = kappa @ S_inv @ my_map.toPars
-    
-        # AT_LINE 524 Error_Analysis.pro
-        self._deviationVsErrorSpecies[:] = 0
-        self._deviationVsRetrievalCovarianceSpecies[:] = 0
-        self._deviationVsAprioriCovarianceSpecies[:] = 0
-        
-        # AT_LINE 531 Error_Analysis.pro
+        self._deviationVsErrorSpecies = np.zeros((retrieval.n_species,))
+        self._deviationVsRetrievalCovarianceSpecies = np.zeros((retrieval.n_species,))
+        self._deviationVsAprioriCovarianceSpecies = np.zeros((retrieval.n_species,))
+        self._degreesOfFreedomForSignal = np.zeros((retrieval.n_species,))
+        self._degreesOfFreedomNoise = np.zeros((retrieval.n_species,))
         for ii in range(retrieval.n_species):
             m1f = retrieval.parameterStartFM[ii]
             m2f = retrieval.parameterEndFM[ii]
             x = self._A[m1f:m2f+1, m1f:m2f+1]
     
-            # AT_LINE 535 Error_Analysis.pro
             if (m2f-m1f) > 0:
                 self._degreesOfFreedomForSignal[ii] = np.trace(x)
                 self._degreesOfFreedomNoise[ii] = (m2f-m1f+1) - np.trace(x)
             else:
                 self._degreesOfFreedomForSignal[ii] = x
                 self._degreesOfFreedomNoise[ii] = 1 - x
-            # end else part of if (m2f-m1f) > 0:
-    
-            # AT_LINE 545 Error_Analysis.pro
+
             m1 = retrieval.parameterStart[ii]
             m2 = retrieval.parameterEnd[ii]
     
-            # if retrieval.species[ii] != 'EMIS' and retrieval.species[ii] != 'CLOUDEXT':
-            #     resolution = calculate_resolution(result.A[m1f:m2f+1, m1f:m2f+1], heightKm)
-            #     result.resolution[m1f:m2f+1] = resolution[:]
     
-            # AT_LINE 554 Error_Analysis.pro
-            # check finite for all results
             if not np.all(np.isfinite(kappa)):
                 raise RuntimeError("kappa is not finite")
             
@@ -448,10 +437,6 @@ class ErrorAnalysis:
                 if not np.all(np.isfinite(self._Sx_sys)):
                     raise RuntimeError("self._Sx_sys is not finite")
                 
-        # end for ii in range(retrieval.n_species):
-        # AT_LINE 607 Error_Analysis.pro
-    
-        # AT_LINE 621 Error_Analysis.pro
         # these quantities should be done on the retrieval grid because they
         # are better posed on that grid.
         indf = np.arange(len(retrieval_result.frequency))
@@ -475,12 +460,8 @@ class ErrorAnalysis:
                 value[ii] = np.sum(K *resid_vector) / math.sqrt(np.sum(K * K)) / np.sqrt(np.sum(resid_vector * resid_vector))
                 if not np.all(np.isfinite(value[ii])):
                     raise RuntimeError("KDotDL of my_map.toPars NOT FINITE!")
-            # end part of if np.sum(K*K) >  0: # when K is very small, k*k becomes zero.
-        # end for ii in range(retrieval.n_totalParameters):
-    
-        # AT_LINE 643 Error_Analysis.pro
-        #ret grid for vector
-        K = np.copy(jacobian)  # Make a copy so we can mess with K.
+
+        K = np.copy(jacobian)
         dL = actualDataResidual / dataError
         for jj in range(retrieval.n_totalParameters):
             K[jj, :] = K[jj, :] * dataError
@@ -494,9 +475,6 @@ class ErrorAnalysis:
                 valueRet[ii] = np.sum(myK *resid_vector) / math.sqrt(np.sum(myK * myK)) / math.sqrt(np.sum(resid_vector * resid_vector))
                 if not np.all(np.isfinite(value[ii])):
                     raise RuntimeError("KDotDL is not finite")
-                # end if (np.all(np.isfinite(value[ii])) == False):
-            # end part of  if np.sum(myK*myK) > 0: # when K is very small, k*k becomes zero.
-        # end for ii in range(retrieval.n_totalParameters):
     
         # AT_LINE 663 Error_Analysis.pro
         # now duplicate PGE, which is on FM grid and with unnormalized K and
@@ -521,22 +499,17 @@ class ErrorAnalysis:
         # AT_LINE 687 Error_Analysis.pro
         self._KDotDL_list = valueRet
         self._KDotDL = np.amax(np.abs(value))
-    
-        # get max for each species 
+        self._KDotDL_species = []
+        self._KDotDL_byspecies = np.zeros((retrieval.n_species,))
         for ii in range(retrieval.n_species):
             m1 = retrieval.parameterStart[ii]
             m2 = retrieval.parameterEnd[ii]
-            self._KDotDL_species[ii] = retrieval.speciesList[m1]
+            self._KDotDL_species.append(retrieval.speciesList[m1])
             self._KDotDL_byspecies[ii] = np.amax(np.abs(self._KDotDL_list[m1:m2+1]))
-        # end for ii in range(retrieval.n_species):
     
-    
-        # AT_LINE 699 Error_Analysis.pro
-        # get kdotDL and LDotDL by filter
-    
-        # Just in case the filter_list is not unique, we try to make a unique list with GetUniqueValues() function.
         utilList = mpy.UtilList()
         unique_filters = utilList.GetUniqueValues(retrieval_result.filter_list)
+        self._LDotDL_byfilter = np.zeros((len(unique_filters),))
         for ii in range(len(unique_filters)):
             start = retrieval_result.filterStart[ii]
             endd = retrieval_result.filterEnd[ii]
@@ -553,11 +526,9 @@ class ErrorAnalysis:
                     x2 = retrieval_result.radiance[start:endd+1]
     
                 self._LDotDL_byfilter[ii] = np.sum(x1*x2) / math.sqrt(np.sum(x1*x1)) / math.sqrt(np.sum(x2*x2))
-            # end if start >= 0:
-        # end for ii in range(len(unique_filters)):
     
         self._LDotDL = self._LDotDL_byfilter[0]
-    
+        self._KDotDL_byfilter = np.zeros((len(unique_filters),))
         # AT_LINE 712 Error_Analysis.pro
         for ii in range(len(unique_filters)):
             v1 = retrieval_result.filterStart[ii]
@@ -594,16 +565,16 @@ class ErrorAnalysis:
                     value[ii] = np.sum(K * actualDataResidual[:]) / math.sqrt(np.sum(K*K)) / math.sqrt(np.sum(actualDataResidual * actualDataResidual))
                     if not np.all(np.isfinite(value[ii])):
                         raise RuntimeError("KDotDL of jacobianSys is not finite")
-                # end if np.sum(K*K) > 0: # when K is very small, K*K becomes zero.
-            # end for ii in range(retrieval.n_totalParametersSys):
-    
             self._maxKDotDLSys = np.amax(np.abs(value))
-        # end part of if retrieval.n_totalParametersSys > 0:
+        else:
+            self._maxKDotDLSys = 0.0
     
         # AT_LINE 758 Error_Analysis.pro
         Sx = self._Sx
         Sx_rand = self._Sx_rand
-    
+
+        self._errorFM = np.zeros((retrieval.n_totalParametersFM,))
+        self._precision = np.zeros((retrieval.n_totalParametersFM,))
         # AT_LINE 761 Error_Analysis.pro
         for is_index in range(retrieval.n_totalParametersFM):
             self._errorFM[is_index] = np.sqrt(Sx[is_index, is_index])
@@ -678,64 +649,6 @@ class ErrorAnalysis:
             self._ch4_evs = np.abs(dots[0:9+1]) # ratio of use of 1st two vs. next 8 eVs
     
         return o_offDiagonalSys
-
-    def set_retrieval_results(self, retrieval_result: RetrievalResult) -> None:
-        """This is our own copy of mpy.set_retrieval_results, so we
-        can start making changes to clean up the coupling of this.
-
-        """
-        # Convert any dict to ObjectView so we can have a consistent
-        # way of referring to our input.
-        num_species = len(retrieval_result.current_state.retrieval_state_element_id)
-        nfreqs = len(retrieval_result.rstep.frequency)
-        num_filters = len(retrieval_result.filter_index)
-        
-        # get the total number of frequency points in all microwindows for the
-        # gain matrix
-        rows = len(retrieval_result.current_state.retrieval_state_vector_element_list)
-        rowsSys = len(retrieval_result.current_state.systematic_model_state_vector_element_list)
-        rowsFM = len(retrieval_result.current_state.forward_model_state_vector_element_list)
-        if rowsSys == 0:
-            rowsSys = 1
-
-        o_results: dict[str, Any] = {
-            "_error": np.zeros(shape=(rows), dtype=np.float64),
-            "_precision": np.zeros(shape=(rowsFM), dtype=np.float64),
-            "_resolution": np.zeros(shape=(rowsFM), dtype=np.float64),
-            "_GdL": np.zeros(shape=(nfreqs, rowsFM), dtype=np.float64),
-            "_degreesOfFreedomNoise": np.zeros(shape=(num_species), dtype=np.float64),
-            "_degreesOfFreedomForSignal": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            "_degreesOfFreedomForSignalTrop": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            "_deviationVsError": 0.0,
-            "_deviationVsRetrievalCovariance": 0.0,
-            "_deviationVsAprioriCovariance": 0.0,
-            "_deviationVsErrorSpecies": np.zeros(shape=(num_species), dtype=np.float64),
-            "_deviationVsRetrievalCovarianceSpecies": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            "_deviationVsAprioriCovarianceSpecies": np.zeros(
-                shape=(num_species), dtype=np.float64
-            ),
-            # quality and general
-            "_KDotDL": 0.0,
-            "_KDotDL_list": np.zeros(shape=(rows), dtype=np.float64),
-            "_KDotDL_byspecies": np.zeros(shape=(num_species), dtype=np.float64),
-            "_KDotDL_species": ["" for x in range(num_species)],
-            "_KDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float64),
-            "_maxKDotDLSys": 0.0,
-        }
-
-        struct2 = {
-            "_LDotDL": 0.0,
-            "_LDotDL_byfilter": np.zeros(shape=(num_filters), dtype=np.float64),
-        }
-        o_results.update(struct2)
-        self.__dict__.update(o_results)
-        self._errorFM = np.zeros(shape=(rowsFM), dtype=np.float64)
 
     @property
     def Sb(self) -> np.ndarray:
