@@ -369,7 +369,7 @@ class RetrievalResult:
         return np.array(self._handle_fill(res, -999.0, -999.0))
 
     @property
-    def Sb(self) -> np.ndarray:
+    def Sb(self) -> np.ndarray | None:
         return self._error_analysis.Sb
 
     @property
@@ -489,7 +489,7 @@ class RetrievalResult:
         return self._error_analysis.KDotDL_byspecies
 
     @property
-    def LDotDL(self) -> np.ndarray:
+    def LDotDL(self) -> float:
         return self._error_analysis.LDotDL
 
     @property

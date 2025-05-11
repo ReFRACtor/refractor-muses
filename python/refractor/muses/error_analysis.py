@@ -166,7 +166,7 @@ class ErrorAnalysis:
         # For now, we need to assign these variables below so they have some values because
         # for AIRS run, the value of nSys is 0.
         Sb = None
-
+        self._Sb = None
         if jacobian_sys is not None:
             jacobian_sys = jacobian_sys[0, :, :].copy()
             jacobian_sys[:, bad_pixel] = 0
@@ -304,6 +304,7 @@ class ErrorAnalysis:
     ) -> np.ndarray | None:
         o_offDiagonalSys = None
 
+        self._ch4_evs = np.zeros(shape=(0,))
         kappa = jacobian @ jacobian.T
         kappaFM = jacobianFM @ jacobian.T  # [parameter,frequency]
         S_inv = np.linalg.inv(kappa + constraintMatrix) @ my_map.toState
@@ -667,7 +668,7 @@ class ErrorAnalysis:
         return o_offDiagonalSys
 
     @property
-    def Sb(self) -> np.ndarray:
+    def Sb(self) -> np.ndarray | None:
         return self._Sb
 
     @property
@@ -787,7 +788,7 @@ class ErrorAnalysis:
         return self._KDotDL_byspecies
 
     @property
-    def LDotDL(self) -> np.ndarray:
+    def LDotDL(self) -> float:
         return self._LDotDL
 
     @property
