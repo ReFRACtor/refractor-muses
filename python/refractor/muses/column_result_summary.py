@@ -7,7 +7,6 @@ import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
-    from .retrieval_result import RetrievalResult
     from .error_analysis import ErrorAnalysis
     from .current_state import CurrentState
 
@@ -400,7 +399,7 @@ class ColumnResultSummary:
         if res <= -990:
             raise RuntimeError("GMA tropopause pressure is not defined")
         return res
-    
+
     @property
     def H2O_H2OQuality(self) -> float:
         return self._H2O_H2OQuality

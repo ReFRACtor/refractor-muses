@@ -455,7 +455,12 @@ class CurrentStateStateInfo(CurrentState):
         self._state_info.notify_update_target(
             measurement_id, retrieval_config, strategy, observation_handle_set
         )
-        self._covariance_state_element_name: list[StateElementIdentifier] = StateElementIdentifier.sort_identifier(list(set(strategy.retrieval_elements) | set(strategy.error_analysis_interferents)))
+        self._covariance_state_element_name = StateElementIdentifier.sort_identifier(
+            list(
+                set(strategy.retrieval_elements)
+                | set(strategy.error_analysis_interferents)
+            )
+        )
         self.clear_cache()
 
     def notify_start_retrieval(
@@ -474,7 +479,7 @@ class CurrentStateStateInfo(CurrentState):
             self.setup_previous_aposteriori_cov_fm(
                 self._covariance_state_element_name, current_strategy_step
             )
-            
+
             self._state_info.notify_start_retrieval(
                 current_strategy_step, retrieval_config
             )

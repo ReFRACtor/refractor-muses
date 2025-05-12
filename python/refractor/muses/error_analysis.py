@@ -1,44 +1,48 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
-import refractor.framework as rf  # type: ignore
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
-import copy
 import numpy as np
 import math
 from loguru import logger
-from scipy.linalg import block_diag  # type: ignore
 import typing
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_strategy import CurrentStrategyStep
     from .retrieval_result import RetrievalResult
-    from .identifier import StateElementIdentifier
 
 
 class ErrorAnalysis:
-    """This performs the error analysis. This class
-    CurrentState.update_previous_aposteriori_cov_fm t  o update the aposteriori covariance
-    for the current step.
+    """This performs the error analysis.
+
+    This class calls CurrentState.update_previous_aposteriori_cov_fm
+    to update the aposteriori covariance for the current
+    step. Normally we try to avoid side effects, but in this
+    particular case it seems reasonable that calculation the
+    aposteriori_cov_fm in ErrorAnalysis updates the current_state. We
+    can pull this update out if needed - if we want the update to be
+    more explicit. But for now, this is what we do.
     """
 
     def __init__(
         self,
         current_state: CurrentState,
         current_strategy_step: CurrentStrategyStep,
-        retrieval_result: RetrievalResult
+        retrieval_result: RetrievalResult,
     ) -> None:
         # TODO Clean up passing in RetrievalResult, instead we should just pass in the
         # pieces we need.
         fstate_info = FakeStateInfo(current_state)
         fretrieval_info = FakeRetrievalInfo(current_state)
-        self.error_analysis_wrapper(
+        offDiagonalSys = self.error_analysis_wrapper(
             retrieval_result.rstep,
             fretrieval_info,
             fstate_info,
             retrieval_result,
         )
+        # Update current state with new aposteriori_cov_fm.
+        current_state.update_previous_aposteriori_cov_fm(self.Sx, offDiagonalSys)
 
     def error_analysis_wrapper(
         self,
@@ -46,7 +50,7 @@ class ErrorAnalysis:
         retrieval: FakeRetrievalInfo,
         stateInfo: FakeStateInfo,
         retrieval_result: RetrievalResult,
-    ) -> None:
+    ) -> np.ndarray | None:
         # expected noise
         data_error = radiance.NESR
         bad_pixel = data_error < 0
@@ -165,7 +169,7 @@ class ErrorAnalysis:
             retrieval,
             cstate.error_current_values,
         )
-        cstate.update_previous_aposteriori_cov_fm(self.Sx, offDiagonalSys)
+        return offDiagonalSys
 
     # see: https://ieeexplore.ieee.org/document/1624609
     # Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis

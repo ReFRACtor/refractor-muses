@@ -90,14 +90,14 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def qa_update_retrieval_result(
+    def qa_flag(
         self,
         retrieval_result: RetrievalResult,
         current_strategy_step: CurrentStrategyStep,
     ) -> str | None:
-        """This does the QA calculation, and updates the given
-        RetrievalResult.  Returns the master quality flag results
-
+        """This does the QA calculation, and returns the master quality flag
+        results. A good result returns "GOOD". None if this handle can't process the
+        flag.
         """
         raise NotImplementedError()
 
@@ -106,9 +106,9 @@ class QaDataHandleSet(CreatorHandleSet):
     """This takes a RetrievalResult and updates it with QA data."""
 
     def __init__(self) -> None:
-        super().__init__("qa_update_retrieval_result")
+        super().__init__("qa_flag")
 
-    def qa_update_retrieval_result(
+    def qa_flag(
         self,
         retrieval_result: RetrievalResult,
         current_strategy_step: CurrentStrategyStep,
@@ -173,14 +173,13 @@ class MusesPyQaDataHandle(QaDataHandle):
         quality_fname = os.path.abspath(quality_fname)
         return Path(quality_fname)
 
-    def qa_update_retrieval_result(
+    def qa_flag(
         self,
         retrieval_result: RetrievalResult,
         current_strategy_step: CurrentStrategyStep,
-    ) -> str | None:
-        """This does the QA calculation, and updates the given
-        RetrievalResult.  Returns the master quality flag results
-
+    ) -> str:
+        """This does the QA calculation, and returns the master quality flag
+        results. A good result returns "GOOD".
         """
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
         qa_outname = Path(
@@ -197,8 +196,7 @@ class MusesPyQaDataHandle(QaDataHandle):
             fstate_info,
             writeOutput=False,
         )
-        retrieval_result.masterQuality = 1 if master == "GOOD" else 0
-        logger.info(f"Master Quality: {retrieval_result.masterQuality} ({master})")
+        logger.info(f"Master Quality: {master}")
         return master
 
 

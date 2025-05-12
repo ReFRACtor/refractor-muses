@@ -8,15 +8,17 @@ import math
 import typing
 
 if typing.TYPE_CHECKING:
-    from .retrieval_result import RetrievalResult
     from .error_analysis import ErrorAnalysis
+    from .current_state import CurrentState
 
 
 # Needs a lot of cleanup, we are just shoving stuff into place
 class CloudResultSummary:
     def __init__(
-            self, current_state: CurrentState, result_list: np.ndarray,
-            error_analysis: ErrorAnalysis
+        self,
+        current_state: CurrentState,
+        result_list: np.ndarray,
+        error_analysis: ErrorAnalysis,
     ) -> None:
         self.current_state = current_state
         utilList = mpy.UtilList()
@@ -68,19 +70,25 @@ class CloudResultSummary:
             # cloud not retrieved... use 975-1200
             # NOTE: code has not been tested.
             cov = None
-            selem = self.current_state.full_state_element(StateElementIdentifier("CLOUDEXT"))
+            selem = self.current_state.full_state_element(
+                StateElementIdentifier("CLOUDEXT")
+            )
             if selem is not None and selem.pressure_list_fm is not None:
                 plist = selem.pressure_list_fm
-                plist_ind = (plist >= 975) & (plist <=1200)
+                plist_ind = (plist >= 975) & (plist <= 1200)
                 try:
-                    cov = self.current_state.previous_aposteriori_cov_fm([StateElementIdentifier("CLOUDEXT")])
+                    cov = self.current_state.previous_aposteriori_cov_fm(
+                        [StateElementIdentifier("CLOUDEXT")]
+                    )
                 except KeyError:
                     # If not in previous_aposteriori_cov_fm, then we just skip the next part
                     pass
             if cov is not None and np.count_nonzero(plist_ind) > 0:
-                error_current = np.diag(cov[plist_ind, :][:,plist_ind])
+                error_current = np.diag(cov[plist_ind, :][:, plist_ind])
                 self._cloudODAveError = (
-                    math.sqrt(np.sum(error_current)) / error_current.size * self.cloudODAve
+                    math.sqrt(np.sum(error_current))
+                    / error_current.size
+                    * self.cloudODAve
                 )
         # end else part of if (len(ind) > 0):
 
@@ -157,7 +165,7 @@ class CloudResultSummary:
                 # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
                 my_map = mpy.get_one_map(retrievalInfo, "O3")
 
-                AK = error_analysis.A[ind,:][:,ind]
+                AK = error_analysis.A[ind, :][:, ind]
                 AKzz = np.matmul(np.matmul(my_map["toState"], AK), my_map["toPars"])
                 meanAKlo = np.var(AKzz[indLow, indLow])
 

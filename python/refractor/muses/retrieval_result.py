@@ -12,9 +12,10 @@ import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
-    from .cost_function import CostFunction
     from .muses_observation import MusesObservation
     from .current_state import CurrentState, PropagatedQA
+    from .muses_strategy import CurrentStrategyStep
+    from .qa_data_handle import QaDataHandleSet
     from .muses_levmar_solver import SolverResult
 
 
@@ -23,19 +24,12 @@ class RetrievalResult:
     retrieval_results. Pull all this together into an object so we can clearly
     see the interface and possibly change things.
 
-    The coupling of this isn't great, we may want to break this up. The current
-    set of steps needed to fully generate this can be found in
-    RetrievalStrategyStepRetrieve
-
-    1. Use results of the run_retrieval to create RetrievalResult using the
-       constructor (__init__).
-    2. Generate the systematic Jacobian using this updated StateInfo, and
-       store results in RetrievalResult
-    3. Run the error analysis (ErrorAnalysis.update_retrieval_result) and
-       store the results in RetrievalResult
-    4. Run the QA analysis (QaDataHandleSet.qa_update_retrieval_result) and
-       store the results in RetrievalResult
-
+    Note that this class calls current_state.update_previous_aposteriori_cov_fm and
+    current_state.propagated_qa.update. Normally we try to avoid side effects, but in
+    this particular case it seems reasonable that calculation the aposteriori_cov_fm
+    in ErrorAnalysis and calculating the QA flag values reasonably update current_state
+    with that information. We can pull these updates out if needed - if we want the updates
+    to be more explicit.
     """
 
     def __init__(
@@ -46,13 +40,13 @@ class RetrievalResult:
         obs_list: list[MusesObservation],
         radiance_full: dict,
         propagated_qa: PropagatedQA,
+        qa_data_handle_set: QaDataHandleSet,
         jacobian_sys: np.ndarray | None = None,
     ):
         """ret_res is what we get returned from MusesLevmarSolver"""
         self.rstep = mpy.ObjectView(
             mpy_radiance_from_observation_list(obs_list, include_bad_sample=True)
         )
-        self._filter_result_summary = FilterResultSummary(self.rstep)
         self.radiance_full = radiance_full
         self.obs_list = obs_list
         self.instruments = [obs.instrument_name for obs in self.obs_list]
@@ -62,6 +56,9 @@ class RetrievalResult:
         self.ret_res = ret_res
         self.jacobianSys = jacobian_sys
         self.propagated_qa = propagated_qa
+        # Fill in various calculated values - we have various classes handle each of these
+        # pieces.
+        self._filter_result_summary = FilterResultSummary(self.rstep)
         self._radiance_result_summary = [
             RadianceResultSummary(
                 self.rstep.radiance[slc],
@@ -71,21 +68,21 @@ class RetrievalResult:
             )
             for slc in self._filter_result_summary.filter_slice
         ]
-
-    def update_jacobian_sys(self, cfunc_sys: CostFunction) -> None:
-        """Run the forward model in cfunc to get the jacobian_sys set."""
-        self.jacobianSys = (
-            cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[
-                np.newaxis, :, :
-            ]
+        self._error_analysis = ErrorAnalysis(
+            self.current_state, self.current_strategy_step, self
         )
-
-    def update_error_analysis(self) -> None:
-        # TODO Clean this up
-        self._error_analysis = ErrorAnalysis(self.current_state, self.current_strategy_step, self)
-        self._cloud_result_summary = CloudResultSummary(self.current_state, self.resultsList,
-                                                        self._error_analysis)
-        self._column_result_summary = ColumnResultSummary(self.current_state, self._error_analysis)
+        self._cloud_result_summary = CloudResultSummary(
+            self.current_state, self.resultsList, self._error_analysis
+        )
+        self._column_result_summary = ColumnResultSummary(
+            self.current_state, self._error_analysis
+        )
+        master_flag = qa_data_handle_set.qa_flag(self, current_strategy_step)
+        self.master_quality = 1 if master_flag == "GOOD" else 0
+        # Update current_state.propagated_qa
+        current_state.propagated_qa.update(
+            current_strategy_step.retrieval_elements, self.master_quality
+        )
 
     def state_value(self, state_name: str) -> float:
         return self.current_state.full_state_value(StateElementIdentifier(state_name))[

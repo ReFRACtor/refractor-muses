@@ -30,7 +30,6 @@ from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from .error_analysis import ErrorAnalysis
     from .forward_model_handle import ForwardModelHandleSet
     from .observation_handle import ObservationHandleSet
     from .current_state import CurrentState

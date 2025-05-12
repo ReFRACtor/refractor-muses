@@ -1,7 +1,5 @@
-from refractor.muses import ErrorAnalysis, RetrievalStrategy, MusesRunDir
+from refractor.muses import ErrorAnalysis
 from fixtures.retrieval_step_fixture import set_up_run_to_location
-from fixtures.misc_fixture import all_output_disabled, struct_compare
-import pytest
 from pytest import approx
 import numpy.testing as npt
 
@@ -12,7 +10,7 @@ def test_error_analysis(
     rs, rstep, _ = set_up_run_to_location(
         joint_tropomi_test_in_dir,
         10,
-        "systematic_jacobian",
+        "retrieval step",
         osp_dir,
         gmao_dir,
         vlidort_cli,

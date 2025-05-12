@@ -142,9 +142,7 @@ def test_update_cloudfraction(omi_step_0):
     rs._strategy_executor.restart()
 
     # Update results, and make sure element gets updated
-    rs.current_state.notify_start_step(
-        rs.current_strategy_step, rs.retrieval_config
-    )
+    rs.current_state.notify_start_step(rs.current_strategy_step, rs.retrieval_config)
     results_list = np.zeros((len(rs.current_state.retrieval_state_vector_element_list)))
     msk = (
         np.array([str(i) for i in rs.current_state.retrieval_state_vector_element_list])

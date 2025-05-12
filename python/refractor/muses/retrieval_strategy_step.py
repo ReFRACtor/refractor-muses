@@ -7,6 +7,7 @@ from .muses_levmar_solver import MusesLevmarSolver
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
 from .identifier import RetrievalType, ProcessLocation
+import numpy as np
 import json
 import gzip
 import os
@@ -248,7 +249,9 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         if self.cfunc is None:
             raise RuntimeError("self.cfunc should not be None")
         # self.cfunc.parameters set to the best iteration solution in MusesLevmarSolver
-        rs.current_strategy_step.notify_step_solution(rs.current_state, self.cfunc.parameters)
+        rs.current_strategy_step.notify_step_solution(
+            rs.current_state, self.cfunc.parameters
+        )
         logger.info("\n---")
         logger.info(str(rs.strategy_step))
         logger.info(
@@ -257,14 +260,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         logger.info("---\n")
         rs.notify_update(
             ProcessLocation("run_retrieval_step"), retrieval_strategy_step=self
-        )
-        self.results = RetrievalResult(
-            self.ret_res,
-            rs.current_state,
-            rs.current_strategy_step,
-            self.cfunc.obs_list,
-            self.radiance_full(rs),
-            rs.current_state.propagated_qa,
         )
 
         # TODO jacobian_sys is only used in error_analysis_wrapper and
@@ -275,6 +270,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         #
         # For right now, these are required, we would need to update
         # the error analysis to work without bad samples
+        jacobian_sys = None
         if len(rs.current_state.systematic_state_element_id) > 0:
             self.cfunc_sys = rs.create_cost_function(
                 do_systematic=True,
@@ -285,18 +281,26 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
                 # Skip forward model if we have a saved state.
                 self.cfunc_sys.set_state(self._saved_state["cfunc_sys"])
             logger.info("Running run_forward_model for systematic jacobians ...")
-            self.results.update_jacobian_sys(self.cfunc_sys)
+            jacobian_sys = (
+                self.cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[
+                    np.newaxis, :, :
+                ]
+            )
         rs.notify_update(
             ProcessLocation("systematic_jacobian"), retrieval_strategy_step=self
         )
-        # TODO Move these updates into init of results. Just pass jac_sys as input, and
-        # combine these steps
-        self.results.update_error_analysis()
-        rs.qa_data_handle_set.qa_update_retrieval_result(
-            self.results, rs.current_strategy_step
-        )
-        rs.current_state.propagated_qa.update(
-            rs.current_strategy_step.retrieval_elements, self.results.master_quality
+
+        # Note a side effect of this is calling current_state.update_previous_aposteriori_cov_fm
+        # and current_state.propagated_qa.update. See discussion in RetrievalResult.
+        self.results = RetrievalResult(
+            self.ret_res,
+            rs.current_state,
+            rs.current_strategy_step,
+            self.cfunc.obs_list,
+            self.radiance_full(rs),
+            rs.current_state.propagated_qa,
+            rs.qa_data_handle_set,
+            jacobian_sys=jacobian_sys,
         )
         rs.notify_update(
             ProcessLocation("retrieval step"), retrieval_strategy_step=self
