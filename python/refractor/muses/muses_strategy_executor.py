@@ -486,38 +486,11 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         """Go to the given step. This is used by RetrievalStrategy.load_state_info
         where we jump to a given step number."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
-            self._restart_and_error_analysis()
+            self.restart()
             while self.current_strategy_step.strategy_step.step_number < step_number:
                 self.notify_start_step(skip_initial_guess_update=True)
                 self.next_step()
-
-    def _restart_and_error_analysis(self) -> None:
-        '''Restart and recreate error analysis. Put together just for convenience,
-        so we can use with "set_step"'''
-        # List of state elements we need covariance from. This is all the elements
-        # we will retrieve, plus any interferents that get added in. This list
-        # is unique elements, sorted by the order_species sorting
-        #
-        # I'm pretty sure this is the only place in the code that we use MusesStrategy
-        # all retrieval_elements and all error_analysis_interferents - when we remove this
-        # code we should be able to remove these from MusesStrategy
-        covariance_state_element_name = [
-            StateElementIdentifier(i)
-            for i in order_species(
-                list(
-                    set([str(i) for i in self.strategy.retrieval_elements])
-                    | set([str(i) for i in self.strategy.error_analysis_interferents])
-                )
-            )
-        ]
-
-        self.restart()
-        self.error_analysis = ErrorAnalysis(
-            self.current_state,
-            self.current_strategy_step,
-            covariance_state_element_name,
-        )
-
+                
     def next_step(self) -> None:
         """Advance to the next step."""
         self.strategy.next_step(self.current_state)
@@ -584,7 +557,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             raise RuntimeError(
                 "Need to call notify_update_target before calling this function"
             )
-        self._restart_and_error_analysis()
+        self.restart()
         self.notify_update(ProcessLocation("initial set up done"))
 
         # Note the original muses-py ran through all the initial guess

@@ -6,6 +6,7 @@ from .filter_result_summary import FilterResultSummary
 from .radiance_result_summary import RadianceResultSummary
 from .cloud_result_summary import CloudResultSummary
 from .column_result_summary import ColumnResultSummary
+from .error_analysis import ErrorAnalysis
 import math
 import numpy as np
 import typing
@@ -14,7 +15,6 @@ if typing.TYPE_CHECKING:
     from .cost_function import CostFunction
     from .muses_observation import MusesObservation
     from .current_state import CurrentState, PropagatedQA
-    from .error_analysis import ErrorAnalysis
     from .muses_levmar_solver import SolverResult
 
 
@@ -42,6 +42,7 @@ class RetrievalResult:
         self,
         ret_res: SolverResult,
         current_state: CurrentState,
+        current_strategy_step: CurrentStrategyStep,
         obs_list: list[MusesObservation],
         radiance_full: dict,
         propagated_qa: PropagatedQA,
@@ -56,6 +57,7 @@ class RetrievalResult:
         self.obs_list = obs_list
         self.instruments = [obs.instrument_name for obs in self.obs_list]
         self.current_state = current_state
+        self.current_strategy_step = current_strategy_step
         self.sounding_metadata = current_state.sounding_metadata
         self.ret_res = ret_res
         self.jacobianSys = jacobian_sys
@@ -78,11 +80,12 @@ class RetrievalResult:
             ]
         )
 
-    def update_error_analysis(self, error_analysis: ErrorAnalysis) -> None:
-        self._error_analysis = error_analysis
+    def update_error_analysis(self) -> None:
+        # TODO Clean this up
+        self._error_analysis = ErrorAnalysis(self.current_state, self.current_strategy_step, self)
         self._cloud_result_summary = CloudResultSummary(self.current_state, self.resultsList,
-                                                        error_analysis)
-        self._column_result_summary = ColumnResultSummary(self.current_state, error_analysis)
+                                                        self._error_analysis)
+        self._column_result_summary = ColumnResultSummary(self.current_state, self._error_analysis)
 
     def state_value(self, state_name: str) -> float:
         return self.current_state.full_state_value(StateElementIdentifier(state_name))[

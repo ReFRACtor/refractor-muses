@@ -13,7 +13,8 @@ def test_qa_data_update_retrieval_results(
         gmao_dir,
         vlidort_cli,
     )
-    rs.error_analysis.update_retrieval_result(rstep.results)
+    # Temp, this will probably go away
+    rstep.results.update_error_analysis()
     rs.qa_data_handle_set.qa_update_retrieval_result(
         rstep.results, rs.current_strategy_step
     )

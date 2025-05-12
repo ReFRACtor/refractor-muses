@@ -230,7 +230,6 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs.notify_update(
             ProcessLocation("retrieval input"), retrieval_strategy_step=self
         )
-        cstate = rs.current_state
         logger.info("Running run_retrieval ...")
 
         # SSK 2023.  I find I get failures from glitches like reading
@@ -249,7 +248,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         if self.cfunc is None:
             raise RuntimeError("self.cfunc should not be None")
         # self.cfunc.parameters set to the best iteration solution in MusesLevmarSolver
-        rs.current_strategy_step.notify_step_solution(cstate, self.cfunc.parameters)
+        rs.current_strategy_step.notify_step_solution(rs.current_state, self.cfunc.parameters)
         logger.info("\n---")
         logger.info(str(rs.strategy_step))
         logger.info(
@@ -261,10 +260,11 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         )
         self.results = RetrievalResult(
             self.ret_res,
-            cstate,
+            rs.current_state,
+            rs.current_strategy_step,
             self.cfunc.obs_list,
             self.radiance_full(rs),
-            cstate.propagated_qa,
+            rs.current_state.propagated_qa,
         )
 
         # TODO jacobian_sys is only used in error_analysis_wrapper and
@@ -289,11 +289,13 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         rs.notify_update(
             ProcessLocation("systematic_jacobian"), retrieval_strategy_step=self
         )
-        rs.error_analysis.update_retrieval_result(self.results)
+        # TODO Move these updates into init of results. Just pass jac_sys as input, and
+        # combine these steps
+        self.results.update_error_analysis()
         rs.qa_data_handle_set.qa_update_retrieval_result(
             self.results, rs.current_strategy_step
         )
-        cstate.propagated_qa.update(
+        rs.current_state.propagated_qa.update(
             rs.current_strategy_step.retrieval_elements, self.results.master_quality
         )
         rs.notify_update(

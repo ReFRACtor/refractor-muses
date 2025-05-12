@@ -1,13 +1,13 @@
-from refractor.muses import ColumnResultSummary
+from refractor.muses import ColumnResultSummary, ErrorAnalysis
 from pytest import approx
 import numpy.testing as npt
 
 
 def test_column_result_summary(joint_tropomi_step_12_output):
-    rs, _, _ = joint_tropomi_step_12_output
+    rs, rstep, _ = joint_tropomi_step_12_output
     current_state = rs.current_state
-    error_analysis = rs.error_analysis
-    csum = ColumnResultSummary(current_state, error_analysis)
+    e = ErrorAnalysis(rs.current_state, rs.current_strategy_step, rstep.results)
+    csum = ColumnResultSummary(current_state, e)
     if False:
         print(csum.H2O_H2OQuality)
         print(csum.O3_columnErrorDU)

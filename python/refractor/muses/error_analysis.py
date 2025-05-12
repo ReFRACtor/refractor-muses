@@ -18,109 +18,27 @@ if typing.TYPE_CHECKING:
 
 
 class ErrorAnalysis:
-    """This just groups together some of the error analysis stuff
-    together, to put this together. Nothing more than a shuffling
-    around of stuff already in muses-py
-
+    """This performs the error analysis. This class
+    CurrentState.update_previous_aposteriori_cov_fm t  o update the aposteriori covariance
+    for the current step.
     """
 
     def __init__(
         self,
         current_state: CurrentState,
         current_strategy_step: CurrentStrategyStep,
-        covariance_state_element_name: list[StateElementIdentifier],
+        retrieval_result: RetrievalResult
     ) -> None:
-        # Need to remove usage in retrieval_info.py and cloud_result_summary before
-        # removing here. However we don't use this in ErrorAnalysis any longer
-        self.error_current = mpy.ObjectView(
-            self.initialize_error_initial(
-                current_state, current_strategy_step, covariance_state_element_name
-            )
-        )
-
-    def initialize_error_initial(
-        self,
-        current_state: CurrentState,
-        current_strategy_step: CurrentStrategyStep,
-        covariance_state_element_name: list[StateElementIdentifier],
-    ) -> dict | mpy.ObjectView:
-        """covariance_state_element_name should be the list of state
-        elements we need covariance from. This is all the elements we
-        will retrieve, plus any interferents that get added in. This
-        list is unique elements, sorted by the order_species sorting
-
-        """
-        selem_list = []
-        for sname in covariance_state_element_name:
-            selem = current_state.full_state_element(sname)
-            # Note clear why, but we get slightly different results if we
-            # update the original state_info. May want to track this down,
-            # but as a work around we just copy this. This is just needed
-            # to get the mapping type, I don't think anything else is
-            # needed. We should be able to pull that out from the full
-            # initial guess update at some point, so we don't need to do
-            # the full initial guess
-            selem = copy.deepcopy(selem)
-            if hasattr(selem, "update_initial_guess"):
-                selem.update_initial_guess(current_strategy_step)
-            selem_list.append(selem)
-
-        pressure_list: list[float] = []
-        species_list = []
-        map_list = []
-
-        # Make block diagonal covariance.
-        matrix_list = []
-        # AT_LINE 25 get_prior_error.pro
-        for selem in selem_list:
-            matrix = selem.apriori_cov_fm
-            plist = selem.pressure_list_fm
-            if plist is not None:
-                pressure_list.extend(plist)
-            else:
-                # Convention for elements not on a pressure grid is to use a single
-                # -2
-                pressure_list.extend(np.array([-2.0]))
-            species_list.extend([str(selem.state_element_id)] * matrix.shape[0])
-            matrix_list.append(matrix)
-            smap = selem.state_mapping
-            if isinstance(smap, rf.StateMappingLinear):
-                mtype = "linear"
-            elif isinstance(smap, rf.StateMappingLog):
-                mtype = "log"
-            else:
-                raise RuntimeError(f"Don't recognize state mapping {smap}")
-            map_list.extend([mtype] * matrix.shape[0])
-
-        initial = block_diag(*matrix_list)
-        # Off diagonal blocks for covariance.
-        for i, selem1 in enumerate(selem_list):
-            for selem2 in selem_list[i + 1 :]:
-                matrix2 = selem1.apriori_cross_covariance_fm(selem2)
-                if matrix2 is not None:
-                    initial[np.array(species_list) == str(selem1.state_element_id), :][
-                        :, np.array(species_list) == str(selem2.state_element_id)
-                    ] = matrix2
-                    initial[np.array(species_list) == str(selem2.state_element_id), :][
-                        :, np.array(species_list) == str(selem1.state_element_id)
-                    ] = np.transpose(matrix2)
-        return mpy.constraint_data(
-            initial, pressure_list, [str(i) for i in species_list], map_list
-        )
-
-    def update_retrieval_result(self, retrieval_result: RetrievalResult) -> None:
-        """Update the retrieval_result and ErrorAnalysis. The retrieval_result
-        are updated in place."""
-        fstate_info = FakeStateInfo(retrieval_result.current_state)
-        fretrieval_info = FakeRetrievalInfo(retrieval_result.current_state)
-        # Updates self.error_current and retrieval_result in place
+        # TODO Clean up passing in RetrievalResult, instead we should just pass in the
+        # pieces we need.
+        fstate_info = FakeStateInfo(current_state)
+        fretrieval_info = FakeRetrievalInfo(current_state)
         self.error_analysis_wrapper(
             retrieval_result.rstep,
             fretrieval_info,
             fstate_info,
             retrieval_result,
         )
-        retrieval_result.update_error_analysis(self)
 
     def error_analysis_wrapper(
         self,
@@ -247,36 +165,7 @@ class ErrorAnalysis:
             retrieval,
             cstate.error_current_values,
         )
-
         cstate.update_previous_aposteriori_cov_fm(self.Sx, offDiagonalSys)
-
-        # Only needed by CloudResultSummary
-        currentSpecies = retrieval.species[0 : retrieval.n_species]
-        self.error_current = mpy.constraint_clear(
-            self.error_current.__dict__, currentSpecies
-        )
-        self.error_current = mpy.constraint_set(
-            self.error_current.__dict__, self.Sx, currentSpecies
-        )
-        if jacobian_sys is not None and offDiagonalSys is not None:
-            # set block and transpose of block
-            my_ind = np.where(np.asarray(retrieval.parameterEndSys) > 0)[0]
-
-            # The following function constraint_set_subblock() updates the 'data' portion of errorCurrent structure.
-            # Call twice with the last two parameters swapped.
-            self.error_current = mpy.constraint_set_subblock(
-                self.error_current,
-                np.transpose(offDiagonalSys),
-                np.asarray(currentSpecies),
-                np.asarray(retrieval.speciesSys[0 : len(my_ind)]),
-            )
-
-            self.error_current = mpy.constraint_set_subblock(
-                self.error_current,
-                offDiagonalSys,
-                np.asarray(retrieval.speciesSys[0 : len(my_ind)]),
-                np.asarray(currentSpecies),
-            )
 
     # see: https://ieeexplore.ieee.org/document/1624609
     # Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis

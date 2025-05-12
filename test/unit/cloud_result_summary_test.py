@@ -1,14 +1,14 @@
-from refractor.muses import CloudResultSummary
+from refractor.muses import CloudResultSummary, ErrorAnalysis
 from pytest import approx
 import numpy.testing as npt
 
 
 def test_cloud_result_summary(joint_tropomi_step_12_output):
-    rs, rstp, _ = joint_tropomi_step_12_output
+    rs, rstep, _ = joint_tropomi_step_12_output
     current_state = rs.current_state
-    result_list = rstp.results.resultsList
-    error_analysis = rs.error_analysis
-    csum = CloudResultSummary(current_state, result_list, error_analysis)
+    result_list = rstep.results.resultsList
+    e = ErrorAnalysis(rs.current_state, rs.current_strategy_step, rstep.results)
+    csum = CloudResultSummary(current_state, result_list, e)
     if False:
         print(csum.cloudODAve)
         print(csum.cloudODVar)

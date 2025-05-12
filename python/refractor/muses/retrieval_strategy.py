@@ -393,19 +393,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     def cost_function_creator(self) -> CostFunctionCreator:
         return self._cost_function_creator
 
-    @property
-    def error_analysis(self) -> ErrorAnalysis:
-        """Error analysis"""
-        # TODO Not really clear what the coupling should be here. But
-        # for now, this is used by RetrievalStrategyStep. Perhaps we
-        # can just pass this in the constructor? Perhaps this can be
-        # handled like our QaDataHandleSet, where we have
-        # configuration to select this? Isn't clear that we would ever
-        # want this replaced with a different kind of
-        # ErrorAnalysis. For now, just make it clear that we have this
-        # coupling and we can figure out how this should be handled.
-        return self.strategy_executor.error_analysis
-
     def create_cost_function(
         self,
         do_systematic: bool = False,
@@ -414,7 +401,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         jacobian_speciesIn: list[StateElementIdentifier] | None = None,
     ) -> CostFunction:
         """Create cost function"""
-        # Similiar to error_analysis, this gets uses in
+        # This gets uses in
         # RetrievalStrategyStep and perhaps we should just pass the
         # strategy_executor to the constructor.  But for now, make
         # explicit that we need this.
