@@ -37,9 +37,6 @@ class ErrorAnalysis:
                 current_state, current_strategy_step, covariance_state_element_name
             )
         )
-        current_state.setup_previous_aposteriori_cov_fm(
-            covariance_state_element_name, current_strategy_step
-        )
 
     def initialize_error_initial(
         self,

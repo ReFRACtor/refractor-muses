@@ -50,6 +50,8 @@ class CurrentStateStateInfo(CurrentState):
         )
         self.do_systematic = False
         self._step_directory: None | Path = None
+        # Temp, while until we move previous_aposteriori_cov_fm to StateElements
+        self._covariance_state_element_name: list[StateElementIdentifier] = []
 
     def current_state_override(
         self,
@@ -453,6 +455,7 @@ class CurrentStateStateInfo(CurrentState):
         self._state_info.notify_update_target(
             measurement_id, retrieval_config, strategy, observation_handle_set
         )
+        self._covariance_state_element_name: list[StateElementIdentifier] = StateElementIdentifier.sort_identifier(list(set(strategy.retrieval_elements) | set(strategy.error_analysis_interferents)))
         self.clear_cache()
 
     def notify_start_retrieval(
@@ -467,6 +470,11 @@ class CurrentStateStateInfo(CurrentState):
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
+            # Temp, until we move all this into the StateElements
+            self.setup_previous_aposteriori_cov_fm(
+                self._covariance_state_element_name, current_strategy_step
+            )
+            
             self._state_info.notify_start_retrieval(
                 current_strategy_step, retrieval_config
             )

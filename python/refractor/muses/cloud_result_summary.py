@@ -20,10 +20,8 @@ class CloudResultSummary:
     ) -> None:
         self.current_state = current_state
         utilList = mpy.UtilList()
-        utilGeneral = mpy.UtilGeneral()
         stateInfo = FakeStateInfo(self.current_state)
         retrievalInfo = FakeRetrievalInfo(self.current_state)
-        errorCurrent = error_analysis.error_current
 
         num_species = retrievalInfo.n_species
 
@@ -69,53 +67,21 @@ class CloudResultSummary:
         else:
             # cloud not retrieved... use 975-1200
             # NOTE: code has not been tested.
-
-            # Look through all indices that meet the pressure criteria, and look to see if same index in errorCurrent.species matches with 'CLOUDEXT'.
-            ind4: list[int] = []
-            for ii in range(0, len(errorCurrent.pressure)):
-                if (
-                    errorCurrent.pressure[ii] >= 975
-                    and errorCurrent.pressure[ii] <= 1200
-                ) and (errorCurrent.species[ii] == "CLOUDEXT"):
-                    if ii not in ind4:
-                        ind4.append(ii)
-
-            if len(ind4) > 0:
-                # found 975-1200
-                # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
-                error_current = errorCurrent.data[ind4, ind4]
-
+            cov = None
+            selem = self.current_state.full_state_element(StateElementIdentifier("CLOUDEXT"))
+            if selem is not None and selem.pressure_list_fm is not None:
+                plist = selem.pressure_list_fm
+                plist_ind = (plist >= 975) & (plist <=1200)
+                try:
+                    cov = self.current_state.previous_aposteriori_cov_fm([StateElementIdentifier("CLOUDEXT")])
+                except KeyError:
+                    # If not in previous_aposteriori_cov_fm, then we just skip the next part
+                    pass
+            if cov is not None and np.count_nonzero(plist_ind) > 0:
+                error_current = np.diag(cov[plist_ind, :][:,plist_ind])
                 self._cloudODAveError = (
-                    math.sqrt(np.sum(error_current)) / len(ind4) * self.cloudODAve
+                    math.sqrt(np.sum(error_current)) / error_current.size * self.cloudODAve
                 )
-
-                ind3 = np.where(
-                    (stateInfo.cloudPars["frequency"] >= 974)
-                    & (stateInfo.cloudPars["frequency"] <= 1201)
-                )[0]
-
-                cloudod = stateInfo.current["cloudEffExt"][0, ind3] * factor
-
-                # error_current = utilGeneral.ManualArrayGetWithRHSIndices(errorCurrent.data, ind, ind)
-                error_current = errorCurrent.data[ind3, ind3]
-
-                err = stateInfo.current["cloudEffExt"][0, ind3] * np.sqrt(error_current)
-                myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
-
-                if myMean == np.nan:
-                    myMean = np.mean(cloudod)
-                    err[:] = myMean
-
-                if np.nan in err:
-                    myMean = np.mean(cloudod)
-                    err[:] = myMean
-
-                if np.inf in err:
-                    myMean = np.mean(cloudod)
-                    err[:] = myMean
-
-                x = np.var((cloudod - myMean) / err, ddof=1)
-            # end if len(ind) > 0:
         # end else part of if (len(ind) > 0):
 
         # AT_LINE 107 Write_Retrieval_Summary.pro
@@ -191,13 +157,7 @@ class CloudResultSummary:
                 # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
                 my_map = mpy.get_one_map(retrievalInfo, "O3")
 
-                # This may not be correct.
-                # AK = results.A[ind, ind, :]
-                # Let's use the manual way.
-                AK = utilGeneral.ManualArrayGetWithRHSIndices(
-                    error_analysis.A, ind, ind
-                )
-
+                AK = error_analysis.A[ind,:][:,ind]
                 AKzz = np.matmul(np.matmul(my_map["toState"], AK), my_map["toPars"])
                 meanAKlo = np.var(AKzz[indLow, indLow])
 
