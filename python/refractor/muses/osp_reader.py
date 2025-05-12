@@ -1,6 +1,7 @@
 # This contains various support routines for reading OSP data.
 from __future__ import annotations
 from .tes_file import TesFile
+import collections.abc
 import numpy as np
 from pathlib import Path
 from typing import Any, Self
@@ -135,5 +136,77 @@ class OspSpeciesReader:
     def read_dir(cls, species_directory: Path) -> Self:
         return cls(species_directory)
 
+class OspL2SetupControlInitial(collections.abc.Mapping):
+    '''muses-py has a L2_Setup_Control_Initial.asc that lists state elements and
+    what the source of the initial guess is.
 
-__all__ = ["RangeFind", "OspCovarianceMatrixReader", "OspSpeciesReader"]
+    Note that this doesn't really seem to be a "control" file, so much as a description.
+    So for example, we can't move a state element from Species_List_From_Single to
+    Species_List_From_GMAO and suddenly be able to read that from the GMAO files. Instead,
+    the function get_state_initial.py has lots of specific code for different species.
+
+    However, it can still be useful to read this file to if nothing else check that our
+    StateElement implementation matches (e.g., if we get H2O from GMAO but the file
+    says it should be "Single", then that should at least warrant a warning of if not an
+    error.'''
+    def __init__(self,
+                 fname : str | os.PathLike[str],
+                 osp_dir: str | os.PathLike[str] | None = None,                 
+                 ):
+        # Assume directory structure if OSP directory isn't supplied
+        if(osp_dir is None):
+            self.osp_dir = Path(fname).absolute().parent.parent.parent.parent
+        else:
+            self.osp_dir = Path(osp_dir).absolute()
+        self._file = TesFile(fname)
+        self._sid_to_type: dict[StateElementIdentifier, str] = {}
+        typ = ["Zero", "Single", "Climatology", "GMAO", "AIRS_Initial",
+               "TES", "TES_Initial", "TES_Constraint", "OCO2_Initial",
+               "OCO2"]
+        for t in typ:
+            # For some reason, Zero uses a different naming convention
+            if(t == "Zero"):
+                slist = self._file["Species_List_Zero"].split(',')
+            else:
+                slist = self._file[f"Species_List_From_{t}"].split(',')
+            for s in slist:
+                if(s != '-'):
+                    self._sid_to_type[StateElementIdentifier(s)] = t
+
+    # Make other parts of the file available as a dict like object
+    
+    def __getitem__(self, ky: str) -> str | Path | None:
+        res = self._file[ky]
+        if(res == "-"):
+            return None
+        if(re.match(r'.*_Directory', ky)):
+            return self._abs_dir(self._file[ky])
+        return res
+
+    def __len__(self) -> int:
+        return len(self._file)
+
+    def __iter__(self) -> Iterator[str]:
+        return self._file.__iter__()
+
+    def _abs_dir(self, v) -> Path:
+        m = re.match(r"^\.\./OSP/(.*)", v)
+        if(m):
+            return self.osp_dir / m[1]
+        return self.osp_dir / v
+
+    @property
+    def sid_to_type(self) -> dict[StateElementIdentifier, str]:
+        return self._sid_to_type
+    
+    @classmethod
+    @cache
+    def read(cls, initial_guess_setup_directory: Path,
+             osp_dir: str | os.PathLike[str] | None = None,                 
+             ) -> Self:
+        # muses-py uses a hardcoded file name given the "initialGuessSetupDirectory"
+        # found in the target file.
+        return cls(initial_guess_setup_directory / "L2_Setup_Control_Initial.asc", osp_dir)
+
+
+__all__ = ["RangeFind", "OspCovarianceMatrixReader", "OspSpeciesReader", "OspL2SetupControlInitial"]
