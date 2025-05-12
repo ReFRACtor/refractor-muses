@@ -5,11 +5,10 @@ import numpy.testing as npt
 
 def test_cloud_result_summary(joint_tropomi_step_12_output):
     rs, rstp, _ = joint_tropomi_step_12_output
-    # We can perhaps pull back from needing the full results here, but we are
-    # still cleaning up error handling needed before this
-    result = rstp.results
+    current_state = rs.current_state
+    result_list = rstp.results.resultsList
     error_analysis = rs.error_analysis
-    csum = CloudResultSummary(result, error_analysis)
+    csum = CloudResultSummary(current_state, result_list, error_analysis)
     if False:
         print(csum.cloudODAve)
         print(csum.cloudODVar)

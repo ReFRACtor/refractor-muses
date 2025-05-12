@@ -2,22 +2,25 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
+from .identifier import StateElementIdentifier
 import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
     from .error_analysis import ErrorAnalysis
+    from .current_state import CurrentState
 
 
 # Needs a lot of cleanup, we are just shoving stuff into place
 class ColumnResultSummary:
     def __init__(
-        self, retrieval_result: RetrievalResult, error_analysis: ErrorAnalysis
+        self, current_state: CurrentState, error_analysis: ErrorAnalysis
     ) -> None:
+        self.current_state = current_state
         utilList = mpy.UtilList()
-        stateInfo = FakeStateInfo(retrieval_result.current_state)
-        retrievalInfo = FakeRetrievalInfo(retrieval_result.current_state)
+        stateInfo = FakeStateInfo(current_state)
+        retrievalInfo = FakeRetrievalInfo(current_state)
 
         if np.max(stateInfo.true["values"]) > 0:
             have_true = True
@@ -75,7 +78,7 @@ class ColumnResultSummary:
                     elif ij == 1:
                         my_type = "Trop"
 
-                        minPressure = retrieval_result.tropopausePressure
+                        minPressure = self.tropopause_pressure
                         minIndex = np.argmin(
                             np.abs(stateInfo.current["pressure"] - minPressure)
                         )
@@ -87,7 +90,7 @@ class ColumnResultSummary:
 
                         maxPressure = 500
 
-                        minPressure = retrieval_result.tropopausePressure
+                        minPressure = self.tropopause_pressure
                         minIndex = np.argmin(
                             np.abs(stateInfo.current["pressure"] - minPressure)
                         )
@@ -107,7 +110,7 @@ class ColumnResultSummary:
                         minPressure = 0
                         minIndex = np.int64(len(stateInfo.current["pressure"]) - 1)
 
-                        maxPressure = retrieval_result.tropopausePressure
+                        maxPressure = self.tropopause_pressure
                         if maxPressure == 0:
                             maxPressure = 200.0
                     else:
@@ -246,7 +249,7 @@ class ColumnResultSummary:
                         self._columnTrue[ij, indcol] = x["column"]
 
                     # AT_LINE 435 Write_Retrieval_Summary.pro
-                    Sx = retrieval_result.Sx[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
+                    Sx = error_analysis.Sx[ind1FM : ind2FM + 1, ind1FM : ind2FM + 1]
 
                     derivativeFinal = np.copy(x["derivative"])
 
@@ -286,7 +289,7 @@ class ColumnResultSummary:
 
                     error = np.sqrt(
                         derivativeFinal[0 : minIndex + 1].T
-                        @ retrieval_result.Sa[0 : minIndex + 1, 0 : minIndex + 1]
+                        @ error_analysis.Sa[0 : minIndex + 1, 0 : minIndex + 1]
                         @ derivativeFinal[0 : minIndex + 1]
                     )
 
@@ -328,7 +331,7 @@ class ColumnResultSummary:
                     )[0]
                     ind1FM = retrievalInfo.parameterStartFM[ispecie]
                     ind2FM = retrievalInfo.parameterEndFM[ispecie]
-                    ak = mpy.get_diagonal(retrieval_result.A)
+                    ak = mpy.get_diagonal(error_analysis.A)
                     ak = ak[ind1FM : ind2FM + 1]
                     na = len(ak)
 
@@ -383,6 +386,21 @@ class ColumnResultSummary:
             continue
         # end for ispecie in range(0,num_species):
 
+    def state_value(self, state_name: str) -> float:
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+            0
+        ]
+
+    def state_value_vec(self, state_name: str) -> np.ndarray:
+        return self.current_state.full_state_value(StateElementIdentifier(state_name))
+
+    @property
+    def tropopause_pressure(self) -> float:
+        res = self.state_value("gmaoTropopausePressure")
+        if res <= -990:
+            raise RuntimeError("GMA tropopause pressure is not defined")
+        return res
+    
     @property
     def H2O_H2OQuality(self) -> float:
         return self._H2O_H2OQuality

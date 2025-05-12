@@ -15,9 +15,10 @@ if typing.TYPE_CHECKING:
 # Needs a lot of cleanup, we are just shoving stuff into place
 class CloudResultSummary:
     def __init__(
-        self, retrieval_result: RetrievalResult, error_analysis: ErrorAnalysis
+            self, current_state: CurrentState, result_list: np.ndarray,
+            error_analysis: ErrorAnalysis
     ) -> None:
-        self.current_state = retrieval_result.current_state
+        self.current_state = current_state
         utilList = mpy.UtilList()
         utilGeneral = mpy.UtilGeneral()
         stateInfo = FakeStateInfo(self.current_state)
@@ -45,9 +46,9 @@ class CloudResultSummary:
         # AT_LINE 77 Write_Retrieval_Summary.pro
         if len(ind) > 0:
             # map error to ret
-            errlog = retrieval_result.errorFM[indFM] @ my_map["toPars"]
+            errlog = error_analysis.errorFM[indFM] @ my_map["toPars"]
 
-            cloudod = np.exp(retrieval_result.resultsList[ind]) * factor
+            cloudod = np.exp(result_list[ind]) * factor
             err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
             myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
 
@@ -125,9 +126,9 @@ class CloudResultSummary:
         my_map = mpy.get_one_map(retrievalInfo, "CLOUDEXT")
 
         if len(ind) > 0:
-            errlog = retrieval_result.errorFM[indFM] @ my_map["toPars"]
+            errlog = error_analysis.errorFM[indFM] @ my_map["toPars"]
 
-            cloudod = np.exp(retrieval_result.resultsList[ind]) * factor
+            cloudod = np.exp(result_list[ind]) * factor
             err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
             myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
 
@@ -194,7 +195,7 @@ class CloudResultSummary:
                 # AK = results.A[ind, ind, :]
                 # Let's use the manual way.
                 AK = utilGeneral.ManualArrayGetWithRHSIndices(
-                    retrieval_result.A, ind, ind
+                    error_analysis.A, ind, ind
                 )
 
                 AKzz = np.matmul(np.matmul(my_map["toState"], AK), my_map["toPars"])
@@ -252,7 +253,7 @@ class CloudResultSummary:
 
             ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, species_name)
 
-            ak_diag = retrieval_result.A[ind, ind]
+            ak_diag = error_analysis.A[ind, ind]
 
             # Also note that the value of profile is only set above if loc is not -1 above.
             if loc != -1:

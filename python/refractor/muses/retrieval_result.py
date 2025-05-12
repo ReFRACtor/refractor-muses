@@ -80,8 +80,9 @@ class RetrievalResult:
 
     def update_error_analysis(self, error_analysis: ErrorAnalysis) -> None:
         self._error_analysis = error_analysis
-        self._cloud_result_summary = CloudResultSummary(self, error_analysis)
-        self._column_result_summary = ColumnResultSummary(self, error_analysis)
+        self._cloud_result_summary = CloudResultSummary(self.current_state, self.resultsList,
+                                                        error_analysis)
+        self._column_result_summary = ColumnResultSummary(self.current_state, error_analysis)
 
     def state_value(self, state_name: str) -> float:
         return self.current_state.full_state_value(StateElementIdentifier(state_name))[
