@@ -225,6 +225,7 @@ def tropomi_fm_object_creator_swir_step(
         vlidort_cli,
         include_ret_state=False,
     )
+    os.chdir(rs.run_dir)
     res = TropomiSwirFmObjectCreator(
         rs.current_state,
         rs.measurement_id,

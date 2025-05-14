@@ -488,6 +488,8 @@ class StateElementImplementation(StateElement):
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def basis_matrix(self) -> np.ndarray | None:
+        if self._sold is not None:
+            return self._sold.basis_matrix
         if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
             res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose()
         else:
@@ -503,6 +505,8 @@ class StateElementImplementation(StateElement):
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
+        if self._sold is not None:
+            return self._sold.map_to_parameter_matrix
         if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
             res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose()
         else:
@@ -732,6 +736,8 @@ class StateElementImplementation(StateElement):
 
     @property
     def true_value(self) -> RetrievalGridArray | None:
+        if(self._sold is not None):
+            return self._sold.true_value
         if self.true_value_fm is None:
             return None
         res = self.state_mapping_retrieval_to_fm.retrieval_state(
@@ -741,6 +747,8 @@ class StateElementImplementation(StateElement):
 
     @property
     def true_value_fm(self) -> ForwardModelGridArray | None:
+        if(self._sold is not None):
+            return self._sold.true_value_fm
         res = self._true_value_fm
         return res
 
@@ -791,15 +799,21 @@ class StateElementImplementation(StateElement):
         return self._sold.spectral_domain
 
     @property
+    def value_str(self) -> str | None:
+        if(self._sold is None):
+            return None
+        return self._sold.value_str
+    
+    @property
     def pressure_list(self) -> RetrievalGridArray | None:
         if self._sold is None:
-            raise RuntimeError("Not implemented yet")
+            return None
         return self._sold.pressure_list
 
     @property
     def pressure_list_fm(self) -> ForwardModelGridArray | None:
         if self._sold is None:
-            raise RuntimeError("Not implemented yet")
+            return None
         return self._sold.pressure_list_fm
 
 

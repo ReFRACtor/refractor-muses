@@ -27,6 +27,7 @@ import refractor.framework as rf
 from functools import cached_property
 import subprocess
 import copy
+import os
 import pickle
 from loguru import logger
 import numpy as np
@@ -256,6 +257,7 @@ def test_simulated_retrieval(
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(mrdir.run_dir / "Table.asc")
+    os.chdir(mrdir.run_dir)
 
     # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
     # do the first retrieval step). We then grab the CostFunction for that step,
@@ -333,6 +335,7 @@ def test_radiance(
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.update_target(mrdir.run_dir / "Table.asc")
+    os.chdir(mrdir.run_dir)
 
     # Do all the setup etc., but stop the retrieval at step 0 (i.e., before we
     # do the first retrieval step). We then grab the CostFunction for that step,
