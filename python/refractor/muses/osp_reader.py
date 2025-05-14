@@ -3,8 +3,9 @@ from __future__ import annotations
 from .tes_file import TesFile
 import collections.abc
 import numpy as np
+import os
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Self, Iterator
 from functools import cache
 import re
 from .identifier import StateElementIdentifier, RetrievalType
@@ -186,10 +187,10 @@ class OspL2SetupControlInitial(collections.abc.Mapping):
     def __len__(self) -> int:
         return len(self._file)
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self) -> Iterator[tuple[str,str]]:
         return self._file.__iter__()
 
-    def _abs_dir(self, v) -> Path:
+    def _abs_dir(self, v : str) -> Path:
         m = re.match(r"^\.\./OSP/(.*)", v)
         if(m):
             return self.osp_dir / m[1]

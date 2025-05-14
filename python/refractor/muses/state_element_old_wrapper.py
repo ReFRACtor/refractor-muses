@@ -13,7 +13,6 @@ if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .error_analysis import ErrorAnalysis
     from refractor.old_py_retrieve_wrapper import StateElementOld  # type: ignore
 
 # A couple of aliases, just so we can clearly mark what grid data is on
@@ -140,7 +139,8 @@ class StateElementOldWrapper(StateElement):
 
     @property
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
-        # TODO Fill this in
+        if(self.basis_matrix is not None):
+            return rf.StateMappingBasisMatrix(self.basis_matrix.transpose())
         return rf.StateMappingLinear()
 
     @property
@@ -212,29 +212,41 @@ class StateElementOldWrapper(StateElement):
         return self._current_state_old.full_state_value_str(self.state_element_id)
 
     @property
-    def apriori_value(self) -> RetrievalGridArray:
+    def constraint_vector(self) -> RetrievalGridArray:
         """Apriori value of StateElement"""
-        s = self.retrieval_slice
-        if s is not None:
-            return self._current_state_old.apriori[s].astype(float)
-        raise RuntimeError("apriori only present for stuff in state vector")
-
-    @property
-    def apriori_value_fm(self) -> ForwardModelGridArray:
-        """Apriori value of StateElement"""
-        # Note, this is *different* than what muse-py use to do. Although the
-        # apriori is updated in RetrievalInfo, it wasn't being passed on to other
-        # parts of the code. We change this to use the constraint RetrievalInfo gets.
         if (
             self.state_element_id
             not in self._current_state_old.retrieval_state_element_id
         ):
-            res = self._current_state_old.full_state_apriori_value(
+            res = self._current_state_old.full_state_constraint_vector(
                 self.state_element_id
             ).astype(float)
         else:
             res = self._current_state_old.retrieval_info.species_constraint(
-                str(self.state_element_id)
+                str(self.state_element_id), FM_Flag=False
+            )
+            if isinstance(res, float):
+                res = np.array(
+                    [
+                        res,
+                    ]
+                ).astype(float)
+        # This is the parameters, due to the FM_Flag=False part
+        return res
+
+    @property
+    def constraint_vector_fm(self) -> ForwardModelGridArray:
+        """Apriori value of StateElement"""
+        if (
+            self.state_element_id
+            not in self._current_state_old.retrieval_state_element_id
+        ):
+            res = self._current_state_old.full_state_constraint_vector(
+                self.state_element_id
+            ).astype(float)
+        else:
+            res = self._current_state_old.retrieval_info.species_constraint(
+                str(self.state_element_id), FM_Flag=True
             )
             if isinstance(res, float):
                 res = np.array(
@@ -245,7 +257,7 @@ class StateElementOldWrapper(StateElement):
         # This already has map applied, so reverse to get parameters
         res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
         return res
-
+    
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         """Apriori Covariance"""
@@ -383,7 +395,6 @@ class StateElementOldWrapper(StateElement):
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:

@@ -27,12 +27,12 @@ if typing.TYPE_CHECKING:
 
 def add_handle(
     sname: str,
-    apriori_value: float,
+    constraint_vector: float,
     cls: type[StateElementOspFile] = StateElementOspFile,
 ) -> None:
     StateElementHandleSet.add_default_handle(
         StateElementOspFileHandle(
-            StateElementIdentifier(sname), np.array([apriori_value]), cls=cls
+            StateElementIdentifier(sname), np.array([constraint_vector]), cls=cls
         ),
         priority_order=2,
     )
@@ -59,10 +59,10 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
     ) -> None:
-        apriori_value = np.array([obs.cloud_fraction])
+        constraint_vector = np.array([obs.cloud_fraction])
         super().__init__(
             state_element_id,
-            apriori_value,
+            constraint_vector,
             latitude,
             species_directory,
             covariance_directory,
@@ -74,7 +74,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        apriori_value: np.ndarray,
+        constraint_vector: np.ndarray,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
@@ -121,10 +121,10 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
     ) -> None:
-        apriori_value = np.array([obs.monthly_minimum_surface_reflectance])
+        constraint_vector = np.array([obs.monthly_minimum_surface_reflectance])
         super().__init__(
             state_element_id,
-            apriori_value,
+            constraint_vector,
             latitude,
             species_directory,
             covariance_directory,
@@ -136,7 +136,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        apriori_value: np.ndarray,
+        constraint_vector: np.ndarray,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,

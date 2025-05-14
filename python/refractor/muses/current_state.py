@@ -432,15 +432,15 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
 
     @property
-    def apriori(self) -> RetrievalGridArray:
+    def constraint_vector(self) -> RetrievalGridArray:
         """Apriori value"""
         raise NotImplementedError()
 
     @property
-    def apriori_fm(self) -> ForwardModelGrid2dArray:
+    def constraint_vector_fm(self) -> ForwardModelGridArray:
         """Apriori value"""
         raise NotImplementedError()
-
+    
     @property
     def true_value(self) -> RetrievalGridArray:
         """True value"""
@@ -859,9 +859,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_apriori_value(
+    def full_state_constraint_vector(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
+    ) -> RetrievalGridArray:
         """Return the apriori value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1121,7 +1121,7 @@ class CurrentStateUip(CurrentState):
             return np.eye(len(self.initial_guess))
 
     @property
-    def apriori(self) -> RetrievalGridArray:
+    def constraint_vector(self) -> RetrievalGridArray:
         if self.ret_info:
             return self.ret_info["const_vec"]
         else:
@@ -1140,6 +1140,26 @@ class CurrentStateUip(CurrentState):
             # much of a problem.
             return np.zeros((len(self.initial_guess),))
 
+    @property
+    def constraint_vector_fm(self) -> RetrievalGridArray:
+        if self.ret_info:
+            return self.ret_info["const_vec"]
+        else:
+            # Dummy value, of the right size. Useful when we need
+            # this, but don't actually care about the value (e.g., we
+            # are running the forward model only in the CostFunction).
+            #
+            # This is entirely a matter of convenience, we could
+            # instead just duplicate the stitching together part of
+            # our CostFunction and skip this. But for now this seems
+            # like the easiest thing thing to do. We can revisit this
+            # decision in the future if needed - it is never great to
+            # have fake data but in this case seemed the easiest path
+            # forward. Since this function is only used for backwards
+            # testing, the slightly klunky design doesn't seem like
+            # much of a problem.
+            return np.zeros((len(self.initial_guess),))
+        
     @property
     def basis_matrix(self) -> np.ndarray | None:
         return self._basis_matrix
@@ -1365,9 +1385,9 @@ class CurrentStateUip(CurrentState):
     ) -> ForwardModelGridArray:
         raise NotImplementedError()
 
-    def full_state_apriori_value(
+    def full_state_constraint_vector(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
+    ) -> RetrievalGridArray:
         raise NotImplementedError()
 
     def full_state_apriori_covariance(
@@ -1488,9 +1508,9 @@ class CurrentStateDict(CurrentState):
     ) -> ForwardModelGridArray:
         raise NotImplementedError()
 
-    def full_state_apriori_value(
+    def full_state_constraint_vector(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
+    ) -> RetrievalGridArray:
         raise NotImplementedError()
 
     def full_state_apriori_covariance(
@@ -1611,25 +1631,25 @@ class CurrentStateStateInfoOld(CurrentState):
             return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
 
     @property
-    def apriori(self) -> RetrievalGridArray:
+    def constraint_vector(self) -> RetrievalGridArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.zeros((len(self.initial_guess),))
         else:
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
-            return copy(self.retrieval_info.apriori)
+            return copy(self.retrieval_info.constraint_vector)
 
     @property
-    def apriori_fm(self) -> ForwardModelGridArray:
+    def constraint_vector_fm(self) -> RetrievalGridArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.zeros((len(self.initial_guess_fm),))
         else:
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
-            return copy(self.retrieval_info.apriori_fm)
-
+            return copy(self.retrieval_info.retrieval_dict["constraintVectorFM"])
+        
     @property
     def true_value(self) -> RetrievalGridArray:
         if self.retrieval_info is None:
@@ -1830,9 +1850,9 @@ class CurrentStateStateInfoOld(CurrentState):
         selem = self.state_info.state_element(state_element_id, step="initialInitial")
         return copy(selem.value)
 
-    def full_state_apriori_value(
+    def full_state_constraint_vector(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
+    ) -> RetrievalGridArray:
         selem = self.state_info.state_element(state_element_id)
         return copy(selem.apriori_value)
 

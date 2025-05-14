@@ -20,7 +20,6 @@ if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .error_analysis import ErrorAnalysis
     from .cost_function_creator import CostFunctionStateElementNotify
     from .current_state import SoundingMetadata
 
@@ -63,7 +62,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     However the uses of these are different. The constraint matrix is used to
     regularize the solver, it is added as augmented terms to the cost function
-    as a penalty for moving away from the apriori_value. When the constraint
+    as a penalty for moving away from the constraint_vector. When the constraint
     matrix is apriori covariance this is a maximum a posteriori problem, which
     is a common step used in the retrieval strategy. However we can also just
     use an ad hoc constraint providing e.g. smoothness (see II.B of the paper
@@ -220,15 +219,15 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return None
 
     @abc.abstractproperty
-    def apriori_value(self) -> RetrievalGridArray:
+    def constraint_vector(self) -> RetrievalGridArray:
         """Apriori value of StateElement"""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def apriori_value_fm(self) -> ForwardModelGridArray:
+    def constraint_vector_fm(self) -> ForwardModelGridArray:
         """Apriori value of StateElement"""
         raise NotImplementedError()
-
+    
     @abc.abstractproperty
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         """Constraint matrix, generally the inverse of apriori_cov, although see the
@@ -303,11 +302,11 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def update_state_element(
         self,
-        current: np.ndarray | None = None,
-        apriori: np.ndarray | None = None,
-        step_initial: np.ndarray | None = None,
-        retrieval_initial: np.ndarray | None = None,
-        true_value: np.ndarray | None = None,
+        current_fm: ForwardModelGridArray | None = None,
+        constraint_vector_fm: ForwardModelGridArray | None = None,
+        step_initial_fm: ForwardModelGridArray | None = None,
+        retrieval_initial_fm: ForwardModelGridArray | None = None,
+        true_value_fm: ForwardModelGridArray | None = None,
     ) -> None:
         """Update the value of the StateElement. This function updates
         each of the various values passed in.  A value of 'None' (the
@@ -330,7 +329,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
@@ -425,43 +423,56 @@ class StateElementImplementation(StateElement):
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
-        value: RetrievalGridArray,
-        apriori_value: RetrievalGridArray,
+        value_fm: ForwardModelGridArray,
+        constraint_vector_fm: ForwardModelGridArray,
         apriori_cov_fm: ForwardModelGrid2dArray,
         constraint_matrix: RetrievalGrid2dArray,
         state_mapping_retrieval_to_fm: rf.StateMapping = rf.StateMappingLinear(),
         state_mapping: rf.StateMapping = rf.StateMappingLinear(),
-        initial_value: RetrievalGridArray | None = None,
-        true_value: RetrievalGridArray | None = None,
+        initial_value_fm: ForwardModelGridArray | None = None,
+        true_value_fm: ForwardModelGridArray | None = None,
         selem_wrapper: StateElementOldWrapper | None = None,
+        copy_on_first_use : bool = False,
     ) -> None:
         super().__init__(state_element_id)
-        self._value = value
-        self._apriori_value = apriori_value
+        self._value_fm = value_fm
+        self._constraint_vector_fm = constraint_vector_fm
         self._constraint_matrix = constraint_matrix
         self._apriori_cov_fm = apriori_cov_fm
         self._state_mapping = state_mapping
         self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
-        self._step_initial_value = (
-            initial_value if initial_value is not None else apriori_value
+        self._step_initial_value_fm = (
+            initial_value_fm if initial_value_fm is not None else constraint_vector_fm
         )
-        self._retrieval_initial_value = self._step_initial_value.copy()
-        self._true_value = true_value
-        self._updated_fm_flag = np.zeros((apriori_cov_fm.shape[0],)).astype(bool)
+        if(self._step_initial_value_fm is not None):
+            self._retrieval_initial_value_fm = self._step_initial_value_fm.copy()
+        else:
+            self._retrieval_initial_value_fm = None
+        self._true_value_fm = true_value_fm
+        if(apriori_cov_fm is not None):
+            self._updated_fm_flag = np.zeros((apriori_cov_fm.shape[0],)).astype(bool)
+        else:
+            self._updated_fm_flag = None
         self._retrieved_this_step = False
         self._initial_guess_not_updated = False
-        self._next_step_initial_value: np.ndarray | None = None
+        self._next_step_initial_value_fm: np.ndarray | None = None
         # Temp, until we have tested everything out
         self._sold = selem_wrapper
+        self._copy_on_first_use = copy_on_first_use
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
             self.update_initial_guess = self._update_initial_guess
 
     def notify_parameter_update(self, param_subset: np.ndarray) -> None:
-        if self._value.shape[0] != param_subset.shape[0]:
+        # Skip if we aren't actually retrieving. This fits with the hokey way that
+        # muses-py handles the BT and systematic jacobian steps. We should clean this
+        # up an some point, this is all unnecessarily obscure
+        if(not self._retrieved_this_step):
+            return
+        if self.value.shape[0] != param_subset.shape[0]:
             raise RuntimeError(
-                f"param_subset doesn't match value size {param_subset.shape[0]} vs {self._value.shape[0]}"
+                f"param_subset doesn't match value size {param_subset.shape[0]} vs {self.value.shape[0]}"
             )
-        self._value = param_subset
+        self._value_fm = self.state_mapping_retrieval_to_fm.mapped_state(rf.ArrayAd_double_1(param_subset)).value
 
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
         if self._sold is None:
@@ -471,7 +482,10 @@ class StateElementImplementation(StateElement):
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def basis_matrix(self) -> np.ndarray | None:
-        res = np.eye(self._value.shape[0])
+        if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
+            res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose()
+        else:
+            res = np.eye(self.value.shape[0])
         if self._sold is not None:
             res2 = self._sold.basis_matrix
             if res2 is None:
@@ -483,7 +497,10 @@ class StateElementImplementation(StateElement):
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
-        res = np.eye(self._value.shape[0])
+        if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
+            res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose()
+        else:
+            res = np.eye(self.value.shape[0])
         if self._sold is not None:
             res2 = self._sold.map_to_parameter_matrix
             if res2 is None:
@@ -494,7 +511,14 @@ class StateElementImplementation(StateElement):
 
     @property
     def retrieval_sv_length(self) -> int:
-        res = self._value.shape[0]
+        if(self._retrieved_this_step):
+            res = self.step_initial_value.shape[0]
+        else:
+            # By convention muses-py uses a size 1 all zero size if we aren't actually
+            # retrieving this. This fits with the hokey way that
+            # muses-py handles the BT and systematic jacobian steps. We should clean this
+            # up an some point, this is all unnecessarily obscure
+            res = 1
         if self._sold is not None:
             res2 = self._sold.retrieval_sv_length
             assert res == res2
@@ -502,7 +526,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def sys_sv_length(self) -> int:
-        res = self._value.shape[0]
+        res = self.step_initial_value.shape[0]
         if self._sold is not None:
             res2 = self._sold.sys_sv_length
             assert res == res2
@@ -510,7 +534,14 @@ class StateElementImplementation(StateElement):
 
     @property
     def forward_model_sv_length(self) -> int:
-        res = self._apriori_cov_fm.shape[0]
+        if(self._retrieved_this_step):
+            res = self.apriori_cov_fm.shape[0]
+        else:
+            # By convention muses-py uses a size 1 all zero size if we aren't actually
+            # retrieving this. This fits with the hokey way that
+            # muses-py handles the BT and systematic jacobian steps. We should clean this
+            # up an some point, this is all unnecessarily obscure
+            res = 1
         if self._sold is not None:
             res2 = self._sold.forward_model_sv_length
             assert res == res2
@@ -518,7 +549,11 @@ class StateElementImplementation(StateElement):
 
     @property
     def value(self) -> RetrievalGridArray:
-        res = self._value
+        if(len(self.value_fm.shape) > 1):
+            # Think this just applies to cloudEffExt
+            res = self.value_fm
+        else:
+            res = self.state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(self.value_fm)).value
         if self._sold is not None:
             res2 = self._sold.value
             npt.assert_allclose(res, res2)
@@ -527,7 +562,9 @@ class StateElementImplementation(StateElement):
 
     @property
     def value_fm(self) -> ForwardModelGridArray:
-        res = self._state_mapping.mapped_state(rf.ArrayAd_double_1(self.value)).value
+        if(self._value_fm is None and self._copy_on_first_use and self._sold is not None):
+            self._value_fm = self._sold.value_fm.copy()
+        res = self._value_fm
         if self._sold is not None:
             res2 = self._sold.value_fm
             npt.assert_allclose(res, res2)
@@ -535,35 +572,29 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
-    def apriori_value(self) -> RetrievalGridArray:
-        res = self._apriori_value
+    def constraint_vector(self) -> RetrievalGridArray:
+        res = self.state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(self.constraint_vector_fm)).value
         if self._sold is not None:
-            try:
-                res2 = self._sold.apriori_value
-            except (AssertionError, RuntimeError):
-                res2 = None
-            if res2 is not None:
-                npt.assert_allclose(res, res2)
-                assert res.dtype == res2.dtype
+            res2 = self._sold.constraint_vector
+            npt.assert_allclose(res, res2)
+            assert res.dtype == res2.dtype
         return res
 
     @property
-    def apriori_value_fm(self) -> ForwardModelGridArray:
-        res = self._state_mapping.mapped_state(
-            rf.ArrayAd_double_1(self.apriori_value)
-        ).value
+    def constraint_vector_fm(self) -> ForwardModelGridArray:
+        if(self._constraint_vector_fm is None and self._copy_on_first_use and self._sold is not None):
+            self._constraint_vector_fm = self.state_mapping.mapped_state(rf.ArrayAd_double_1(self._sold.constraint_vector_fm)).value
+        res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(self._constraint_vector_fm)).value
         if self._sold is not None:
-            try:
-                res2 = self._sold.apriori_value_fm
-            except (AssertionError, RuntimeError):
-                res2 = None
-            if res2 is not None:
-                npt.assert_allclose(res, res2)
-                assert res.dtype == res2.dtype
+            res2 = self._sold.constraint_vector_fm
+            npt.assert_allclose(res, res2)
+            assert res.dtype == res2.dtype
         return res
-
+    
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
+        if(self._constraint_matrix is None and self._copy_on_first_use and self._sold is not None):
+            self._constraint_matrix = self._sold.constraint_matrix.copy()
         res = self._constraint_matrix
         if self._sold is not None:
             res2 = self._sold.constraint_matrix
@@ -573,6 +604,8 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
+        if(self._apriori_cov_fm is None and self._copy_on_first_use and self._sold is not None):
+            self._apriori_cov_fm = self._sold.apriori_cov_fm.copy()
         res = self._apriori_cov_fm
         if self._sold is not None:
             try:
@@ -586,7 +619,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def retrieval_initial_value(self) -> RetrievalGridArray:
-        res = self._retrieval_initial_value
+        res = self.state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(self.retrieval_initial_value_fm)).value
         if self._sold is not None:
             res2 = self._sold.retrieval_initial_value
             npt.assert_allclose(res, res2)
@@ -594,8 +627,19 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
+    def retrieval_initial_value_fm(self) -> ForwardModelGridArray:
+        if(self._retrieval_initial_value_fm is None and self._copy_on_first_use and self._sold is not None):
+            self._retrieval_initial_value_fm = self._sold.retrieval_initial_value_fm.copy()
+        res = self._retrieval_initial_value_fm
+        if self._sold is not None:
+            res2 = self._sold.retrieval_initial_value_fm
+            npt.assert_allclose(res, res2)
+            assert res.dtype == res2.dtype
+        return res
+
+    @property
     def step_initial_value(self) -> RetrievalGridArray:
-        res = self._step_initial_value
+        res = self.state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(self.step_initial_value_fm)).value
         if self._sold is not None:
             res2 = self._sold.step_initial_value
             npt.assert_allclose(res, res2)
@@ -604,9 +648,9 @@ class StateElementImplementation(StateElement):
 
     @property
     def step_initial_value_fm(self) -> ForwardModelGridArray:
-        res = self._state_mapping.mapped_state(
-            rf.ArrayAd_double_1(self.step_initial_value)
-        ).value
+        if(self._step_initial_value_fm is None and self._copy_on_first_use and self._sold is not None):
+            self._step_initial_value_fm = self._sold.step_initial_value_fm.copy()
+        res = self._step_initial_value_fm
         if self._sold is not None:
             res2 = self._sold.step_initial_value_fm
             npt.assert_allclose(res, res2)
@@ -615,48 +659,59 @@ class StateElementImplementation(StateElement):
 
     @property
     def true_value(self) -> RetrievalGridArray | None:
-        return self._true_value
+        if(self.true_value_fm is None):
+            return None
+        res = self.state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(self.true_value_fm)).value
+        return res
 
     @property
     def true_value_fm(self) -> ForwardModelGridArray | None:
-        tv = self.true_value
-        if tv is not None:
-            return self._state_mapping.mapped_state(rf.ArrayAd_double_1(tv)).value
-        return None
+        return self._true_value_fm
 
     @property
     def state_mapping(self) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the ForwardModelGridArray
         and mapping to the internal object state)"""
+        if(self._state_mapping is None and self._copy_on_first_use and self._sold is not None):
+            self._state_mapping = self._sold.state_mapping
         return self._state_mapping
 
     @property
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         """StateMapping used to go between the RetrievalGridArray and
         ForwardModelGridArray (e.g., the basis matrix in muses-py)"""
+        if(self._state_mapping_retrieval_to_fm is None and self._copy_on_first_use and self._sold is not None):
+            self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
         return self._state_mapping_retrieval_to_fm
+
+    # These are placeholders, need to fill in
+    @property
+    def spectral_domain(self) -> rf.SpectralDomain | None:
+        if(self._sold is None):
+            raise RuntimeError("Not implemented yet")
+        return self._sold.spectral_domain
 
     def update_state_element(
         self,
-        current: np.ndarray | None = None,
-        apriori: np.ndarray | None = None,
-        step_initial: np.ndarray | None = None,
-        retrieval_initial: np.ndarray | None = None,
-        true_value: np.ndarray | None = None,
+        current_fm: ForwardModelGridArray | None = None,
+        constraint_vector: RetrievalGridArray | None = None,
+        step_initial_fm: ForwardModelGridArray | None = None,
+        retrieval_initial_fm: ForwardModelGridArray | None = None,
+        true_value_fm: ForwardModelGridArray | None = None,
     ) -> None:
-        if current is not None:
-            self._value = current
-        if apriori is not None:
-            self._apriori_value = apriori
-        if step_initial is not None:
-            self._step_initial_value = step_initial
-        if retrieval_initial is not None:
-            self._retrieval_initial_value = retrieval_initial
-        if true_value is not None:
-            self._true_value = true_value
+        if current_fm is not None:
+            self._value_fm = current_fm
+        if constraint_vector is not None:
+            self._constraint_vector = constraint_vector
+        if step_initial_fm is not None:
+            self._step_initial_value_fm = step_initial_fm
+        if retrieval_initial_fm is not None:
+            self._retrieval_initial_value_fm = retrieval_initial_fm
+        if true_value_fm is not None:
+            self._true_value = true_value_fm
         if self._sold is not None:
             self._sold.update_state_element(
-                current, apriori, step_initial, retrieval_initial, true_value
+                current_fm, constraint_vector, step_initial_fm, retrieval_initial_fm, true_value_fm
             )
 
     @property
@@ -677,36 +732,42 @@ class StateElementImplementation(StateElement):
         if self._sold is not None:
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
         # The value and step initial guess should be set to the retrieval initial value
-        self._value = self._retrieval_initial_value.copy()
-        self._step_initial_value = self._retrieval_initial_value.copy()
+        if(self._retrieval_initial_value_fm is not None):
+            self._value_fm = self._retrieval_initial_value_fm.copy()
+            self._step_initial_value_fm = self._retrieval_initial_value_fm.copy()
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
         if self._sold:
-            self._value = self._sold.value
-            self._step_initial_value = self._sold.value
-        self._next_step_initial_value = None
+            #self._value = self._sold.value
+            #self._step_initial_value = self._sold.value
+            pass
+        self._next_step_initial_value_fm = None
 
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
         if self._sold is not None:
             self._sold.notify_start_step(
                 current_strategy_step,
-                error_analysis,
                 retrieval_config,
                 skip_initial_guess_update,
             )
         # Update the initial value if we have a setting from the previous step
-        if self._next_step_initial_value is not None:
-            self._step_initial_value = self._next_step_initial_value
-            self._next_step_initial_value = None
+        if self._next_step_initial_value_fm is not None:
+            self._step_initial_value_fm = self._next_step_initial_value_fm
+            self._next_step_initial_value_fm = None
         # Set value to initial value
-        self._value = self._step_initial_value.copy()
+        if(self._step_initial_value_fm is not None):
+            # Rightly or wrongly, the step_initial_value is in the mapped state
+            if(len(self._value_fm.shape) > 1):
+                # Think this just applies to cloudEffExt
+                self._value_fm = self._step_initial_value_fm.copy()
+            else:
+                self._value_fm = self.state_mapping.mapped_state(rf.ArrayAd_double_1(self._step_initial_value_fm)).value
         self._retrieved_this_step = (
             self.state_element_id in current_strategy_step.retrieval_elements
         )
@@ -724,15 +785,15 @@ class StateElementImplementation(StateElement):
             self._sold.notify_step_solution(xsol, retrieval_slice)
         # Default is that the next initial value is whatever the solution was from
         # this step. But skip if we are on the not updated list
-        self._next_step_initial_value = None
+        self._next_step_initial_value_fm = None
         if retrieval_slice is not None:
             if not self._initial_guess_not_updated:
-                self._value = xsol[retrieval_slice]
-                self._next_step_initial_value = self._value.copy()
+                self._value = self.state_mapping_retrieval_to_fm.mapped_state(rf.ArrayAd_double_1(xsol[retrieval_slice])).value
+                self._next_step_initial_value_fm = self._value_fm.copy()
             else:
                 # Reset value for any changes in solver run if we aren't allowing this to
                 # update
-                self._value = self._step_initial_value.copy()
+                self._value_fm = self._step_initial_value_fm.copy()
 
 
 class StateElementOspFile(StateElementImplementation):
@@ -751,7 +812,7 @@ class StateElementOspFile(StateElementImplementation):
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
-        apriori_value: np.ndarray,
+        constraint_vector: np.ndarray,
         latitude: float,
         species_directory: Path,
         covariance_directory: Path,
@@ -763,8 +824,8 @@ class StateElementOspFile(StateElementImplementation):
         # values. The apriori (called stateConstraint) and first guess (called stateInitial)
         # get identically set to this value. The covariance is separately read from a file.
         # Fill these in
-        value = apriori_value.copy()
-        apriori = apriori_value.copy()
+        value_fm = constraint_vector.copy()
+        constraint_vector = constraint_vector.copy()
         self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
         t = self.osp_species_reader.read_file(
             state_element_id, RetrievalType("default")
@@ -788,12 +849,11 @@ class StateElementOspFile(StateElementImplementation):
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
         if selem_wrapper is not None:
-            value = selem_wrapper.value
-            # breakpoint()
+            value_fm = selem_wrapper.value_fm
         super().__init__(
             state_element_id,
-            value,
-            apriori,
+            value_fm,
+            constraint_matrix,
             apriori_cov_fm,
             constraint_matrix,
             selem_wrapper=selem_wrapper,
@@ -801,13 +861,13 @@ class StateElementOspFile(StateElementImplementation):
         )
         # Also update initial value, but not apriori
         if selem_wrapper is not None:
-            self._step_initial_value = selem_wrapper.value
+            self._step_initial_value_fm = selem_wrapper.value_fm
 
     @classmethod
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        apriori_value: np.ndarray,
+        constraint_vector: np.ndarray,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
@@ -822,7 +882,7 @@ class StateElementOspFile(StateElementImplementation):
         """
         res = cls(
             state_element_id,
-            apriori_value,
+            constraint_vector,
             sounding_metadata.latitude.value,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
@@ -834,13 +894,11 @@ class StateElementOspFile(StateElementImplementation):
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
         super().notify_start_step(
             current_strategy_step,
-            error_analysis,
             retrieval_config,
             skip_initial_guess_update,
         )
@@ -855,15 +913,15 @@ class StateElementOspFileHandle(StateElementHandle):
     def __init__(
         self,
         sid: StateElementIdentifier,
-        apriori_value: np.ndarray,
+        constraint_vector: np.ndarray,
         hold: StateElementOldWrapperHandle | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
         cov_is_constraint: bool = False,
     ) -> None:
-        self.obs_cls = cls
+        self.obj_cls = cls
         self.sid = sid
         self.hold = hold
-        self.apriori_value = apriori_value
+        self.constraint_vector = constraint_vector
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
         self.cov_is_constraint = cov_is_constraint
@@ -897,9 +955,9 @@ class StateElementOspFileHandle(StateElementHandle):
             )
         else:
             sold = None
-        res = self.obs_cls.create_from_handle(
+        res = self.obj_cls.create_from_handle(
             state_element_id,
-            self.apriori_value,
+            self.constraint_vector,
             self.measurement_id,
             self.retrieval_config,
             self.strategy,
@@ -909,7 +967,7 @@ class StateElementOspFileHandle(StateElementHandle):
             self.cov_is_constraint,
         )
         if res is not None:
-            logger.debug(f"Creating {self.obs_cls.__name__} for {state_element_id}")
+            logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
         return res
 
 

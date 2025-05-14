@@ -32,14 +32,14 @@ if typing.TYPE_CHECKING:
 
 def add_handle(
     sname: str,
-    apriori_value: float,
+    constraint_value: float,
     cls: type[StateElementOspFile] = StateElementOspFile,
     cov_is_constraint: bool = False,
 ) -> None:
     StateElementHandleSet.add_default_handle(
         StateElementOspFileHandle(
             StateElementIdentifier(sname),
-            np.array([apriori_value]),
+            np.array([constraint_value]),
             cls=cls,
             cov_is_constraint=cov_is_constraint,
         ),
@@ -236,10 +236,10 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:
-        apriori_value = np.array([obs.cloud_fraction])
+        constraint_vector = np.array([obs.cloud_fraction])
         super().__init__(
             state_element_id,
-            apriori_value,
+            constraint_vector,
             latitude,
             species_directory,
             covariance_directory,
@@ -259,11 +259,11 @@ class StateElementTropomiCloudPressure(StateElementImplementation):
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:
-        apriori_value = np.array([obs.cloud_pressure.value])
+        constraint_vector = np.array([obs.cloud_pressure.value])
         super().__init__(
             state_element_id,
-            apriori_value,
-            apriori_value,
+            constraint_vector,
+            constraint_vector,
             np.array([[-999.0]]),
             np.array([[-999.0]]),
             selem_wrapper,
@@ -284,7 +284,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:
-        apriori_value = np.array(
+        constraint_vector = np.array(
             [
                 float(
                     obs.muses_py_dict["SurfaceAlbedo"][
@@ -295,7 +295,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
         )
         super().__init__(
             state_element_id,
-            apriori_value,
+            constraint_vector,
             latitude,
             species_directory,
             covariance_directory,

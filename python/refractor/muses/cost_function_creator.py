@@ -277,7 +277,6 @@ class CostFunctionCreator:
             )
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
-        smap = current_state.state_mapping_retrieval_to_fm
         # Leave off the apriori part if requested
         if use_empty_apriori:
             # TODO
@@ -290,8 +289,10 @@ class CostFunctionCreator:
             retrieval_sv_sqrt_constraint = np.zeros(
                 (current_state.fm_state_vector_size, current_state.fm_state_vector_size)
             )
+            smap = rf.StateMappingLinear()
         else:
-            retrieval_sv_apriori = current_state.apriori
+            smap = current_state.state_mapping_retrieval_to_fm
+            retrieval_sv_apriori = current_state.constraint_vector
             retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
         return (
             instrument_name_list,

@@ -233,11 +233,11 @@ class FakeRetrievalInfo:
 
     @property
     def constraintVector(self) -> np.ndarray:
-        return self.current_state.apriori
+        return self.current_state.constraint_vector
 
     @property
     def constraintVectorListFM(self) -> np.ndarray:
-        return self.current_state.apriori_fm
+        return self.current_state.constraint_vector_fm
 
     @property
     def mapToParameters(self) -> np.ndarray | None:
