@@ -63,7 +63,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     However the uses of these are different. The constraint matrix is used to
     regularize the solver, it is added as augmented terms to the cost function
-    as a penalty for moving away from the apriori_value. When the constraint
+    as a penalty for moving away from the constraint_vector. When the constraint
     matrix is apriori covariance this is a maximum a posteriori problem, which
     is a common step used in the retrieval strategy. However we can also just
     use an ad hoc constraint providing e.g. smoothness (see II.B of the paper
@@ -220,12 +220,12 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return None
 
     @abc.abstractproperty
-    def apriori_value(self) -> RetrievalGridArray:
+    def constraint_vector(self) -> RetrievalGridArray:
         """Apriori value of StateElement"""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def apriori_value_fm(self) -> ForwardModelGridArray:
+    def constraint_vector_fm(self) -> ForwardModelGridArray:
         """Apriori value of StateElement"""
         raise NotImplementedError()
 
@@ -426,7 +426,7 @@ class StateElementImplementation(StateElement):
         self,
         state_element_id: StateElementIdentifier,
         value: RetrievalGridArray,
-        apriori_value: RetrievalGridArray,
+        constraint_vector: RetrievalGridArray,
         apriori_cov_fm: ForwardModelGrid2dArray,
         constraint_matrix: RetrievalGrid2dArray,
         state_mapping_retrieval_to_fm: rf.StateMapping = rf.StateMappingLinear(),
@@ -437,13 +437,13 @@ class StateElementImplementation(StateElement):
     ) -> None:
         super().__init__(state_element_id)
         self._value = value
-        self._apriori_value = apriori_value
+        self._constraint_vector = constraint_vector
         self._constraint_matrix = constraint_matrix
         self._apriori_cov_fm = apriori_cov_fm
         self._state_mapping = state_mapping
         self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
         self._step_initial_value = (
-            initial_value if initial_value is not None else apriori_value
+            initial_value if initial_value is not None else constraint_vector
         )
         self._retrieval_initial_value = self._step_initial_value.copy()
         self._true_value = true_value
@@ -535,11 +535,11 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
-    def apriori_value(self) -> RetrievalGridArray:
-        res = self._apriori_value
+    def constraint_vector(self) -> RetrievalGridArray:
+        res = self._constraint_vector
         if self._sold is not None:
             try:
-                res2 = self._sold.apriori_value
+                res2 = self._sold.constraint_vector
             except (AssertionError, RuntimeError):
                 res2 = None
             if res2 is not None:
@@ -548,13 +548,13 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
-    def apriori_value_fm(self) -> ForwardModelGridArray:
+    def constraint_vector_fm(self) -> ForwardModelGridArray:
         res = self._state_mapping.mapped_state(
-            rf.ArrayAd_double_1(self.apriori_value)
+            rf.ArrayAd_double_1(self.constraint_vector)
         ).value
         if self._sold is not None:
             try:
-                res2 = self._sold.apriori_value_fm
+                res2 = self._sold.constraint_vector_fm
             except (AssertionError, RuntimeError):
                 res2 = None
             if res2 is not None:
@@ -647,7 +647,7 @@ class StateElementImplementation(StateElement):
         if current is not None:
             self._value = current
         if apriori is not None:
-            self._apriori_value = apriori
+            self._constraint_vector = apriori
         if step_initial is not None:
             self._step_initial_value = step_initial
         if retrieval_initial is not None:
@@ -751,7 +751,7 @@ class StateElementOspFile(StateElementImplementation):
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
-        apriori_value: np.ndarray,
+        constraint_vector: np.ndarray,
         latitude: float,
         species_directory: Path,
         covariance_directory: Path,
@@ -763,8 +763,8 @@ class StateElementOspFile(StateElementImplementation):
         # values. The apriori (called stateConstraint) and first guess (called stateInitial)
         # get identically set to this value. The covariance is separately read from a file.
         # Fill these in
-        value = apriori_value.copy()
-        apriori = apriori_value.copy()
+        value = constraint_vector.copy()
+        apriori = constraint_vector.copy()
         self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
         t = self.osp_species_reader.read_file(
             state_element_id, RetrievalType("default")
@@ -807,7 +807,7 @@ class StateElementOspFile(StateElementImplementation):
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        apriori_value: np.ndarray,
+        constraint_vector: np.ndarray,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
@@ -822,7 +822,7 @@ class StateElementOspFile(StateElementImplementation):
         """
         res = cls(
             state_element_id,
-            apriori_value,
+            constraint_vector,
             sounding_metadata.latitude.value,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
@@ -855,7 +855,7 @@ class StateElementOspFileHandle(StateElementHandle):
     def __init__(
         self,
         sid: StateElementIdentifier,
-        apriori_value: np.ndarray,
+        constraint_vector: np.ndarray,
         hold: StateElementOldWrapperHandle | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
         cov_is_constraint: bool = False,
@@ -863,7 +863,7 @@ class StateElementOspFileHandle(StateElementHandle):
         self.obs_cls = cls
         self.sid = sid
         self.hold = hold
-        self.apriori_value = apriori_value
+        self.constraint_vector = constraint_vector
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
         self.cov_is_constraint = cov_is_constraint
@@ -899,7 +899,7 @@ class StateElementOspFileHandle(StateElementHandle):
             sold = None
         res = self.obs_cls.create_from_handle(
             state_element_id,
-            self.apriori_value,
+            self.constraint_vector,
             self.measurement_id,
             self.retrieval_config,
             self.strategy,

@@ -212,15 +212,15 @@ class StateElementOldWrapper(StateElement):
         return self._current_state_old.full_state_value_str(self.state_element_id)
 
     @property
-    def apriori_value(self) -> RetrievalGridArray:
+    def constraint_vector(self) -> RetrievalGridArray:
         """Apriori value of StateElement"""
         s = self.retrieval_slice
         if s is not None:
-            return self._current_state_old.apriori[s].astype(float)
+            return self._current_state_old.constraint_vector[s].astype(float)
         raise RuntimeError("apriori only present for stuff in state vector")
 
     @property
-    def apriori_value_fm(self) -> ForwardModelGridArray:
+    def constraint_vector_fm(self) -> ForwardModelGridArray:
         """Apriori value of StateElement"""
         # Note, this is *different* than what muse-py use to do. Although the
         # apriori is updated in RetrievalInfo, it wasn't being passed on to other
@@ -229,7 +229,7 @@ class StateElementOldWrapper(StateElement):
             self.state_element_id
             not in self._current_state_old.retrieval_state_element_id
         ):
-            res = self._current_state_old.full_state_apriori_value(
+            res = self._current_state_old.full_state_constraint_vector(
                 self.state_element_id
             ).astype(float)
         else:

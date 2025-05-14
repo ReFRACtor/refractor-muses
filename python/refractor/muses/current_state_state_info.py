@@ -64,6 +64,16 @@ class CurrentStateStateInfo(CurrentState):
         res.clear_cache()
         return res
 
+    def match_old(self) -> None:
+        '''A kludge to handle current_state_override with our old state info stuff.
+        Temporarily, ensure that the two are in sync'''
+        cstate = self._state_info._current_state_old
+        if(self.retrieval_state_element_override != cstate.retrieval_state_element_override
+           or self.do_systematic != cstate.do_systematic):
+            cstate.do_systematic = self.do_systematic
+            cstate.retrieval_state_element_override = self.retrieval_state_element_override
+            cstate.clear_cache()
+
     @property
     def initial_guess(self) -> RetrievalGridArray:
         # TODO
@@ -77,6 +87,7 @@ class CurrentStateStateInfo(CurrentState):
         if len(self.retrieval_state_element_id) == 0:
             res = np.zeros((1,))
         else:
+            self.match_old()
             res = np.concatenate(
                 [
                     self._state_info[sid].step_initial_value
@@ -98,6 +109,7 @@ class CurrentStateStateInfo(CurrentState):
         if len(self.retrieval_state_element_id) == 0:
             res = np.zeros((1,))
         else:
+            self.match_old()
             res = np.concatenate(
                 [
                     self._state_info[sid].step_initial_value_fm
@@ -110,6 +122,7 @@ class CurrentStateStateInfo(CurrentState):
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         if self.do_systematic:
             return np.zeros((1, 1))
+        self.match_old()
         blist = [
             self._state_info[sid].constraint_matrix
             for sid in self.retrieval_state_element_id
@@ -140,7 +153,7 @@ class CurrentStateStateInfo(CurrentState):
             return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
 
     @property
-    def apriori(self) -> RetrievalGridArray:
+    def constraint_vector(self) -> RetrievalGridArray:
         # TODO
         # By convention, muses-py returns a length 1 array even if we don't
         # have any retrieval_state_element_id. I think this was just to avoid
@@ -152,29 +165,37 @@ class CurrentStateStateInfo(CurrentState):
         if len(self.retrieval_state_element_id) == 0:
             res = np.zeros((1,))
         else:
+            self.match_old()
             res = np.concatenate(
                 [
-                    self._state_info[sid].apriori_value
+                    self._state_info[sid].constraint_vector
                     for sid in self.retrieval_state_element_id
                 ]
             )
         return res
 
     @property
-    def apriori_fm(self) -> ForwardModelGrid2dArray:
+    def constraint_vector_fm(self) -> RetrievalGridArray:
+        # TODO
+        # By convention, muses-py returns a length 1 array even if we don't
+        # have any retrieval_state_element_id. I think this was just to avoid
+        # zero size arrays in IDL. But python is fine with this. For now conform
+        # to muses-py since it is expected in various places. We should clean this
+        # up at some point by tracking down where this gets used and handling empty
+        # arrays - it is cleaner than having a "special rule". But for now, conform
+        # to the convention
         if len(self.retrieval_state_element_id) == 0:
-            # Oddly muses-py doesn't use the normal convention of returning [0],
-            # but instead returns []
-            res = np.zeros((0,))
+            res = np.zeros((1,))
         else:
+            self.match_old()
             res = np.concatenate(
                 [
-                    self._state_info[sid].apriori_value_fm
+                    self._state_info[sid].constraint_vector_fm
                     for sid in self.retrieval_state_element_id
                 ]
             )
         return res
-
+    
     @property
     def true_value(self) -> RetrievalGridArray:
         # Note muses_py always has a true value vector, even if we don't have
@@ -183,11 +204,12 @@ class CurrentStateStateInfo(CurrentState):
         res = np.zeros(
             (
                 len(
-                    self.apriori,
+                    self.constraint_vector,
                 )
             )
         )
         for sid in self.retrieval_state_element_id:
+            self.match_old()
             tvalue = self._state_info[sid].true_value
             if tvalue is not None:
                 res[self.retrieval_sv_slice(sid)] = tvalue
@@ -201,10 +223,11 @@ class CurrentStateStateInfo(CurrentState):
         res = np.zeros(
             (
                 len(
-                    self.apriori_fm,
+                    self.initial_guess_fm,
                 )
             )
         )
+        self.match_old()
         for sid in self.retrieval_state_element_id:
             tvalue = self._state_info[sid].true_value_fm
             if tvalue is not None:
@@ -215,6 +238,7 @@ class CurrentStateStateInfo(CurrentState):
     def basis_matrix(self) -> np.ndarray | None:
         if self.do_systematic:
             return None
+        self.match_old()
         blist = [
             self._state_info[sid].basis_matrix
             for sid in self.retrieval_state_element_id
@@ -229,6 +253,7 @@ class CurrentStateStateInfo(CurrentState):
     def map_to_parameter_matrix(self) -> np.ndarray | None:
         if self.do_systematic:
             return None
+        self.match_old()
         mlist = [
             self._state_info[sid].map_to_parameter_matrix
             for sid in self.retrieval_state_element_id
@@ -255,6 +280,7 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def updated_fm_flag(self) -> ForwardModelGridArray:
+        self.match_old()
         return np.concatenate(
             [
                 self._state_info[sid].updated_fm_flag
@@ -271,6 +297,7 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_initial: np.ndarray | None = None,
         true: np.ndarray | None = None,
     ) -> None:
+        self.match_old()
         self._state_info[state_element_id].update_state_element(
             current, apriori, step_initial, retrieval_initial, true
         )
@@ -300,6 +327,7 @@ class CurrentStateStateInfo(CurrentState):
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
+            self.match_old()
             for sid in self.retrieval_state_element_id:
                 # As a convention, if plen is 0 py-retrieve pads this
                 # to 1, although the state vector isn't actually used
@@ -328,11 +356,13 @@ class CurrentStateStateInfo(CurrentState):
     def full_state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement:
+        self.match_old()
         return self._state_info[state_element_id]
 
     def full_state_spectral_domain_wavelength(
         self, state_element_id: StateElementIdentifier
     ) -> np.ndarray | None:
+        self.match_old()
         sd = self._state_info[state_element_id].spectral_domain
         if sd is None:
             return None
@@ -341,12 +371,14 @@ class CurrentStateStateInfo(CurrentState):
     def full_state_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
+        self.match_old()
         res = self._state_info[state_element_id].value_fm
         return res
 
     def full_state_step_initial_value(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
+        self.match_old()
         res = self._state_info[state_element_id].step_initial_value_fm
         if use_map:
             res = (
@@ -359,24 +391,28 @@ class CurrentStateStateInfo(CurrentState):
     def full_state_value_str(
         self, state_element_id: StateElementIdentifier
     ) -> str | None:
+        self.match_old()
         return self._state_info[state_element_id].value_str
 
     def full_state_true_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray | None:
+        self.match_old()
         res = self._state_info[state_element_id].true_value_fm
         return res
 
     def full_state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray:
+        self.match_old()
         res = self._state_info[state_element_id].retrieval_initial_value_fm
         return res
 
-    def full_state_apriori_value(
+    def full_state_constraint_vector(
         self, state_element_id: StateElementIdentifier, use_map: bool = False
     ) -> ForwardModelGridArray:
-        res = self._state_info[state_element_id].apriori_value_fm
+        self.match_old()
+        res = self._state_info[state_element_id].constraint_vector_fm
         if use_map:
             res = (
                 self._state_info[state_element_id]
@@ -388,11 +424,13 @@ class CurrentStateStateInfo(CurrentState):
     def full_state_apriori_covariance(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGrid2dArray:
+        self.match_old()
         res = self._state_info[state_element_id].apriori_cov_fm
         return res
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
+        self.match_old()
         if self._retrieval_sv_loc is None:
             self._retrieval_sv_loc = {}
             self._retrieval_state_vector_size = 0
@@ -420,21 +458,25 @@ class CurrentStateStateInfo(CurrentState):
     def pressure_list(
         self, state_element_id: StateElementIdentifier
     ) -> RetrievalGridArray | None:
+        self.match_old()
         return self._state_info[state_element_id].pressure_list
 
     def pressure_list_fm(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray | None:
+        self.match_old()
         return self._state_info[state_element_id].pressure_list_fm
 
     def altitude_list(
         self, state_element_id: StateElementIdentifier
     ) -> RetrievalGridArray | None:
+        self.match_old()
         return self._state_info[state_element_id].altitude_list
 
     def altitude_list_fm(
         self, state_element_id: StateElementIdentifier
     ) -> ForwardModelGridArray | None:
+        self.match_old()
         return self._state_info[state_element_id].altitude_list_fm
 
     @property
@@ -469,6 +511,7 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_config: RetrievalConfiguration,
     ) -> None:
         if current_strategy_step is not None:
+            self.match_old()
             self._retrieval_element_id = current_strategy_step.retrieval_elements
             self._sys_element_id = current_strategy_step.error_analysis_interferents
             self._step_directory = (
@@ -494,6 +537,7 @@ class CurrentStateStateInfo(CurrentState):
         # current_strategy_step being None means we are past the last step in our
         # MusesStrategy, so we just skip doing anything
         if current_strategy_step is not None:
+            self.match_old()
             self._retrieval_element_id = current_strategy_step.retrieval_elements
             self._sys_element_id = current_strategy_step.error_analysis_interferents
             self._step_directory = (
@@ -508,6 +552,7 @@ class CurrentStateStateInfo(CurrentState):
             self.clear_cache()
 
     def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
+        self.match_old()
         for selem in self._state_info.values():
             selem.notify_step_solution(
                 xsol, self.retrieval_sv_slice(selem.state_element_id)
