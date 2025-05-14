@@ -6,12 +6,15 @@ from refractor.muses import (
     MusesRunDir,
     ProcessLocation,
     StateElementIdentifier,
+    OspL2SetupControlInitial,
+    TesFile,
 )
 import pytest
 import numpy.testing as npt
 import numpy as np
 from fixtures.misc_fixture import all_output_disabled
 from typing import Any
+from pathlib import Path
 
 
 class RetrievalStrategyStop:
@@ -153,3 +156,31 @@ def test_update_cloudfraction(omi_step_0):
     # Go to the next step, and check that the state element is updated
     rs._strategy_executor.next_step()
     rs._strategy_executor.notify_start_step()
+
+
+# We will come back to this in a short bit
+@pytest.mark.skip
+def test_work(isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir):
+    try:
+        # with all_output_disabled():
+        if True:
+            r = MusesRunDir(
+                joint_tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix="."
+            )
+            rs = RetrievalStrategy(r.run_dir / "Table.asc")
+            rs.register_with_muses_py()
+            rs.clear_observers()
+            rs.add_observer(RetrievalStrategyStop())
+            rs.retrieval_ms()
+    except StopIteration:
+        pass
+    cstate = rs.current_state
+    # We want to figure out how to make our own states matching StateInfoOld, so
+    # go ahead and try working this
+    l2setup = OspL2SetupControlInitial.read(
+        Path(rs.retrieval_config["initialGuessSetupDirectory"])
+    )
+    f = TesFile(l2setup["Single_State_Directory"] / "State_AtmProfiles.asc")
+    print(cstate.full_state_value(StateElementIdentifier("NH3")))
+    print(f.table["NH3"])
+    breakpoint()

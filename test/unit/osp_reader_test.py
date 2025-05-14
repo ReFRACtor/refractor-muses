@@ -49,9 +49,11 @@ def test_species(osp_dir):
     npt.assert_allclose(cmatrix2, [[400.0]])
     npt.assert_allclose(cmatrix3, [[4.0]])
 
+
 def test_osp_l2_setup_control_initial(osp_dir):
-    f = OspL2SetupControlInitial.read(osp_dir / "L2_Setup" / "ops" / "L2_Setup_ms-CrIS-TROPOMI-CAMEL")
+    f = OspL2SetupControlInitial.read(
+        osp_dir / "L2_Setup" / "ops" / "L2_Setup_ms-CrIS-TROPOMI-CAMEL"
+    )
     assert f["Single_State_Directory"] == osp_dir / "L2_Setup" / "ops" / "L2_Setup"
     assert f.sid_to_type[StateElementIdentifier("PCLOUD")] == "Single"
     assert f.sid_to_type[StateElementIdentifier("TATM")] == "GMAO"
-    

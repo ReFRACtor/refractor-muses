@@ -65,13 +65,18 @@ class CurrentStateStateInfo(CurrentState):
         return res
 
     def match_old(self) -> None:
-        '''A kludge to handle current_state_override with our old state info stuff.
-        Temporarily, ensure that the two are in sync'''
+        """A kludge to handle current_state_override with our old state info stuff.
+        Temporarily, ensure that the two are in sync"""
         cstate = self._state_info._current_state_old
-        if(self.retrieval_state_element_override != cstate.retrieval_state_element_override
-           or self.do_systematic != cstate.do_systematic):
+        if (
+            self.retrieval_state_element_override
+            != cstate.retrieval_state_element_override
+            or self.do_systematic != cstate.do_systematic
+        ):
             cstate.do_systematic = self.do_systematic
-            cstate.retrieval_state_element_override = self.retrieval_state_element_override
+            cstate.retrieval_state_element_override = (
+                self.retrieval_state_element_override
+            )
             cstate.clear_cache()
 
     @property
@@ -195,7 +200,7 @@ class CurrentStateStateInfo(CurrentState):
                 ]
             )
         return res
-    
+
     @property
     def true_value(self) -> RetrievalGridArray:
         # Note muses_py always has a true value vector, even if we don't have

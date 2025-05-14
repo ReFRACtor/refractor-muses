@@ -440,7 +440,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def constraint_vector_fm(self) -> ForwardModelGridArray:
         """Apriori value"""
         raise NotImplementedError()
-    
+
     @property
     def true_value(self) -> RetrievalGridArray:
         """True value"""
@@ -1159,7 +1159,7 @@ class CurrentStateUip(CurrentState):
             # testing, the slightly klunky design doesn't seem like
             # much of a problem.
             return np.zeros((len(self.initial_guess),))
-        
+
     @property
     def basis_matrix(self) -> np.ndarray | None:
         return self._basis_matrix
@@ -1649,7 +1649,7 @@ class CurrentStateStateInfoOld(CurrentState):
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
             return copy(self.retrieval_info.retrieval_dict["constraintVectorFM"])
-        
+
     @property
     def true_value(self) -> RetrievalGridArray:
         if self.retrieval_info is None:

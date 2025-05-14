@@ -127,8 +127,10 @@ class FakeStateInfo:
             varr[self.species.index(s), :] = current_state.full_state_value(
                 StateElementIdentifier(s)
             )
-            varr2[self.species.index(s), :] = current_state.full_state_constraint_vector(
-                StateElementIdentifier(s), use_map=True
+            varr2[self.species.index(s), :] = (
+                current_state.full_state_constraint_vector(
+                    StateElementIdentifier(s), use_map=True
+                )
             )
             varr3[self.species.index(s), :] = (
                 current_state.full_state_step_initial_value(

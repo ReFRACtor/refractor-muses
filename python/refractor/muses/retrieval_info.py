@@ -140,10 +140,6 @@ class RetrievalInfo:
         ]
 
     @property
-    def apriori(self) -> np.ndarray:
-        return self.retrieval_dict["constraintVector"][0 : self.n_totalParameters]
-
-    @property
     def apriori_fm(self) -> np.ndarray:
         return self.retrieval_dict["constraintVectorListFM"][
             0 : self.n_totalParametersFM
