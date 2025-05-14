@@ -171,9 +171,9 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         self, current_state: CurrentState, xsol: RetrievalGridArray
     ) -> None:
         current_state.notify_step_solution(xsol)
-        for selem_id in self.current_strategy_step_dict["update_apriori_elements"]:
+        for selem_id in self.current_strategy_step_dict["update_constraint_elements"]:
             v = current_state.full_state_value(selem_id)
-            current_state.update_full_state_element(selem_id, apriori=v)
+            current_state.update_full_state_element(selem_id, constraint_vector_fm=v)
 
     def muses_microwindows_fname(self) -> str:
         """This is very specific, but there is some complicated code used to generate the
@@ -579,20 +579,20 @@ class MusesStrategyStepList(MusesStrategyImp):
                 ),
                 # List of elements that we update the apriori to match what
                 # we retrieve
-                "update_apriori_elements": [],
+                "update_constraint_elements": [],
             }
             # Will fill in measurement_id in notify_update_target
             cstep = CurrentStrategyStepDict(cstepdict, None)
             # The muses-py strategy table just "knows" that certain
             # retrieval types also update the apriori value. We duplicate this
             # behavior, although it would be nice to have a cleaner way of doing this
-            # (e.g., maybe just have a update_apriori_elements column in the table?)
+            # (e.g., maybe just have a update_constraint_elements column in the table?)
             if cstep.retrieval_type == RetrievalType("tropomicloud_ig_refine"):
-                cstep.current_strategy_step_dict["update_apriori_elements"].append(
+                cstep.current_strategy_step_dict["update_constraint_elements"].append(
                     StateElementIdentifier("TROPOMICLOUDFRACTION")
                 )
             if cstep.retrieval_type == RetrievalType("omicloud_ig_refine"):
-                cstep.current_strategy_step_dict["update_apriori_elements"].append(
+                cstep.current_strategy_step_dict["update_constraint_elements"].append(
                     StateElementIdentifier("OMICLOUDFRACTION")
                 )
             res.current_strategy_list.append(cstep)

@@ -296,15 +296,15 @@ class CurrentStateStateInfo(CurrentState):
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
-        current: np.ndarray | None = None,
-        apriori: np.ndarray | None = None,
-        step_initial: np.ndarray | None = None,
-        retrieval_initial: np.ndarray | None = None,
-        true: np.ndarray | None = None,
+        current_fm: np.ndarray | None = None,
+        constraint_vector_fm: np.ndarray | None = None,
+        step_initial_fm: np.ndarray | None = None,
+        retrieval_initial_fm: np.ndarray | None = None,
+        true_value_fm: np.ndarray | None = None,
     ) -> None:
         self.match_old()
         self._state_info[state_element_id].update_state_element(
-            current, apriori, step_initial, retrieval_initial, true
+            current_fm, constraint_vector_fm, step_initial_fm, retrieval_initial_fm, true_value_fm
         )
 
     def clear_cache(self) -> None:

@@ -403,11 +403,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
-        current: np.ndarray | None = None,
-        apriori: np.ndarray | None = None,
-        step_initial: np.ndarray | None = None,
-        retrieval_initial: np.ndarray | None = None,
-        true_value: np.ndarray | None = None,
+        current_fm: np.ndarray | None = None,
+        constraint_vector_fm: np.ndarray | None = None,
+        step_initial_fm: np.ndarray | None = None,
+        retrieval_initial_fm: np.ndarray | None = None,
+        true_value_fm: np.ndarray | None = None,
     ) -> None:
         """We have a few places where we want to update a state element other than
         update_initial_guess. This function updates each of the various values passed in.
@@ -1716,15 +1716,15 @@ class CurrentStateStateInfoOld(CurrentState):
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
-        current: np.ndarray | None = None,
-        apriori: np.ndarray | None = None,
-        step_initial: np.ndarray | None = None,
-        retrieval_initial: np.ndarray | None = None,
-        true_value: np.ndarray | None = None,
+        current_fm: np.ndarray | None = None,
+        constraint_vector_fm: np.ndarray | None = None,
+        step_initial_fm: np.ndarray | None = None,
+        retrieval_initial_fm: np.ndarray | None = None,
+        true_value_fm: np.ndarray | None = None,
     ) -> None:
         selem = self.state_info.state_element(state_element_id)
         selem.update_state(
-            current, apriori, step_initial, retrieval_initial, true_value
+            current_fm, constraint_vector_fm, step_initial_fm, retrieval_initial_fm, true_value_fm
         )
 
     @property

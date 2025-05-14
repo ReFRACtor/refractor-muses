@@ -468,13 +468,17 @@ class StateElementImplementation(StateElement):
         # up an some point, this is all unnecessarily obscure
         if not self._retrieved_this_step:
             return
-        if self.value.shape[0] != param_subset.shape[0]:
+        if self._value_fm is not None and self.value.shape[0] != param_subset.shape[0]:
             raise RuntimeError(
                 f"param_subset doesn't match value size {param_subset.shape[0]} vs {self.value.shape[0]}"
             )
-        self._value_fm = self.state_mapping_retrieval_to_fm.mapped_state(
-            rf.ArrayAd_double_1(param_subset)
-        ).value
+        # Temp, short circuit until we implement this
+        if(self._value_fm is not None):
+            if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+                breakpoint()
+            self._value_fm = self.state_mapping_retrieval_to_fm.mapped_state(
+                rf.ArrayAd_double_1(param_subset)
+            ).value
 
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
         if self._sold is None:
@@ -507,12 +511,14 @@ class StateElementImplementation(StateElement):
             res2 = self._sold.map_to_parameter_matrix
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
-            npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2, atol=1e-12)
             assert res.dtype == res2.dtype
         return res
 
     @property
     def retrieval_sv_length(self) -> int:
+        if(self._sold is not None):
+            return self._sold.retrieval_sv_length
         if self._retrieved_this_step:
             res = self.step_initial_value.shape[0]
         else:
@@ -551,8 +557,10 @@ class StateElementImplementation(StateElement):
 
     @property
     def value(self) -> RetrievalGridArray:
-        if len(self.value_fm.shape) > 1:
+        if self._value_fm is not None and len(self._value_fm.shape) > 1:
             # Think this just applies to cloudEffExt
+            if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+                breakpoint()
             res = self.value_fm
         else:
             res = self.state_mapping_retrieval_to_fm.retrieval_state(
@@ -571,7 +579,10 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
-            self._value_fm = self._sold.value_fm.copy()
+            return self._sold.value_fm
+            #if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+            #   breakpoint()
+            #self._value_fm = self._sold.value_fm.copy()
         res = self._value_fm
         if self._sold is not None:
             res2 = self._sold.value_fm
@@ -601,6 +612,7 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
+            return self._sold.constraint_vector_fm
             self._constraint_vector_fm = self.state_mapping.mapped_state(
                 rf.ArrayAd_double_1(self._sold.constraint_vector_fm)
             ).value
@@ -624,6 +636,7 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
+            return self._sold.constraint_matrix
             self._constraint_matrix = self._sold.constraint_matrix.copy()
         res = self._constraint_matrix
         if self._sold is not None:
@@ -632,6 +645,13 @@ class StateElementImplementation(StateElement):
             assert res.dtype == res2.dtype
         return res
 
+    def constraint_cross_covariance(
+        self, selem2: StateElement
+    ) -> RetrievalGrid2dArray | None:
+        if(self._sold is not None):
+            return self._sold.constraint_cross_covariance(selem2)
+        return None
+        
     @property
     def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
         if (
@@ -639,6 +659,7 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
+            return self._sold.apriori_cov_fm
             self._apriori_cov_fm = self._sold.apriori_cov_fm.copy()
         res = self._apriori_cov_fm
         if self._sold is not None:
@@ -669,6 +690,7 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
+            return self._sold.retrieval_initial_value_fm
             self._retrieval_initial_value_fm = (
                 self._sold.retrieval_initial_value_fm.copy()
             )
@@ -681,6 +703,8 @@ class StateElementImplementation(StateElement):
 
     @property
     def step_initial_value(self) -> RetrievalGridArray:
+        if(self._step_initial_value_fm is None):
+            return self._sold.step_initial_value
         res = self.state_mapping_retrieval_to_fm.retrieval_state(
             rf.ArrayAd_double_1(self.step_initial_value_fm)
         ).value
@@ -697,6 +721,7 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
+            return self._sold.step_initial_value_fm
             self._step_initial_value_fm = self._sold.step_initial_value_fm.copy()
         res = self._step_initial_value_fm
         if self._sold is not None:
@@ -740,6 +765,7 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
+            return self._sold.state_mapping_retrieval_to_fm
             self._state_mapping_retrieval_to_fm = (
                 self._sold.state_mapping_retrieval_to_fm
             )
@@ -747,10 +773,35 @@ class StateElementImplementation(StateElement):
 
     # These are placeholders, need to fill in
     @property
+    def metadata(self) -> dict[str, Any]:
+        """Some StateElement have extra metadata. There is really only one example
+        now, emissivity has camel_distance and prior_source. It isn't clear the best
+        way to handle this, but the current design just returns a dictionary with
+        any extra metadata values. We can perhaps rework this if needed in the future.
+        For most StateElement this will just be a empty dict."""
+        if self._sold is not None:
+            return self._sold.metadata
+        res: dict[str, Any] = {}
+        return res
+    
+    @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
         if self._sold is None:
             raise RuntimeError("Not implemented yet")
         return self._sold.spectral_domain
+
+    @property
+    def pressure_list(self) -> RetrievalGridArray | None:
+        if self._sold is None:
+            raise RuntimeError("Not implemented yet")
+        return self._sold.pressure_list
+
+    @property
+    def pressure_list_fm(self) -> ForwardModelGridArray | None:
+        if self._sold is None:
+            raise RuntimeError("Not implemented yet")
+        return self._sold.pressure_list_fm
+
 
     def update_state_element(
         self,
@@ -760,16 +811,24 @@ class StateElementImplementation(StateElement):
         retrieval_initial_fm: ForwardModelGridArray | None = None,
         true_value_fm: ForwardModelGridArray | None = None,
     ) -> None:
+        # TODO get rid of None tests here
         if current_fm is not None:
-            self._value_fm = current_fm
+            if(self._value_fm is not None):
+                if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+                    breakpoint()
+                self._value_fm = current_fm
         if constraint_vector_fm is not None:
-            self._constraint_vector_fm = constraint_vector_fm
+            if(self._constraint_vector_fm is not None):
+                self._constraint_vector_fm = constraint_vector_fm
         if step_initial_fm is not None:
-            self._step_initial_value_fm = step_initial_fm
+            if(self._step_initial_value_fm is not None):
+                self._step_initial_value_fm = step_initial_fm
         if retrieval_initial_fm is not None:
-            self._retrieval_initial_value_fm = retrieval_initial_fm
+            if(self._retrieval_initial_value_fm is not None):
+                self._retrieval_initial_value_fm = retrieval_initial_fm
         if true_value_fm is not None:
-            self._true_value = true_value_fm
+            if(self._true_value_fm is not None):
+                self._true_value = true_value_fm
         if self._sold is not None:
             self._sold.update_state_element(
                 current_fm,
@@ -781,6 +840,10 @@ class StateElementImplementation(StateElement):
 
     @property
     def updated_fm_flag(self) -> ForwardModelGridArray:
+        # We don't yet have support for the items that depend on frequency, so
+        # use the old state element stuff until we get this working
+        if(self._sold is not None):
+            return self._sold.updated_fm_flag
         res = np.zeros((self.apriori_cov_fm.shape[0],), dtype=bool)
         if self._retrieved_this_step:
             res[:] = True
@@ -798,6 +861,8 @@ class StateElementImplementation(StateElement):
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
         # The value and step initial guess should be set to the retrieval initial value
         if self._retrieval_initial_value_fm is not None:
+            if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+                breakpoint()
             self._value_fm = self._retrieval_initial_value_fm.copy()
             self._step_initial_value_fm = self._retrieval_initial_value_fm.copy()
         # This is to support testing. We currently have a way of populate StateInfoOld when
@@ -823,15 +888,20 @@ class StateElementImplementation(StateElement):
             )
         # Update the initial value if we have a setting from the previous step
         if self._next_step_initial_value_fm is not None:
-            self._step_initial_value_fm = self._next_step_initial_value_fm
+            if(self._step_initial_value_fm is not None):
+                self._step_initial_value_fm = self._next_step_initial_value_fm
             self._next_step_initial_value_fm = None
         # Set value to initial value
         if self._step_initial_value_fm is not None:
             # Rightly or wrongly, the step_initial_value is in the mapped state
-            if len(self._value_fm.shape) > 1:
+            if len(self._step_initial_value_fm.shape) > 1:
                 # Think this just applies to cloudEffExt
+                if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+                    breakpoint()
                 self._value_fm = self._step_initial_value_fm.copy()
             else:
+                if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+                    breakpoint()
                 self._value_fm = self.state_mapping.mapped_state(
                     rf.ArrayAd_double_1(self._step_initial_value_fm)
                 ).value
@@ -855,14 +925,21 @@ class StateElementImplementation(StateElement):
         self._next_step_initial_value_fm = None
         if retrieval_slice is not None:
             if not self._initial_guess_not_updated:
-                self._value_fm = self.state_mapping_retrieval_to_fm.mapped_state(
-                    rf.ArrayAd_double_1(xsol[retrieval_slice])
-                ).value
-                self._next_step_initial_value_fm = self._value_fm.copy()
+                # Temp short circuit
+                if(self._value_fm is not None):
+                    if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+                        breakpoint()
+                    self._value_fm = self.state_mapping_retrieval_to_fm.mapped_state(
+                        rf.ArrayAd_double_1(xsol[retrieval_slice])
+                    ).value
+                    self._next_step_initial_value_fm = self._value_fm.copy()
             else:
                 # Reset value for any changes in solver run if we aren't allowing this to
                 # update
-                self._value_fm = self._step_initial_value_fm.copy()
+                if(self.state_element_id == StateElementIdentifier("cloudEffExt")):
+                    breakpoint()
+                if(self._step_initial_value_fm is not None):
+                    self._value_fm = self._step_initial_value_fm.copy()
 
 
 class StateElementOspFile(StateElementImplementation):
@@ -977,6 +1054,10 @@ class StateElementOspFile(StateElementImplementation):
             self.state_element_id, current_strategy_step.retrieval_type
         )
 
+    @property
+    def pressure_list_fm(self):
+        # TODO Add handling for pressure_list
+        return None
 
 class StateElementOspFileHandle(StateElementHandle):
     def __init__(

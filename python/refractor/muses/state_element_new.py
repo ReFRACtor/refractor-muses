@@ -83,6 +83,8 @@ class StateElementOspFileHandleNew(StateElementHandle):
         return res
 
 
-# StateElementHandleSet.add_default_handle(
-#    StateElementOspFileHandleNew(None, h_old), priority_order=0
-# )
+StateElementHandleSet.add_default_handle(
+    StateElementOspFileHandleNew(None, h_old), priority_order=0
+)
+
+__all__ = ["StateElementOspFileHandleNew",]
