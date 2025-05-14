@@ -76,6 +76,6 @@ class StateElementOspFileHandleNew(StateElementHandle):
             logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
         return res
 
-StateElementHandleSet.add_default_handle(
-    StateElementOspFileHandleNew(None, h_old), priority_order=0
-)
+#StateElementHandleSet.add_default_handle(
+#    StateElementOspFileHandleNew(None, h_old), priority_order=0
+#)
