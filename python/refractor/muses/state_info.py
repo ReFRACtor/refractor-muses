@@ -132,8 +132,8 @@ class StateInfo(UserDict):
         for k, v in self.items():
             try:
                 v.update_state_element(
-                    current=self._current_state_old.full_state_value(k),
-                    apriori=self._current_state_old.full_state_apriori_value(k),
+                    current_fm=self._current_state_old.full_state_value(k),
+                    constraint_vector_fm=self._current_state_old.full_state_constraint_vector(k),
                 )
             except NotImplementedError:
                 # Not all the old elements exist, we just skip any one that doesn't

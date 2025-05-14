@@ -31,14 +31,15 @@ def test_osp_state_element(osp_dir):
         covariance_directory,
     )
     # Simulate a state vector update
+    selem._retrieved_this_step = True
     selem.notify_parameter_update(np.array([2.0]))
     assert selem.retrieval_sv_length == 1
     assert selem.sys_sv_length == 1
     assert selem.forward_model_sv_length == 1
     npt.assert_allclose(selem.value, [2.0])
     npt.assert_allclose(selem.value_fm, [2.0])
-    npt.assert_allclose(selem.apriori_value, [0.0])
-    npt.assert_allclose(selem.apriori_value_fm, [0.0])
+    npt.assert_allclose(selem.constraint_vector, [0.0])
+    npt.assert_allclose(selem.constraint_vector_fm, [0.0])
     cexpect = np.array([[2500.0]])
     cov_expect = np.array([[0.0004]])
     npt.assert_allclose(selem.constraint_matrix, cexpect)
@@ -55,7 +56,7 @@ def test_osp_state_element(osp_dir):
     npt.assert_allclose(selem.map_to_parameter_matrix, np.eye(1))
 
     # Update the initial guess, as if we had a element with a different value
-    selem.update_state_element(step_initial=np.array([3.0]))
+    selem.update_state_element(step_initial_fm=np.array([3.0]))
     npt.assert_allclose(selem.retrieval_initial_value, [0.0])
     npt.assert_allclose(selem.step_initial_value, [3.0])
     cstep = CurrentStrategyStepDict({}, None)
@@ -75,7 +76,7 @@ def test_osp_state_element(osp_dir):
         },
         None,
     )
-    selem.update_state_element(step_initial=np.array([4.0]))
+    selem.update_state_element(step_initial_fm=np.array([4.0]))
     npt.assert_allclose(selem.step_initial_value, [4.0])
     npt.assert_allclose(selem.value, [0.0])
     selem.notify_start_step(cstep_ret, None, rconfig)

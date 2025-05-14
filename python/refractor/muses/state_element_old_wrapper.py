@@ -13,7 +13,6 @@ if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .error_analysis import ErrorAnalysis
     from refractor.old_py_retrieve_wrapper import StateElementOld  # type: ignore
 
 # A couple of aliases, just so we can clearly mark what grid data is on
@@ -354,11 +353,11 @@ class StateElementOldWrapper(StateElement):
 
     def update_state_element(
         self,
-        current: np.ndarray | None = None,
-        apriori: np.ndarray | None = None,
-        step_initial: np.ndarray | None = None,
-        retrieval_initial: np.ndarray | None = None,
-        true_value: np.ndarray | None = None,
+        current_fm: ForwardModelGridArray | None = None,
+        constraint_vector_fm: ForwardModelGridArray | None = None,
+        step_initial_fm: ForwardModelGridArray | None = None,
+        retrieval_initial_fm: ForwardModelGridArray | None = None,
+        true_value_fm: ForwardModelGridArray | None = None,
     ) -> None:
         """Update the value of the StateElement. This function updates
         each of the various values passed in.  A value of 'None' (the
@@ -366,11 +365,11 @@ class StateElementOldWrapper(StateElement):
         """
         self._current_state_old.update_full_state_element(
             self.state_element_id,
-            current,
-            apriori,
-            step_initial,
-            retrieval_initial,
-            true_value,
+            current_fm,
+            constraint_vector_fm,
+            step_initial_fm,
+            retrieval_initial_fm,
+            true_value_fm,
         )
 
     @property
@@ -383,7 +382,6 @@ class StateElementOldWrapper(StateElement):
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep | None,
-        error_analysis: ErrorAnalysis,
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
