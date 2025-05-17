@@ -1,11 +1,9 @@
 # Figure out what to call this, or possibly just move stuff to another file. But for
 # now have it here to keep stuff together
 from __future__ import annotations
-from .current_state_state_info import h_old
 from .state_element import (
     StateElementHandle,
     StateElementImplementation,
-    StateElementHandleSet,
     StateElement,
 )
 from loguru import logger
@@ -83,8 +81,8 @@ class StateElementOspFileHandleNew(StateElementHandle):
         return res
 
 
-StateElementHandleSet.add_default_handle(
-    StateElementOspFileHandleNew(None, h_old), priority_order=0
-)
+#StateElementHandleSet.add_default_handle(
+#    StateElementOspFileHandleNew(None, h_old), priority_order=0
+#)
 
 __all__ = ["StateElementOspFileHandleNew",]

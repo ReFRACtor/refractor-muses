@@ -8,12 +8,29 @@ from typing import Any
 
 if typing.TYPE_CHECKING:
     from .identifier import InstrumentIdentifier
+    from .current_state import RetrievalGridArray
 
 
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     """This is the cost function we use to interface between ReFRACtor
     and muses-py. This is just a standard rf.NLLSMaxAPosteriori with
     some extra convenience functions.
+
+    Note although this is labeled MaxAPosteriori, this is actually a
+    more general least squares with a quadratic regularization. This
+    takes a general constraint matrix and constraint vector. These are
+    often but not always the apriori covariance and apriori vector. When
+    they are we truly have a MaxAPosteriori, but when not this is a more
+    general least squares with a quadratic penalty similar to a MaxAPosteriori.
+    
+    We call this a MaxAPosteriori because we already have the machinery in place
+    in framework for MaxAPosteriori that can be used directly for the more general
+    problem.
+
+    See section III.B of "Tropospheric Emission
+    Spectrometer: Retrieval Method and Error Analysis" (IEEE
+    TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 44, NO. 5, MAY
+    2006) (https://ieeexplore.ieee.org/document/1624609).
 
     We allow this to replace the functions fm_wrapper and/or
     refractor_residual_fm_jac, as well as just having the functions to
@@ -25,13 +42,13 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         fm_list: list[rf.ForwardModel],
         obs_list: list[rf.Observation],
         fm_sv: rf.StateVector,
-        retrieval_sv_apriori: np.ndarray,
-        retrieval_sv_sqrt_constraint: np.ndarray,
+        retrieval_sv_constraint_vector: RetrievalGridArray,
+        retrieval_sv_sqrt_constraint: RetrievalGridArray,
         mapping: rf.StateMapping,
     ) -> None:
         self.instrument_name_list = instrument_name_list
         self.fm_sv = fm_sv
-        self.retrieval_sv_apriori = retrieval_sv_apriori
+        self.retrieval_sv_constraint_vector = retrieval_sv_constraint_vector
         self.retrieval_sv_sqrt_constraint = retrieval_sv_sqrt_constraint
         if hasattr(mapping, "basis_matrix"):
             basis_matrix = mapping.basis_matrix
@@ -44,7 +61,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         # ------------------------------------------------------
 
         # Expect sqrt_constraint to be square, and to have the same
-        # number of rows as apriori
+        # number of rows as constraint
         if (
             self.retrieval_sv_sqrt_constraint.shape[0]
             != self.retrieval_sv_sqrt_constraint.shape[1]
@@ -54,18 +71,18 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
             )
         if (
             self.retrieval_sv_sqrt_constraint.shape[0]
-            != self.retrieval_sv_apriori.shape[0]
+            != self.retrieval_sv_constraint_vector.shape[0]
         ):
             raise RuntimeError(
-                f"retrieval_sv_apriori size {self.retrieval_sv_apriori.shape[0]} and retrieval_sv_sqrt_constraint size {self.retrieval_sv_sqrt_constraint.shape[0]} should have the same numbers of rows"
+                f"retrieval_sv_constraint_vector size {self.retrieval_sv_constraint_vector.shape[0]} and retrieval_sv_sqrt_constraint size {self.retrieval_sv_sqrt_constraint.shape[0]} should have the same numbers of rows"
             )
 
         # If we don't have a basis matrix, the forward model state
         # vector size needs to match the retrieval state vector size
         if basis_matrix is None:
-            if self.fm_sv.observer_claimed_size != self.retrieval_sv_apriori.shape[0]:
+            if self.fm_sv.observer_claimed_size != self.retrieval_sv_constraint_vector.shape[0]:
                 raise RuntimeError(
-                    f"Without a basis matrix, fm_sv size of {self.fm_sv.observer_claimed_size} should be same as retrieval_sv_apriori size of {self.retrieval_sv_apriori.shape[0]}"
+                    f"Without a basis matrix, fm_sv size of {self.fm_sv.observer_claimed_size} should be same as retrieval_sv_constraint_vector size of {self.retrieval_sv_constraint_vector.shape[0]}"
                 )
         else:
             # If we do have a basis matrix, the forward model state
@@ -76,16 +93,16 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
                 raise RuntimeError(
                     f"fm_sv size of {self.fm_sv.observer_claimed_size} should match row size of basis matrix of {basis_matrix.shape[0]} x {basis_matrix.shape[1]}"
                 )
-            if self.retrieval_sv_apriori.shape[0] != basis_matrix.shape[1]:
+            if self.retrieval_sv_constraint_vector.shape[0] != basis_matrix.shape[1]:
                 raise RuntimeError(
-                    f"retrieval_sv_apriori size of {self.retrieval_sv_apriori.shape[0]} should match column size of basis matrix of {basis_matrix.shape[0]} x {basis_matrix.shape[1]}"
+                    f"retrieval_sv_constraint_vector size of {self.retrieval_sv_constraint_vector.shape[0]} should match column size of basis matrix of {basis_matrix.shape[0]} x {basis_matrix.shape[1]}"
                 )
 
         mstand = rf.MaxAPosterioriSqrtConstraint(
             fm_list,
             obs_list,
             self.fm_sv,
-            self.retrieval_sv_apriori,
+            self.retrieval_sv_constraint_vector,
             self.retrieval_sv_sqrt_constraint,
             mapping,
         )

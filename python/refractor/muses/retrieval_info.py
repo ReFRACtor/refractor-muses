@@ -282,7 +282,7 @@ class RetrievalInfo:
         )
         pstart = 0
         for sid in current_strategy_step.error_analysis_interferents:
-            plen = len(current_state.full_state_value(sid))
+            plen = len(current_state.state_value(sid))
             o_retrievalInfo.parameterStartSys.append(pstart)
             o_retrievalInfo.parameterEndSys.append(pstart + plen - 1)
             o_retrievalInfo.speciesListSys.extend([str(sid)] * plen)
@@ -296,7 +296,7 @@ class RetrievalInfo:
         current_state: CurrentStateStateInfoOld,
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
-        selem = current_state.full_state_element_old(
+        selem = current_state.state_element_old(
             StateElementIdentifier(species_name)
         )
 
@@ -354,10 +354,10 @@ class RetrievalInfo:
 
         locs = [index_H2O, index_HDO]
 
-        i_nh3type = current_state.full_state_value_str(
+        i_nh3type = current_state.state_value_str(
             StateElementIdentifier("nh3type")
         )
-        i_ch3ohtype = current_state.full_state_value_str(
+        i_ch3ohtype = current_state.state_value_str(
             StateElementIdentifier("ch3ohtype")
         )
 

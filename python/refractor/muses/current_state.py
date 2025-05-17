@@ -245,13 +245,48 @@ class SoundingMetadata:
         return self.surface_type == "LAND"
 
 
-# A couple of aliases, just so we can clearly mark what grid data is on
-RetrievalGridArray = np.ndarray
-ForwardModelGridArray = np.ndarray
-RetrievalGrid2dArray = np.ndarray
-ForwardModelGrid2dArray = np.ndarray
+# To help keep things straight, we have separate types for each of state vector
+# types. In all cases, these are just np.ndarray with a little extra type information.
+# Where it is useful, we add a handful of member functions (e.g., for converting form
+# one type to the other).
 
+class RetrievalGridArray(np.ndarray):
+    '''Data in the retrieval state vector. Unmapped (e.g., might be log(vmr)).
+    Generally smaller number of levels than FullGridArray
 
+    See CurrentState for a description of the various state vectors.'''
+    pass
+
+class FullGridArray(np.ndarray):
+    '''Data in the forward model state vector/full state vector.
+    Unmapped (e.g., might be log(vmr)). Generally more levels than RetrievalGridArray.
+
+    See CurrentState for a description of the various state vectors.'''
+    pass
+
+class FullGridMappedArray(np.ndarray):
+    '''Data in in the forward model state vector/full state vector.
+    Mapped (e.g., log(vmr) is converted to VMR).
+    
+    See CurrentState for a description of the various state vectors.'''
+    pass
+
+class RetrievalGrid2dArray(np.ndarray):
+    '''2d matrix going with RetrievalGridArray (e.g., the constraint matrix). This
+    is unmapped (TODO Check this, I'm pretty sure this is true)
+
+    See CurrentState for a description of the various state vectors.'''
+    pass
+
+class FullGrid2dArray(np.ndarray):
+    '''2d matrix going with FullGridArray (e.g. the apriori matrix).
+
+    TODO - Is this mapped or unmapped? Not sure, we should track down. If mapped,
+    we might want to rename this.
+
+    See CurrentState for a description of the various state vectors.'''
+    pass
+    
 class CurrentState(object, metaclass=abc.ABCMeta):
     """There are a number of "states" floating around
     py-retrieve/ReFRACtor, and it can be a little confusing if you
@@ -260,8 +295,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     A good reference is section III.A.1 of "Tropospheric Emission
     Spectrometer: Retrieval Method and Error Analysis" (IEEE
     TRANSACTIONS ON GEOSCIENCE AND REMOTE SENSING, VOL. 44, NO. 5, MAY
-    2006). This describes the "retrieval state vector" and the "full
-    state vector"
+    2006) (https://ieeexplore.ieee.org/document/1624609). This
+    describes the "retrieval state vector" and the "full state vector"
 
     In addition there is an intermediate set that isn't named in the
     paper.  In the py-retrieve code, this gets referred to as the
@@ -272,29 +307,32 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     1. The "retrieval state vector" is what we use in our Solver for a
        retrieval step. This is the parameters passed to our
-       CostFunction.
+       CostFunction. Note that for something like a log(vmr) variable,
+       this is in the unmapped log(vmr) representation
 
     2. The "forward model state vector" has the same content as the
        "retrieval state vector", but it is specified on a finer number
-       of levels used by the forward model.
+       of levels used by the forward model. It is also unmapped (e.g.,
+       it might be log(vmr)).
 
     3. The "full state vector" is all the parameters the various
        objects making up our ForwardModel and Observation needs. This
        includes a number of things held fixed in a particular
-       retrieval step.
+       retrieval step. This is a super set of the "forward model state vector",
+       so it has all the contents of the forward model plus extra stuff.
+       This is unmapped (e.g., it might be log(vmr)).
 
-    4. The "object state" is the subset of the "forward model state
+    4. the "full state vector mapped" is the "full state vector" but with
+       the mapping applied - so a log retrieval item is mapped to vmr.
+
+    5. The "object state" is the subset of the "forward model state
        vector" needed by a particular object in our ForwardModel or
        Observation, mapped to what the object needs. E.g., the forward
        model state vector is in log(vmr), but for the actual object we
        translate this to vmr.
 
-    Each of these vectors are made up of a number of StateElement,
-    each with a fixed string used as a name to identify it.  We look
-    up the StateElement by these fixed names. Note that the
-    StateElement name value may have different values depending on the
-    context - so it might have fewer levels in a retrieval state
-    vector vs forward model state vector. Note that muses-py often but
+    We store this data in a number of StateElement, with a
+    StateElementIdentifier to label it. Note that muses-py often but
     not always refers to these as "species". We use the more general
     name "StateElement" because these aren't always gas species.
 
@@ -304,9 +342,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     the "retrieval state vector" this has 25 log(vmr) values (for the
     25 levels). In the "forward model state vector" this as 64
     log(vmr) values (for the 64 levels the FM is run on).  In the
-    "object state" for the rf.AbsorberVmr part of the FowardModel is
-    64 vmr values (so log(vmr) converted to vmr needed for
-    calculation).
+    "full state vector mapped" this is 64 vmr values (so log(vmr)
+    converted to vmr needed for calculation). In the "object state"
+    for the rf.AbsorberVmr part of the FowardModel this is the same 64
+    values - just labeling the subset needed by AbsorberVmr
 
     For the tropomi ForwardModel, a component object is a
     rf.GroundLambertian which has a polynomial with values
@@ -355,6 +394,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self._posteriori_slice: dict[StateElementIdentifier, slice] = {}
         self._previous_posteriori_cov_fm = np.zeros((0, 0))
 
+    # TODO Replace this awkward interface. Only used in a couple of places, should
+    # have a simpler interface.
     def current_state_override(
         self,
         do_systematic: bool,
@@ -388,8 +429,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Initial guess, on the retrieval grid."""
         raise NotImplementedError()
 
+    # TODO Do we actually need this?
     @property
-    def initial_guess_fm(self) -> ForwardModelGridArray:
+    def initial_guess_fm(self) -> FullGridArray:
         """Return the initial guess for the forward model grid.  This
         isn't independent, it is directly calculated from the
         initial_guess and basis_matrix. But convenient to supply this
@@ -400,22 +442,26 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             rf.ArrayAd_double_1(self.initial_guess)
         ).value
 
+    # TODO Check in constraint_vector_fm should be mapped or not
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
-        current_fm: np.ndarray | None = None,
-        constraint_vector_fm: np.ndarray | None = None,
-        step_initial_fm: np.ndarray | None = None,
-        retrieval_initial_fm: np.ndarray | None = None,
-        true_value_fm: np.ndarray | None = None,
+        current_fm: FullGridMappedArray | None = None,
+        constraint_vector_fm: FullGridMappedArray | None = None,
+        step_initial_fm: FullGridMappedArray | None = None,
+        retrieval_initial_fm: FullGridMappedArray | None = None,
+        true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
         """We have a few places where we want to update a state element other than
         update_initial_guess. This function updates each of the various values passed in.
         A value of 'None' (the default) means skip updating that part of the state."""
         raise NotImplementedError()
 
+    # TODO See if we can remove this. I think this boils down to using a SpectralWindow
+    # on a few frequency state elements, but I'm not sure. This is really an odd sort
+    # of thing to carry around here
     @property
-    def updated_fm_flag(self) -> ForwardModelGridArray:
+    def updated_fm_flag(self) -> FullGridArray:
         """This is array of boolean flag indicating which parts of the forward
         model state vector got updated when we called notify_solution. A 1 means
         it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
@@ -436,8 +482,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Apriori value"""
         raise NotImplementedError()
 
+    # Is this needed? Should be it be mapped or not?
     @property
-    def constraint_vector_fm(self) -> ForwardModelGridArray:
+    def constraint_vector_fm(self) -> FullGridArray:
         """Apriori value"""
         raise NotImplementedError()
 
@@ -446,8 +493,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """True value"""
         raise NotImplementedError()
 
+    # Is this needed? Should be it be mapped or not?
     @property
-    def true_value_fm(self) -> ForwardModelGridArray:
+    def true_value_fm(self) -> FullGridArray:
         """True value"""
         raise NotImplementedError()
 
@@ -465,7 +513,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     @property
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
-        """Return StateMapping going from RetrievalGridArray to ForwardModelGridArray.
+        """Return StateMapping going from RetrievalGridArray to FullGridArray.
         This is done by a basis_matrix in muses-py, but we are trying to move to a more
         general StateMapping."""
         bmatrix = self.basis_matrix
@@ -492,7 +540,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
             for state_element_id in self.retrieval_state_element_id:
-                plen = len(self.full_state_value(state_element_id))
+                plen = len(self.state_value(state_element_id))
                 self._fm_sv_loc[state_element_id] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
@@ -519,7 +567,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             self._sys_sv_loc = {}
             self._sys_state_vector_size = 0
             for state_element_id in self.systematic_state_element_id:
-                plen = len(self.full_state_value(state_element_id))
+                plen = len(self.state_value(state_element_id))
                 self._sys_sv_loc[state_element_id] = (self._sys_state_vector_size, plen)
                 self._sys_state_vector_size += plen
         return self._sys_sv_loc
@@ -543,14 +591,15 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> rf.StateMapping:
-        """StateMapping used by the forward model (so taking the ForwardModelGridArray
-        and mapping to the internal object state)"""
-        return self.full_state_element(state_element_id).state_mapping
+        """StateMapping used by the forward model (so taking the FullGridArray
+        to FullGridMappedArray)"""
+        return self.state_element(state_element_id).state_mapping
 
+    # TODO Are these actually needed?
     def pressure_list(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the retrieval state vector
@@ -559,16 +608,17 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def pressure_list_fm(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels.  This is for the forward model state
         vector levels (generally larger than the pressure_list).
         """
         raise NotImplementedError()
 
+    # TODO Are these actually needed?
     def altitude_list(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the altitude.  This is for the retrieval state vector
@@ -577,8 +627,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     def altitude_list_fm(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
         """For state elements that are on pressure level, this returns
         the altitude.  This is for the forward model state
         vector levels (generally larger than the altitude_list).
@@ -650,10 +700,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def sys_state_vector_size(self) -> int:
         """Full size of the systematic forward model state vector."""
         if self._sys_state_vector_size < 0:
-            # Side effect of fm_sv_loc is filling in fm_state_vector_size
+            # Side effect of sys_sv_loc is filling in fm_state_vector_size
             _ = self.sys_sv_loc
         return self._sys_state_vector_size
-
+    
     @property
     def retrieval_state_vector_size(self) -> int:
         """Full size of the retrieval state vector."""
@@ -664,7 +714,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def object_state(
         self, state_element_id_list: list[StateElementIdentifier]
-    ) -> tuple[np.ndarray, rf.StateMapping]:
+    ) -> tuple[FullGridArray, rf.StateMapping]:
         """Return a set of coefficients and a rf.StateMapping to get
         the full state values used by an object. The object passes in
         the list of state element names it uses.  In general only a
@@ -676,17 +726,17 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """
         # TODO put in handling of log/linear
         coeff = np.concatenate(
-            [self.full_state_value(nm) for nm in state_element_id_list]
+            [self.state_value(nm) for nm in state_element_id_list]
         )
         rlist = self.retrieval_state_element_id
         rflag = np.concatenate(
             [
-                np.full((len(self.full_state_value(nm)),), nm in rlist, dtype=bool)
+                np.full((len(self.state_value(nm)),), nm in rlist, dtype=bool)
                 for nm in state_element_id_list
             ]
         )
         mp = rf.StateMappingAtIndexes(rflag)
-        return (coeff, mp)
+        return (coeff.view(FullGridArray), mp)
 
     def add_fm_state_vector_if_needed(
         self,
@@ -731,14 +781,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         larger list than retrieval_state_element_id"""
         raise NotImplementedError()
 
-    def full_state_desc(self) -> str:
+    def state_desc(self) -> str:
         """Return a description of the full state."""
         res = ""
         for selem in self.full_state_element_id:
-            if self.full_state_value_str(selem) is not None:
-                res += f"{str(selem)}:\n{self.full_state_value_str(selem)}\n"
+            if self.state_value_str(selem) is not None:
+                res += f"{str(selem)}:\n{self.state_value_str(selem)}\n"
             else:
-                res += f"{str(selem)}:\n{self.full_state_value(selem)}\n"
+                res += f"{str(selem)}:\n{self.state_value(selem)}\n"
         return res
 
     @abc.abstractproperty
@@ -753,29 +803,29 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_element(
-        self, state_element_id: StateElementIdentifier
+    def state_element(
+        self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
         """Return the StateElement for the state_element_id. I'm not sure if we want to
         have this exposed or not, but there is a bit of useful information we have in
-        each StateElement (such as the sa_cross_covariance). We can have this exposed for
+        each StateElement. We can have this exposed for
         now, and revisit it if we end up deciding this is too much coupling. There are
         only a few spots that use full_state_element vs something like full_state_value,
         so we will just need to revisit those few spots if this becomes an issue."""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_spectral_domain_wavelength(
-        self, state_element_id: StateElementIdentifier
+    def state_spectral_domain_wavelength(
+        self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         """Return the spectral domain (as nm) for the given state_element_id, or None if
         there isn't an associated frequency for the given state_element_id"""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
+    def state_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
         """Return the full state value for the given state element
         name.  Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -790,28 +840,22 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_value_str(
-        self, state_element_id: StateElementIdentifier
+    def state_value_str(
+        self, state_element_id: StateElementIdentifier | str
     ) -> str | None:
         """A small number of values in the full state are actually str (e.g.,
-        StateElementIdentifier("nh3type"). This is like full_state_value, but we
+        StateElementIdentifier("nh3type"). This is like state_value, but we
         return a str instead. Return None if this doesn't apply.
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
+    def state_step_initial_value(
+        self, state_element_id: StateElementIdentifier
+    ) -> FullGridMappedArray:
         """Return the initial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
-
-        Where this is used in the muses-py code it sometimes assumes this has been
-        mapped (so a log initial guess gets exp applied). This is a bit confusing,
-        it means full_state_step_initial_value and initial_guess_value_fm aren't the same.
-        We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the state_mapping in reverse.
 
         Also, the value returned is generally the *same*
         np.ndarray as used internally. Generally this is fine, the values tend
@@ -823,9 +867,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_true_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
+    def state_true_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
         """Return the true value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -842,9 +886,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_retrieval_initial_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
+    def state_retrieval_initial_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
         """Return the initialInitial value of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -859,18 +903,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def full_state_constraint_vector(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
+    def state_constraint_vector(
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray:
-        """Return the apriori value of the given state element identification.
+        """Return the constraint vector of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
-
-        Where this is used in the muses-py code it sometimes assumes this has been
-        mapped (so a log apriori gets exp applied). This is a bit confusing,
-        it means full_state_step_aprior_value and apriori_value_fm aren't the same.
-        We handle this just by requiring a use_map=True to be passed in, meaning we apply
-        the state_mapping in reverse.
 
         Also, the value returned is generally the *same*
         np.ndarray as used internally. Generally this is fine, the values tend
@@ -882,7 +920,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def Sa(self) -> np.ndarray:
+    def Sa(self) -> FullGrid2dArray:
         """This combines the retrieval state element apriori_cov_fm and cross terms into
         a apriori_cov_fm of those elements. This S_a in the paper
 
@@ -902,7 +940,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         this can go away with new ones"""
         pstart = 0
         for sid in covariance_state_element_name:
-            selem = deepcopy(self.full_state_element(sid))
+            selem = deepcopy(self.state_element(sid))
             if hasattr(selem, "update_initial_guess"):
                 selem.update_initial_guess(current_strategy_step)
             plen = selem.apriori_cov_fm.shape[0]
@@ -914,20 +952,20 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     def previous_aposteriori_cov_fm(
         self, list_state_element_id: list[StateElementIdentifier]
-    ) -> np.ndarray:
+    ) -> FullGrid2dArray:
         # Select only the elements requested
         v = np.zeros((self._previous_posteriori_cov_fm.shape[0]), dtype=bool)
         for sid in list_state_element_id:
             v[self._posteriori_slice[sid]] = True
-        return self._previous_posteriori_cov_fm[:, v][v, :].copy()
+        return self._previous_posteriori_cov_fm[:, v][v, :].copy().view(FullGrid2dArray)
 
     @property
-    def Sb(self) -> np.ndarray:
+    def Sb(self) -> FullGrid2dArray:
         """previous_aposteriori_cov_fm for the systematic_state_element_id"""
-        return self.previous_aposteriori_cov_fm(self.systematic_state_element_id)
+        return self.previous_aposteriori_cov_fm(self.systematic_state_element_id).view(FullGrid2dArray)
 
     @property
-    def error_current_values(self) -> np.ndarray:
+    def error_current_values(self) -> FullGrid2dArray:
         """previous_aposteriori_cov_fm for the retrieval_state_element_id. This is closely
         related to Sx, but has a different name in ErrorAnalysis"""
         return self.previous_aposteriori_cov_fm(self.retrieval_state_element_id)
@@ -960,7 +998,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         self,
         list_state_element_id: list[StateElementIdentifier],
         current_strategy_step: CurrentStrategyStep | None = None,
-    ) -> np.ndarray:
+    ) -> FullGrid2dArray:
         """Return apriori covariance for the given list of state elements, including cross
         terms. When the list is the retrieval_state_element_id this is S_a in the paper
 
@@ -971,7 +1009,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         # TODO deepcopy is temp, only needed for old state elements
         if current_strategy_step is not None:
             selem_list = [
-                deepcopy(self.full_state_element(sname))
+                deepcopy(self.state_element(sname))
                 for sname in list_state_element_id
             ]
             for selem in selem_list:
@@ -979,7 +1017,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
                     selem.update_initial_guess(current_strategy_step)
         else:
             selem_list = [
-                self.full_state_element(sname) for sname in list_state_element_id
+                self.state_element(sname) for sname in list_state_element_id
             ]
 
         # Make block diagonal covariance.
@@ -1002,12 +1040,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
                 if matrix2 is not None:
                     res[np.ix_(r1, r2)] = matrix2
                     res[np.ix_(r2, r1)] = matrix2.transpose()
-        return res
+        return res.view(FullGrid2dArray)
 
     @abc.abstractmethod
-    def full_state_apriori_covariance(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGrid2dArray:
+    def state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGrid2dArray:
         """Return the covariance of the apriori value of the given state element identification.
 
         Also, the value returned is generally the *same*
@@ -1091,7 +1129,7 @@ class CurrentStateUip(CurrentState):
 
     @property
     def initial_guess(self) -> RetrievalGridArray:
-        return copy(self._initial_guess)
+        return copy(self._initial_guess).view(RetrievalGridArray)
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
@@ -1103,7 +1141,7 @@ class CurrentStateUip(CurrentState):
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
         if self.ret_info:
-            return self.ret_info["sqrt_constraint"]
+            return self.ret_info["sqrt_constraint"].view(RetrievalGridArray)
         else:
             # Dummy value, of the right size. Useful when we need
             # this, but don't actually care about the value (e.g., we
@@ -1118,12 +1156,12 @@ class CurrentStateUip(CurrentState):
             # forward. Since this function is only used for backwards
             # testing, the slightly klunky design doesn't seem like
             # much of a problem.
-            return np.eye(len(self.initial_guess))
+            return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
 
     @property
     def constraint_vector(self) -> RetrievalGridArray:
         if self.ret_info:
-            return self.ret_info["const_vec"]
+            return self.ret_info["const_vec"].view(RetrievalGridArray)
         else:
             # Dummy value, of the right size. Useful when we need
             # this, but don't actually care about the value (e.g., we
@@ -1138,12 +1176,12 @@ class CurrentStateUip(CurrentState):
             # forward. Since this function is only used for backwards
             # testing, the slightly klunky design doesn't seem like
             # much of a problem.
-            return np.zeros((len(self.initial_guess),))
+            return np.zeros((len(self.initial_guess),)).view(RetrievalGridArray)
 
     @property
-    def constraint_vector_fm(self) -> RetrievalGridArray:
+    def constraint_vector_fm(self) -> FullGridArray:
         if self.ret_info:
-            return self.ret_info["const_vec"]
+            return self.ret_info["const_vec"].view(FullGridArray)
         else:
             # Dummy value, of the right size. Useful when we need
             # this, but don't actually care about the value (e.g., we
@@ -1158,7 +1196,7 @@ class CurrentStateUip(CurrentState):
             # forward. Since this function is only used for backwards
             # testing, the slightly klunky design doesn't seem like
             # much of a problem.
-            return np.zeros((len(self.initial_guess),))
+            return np.zeros((len(self.initial_guess),)).view(FullGridArray)
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
@@ -1217,182 +1255,185 @@ class CurrentStateUip(CurrentState):
     def sounding_metadata(self) -> SoundingMetadata:
         raise NotImplementedError()
 
-    def full_state_element(
-        self, state_element_id: StateElementIdentifier
+    def state_element(
+        self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
         raise NotImplementedError()
 
-    def full_state_spectral_domain_wavelength(
-        self, state_element_id: StateElementIdentifier
+    def state_spectral_domain_wavelength(
+        self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         raise NotImplementedError()
 
-    def full_state_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
+    def state_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
         # We've extracted this logic out from update_uip
         o_uip = mpy.ObjectView(self.rf_uip.uip)
+        res = None
         if str(state_element_id) == "TSUR":
-            return np.array(
+            res = np.array(
                 [
                     o_uip.surface_temperature,
                 ]
             )
         elif str(state_element_id) == "EMIS":
-            return np.array(o_uip.emissivity["value"])
+            res = np.array(o_uip.emissivity["value"])
         elif str(state_element_id) == "PTGANG":
-            return np.array([o_uip.obs_table["pointing_angle"]])
+            res = np.array([o_uip.obs_table["pointing_angle"]])
         elif str(state_element_id) == "RESSCALE":
-            return np.array([o_uip.res_scale])
+            res = np.array([o_uip.res_scale])
         elif str(state_element_id) == "CLOUDEXT":
-            return np.array(o_uip.cloud["extinction"])
+            res = np.array(o_uip.cloud["extinction"])
         elif str(state_element_id) == "PCLOUD":
-            return np.array([o_uip.cloud["pressure"]])
+            res = np.array([o_uip.cloud["pressure"]])
         elif str(state_element_id) == "OMICLOUDFRACTION":
-            return np.array([o_uip.omiPars["cloud_fraction"]])
+            res = np.array([o_uip.omiPars["cloud_fraction"]])
         elif str(state_element_id) == "OMISURFACEALBEDOUV1":
-            return np.array([o_uip.omiPars["surface_albedo_uv1"]])
+            res = np.array([o_uip.omiPars["surface_albedo_uv1"]])
         elif str(state_element_id) == "OMISURFACEALBEDOUV2":
-            return np.array([o_uip.omiPars["surface_albedo_uv2"]])
+            res = np.array([o_uip.omiPars["surface_albedo_uv2"]])
         elif str(state_element_id) == "OMISURFACEALBEDOSLOPEUV2":
-            return np.array([o_uip.omiPars["surface_albedo_slope_uv2"]])
+            res = np.array([o_uip.omiPars["surface_albedo_slope_uv2"]])
         elif str(state_element_id) == "OMINRADWAVUV1":
-            return np.array([o_uip.omiPars["nradwav_uv1"]])
+            res = np.array([o_uip.omiPars["nradwav_uv1"]])
         elif str(state_element_id) == "OMINRADWAVUV2":
-            return np.array([o_uip.omiPars["nradwav_uv2"]])
+            res = np.array([o_uip.omiPars["nradwav_uv2"]])
         elif str(state_element_id) == "OMIODWAVUV1":
-            return np.array([o_uip.omiPars["odwav_uv1"]])
+            res = np.array([o_uip.omiPars["odwav_uv1"]])
         elif str(state_element_id) == "OMIODWAVUV2":
-            return np.array([o_uip.omiPars["odwav_uv2"]])
+            res = np.array([o_uip.omiPars["odwav_uv2"]])
         elif str(state_element_id) == "OMIODWAVSLOPEUV1":
-            return np.array([o_uip.omiPars["odwav_slope_uv1"]])
+            res = np.array([o_uip.omiPars["odwav_slope_uv1"]])
         elif str(state_element_id) == "OMIODWAVSLOPEUV2":
-            return np.array([o_uip.omiPars["odwav_slope_uv2"]])
+            res = np.array([o_uip.omiPars["odwav_slope_uv2"]])
         elif str(state_element_id) == "OMIRINGSFUV1":
-            return np.array([o_uip.omiPars["ring_sf_uv1"]])
+            res = np.array([o_uip.omiPars["ring_sf_uv1"]])
         elif str(state_element_id) == "OMIRINGSFUV2":
-            return np.array([o_uip.omiPars["ring_sf_uv2"]])
+            res = np.array([o_uip.omiPars["ring_sf_uv2"]])
         elif str(state_element_id) == "TROPOMICLOUDFRACTION":
-            return np.array([o_uip.tropomiPars["cloud_fraction"]])
+            res = np.array([o_uip.tropomiPars["cloud_fraction"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND1":
-            return np.array([o_uip.tropomiPars["surface_albedo_BAND1"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_BAND1"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND2":
-            return np.array([o_uip.tropomiPars["surface_albedo_BAND2"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_BAND2"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND3":
-            return np.array([o_uip.tropomiPars["surface_albedo_BAND3"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_BAND3"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND7":
-            return np.array([o_uip.tropomiPars["surface_albedo_BAND7"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_BAND7"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOBAND3TIGHT":
-            return np.array([o_uip.tropomiPars["surface_albedo_BAND3"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_BAND3"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEBAND2":
-            return np.array([o_uip.tropomiPars["surface_albedo_slope_BAND2"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_slope_BAND2"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEBAND3":
-            return np.array([o_uip.tropomiPars["surface_albedo_slope_BAND3"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_slope_BAND3"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEBAND7":
-            return np.array([o_uip.tropomiPars["surface_albedo_slope_BAND7"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_slope_BAND7"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEBAND3TIGHT":
-            return np.array([o_uip.tropomiPars["surface_albedo_slope_BAND3"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_slope_BAND3"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND2":
-            return np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND2"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND2"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND3":
-            return np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND3"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND3"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND7":
-            return np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND7"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND7"]])
         elif str(state_element_id) == "TROPOMISURFACEALBEDOSLOPEORDER2BAND3TIGHT":
-            return np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND3"]])
+            res = np.array([o_uip.tropomiPars["surface_albedo_slope_order2_BAND3"]])
         elif str(state_element_id) == "TROPOMISOLARSHIFTBAND1":
-            return np.array([o_uip.tropomiPars["solarshift_BAND1"]])
+            res = np.array([o_uip.tropomiPars["solarshift_BAND1"]])
         elif str(state_element_id) == "TROPOMISOLARSHIFTBAND2":
-            return np.array([o_uip.tropomiPars["solarshift_BAND2"]])
+            res = np.array([o_uip.tropomiPars["solarshift_BAND2"]])
         elif str(state_element_id) == "TROPOMISOLARSHIFTBAND3":
-            return np.array([o_uip.tropomiPars["solarshift_BAND3"]])
+            res = np.array([o_uip.tropomiPars["solarshift_BAND3"]])
         elif str(state_element_id) == "TROPOMISOLARSHIFTBAND7":
-            return np.array([o_uip.tropomiPars["solarshift_BAND7"]])
+            res = np.array([o_uip.tropomiPars["solarshift_BAND7"]])
         elif str(state_element_id) == "TROPOMIRADIANCESHIFTBAND1":
-            return np.array([o_uip.tropomiPars["radianceshift_BAND1"]])
+            res = np.array([o_uip.tropomiPars["radianceshift_BAND1"]])
         elif str(state_element_id) == "TROPOMIRADIANCESHIFTBAND2":
-            return np.array([o_uip.tropomiPars["radianceshift_BAND2"]])
+            res = np.array([o_uip.tropomiPars["radianceshift_BAND2"]])
         elif str(state_element_id) == "TROPOMIRADIANCESHIFTBAND3":
-            return np.array([o_uip.tropomiPars["radianceshift_BAND3"]])
+            res = np.array([o_uip.tropomiPars["radianceshift_BAND3"]])
         elif str(state_element_id) == "TROPOMIRADIANCESHIFTBAND7":
-            return np.array([o_uip.tropomiPars["radianceshift_BAND7"]])
+            res = np.array([o_uip.tropomiPars["radianceshift_BAND7"]])
         elif str(state_element_id) == "TROPOMIRADSQUEEZEBAND1":
-            return np.array([o_uip.tropomiPars["radsqueeze_BAND1"]])
+            res = np.array([o_uip.tropomiPars["radsqueeze_BAND1"]])
         elif str(state_element_id) == "TROPOMIRADSQUEEZEBAND2":
-            return np.array([o_uip.tropomiPars["radsqueeze_BAND2"]])
+            res = np.array([o_uip.tropomiPars["radsqueeze_BAND2"]])
         elif str(state_element_id) == "TROPOMIRADSQUEEZEBAND3":
-            return np.array([o_uip.tropomiPars["radsqueeze_BAND3"]])
+            res = np.array([o_uip.tropomiPars["radsqueeze_BAND3"]])
         elif str(state_element_id) == "TROPOMIRADSQUEEZEBAND7":
-            return np.array([o_uip.tropomiPars["radsqueeze_BAND7"]])
+            res = np.array([o_uip.tropomiPars["radsqueeze_BAND7"]])
         elif str(state_element_id) == "TROPOMIRINGSFBAND1":
-            return np.array([o_uip.tropomiPars["ring_sf_BAND1"]])
+            res = np.array([o_uip.tropomiPars["ring_sf_BAND1"]])
         elif str(state_element_id) == "TROPOMIRINGSFBAND2":
-            return np.array([o_uip.tropomiPars["ring_sf_BAND2"]])
+            res = np.array([o_uip.tropomiPars["ring_sf_BAND2"]])
         elif str(state_element_id) == "TROPOMIRINGSFBAND3":
-            return np.array([o_uip.tropomiPars["ring_sf_BAND3"]])
+            res = np.array([o_uip.tropomiPars["ring_sf_BAND3"]])
         elif str(state_element_id) == "TROPOMIRINGSFBAND7":
-            return np.array([o_uip.tropomiPars["ring_sf_BAND7"]])
+            res = np.array([o_uip.tropomiPars["ring_sf_BAND7"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO0BAND2":
-            return np.array([o_uip.tropomiPars["resscale_O0_BAND2"]])
+            res = np.array([o_uip.tropomiPars["resscale_O0_BAND2"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO1BAND2":
-            return np.array([o_uip.tropomiPars["resscale_O1_BAND2"]])
+            res = np.array([o_uip.tropomiPars["resscale_O1_BAND2"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO2BAND2":
-            return np.array([o_uip.tropomiPars["resscale_O2_BAND2"]])
+            res = np.array([o_uip.tropomiPars["resscale_O2_BAND2"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO0BAND3":
-            return np.array([o_uip.tropomiPars["resscale_O0_BAND3"]])
+            res = np.array([o_uip.tropomiPars["resscale_O0_BAND3"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO1BAND3":
-            return np.array([o_uip.tropomiPars["resscale_O1_BAND3"]])
+            res = np.array([o_uip.tropomiPars["resscale_O1_BAND3"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO2BAND3":
-            return np.array([o_uip.tropomiPars["resscale_O2_BAND3"]])
+            res = np.array([o_uip.tropomiPars["resscale_O2_BAND3"]])
         elif str(state_element_id) == "TROPOMITEMPSHIFTBAND3":
-            return np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
+            res = np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO0BAND7":
-            return np.array([o_uip.tropomiPars["resscale_O0_BAND7"]])
+            res = np.array([o_uip.tropomiPars["resscale_O0_BAND7"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO1BAND7":
-            return np.array([o_uip.tropomiPars["resscale_O1_BAND7"]])
+            res = np.array([o_uip.tropomiPars["resscale_O1_BAND7"]])
         elif str(state_element_id) == "TROPOMIRESSCALEO2BAND7":
-            return np.array([o_uip.tropomiPars["resscale_O2_BAND7"]])
+            res = np.array([o_uip.tropomiPars["resscale_O2_BAND7"]])
         elif str(state_element_id) == "TROPOMITEMPSHIFTBAND7":
-            return np.array([o_uip.tropomiPars["temp_shift_BAND7"]])
+            res = np.array([o_uip.tropomiPars["temp_shift_BAND7"]])
         elif str(state_element_id) == "TROPOMITEMPSHIFTBAND3TIGHT":
-            return np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
+            res = np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
         elif str(state_element_id) == "TROPOMICLOUDSURFACEALBEDO":
-            return np.array([o_uip.tropomiPars["cloud_Surface_Albedo"]])
+            res = np.array([o_uip.tropomiPars["cloud_Surface_Albedo"]])
+        if(res is not None):
+            return res.view(FullGridMappedArray)
         # Check if it is a column
         try:
-            return self.rf_uip.atmosphere_column(str(state_element_id))
+            return self.rf_uip.atmosphere_column(str(state_element_id)).view(FullGridMappedArray)
         except ValueError:
             pass
         raise RuntimeError(f"Don't recognize {state_element_id}")
 
-    def full_state_value_str(
-        self, state_element_id: StateElementIdentifier
+    def state_value_str(
+        self, state_element_id: StateElementIdentifier | str
     ) -> str | None:
         raise NotImplementedError()
 
-    def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
+    def state_step_initial_value(
+        self, state_element_id: StateElementIdentifier| str
+    ) -> FullGridMappedArray:
         raise NotImplementedError()
 
-    def full_state_true_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
+    def state_true_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
         raise NotImplementedError()
 
-    def full_state_retrieval_initial_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
+    def state_retrieval_initial_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
         raise NotImplementedError()
 
-    def full_state_constraint_vector(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
+    def state_constraint_vector(
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray:
         raise NotImplementedError()
 
-    def full_state_apriori_covariance(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGrid2dArray:
+    def state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGrid2dArray:
         raise NotImplementedError()
 
 
@@ -1457,65 +1498,65 @@ class CurrentStateDict(CurrentState):
         raise NotImplementedError()
 
     @property
-    def full_state_element_id(self) -> list[StateElementIdentifier]:
+    def state_element_id(self) -> list[StateElementIdentifier]:
         return list(self.state_element_dict.keys())
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
         raise NotImplementedError()
 
-    def full_state_element(
-        self, state_element_id: StateElementIdentifier
+    def state_element(
+        self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
         raise NotImplementedError()
 
-    def full_state_spectral_domain_wavelength(
-        self, state_element_id: StateElementIdentifier
+    def state_spectral_domain_wavelength(
+        self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         raise NotImplementedError()
 
-    def full_state_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
+    def state_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
         v = self.state_element_dict[state_element_id]
         if isinstance(v, np.ndarray):
-            return v
+            return v.view(FullGridMappedArray)
         elif isinstance(v, list):
-            return np.array(v)
+            return np.array(v).view(FullGridMappedArray)
         return np.array(
             [
                 v,
             ]
-        )
+        ).view(FullGridMappedArray)
 
-    def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
+    def state_step_initial_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
         raise NotImplementedError()
 
-    def full_state_value_str(
-        self, state_element_id: StateElementIdentifier
+    def state_value_str(
+        self, state_element_id: StateElementIdentifier | str
     ) -> str | None:
         raise NotImplementedError()
 
-    def full_state_true_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
+    def state_true_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
         raise NotImplementedError()
 
-    def full_state_retrieval_initial_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
+    def state_retrieval_initial_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
         raise NotImplementedError()
 
-    def full_state_constraint_vector(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
+    def state_constraint_vector(
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray:
         raise NotImplementedError()
 
-    def full_state_apriori_covariance(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGrid2dArray:
+    def state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGrid2dArray:
         raise NotImplementedError()
 
 
@@ -1535,11 +1576,7 @@ class CurrentStateStateInfoOld(CurrentState):
         retrieval_info: RetrievalInfo | None = None,
         step_directory: str | os.PathLike[str] | None = None,
     ) -> None:
-        """I think we'll want to get some of the logic in
-        RetrievalInfo into this class, I'm not sure that we want this
-        as separate. But for now, include this as an argument.
-
-        The retrieval_state_element_override is an odd argument, it
+        """The retrieval_state_element_override is an odd argument, it
         overrides the retrieval_state_element_id in RetrievalInfo with a
         different set. It isn't clear why this is handled this way -
         why doesn't RetrievalInfo just figure out the right
@@ -1594,73 +1631,70 @@ class CurrentStateStateInfoOld(CurrentState):
         if self.do_systematic:
             return copy(
                 self._retrieval_info.retrieval_info_systematic().initialGuessList
-            )
+            ).view(RetrievalGridArray)
         else:
-            return copy(self._retrieval_info.initial_guess_list)
+            return copy(self._retrieval_info.initial_guess_list).view(RetrievalGridArray)
 
     @property
-    def initial_guess_fm(self) -> ForwardModelGridArray:
-        # TODO
-        # Not clear why this isn't directly calculated from initial_guess, but the
-        # values are different. For now, just have this and we can try to sort this out
+    def initial_guess_fm(self) -> FullGridArray:
         if self._retrieval_info is None:
             raise RuntimeError("_retrieval_info is None")
         if self.do_systematic:
             return copy(
                 self._retrieval_info.retrieval_info_systematic().initialGuessListFM
-            )
+            ).view(FullGridArray)
         else:
-            return copy(self._retrieval_info.initial_guess_list_fm)
+            return copy(self._retrieval_info.initial_guess_list_fm).view(FullGridArray)
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
-            return np.zeros((1, 1))
+            return np.zeros((1, 1)).view(RetrievalGrid2dArray)
         else:
             if self._retrieval_info is None:
                 raise RuntimeError("_retrieval_info is None")
-            return copy(self._retrieval_info.constraint_matrix)
+            return copy(self._retrieval_info.constraint_matrix).view(RetrievalGrid2dArray)
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
-            return np.eye(len(self.initial_guess))
+            return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
         else:
-            return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
+            return (mpy.sqrt_matrix(self.constraint_matrix)).transpose().view(RetrievalGridArray)
 
     @property
     def constraint_vector(self) -> RetrievalGridArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
-            return np.zeros((len(self.initial_guess),))
+            return np.zeros((len(self.initial_guess),)).view(RetrievalGridArray)
         else:
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
-            return copy(self.retrieval_info.constraint_vector)
+            return copy(self.retrieval_info.constraint_vector).view(RetrievalGridArray)
 
     @property
-    def constraint_vector_fm(self) -> RetrievalGridArray:
+    def constraint_vector_fm(self) -> FullGridArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
-            return np.zeros((len(self.initial_guess_fm),))
+            return np.zeros((len(self.initial_guess_fm),)).view(FullGridArray)
         else:
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
-            return copy(self.retrieval_info.retrieval_dict["constraintVectorFM"])
+            return copy(self.retrieval_info.retrieval_dict["constraintVectorFM"]).view(FullGridArray)
 
     @property
     def true_value(self) -> RetrievalGridArray:
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
-        return copy(self.retrieval_info.true_value)
+        return copy(self.retrieval_info.true_value).view(RetrievalGridArray)
 
     @property
-    def true_value_fm(self) -> ForwardModelGridArray:
+    def true_value_fm(self) -> FullGridArray:
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
-        return copy(self.retrieval_info.true_value_fm)
+        return copy(self.retrieval_info.true_value_fm).view(FullGridArray)
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
@@ -1699,7 +1733,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return self.state_info.brightness_temperature_data
 
     @property
-    def updated_fm_flag(self) -> ForwardModelGridArray:
+    def updated_fm_flag(self) -> FullGridArray:
         return self.retrieval_info.retrieval_info_obj.doUpdateFM
 
     def update_state(
@@ -1716,11 +1750,11 @@ class CurrentStateStateInfoOld(CurrentState):
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
-        current_fm: np.ndarray | None = None,
-        constraint_vector_fm: np.ndarray | None = None,
-        step_initial_fm: np.ndarray | None = None,
-        retrieval_initial_fm: np.ndarray | None = None,
-        true_value_fm: np.ndarray | None = None,
+        current_fm: FullGridMappedArray | None = None,
+        constraint_vector_fm: FullGridMappedArray | None = None,
+        step_initial_fm: FullGridMappedArray | None = None,
+        retrieval_initial_fm: FullGridMappedArray | None = None,
+        true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
         selem = self.state_info.state_element(state_element_id)
         selem.update_state(
@@ -1802,65 +1836,65 @@ class CurrentStateStateInfoOld(CurrentState):
     def sounding_metadata(self) -> SoundingMetadata:
         return self.state_info.sounding_metadata()
 
-    def full_state_element(
-        self, state_element_id: StateElementIdentifier
+    def state_element(
+        self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
         raise NotImplementedError()
 
-    def full_state_element_old(
-        self, state_element_id: StateElementIdentifier
+    def state_element_old(
+            self, state_element_id: StateElementIdentifier | str, step: str ="current"
     ) -> StateElementOld:
-        return self.state_info.state_element(state_element_id)
+        return self.state_info.state_element(state_element_id, step)
 
-    def full_state_spectral_domain_wavelength(
-        self, state_element_id: StateElementIdentifier
+    def state_spectral_domain_wavelength(
+        self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
-        selem = self.state_info.state_element(state_element_id)
+        selem = self.state_element_old(state_element_id)
         return selem.spectral_domain_wavelength
 
-    def full_state_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
-        selem = self.state_info.state_element(state_element_id)
-        return copy(selem.value)
+    def state_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
+        selem = self.state_element_old(state_element_id)
+        return copy(selem.value).view(FullGridMappedArray)
 
-    def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
-        selem = self.state_info.state_element(state_element_id, step="initial")
-        return copy(selem.value)
+    def state_step_initial_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
+        selem = self.state_element_old(state_element_id, step="initial")
+        return copy(selem.value).view(FullGridMappedArray)
 
-    def full_state_value_str(
-        self, state_element_id: StateElementIdentifier
+    def state_value_str(
+        self, state_element_id: StateElementIdentifier | str
     ) -> str | None:
-        selem = self.state_info.state_element(state_element_id)
+        selem = self.state_element_old(state_element_id)
         if not hasattr(selem, "value_str"):
             return None
         return str(selem.value_str)
 
-    def full_state_true_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
-        selem = self.state_info.state_element(state_element_id, step="true")
-        return copy(selem.value)
+    def state_true_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
+        selem = self.state_element_old(state_element_id, step="true")
+        return copy(selem.value).view(FullGridMappedArray)
 
-    def full_state_retrieval_initial_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
-        selem = self.state_info.state_element(state_element_id, step="initialInitial")
-        return copy(selem.value)
+    def state_retrieval_initial_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
+        selem = self.state_element_old(state_element_id, step="initialInitial")
+        return copy(selem.value).view(FullGridMappedArray)
 
-    def full_state_constraint_vector(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
+    def state_constraint_vector(
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray:
-        selem = self.state_info.state_element(state_element_id)
-        return copy(selem.apriori_value)
+        selem = self.state_element_old(state_element_id)
+        return copy(selem.apriori_value).view(RetrievalGridArray)
 
-    def full_state_apriori_covariance(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGrid2dArray:
-        selem = self.state_info.state_element(state_element_id)
-        return copy(selem.sa_covariance)
+    def state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGrid2dArray:
+        selem = self.state_element_old(state_element_id)
+        return copy(selem.sa_covariance).view(FullGrid2dArray)
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
@@ -1897,9 +1931,9 @@ class CurrentStateStateInfoOld(CurrentState):
         return self._retrieval_sv_loc
 
     def state_mapping(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> rf.StateMapping:
-        selem = self.full_state_element_old(state_element_id)
+        selem = self.state_element_old(state_element_id)
         mtype = selem.map_type
         if mtype == "linear":
             return rf.StateMappingLinear()
@@ -1909,35 +1943,35 @@ class CurrentStateStateInfoOld(CurrentState):
             raise RuntimeError(f"Don't recognize mtype {mtype}")
 
     def pressure_list(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
-        selem = self.full_state_element_old(state_element_id)
+        selem = self.state_element_old(state_element_id)
         if hasattr(selem, "pressureList"):
-            return selem.pressureList
+            return selem.pressureList.view(RetrievalGridArray)
         return None
 
     def pressure_list_fm(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
-        selem = self.full_state_element_old(state_element_id)
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
+        selem = self.state_element_old(state_element_id)
         if hasattr(selem, "pressureListFM"):
-            return selem.pressureListFM
+            return selem.pressureListFM.view(FullGridMappedArray)
         return None
 
     def altitude_list(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
-        selem = self.full_state_element_old(state_element_id)
+        selem = self.state_element_old(state_element_id)
         if hasattr(selem, "altitudeList"):
-            return selem.altitudeList
+            return selem.altitudeList.view(RetrievalGridArray)
         return None
 
     def altitude_list_fm(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
-        selem = self.full_state_element_old(state_element_id)
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
+        selem = self.state_element_old(state_element_id)
         if hasattr(selem, "altitudeListFM"):
-            return selem.altitudeListFM
+            return selem.altitudeListFM.view(FullGridMappedArray)
         return None
 
     # Some of these arguments may get put into the class, but for now have explicit
@@ -1953,7 +1987,7 @@ class CurrentStateStateInfoOld(CurrentState):
         from .retrieval_info import RetrievalInfo
 
         for selem_id in current_strategy_step.retrieval_elements:
-            selem = self.full_state_element_old(selem_id)
+            selem = self.state_element_old(selem_id)
             selem.update_initial_guess(current_strategy_step)
 
         self._retrieval_info = RetrievalInfo(
@@ -1964,8 +1998,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
         # Isn't really clear why RetrievalInfo is different, but for
         # now this update is needed. Without this we get different results.
-        # We should sort trough this, we don't want to go through RetrievalInfo
-        # for this.
 
         # Update state with initial guess so that the initial guess is
         # mapped properly, if doing a retrieval, for each retrieval step.
@@ -2055,4 +2087,9 @@ __all__ = [
     "CurrentStateStateInfoOld",
     "SoundingMetadata",
     "PropagatedQA",
+    "RetrievalGridArray",
+    "FullGridArray",
+    "FullGridMappedArray",
+    "RetrievalGrid2dArray",
+    "FullGrid2dArray",
 ]

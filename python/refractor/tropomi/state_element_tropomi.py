@@ -13,6 +13,9 @@ from refractor.muses import (
     InstrumentIdentifier,
     MusesTropomiObservation,
     MusesObservation,
+    FullGridMappedArray,
+    FullGrid2dArray,
+    RetrievalGrid2dArray,
 )
 import numpy as np
 from pathlib import Path
@@ -39,7 +42,7 @@ def add_handle(
     StateElementHandleSet.add_default_handle(
         StateElementOspFileHandle(
             StateElementIdentifier(sname),
-            np.array([constraint_value]),
+            np.array([constraint_value]).view(FullGridMappedArray),
             cls=cls,
             cov_is_constraint=cov_is_constraint,
         ),
@@ -236,7 +239,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:
-        constraint_vector_fm = np.array([obs.cloud_fraction])
+        constraint_vector_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
         super().__init__(
             state_element_id,
             constraint_vector_fm,
@@ -259,13 +262,13 @@ class StateElementTropomiCloudPressure(StateElementImplementation):
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:
-        constraint_vector_fm = np.array([obs.cloud_pressure.value])
+        constraint_vector_fm = np.array([obs.cloud_pressure.value]).view(FullGridMappedArray)
         super().__init__(
             state_element_id,
             constraint_vector_fm,
             constraint_vector_fm,
-            np.array([[-999.0]]),
-            np.array([[-999.0]]),
+            np.array([[-999.0]]).view(FullGrid2dArray),
+            np.array([[-999.0]]).view(RetrievalGrid2dArray),
             selem_wrapper=selem_wrapper,
         )
 
@@ -292,7 +295,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
                     ]
                 )
             ]
-        )
+        ).view(FullGridMappedArray)
         super().__init__(
             state_element_id,
             constraint_vector_fm,

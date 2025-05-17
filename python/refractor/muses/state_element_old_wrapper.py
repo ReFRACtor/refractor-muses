@@ -2,6 +2,7 @@ from __future__ import annotations
 from .state_element import StateElement, StateElementHandle
 from .identifier import StateElementIdentifier
 from .current_state import CurrentStateStateInfoOld, SoundingMetadata
+from .current_state import RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
 from loguru import logger
 import refractor.framework as rf  # type: ignore
 import numpy as np
@@ -14,13 +15,6 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from refractor.old_py_retrieve_wrapper import StateElementOld  # type: ignore
-
-# A couple of aliases, just so we can clearly mark what grid data is on
-RetrievalGridArray = np.ndarray
-ForwardModelGridArray = np.ndarray
-RetrievalGrid2dArray = np.ndarray
-ForwardModelGrid2dArray = np.ndarray
-
 
 class StateElementOldWrapper(StateElement):
     """This wraps around a CurrentStateStateInfoOld and presents the
@@ -47,7 +41,7 @@ class StateElementOldWrapper(StateElement):
     def _old_selem(self) -> StateElementOld:
         return cast(
             CurrentStateStateInfoOld, self._current_state_old
-        ).full_state_element_old(self.state_element_id)
+        ).state_element_old(self.state_element_id)
 
     # Used by error_analysis. Isn't clear if this can go away and be replaced by
     # something, but for now leave this in place
@@ -154,7 +148,7 @@ class StateElementOldWrapper(StateElement):
         return res
 
     @property
-    def altitude_list_fm(self) -> ForwardModelGridArray | None:
+    def altitude_list_fm(self) -> FullGridMappedArray | None:
         """For state elements that are on pressure level, this returns
         the altitude levels (None otherwise)"""
         res = self._current_state_old.altitude_list_fm(self.state_element_id)
@@ -174,7 +168,7 @@ class StateElementOldWrapper(StateElement):
         return res
 
     @property
-    def pressure_list_fm(self) -> ForwardModelGridArray | None:
+    def pressure_list_fm(self) -> FullGridMappedArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
         res = self._current_state_old.pressure_list_fm(self.state_element_id)
@@ -184,18 +178,16 @@ class StateElementOldWrapper(StateElement):
         return res
 
     @property
-    def value(self) -> RetrievalGridArray:
+    def value_fm(self) -> FullGridMappedArray:
         """Current value of StateElement"""
-        return self._current_state_old.full_state_element_old(
-            self.state_element_id
-        ).value.astype(float)
-
-    @property
-    def value_fm(self) -> ForwardModelGridArray:
-        """Current value of StateElement"""
-        return self._current_state_old.full_state_value(self.state_element_id).astype(
+        res = self._current_state_old.state_value(self.state_element_id).astype(
             float
         )
+        # PCLOUD is an odd one. It returns as a 2 length vector,
+        # but is actually on the first value is part of this.
+        if(self.state_element_id == StateElementIdentifier("PCLOUD")):
+            return res[0:1].view(FullGridMappedArray)
+        return res.view(FullGridMappedArray)
 
     @property
     def value_str(self) -> str | None:
@@ -209,24 +201,16 @@ class StateElementOldWrapper(StateElement):
         at least in the spirit of other StateElement. So at least for now we
         will support this, possibly reworking this in the future.
         """
-        return self._current_state_old.full_state_value_str(self.state_element_id)
+        return self._current_state_old.state_value_str(self.state_element_id)
 
     @property
-    def constraint_vector(self) -> RetrievalGridArray:
-        """Apriori value of StateElement"""
-        s = self.retrieval_slice
-        if s is not None:
-            return self._current_state_old.constraint_vector[s].astype(float)
-        raise RuntimeError("apriori only present for stuff in state vector")
-
-    @property
-    def constraint_vector_fm(self) -> ForwardModelGridArray:
+    def constraint_vector_fm(self) -> FullGridMappedArray:
         """Apriori value of StateElement"""
         if (
             self.state_element_id
             not in self._current_state_old.retrieval_state_element_id
         ):
-            res = self._current_state_old.full_state_constraint_vector(
+            res = self._current_state_old.state_constraint_vector(
                 self.state_element_id
             ).astype(float)
         else:
@@ -241,7 +225,7 @@ class StateElementOldWrapper(StateElement):
                 ).astype(float)
         # This already has map applied, so reverse to get parameters
         res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
-        return res
+        return res.view(FullGridMappedArray)
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
@@ -249,11 +233,11 @@ class StateElementOldWrapper(StateElement):
         r = self.retrieval_slice
         if r is None:
             raise RuntimeError("retrieval_slice is None")
-        return self._current_state_old.constraint_matrix[r, r].astype(float)
+        return self._current_state_old.constraint_matrix[r, r].astype(float).view(RetrievalGrid2dArray)
 
     def constraint_cross_covariance(
         self, selem2: StateElement
-    ) -> ForwardModelGrid2dArray | None:
+    ) -> RetrievalGrid2dArray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         r1 = self.retrieval_slice
@@ -268,16 +252,16 @@ class StateElementOldWrapper(StateElement):
         res = self._current_state_old.constraint_matrix[r1, r2].astype(float)
         if np.count_nonzero(res) == 0:
             return None
-        return res
+        return res.view(RetrievalGrid2dArray)
 
     @cached_property
-    def apriori_cov_fm(self) -> ForwardModelGrid2dArray:
+    def apriori_cov_fm(self) -> FullGrid2dArray:
         """Apriori Covariance"""
-        return self._old_selem.sa_covariance()[0].astype(float)
+        return self._old_selem.sa_covariance()[0].astype(float).view(FullGrid2dArray)
 
     def apriori_cross_covariance_fm(
         self, selem2: StateElement
-    ) -> ForwardModelGrid2dArray | None:
+    ) -> FullGrid2dArray | None:
         """Return the cross covariance matrix with selem 2. This returns None
         if there is no cross covariance."""
         selem_old = self._old_selem
@@ -288,54 +272,32 @@ class StateElementOldWrapper(StateElement):
         else:
             return None
         res = selem_old.sa_cross_covariance(selem2_old)
-        if res is not None:
-            res = res.astype(float)
-        return res
+        if(res is None):
+            return None
+        return res.view(FullGrid2dArray)
 
     @property
-    def retrieval_initial_value(self) -> RetrievalGridArray:
-        raise NotImplementedError()
-
-    @property
-    def retrieval_initial_value_fm(self) -> ForwardModelGridArray:
+    def retrieval_initial_value_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval."""
-        # TODO It is not clear why this isn't directly calculated from step_initial_value,
-        # but it is different. For now, we use the existing value. We will want to sort this
-        # out, this function may end up going away.
-        return self._current_state_old.full_state_retrieval_initial_value(
+        return self._current_state_old.state_retrieval_initial_value(
             self.state_element_id
-        ).astype(float)
+        ).astype(float).view(FullGridMappedArray)
 
     @property
-    def step_initial_value(self) -> RetrievalGridArray:
-        s = self.retrieval_slice
-        if s is not None:
-            return self._current_state_old.initial_guess[s].astype(float)
-        # This may have already been mapped by type, if so map back
-        res = self._current_state_old.full_state_step_initial_value(
-            self.state_element_id
-        ).astype(float)
-        res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
-        res = self.state_mapping_retrieval_to_fm.retrieval_state(
-            rf.ArrayAd_double_1(res)
-        ).value
-        return res
-
-    @property
-    def step_initial_value_fm(self) -> ForwardModelGridArray:
+    def step_initial_value_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval step."""
         s = self.fm_slice
         if s is not None:
-            return self._current_state_old.initial_guess_fm[s].astype(float)
+            return self._current_state_old.initial_guess_fm[s].astype(float).view(FullGridMappedArray)
         # This may have already been mapped by type, if so map back
-        res = self._current_state_old.full_state_step_initial_value(
+        res = self._current_state_old.state_step_initial_value(
             self.state_element_id
         ).astype(float)
         res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
-        return res
+        return res.view(FullGridMappedArray)
 
     @property
-    def true_value_fm(self) -> ForwardModelGridArray | None:
+    def true_value_fm(self) -> FullGridMappedArray | None:
         """The "true" value if known (e.g., we are running a simulation).
         "None" if we don't have a value."""
         # TODO It is not clear why this isn't directly calculated from step_initial_value,
@@ -343,19 +305,19 @@ class StateElementOldWrapper(StateElement):
         # out, this function may end up going away.
         s = self.fm_slice
         if s is not None:
-            return self._current_state_old.true_value_fm[s].astype(float)
-        res = self._current_state_old.full_state_true_value(self.state_element_id)
+            return self._current_state_old.true_value_fm[s].astype(float).view(FullGridMappedArray)
+        res = self._current_state_old.state_true_value(self.state_element_id)
         if res is None:
             return res
-        return res.astype(float)
+        return res.astype(float).view(FullGridMappedArray)
 
     def update_state_element(
         self,
-        current_fm: ForwardModelGridArray | None = None,
-        constraint_vector_fm: ForwardModelGridArray | None = None,
-        step_initial_fm: ForwardModelGridArray | None = None,
-        retrieval_initial_fm: ForwardModelGridArray | None = None,
-        true_value_fm: ForwardModelGridArray | None = None,
+        current_fm: FullGridMappedArray | None = None,
+        constraint_vector_fm: FullGridMappedArray | None = None,
+        step_initial_fm: FullGridMappedArray | None = None,
+        retrieval_initial_fm: FullGridMappedArray | None = None,
+        true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
         """Update the value of the StateElement. This function updates
         each of the various values passed in.  A value of 'None' (the
@@ -371,11 +333,11 @@ class StateElementOldWrapper(StateElement):
         )
 
     @property
-    def updated_fm_flag(self) -> ForwardModelGridArray:
+    def updated_fm_flag(self) -> FullGridMappedArray:
         r = self.fm_slice
         if r is None:
-            return np.array([], dtype=bool)
-        return self._current_state_old.updated_fm_flag[r]
+            return np.array([], dtype=bool).view(FullGridMappedArray)
+        return self._current_state_old.updated_fm_flag[r].view(FullGridMappedArray)
 
     def notify_start_step(
         self,

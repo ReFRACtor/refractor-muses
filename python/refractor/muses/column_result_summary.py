@@ -386,12 +386,12 @@ class ColumnResultSummary:
         # end for ispecie in range(0,num_species):
 
     def state_value(self, state_name: str) -> float:
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+        return self.current_state.state_value(StateElementIdentifier(state_name))[
             0
         ]
 
     def state_value_vec(self, state_name: str) -> np.ndarray:
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))
+        return self.current_state.state_value(StateElementIdentifier(state_name))
 
     @property
     def tropopause_pressure(self) -> float:

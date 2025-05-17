@@ -544,7 +544,7 @@ class RetrievalL2Output(RetrievalOutput):
                     d[f"OMI_SURFACEALBEDO{bout}"] = self.state_value(
                         f"OMISURFACEALBEDO{bout}"
                     )
-                    d[f"OMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = self.state_apriori(
+                    d[f"OMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = self.state_constraint(
                         f"OMISURFACEALBEDO{bout}"
                     )
                     if bout != "UV1":
@@ -553,7 +553,7 @@ class RetrievalL2Output(RetrievalOutput):
                             f"OMISURFACEALBEDOSLOPE{bout}"
                         )
                         d[f"OMI_SURFACEALBEDOSLOPE{bout}CONSTRAINTVECTOR"] = (
-                            self.state_apriori(f"OMISURFACEALBEDOSLOPE{bout}")
+                            self.state_constraint(f"OMISURFACEALBEDOSLOPE{bout}")
                         )
                     d[f"OMI_NRADWAV{bout}"] = self.state_value(f"OMINRADWAV{bout}")
                     d[f"OMI_ODWAV{bout}"] = self.state_value(f"OMIODWAV{bout}")
@@ -573,7 +573,7 @@ class RetrievalL2Output(RetrievalOutput):
                     d[f"OMI_ODWAV{bout}"] = 0.0
                     d[f"OMI_RINGSF{bout}"] = 0.0
             species_data.OMI_CLOUDFRACTION = self.state_value("OMICLOUDFRACTION")
-            species_data.OMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_apriori(
+            species_data.OMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_constraint(
                 "OMICLOUDFRACTION"
             )
             species_data.OMI_CLOUDTOPPRESSURE = obs.cloud_pressure.value
@@ -599,7 +599,7 @@ class RetrievalL2Output(RetrievalOutput):
                         f"TROPOMISURFACEALBEDO{bout}"
                     )
                     d[f"TROPOMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = (
-                        self.state_apriori(f"TROPOMISURFACEALBEDO{bout}")
+                        self.state_constraint(f"TROPOMISURFACEALBEDO{bout}")
                     )
                     d[f"TROPOMI_SOLARSHIFT{bout}"] = self.state_value(
                         f"TROPOMISOLARSHIFT{bout}"
@@ -619,13 +619,13 @@ class RetrievalL2Output(RetrievalOutput):
                             f"TROPOMISURFACEALBEDOSLOPE{bout}"
                         )
                         d[f"TROPOMI_SURFACEALBEDOSLOPE{bout}CONSTRAINTVECTOR"] = (
-                            self.state_apriori(f"TROPOMISURFACEALBEDOSLOPE{bout}")
+                            self.state_constraint(f"TROPOMISURFACEALBEDOSLOPE{bout}")
                         )
                         d[f"TROPOMI_SURFACEALBEDOSLOPEORDER2{bout}"] = self.state_value(
                             f"TROPOMISURFACEALBEDOSLOPEORDER2{bout}"
                         )
                         d[f"TROPOMI_SURFACEALBEDOSLOPEORDER2{bout}CONSTRAINTVECTOR"] = (
-                            self.state_apriori(f"TROPOMISURFACEALBEDOSLOPEORDER2{bout}")
+                            self.state_constraint(f"TROPOMISURFACEALBEDOSLOPEORDER2{bout}")
                         )
                     if bout == "BAND3":
                         d[f"TROPOMI_TEMPSHIFT{bout}"] = self.state_value(
@@ -657,7 +657,7 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TROPOMI_CLOUDFRACTION = self.state_value(
                 "TROPOMICLOUDFRACTION"
             )
-            species_data.TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_apriori(
+            species_data.TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR = self.state_constraint(
                 "TROPOMICLOUDFRACTION"
             )
             species_data.TROPOMI_CLOUDTOPPRESSURE = obs.cloud_pressure.value
@@ -665,7 +665,7 @@ class RetrievalL2Output(RetrievalOutput):
         # species_data.TROPOMI_EOF1 = 1.0
         species_data.SPECIES[pslice] = self.state_value_vec(self.spcname)
         species_data.INITIAL[pslice] = self.state_step_initial_value_vec(self.spcname)
-        species_data.CONSTRAINTVECTOR[pslice] = self.state_apriori_vec(self.spcname)
+        species_data.CONSTRAINTVECTOR[pslice] = self.state_constraint_vec(self.spcname)
 
         species_data.PRESSURE[pslice] = self.state_value_vec("pressure")
         species_data.CLOUDTOPPRESSURE = self.state_value("PCLOUD")
@@ -702,7 +702,7 @@ class RetrievalL2Output(RetrievalOutput):
         if len(indx) > 0:
             indx = indx[0]
 
-            species_data.SURFACETEMPCONSTRAINT = self.state_apriori("TSUR")
+            species_data.SURFACETEMPCONSTRAINT = self.state_constraint("TSUR")
 
             # AT_LINE 306 src_ms-2018-12-10/write_products_one.pro
             indy = self.current_state.retrieval_state_element_id.index(
@@ -937,7 +937,7 @@ class RetrievalL2Output(RetrievalOutput):
 
             # add H2O constraint and result
             species_data.H2O_CONSTRAINTVECTOR = copy.deepcopy(vector_of_fills)
-            species_data.H2O_CONSTRAINTVECTOR[indp] = self.state_apriori_vec("H2O")
+            species_data.H2O_CONSTRAINTVECTOR[indp] = self.state_constraint_vec("H2O")
 
             species_data.H2O_SPECIES = copy.deepcopy(vector_of_fills)
             species_data.H2O_SPECIES[indp] = self.state_value_vec("H2O")
@@ -955,7 +955,7 @@ class RetrievalL2Output(RetrievalOutput):
             )
 
         if self.state_sd_wavelength("emissivity").shape[0] > 0:
-            species_data.EMISSIVITY_CONSTRAINT = self.state_apriori_vec("emissivity")
+            species_data.EMISSIVITY_CONSTRAINT = self.state_constraint_vec("emissivity")
             species_data.EMISSIVITY_INITIAL = self.state_retrieval_initial_value_vec(
                 "emissivity"
             )
@@ -975,7 +975,7 @@ class RetrievalL2Output(RetrievalOutput):
                     "native_emissivity"
                 )
 
-            selem = self.current_state.full_state_element(
+            selem = self.current_state.state_element(
                 StateElementIdentifier("emissivity")
             )
             species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(
@@ -1023,7 +1023,7 @@ class RetrievalL2Output(RetrievalOutput):
                     )
                 )
                 species_data.N2O_SPECIES[pslice] = self.state_value_vec("N2O")
-                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec(
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_constraint_vec(
                     "N2O"
                 )
             else:
@@ -1032,7 +1032,7 @@ class RetrievalL2Output(RetrievalOutput):
                 species_data.N2O_SPECIES[pslice] = self.state_step_initial_value_vec(
                     "N2O"
                 )
-                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec(
+                species_data.N2O_CONSTRAINTVECTOR[pslice] = self.state_constraint_vec(
                     "N2O"
                 )
 
@@ -1070,7 +1070,7 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TATM_DEVIATION = 0.0
 
             species_data.TATM_SPECIES[pslice] = self.state_value_vec("TATM")
-            species_data.TATM_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec("TATM")
+            species_data.TATM_CONSTRAINTVECTOR[pslice] = self.state_constraint_vec("TATM")
 
             # AT_LINE 725 src_ms-2018-12-10/write_products_one.pro
 
@@ -1081,7 +1081,7 @@ class RetrievalL2Output(RetrievalOutput):
             )
 
             species_data.H2O_SPECIES[pslice] = self.state_value_vec("H2O")
-            species_data.H2O_CONSTRAINTVECTOR[pslice] = self.state_apriori_vec("H2O")
+            species_data.H2O_CONSTRAINTVECTOR[pslice] = self.state_constraint_vec("H2O")
 
             indp = np.where(species_data.TATM_SPECIES > 0)[0]
             maxx = np.amax(

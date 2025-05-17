@@ -85,12 +85,12 @@ class RetrievalResult:
         )
 
     def state_value(self, state_name: str) -> float:
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+        return self.current_state.state_value(StateElementIdentifier(state_name))[
             0
         ]
 
     def state_value_vec(self, state_name: str) -> np.ndarray:
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))
+        return self.current_state.state_value(StateElementIdentifier(state_name))
 
     @property
     def tropopause_pressure(self) -> float:
@@ -151,7 +151,7 @@ class RetrievalResult:
 
     @property
     def LMResults_iterList(self) -> np.ndarray:
-        res = [self.current_state.initial_guess]
+        res : list[np.ndarray] = [self.current_state.initial_guess]
         for i in range(1, self.ret_res.num_iterations + 1):
             res.append(self.ret_res.xretIterations[i, :])
         return np.vstack(res)
@@ -212,7 +212,7 @@ class RetrievalResult:
 
     @property
     def Desert_Emiss_QA(self) -> float:
-        wlen = self.current_state.full_state_spectral_domain_wavelength(
+        wlen = self.current_state.state_spectral_domain_wavelength(
             StateElementIdentifier("emissivity")
         )
         if wlen is None:
@@ -236,7 +236,7 @@ class RetrievalResult:
 
     @property
     def pressure_list_fm(self) -> np.ndarray:
-        pdata = []
+        pdata : list[np.ndarray] = []
         # Convention of muses-py is to use [-2] for items that aren't on
         # pressure levels
         for sid in self.current_state.retrieval_state_element_id:

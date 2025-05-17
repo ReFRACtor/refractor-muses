@@ -123,7 +123,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             tsurIG[row] = 0
 
         if cloudIG[row] > 0:
-            newv = cstate.full_state_value(StateElementIdentifier("cloudEffExt"))
+            newv = cstate.state_value("cloudEffExt")
             newv[:] = cloudIG[row]
             cstate.update_full_state_element(
                 StateElementIdentifier("cloudEffExt"),
@@ -134,7 +134,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         if tsurIG[row] != 0:
             # use difference in observed - fit to change TSUR.  Note, we
             # assume weak clouds.
-            newv = cstate.full_state_value(StateElementIdentifier("TSUR"))
+            newv = cstate.state_value("TSUR")
             newv = newv + btdata[step]["obs"] - btdata[step]["fit"]
             cstate.update_full_state_element(
                 StateElementIdentifier("TSUR"),

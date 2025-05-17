@@ -8,6 +8,7 @@ from refractor.muses import (
     InstrumentIdentifier,
     MusesOmiObservation,
     MusesObservation,
+    FullGridMappedArray
 )
 import numpy as np
 from pathlib import Path
@@ -32,7 +33,7 @@ def add_handle(
 ) -> None:
     StateElementHandleSet.add_default_handle(
         StateElementOspFileHandle(
-            StateElementIdentifier(sname), np.array([constraint_value]), cls=cls
+            StateElementIdentifier(sname), np.array([constraint_value]).view(FullGridMappedArray), cls=cls
         ),
         priority_order=2,
     )
@@ -59,7 +60,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
     ) -> None:
-        constraint_vector_fm = np.array([obs.cloud_fraction])
+        constraint_vector_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
         super().__init__(
             state_element_id,
             constraint_vector_fm,
@@ -121,7 +122,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
     ) -> None:
-        constraint_vector_fm = np.array([obs.monthly_minimum_surface_reflectance])
+        constraint_vector_fm = np.array([obs.monthly_minimum_surface_reflectance]).view(FullGridMappedArray)
         super().__init__(
             state_element_id,
             constraint_vector_fm,

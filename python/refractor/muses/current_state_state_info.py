@@ -2,6 +2,11 @@ from __future__ import annotations
 from . import muses_py as mpy  # type: ignore
 from .current_state import (
     CurrentState,
+    RetrievalGridArray,
+    FullGridArray,
+    FullGridMappedArray,
+    RetrievalGrid2dArray,
+    FullGrid2dArray
 )
 from .identifier import StateElementIdentifier
 from .state_element_old_wrapper import StateElementOldWrapperHandle
@@ -22,14 +27,6 @@ if typing.TYPE_CHECKING:
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
     from .state_info import StateElement
-
-
-# A couple of aliases, just so we can clearly mark what grid data is on
-RetrievalGridArray = np.ndarray
-ForwardModelGridArray = np.ndarray
-RetrievalGrid2dArray = np.ndarray
-ForwardModelGrid2dArray = np.ndarray
-
 
 class CurrentStateStateInfo(CurrentState):
     """Implementation of CurrentState that uses our StateInfo."""
@@ -99,10 +96,10 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        return res
+        return res.view(RetrievalGridArray)
 
     @property
-    def initial_guess_fm(self) -> ForwardModelGridArray:
+    def initial_guess_fm(self) -> FullGridArray:
         # TODO
         # By convention, muses-py returns a length 1 array even if we don't
         # have any retrieval_state_element_id. I think this was just to avoid
@@ -121,12 +118,12 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        return res
+        return res.view(FullGridArray)
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         if self.do_systematic:
-            return np.zeros((1, 1))
+            return np.zeros((1, 1)).view(RetrievalGrid2dArray)
         self.match_old()
         blist = [
             self._state_info[sid].constraint_matrix
@@ -148,14 +145,14 @@ class CurrentStateStateInfo(CurrentState):
             res2 = self._current_state_old.constraint_matrix
             # Need to fix
             npt.assert_allclose(res, res2)
-        return res
+        return res.view(RetrievalGrid2dArray)
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
         if self.do_systematic:
-            return np.eye(len(self.initial_guess))
+            return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
         else:
-            return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
+            return (mpy.sqrt_matrix(self.constraint_matrix)).transpose().view(RetrievalGridArray)
 
     @property
     def constraint_vector(self) -> RetrievalGridArray:
@@ -168,7 +165,7 @@ class CurrentStateStateInfo(CurrentState):
         # arrays - it is cleaner than having a "special rule". But for now, conform
         # to the convention
         if len(self.retrieval_state_element_id) == 0:
-            res = np.zeros((1,))
+            res = np.zeros((1,)).view(RetrievalGridArray)
         else:
             self.match_old()
             res = np.concatenate(
@@ -177,10 +174,10 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        return res
+        return res.view(RetrievalGridArray)
 
     @property
-    def constraint_vector_fm(self) -> RetrievalGridArray:
+    def constraint_vector_fm(self) -> FullGridArray:
         # TODO
         # By convention, muses-py returns a length 1 array even if we don't
         # have any retrieval_state_element_id. I think this was just to avoid
@@ -199,12 +196,12 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        return res
+        return res.view(FullGridArray)
 
     @property
     def true_value(self) -> RetrievalGridArray:
         # Note muses_py always has a true value vector, even if we don't have
-        # a true value (so full_state_true_value is None). It just puts zeros
+        # a true value (so state_true_value is None). It just puts zeros
         # in for any missing data.
         res = np.zeros(
             (
@@ -218,12 +215,12 @@ class CurrentStateStateInfo(CurrentState):
             tvalue = self._state_info[sid].true_value
             if tvalue is not None:
                 res[self.retrieval_sv_slice(sid)] = tvalue
-        return res
+        return res.view(RetrievalGridArray)
 
     @property
-    def true_value_fm(self) -> ForwardModelGridArray:
+    def true_value_fm(self) -> FullGridArray:
         # Note muses_py always has a true value vector, even if we don't have
-        # a true value (so full_state_true_value is None). It just puts zeros
+        # a true value (so state_true_value is None). It just puts zeros
         # in for any missing data.
         res = np.zeros(
             (
@@ -237,7 +234,7 @@ class CurrentStateStateInfo(CurrentState):
             tvalue = self._state_info[sid].true_value_fm
             if tvalue is not None:
                 res[self.fm_sv_slice(sid)] = tvalue
-        return res
+        return res.view(FullGridArray)
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
@@ -284,23 +281,23 @@ class CurrentStateStateInfo(CurrentState):
         return self._state_info.brightness_temperature_data
 
     @property
-    def updated_fm_flag(self) -> ForwardModelGridArray:
+    def updated_fm_flag(self) -> FullGridArray:
         self.match_old()
         return np.concatenate(
             [
                 self._state_info[sid].updated_fm_flag
                 for sid in self.retrieval_state_element_id
             ]
-        )
+        ).view(FullGridArray)
 
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
-        current_fm: np.ndarray | None = None,
-        constraint_vector_fm: np.ndarray | None = None,
-        step_initial_fm: np.ndarray | None = None,
-        retrieval_initial_fm: np.ndarray | None = None,
-        true_value_fm: np.ndarray | None = None,
+        current_fm: FullGridMappedArray | None = None,
+        constraint_vector_fm: FullGridMappedArray | None = None,
+        step_initial_fm: FullGridMappedArray | None = None,
+        retrieval_initial_fm: FullGridMappedArray | None = None,
+        true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
         self.match_old()
         self._state_info[state_element_id].update_state_element(
@@ -358,80 +355,64 @@ class CurrentStateStateInfo(CurrentState):
     def sounding_metadata(self) -> SoundingMetadata:
         return self._state_info.sounding_metadata
 
-    def full_state_element(
-        self, state_element_id: StateElementIdentifier
+    def state_element(
+        self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
         self.match_old()
-        return self._state_info[state_element_id]
+        sid = StateElementIdentifier(state_element_id) if isinstance(state_element_id, str)  else state_element_id
+        return self._state_info[sid]
 
-    def full_state_spectral_domain_wavelength(
-        self, state_element_id: StateElementIdentifier
+    def state_spectral_domain_wavelength(
+        self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
-        self.match_old()
-        sd = self._state_info[state_element_id].spectral_domain
+        sd = self.state_element(state_element_id).spectral_domain
         if sd is None:
             return None
         return sd.convert_wave(rf.Unit("nm"))
 
-    def full_state_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
-        self.match_old()
-        res = self._state_info[state_element_id].value_fm
-        return res
+    def state_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
+        res = self.state_element(state_element_id).value_fm
+        return res.view(FullGridMappedArray)
 
-    def full_state_step_initial_value(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
-        self.match_old()
-        res = self._state_info[state_element_id].step_initial_value_fm
-        if use_map:
-            res = (
-                self._state_info[state_element_id]
-                .state_mapping.mapped_state(rf.ArrayAd_double_1(res))
-                .value
-            )
-        return res
+    def state_step_initial_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
+        res = self.state_element(state_element_id).step_initial_value_fm
+        return res.view(FullGridMappedArray)
 
-    def full_state_value_str(
-        self, state_element_id: StateElementIdentifier
+    def state_value_str(
+        self, state_element_id: StateElementIdentifier | str
     ) -> str | None:
-        self.match_old()
-        return self._state_info[state_element_id].value_str
-
-    def full_state_true_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
-        self.match_old()
-        res = self._state_info[state_element_id].true_value_fm
+        res = self.state_element(state_element_id).value_str
         return res
 
-    def full_state_retrieval_initial_value(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray:
-        self.match_old()
-        res = self._state_info[state_element_id].retrieval_initial_value_fm
-        return res
+    def state_true_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
+        res = self.state_element(state_element_id).true_value_fm
+        if(res is None):
+            return None
+        return res.view(FullGridMappedArray)
 
-    def full_state_constraint_vector(
-        self, state_element_id: StateElementIdentifier, use_map: bool = False
-    ) -> ForwardModelGridArray:
-        self.match_old()
-        res = self._state_info[state_element_id].constraint_vector_fm
-        if use_map:
-            res = (
-                self._state_info[state_element_id]
-                .state_mapping.mapped_state(rf.ArrayAd_double_1(res))
-                .value
-            )
-        return res
+    def state_retrieval_initial_value(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
+        res = self.state_element(state_element_id).retrieval_initial_value_fm
+        return res.view(FullGridMappedArray)
 
-    def full_state_apriori_covariance(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGrid2dArray:
-        self.match_old()
-        res = self._state_info[state_element_id].apriori_cov_fm
-        return res
+    def state_constraint_vector(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> RetrievalGridArray:
+        res = self.state_element(state_element_id).constraint_vector_fm
+        return res.view(RetrievalGridArray)
+
+    def state_apriori_covariance(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGrid2dArray:
+        res = self.state_element(state_element_id).apriori_cov_fm
+        return res.view(FullGrid2dArray)
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
@@ -461,28 +442,36 @@ class CurrentStateStateInfo(CurrentState):
         return self._retrieval_sv_loc
 
     def pressure_list(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
-        self.match_old()
-        return self._state_info[state_element_id].pressure_list
+        res = self.state_element(state_element_id).pressure_list
+        if(res is None):
+            return None
+        return res.view(RetrievalGridArray)
 
     def pressure_list_fm(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
-        self.match_old()
-        return self._state_info[state_element_id].pressure_list_fm
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
+        res = self.state_element(state_element_id).pressure_list_fm
+        if(res is None):
+            return None
+        return res.view(FullGridMappedArray)
 
     def altitude_list(
-        self, state_element_id: StateElementIdentifier
+        self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
-        self.match_old()
-        return self._state_info[state_element_id].altitude_list
+        res = self.state_element(state_element_id).altitude_list
+        if(res is None):
+            return None
+        return res.view(RetrievalGridArray)
 
     def altitude_list_fm(
-        self, state_element_id: StateElementIdentifier
-    ) -> ForwardModelGridArray | None:
-        self.match_old()
-        return self._state_info[state_element_id].altitude_list_fm
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray | None:
+        res = self.state_element(state_element_id).altitude_list_fm
+        if(res is None):
+            return None
+        return res.view(FullGridMappedArray)
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:

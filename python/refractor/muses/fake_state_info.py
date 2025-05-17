@@ -46,7 +46,7 @@ class FakeStateInfo:
             for obs in obs_list:
                 obs_dict[obs.instrument_name] = obs
 
-        self._current["PCLOUD"] = current_state.full_state_value(
+        self._current["PCLOUD"] = current_state.state_value(
             StateElementIdentifier("PCLOUD")
         )
         self._true["PCLOUD"] = np.zeros(self._current["PCLOUD"].shape)
@@ -117,28 +117,28 @@ class FakeStateInfo:
             ]
 
         self._num_species = len(self._species)
-        t = current_state.full_state_value(StateElementIdentifier("TATM"))
+        t = current_state.state_value(StateElementIdentifier("TATM"))
         varr = np.zeros((len(self._species), t.shape[0]))
         varr2 = np.zeros((len(self._species), t.shape[0]))
         varr3 = np.zeros((len(self._species), t.shape[0]))
         varr4 = np.zeros((len(self._species), t.shape[0]))
         self._true["values"] = np.full((len(self._species), t.shape[0]), -999.0)
         for s in self._species:
-            varr[self.species.index(s), :] = current_state.full_state_value(
+            varr[self.species.index(s), :] = current_state.state_value(
                 StateElementIdentifier(s)
             )
             varr2[self.species.index(s), :] = (
-                current_state.full_state_constraint_vector(
-                    StateElementIdentifier(s), use_map=True
+                current_state.state_constraint_vector(
+                    StateElementIdentifier(s)
                 )
             )
             varr3[self.species.index(s), :] = (
-                current_state.full_state_step_initial_value(
-                    StateElementIdentifier(s), use_map=True
+                current_state.state_step_initial_value(
+                    StateElementIdentifier(s)
                 )
             )
             varr4[self.species.index(s), :] = (
-                current_state.full_state_retrieval_initial_value(
+                current_state.state_retrieval_initial_value(
                     StateElementIdentifier(s)
                 )
             )
@@ -147,29 +147,29 @@ class FakeStateInfo:
         self._constraint["values"] = varr2
         self._initial["values"] = varr3
         self._initial_initial["values"] = varr4
-        self._current["pressure"] = current_state.full_state_value(
+        self._current["pressure"] = current_state.state_value(
             StateElementIdentifier("pressure")
         )
         self._num_pressures = self._current["pressure"].shape[0]
-        self._constraint["pressure"] = current_state.full_state_constraint_vector(
-            StateElementIdentifier("pressure"), use_map=True
+        self._constraint["pressure"] = current_state.state_constraint_vector(
+            StateElementIdentifier("pressure")
         )
-        self._initial["pressure"] = current_state.full_state_step_initial_value(
-            StateElementIdentifier("pressure"), use_map=True
+        self._initial["pressure"] = current_state.state_step_initial_value(
+            StateElementIdentifier("pressure")
         )
         self._initial_initial["pressure"] = (
-            current_state.full_state_retrieval_initial_value(
+            current_state.state_retrieval_initial_value(
                 StateElementIdentifier("pressure")
             )
         )
-        self._true["pressure"] = current_state.full_state_true_value(
+        self._true["pressure"] = current_state.state_true_value(
             StateElementIdentifier("pressure")
         )
 
-        self._constraint["TSUR"] = current_state.full_state_constraint_vector(
-            StateElementIdentifier("TSUR"), use_map=True
+        self._constraint["TSUR"] = current_state.state_constraint_vector(
+            StateElementIdentifier("TSUR")
         )[0]
-        self._gmao_tropopause_pressure = current_state.full_state_value(
+        self._gmao_tropopause_pressure = current_state.state_value(
             StateElementIdentifier("gmaoTropopausePressure")
         )[0]
         self._cloud_pars: dict[str, Any] = {}
@@ -177,12 +177,12 @@ class FakeStateInfo:
         # this to 'no' is never active.
         self._cloud_pars["use"] = "yes"
         self._cloud_pars["frequency"] = (
-            current_state.full_state_spectral_domain_wavelength(
+            current_state.state_spectral_domain_wavelength(
                 StateElementIdentifier("cloudEffExt")
             )
         )
         self._cloud_pars["num_frequencies"] = self._cloud_pars["frequency"].shape[0]
-        self._current["cloudEffExt"] = current_state.full_state_value(
+        self._current["cloudEffExt"] = current_state.state_value(
             StateElementIdentifier("cloudEffExt")
         )
         self._true["cloudEffExt"] = np.zeros(self._current["cloudEffExt"].shape)
@@ -191,16 +191,16 @@ class FakeStateInfo:
         # this to 'no' is never active.
         self._emis_pars["use"] = "yes"
         self._emis_pars["frequency"] = (
-            current_state.full_state_spectral_domain_wavelength(
+            current_state.state_spectral_domain_wavelength(
                 StateElementIdentifier("emissivity")
             )
         )
         self._emis_pars["num_frequencies"] = self._emis_pars["frequency"].shape[0]
-        self._current["emissivity"] = current_state.full_state_value(
+        self._current["emissivity"] = current_state.state_value(
             StateElementIdentifier("emissivity")
         )
-        self._constraint["emissivity"] = current_state.full_state_constraint_vector(
-            StateElementIdentifier("emissivity"), use_map=True
+        self._constraint["emissivity"] = current_state.state_constraint_vector(
+            StateElementIdentifier("emissivity")
         )
         self._true["emissivity"] = np.zeros(self._current["emissivity"].shape)
         self._calibration_pars: dict[str, Any] = {}
@@ -208,23 +208,23 @@ class FakeStateInfo:
         # this to 'yes' is never active.
         self._calibration_pars["use"] = "no"
         self._calibration_pars["frequency"] = (
-            current_state.full_state_spectral_domain_wavelength(
+            current_state.state_spectral_domain_wavelength(
                 StateElementIdentifier("calibrationScale")
             )
         )
         self._calibration_pars["num_frequencies"] = self._calibration_pars[
             "frequency"
         ].shape[0]
-        self._current["calibrationScale"] = current_state.full_state_value(
+        self._current["calibrationScale"] = current_state.state_value(
             StateElementIdentifier("calibrationScale")
         )
-        self._current["calibrationOffset"] = current_state.full_state_value(
+        self._current["calibrationOffset"] = current_state.state_value(
             StateElementIdentifier("calibrationOffset")
         )
         self._true["calibrationScale"] = np.zeros(
             self._current["calibrationScale"].shape
         )
-        self._current["residualScale"] = current_state.full_state_value(
+        self._current["residualScale"] = current_state.state_value(
             StateElementIdentifier("residualScale")
         )
         self._current["airs"] = self.default_airs()
@@ -540,7 +540,7 @@ class FakeStateInfo:
 
     def state_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+        return self.current_state.state_value(StateElementIdentifier(state_name))[
             0
         ]
 

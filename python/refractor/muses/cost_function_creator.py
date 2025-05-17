@@ -4,6 +4,7 @@ from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 from .current_state import CurrentState, CurrentStateUip
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
+from .current_state import RetrievalGridArray
 import refractor.framework as rf  # type: ignore
 import copy
 from loguru import logger
@@ -202,7 +203,7 @@ class CostFunctionCreator:
             for sid in current_state.retrieval_state_element_id:
                 cfunc.max_a_posteriori.add_observer(
                     CostFunctionStateElementNotify(
-                        current_state.full_state_element(sid),
+                        current_state.state_element(sid),
                         cast(slice, current_state.retrieval_sv_slice(sid)),
                     )
                 )
@@ -235,8 +236,8 @@ class CostFunctionCreator:
         list[rf.ForwardModel],
         list[rf.Observation],
         rf.StateVector,
-        np.ndarray,
-        np.ndarray,
+        RetrievalGridArray,
+        RetrievalGridArray,
         rf.StateMapping,
     ]:
         self.obs_list = []
@@ -285,10 +286,10 @@ class CostFunctionCreator:
             # places. This was probably to avoid zero size arrays, but there isn't
             # any actually problem in python with those. But for now, fit muses-py
             # convention
-            retrieval_sv_apriori = np.zeros((current_state.fm_state_vector_size,))
+            retrieval_sv_apriori = np.zeros((current_state.fm_state_vector_size,)).view(RetrievalGridArray)
             retrieval_sv_sqrt_constraint = np.zeros(
                 (current_state.fm_state_vector_size, current_state.fm_state_vector_size)
-            )
+            ).view(RetrievalGridArray)
             smap = rf.StateMappingLinear()
         else:
             smap = current_state.state_mapping_retrieval_to_fm

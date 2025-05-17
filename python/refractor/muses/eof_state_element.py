@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .identifier import StateElementIdentifier
 from .state_element import StateElementImplementation, StateElementHandle, StateElement
+from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
 import numpy as np
 import typing
 
@@ -17,12 +18,12 @@ class OmiEofStateElement(StateElementImplementation):
         number_eof: int = 3,
     ) -> None:
         self.number_eof = number_eof
-        value = np.zeros(number_eof)
-        apriori_value = value.copy()
-        constraint_matrix = np.diag([10 * 10.0] * self.number_eof)
-        apriori_cov_fm = np.diag([0.1 * 0.1] * self.number_eof)
+        value = np.zeros(number_eof).view(FullGridMappedArray)
+        constraint_value = value.copy().view(FullGridMappedArray)
+        constraint_matrix = np.diag([10 * 10.0] * self.number_eof).view(RetrievalGrid2dArray)
+        apriori_cov_fm = np.diag([0.1 * 0.1] * self.number_eof).view(FullGrid2dArray)
         super().__init__(
-            state_element_id, value, apriori_value, apriori_cov_fm, constraint_matrix
+            state_element_id, value, constraint_value, apriori_cov_fm, constraint_matrix
         )
 
 

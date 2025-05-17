@@ -7,6 +7,7 @@ from .muses_levmar_solver import MusesLevmarSolver
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
 from .identifier import RetrievalType, ProcessLocation
+from .current_state import RetrievalGridArray
 import numpy as np
 import json
 import gzip
@@ -250,7 +251,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             raise RuntimeError("self.cfunc should not be None")
         # self.cfunc.parameters set to the best iteration solution in MusesLevmarSolver
         rs.current_strategy_step.notify_step_solution(
-            rs.current_state, self.cfunc.parameters
+            rs.current_state, self.cfunc.parameters.view(RetrievalGridArray)
         )
         logger.info("\n---")
         logger.info(str(rs.strategy_step))

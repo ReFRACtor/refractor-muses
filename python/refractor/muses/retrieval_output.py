@@ -157,52 +157,52 @@ class RetrievalOutput:
 
     def state_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+        return self.current_state.state_value(StateElementIdentifier(state_name))[
             0
         ]
 
     def state_value_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))
+        return self.current_state.state_value(StateElementIdentifier(state_name))
 
-    def state_apriori_vec(self, state_name: str) -> np.ndarray:
+    def state_constraint_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_constraint_vector(
-            StateElementIdentifier(state_name), use_map=True
+        return self.current_state.state_constraint_vector(
+            StateElementIdentifier(state_name)
         )
 
-    def state_apriori(self, state_name: str) -> float:
+    def state_constraint(self, state_name: str) -> float:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_constraint_vector(
+        return self.current_state.state_constraint_vector(
             StateElementIdentifier(state_name)
         )[0]
 
     def state_step_initial_value_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_step_initial_value(
-            StateElementIdentifier(state_name), use_map=True
+        return self.current_state.state_step_initial_value(
+            StateElementIdentifier(state_name)
         )
 
     def state_retrieval_initial_value_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_retrieval_initial_value(
+        return self.current_state.state_retrieval_initial_value(
             StateElementIdentifier(state_name)
         )
 
     def state_step_initial_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
-        return self.current_state.full_state_step_initial_value(
+        return self.current_state.state_step_initial_value(
             StateElementIdentifier(state_name)
         )[0]
 
     def state_sd_wavelength(self, state_name: str) -> np.ndarray:
         """Get the spectral domain wavelength in nm for state element"""
-        t = self.current_state.full_state_spectral_domain_wavelength(
+        t = self.current_state.state_spectral_domain_wavelength(
             StateElementIdentifier(state_name)
         )
         if t is None:
             raise RuntimeError(
-                f"{state_name} doesn't have full_state_spectral_domain_wavelength"
+                f"{state_name} doesn't have state_spectral_domain_wavelength"
             )
         return t
 
@@ -864,7 +864,7 @@ class CdfWriteTes:
         # StateElement that weren't originally in muses-py.
 
         for sid in state_element_out:
-            v = current_state.full_state_value(sid)
+            v = current_state.state_value(sid)
             # For simplicity, value is always a numpy array. If it is size 1,
             # we want to pull this out so the data is written in netcdf as
             # a scalar rather than a array of size 1

@@ -70,7 +70,7 @@ class CloudResultSummary:
             # cloud not retrieved... use 975-1200
             # NOTE: code has not been tested.
             cov = None
-            selem = self.current_state.full_state_element(
+            selem = self.current_state.state_element(
                 StateElementIdentifier("CLOUDEXT")
             )
             if selem is not None and selem.pressure_list_fm is not None:
@@ -235,7 +235,7 @@ class CloudResultSummary:
 
     @property
     def cloudODAve(self) -> float:
-        freq = self.current_state.full_state_spectral_domain_wavelength(
+        freq = self.current_state.state_spectral_domain_wavelength(
             StateElementIdentifier("cloudEffExt")
         )
         if freq is None:
@@ -285,12 +285,12 @@ class CloudResultSummary:
         return self._DeviationBad_QA
 
     def state_value(self, state_name: str) -> float:
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))[
+        return self.current_state.state_value(StateElementIdentifier(state_name))[
             0
         ]
 
     def state_value_vec(self, state_name: str) -> np.ndarray:
-        return self.current_state.full_state_value(StateElementIdentifier(state_name))
+        return self.current_state.state_value(StateElementIdentifier(state_name))
 
     @property
     def cloud_factor(self) -> float:

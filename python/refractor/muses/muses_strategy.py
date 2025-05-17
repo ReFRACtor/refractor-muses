@@ -10,10 +10,10 @@ from .identifier import (
     StrategyStepIdentifier,
     IdentifierSortByWaveLength,
 )
+from .current_state import RetrievalGridArray
 import os
 import abc
 import typing
-import numpy as np
 import copy
 from collections import defaultdict
 from typing import Any, cast
@@ -24,13 +24,6 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .spectral_window_handle import SpectralWindowHandleSet
     from .retrieval_strategy import RetrievalStrategy
-
-# A couple of aliases, just so we can clearly mark what grid data is on
-RetrievalGridArray = np.ndarray
-ForwardModelGridArray = np.ndarray
-RetrievalGrid2dArray = np.ndarray
-ForwardModelGrid2dArray = np.ndarray
-
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     """This contains information about the current strategy step."""
@@ -170,9 +163,9 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
     def notify_step_solution(
         self, current_state: CurrentState, xsol: RetrievalGridArray
     ) -> None:
-        current_state.notify_step_solution(xsol)
+        current_state.notify_step_solution(xsol.view(RetrievalGridArray))
         for selem_id in self.current_strategy_step_dict["update_constraint_elements"]:
-            v = current_state.full_state_value(selem_id)
+            v = current_state.state_value(selem_id)
             current_state.update_full_state_element(selem_id, constraint_vector_fm=v)
 
     def muses_microwindows_fname(self) -> str:
