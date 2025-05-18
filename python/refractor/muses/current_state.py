@@ -252,35 +252,103 @@ class SoundingMetadata:
 
 class RetrievalGridArray(np.ndarray):
     '''Data in the retrieval state vector. Unmapped (e.g., might be log(vmr)).
-    Generally smaller number of levels than FullGridArray
+    Generally smaller number of levels than FullGridArray.
 
-    See CurrentState for a description of the various state vectors.'''
-    pass
+    Note that while you can use a np.ndarray constructor, most of the
+    time we get numpy arrays from other functions (e.g. np.zeros,
+    np.array).  Numpy has support for this, see
+    https://numpy.org/doc/stable/user/basics.subclassing.html.  We can
+    use "view casting", basically just tack on
+    "view(RetrievalGridArray)" to an array (see
+    https://numpy.org/doc/2.2/reference/generated/numpy.ndarray.view.html).
+    This adds type information to the numpy array, which is actually a
+    bit closer to what we want anyways. We really just want a normal
+    numpy array with additional labeling saying what kind of data it
+    has.
 
+    Numpy can "forget" the type as you do various operations, in
+    particular passing this into framework C++ objects. This is
+    generally fine, these labels are useful in CurrentState and
+    related classes, but once we for example get to the ForwardModel
+    everything goes through the StateVector which is always
+    RetrievalGridArray or FullGridArray (depending on where in the
+    cost function).  Labeling it isn't particularly useful at that
+    point.
+
+    See CurrentState for a description of the various state vectors.
+
+    '''
+    def to_full(self, state_mapping_retrieval_to_fm: rf.StateMapping) -> FullGridArray:
+        # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
+        # work directly with numpy, but is it easy enough for us just to route this this
+        # class
+        return state_mapping_retrieval_to_fm.mapped_state(rf.ArrayAd_double_1(self)).value.view(FullGridArray)
+
+    def to_fm(self, state_mapping_retrieval_to_fm: rf.StateMapping, state_mapping: rf.StateMapping) -> FullGridMappedArray:
+        # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
+        # work directly with numpy, but is it easy enough for us just to route this this
+        # class
+        return state_mapping.mapped_state(state_mapping_retrieval_to_fm.mapped_state(rf.ArrayAd_double_1(self))).value.view(FullGridMappedArray)
+    
 class FullGridArray(np.ndarray):
     '''Data in the forward model state vector/full state vector.
     Unmapped (e.g., might be log(vmr)). Generally more levels than RetrievalGridArray.
 
+    See discussion in RetrievalGridArray about adding this type to a numpy array.
+
     See CurrentState for a description of the various state vectors.'''
-    pass
+    def to_ret(self, state_mapping_retrieval_to_fm: rf.StateMapping) -> RetrievalGridArray:
+        # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
+        # work directly with numpy, but is it easy enough for us just to route this this
+        # class
+        return state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(self)).value.view(RetrievalGridArray)
+
+    def to_fm(self, state_mapping: rf.StateMapping) -> FullGridMappedArray:
+        # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
+        # work directly with numpy, but is it easy enough for us just to route this this
+        # class
+        return state_mapping.mapped_state(rf.ArrayAd_double_1(self)).value.view(FullGridMappedArray)
 
 class FullGridMappedArray(np.ndarray):
     '''Data in in the forward model state vector/full state vector.
     Mapped (e.g., log(vmr) is converted to VMR).
     
-    See CurrentState for a description of the various state vectors.'''
-    pass
+    See discussion in RetrievalGridArray about adding this type to a
+    numpy array.
+    
+    See CurrentState for a description of the various state vectors.
 
+    '''
+    def to_full(self, state_mapping: rf.StateMapping) -> FullGridArray:
+        # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
+        # work directly with numpy, but is it easy enough for us just to route this this
+        # class
+        return state_mapping.retrieval_state(rf.ArrayAd_double_1(self)).value.view(FullGridArray)
+
+    def to_ret(self, state_mapping_retrieval_to_fm: rf.StateMapping, state_mapping: rf.StateMapping) -> RetrievalGridArray:
+        # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
+        # work directly with numpy, but is it easy enough for us just to route this this
+        # class
+        return state_mapping_retrieval_to_fm.retrieval_state(state_mapping.retrieval_state(rf.ArrayAd_double_1(self))).value.view(RetrievalGridArray)
+    
 class RetrievalGrid2dArray(np.ndarray):
     '''2d matrix going with RetrievalGridArray (e.g., the constraint matrix). This
     is unmapped (TODO Check this, I'm pretty sure this is true)
 
-    See CurrentState for a description of the various state vectors.'''
+    See discussion in RetrievalGridArray about adding this type to a
+    numpy array.
+
+    See CurrentState for a description of the various state vectors.
+
+    '''
     pass
 
 class FullGrid2dArray(np.ndarray):
     '''2d matrix going with FullGridArray (e.g. the apriori matrix).
 
+    See discussion in RetrievalGridArray about adding this type to a
+    numpy array.
+    
     TODO - Is this mapped or unmapped? Not sure, we should track down. If mapped,
     we might want to rename this.
 
@@ -319,7 +387,8 @@ class CurrentState(object, metaclass=abc.ABCMeta):
        objects making up our ForwardModel and Observation needs. This
        includes a number of things held fixed in a particular
        retrieval step. This is a super set of the "forward model state vector",
-       so it has all the contents of the forward model plus extra stuff.
+       so it has all the contents of the forward model plus extra stuff needed
+       by the model but not being varies as part of the CostFunction.
        This is unmapped (e.g., it might be log(vmr)).
 
     4. the "full state vector mapped" is the "full state vector" but with
