@@ -34,9 +34,9 @@ def test_tropomi_cloud_fraction_state_element(osp_dir, joint_tropomi_obs_step_12
         covariance_directory,
     )
     vexpect = np.array([0.219607874751091])
-    npt.assert_allclose(selem.value, vexpect)
-    npt.assert_allclose(selem.step_initial_value, vexpect)
-    npt.assert_allclose(selem.retrieval_initial_value, vexpect)
+    npt.assert_allclose(selem.value_fm, vexpect)
+    npt.assert_allclose(selem.step_initial_fm, vexpect)
+    npt.assert_allclose(selem.retrieval_initial_fm, vexpect)
 
 
 def test_tropomi_cloud_pressure_state_element(osp_dir, joint_tropomi_obs_step_12):
@@ -46,9 +46,9 @@ def test_tropomi_cloud_pressure_state_element(osp_dir, joint_tropomi_obs_step_12
         tropomi_obs,
     )
     vexpect = np.array([642.80609375])
-    npt.assert_allclose(selem.value, vexpect)
-    npt.assert_allclose(selem.step_initial_value, vexpect)
-    npt.assert_allclose(selem.retrieval_initial_value, vexpect)
+    npt.assert_allclose(selem.value_fm, vexpect)
+    npt.assert_allclose(selem.step_initial_fm, vexpect)
+    npt.assert_allclose(selem.retrieval_initial_fm, vexpect)
 
 
 def test_tropomi_surface_alebdo_band7_state_element(tropomi_swir, josh_osp_dir):
@@ -96,9 +96,9 @@ def test_tropomi_surface_alebdo_band7_state_element(tropomi_swir, josh_osp_dir):
             0.061612524825922714,
         ]
     )
-    npt.assert_allclose(selem.value, vexpect)
-    npt.assert_allclose(selem.step_initial_value, vexpect)
-    npt.assert_allclose(selem.retrieval_initial_value, vexpect)
+    npt.assert_allclose(selem.value_fm, vexpect)
+    npt.assert_allclose(selem.step_initial_fm, vexpect)
+    npt.assert_allclose(selem.retrieval_initial_fm, vexpect)
 
 
 def test_tropomi_surface_albedo_state_element(osp_dir, joint_tropomi_obs_step_12):
@@ -120,6 +120,6 @@ def test_tropomi_surface_albedo_state_element(osp_dir, joint_tropomi_obs_step_12
         band=3,
     )
     vexpect = np.array([0.04])
-    npt.assert_allclose(selem.value, vexpect)
-    npt.assert_allclose(selem.step_initial_value, vexpect)
-    npt.assert_allclose(selem.retrieval_initial_value, vexpect)
+    npt.assert_allclose(selem.value_fm, vexpect)
+    npt.assert_allclose(selem.step_initial_fm, vexpect)
+    npt.assert_allclose(selem.retrieval_initial_fm, vexpect)

@@ -130,13 +130,14 @@ class StateInfo(UserDict):
         capture tests. We will get to doing StateInfo, but for now use the old data to
         update the new data for the purpose of unit tests."""
         for k, v in self.items():
-            try:
-                v.update_state_element(
-                    current_fm=self._current_state_old.full_state_value(k),
-                    constraint_vector_fm=self._current_state_old.full_state_constraint_vector(
-                        k
-                    ),
-                )
+            try: 
+                if(self._current_state_old.state_value_str(k) is None):
+                    v.update_state_element(
+                        current_fm=self._current_state_old.state_value(k),
+                        constraint_vector_fm=self._current_state_old.state_constraint_vector(
+                            k
+                        ),
+                    )
             except NotImplementedError:
                 # Not all the old elements exist, we just skip any one that doesn't
                 pass

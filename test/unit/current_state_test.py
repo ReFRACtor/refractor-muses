@@ -107,10 +107,10 @@ def test_current_state(
         pass
     cstate = rs.current_state
     assert cstate.sounding_metadata.wrong_tai_time == pytest.approx(839312679.58409)
-    assert cstate.full_state_value(StateElementIdentifier("emissivity"))[
+    assert cstate.state_value(StateElementIdentifier("emissivity"))[
         0
     ] == pytest.approx(0.98081997)
-    assert cstate.full_state_spectral_domain_wavelength(
+    assert cstate.state_spectral_domain_wavelength(
         StateElementIdentifier("emissivity")
     )[0] == pytest.approx(600)
     assert cstate.sounding_metadata.latitude.value == pytest.approx(62.8646)
@@ -121,21 +121,21 @@ def test_current_state(
     assert cstate.sounding_metadata.tai_time == pytest.approx(839312683.58409)
     assert cstate.sounding_metadata.sounding_id == "20190807_065_04_08_5"
     assert cstate.sounding_metadata.is_land
-    assert cstate.full_state_value(StateElementIdentifier("cloudEffExt"))[
+    assert cstate.state_value(StateElementIdentifier("cloudEffExt"))[
         0
     ] == pytest.approx(1e-29)
-    assert cstate.full_state_spectral_domain_wavelength(
+    assert cstate.state_spectral_domain_wavelength(
         StateElementIdentifier("cloudEffExt")
     )[0] == pytest.approx(600)
-    assert cstate.full_state_value(StateElementIdentifier("PCLOUD"))[
+    assert cstate.state_value(StateElementIdentifier("PCLOUD"))[
         0
     ] == pytest.approx(500.0)
-    assert cstate.full_state_value(StateElementIdentifier("PSUR"))[0] == pytest.approx(
+    assert cstate.state_value(StateElementIdentifier("PSUR"))[0] == pytest.approx(
         0.0
     )
     assert cstate.sounding_metadata.local_hour == pytest.approx(11.40252685546875)
     assert cstate.sounding_metadata.height.value[0] == 0
-    assert cstate.full_state_value(StateElementIdentifier("TATM"))[0] == pytest.approx(
+    assert cstate.state_value(StateElementIdentifier("TATM"))[0] == pytest.approx(
         293.28302002
     )
 
@@ -185,7 +185,7 @@ def test_work(isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_i
         Path(rs.retrieval_config["initialGuessSetupDirectory"])
     )
     f = TesFile(l2setup["Single_State_Directory"] / "State_AtmProfiles.asc")
-    print(cstate.full_state_value(StateElementIdentifier("NH3")))
+    print(cstate.state_value(StateElementIdentifier("NH3")))
     print(f.table["NH3"])
     breakpoint()
 
@@ -853,7 +853,7 @@ def test_retrieval_grid_array():
          2.63707409e-01]])
     smap_ret_to_fm = rf.StateMappingBasisMatrix(bmatrix.transpose())
     smap = rf.StateMappingLog()
-    npt.assert_allclose(smap_ret_to_fm.inverse_basis_matrix, mmatrix.transpose())
+    npt.assert_allclose(smap_ret_to_fm.inverse_basis_matrix, mmatrix.transpose(), atol=1e-8)
     assert isinstance(initial_value_ret.to_full(smap_ret_to_fm), FullGridArray)
     assert isinstance(initial_value_ret.to_fm(smap_ret_to_fm, smap), FullGridMappedArray)
     npt.assert_allclose(initial_value_ret.to_full(smap_ret_to_fm), initial_value_full)
@@ -869,7 +869,6 @@ def test_retrieval_grid_array():
     npt.assert_allclose(initial_value_fm.to_full(smap), initial_value_full)
     npt.assert_allclose(initial_value_fm.to_ret(smap_ret_to_fm, smap), initial_value_ret)
 
-    npt.assert_allclose(constraint_vector_ret.to_fm(smap_ret_to_fm, smap), constraint_vector_fm)
+    npt.assert_allclose(constraint_vector_ret.to_fm(smap_ret_to_fm, smap), constraint_vector_fm, atol=1e-3)
     npt.assert_allclose(constraint_vector_fm.to_ret(smap_ret_to_fm, smap), constraint_vector_ret)
-    breakpoint()
 

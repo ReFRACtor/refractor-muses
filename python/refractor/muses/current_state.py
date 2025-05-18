@@ -972,7 +972,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def state_constraint_vector(
         self, state_element_id: StateElementIdentifier | str
-    ) -> RetrievalGridArray:
+    ) -> FullGridMappedArray:
         """Return the constraint vector of the given state element identification.
         Just as a convention we always return a np.array, so if
         there is only one value put that in a length 1 np.array.
@@ -1505,7 +1505,7 @@ class CurrentStateUip(CurrentState):
 
     def state_constraint_vector(
         self, state_element_id: StateElementIdentifier | str
-    ) -> RetrievalGridArray:
+    ) -> FullGridMappedArray:
         raise NotImplementedError()
 
     def state_apriori_covariance(
@@ -1575,7 +1575,7 @@ class CurrentStateDict(CurrentState):
         raise NotImplementedError()
 
     @property
-    def state_element_id(self) -> list[StateElementIdentifier]:
+    def full_state_element_id(self) -> list[StateElementIdentifier]:
         return list(self.state_element_dict.keys())
 
     @property
@@ -1628,7 +1628,7 @@ class CurrentStateDict(CurrentState):
 
     def state_constraint_vector(
         self, state_element_id: StateElementIdentifier | str
-    ) -> RetrievalGridArray:
+    ) -> FullGridMappedArray:
         raise NotImplementedError()
 
     def state_apriori_covariance(
@@ -1963,9 +1963,9 @@ class CurrentStateStateInfoOld(CurrentState):
 
     def state_constraint_vector(
         self, state_element_id: StateElementIdentifier | str
-    ) -> RetrievalGridArray:
+    ) -> FullGridMappedArray:
         selem = self.state_element_old(state_element_id)
-        return copy(selem.apriori_value).view(RetrievalGridArray)
+        return copy(selem.apriori_value).view(FullGridMappedArray)
 
     def state_apriori_covariance(
         self, state_element_id: StateElementIdentifier | str
