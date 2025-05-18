@@ -2,7 +2,7 @@ from __future__ import annotations
 from .state_element import StateElement, StateElementHandle
 from .identifier import StateElementIdentifier
 from .current_state import CurrentStateStateInfoOld, SoundingMetadata
-from .current_state import RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
+from .current_state import RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, FullGridArray
 from loguru import logger
 import refractor.framework as rf  # type: ignore
 import numpy as np
@@ -212,7 +212,7 @@ class StateElementOldWrapper(StateElement):
         ):
             res = self._current_state_old.state_constraint_vector(
                 self.state_element_id
-            ).astype(float)
+            ).astype(float).view(FullGridMappedArray)
         else:
             res = self._current_state_old.retrieval_info.species_constraint(
                 str(self.state_element_id)
@@ -223,8 +223,6 @@ class StateElementOldWrapper(StateElement):
                         res,
                     ]
                 ).astype(float)
-        # This already has map applied, so reverse to get parameters
-        res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
         return res.view(FullGridMappedArray)
 
     @property
@@ -277,18 +275,18 @@ class StateElementOldWrapper(StateElement):
         return res.view(FullGrid2dArray)
 
     @property
-    def retrieval_initial_value_fm(self) -> FullGridMappedArray:
+    def retrieval_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval."""
         return self._current_state_old.state_retrieval_initial_value(
             self.state_element_id
         ).astype(float).view(FullGridMappedArray)
 
     @property
-    def step_initial_value_fm(self) -> FullGridMappedArray:
+    def step_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval step."""
         s = self.fm_slice
         if s is not None:
-            return self._current_state_old.initial_guess_fm[s].astype(float).view(FullGridMappedArray)
+            return self._current_state_old.initial_guess_full[s].view(FullGridArray).to_fm(self.state_mapping)
         # This may have already been mapped by type, if so map back
         res = self._current_state_old.state_step_initial_value(
             self.state_element_id
@@ -300,12 +298,9 @@ class StateElementOldWrapper(StateElement):
     def true_value_fm(self) -> FullGridMappedArray | None:
         """The "true" value if known (e.g., we are running a simulation).
         "None" if we don't have a value."""
-        # TODO It is not clear why this isn't directly calculated from step_initial_value,
-        # but it is different. For now, we use the existing value. We will want to sort this
-        # out, this function may end up going away.
         s = self.fm_slice
         if s is not None:
-            return self._current_state_old.true_value_fm[s].astype(float).view(FullGridMappedArray)
+            return self._current_state_old.true_value_full[s].view(FullGridArray).to_fm(self.state_mapping)
         res = self._current_state_old.state_true_value(self.state_element_id)
         if res is None:
             return res

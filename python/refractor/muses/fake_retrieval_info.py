@@ -221,7 +221,7 @@ class FakeRetrievalInfo:
 
     @property
     def initialGuessListFM(self) -> np.ndarray:
-        return self.current_state.initial_guess_fm
+        return self.current_state.initial_guess_full
 
     @property
     def trueParameterList(self) -> np.ndarray:
@@ -229,7 +229,7 @@ class FakeRetrievalInfo:
 
     @property
     def trueParameterListFM(self) -> np.ndarray:
-        return self.current_state.true_value_fm
+        return self.current_state.true_value_full
 
     @property
     def constraintVector(self) -> np.ndarray:
@@ -237,7 +237,7 @@ class FakeRetrievalInfo:
 
     @property
     def constraintVectorListFM(self) -> np.ndarray:
-        return self.current_state.constraint_vector_fm
+        return self.current_state.constraint_vector_full
 
     @property
     def mapToParameters(self) -> np.ndarray | None:

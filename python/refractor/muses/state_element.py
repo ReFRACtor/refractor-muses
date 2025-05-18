@@ -4,7 +4,7 @@ import refractor.framework as rf  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
 from .identifier import StateElementIdentifier, RetrievalType
-from .current_state import RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
+from .current_state import RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, FullGridArray
 import abc
 from loguru import logger
 from pathlib import Path
@@ -30,8 +30,8 @@ class StateElement(object, metaclass=abc.ABCMeta):
     "pressure".
 
     A StateElement has a current value, a apriori value, a
-    retrieval_initial_value (at the start of a full multi-step retrieval)
-    and step_initial_value (at the start the current retrieval step).
+    retrieval_initial_fm (at the start of a full multi-step retrieval)
+    and step_initial_fm (at the start the current retrieval step).
     In addition, we possibly have "true" value, e.g, we know the answer
     because we are simulating data or something like that. Not
     every state element has a "true" value, is None in those cases.
@@ -91,12 +91,12 @@ class StateElement(object, metaclass=abc.ABCMeta):
     are:
 
     1. notify_start_retrieval called at the very start of a retrieval. So this can
-       do things like update the value and step_initial_value to the retrieval_initial_value.
+       do things like update the value and step_initial_fm to the retrieval_initial_fm.
     2. notify_start_step called at the start of a retrieval step. So this can do
-       things like update the value and step_initial_value to the next_step_initial_value
+       things like update the value and step_initial_fm to the next_step_initial_fm
        determined in the previous step
     3. notify_step_solution called when a retrieval step reaches a solution. This can
-       determine the step_initial_value for the next step.
+       determine the step_initial_fm for the next step.
     4. notify_parameter_update is called when the rf.StateVector in a rf.ForwardModel is updated
        (e.g., the CostFunction gets updated parameters). This is somewhat redundant with
        notify_step_solution, but it allows the StateElement to update its value for each
@@ -179,6 +179,38 @@ class StateElement(object, metaclass=abc.ABCMeta):
         the pressure levels (None otherwise)"""
         return None
 
+    @property
+    def value_ret(self) -> RetrievalGridArray:
+        return self.value_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+
+    @property
+    def value_full(self) -> FullGridArray:
+        return self.value_fm.to_full(self.state_mapping)
+
+    @property
+    def step_initial_ret(self) -> RetrievalGridArray:
+        return self.step_initial_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+
+    @property
+    def step_initial_full(self) -> FullGridArray:
+        return self.step_initial_fm.to_full(self.state_mapping)
+
+    @property
+    def retrieval_initial_ret(self) -> RetrievalGridArray:
+        return self.retrieval_initial_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+
+    @property
+    def retrieval_initial_full(self) -> FullGridArray:
+        return self.retrieval_initial_fm.to_full(self.state_mapping)
+
+    @property
+    def constraint_vector_ret(self) -> RetrievalGridArray:
+        return self.constraint_vector_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+
+    @property
+    def constraint_vector_full(self) -> FullGridArray:
+        return self.constraint_vector_fm.to_full(self.state_mapping)
+    
     @abc.abstractproperty
     def value_fm(self) -> FullGridMappedArray:
         """Current value of StateElement.
@@ -232,12 +264,12 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return None
 
     @abc.abstractproperty
-    def step_initial_value_fm(self) -> FullGridMappedArray:
+    def step_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval step."""
         raise NotImplementedError()
 
     @abc.abstractproperty
-    def retrieval_initial_value_fm(self) -> FullGridMappedArray:
+    def retrieval_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval."""
         raise NotImplementedError()
     
@@ -306,7 +338,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     ) -> None:
         """Called when a retrieval step has a solution.
 
-        A note, the initial_value shouldn't be updated yet. classes that use the results want
+        A note, the step_initial_fm shouldn't be updated yet. classes that use the results want
         to have the initial guess for *this* step, not what will be used in the next. Instead
         the initial guess should be updated in notify_start_step. We do save what the next
         initial guess should be, assuming it was updated.
@@ -406,13 +438,13 @@ class StateElementImplementation(StateElement):
         self._apriori_cov_fm = apriori_cov_fm
         self._state_mapping = state_mapping
         self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
-        self._step_initial_value_fm = (
+        self._step_initial_fm = (
             initial_value_fm if initial_value_fm is not None else constraint_vector_fm
         )
-        if self._step_initial_value_fm is not None:
-            self._retrieval_initial_value_fm = self._step_initial_value_fm.copy()
+        if self._step_initial_fm is not None:
+            self._retrieval_initial_fm = self._step_initial_fm.copy()
         else:
-            self._retrieval_initial_value_fm = None
+            self._retrieval_initial_fm = None
         self._true_value_fm = true_value_fm
         self._value_str = value_str
         if apriori_cov_fm is not None:
@@ -421,7 +453,7 @@ class StateElementImplementation(StateElement):
             self._updated_fm_flag = None
         self._retrieved_this_step = False
         self._initial_guess_not_updated = False
-        self._next_step_initial_value_fm: FullGridMappedArray | None = None
+        self._next_step_initial_fm: FullGridMappedArray | None = None
         # Temp, until we have tested everything out
         self._sold = selem_wrapper
         self._copy_on_first_use = copy_on_first_use
@@ -526,12 +558,8 @@ class StateElementImplementation(StateElement):
             and self._sold is not None
         ):
             return self._sold.constraint_vector_fm
-            self._constraint_vector_fm = self.state_mapping.mapped_state(
-                rf.ArrayAd_double_1(self._sold.constraint_vector_fm)
-            ).value
-        res = self.state_mapping.retrieval_state(
-            rf.ArrayAd_double_1(self._constraint_vector_fm)
-        ).value
+            self._constraint_vector_fm = self._sold.constraint_vector_fm
+        res = self._constraint_vector_fm
         if self._sold is not None:
             try:
                 res2 = self._sold.constraint_vector_fm
@@ -589,37 +617,37 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
-    def retrieval_initial_value_fm(self) -> FullGridMappedArray:
+    def retrieval_initial_fm(self) -> FullGridMappedArray:
         if (
-            self._retrieval_initial_value_fm is None
+            self._retrieval_initial_fm is None
             and self._copy_on_first_use
             and self._sold is not None
         ):
-            return self._sold.retrieval_initial_value_fm
-            self._retrieval_initial_value_fm = (
-                self._sold.retrieval_initial_value_fm.copy()
+            return self._sold.retrieval_initial_fm
+            self._retrieval_initial_fm = (
+                self._sold.retrieval_initial_fm.copy()
             )
-        res = self._retrieval_initial_value_fm
+        res = self._retrieval_initial_fm
         if self._sold is not None:
-            res2 = self._sold.retrieval_initial_value_fm
+            res2 = self._sold.retrieval_initial_fm
             npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
 
     @property
-    def step_initial_value_fm(self) -> FullGridMappedArray:
+    def step_initial_fm(self) -> FullGridMappedArray:
         if (
-            self._step_initial_value_fm is None
+            self._step_initial_fm is None
             and self._copy_on_first_use
             and self._sold is not None
         ):
             if(self.state_element_id == StateElementIdentifier("H2O")):
                 breakpoint()
-            return self._sold.step_initial_value_fm
-            self._step_initial_value_fm = self._sold.step_initial_value_fm.copy()
-        res = self._step_initial_value_fm
+            return self._sold.step_initial_fm
+            self._step_initial_fm = self._sold.step_initial_fm.copy()
+        res = self._step_initial_fm
         if self._sold is not None:
-            res2 = self._sold.step_initial_value_fm
+            res2 = self._sold.step_initial_fm
             npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
@@ -713,11 +741,11 @@ class StateElementImplementation(StateElement):
             if(self._constraint_vector_fm is not None):
                 self._constraint_vector_fm = constraint_vector_fm
         if step_initial_fm is not None:
-            if(self._step_initial_value_fm is not None):
-                self._step_initial_value_fm = step_initial_fm
+            if(self._step_initial_fm is not None):
+                self._step_initial_fm = step_initial_fm
         if retrieval_initial_fm is not None:
-            if(self._retrieval_initial_value_fm is not None):
-                self._retrieval_initial_value_fm = retrieval_initial_fm
+            if(self._retrieval_initial_fm is not None):
+                self._retrieval_initial_fm = retrieval_initial_fm
         if true_value_fm is not None:
             if(self._true_value_fm is not None):
                 self._true_value = true_value_fm
@@ -752,19 +780,19 @@ class StateElementImplementation(StateElement):
         if self._sold is not None:
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
         # The value and step initial guess should be set to the retrieval initial value
-        if self._retrieval_initial_value_fm is not None:
+        if self._retrieval_initial_fm is not None:
             if(self.state_element_id == StateElementIdentifier("H2O")):
                 breakpoint()
-            self._value_fm = self._retrieval_initial_value_fm.copy()
-            self._step_initial_value_fm = self._retrieval_initial_value_fm.copy()
+            self._value_fm = self._retrieval_initial_fm.copy()
+            self._step_initial_fm = self._retrieval_initial_fm.copy()
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
         if self._sold:
             # self._value = self._sold.value
-            # self._step_initial_value = self._sold.value
+            # self._step_initial = self._sold.value
             pass
-        self._next_step_initial_value_fm = None
+        self._next_step_initial_fm = None
 
     def notify_start_step(
         self,
@@ -779,21 +807,21 @@ class StateElementImplementation(StateElement):
                 skip_initial_guess_update,
             )
         # Update the initial value if we have a setting from the previous step
-        if self._next_step_initial_value_fm is not None:
-            if(self._step_initial_value_fm is not None):
-                self._step_initial_value_fm = self._next_step_initial_value_fm
-            self._next_step_initial_value_fm = None
+        if self._next_step_initial_fm is not None:
+            if(self._step_initial_fm is not None):
+                self._step_initial_fm = self._next_step_initial_fm
+            self._next_step_initial_fm = None
         # Set value to initial value
-        if self._step_initial_value_fm is not None:
-            # Rightly or wrongly, the step_initial_value is in the mapped state
-            if len(self._step_initial_value_fm.shape) > 1:
+        if self._step_initial_fm is not None:
+            # Rightly or wrongly, the step_initial is in the mapped state
+            if len(self._step_initial_fm.shape) > 1:
                 # Think this just applies to cloudEffExt
-                self._value_fm = self._step_initial_value_fm.copy()
+                self._value_fm = self._step_initial_fm.copy()
             else:
                 if(self.state_element_id == StateElementIdentifier("H2O")):
                     breakpoint()
                 self._value_fm = self.state_mapping.mapped_state(
-                    rf.ArrayAd_double_1(self._step_initial_value_fm)
+                    rf.ArrayAd_double_1(self._step_initial_fm)
                 ).value
         self._retrieved_this_step = (
             self.state_element_id in current_strategy_step.retrieval_elements
@@ -812,20 +840,20 @@ class StateElementImplementation(StateElement):
             self._sold.notify_step_solution(xsol, retrieval_slice)
         # Default is that the next initial value is whatever the solution was from
         # this step. But skip if we are on the not updated list
-        self._next_step_initial_value_fm = None
+        self._next_step_initial_fm = None
         if retrieval_slice is not None:
             if not self._initial_guess_not_updated:
                 self._value_fm = self.state_mapping.mapped_state(self.state_mapping_retrieval_to_fm.mapped_state(
                     rf.ArrayAd_double_1(xsol[retrieval_slice]))
                 ).value.view(FullGridMappedArray)
-                self._next_step_initial_value_fm = self._value_fm.copy().view(FullGridMappedArray)
+                self._next_step_initial_fm = self._value_fm.copy().view(FullGridMappedArray)
             else:
                 # Reset value for any changes in solver run if we aren't allowing this to
                 # update
-                if(self._step_initial_value_fm is not None):
+                if(self._step_initial_fm is not None):
                     if(self.state_element_id == StateElementIdentifier("H2O")):
                         breakpoint()
-                    self._value_fm = self._step_initial_value_fm.copy()
+                    self._value_fm = self._step_initial_fm.copy()
 
 
 class StateElementOspFile(StateElementImplementation):
@@ -893,7 +921,7 @@ class StateElementOspFile(StateElementImplementation):
         )
         # Also update initial value, but not apriori
         if selem_wrapper is not None:
-            self._step_initial_value_fm = selem_wrapper.value_fm
+            self._step_initial_fm = selem_wrapper.value_fm
 
     @classmethod
     def create_from_handle(

@@ -500,16 +500,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     # TODO Do we actually need this?
     @property
-    def initial_guess_fm(self) -> FullGridArray:
+    def initial_guess_full(self) -> FullGridArray:
         """Return the initial guess for the forward model grid.  This
         isn't independent, it is directly calculated from the
         initial_guess and basis_matrix. But convenient to supply this
         (mostly as a help in unit testing).
 
         """
-        return self.state_mapping_retrieval_to_fm.mapped_state(
-            rf.ArrayAd_double_1(self.initial_guess)
-        ).value
+        raise NotImplementedError()
 
     # TODO Check in constraint_vector_fm should be mapped or not
     def update_full_state_element(
@@ -553,7 +551,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     # Is this needed? Should be it be mapped or not?
     @property
-    def constraint_vector_fm(self) -> FullGridArray:
+    def constraint_vector_full(self) -> FullGridArray:
         """Apriori value"""
         raise NotImplementedError()
 
@@ -564,7 +562,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     # Is this needed? Should be it be mapped or not?
     @property
-    def true_value_fm(self) -> FullGridArray:
+    def true_value_full(self) -> FullGridArray:
         """True value"""
         raise NotImplementedError()
 
@@ -1201,6 +1199,16 @@ class CurrentStateUip(CurrentState):
         return copy(self._initial_guess).view(RetrievalGridArray)
 
     @property
+    def initial_guess_full(self) -> FullGridArray:
+        """Return the initial guess for the forward model grid.  This
+        isn't independent, it is directly calculated from the
+        initial_guess and basis_matrix. But convenient to supply this
+        (mostly as a help in unit testing).
+
+        """
+        raise NotImplementedError()
+    
+    @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         # Don't think we need this. We can calculate something frm
         # sqrt_constraint if needed, but for now just leave
@@ -1248,7 +1256,7 @@ class CurrentStateUip(CurrentState):
             return np.zeros((len(self.initial_guess),)).view(RetrievalGridArray)
 
     @property
-    def constraint_vector_fm(self) -> FullGridArray:
+    def constraint_vector_full(self) -> FullGridArray:
         if self.ret_info:
             return self.ret_info["const_vec"].view(FullGridArray)
         else:
@@ -1705,7 +1713,7 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self._retrieval_info.initial_guess_list).view(RetrievalGridArray)
 
     @property
-    def initial_guess_fm(self) -> FullGridArray:
+    def initial_guess_full(self) -> FullGridArray:
         if self._retrieval_info is None:
             raise RuntimeError("_retrieval_info is None")
         if self.do_systematic:
@@ -1744,10 +1752,10 @@ class CurrentStateStateInfoOld(CurrentState):
             return copy(self.retrieval_info.constraint_vector).view(RetrievalGridArray)
 
     @property
-    def constraint_vector_fm(self) -> FullGridArray:
+    def constraint_vector_full(self) -> FullGridArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
-            return np.zeros((len(self.initial_guess_fm),)).view(FullGridArray)
+            return np.zeros((len(self.initial_guess_full),)).view(FullGridArray)
         else:
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
@@ -1760,7 +1768,7 @@ class CurrentStateStateInfoOld(CurrentState):
         return copy(self.retrieval_info.true_value).view(RetrievalGridArray)
 
     @property
-    def true_value_fm(self) -> FullGridArray:
+    def true_value_full(self) -> FullGridArray:
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         return copy(self.retrieval_info.true_value_fm).view(FullGridArray)

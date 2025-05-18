@@ -853,7 +853,7 @@ def test_retrieval_grid_array():
          2.63707409e-01]])
     smap_ret_to_fm = rf.StateMappingBasisMatrix(bmatrix.transpose())
     smap = rf.StateMappingLog()
-    #print(smap_ret_to_fm.inverse_basis_matrix - mmatrix.transpose())
+    npt.assert_allclose(smap_ret_to_fm.inverse_basis_matrix, mmatrix.transpose())
     assert isinstance(initial_value_ret.to_full(smap_ret_to_fm), FullGridArray)
     assert isinstance(initial_value_ret.to_fm(smap_ret_to_fm, smap), FullGridMappedArray)
     npt.assert_allclose(initial_value_ret.to_full(smap_ret_to_fm), initial_value_full)
@@ -868,5 +868,8 @@ def test_retrieval_grid_array():
     assert isinstance(initial_value_fm.to_ret(smap_ret_to_fm, smap), RetrievalGridArray)
     npt.assert_allclose(initial_value_fm.to_full(smap), initial_value_full)
     npt.assert_allclose(initial_value_fm.to_ret(smap_ret_to_fm, smap), initial_value_ret)
+
+    npt.assert_allclose(constraint_vector_ret.to_fm(smap_ret_to_fm, smap), constraint_vector_fm)
+    npt.assert_allclose(constraint_vector_fm.to_ret(smap_ret_to_fm, smap), constraint_vector_ret)
     breakpoint()
 

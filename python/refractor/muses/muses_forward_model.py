@@ -468,7 +468,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             pstart, plen = current_state.fm_sv_loc[selem_id]
             ii = pstart
             jj = pstart + plen
-            vmr = current_state.initial_guess_fm[ii:jj]
+            vmr = current_state.initial_guess_full[ii:jj]
             vmr = (
                 current_state.state_mapping(selem_id)
                 .mapped_state(rf.ArrayAd_double_1(vmr))

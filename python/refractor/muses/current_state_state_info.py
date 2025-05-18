@@ -92,14 +92,18 @@ class CurrentStateStateInfo(CurrentState):
             self.match_old()
             res = np.concatenate(
                 [
-                    self._state_info[sid].step_initial_value
+                    self._state_info[sid].step_initial_ret
                     for sid in self.retrieval_state_element_id
                 ]
             )
+        if True:
+            res2 = self._current_state_old.initial_guess
+            # Need to fix
+            npt.assert_allclose(res, res2)
         return res.view(RetrievalGridArray)
 
     @property
-    def initial_guess_fm(self) -> FullGridArray:
+    def initial_guess_full(self) -> FullGridArray:
         # TODO
         # By convention, muses-py returns a length 1 array even if we don't
         # have any retrieval_state_element_id. I think this was just to avoid
@@ -114,10 +118,14 @@ class CurrentStateStateInfo(CurrentState):
             self.match_old()
             res = np.concatenate(
                 [
-                    self._state_info[sid].step_initial_value_fm
+                    self._state_info[sid].step_initial_full
                     for sid in self.retrieval_state_element_id
                 ]
             )
+        if True:
+            res2 = self._current_state_old.initial_guess_full
+            # Need to fix
+            npt.assert_allclose(res, res2)
         return res.view(FullGridArray)
 
     @property
@@ -170,14 +178,18 @@ class CurrentStateStateInfo(CurrentState):
             self.match_old()
             res = np.concatenate(
                 [
-                    self._state_info[sid].constraint_vector
+                    self._state_info[sid].constraint_vector_ret
                     for sid in self.retrieval_state_element_id
                 ]
             )
+        if True:
+            res2 = self._current_state_old.constraint_vector
+            # Need to fix
+            #npt.assert_allclose(res, res2)
         return res.view(RetrievalGridArray)
 
     @property
-    def constraint_vector_fm(self) -> FullGridArray:
+    def constraint_vector_full(self) -> FullGridArray:
         # TODO
         # By convention, muses-py returns a length 1 array even if we don't
         # have any retrieval_state_element_id. I think this was just to avoid
@@ -192,10 +204,17 @@ class CurrentStateStateInfo(CurrentState):
             self.match_old()
             res = np.concatenate(
                 [
-                    self._state_info[sid].constraint_vector_fm
+                    self._state_info[sid].constraint_vector_full
                     for sid in self.retrieval_state_element_id
                 ]
             )
+        if True:
+            try:
+                res2 = self._current_state_old.constraint_vector_full
+                # Need to fix
+                npt.assert_allclose(res, res2)
+            except KeyError:
+                pass
         return res.view(FullGridArray)
 
     @property
@@ -218,14 +237,14 @@ class CurrentStateStateInfo(CurrentState):
         return res.view(RetrievalGridArray)
 
     @property
-    def true_value_fm(self) -> FullGridArray:
+    def true_value_full(self) -> FullGridArray:
         # Note muses_py always has a true value vector, even if we don't have
         # a true value (so state_true_value is None). It just puts zeros
         # in for any missing data.
         res = np.zeros(
             (
                 len(
-                    self.initial_guess_fm,
+                    self.initial_guess_full,
                 )
             )
         )
@@ -379,7 +398,7 @@ class CurrentStateStateInfo(CurrentState):
     def state_step_initial_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
-        res = self.state_element(state_element_id).step_initial_value_fm
+        res = self.state_element(state_element_id).step_initial_fm
         return res.view(FullGridMappedArray)
 
     def state_value_str(
@@ -399,7 +418,7 @@ class CurrentStateStateInfo(CurrentState):
     def state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
-        res = self.state_element(state_element_id).retrieval_initial_value_fm
+        res = self.state_element(state_element_id).retrieval_initial_fm
         return res.view(FullGridMappedArray)
 
     def state_constraint_vector(
@@ -431,7 +450,7 @@ class CurrentStateStateInfo(CurrentState):
                 # py-retrieve convention. This can generally only
                 # happen if we have retrieval_state_element_override
                 # set, i.e., we are doing RetrievalStrategyStepBT.
-                plen = self._state_info[sid].retrieval_sv_length
+                plen = self._state_info[sid].step_initial_ret.shape[0]
                 if plen == 0:
                     plen = 1
                 self._retrieval_sv_loc[sid] = (

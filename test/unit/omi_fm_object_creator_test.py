@@ -68,14 +68,14 @@ def test_fm_run(omi_fm_object_creator_step_0):
 
 def test_state_vector(omi_fm_object_creator_step_0):
     omi_fm_object_creator_step_0.fm_sv.update_state(
-        omi_fm_object_creator_step_0.current_state.initial_guess_fm
+        omi_fm_object_creator_step_0.current_state.initial_guess_full
     )
     print(omi_fm_object_creator_step_0.fm_sv)
 
 
 def test_state_vector_step2(omi_fm_object_creator_step_1):
     omi_fm_object_creator_step_1.fm_sv.update_state(
-        omi_fm_object_creator_step_1.current_state.initial_guess_fm
+        omi_fm_object_creator_step_1.current_state.initial_guess_full
     )
     print(omi_fm_object_creator_step_1.fm_sv)
 
