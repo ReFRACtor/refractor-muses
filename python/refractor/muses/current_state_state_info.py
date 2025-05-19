@@ -98,8 +98,10 @@ class CurrentStateStateInfo(CurrentState):
             )
         if True:
             res2 = self._current_state_old.initial_guess
+            # Short term, see if this is only difference
+            return res2.view(RetrievalGridArray)
             # Need to fix
-            #npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2)
         return res.view(RetrievalGridArray)
 
     @property
@@ -124,8 +126,10 @@ class CurrentStateStateInfo(CurrentState):
             )
         if True:
             res2 = self._current_state_old.initial_guess_full
+            # Short term, see if this is only difference
+            return res2.view(FullGridArray)
             # Need to fix
-            #npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2)
         return res.view(FullGridArray)
 
     @property
@@ -151,6 +155,8 @@ class CurrentStateStateInfo(CurrentState):
         # TODO Remove current_state_old
         if True:
             res2 = self._current_state_old.constraint_matrix
+            # Short term, see if this is only difference
+            return res2.view(RetrievalGrid2dArray)
             # Need to fix
             npt.assert_allclose(res, res2)
         return res.view(RetrievalGrid2dArray)
@@ -184,8 +190,10 @@ class CurrentStateStateInfo(CurrentState):
             )
         if True:
             res2 = self._current_state_old.constraint_vector
+            # Short term, see if this is only difference
+            return res2.view(RetrievalGridArray)
             # Need to fix
-            #npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2)
         return res.view(RetrievalGridArray)
 
     @property
@@ -211,6 +219,8 @@ class CurrentStateStateInfo(CurrentState):
         if True:
             try:
                 res2 = self._current_state_old.constraint_vector_full
+                # Short term, see if this is only difference
+                return res2.view(FullGridArray)
                 # Need to fix
                 npt.assert_allclose(res, res2)
             except KeyError:

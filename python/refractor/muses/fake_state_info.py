@@ -182,9 +182,9 @@ class FakeStateInfo:
             )
         )
         self._cloud_pars["num_frequencies"] = self._cloud_pars["frequency"].shape[0]
-        self._current["cloudEffExt"] = current_state.state_value(
+        self._current["cloudEffExt"] = np.array(current_state.state_value(
             StateElementIdentifier("cloudEffExt")
-        )
+        ))
         self._true["cloudEffExt"] = np.zeros(self._current["cloudEffExt"].shape)
         self._emis_pars: dict[str, Any] = {}
         # I think this is always 'yes', it looks like the logic in muses-py for setting
@@ -196,12 +196,12 @@ class FakeStateInfo:
             )
         )
         self._emis_pars["num_frequencies"] = self._emis_pars["frequency"].shape[0]
-        self._current["emissivity"] = current_state.state_value(
+        self._current["emissivity"] = np.array(current_state.state_value(
             StateElementIdentifier("emissivity")
-        )
-        self._constraint["emissivity"] = current_state.state_constraint_vector(
+        ))
+        self._constraint["emissivity"] = np.array(current_state.state_constraint_vector(
             StateElementIdentifier("emissivity")
-        )
+        ))
         self._true["emissivity"] = np.zeros(self._current["emissivity"].shape)
         self._calibration_pars: dict[str, Any] = {}
         # I think this is always 'no', it looks like the logic in muses-py for setting

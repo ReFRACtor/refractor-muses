@@ -851,7 +851,8 @@ def test_retrieval_grid_array():
          6.29627867e-05, -3.66977744e-04,  1.45542910e-03,
         -6.54648168e-03,  2.00961852e-02, -6.16407900e-02,
          2.63707409e-01]])
-    smap_ret_to_fm = rf.StateMappingBasisMatrix(bmatrix.transpose())
+    #smap_ret_to_fm = rf.StateMappingBasisMatrix(bmatrix.transpose())
+    smap_ret_to_fm = rf.StateMappingBasisMatrix(bmatrix.transpose(), mmatrix.transpose())
     smap = rf.StateMappingLog()
     npt.assert_allclose(smap_ret_to_fm.inverse_basis_matrix, mmatrix.transpose(), atol=1e-8)
     assert isinstance(initial_value_ret.to_full(smap_ret_to_fm), FullGridArray)

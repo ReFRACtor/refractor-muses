@@ -134,7 +134,10 @@ class StateElementOldWrapper(StateElement):
     @property
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         if self.basis_matrix is not None:
-            return rf.StateMappingBasisMatrix(self.basis_matrix.transpose())
+            # Note that we pass in the inverse basis_matrix. This is temporary, we
+            # want to match what the muses-py code does to avoid looking at round off differences.
+            # But longer term, StateMappingBasisMatrix should calculate the inverse matrix.
+            return rf.StateMappingBasisMatrix(self.basis_matrix.transpose(), self.map_to_parameter_matrix.transpose())
         return rf.StateMappingLinear()
 
     @property
@@ -291,7 +294,6 @@ class StateElementOldWrapper(StateElement):
         res = self._current_state_old.state_step_initial_value(
             self.state_element_id
         ).astype(float)
-        res = self.state_mapping.retrieval_state(rf.ArrayAd_double_1(res)).value
         return res.view(FullGridMappedArray)
 
     @property
