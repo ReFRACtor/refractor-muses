@@ -5,7 +5,10 @@ from .state_element import (
     StateElementHandle,
     StateElementImplementation,
     StateElement,
+    StateElementHandleSet
 )
+from .current_state_state_info import h_old
+from .identifier import StateElementIdentifier
 from loguru import logger
 import typing
 from typing import cast
@@ -14,7 +17,6 @@ if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy
     from .retrieval_configuration import RetrievalConfiguration
-    from .identifier import StateElementIdentifier
     from .state_element_old_wrapper import StateElementOldWrapperHandle
     from .current_state import SoundingMetadata
 
@@ -54,7 +56,11 @@ class StateElementOspFileHandleNew(StateElementHandle):
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
         from .state_element_old_wrapper import StateElementOldWrapper
-
+        # Issue with a few of the StateElements, punt short term so we can get the
+        # rest of stuff working.
+        if(str(state_element_id) in ("CLOUDEXT", "cloudEffExt", "HDO","emissivity", "EMIS")):
+           return None
+           
         # if state_element_id != self.sid:
         #    return None
         if self.measurement_id is None or self.retrieval_config is None:
@@ -81,8 +87,8 @@ class StateElementOspFileHandleNew(StateElementHandle):
         return res
 
 
-#StateElementHandleSet.add_default_handle(
-#    StateElementOspFileHandleNew(None, h_old), priority_order=0
-#)
+StateElementHandleSet.add_default_handle(
+    StateElementOspFileHandleNew(None, h_old), priority_order=0
+)
 
 __all__ = ["StateElementOspFileHandleNew",]

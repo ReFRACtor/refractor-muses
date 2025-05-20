@@ -227,7 +227,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                             np.amin(ind) : np.amax(ind) + 1
                         ],
                     )
-
                     self.state_info.state_info_obj.current["cloudEffExt"][
                         0, np.amin(ind) : np.amax(ind) + 1
                     ] = np.exp(interpolated_array)[:]

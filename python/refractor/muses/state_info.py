@@ -129,9 +129,11 @@ class StateInfo(UserDict):
         """Temporary, we have the StateInfoOld saved but not the new StateInfo in our
         capture tests. We will get to doing StateInfo, but for now use the old data to
         update the new data for the purpose of unit tests."""
+        breakpoint()
         for k, v in self.items():
             try: 
                 if(self._current_state_old.state_value_str(k) is None):
+                    breakpoint()
                     v.update_state_element(
                         current_fm=self._current_state_old.state_value(k),
                         constraint_vector_fm=self._current_state_old.state_constraint_vector(

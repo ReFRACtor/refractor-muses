@@ -155,6 +155,10 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def forward_model_sv_length(self) -> int:
         raise NotImplementedError()
 
+    @abc.abstractproperty
+    def sys_sv_length(self) -> int:
+        raise NotImplementedError()
+    
     @property
     def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
@@ -484,9 +488,7 @@ class StateElementImplementation(StateElement):
         #    )
         # Short term skip so we can compare to old state element
         if False:
-            self._value_fm = self.state_mapping.mapped_state(self.state_mapping_retrieval_to_fm.mapped_state(
-                rf.ArrayAd_double_1(param_subset))
-                                                             ).value
+            self._value_fm = param_subset.view(RetrievalGridArray).to_fm(self.state_mapping_retrieval_to_fm, self.state_mapping)
 
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
         if self._sold is None:
@@ -496,8 +498,6 @@ class StateElementImplementation(StateElement):
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def basis_matrix(self) -> np.ndarray | None:
-        if self._sold is not None:
-            return self._sold.basis_matrix
         if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
             res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose()
         else:
@@ -507,14 +507,15 @@ class StateElementImplementation(StateElement):
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
             npt.assert_allclose(res, res2)
-            assert res.dtype == res2.dtype
+            # Special case, some of the basis matrix that happen to be integer
+            # are left as int64. No real reason, but also no harm
+            if(res2.dtype != np.int64):
+                assert res.dtype == res2.dtype
         return res
 
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
-        if self._sold is not None:
-            return self._sold.map_to_parameter_matrix
         if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
             res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose()
         else:
@@ -524,7 +525,10 @@ class StateElementImplementation(StateElement):
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
             npt.assert_allclose(res, res2, atol=1e-12)
-            assert res.dtype == res2.dtype
+            # Special case, some of the basis matrix that happen to be integer
+            # are left as int64. No real reason, but also no harm
+            if(res2.dtype != np.int64):
+                assert res.dtype == res2.dtype
         return res
 
     @property
@@ -543,6 +547,14 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
+    def sys_sv_length(self) -> int:
+        res = self.apriori_cov_fm.shape[0]
+        if self._sold is not None:
+            res2 = self._sold.sys_sv_length
+            assert res == res2
+        return res
+    
+    @property
     def value_fm(self) -> FullGridMappedArray:
         if (
             self._value_fm is None
@@ -550,8 +562,6 @@ class StateElementImplementation(StateElement):
             and self._sold is not None
         ):
             self._value_fm = self._sold.value_fm.copy()
-        if(self.state_element_id == StateElementIdentifier("H2O")):
-            breakpoint()
         res = self._value_fm
         if(self._sold is not None):
             try:
@@ -635,7 +645,6 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
-            return self._sold.retrieval_initial_fm
             self._retrieval_initial_fm = (
                 self._sold.retrieval_initial_fm.copy()
             )
@@ -653,9 +662,6 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
-            if(self.state_element_id == StateElementIdentifier("H2O")):
-                breakpoint()
-            return self._sold.step_initial_fm
             self._step_initial_fm = self._sold.step_initial_fm.copy()
         res = self._step_initial_fm
         if self._sold is not None:
@@ -667,7 +673,7 @@ class StateElementImplementation(StateElement):
     @property
     def true_value_fm(self) -> FullGridMappedArray | None:
         if(self._sold is not None):
-            return self._sold.true_value_fm
+            self._true_value_fm = self._sold.true_value_fm
         res = self._true_value_fm
         return res
 
@@ -688,7 +694,6 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
-            return self._sold.state_mapping_retrieval_to_fm
             self._state_mapping_retrieval_to_fm = (
                 self._sold.state_mapping_retrieval_to_fm
             )
@@ -744,23 +749,18 @@ class StateElementImplementation(StateElement):
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
-        # TODO get rid of None tests here
         if current_fm is not None:
-            if(self.state_element_id == StateElementIdentifier("H2O")):
-                breakpoint()
             self._value_fm = current_fm
         if constraint_vector_fm is not None:
+            # TODO get rid of None tests here
             if(self._constraint_vector_fm is not None):
                 self._constraint_vector_fm = constraint_vector_fm
         if step_initial_fm is not None:
-            if(self._step_initial_fm is not None):
-                self._step_initial_fm = step_initial_fm
+            self._step_initial_fm = step_initial_fm
         if retrieval_initial_fm is not None:
-            if(self._retrieval_initial_fm is not None):
-                self._retrieval_initial_fm = retrieval_initial_fm
+            self._retrieval_initial_fm = retrieval_initial_fm
         if true_value_fm is not None:
-            if(self._true_value_fm is not None):
-                self._true_value = true_value_fm
+            self._true_value = true_value_fm
         if self._sold is not None:
             self._sold.update_state_element(
                 current_fm,
@@ -793,16 +793,14 @@ class StateElementImplementation(StateElement):
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
         # The value and step initial guess should be set to the retrieval initial value
         if self._retrieval_initial_fm is not None:
-            if(self.state_element_id == StateElementIdentifier("H2O")):
-                breakpoint()
             self._value_fm = self._retrieval_initial_fm.copy()
             self._step_initial_fm = self._retrieval_initial_fm.copy()
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
         if self._sold:
-            # self._value = self._sold.value
-            # self._step_initial = self._sold.value
+            #self._value_fm = self._sold.value_fm
+            #self._step_initial_fm = self._sold.value_fm
             pass
         self._next_step_initial_fm = None
 
@@ -818,23 +816,21 @@ class StateElementImplementation(StateElement):
                 retrieval_config,
                 skip_initial_guess_update,
             )
+        # handling for cloudEffExt, see below. We should move this into it's own
+        # class, but for now just plop this in here
+        if self.state_element_id in (StateElementIdentifier("cloudEffExt"),
+                                     StateElementIdentifier("CLOUDEXT")):
+            self.is_bt_ig_refine = (current_strategy_step.retrieval_type == RetrievalType("bt_ig_refine"))
+            # Also, the basis matrix changes for CLOUDEXT from one step to the next
+            self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
+            
         # Update the initial value if we have a setting from the previous step
         if self._next_step_initial_fm is not None:
-            if(self._step_initial_fm is not None):
-                self._step_initial_fm = self._next_step_initial_fm
+            self._step_initial_fm = self._next_step_initial_fm
             self._next_step_initial_fm = None
         # Set value to initial value
         if self._step_initial_fm is not None:
-            # Rightly or wrongly, the step_initial is in the mapped state
-            if len(self._step_initial_fm.shape) > 1:
-                # Think this just applies to cloudEffExt
-                self._value_fm = self._step_initial_fm.copy()
-            else:
-                if(self.state_element_id == StateElementIdentifier("H2O")):
-                    breakpoint()
-                self._value_fm = self.state_mapping.mapped_state(
-                    rf.ArrayAd_double_1(self._step_initial_fm)
-                ).value
+            self._value_fm = self._step_initial_fm.copy()
         self._retrieved_this_step = (
             self.state_element_id in current_strategy_step.retrieval_elements
         )
@@ -853,19 +849,25 @@ class StateElementImplementation(StateElement):
         # Default is that the next initial value is whatever the solution was from
         # this step. But skip if we are on the not updated list
         self._next_step_initial_fm = None
-        if retrieval_slice is not None:
+        
+        # We have some odd logic in StateElementOld for cloudEffExt for the
+        # bt_ig_refine step. We will need to duplicate this, but short term
+        # just punt and use the old value. Note that we end up at about
+        # line 264, there cloudEffExt is set to an average value, but we will
+        # need to work through this. Probably special handling on
+        # notify_step_solution for cloudEffExt, for bt_ig_refine step.
+        # Also CLOUDEXT seems to be a sort of alias for cloudEffExt, but we don't
+        # have that fully supported yet - should probably add that
+        if self.state_element_id in (StateElementIdentifier("cloudEffExt"), StateElementIdentifier("CLOUDEXT")) and self.is_bt_ig_refine:
+            self._value_fm = self._sold._current_state_old.state_value("cloudEffExt")
+            if(self.state_element_id == StateElementIdentifier("CLOUDEXT")):
+                # Bizarrely, different dim for cloudEffExt vs CLOUDEXT 
+                self._value_fm = self._value_fm[0,:] 
+            self._next_step_initial_fm = self._value_fm.copy()
+        elif retrieval_slice is not None:
+            self._value_fm = xsol[retrieval_slice].view(RetrievalGridArray).to_fm(self.state_mapping_retrieval_to_fm, self.state_mapping)
             if not self._initial_guess_not_updated:
-                self._value_fm = self.state_mapping.mapped_state(self.state_mapping_retrieval_to_fm.mapped_state(
-                    rf.ArrayAd_double_1(xsol[retrieval_slice]))
-                ).value.view(FullGridMappedArray)
-                self._next_step_initial_fm = self._value_fm.copy().view(FullGridMappedArray)
-            else:
-                # Reset value for any changes in solver run if we aren't allowing this to
-                # update
-                if(self._step_initial_fm is not None):
-                    if(self.state_element_id == StateElementIdentifier("H2O")):
-                        breakpoint()
-                    self._value_fm = self._step_initial_fm.copy()
+                self._next_step_initial_fm = self._value_fm.copy()
 
 
 class StateElementOspFile(StateElementImplementation):

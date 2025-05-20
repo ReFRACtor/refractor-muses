@@ -99,9 +99,9 @@ class CurrentStateStateInfo(CurrentState):
         if True:
             res2 = self._current_state_old.initial_guess
             # Short term, see if this is only difference
-            return res2.view(RetrievalGridArray)
+            #return res2.view(RetrievalGridArray)
             # Need to fix
-            npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2, 1e-12)
         return res.view(RetrievalGridArray)
 
     @property
@@ -127,9 +127,9 @@ class CurrentStateStateInfo(CurrentState):
         if True:
             res2 = self._current_state_old.initial_guess_full
             # Short term, see if this is only difference
-            return res2.view(FullGridArray)
+            #return res2.view(FullGridArray)
             # Need to fix
-            npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2, 1e-12)
         return res.view(FullGridArray)
 
     @property

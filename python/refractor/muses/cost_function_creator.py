@@ -199,7 +199,7 @@ class CostFunctionCreator:
         # object is still there but don't carry around it lifetime and if the
         # object is deleted then we just don't notify it.
         # skip for CurrentStateUip, we already handle the UIP separately.
-        if not isinstance(current_state, CurrentStateUip):
+        if not isinstance(current_state, CurrentStateUip) and not use_empty_apriori:
             for sid in current_state.retrieval_state_element_id:
                 cfunc.max_a_posteriori.add_observer(
                     CostFunctionStateElementNotify(
