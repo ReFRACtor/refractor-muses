@@ -10,10 +10,30 @@ import numpy.testing as npt
 
 
 def test_covariance(osp_dir):
+    latitude = 30.0
+    map_type = "linear"
+    pressure = np.array([1.0067983e+03, 1.0000000e+03, 9.0851400e+02, 8.2540200e+02,
+       7.4989300e+02, 6.8129100e+02, 6.1896600e+02, 5.6234200e+02,
+       5.1089800e+02, 4.6416000e+02, 4.2169800e+02, 3.8311700e+02,
+       3.4806900e+02, 3.1622700e+02, 2.8729800e+02, 2.6101600e+02,
+       2.3713700e+02, 2.1544400e+02, 1.9573500e+02, 1.7782900e+02,
+       1.6156100e+02, 1.4677900e+02, 1.3335200e+02, 1.2115200e+02,
+       1.1006900e+02, 1.0000000e+02, 9.0851800e+01, 8.2540600e+01,
+       7.4989600e+01, 6.8129500e+01, 6.1896300e+01, 5.6233900e+01,
+       5.1089600e+01, 4.6415800e+01, 4.2169600e+01, 3.8311900e+01,
+       3.4807100e+01, 3.1622900e+01, 2.8729900e+01, 2.6101700e+01,
+       2.3713600e+01, 2.1544300e+01, 1.9573400e+01, 1.7782800e+01,
+       1.6156000e+01, 1.4678000e+01, 1.3335200e+01, 1.2115300e+01,
+       1.1007000e+01, 1.0000000e+01, 9.0851400e+00, 8.2540200e+00,
+       6.8129100e+00, 5.1089800e+00, 4.6416000e+00, 3.1622700e+00,
+       2.6101600e+00, 2.1544300e+00, 1.6156000e+00, 1.3335200e+00,
+       1.0000000e+00, 6.8129200e-01, 3.8311800e-01, 2.1544300e-01,
+       1.0000000e-01])
     r = OspCovarianceMatrixReader.read_dir(osp_dir / "Covariance" / "Covariance")
-    d = r.read_cov(StateElementIdentifier("OMIODWAVUV1"), "linear", 10)
+    d = r.read_cov(StateElementIdentifier("OMIODWAVUV1"), map_type, latitude, pressure)
     npt.assert_allclose(d, np.array([[0.0004]]))
-
+    d = r.read_cov(StateElementIdentifier("TATM"), map_type, latitude, pressure)
+    assert d.shape == (65,65)
 
 def test_species(osp_dir):
     r = OspSpeciesReader.read_dir(
@@ -57,3 +77,13 @@ def test_osp_l2_setup_control_initial(osp_dir):
     assert f["Single_State_Directory"] == osp_dir / "L2_Setup" / "ops" / "L2_Setup"
     assert f.sid_to_type[StateElementIdentifier("PCLOUD")] == "Single"
     assert f.sid_to_type[StateElementIdentifier("TATM")] == "GMAO"
+
+def test_species_premade(osp_dir):
+    r = OspSpeciesReader.read_dir(
+        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+    )
+    # Need a different example
+    #cov = r.read_constraint_matrix(StateElementIdentifier("TATM"), RetrievalType("default"))
+
+    
+    

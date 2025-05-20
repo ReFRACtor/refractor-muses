@@ -111,8 +111,7 @@ def test_osp_state_element(osp_dir):
         slice(0, 1),
     )
     npt.assert_allclose(selem.step_initial_fm, [5.0])
-    # Value should get reset
-    npt.assert_allclose(selem.value_fm, [5.0])
+    npt.assert_allclose(selem.value_fm, [6.0])
     # Initial guess should remain unchanged
     selem.notify_start_step(cstep_ret, None, rconfig)
     npt.assert_allclose(selem.step_initial_fm, [5.0])

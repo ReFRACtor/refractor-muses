@@ -75,7 +75,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        constraint_vector_fm: np.ndarray,
+        constraint_vector_fm: FullGridMappedArray | None,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
@@ -83,6 +83,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
+        copy_on_first_use:bool = False
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -137,7 +138,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        constraint_vector_fm: np.ndarray,
+        constraint_vector_fm: FullGridMappedArray|None,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
@@ -145,6 +146,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
+        copy_on_first_use:bool = False
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 

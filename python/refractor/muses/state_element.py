@@ -2,21 +2,18 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
-from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
 from .identifier import StateElementIdentifier, RetrievalType
 from .current_state import RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, FullGridArray
 import abc
 from loguru import logger
-from pathlib import Path
 import numpy as np
 import numpy.testing as npt
-from typing import Any, cast, Self
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
     from .state_element_old_wrapper import (
         StateElementOldWrapper,
-        StateElementOldWrapperHandle,
     )
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
@@ -222,7 +219,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return self.true_value_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
 
     @property
-    def true_value_full(self) -> FullGridArray:
+    def true_value_full(self) -> FullGridArray | None:
         if(self.true_value_fm is None):
             return None
         return self.true_value_fm.to_full(self.state_mapping)
@@ -431,16 +428,17 @@ class StateElementHandleSet(CreatorHandleSet):
 class StateElementImplementation(StateElement):
     """A very common implementation of a StateElement just populates member variables for
     the value, apriori, etc. This class handles this common case, derived classes should
-    fill in handling the various notify functions."""
+    fill in handling the various notify functions. Note we allow various values to be "None",
+    this is useful for derived classes that might fill something in lazily."""
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
-        value_fm: FullGridMappedArray,
-        constraint_vector_fm: FullGridMappedArray,
-        apriori_cov_fm: FullGrid2dArray,
-        constraint_matrix: RetrievalGrid2dArray,
-        state_mapping_retrieval_to_fm: rf.StateMapping = rf.StateMappingLinear(),
-        state_mapping: rf.StateMapping = rf.StateMappingLinear(),
+        value_fm: FullGridMappedArray | None,
+        constraint_vector_fm: FullGridMappedArray | None,
+        apriori_cov_fm: FullGrid2dArray | None,
+        constraint_matrix: RetrievalGrid2dArray | None,
+        state_mapping_retrieval_to_fm: rf.StateMapping | None = rf.StateMappingLinear(),
+        state_mapping: rf.StateMapping | None = rf.StateMappingLinear(),
         initial_value_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
         selem_wrapper: StateElementOldWrapper | None = None,
@@ -457,16 +455,14 @@ class StateElementImplementation(StateElement):
         self._step_initial_fm = (
             initial_value_fm if initial_value_fm is not None else constraint_vector_fm
         )
+        self._retrieval_initial_fm : FullGridMappedArray | None = None
         if self._step_initial_fm is not None:
             self._retrieval_initial_fm = self._step_initial_fm.copy()
-        else:
-            self._retrieval_initial_fm = None
         self._true_value_fm = true_value_fm
         self._value_str = value_str
+        self._updated_fm_flag : FullGridMappedArray | None = None
         if apriori_cov_fm is not None:
-            self._updated_fm_flag = np.zeros((apriori_cov_fm.shape[0],)).astype(bool)
-        else:
-            self._updated_fm_flag = None
+            self._updated_fm_flag = np.zeros((apriori_cov_fm.shape[0],)).astype(bool).view(FullGridMappedArray)
         self._retrieved_this_step = False
         self._initial_guess_not_updated = False
         self._next_step_initial_fm: FullGridMappedArray | None = None
@@ -562,6 +558,8 @@ class StateElementImplementation(StateElement):
             and self._sold is not None
         ):
             self._value_fm = self._sold.value_fm.copy()
+        if(self._value_fm is None):
+            raise RuntimeError("_value_fm shouldn't be None")
         res = self._value_fm
         if(self._sold is not None):
             try:
@@ -581,6 +579,8 @@ class StateElementImplementation(StateElement):
         ):
             return self._sold.constraint_vector_fm
             self._constraint_vector_fm = self._sold.constraint_vector_fm
+        if(self._constraint_vector_fm is None):
+            raise RuntimeError("_constraint_vector_fm shouldn't be None")
         res = self._constraint_vector_fm
         if self._sold is not None:
             try:
@@ -601,6 +601,8 @@ class StateElementImplementation(StateElement):
         ):
             return self._sold.constraint_matrix
             self._constraint_matrix = self._sold.constraint_matrix.copy()
+        if(self._constraint_matrix is None):
+            raise RuntimeError("_constraint_matrix shouldn't be None")
         res = self._constraint_matrix
         if self._sold is not None:
             res2 = self._sold.constraint_matrix
@@ -627,6 +629,8 @@ class StateElementImplementation(StateElement):
         ):
             return self._sold.apriori_cov_fm
             self._apriori_cov_fm = self._sold.apriori_cov_fm.copy()
+        if(self._apriori_cov_fm is None):
+            raise RuntimeError("_apriori_cov_fm shouldn't be None")
         res = self._apriori_cov_fm
         if self._sold is not None:
             try:
@@ -648,6 +652,8 @@ class StateElementImplementation(StateElement):
             self._retrieval_initial_fm = (
                 self._sold.retrieval_initial_fm.copy()
             )
+        if(self._retrieval_initial_fm is None):
+            raise RuntimeError("_retrieval_initial_fm shouldn't be None")
         res = self._retrieval_initial_fm
         if self._sold is not None:
             res2 = self._sold.retrieval_initial_fm
@@ -663,6 +669,8 @@ class StateElementImplementation(StateElement):
             and self._sold is not None
         ):
             self._step_initial_fm = self._sold.step_initial_fm.copy()
+        if(self._step_initial_fm is None):
+            raise RuntimeError("_step_initial_fm shouldn't be None")
         res = self._step_initial_fm
         if self._sold is not None:
             res2 = self._sold.step_initial_fm
@@ -822,7 +830,8 @@ class StateElementImplementation(StateElement):
                                      StateElementIdentifier("CLOUDEXT")):
             self.is_bt_ig_refine = (current_strategy_step.retrieval_type == RetrievalType("bt_ig_refine"))
             # Also, the basis matrix changes for CLOUDEXT from one step to the next
-            self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
+            if(self._sold is not None):
+                self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
             
         # Update the initial value if we have a setting from the previous step
         if self._next_step_initial_fm is not None:
@@ -858,195 +867,16 @@ class StateElementImplementation(StateElement):
         # notify_step_solution for cloudEffExt, for bt_ig_refine step.
         # Also CLOUDEXT seems to be a sort of alias for cloudEffExt, but we don't
         # have that fully supported yet - should probably add that
-        if self.state_element_id in (StateElementIdentifier("cloudEffExt"), StateElementIdentifier("CLOUDEXT")) and self.is_bt_ig_refine:
+        if self.state_element_id in (StateElementIdentifier("cloudEffExt"), StateElementIdentifier("CLOUDEXT")) and self.is_bt_ig_refine and self._sold is not None:
             self._value_fm = self._sold._current_state_old.state_value("cloudEffExt")
             if(self.state_element_id == StateElementIdentifier("CLOUDEXT")):
                 # Bizarrely, different dim for cloudEffExt vs CLOUDEXT 
-                self._value_fm = self._value_fm[0,:] 
+                self._value_fm = self._value_fm[0,:].view(FullGridMappedArray)
             self._next_step_initial_fm = self._value_fm.copy()
         elif retrieval_slice is not None:
             self._value_fm = xsol[retrieval_slice].view(RetrievalGridArray).to_fm(self.state_mapping_retrieval_to_fm, self.state_mapping)
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
-
-
-class StateElementOspFile(StateElementImplementation):
-    """This implementation of StateElement gets the apriori/initial guess as a hard coded
-    value, and the constraint_matrix and apriori_cov_fm from OSP files. This seems a
-    bit convoluted to me - why not just have all the values given in the python configuration
-    file? But this is the way muses-py works, and at the very least we need to implementation
-    for backwards testing.  We may replace this StateElement, there doesn't seem to be any
-    good reason to spread everything across multiple files.
-
-    In some cases, we have the species in the covariance species_directory but not the
-    covariance_directory. You can optionally request that we just use the constraint
-    matrix as the apriori_cov_fm
-    """
-
-    def __init__(
-        self,
-        state_element_id: StateElementIdentifier,
-        constraint_vector_fm: FullGridMappedArray,
-        latitude: float,
-        species_directory: Path,
-        covariance_directory: Path,
-        selem_wrapper: StateElementOldWrapper | None = None,
-        cov_is_constraint: bool = False,
-    ):
-        # For OMI and TROPOMI parameters the initial value, and apriori are hard coded.
-        # These get set up in script_retrieval_setup_ms.py, so we can look there for the
-        # values. The apriori (called stateConstraint) and first guess (called stateInitial)
-        # get identically set to this value. The covariance is separately read from a file.
-        # Fill these in
-        value_fm = constraint_vector_fm.copy().view(FullGridMappedArray)
-        constraint_vector_fm = constraint_vector_fm.copy()
-        self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
-        t = self.osp_species_reader.read_file(
-            state_element_id, RetrievalType("default")
-        )
-        map_type = t["mapType"].lower()
-        if map_type == "linear":
-            smap = rf.StateMappingLinear()
-        elif map_type == "log":
-            smap = rf.StateMappingLog()
-        else:
-            raise RuntimeError(f"Don't recognize map_type {map_type}")
-        constraint_matrix = self.osp_species_reader.read_constraint_matrix(
-            state_element_id, RetrievalType("default")
-        ).view(RetrievalGrid2dArray)
-        if cov_is_constraint:
-            apriori_cov_fm = constraint_matrix.view(FullGrid2dArray)
-        else:
-            r = OspCovarianceMatrixReader.read_dir(covariance_directory)
-            apriori_cov_fm = r.read_cov(state_element_id, map_type, latitude).view(FullGrid2dArray)
-        # This is to support testing. We currently have a way of populate StateInfoOld when
-        # we restart a step, but not StateInfo. Longer term we will fix this, but short term
-        # just propagate any values in selem_wrapper to this class
-        if selem_wrapper is not None:
-            value_fm = selem_wrapper.value_fm
-        super().__init__(
-            state_element_id,
-            value_fm,
-            constraint_vector_fm,
-            apriori_cov_fm,
-            constraint_matrix,
-            selem_wrapper=selem_wrapper,
-            state_mapping=smap,
-        )
-        # Also update initial value, but not apriori
-        if selem_wrapper is not None:
-            self._step_initial_fm = selem_wrapper.value_fm
-
-    @classmethod
-    def create_from_handle(
-        cls,
-        state_element_id: StateElementIdentifier,
-        constraint_vector_fm: FullGridMappedArray,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-        selem_wrapper: StateElementOldWrapper | None = None,
-        cov_is_constraint: bool = False,
-    ) -> Self | None:
-        """Create object from the set of parameter the StateElementOspFileHandle supplies.
-
-        We don't actually use all the arguments, but they are there for other classes
-        """
-        res = cls(
-            state_element_id,
-            constraint_vector_fm,
-            sounding_metadata.latitude.value,
-            Path(retrieval_config["speciesDirectory"]),
-            Path(retrieval_config["covarianceDirectory"]),
-            selem_wrapper=selem_wrapper,
-            cov_is_constraint=cov_is_constraint,
-        )
-        return res
-
-    def notify_start_step(
-        self,
-        current_strategy_step: CurrentStrategyStep,
-        retrieval_config: RetrievalConfiguration,
-        skip_initial_guess_update: bool = False,
-    ) -> None:
-        super().notify_start_step(
-            current_strategy_step,
-            retrieval_config,
-            skip_initial_guess_update,
-        )
-        # Most of the time this will just return the same value, but there might be
-        # certain steps with a different constraint matrix.
-        self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
-            self.state_element_id, current_strategy_step.retrieval_type
-        ).view(RetrievalGrid2dArray)
-
-    @property
-    def pressure_list_fm(self) -> FullGridMappedArray | None:
-        # TODO Add handling for pressure_list
-        return None
-
-class StateElementOspFileHandle(StateElementHandle):
-    def __init__(
-        self,
-        sid: StateElementIdentifier,
-        constraint_vector_fm: FullGridMappedArray,
-        hold: StateElementOldWrapperHandle | None = None,
-        cls: type[StateElementOspFile] = StateElementOspFile,
-        cov_is_constraint: bool = False,
-    ) -> None:
-        self.obj_cls = cls
-        self.sid = sid
-        self.hold = hold
-        self.constraint_vector_fm = constraint_vector_fm
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
-        self.cov_is_constraint = cov_is_constraint
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
-
-    def state_element(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement | None:
-        from .state_element_old_wrapper import StateElementOldWrapper
-
-        if state_element_id != self.sid:
-            return None
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
-        if self.hold is not None:
-            sold = cast(
-                StateElementOldWrapper, self.hold.state_element(state_element_id)
-            )
-        else:
-            sold = None
-        res = self.obj_cls.create_from_handle(
-            state_element_id,
-            self.constraint_vector_fm,
-            self.measurement_id,
-            self.retrieval_config,
-            self.strategy,
-            self.observation_handle_set,
-            self.sounding_metadata,
-            sold,
-            self.cov_is_constraint,
-        )
-        if res is not None:
-            logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
-        return res
 
 
 class StateElementFillValueHandle(StateElementHandle):
@@ -1115,8 +945,6 @@ __all__ = [
     "StateElementImplementation",
     "StateElementHandle",
     "StateElementHandleSet",
-    "StateElementOspFileHandle",
-    "StateElementOspFile",
     "StateElementFillValueHandle",
     "StateElementFixedValueHandle",
 ]

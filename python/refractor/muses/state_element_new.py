@@ -3,10 +3,10 @@
 from __future__ import annotations
 from .state_element import (
     StateElementHandle,
-    StateElementImplementation,
     StateElement,
-    StateElementHandleSet
+    StateElementHandleSet,
 )
+from .state_element_osp import StateElementOspFile
 from .current_state_state_info import h_old
 from .identifier import StateElementIdentifier
 from loguru import logger
@@ -24,10 +24,10 @@ if typing.TYPE_CHECKING:
 class StateElementOspFileHandleNew(StateElementHandle):
     def __init__(
         self,
-        sid: StateElementIdentifier,
+        sid: StateElementIdentifier | None,
         hold: StateElementOldWrapperHandle | None = None,
-        # cls: type[StateElementOspFile] = StateElementOspFile,
-        cls: type[StateElementImplementation] = StateElementImplementation,
+        cls: type[StateElementOspFile] = StateElementOspFile,
+        # cls: type[StateElementImplementation] = StateElementImplementation,
         cov_is_constraint: bool = False,
     ) -> None:
         self.obj_cls = cls
@@ -71,15 +71,16 @@ class StateElementOspFileHandleNew(StateElementHandle):
             )
         else:
             sold = None
-        res = self.obj_cls(
+        res = self.obj_cls.create_from_handle(
             state_element_id,
             None,
-            None,
-            None,
-            None,
+            self.measurement_id,
+            self.retrieval_config,
+            self.strategy,
+            self.observation_handle_set,
+            self.sounding_metadata,
             selem_wrapper=sold,
-            state_mapping=None,
-            state_mapping_retrieval_to_fm=None,
+            cov_is_constraint=self.cov_is_constraint,
             copy_on_first_use=True,
         )
         if res is not None:

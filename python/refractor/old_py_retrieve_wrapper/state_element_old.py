@@ -83,6 +83,8 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
         # Kludge we had for starting to put in Band 7 stuff
         # i_directory = "../OSP/Strategy_Tables/tropomi_nir/Covariance/"
         i_directory = None
+        if(str(self.name) == "TATM"):
+            breakpoint()
         (matrix, pressureSa) = mpy.get_prior_covariance(
             str(self.name),
             smeta.latitude.value,
@@ -94,6 +96,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             maptype,
             i_directory,
         )
+    
         return (matrix, pressureSa)
 
     def sa_cross_covariance(self, selem2: StateElementOld):
@@ -565,7 +568,8 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
         # AT_LINE 157 Get_Species_Information.pro
         mapType = speciesInformationFile.mapType.lower()
         constraintType = speciesInformationFile.constraintType.lower()
-
+        #if(str(self.name) == "TATM"):
+        #    breakpoint()
         # spectral species
         # AT_LINE 161 Get_Species_Information.pro
         # self.m_debug_mode = True

@@ -1,5 +1,6 @@
 # This contains various support routines for reading OSP data.
 from __future__ import annotations
+import refractor.muses.muses_py as mpy  # type: ignore
 from .tes_file import TesFile
 import collections.abc
 import numpy as np
@@ -35,6 +36,29 @@ class RangeFind:
                 return v
         raise KeyError()
 
+class OspFileHandle:
+    '''Small mixin, since I tend to put this code in a lot of places. Adds a
+    _abs_path that handles the relative "../OSP" that tends to appear in the OSP
+    files.'''
+    def __init__(self, osp_dir: str | os.PathLike[str] | None = None, nlevel: int=4,
+                 ref_path: str | os.PathLike[str] | None = None) -> None:
+        if(osp_dir is None):
+            if ref_path is None:
+                raise RuntimeError("Need to supply either osp_dir or ref_path")
+            # Assume a directory structure, 
+            p = Path(ref_path)
+            for i in range(nlevel):
+                p = p.parent
+            self.osp_dir=p
+        else:
+            self.osp_dir = Path(osp_dir).absolute()
+
+    def _abs_path(self, v: str) -> Path:
+        m = re.match(r"^\.\./OSP/(.*)", v)
+        if m:
+            return self.osp_dir / m[1]
+        return self.osp_dir / v
+
 
 class OspCovarianceMatrixReader:
     """This reads file found in OSP/Covariance/Covariance"""
@@ -60,18 +84,27 @@ class OspCovarianceMatrixReader:
                 self.filename_data[sid][maptype][(r1, r2)] = fname
 
     def read_cov(
-        self, sid: StateElementIdentifier, map_type: str, latitude: float
+            self, sid: StateElementIdentifier, map_type: str, latitude: float,
+            pressure : np.ndarray
     ) -> np.ndarray:
-        # Right now, we only read scalar data. We just need to put in handling for
-        # data on levels once we get to this.
+        '''Read the covariance file, and if it is on levels interpolate it to
+        the desired pressure levels. The pressure should be given in hPa (the
+        default for all the muses-py stuff). Pressure doesn't change anything
+        for stuff on levels, but we still take it in just so we have a common
+        interface.'''
         # The table has a column with the species name, a column with pressure, a
         # column with map type, and then the data. So we just subset for that
-        d = np.array(
-            TesFile(self.filename_data[sid][map_type.lower()][latitude]).table
-        )[:, 3:].astype(float)
-        if d.shape != (1, 1):
-            raise RuntimeError("Only handle scalar data right now")
-        return d
+        tf = TesFile(self.filename_data[sid][map_type.lower()][latitude]) 
+        d = np.array(tf.table)[:, 3:].astype(float)
+        pressure_sa = np.array(tf.table)[:,1].astype(float)
+        if d.shape == (1, 1):
+            return d
+        # If out of range at top, just move top level. This is what muses-py does,
+        # I think the code for making the interpolation matrix requires this.
+        if pressure_sa.min() > pressure.min():
+            pressure_sa[-1] = pressure.min()
+        m = mpy.make_interpolation_matrix_susan(np.log(pressure_sa), np.log(pressure))
+        return np.matmul(np.matmul(m, d),m.transpose())
 
     @classmethod
     @cache
@@ -79,20 +112,22 @@ class OspCovarianceMatrixReader:
         return cls(covariance_directory)
 
 
-class OspSpeciesReader:
+class OspSpeciesReader(OspFileHandle):
     """This reads file found in directories like
     OSP/Strategy_Tables/ops/OSP-OMI-AIRS-v10/Species-66"""
 
-    def __init__(self, species_directory: Path) -> None:
+    def __init__(self, species_directory: str | os.PathLike[str],
+                 osp_dir: str | os.PathLike[str] | None = None) -> None:
         """This looks through the given directory (e.g.,
         OSP/Strategy_Tables/ops/OSP-OMI-AIRS-v10/Species-66) and maps
         all the files found into a simple structure that we can use to
         look up the file to read for a particular StateElement
 
         """
+        super().__init__(osp_dir=osp_dir, ref_path=species_directory, nlevel=4)
         self.filename_data: dict[StateElementIdentifier, dict[RetrievalType, Path]] = {}
         self._default_cache: dict[StateElementIdentifier, np.ndarray] = {}
-        for fname in species_directory.glob("*.asc"):
+        for fname in Path(species_directory).glob("*.asc"):
             m = re.match(r"([A-Z0-9_]+)(_([a-z0-9_]+))?.asc", fname.name)
             if m:
                 sid = StateElementIdentifier(m[1])
@@ -114,6 +149,11 @@ class OspSpeciesReader:
             if ctype == "diagonal":
                 s = float(t["sSubaDiagonalValues"])
                 cov = np.array([[1.0 / (s * s)]])
+            elif ctype == "premade":
+                pass
+                #print(self._abs_path(t["constraintFilename"]))
+                #d = TesFile(self._abs_path(t["constraintFilename"]))
+                breakpoint()
             else:
                 raise RuntimeError(f"Don't know how to handle {ctype}")
             if retrieval_type not in self.filename_data[
@@ -130,15 +170,19 @@ class OspSpeciesReader:
             fname = self.filename_data[sid][retrieval_type]
         else:
             fname = self.filename_data[sid][RetrievalType("default")]
-        return TesFile(fname)
+        return self._tes_file(fname)
 
+    @cache
+    def _tes_file(self, fname : Path) -> TesFile:
+        return TesFile(fname)
+        
     @classmethod
     @cache
     def read_dir(cls, species_directory: Path) -> Self:
         return cls(species_directory)
 
 
-class OspL2SetupControlInitial(collections.abc.Mapping):
+class OspL2SetupControlInitial(collections.abc.Mapping, OspFileHandle):
     """muses-py has a L2_Setup_Control_Initial.asc that lists state elements and
     what the source of the initial guess is.
 
@@ -157,11 +201,7 @@ class OspL2SetupControlInitial(collections.abc.Mapping):
         fname: str | os.PathLike[str],
         osp_dir: str | os.PathLike[str] | None = None,
     ):
-        # Assume directory structure if OSP directory isn't supplied
-        if osp_dir is None:
-            self.osp_dir = Path(fname).absolute().parent.parent.parent.parent
-        else:
-            self.osp_dir = Path(osp_dir).absolute()
+        OspFileHandle.__init__(self, osp_dir=osp_dir, ref_path=fname,nlevel=4)
         self._file = TesFile(fname)
         self._sid_to_type: dict[StateElementIdentifier, str] = {}
         typ = [
@@ -193,7 +233,7 @@ class OspL2SetupControlInitial(collections.abc.Mapping):
         if res == "-":
             return None
         if re.match(r".*_Directory", ky):
-            return self._abs_dir(self._file[ky])
+            return self._abs_path(self._file[ky])
         return res
 
     def __len__(self) -> int:
@@ -201,12 +241,6 @@ class OspL2SetupControlInitial(collections.abc.Mapping):
 
     def __iter__(self) -> Iterator[tuple[str, str]]:
         return self._file.__iter__()
-
-    def _abs_dir(self, v: str) -> Path:
-        m = re.match(r"^\.\./OSP/(.*)", v)
-        if m:
-            return self.osp_dir / m[1]
-        return self.osp_dir / v
 
     @property
     def sid_to_type(self) -> dict[StateElementIdentifier, str]:

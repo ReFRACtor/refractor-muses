@@ -64,13 +64,12 @@ if _typing.TYPE_CHECKING:
     from .state_element import (
         StateElement,
         StateElementImplementation,
-        StateElementOspFileHandle,
         StateElementHandle,
         StateElementHandleSet,
-        StateElementOspFile,
         StateElementFillValueHandle,
         StateElementFixedValueHandle,
     )
+    from .state_element_osp import StateElementOspFileHandle, StateElementOspFile
     from .state_element_old_wrapper import (
         StateElementOldWrapper,
         StateElementOldWrapperHandle,
