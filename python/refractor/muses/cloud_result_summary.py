@@ -70,9 +70,7 @@ class CloudResultSummary:
             # cloud not retrieved... use 975-1200
             # NOTE: code has not been tested.
             cov = None
-            selem = self.current_state.state_element(
-                StateElementIdentifier("CLOUDEXT")
-            )
+            selem = self.current_state.state_element(StateElementIdentifier("CLOUDEXT"))
             if selem is not None and selem.pressure_list_fm is not None:
                 plist = selem.pressure_list_fm
                 plist_ind = (plist >= 975) & (plist <= 1200)
@@ -285,9 +283,7 @@ class CloudResultSummary:
         return self._DeviationBad_QA
 
     def state_value(self, state_name: str) -> float:
-        return self.current_state.state_value(StateElementIdentifier(state_name))[
-            0
-        ]
+        return self.current_state.state_value(StateElementIdentifier(state_name))[0]
 
     def state_value_vec(self, state_name: str) -> np.ndarray:
         return self.current_state.state_value(StateElementIdentifier(state_name))

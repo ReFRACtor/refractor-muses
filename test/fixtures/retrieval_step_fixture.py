@@ -5,6 +5,7 @@ from refractor.muses import (
     RetrievalStrategy,
     InstrumentIdentifier,
     ProcessLocation,
+    CurrentState
 )
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
@@ -39,6 +40,9 @@ def set_up_run_to_location(
 ):
     """Set up directory and run the given step number to the given location."""
     r = MusesRunDir(dir, osp_dir, gmao_dir)
+    # TODO Short term turn off checking values. This is temporary, we will replace the
+    # old state info stuff in a bit
+    CurrentState.check_old_state_element_value = False
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc", vlidort_cli=vlidort_cli, osp_dir=osp_dir
     )

@@ -2,7 +2,7 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
 from .state_element import StateElementImplementation, StateElement, StateElementHandle
-from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
+from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, CurrentState
 from .identifier import StateElementIdentifier, RetrievalType
 from loguru import logger
 from pathlib import Path
@@ -20,6 +20,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .current_state import SoundingMetadata
+
 
 class StateElementOspFile(StateElementImplementation):
     """This implementation of StateElement gets the apriori/initial guess as a hard coded
@@ -41,7 +42,7 @@ class StateElementOspFile(StateElementImplementation):
     We need to duplicate this functionality, so things are read on first use rather than in the
     constructor. This gives the bad behavior that trying to look at constraint_matrix for the
     wrong StateElement may suddenly give you an error. Unfortunately, we can't avoid this - this
-    is how the OSP files are set up and how muses-py works. 
+    is how the OSP files are set up and how muses-py works.
     """
 
     def __init__(
@@ -50,31 +51,35 @@ class StateElementOspFile(StateElementImplementation):
         pressure_level: np.ndarray,
         constraint_vector_fm: FullGridMappedArray | None,
         latitude: float,
+        surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        copy_on_first_use: bool = False
+        copy_on_first_use: bool = False,
     ):
-        if(constraint_vector_fm is not None):
+        if constraint_vector_fm is not None:
             value_fm = constraint_vector_fm.copy()
             constraint_vector_fm = constraint_vector_fm.copy()
         else:
             value_fm = None
             constraint_vector_fm = None
-        self._map_type : str | None = None
+        self._map_type: str | None = None
         self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
         self.cov_is_constraint = cov_is_constraint
-        if(not self.cov_is_constraint):
-            self.osp_cov_reader = OspCovarianceMatrixReader.read_dir(covariance_directory)
-            self.latitude=latitude
+        if not self.cov_is_constraint:
+            self.osp_cov_reader = OspCovarianceMatrixReader.read_dir(
+                covariance_directory
+            )
+        self.latitude = latitude
+        self.surface_type = surface_type
         self.retrieval_type = RetrievalType("default")
         self._pressure_level = pressure_level
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
         if selem_wrapper is not None:
-            if(selem_wrapper.value_str is None):
+            if selem_wrapper.value_str is None:
                 value_fm = selem_wrapper.value_fm
         super().__init__(
             state_element_id,
@@ -84,25 +89,25 @@ class StateElementOspFile(StateElementImplementation):
             constraint_matrix=None,
             state_mapping=None,
             selem_wrapper=selem_wrapper,
-            copy_on_first_use=copy_on_first_use
+            copy_on_first_use=copy_on_first_use,
         )
         if selem_wrapper is not None:
-            if(selem_wrapper.value_str is None):
+            if selem_wrapper.value_str is None:
                 self._step_initial_fm = selem_wrapper.value_fm
 
     def _fill_in_constraint(self) -> None:
-        if(self._constraint_matrix is not None):
+        if self._constraint_matrix is not None:
             return
         # Special handling for a few types. These should get moved into their own classes,
         # but for now just handle it inline so we can get bulk stuff in place.
-        spectype : None | str = None
-        if(self.state_element_id == StateElementIdentifier("NH3")):
+        spectype: None | str = None
+        if self.state_element_id == StateElementIdentifier("NH3"):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("nh3type")
-        elif(self.state_element_id == StateElementIdentifier("CH3OH")):
+        elif self.state_element_id == StateElementIdentifier("CH3OH"):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("ch3ohtype")
-        elif(self.state_element_id == StateElementIdentifier("HCOOH")):
+        elif self.state_element_id == StateElementIdentifier("HCOOH"):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("hcoohtype")
         # When we have cross terms in the covariance, the non cross term also changes - this
@@ -110,27 +115,40 @@ class StateElementOspFile(StateElementImplementation):
         # just "know" that if both H2O and HDO are being retrieved we want the cross term,
         # so we need H2O_H2O.asc instead of H2O.asc.
         sid2 = None
-        if self.state_element_id in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO")) and self._h2o_and_hdo:
+        if (
+            self.state_element_id
+            in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO"))
+            and self._h2o_and_hdo
+        ):
             sid2 = self.state_element_id
         self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
-            self.state_element_id, self.retrieval_type, self.basis_matrix.shape[0],
-            sid2 = sid2, spectype=spectype
+            self.state_element_id,
+            self.retrieval_type,
+            self.basis_matrix.shape[0],
+            sid2=sid2,
+            spectype=spectype,
         ).view(RetrievalGrid2dArray)
         # TODO Short term we cast this to float32, just so can match the old muses-py code.
         # We'll change this shortly, but we want to do this one step at a time so we know
         # exactly what is making things change. Note the float32 is only needed for the cross
         # terms, which get calculated in a different spot in the old code.
-        if(self.pressure_list_fm is not None):
-            self._constraint_matrix = self._constraint_matrix.astype(np.float32).astype(np.float64).view(RetrievalGrid2dArray)
+        if self.pressure_list_fm is not None:
+            self._constraint_matrix = (
+                self._constraint_matrix.astype(np.float32)
+                .astype(np.float64)
+                .view(RetrievalGrid2dArray)
+            )
 
     def _fill_in_state_mapping(self) -> None:
-        if(self._state_mapping is not None):
+        if self._state_mapping is not None:
             return
         t = self.osp_species_reader.read_file(
             self.state_element_id, self.retrieval_type
         )
         if "retrievalLevels" in t:
-            self._retrieval_levels : list[int] | None = [int(i) for i in t["retrievalLevels"].split(',')]
+            self._retrieval_levels: list[int] | None = [
+                int(i) for i in t["retrievalLevels"].split(",")
+            ]
         else:
             self._retrieval_levels = None
         self._map_type = t["mapType"].lower()
@@ -142,16 +160,18 @@ class StateElementOspFile(StateElementImplementation):
             raise RuntimeError(f"Don't recognize map_type {self._map_type}")
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
-        if(self._state_mapping_retrieval_to_fm is not None):
+        if self._state_mapping_retrieval_to_fm is not None:
             return
         if self._sold is not None:
             # We'll want to create this shortly
-            self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
+            self._state_mapping_retrieval_to_fm = (
+                self._sold.state_mapping_retrieval_to_fm
+            )
         else:
             self._state_mapping_retrieval_to_fm = rf.StateMappingLinear()
 
     def _fill_in_apriori(self) -> None:
-        if(self._apriori_cov_fm is not None):
+        if self._apriori_cov_fm is not None:
             return
         if self.cov_is_constraint:
             self._fill_in_constraint()
@@ -161,34 +181,40 @@ class StateElementOspFile(StateElementImplementation):
             assert self._map_type is not None
             # Special handling for a few types. These should get moved into their own classes,
             # but for now just handle it inline so we can get bulk stuff in place.
-            spectype : None | str = None
-            if(self.state_element_id == StateElementIdentifier("NH3")):
+            spectype: None | str = None
+            if self.state_element_id == StateElementIdentifier("NH3"):
                 assert self._sold is not None
                 spectype = self._sold._current_state_old.state_value_str("nh3type")
-            elif(self.state_element_id == StateElementIdentifier("CH3OH")):
+            elif self.state_element_id == StateElementIdentifier("CH3OH"):
                 assert self._sold is not None
                 spectype = self._sold._current_state_old.state_value_str("ch3ohtype")
-            elif(self.state_element_id == StateElementIdentifier("HCOOH")):
+            elif self.state_element_id == StateElementIdentifier("HCOOH"):
                 assert self._sold is not None
                 spectype = self._sold._current_state_old.state_value_str("hcoohtype")
-            cov_matrix = self.osp_cov_reader.read_cov(self.state_element_id, self._map_type,
-                                                      self.latitude, spectype=spectype if spectype is not None else '')
-            if(self._retrieval_levels is None or len(self._retrieval_levels) < 2):
+            cov_matrix = self.osp_cov_reader.read_cov(
+                self.state_element_id,
+                self._map_type,
+                self.latitude,
+                spectype=spectype if spectype is not None else "",
+            )
+            if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
                 self._apriori_cov_fm = cov_matrix.original_cov.view(FullGrid2dArray)
                 # TODO Temp, we have things like TSUR that are hard coded to using a diagonal matrix.
                 # Just punt for now.
-                if(self._sold is not None):
+                if self._sold is not None:
                     self._apriori_cov_fm = self._sold.apriori_cov_fm
             else:
-                self._apriori_cov_fm = cov_matrix.interpolated_covariance(self._pressure_level).view(FullGrid2dArray)
+                self._apriori_cov_fm = cov_matrix.interpolated_covariance(
+                    self._pressure_level
+                ).view(FullGrid2dArray)
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         self._fill_in_constraint()
         res = self._constraint_matrix
-        if(res is None):
+        if res is None:
             raise RuntimeError("This can't happen")
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.constraint_matrix
             npt.assert_allclose(res, res2, 1e-15)
             assert res.dtype == res2.dtype
@@ -198,18 +224,18 @@ class StateElementOspFile(StateElementImplementation):
     def apriori_cov_fm(self) -> FullGrid2dArray:
         self._fill_in_apriori()
         res = self._apriori_cov_fm
-        if(res is None):
+        if res is None:
             raise RuntimeError("This can't happen")
         if self._sold is not None:
             try:
                 res2 = self._sold.apriori_cov_fm
             except AssertionError:
                 res2 = None
-            if res2 is not None:
+            if res2 is not None and CurrentState.check_old_state_element_value:
                 npt.assert_allclose(res, res2, 1e-15)
                 assert res.dtype == res2.dtype
         return res
-    
+
     @property
     def state_mapping(self) -> rf.StateMapping:
         self._fill_in_state_mapping()
@@ -219,17 +245,17 @@ class StateElementOspFile(StateElementImplementation):
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         self._fill_in_state_mapping_retrieval_to_fm()
         return self._state_mapping_retrieval_to_fm
-    
+
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise). This is the levels that
         the apriori_cov_fm are on."""
         self._fill_in_state_mapping()
-        if(self._retrieval_levels is None or len(self._retrieval_levels) < 2):
+        if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
             return None
         res = self._pressure_level
-        if(self._sold is not None):
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.pressure_list_fm
             assert res2 is not None
             npt.assert_allclose(res, res2, 1e-15)
@@ -248,7 +274,7 @@ class StateElementOspFile(StateElementImplementation):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        copy_on_first_use:bool = False
+        copy_on_first_use: bool = False,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -259,11 +285,12 @@ class StateElementOspFile(StateElementImplementation):
             pressure_level,
             constraint_vector_fm,
             sounding_metadata.latitude.value,
+            sounding_metadata.surface_type,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
             cov_is_constraint=cov_is_constraint,
-            copy_on_first_use=copy_on_first_use
+            copy_on_first_use=copy_on_first_use,
         )
         return res
 
@@ -280,15 +307,22 @@ class StateElementOspFile(StateElementImplementation):
         )
         # We need to get the initial guess stuff in place, but for now just
         # grab from old data
-        if(self._sold is not None and self._copy_on_first_use and current_strategy_step.strategy_step.step_number == 0):
-            if(self._sold.value_str is None):
+        if (
+            self._sold is not None
+            and self._copy_on_first_use
+            and current_strategy_step.strategy_step.step_number == 0
+        ):
+            if self._sold.value_str is None:
                 self._step_initial_fm = self._sold.step_initial_fm.copy()
                 self._value_fm = self._step_initial_fm.copy()
         self.retrieval_type = current_strategy_step.retrieval_type
         # Track is we have both H2O and HDO retrieved
         self._h2o_and_hdo = False
-        if(StateElementIdentifier("H2O") in current_strategy_step.retrieval_elements and
-           StateElementIdentifier("HDO") in current_strategy_step.retrieval_elements):
+        if (
+            StateElementIdentifier("H2O") in current_strategy_step.retrieval_elements
+            and StateElementIdentifier("HDO")
+            in current_strategy_step.retrieval_elements
+        ):
             self._h2o_and_hdo = True
         # Most of the time this will just return the same value, but there might be
         # certain steps with a different constraint matrix. So we empty the cache here
@@ -298,6 +332,7 @@ class StateElementOspFile(StateElementImplementation):
         self._map_type = None
         self._state_mapping = None
         self._state_mapping_retrieval_to_fm = None
+
 
 class StateElementOspFileHandle(StateElementHandle):
     def __init__(
@@ -370,7 +405,8 @@ class StateElementOspFileHandle(StateElementHandle):
             logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
         return res
 
+
 __all__ = [
     "StateElementOspFileHandle",
     "StateElementOspFile",
-]    
+]

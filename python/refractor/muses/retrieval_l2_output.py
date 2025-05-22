@@ -544,8 +544,8 @@ class RetrievalL2Output(RetrievalOutput):
                     d[f"OMI_SURFACEALBEDO{bout}"] = self.state_value(
                         f"OMISURFACEALBEDO{bout}"
                     )
-                    d[f"OMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = self.state_constraint(
-                        f"OMISURFACEALBEDO{bout}"
+                    d[f"OMI_SURFACEALBEDO{bout}CONSTRAINTVECTOR"] = (
+                        self.state_constraint(f"OMISURFACEALBEDO{bout}")
                     )
                     if bout != "UV1":
                         # For who knows what reason this isn't present for UV1.
@@ -625,7 +625,9 @@ class RetrievalL2Output(RetrievalOutput):
                             f"TROPOMISURFACEALBEDOSLOPEORDER2{bout}"
                         )
                         d[f"TROPOMI_SURFACEALBEDOSLOPEORDER2{bout}CONSTRAINTVECTOR"] = (
-                            self.state_constraint(f"TROPOMISURFACEALBEDOSLOPEORDER2{bout}")
+                            self.state_constraint(
+                                f"TROPOMISURFACEALBEDOSLOPEORDER2{bout}"
+                            )
                         )
                     if bout == "BAND3":
                         d[f"TROPOMI_TEMPSHIFT{bout}"] = self.state_value(
@@ -1070,7 +1072,9 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TATM_DEVIATION = 0.0
 
             species_data.TATM_SPECIES[pslice] = self.state_value_vec("TATM")
-            species_data.TATM_CONSTRAINTVECTOR[pslice] = self.state_constraint_vec("TATM")
+            species_data.TATM_CONSTRAINTVECTOR[pslice] = self.state_constraint_vec(
+                "TATM"
+            )
 
             # AT_LINE 725 src_ms-2018-12-10/write_products_one.pro
 

@@ -30,6 +30,7 @@ def test_tropomi_cloud_fraction_state_element(osp_dir, joint_tropomi_obs_step_12
         StateElementIdentifier("TROPOMICLOUDFRACTION"),
         tropomi_obs,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )
@@ -86,6 +87,7 @@ def test_tropomi_surface_alebdo_band7_state_element(tropomi_swir, josh_osp_dir):
         StateElementIdentifier("TROPOMISURFACEALBEDOBAND7"),
         tropomi_obs,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
         band=7,
@@ -115,6 +117,7 @@ def test_tropomi_surface_albedo_state_element(osp_dir, joint_tropomi_obs_step_12
         StateElementIdentifier("TROPOMISURFACEALBEDOBAND3"),
         tropomi_obs,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
         band=3,

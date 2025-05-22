@@ -127,20 +127,14 @@ class FakeStateInfo:
             varr[self.species.index(s), :] = current_state.state_value(
                 StateElementIdentifier(s)
             )
-            varr2[self.species.index(s), :] = (
-                current_state.state_constraint_vector(
-                    StateElementIdentifier(s)
-                )
+            varr2[self.species.index(s), :] = current_state.state_constraint_vector(
+                StateElementIdentifier(s)
             )
-            varr3[self.species.index(s), :] = (
-                current_state.state_step_initial_value(
-                    StateElementIdentifier(s)
-                )
+            varr3[self.species.index(s), :] = current_state.state_step_initial_value(
+                StateElementIdentifier(s)
             )
             varr4[self.species.index(s), :] = (
-                current_state.state_retrieval_initial_value(
-                    StateElementIdentifier(s)
-                )
+                current_state.state_retrieval_initial_value(StateElementIdentifier(s))
             )
 
         self._current["values"] = varr
@@ -157,10 +151,8 @@ class FakeStateInfo:
         self._initial["pressure"] = current_state.state_step_initial_value(
             StateElementIdentifier("pressure")
         )
-        self._initial_initial["pressure"] = (
-            current_state.state_retrieval_initial_value(
-                StateElementIdentifier("pressure")
-            )
+        self._initial_initial["pressure"] = current_state.state_retrieval_initial_value(
+            StateElementIdentifier("pressure")
         )
         self._true["pressure"] = current_state.state_true_value(
             StateElementIdentifier("pressure")
@@ -176,32 +168,28 @@ class FakeStateInfo:
         # I think this is always 'yes', it looks like the logic in muses-py for setting
         # this to 'no' is never active.
         self._cloud_pars["use"] = "yes"
-        self._cloud_pars["frequency"] = (
-            current_state.state_spectral_domain_wavelength(
-                StateElementIdentifier("cloudEffExt")
-            )
+        self._cloud_pars["frequency"] = current_state.state_spectral_domain_wavelength(
+            StateElementIdentifier("cloudEffExt")
         )
         self._cloud_pars["num_frequencies"] = self._cloud_pars["frequency"].shape[0]
-        self._current["cloudEffExt"] = np.array(current_state.state_value(
-            StateElementIdentifier("cloudEffExt")
-        ))
+        self._current["cloudEffExt"] = np.array(
+            current_state.state_value(StateElementIdentifier("cloudEffExt"))
+        )
         self._true["cloudEffExt"] = np.zeros(self._current["cloudEffExt"].shape)
         self._emis_pars: dict[str, Any] = {}
         # I think this is always 'yes', it looks like the logic in muses-py for setting
         # this to 'no' is never active.
         self._emis_pars["use"] = "yes"
-        self._emis_pars["frequency"] = (
-            current_state.state_spectral_domain_wavelength(
-                StateElementIdentifier("emissivity")
-            )
+        self._emis_pars["frequency"] = current_state.state_spectral_domain_wavelength(
+            StateElementIdentifier("emissivity")
         )
         self._emis_pars["num_frequencies"] = self._emis_pars["frequency"].shape[0]
-        self._current["emissivity"] = np.array(current_state.state_value(
-            StateElementIdentifier("emissivity")
-        ))
-        self._constraint["emissivity"] = np.array(current_state.state_constraint_vector(
-            StateElementIdentifier("emissivity")
-        ))
+        self._current["emissivity"] = np.array(
+            current_state.state_value(StateElementIdentifier("emissivity"))
+        )
+        self._constraint["emissivity"] = np.array(
+            current_state.state_constraint_vector(StateElementIdentifier("emissivity"))
+        )
         self._true["emissivity"] = np.zeros(self._current["emissivity"].shape)
         self._calibration_pars: dict[str, Any] = {}
         # I think this is always 'no', it looks like the logic in muses-py for setting
@@ -540,9 +528,7 @@ class FakeStateInfo:
 
     def state_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
-        return self.current_state.state_value(StateElementIdentifier(state_name))[
-            0
-        ]
+        return self.current_state.state_value(StateElementIdentifier(state_name))[0]
 
     def fill_omi(self, current_state: CurrentState, obs: MusesObservation) -> None:
         d = self._current["omi"]

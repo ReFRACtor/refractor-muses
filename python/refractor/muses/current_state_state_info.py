@@ -6,7 +6,7 @@ from .current_state import (
     FullGridArray,
     FullGridMappedArray,
     RetrievalGrid2dArray,
-    FullGrid2dArray
+    FullGrid2dArray,
 )
 from .identifier import StateElementIdentifier
 from .state_element_old_wrapper import StateElementOldWrapperHandle
@@ -27,6 +27,7 @@ if typing.TYPE_CHECKING:
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
     from .state_info import StateElement
+
 
 class CurrentStateStateInfo(CurrentState):
     """Implementation of CurrentState that uses our StateInfo."""
@@ -96,10 +97,10 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        if True:
+        if CurrentState.check_old_state_element_value:
             res2 = self._current_state_old.initial_guess
             # Short term, see if this is only difference
-            #return res2.view(RetrievalGridArray)
+            # return res2.view(RetrievalGridArray)
             # Need to fix
             npt.assert_allclose(res, res2, 1e-12)
         return res.view(RetrievalGridArray)
@@ -124,10 +125,10 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        if True:
+        if CurrentState.check_old_state_element_value:
             res2 = self._current_state_old.initial_guess_full
             # Short term, see if this is only difference
-            #return res2.view(FullGridArray)
+            # return res2.view(FullGridArray)
             # Need to fix
             npt.assert_allclose(res, res2, 1e-12)
         return res.view(FullGridArray)
@@ -153,12 +154,12 @@ class CurrentStateStateInfo(CurrentState):
                     res[r1, r2] = m
                     res[r2, r1] = np.transpose(m)
         # TODO Remove current_state_old
-        if True:
+        if CurrentState.check_old_state_element_value:
             res2 = self._current_state_old.constraint_matrix
             # Short term, see if this is only difference
             return res2.view(RetrievalGrid2dArray)
             # Need to fix
-            npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2, 1e-12)
         return res.view(RetrievalGrid2dArray)
 
     @property
@@ -166,7 +167,11 @@ class CurrentStateStateInfo(CurrentState):
         if self.do_systematic:
             return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
         else:
-            return (mpy.sqrt_matrix(self.constraint_matrix)).transpose().view(RetrievalGridArray)
+            return (
+                (mpy.sqrt_matrix(self.constraint_matrix))
+                .transpose()
+                .view(RetrievalGridArray)
+            )
 
     @property
     def constraint_vector(self) -> RetrievalGridArray:
@@ -188,7 +193,7 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        if True:
+        if CurrentState.check_old_state_element_value:
             res2 = self._current_state_old.constraint_vector
             # Short term, see if this is only difference
             return res2.view(RetrievalGridArray)
@@ -216,7 +221,7 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        if True:
+        if CurrentState.check_old_state_element_value:
             try:
                 res2 = self._current_state_old.constraint_vector_full
                 # Short term, see if this is only difference
@@ -330,7 +335,11 @@ class CurrentStateStateInfo(CurrentState):
     ) -> None:
         self.match_old()
         self._state_info[state_element_id].update_state_element(
-            current_fm, constraint_vector_fm, step_initial_fm, retrieval_initial_fm, true_value_fm
+            current_fm,
+            constraint_vector_fm,
+            step_initial_fm,
+            retrieval_initial_fm,
+            true_value_fm,
         )
 
     def clear_cache(self) -> None:
@@ -388,7 +397,11 @@ class CurrentStateStateInfo(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
         self.match_old()
-        sid = StateElementIdentifier(state_element_id) if isinstance(state_element_id, str)  else state_element_id
+        sid = (
+            StateElementIdentifier(state_element_id)
+            if isinstance(state_element_id, str)
+            else state_element_id
+        )
         return self._state_info[sid]
 
     def state_spectral_domain_wavelength(
@@ -421,7 +434,7 @@ class CurrentStateStateInfo(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
         res = self.state_element(state_element_id).true_value_fm
-        if(res is None):
+        if res is None:
             return None
         return res.view(FullGridMappedArray)
 
@@ -474,7 +487,7 @@ class CurrentStateStateInfo(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
         res = self.state_element(state_element_id).pressure_list
-        if(res is None):
+        if res is None:
             return None
         return res.view(RetrievalGridArray)
 
@@ -482,7 +495,7 @@ class CurrentStateStateInfo(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
         res = self.state_element(state_element_id).pressure_list_fm
-        if(res is None):
+        if res is None:
             return None
         return res.view(FullGridMappedArray)
 
@@ -490,7 +503,7 @@ class CurrentStateStateInfo(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
         res = self.state_element(state_element_id).altitude_list
-        if(res is None):
+        if res is None:
             return None
         return res.view(RetrievalGridArray)
 
@@ -498,7 +511,7 @@ class CurrentStateStateInfo(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
         res = self.state_element(state_element_id).altitude_list_fm
-        if(res is None):
+        if res is None:
             return None
         return res.view(FullGridMappedArray)
 

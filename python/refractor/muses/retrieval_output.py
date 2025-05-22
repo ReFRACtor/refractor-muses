@@ -157,9 +157,7 @@ class RetrievalOutput:
 
     def state_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
-        return self.current_state.state_value(StateElementIdentifier(state_name))[
-            0
-        ]
+        return self.current_state.state_value(StateElementIdentifier(state_name))[0]
 
     def state_value_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""

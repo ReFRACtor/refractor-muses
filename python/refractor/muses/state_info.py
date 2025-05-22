@@ -131,8 +131,8 @@ class StateInfo(UserDict):
         update the new data for the purpose of unit tests."""
         breakpoint()
         for k, v in self.items():
-            try: 
-                if(self._current_state_old.state_value_str(k) is None):
+            try:
+                if self._current_state_old.state_value_str(k) is None:
                     breakpoint()
                     v.update_state_element(
                         current_fm=self._current_state_old.state_value(k),

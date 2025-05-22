@@ -120,6 +120,7 @@ class StateElementTropomiFileHandle(StateElementHandle):
             state_element_id,
             obs,
             self.sounding_metadata.latitude.value,
+            self.sounding_metadata.surface_type,
             Path(self.retrieval_config["speciesDirectory"]),
             Path(self.retrieval_config["covarianceDirectory"]),
             selem_wrapper=sold,
@@ -233,6 +234,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
         state_element_id: StateElementIdentifier,
         obs: MusesObservation,
         latitude: float,
+        surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
@@ -245,6 +247,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
             np.array([]),
             constraint_vector_fm,
             latitude,
+            surface_type,
             species_directory,
             covariance_directory,
             selem_wrapper=selem_wrapper,
@@ -263,7 +266,9 @@ class StateElementTropomiCloudPressure(StateElementImplementation):
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:
-        constraint_vector_fm = np.array([obs.cloud_pressure.value]).view(FullGridMappedArray)
+        constraint_vector_fm = np.array([obs.cloud_pressure.value]).view(
+            FullGridMappedArray
+        )
         super().__init__(
             state_element_id,
             constraint_vector_fm,
@@ -282,6 +287,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
         state_element_id: StateElementIdentifier,
         obs: MusesObservation,
         latitude: float,
+        surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
@@ -302,6 +308,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
             np.array([]),
             constraint_vector_fm,
             latitude,
+            surface_type,
             species_directory,
             covariance_directory,
             selem_wrapper=selem_wrapper,

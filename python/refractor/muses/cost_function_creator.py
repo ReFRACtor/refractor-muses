@@ -286,7 +286,9 @@ class CostFunctionCreator:
             # places. This was probably to avoid zero size arrays, but there isn't
             # any actually problem in python with those. But for now, fit muses-py
             # convention
-            retrieval_sv_apriori = np.zeros((current_state.fm_state_vector_size,)).view(RetrievalGridArray)
+            retrieval_sv_apriori = np.zeros((current_state.fm_state_vector_size,)).view(
+                RetrievalGridArray
+            )
             retrieval_sv_sqrt_constraint = np.zeros(
                 (current_state.fm_state_vector_size, current_state.fm_state_vector_size)
             ).view(RetrievalGridArray)

@@ -296,9 +296,7 @@ class RetrievalInfo:
         current_state: CurrentStateStateInfoOld,
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
-        selem = current_state.state_element_old(
-            StateElementIdentifier(species_name)
-        )
+        selem = current_state.state_element_old(StateElementIdentifier(species_name))
 
         row = o_retrievalInfo.n_totalParameters
         rowFM = o_retrievalInfo.n_totalParametersFM
@@ -354,12 +352,8 @@ class RetrievalInfo:
 
         locs = [index_H2O, index_HDO]
 
-        i_nh3type = current_state.state_value_str(
-            StateElementIdentifier("nh3type")
-        )
-        i_ch3ohtype = current_state.state_value_str(
-            StateElementIdentifier("ch3ohtype")
-        )
+        i_nh3type = current_state.state_value_str(StateElementIdentifier("nh3type"))
+        i_ch3ohtype = current_state.state_value_str(StateElementIdentifier("ch3ohtype"))
 
         if locs[0] >= 0 and locs[1] >= 0:
             # HDO and H2O both retrieved in this step
@@ -372,7 +366,7 @@ class RetrievalInfo:
                     loop_count += 1
                     specie1 = names[xx]
                     specie2 = names[yy]
-                    
+
                     filename = species_dir / f"{specie1}_{specie2}.asc"
                     if not filename.exists():
                         # If cannot find file, look for one with the species names swapped.

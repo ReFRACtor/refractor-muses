@@ -21,6 +21,7 @@ def test_omi_cloud_fraction_state_element(osp_dir, joint_omi_obs_step_8):
         StateElementIdentifier("OMICLOUDFRACTION"),
         omi_obs,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )
@@ -44,6 +45,7 @@ def test_omi_surface_state_element(osp_dir, joint_omi_obs_step_8):
         StateElementIdentifier("OMISURFACEALBEDOUV1"),
         omi_obs,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )

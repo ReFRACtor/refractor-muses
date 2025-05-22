@@ -3,7 +3,14 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .identifier import StateElementIdentifier, RetrievalType
-from .current_state import RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, FullGridArray
+from .current_state import (
+    RetrievalGridArray,
+    FullGridMappedArray,
+    RetrievalGrid2dArray,
+    FullGrid2dArray,
+    FullGridArray,
+    CurrentState
+)
 import abc
 from loguru import logger
 import numpy as np
@@ -20,6 +27,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .cost_function_creator import CostFunctionStateElementNotify
     from .current_state import SoundingMetadata
+
 
 class StateElement(object, metaclass=abc.ABCMeta):
     """This handles a single StateElement, identified by
@@ -135,18 +143,18 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return None
 
     @property
-    def basis_matrix(self) -> np.ndarray | None:
+    def basis_matrix(self) -> np.ndarray:
         """Basis matrix going from retrieval vector to forward model
         vector. Would be nice to replace this with a general
         rf.StateMapping, but for now this is assumed in a lot of
         muses-py code."""
-        return None
+        return np.eye(self.value_fm.shape[0])
 
     @property
-    def map_to_parameter_matrix(self) -> np.ndarray | None:
+    def map_to_parameter_matrix(self) -> np.ndarray:
         """Go the other direction from the basis matrix, going from
         the forward model vector the retrieval vector."""
-        return None
+        return np.eye(1)
 
     @abc.abstractproperty
     def forward_model_sv_length(self) -> int:
@@ -155,7 +163,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def sys_sv_length(self) -> int:
         raise NotImplementedError()
-    
+
     @property
     def altitude_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
@@ -172,13 +180,17 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
-        if(self.pressure_list_fm is None):
+        if self.pressure_list_fm is None:
             return None
-        return self.pressure_list_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+        return self.pressure_list_fm.to_ret(
+            self.state_mapping_retrieval_to_fm, self.state_mapping
+        )
 
     @property
     def value_ret(self) -> RetrievalGridArray:
-        return self.value_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+        return self.value_fm.to_ret(
+            self.state_mapping_retrieval_to_fm, self.state_mapping
+        )
 
     @property
     def value_full(self) -> FullGridArray:
@@ -186,7 +198,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def step_initial_ret(self) -> RetrievalGridArray:
-        return self.step_initial_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+        return self.step_initial_fm.to_ret(
+            self.state_mapping_retrieval_to_fm, self.state_mapping
+        )
 
     @property
     def step_initial_full(self) -> FullGridArray:
@@ -194,7 +208,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def retrieval_initial_ret(self) -> RetrievalGridArray:
-        return self.retrieval_initial_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+        return self.retrieval_initial_fm.to_ret(
+            self.state_mapping_retrieval_to_fm, self.state_mapping
+        )
 
     @property
     def retrieval_initial_full(self) -> FullGridArray:
@@ -202,7 +218,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def constraint_vector_ret(self) -> RetrievalGridArray:
-        return self.constraint_vector_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+        return self.constraint_vector_fm.to_ret(
+            self.state_mapping_retrieval_to_fm, self.state_mapping
+        )
 
     @property
     def constraint_vector_full(self) -> FullGridArray:
@@ -210,20 +228,22 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def true_value_ret(self) -> RetrievalGridArray | None:
-        if(self.true_value_fm is None):
+        if self.true_value_fm is None:
             return None
-        return self.true_value_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
+        return self.true_value_fm.to_ret(
+            self.state_mapping_retrieval_to_fm, self.state_mapping
+        )
 
     @property
     def true_value_full(self) -> FullGridArray | None:
-        if(self.true_value_fm is None):
+        if self.true_value_fm is None:
             return None
         return self.true_value_fm.to_full(self.state_mapping)
-    
+
     @abc.abstractproperty
     def value_fm(self) -> FullGridMappedArray:
         """Current value of StateElement.
-        
+
         This is the mapped state from state_mapping (so VMR rather than
         log(VMR) for a log mapping)"""
         raise NotImplementedError()
@@ -281,7 +301,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def retrieval_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval."""
         raise NotImplementedError()
-    
+
     @abc.abstractproperty
     def state_mapping(self) -> rf.StateMapping:
         """StateMapping used by the forward model (so taking the FullGridArray
@@ -433,6 +453,7 @@ class StateElementImplementation(StateElement):
     the value, apriori, etc. This class handles this common case, derived classes should
     fill in handling the various notify functions. Note we allow various values to be "None",
     this is useful for derived classes that might fill something in lazily."""
+
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
@@ -458,14 +479,18 @@ class StateElementImplementation(StateElement):
         self._step_initial_fm = (
             initial_value_fm if initial_value_fm is not None else constraint_vector_fm
         )
-        self._retrieval_initial_fm : FullGridMappedArray | None = None
+        self._retrieval_initial_fm: FullGridMappedArray | None = None
         if self._step_initial_fm is not None:
             self._retrieval_initial_fm = self._step_initial_fm.copy()
         self._true_value_fm = true_value_fm
         self._value_str = value_str
-        self._updated_fm_flag : FullGridMappedArray | None = None
+        self._updated_fm_flag: FullGridMappedArray | None = None
         if apriori_cov_fm is not None:
-            self._updated_fm_flag = np.zeros((apriori_cov_fm.shape[0],)).astype(bool).view(FullGridMappedArray)
+            self._updated_fm_flag = (
+                np.zeros((apriori_cov_fm.shape[0],))
+                .astype(bool)
+                .view(FullGridMappedArray)
+            )
         self._retrieved_this_step = False
         self._initial_guess_not_updated = False
         self._next_step_initial_fm: FullGridMappedArray | None = None
@@ -481,13 +506,15 @@ class StateElementImplementation(StateElement):
         # up an some point, this is all unnecessarily obscure
         if not self._retrieved_this_step:
             return
-        #if self._value_fm is not None and self.value.shape[0] != param_subset.shape[0]:
+        # if self._value_fm is not None and self.value.shape[0] != param_subset.shape[0]:
         #    raise RuntimeError(
         #        f"param_subset doesn't match value size {param_subset.shape[0]} vs {self.value.shape[0]}"
         #    )
         # Short term skip so we can compare to old state element
         if False:
-            self._value_fm = param_subset.view(RetrievalGridArray).to_fm(self.state_mapping_retrieval_to_fm, self.state_mapping)
+            self._value_fm = param_subset.view(RetrievalGridArray).to_fm(
+                self.state_mapping_retrieval_to_fm, self.state_mapping
+            )
 
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
         if self._sold is None:
@@ -496,37 +523,37 @@ class StateElementImplementation(StateElement):
 
     # TODO This can perhaps go away? Replace with a mapping?
     @property
-    def basis_matrix(self) -> np.ndarray | None:
+    def basis_matrix(self) -> np.ndarray:
         if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
             res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose()
         else:
             res = np.eye(self.value_fm.shape[0])
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.basis_matrix
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
             npt.assert_allclose(res, res2)
             # Special case, some of the basis matrix that happen to be integer
             # are left as int64. No real reason, but also no harm
-            if(res2.dtype != np.int64):
+            if res2.dtype != np.int64:
                 assert res.dtype == res2.dtype
         return res
 
     # TODO This can perhaps go away? Replace with a mapping?
     @property
-    def map_to_parameter_matrix(self) -> np.ndarray | None:
+    def map_to_parameter_matrix(self) -> np.ndarray:
         if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
             res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose()
         else:
             res = np.eye(self.value_fm.shape[0])
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.map_to_parameter_matrix
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
             npt.assert_allclose(res, res2, atol=1e-12)
             # Special case, some of the basis matrix that happen to be integer
             # are left as int64. No real reason, but also no harm
-            if(res2.dtype != np.int64):
+            if res2.dtype != np.int64:
                 assert res.dtype == res2.dtype
         return res
 
@@ -552,7 +579,7 @@ class StateElementImplementation(StateElement):
             res2 = self._sold.sys_sv_length
             assert res == res2
         return res
-    
+
     @property
     def value_fm(self) -> FullGridMappedArray:
         if (
@@ -561,10 +588,10 @@ class StateElementImplementation(StateElement):
             and self._sold is not None
         ):
             self._value_fm = self._sold.value_fm.copy()
-        if(self._value_fm is None):
+        if self._value_fm is None:
             raise RuntimeError("_value_fm shouldn't be None")
         res = self._value_fm
-        if(self._sold is not None):
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             try:
                 res2 = self._sold.value_fm
                 npt.assert_allclose(res, res2)
@@ -582,10 +609,10 @@ class StateElementImplementation(StateElement):
         ):
             return self._sold.constraint_vector_fm
             self._constraint_vector_fm = self._sold.constraint_vector_fm
-        if(self._constraint_vector_fm is None):
+        if self._constraint_vector_fm is None:
             raise RuntimeError("_constraint_vector_fm shouldn't be None")
         res = self._constraint_vector_fm
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             try:
                 res2 = self._sold.constraint_vector_fm
             except (AssertionError, RuntimeError):
@@ -604,10 +631,10 @@ class StateElementImplementation(StateElement):
         ):
             return self._sold.constraint_matrix
             self._constraint_matrix = self._sold.constraint_matrix.copy()
-        if(self._constraint_matrix is None):
+        if self._constraint_matrix is None:
             raise RuntimeError("_constraint_matrix shouldn't be None")
         res = self._constraint_matrix
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.constraint_matrix
             npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
@@ -616,13 +643,13 @@ class StateElementImplementation(StateElement):
     def constraint_cross_covariance(
         self, selem2: StateElement
     ) -> RetrievalGrid2dArray | None:
-        if(self._sold is not None):
+        if self._sold is not None:
             res = self._sold.constraint_cross_covariance(selem2)
-            if(res is None):
+            if res is None:
                 return None
             return res.view(RetrievalGrid2dArray)
         return None
-        
+
     @property
     def apriori_cov_fm(self) -> FullGrid2dArray:
         if (
@@ -632,7 +659,7 @@ class StateElementImplementation(StateElement):
         ):
             return self._sold.apriori_cov_fm
             self._apriori_cov_fm = self._sold.apriori_cov_fm.copy()
-        if(self._apriori_cov_fm is None):
+        if self._apriori_cov_fm is None:
             raise RuntimeError("_apriori_cov_fm shouldn't be None")
         res = self._apriori_cov_fm
         if self._sold is not None:
@@ -640,7 +667,7 @@ class StateElementImplementation(StateElement):
                 res2 = self._sold.apriori_cov_fm
             except AssertionError:
                 res2 = None
-            if res2 is not None:
+            if res2 is not None and CurrentState.check_old_state_element_value:
                 npt.assert_allclose(res, res2)
                 assert res.dtype == res2.dtype
         return res
@@ -652,13 +679,11 @@ class StateElementImplementation(StateElement):
             and self._copy_on_first_use
             and self._sold is not None
         ):
-            self._retrieval_initial_fm = (
-                self._sold.retrieval_initial_fm.copy()
-            )
-        if(self._retrieval_initial_fm is None):
+            self._retrieval_initial_fm = self._sold.retrieval_initial_fm.copy()
+        if self._retrieval_initial_fm is None:
             raise RuntimeError("_retrieval_initial_fm shouldn't be None")
         res = self._retrieval_initial_fm
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.retrieval_initial_fm
             npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
@@ -672,10 +697,10 @@ class StateElementImplementation(StateElement):
             and self._sold is not None
         ):
             self._step_initial_fm = self._sold.step_initial_fm.copy()
-        if(self._step_initial_fm is None):
+        if self._step_initial_fm is None:
             raise RuntimeError("_step_initial_fm shouldn't be None")
         res = self._step_initial_fm
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.step_initial_fm
             npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
@@ -683,7 +708,7 @@ class StateElementImplementation(StateElement):
 
     @property
     def true_value_fm(self) -> FullGridMappedArray | None:
-        if(self._sold is not None):
+        if self._sold is not None:
             self._true_value_fm = self._sold.true_value_fm
         res = self._true_value_fm
         return res
@@ -722,7 +747,7 @@ class StateElementImplementation(StateElement):
             return self._sold.metadata
         res: dict[str, Any] = {}
         return res
-    
+
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
         if self._sold is None:
@@ -731,14 +756,18 @@ class StateElementImplementation(StateElement):
 
     @property
     def value_str(self) -> str | None:
-        if(self._value_str is None and self._copy_on_first_use and self._sold is not None):
+        if (
+            self._value_str is None
+            and self._copy_on_first_use
+            and self._sold is not None
+        ):
             self._value_str = self._sold.value_str
         res = self._value_str
-        if(self._sold is not None):
+        if self._sold is not None:
             res2 = self._sold.value_str
             assert res == res2
         return res
-    
+
     @property
     def pressure_list(self) -> RetrievalGridArray | None:
         # TODO - I think this can be removed, but we'll want to
@@ -754,7 +783,6 @@ class StateElementImplementation(StateElement):
             return None
         return self._sold.pressure_list_fm
 
-
     def update_state_element(
         self,
         current_fm: FullGridMappedArray | None = None,
@@ -767,7 +795,7 @@ class StateElementImplementation(StateElement):
             self._value_fm = current_fm
         if constraint_vector_fm is not None:
             # TODO get rid of None tests here
-            if(self._constraint_vector_fm is not None):
+            if self._constraint_vector_fm is not None:
                 self._constraint_vector_fm = constraint_vector_fm
         if step_initial_fm is not None:
             self._step_initial_fm = step_initial_fm
@@ -788,12 +816,12 @@ class StateElementImplementation(StateElement):
     def updated_fm_flag(self) -> FullGridMappedArray:
         # We don't yet have support for the items that depend on frequency, so
         # use the old state element stuff until we get this working
-        if(self._sold is not None):
+        if self._sold is not None:
             return self._sold.updated_fm_flag
         res = np.zeros((self.apriori_cov_fm.shape[0],), dtype=bool)
         if self._retrieved_this_step:
             res[:] = True
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.updated_fm_flag
             npt.assert_allclose(res, res2)
         return res.view(FullGridMappedArray)
@@ -813,8 +841,8 @@ class StateElementImplementation(StateElement):
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
         if self._sold:
-            #self._value_fm = self._sold.value_fm
-            #self._step_initial_fm = self._sold.value_fm
+            # self._value_fm = self._sold.value_fm
+            # self._step_initial_fm = self._sold.value_fm
             pass
         self._next_step_initial_fm = None
 
@@ -832,13 +860,19 @@ class StateElementImplementation(StateElement):
             )
         # handling for cloudEffExt, see below. We should move this into it's own
         # class, but for now just plop this in here
-        if self.state_element_id in (StateElementIdentifier("cloudEffExt"),
-                                     StateElementIdentifier("CLOUDEXT")):
-            self.is_bt_ig_refine = (current_strategy_step.retrieval_type == RetrievalType("bt_ig_refine"))
+        if self.state_element_id in (
+            StateElementIdentifier("cloudEffExt"),
+            StateElementIdentifier("CLOUDEXT"),
+        ):
+            self.is_bt_ig_refine = (
+                current_strategy_step.retrieval_type == RetrievalType("bt_ig_refine")
+            )
             # Also, the basis matrix changes for CLOUDEXT from one step to the next
-            if(self._sold is not None):
-                self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
-            
+            if self._sold is not None:
+                self._state_mapping_retrieval_to_fm = (
+                    self._sold.state_mapping_retrieval_to_fm
+                )
+
         # Update the initial value if we have a setting from the previous step
         if self._next_step_initial_fm is not None:
             self._step_initial_fm = self._next_step_initial_fm
@@ -864,7 +898,7 @@ class StateElementImplementation(StateElement):
         # Default is that the next initial value is whatever the solution was from
         # this step. But skip if we are on the not updated list
         self._next_step_initial_fm = None
-        
+
         # We have some odd logic in StateElementOld for cloudEffExt for the
         # bt_ig_refine step. We will need to duplicate this, but short term
         # just punt and use the old value. Note that we end up at about
@@ -873,14 +907,26 @@ class StateElementImplementation(StateElement):
         # notify_step_solution for cloudEffExt, for bt_ig_refine step.
         # Also CLOUDEXT seems to be a sort of alias for cloudEffExt, but we don't
         # have that fully supported yet - should probably add that
-        if self.state_element_id in (StateElementIdentifier("cloudEffExt"), StateElementIdentifier("CLOUDEXT")) and self.is_bt_ig_refine and self._sold is not None:
+        if (
+            self.state_element_id
+            in (
+                StateElementIdentifier("cloudEffExt"),
+                StateElementIdentifier("CLOUDEXT"),
+            )
+            and self.is_bt_ig_refine
+            and self._sold is not None
+        ):
             self._value_fm = self._sold._current_state_old.state_value("cloudEffExt")
-            if(self.state_element_id == StateElementIdentifier("CLOUDEXT")):
-                # Bizarrely, different dim for cloudEffExt vs CLOUDEXT 
-                self._value_fm = self._value_fm[0,:].view(FullGridMappedArray)
+            if self.state_element_id == StateElementIdentifier("CLOUDEXT"):
+                # Bizarrely, different dim for cloudEffExt vs CLOUDEXT
+                self._value_fm = self._value_fm[0, :].view(FullGridMappedArray)
             self._next_step_initial_fm = self._value_fm.copy()
         elif retrieval_slice is not None:
-            self._value_fm = xsol[retrieval_slice].view(RetrievalGridArray).to_fm(self.state_mapping_retrieval_to_fm, self.state_mapping)
+            self._value_fm = (
+                xsol[retrieval_slice]
+                .view(RetrievalGridArray)
+                .to_fm(self.state_mapping_retrieval_to_fm, self.state_mapping)
+            )
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
 
@@ -914,8 +960,13 @@ class StateElementFillValueHandle(StateElementHandle):
                 ]
             ]
         )
-        return StateElementImplementation(self.sid, fill, fill, fill_2d.view(FullGrid2dArray),
-                                          fill_2d.view(RetrievalGrid2dArray))
+        return StateElementImplementation(
+            self.sid,
+            fill,
+            fill,
+            fill_2d.view(FullGrid2dArray),
+            fill_2d.view(RetrievalGrid2dArray),
+        )
 
 
 class StateElementFixedValueHandle(StateElementHandle):

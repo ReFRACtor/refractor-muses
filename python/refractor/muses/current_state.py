@@ -250,8 +250,9 @@ class SoundingMetadata:
 # Where it is useful, we add a handful of member functions (e.g., for converting form
 # one type to the other).
 
+
 class RetrievalGridArray(np.ndarray):
-    '''Data in the retrieval state vector. Unmapped (e.g., might be log(vmr)).
+    """Data in the retrieval state vector. Unmapped (e.g., might be log(vmr)).
     Generally smaller number of levels than FullGridArray.
 
     Note that while you can use a np.ndarray constructor, most of the
@@ -277,62 +278,90 @@ class RetrievalGridArray(np.ndarray):
 
     See CurrentState for a description of the various state vectors.
 
-    '''
+    """
+
     def to_full(self, state_mapping_retrieval_to_fm: rf.StateMapping) -> FullGridArray:
         # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
         # work directly with numpy, but is it easy enough for us just to route this this
         # class
-        return state_mapping_retrieval_to_fm.mapped_state(rf.ArrayAd_double_1(self)).value.view(FullGridArray)
+        return state_mapping_retrieval_to_fm.mapped_state(
+            rf.ArrayAd_double_1(self)
+        ).value.view(FullGridArray)
 
-    def to_fm(self, state_mapping_retrieval_to_fm: rf.StateMapping, state_mapping: rf.StateMapping) -> FullGridMappedArray:
+    def to_fm(
+        self,
+        state_mapping_retrieval_to_fm: rf.StateMapping,
+        state_mapping: rf.StateMapping,
+    ) -> FullGridMappedArray:
         # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
         # work directly with numpy, but is it easy enough for us just to route this this
         # class
-        return state_mapping.mapped_state(state_mapping_retrieval_to_fm.mapped_state(rf.ArrayAd_double_1(self))).value.view(FullGridMappedArray)
-    
+        return state_mapping.mapped_state(
+            state_mapping_retrieval_to_fm.mapped_state(rf.ArrayAd_double_1(self))
+        ).value.view(FullGridMappedArray)
+
+
 class FullGridArray(np.ndarray):
-    '''Data in the forward model state vector/full state vector.
+    """Data in the forward model state vector/full state vector.
     Unmapped (e.g., might be log(vmr)). Generally more levels than RetrievalGridArray.
 
     See discussion in RetrievalGridArray about adding this type to a numpy array.
 
-    See CurrentState for a description of the various state vectors.'''
-    def to_ret(self, state_mapping_retrieval_to_fm: rf.StateMapping) -> RetrievalGridArray:
+    See CurrentState for a description of the various state vectors."""
+
+    def to_ret(
+        self, state_mapping_retrieval_to_fm: rf.StateMapping
+    ) -> RetrievalGridArray:
         # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
         # work directly with numpy, but is it easy enough for us just to route this this
         # class
-        return state_mapping_retrieval_to_fm.retrieval_state(rf.ArrayAd_double_1(self)).value.view(RetrievalGridArray)
+        return state_mapping_retrieval_to_fm.retrieval_state(
+            rf.ArrayAd_double_1(self)
+        ).value.view(RetrievalGridArray)
 
     def to_fm(self, state_mapping: rf.StateMapping) -> FullGridMappedArray:
         # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
         # work directly with numpy, but is it easy enough for us just to route this this
         # class
-        return state_mapping.mapped_state(rf.ArrayAd_double_1(self)).value.view(FullGridMappedArray)
+        return state_mapping.mapped_state(rf.ArrayAd_double_1(self)).value.view(
+            FullGridMappedArray
+        )
+
 
 class FullGridMappedArray(np.ndarray):
-    '''Data in in the forward model state vector/full state vector.
+    """Data in in the forward model state vector/full state vector.
     Mapped (e.g., log(vmr) is converted to VMR).
-    
+
     See discussion in RetrievalGridArray about adding this type to a
     numpy array.
-    
+
     See CurrentState for a description of the various state vectors.
 
-    '''
+    """
+
     def to_full(self, state_mapping: rf.StateMapping) -> FullGridArray:
         # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
         # work directly with numpy, but is it easy enough for us just to route this this
         # class
-        return state_mapping.retrieval_state(rf.ArrayAd_double_1(self)).value.view(FullGridArray)
+        return state_mapping.retrieval_state(rf.ArrayAd_double_1(self)).value.view(
+            FullGridArray
+        )
 
-    def to_ret(self, state_mapping_retrieval_to_fm: rf.StateMapping, state_mapping: rf.StateMapping) -> RetrievalGridArray:
+    def to_ret(
+        self,
+        state_mapping_retrieval_to_fm: rf.StateMapping,
+        state_mapping: rf.StateMapping,
+    ) -> RetrievalGridArray:
         # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
         # work directly with numpy, but is it easy enough for us just to route this this
         # class
-        return state_mapping_retrieval_to_fm.retrieval_state(state_mapping.retrieval_state(rf.ArrayAd_double_1(self))).value.view(RetrievalGridArray)
-    
+        return state_mapping_retrieval_to_fm.retrieval_state(
+            state_mapping.retrieval_state(rf.ArrayAd_double_1(self))
+        ).value.view(RetrievalGridArray)
+
+
 class RetrievalGrid2dArray(np.ndarray):
-    '''2d matrix going with RetrievalGridArray (e.g., the constraint matrix). This
+    """2d matrix going with RetrievalGridArray (e.g., the constraint matrix). This
     is unmapped (TODO Check this, I'm pretty sure this is true)
 
     See discussion in RetrievalGridArray about adding this type to a
@@ -340,21 +369,25 @@ class RetrievalGrid2dArray(np.ndarray):
 
     See CurrentState for a description of the various state vectors.
 
-    '''
+    """
+
     pass
 
+
 class FullGrid2dArray(np.ndarray):
-    '''2d matrix going with FullGridArray (e.g. the apriori matrix).
+    """2d matrix going with FullGridArray (e.g. the apriori matrix).
 
     See discussion in RetrievalGridArray about adding this type to a
     numpy array.
-    
+
     TODO - Is this mapped or unmapped? Not sure, we should track down. If mapped,
     we might want to rename this.
 
-    See CurrentState for a description of the various state vectors.'''
+    See CurrentState for a description of the various state vectors."""
+
     pass
-    
+
+
 class CurrentState(object, metaclass=abc.ABCMeta):
     """There are a number of "states" floating around
     py-retrieve/ReFRACtor, and it can be a little confusing if you
@@ -449,6 +482,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     """
 
+    # Short term, turn off checking for unit tests    
+    check_old_state_element_value = True
+    
     def __init__(self) -> None:
         # Cache these values, they don't normally change.
         self._fm_sv_loc: dict[StateElementIdentifier, tuple[int, int]] | None = None
@@ -770,7 +806,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             # Side effect of sys_sv_loc is filling in fm_state_vector_size
             _ = self.sys_sv_loc
         return self._sys_state_vector_size
-    
+
     @property
     def retrieval_state_vector_size(self) -> int:
         """Full size of the retrieval state vector."""
@@ -792,9 +828,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
         """
         # TODO put in handling of log/linear
-        coeff = np.concatenate(
-            [self.state_value(nm) for nm in state_element_id_list]
-        )
+        coeff = np.concatenate([self.state_value(nm) for nm in state_element_id_list])
         rlist = self.retrieval_state_element_id
         rflag = np.concatenate(
             [
@@ -1029,7 +1063,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def Sb(self) -> FullGrid2dArray:
         """previous_aposteriori_cov_fm for the systematic_state_element_id"""
-        return self.previous_aposteriori_cov_fm(self.systematic_state_element_id).view(FullGrid2dArray)
+        return self.previous_aposteriori_cov_fm(self.systematic_state_element_id).view(
+            FullGrid2dArray
+        )
 
     @property
     def error_current_values(self) -> FullGrid2dArray:
@@ -1076,16 +1112,13 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         # TODO deepcopy is temp, only needed for old state elements
         if current_strategy_step is not None:
             selem_list = [
-                deepcopy(self.state_element(sname))
-                for sname in list_state_element_id
+                deepcopy(self.state_element(sname)) for sname in list_state_element_id
             ]
             for selem in selem_list:
                 if hasattr(selem, "update_initial_guess"):
                     selem.update_initial_guess(current_strategy_step)
         else:
-            selem_list = [
-                self.state_element(sname) for sname in list_state_element_id
-            ]
+            selem_list = [self.state_element(sname) for sname in list_state_element_id]
 
         # Make block diagonal covariance.
         species_list = []
@@ -1207,7 +1240,7 @@ class CurrentStateUip(CurrentState):
 
         """
         raise NotImplementedError()
-    
+
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         # Don't think we need this. We can calculate something frm
@@ -1474,11 +1507,13 @@ class CurrentStateUip(CurrentState):
             res = np.array([o_uip.tropomiPars["temp_shift_BAND3"]])
         elif str(state_element_id) == "TROPOMICLOUDSURFACEALBEDO":
             res = np.array([o_uip.tropomiPars["cloud_Surface_Albedo"]])
-        if(res is not None):
+        if res is not None:
             return res.view(FullGridMappedArray)
         # Check if it is a column
         try:
-            return self.rf_uip.atmosphere_column(str(state_element_id)).view(FullGridMappedArray)
+            return self.rf_uip.atmosphere_column(str(state_element_id)).view(
+                FullGridMappedArray
+            )
         except ValueError:
             pass
         raise RuntimeError(f"Don't recognize {state_element_id}")
@@ -1489,7 +1524,7 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     def state_step_initial_value(
-        self, state_element_id: StateElementIdentifier| str
+        self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
         raise NotImplementedError()
 
@@ -1710,7 +1745,9 @@ class CurrentStateStateInfoOld(CurrentState):
                 self._retrieval_info.retrieval_info_systematic().initialGuessList
             ).view(RetrievalGridArray)
         else:
-            return copy(self._retrieval_info.initial_guess_list).view(RetrievalGridArray)
+            return copy(self._retrieval_info.initial_guess_list).view(
+                RetrievalGridArray
+            )
 
     @property
     def initial_guess_full(self) -> FullGridArray:
@@ -1731,7 +1768,9 @@ class CurrentStateStateInfoOld(CurrentState):
         else:
             if self._retrieval_info is None:
                 raise RuntimeError("_retrieval_info is None")
-            return copy(self._retrieval_info.constraint_matrix).view(RetrievalGrid2dArray)
+            return copy(self._retrieval_info.constraint_matrix).view(
+                RetrievalGrid2dArray
+            )
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
@@ -1739,7 +1778,11 @@ class CurrentStateStateInfoOld(CurrentState):
         if self.do_systematic:
             return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
         else:
-            return (mpy.sqrt_matrix(self.constraint_matrix)).transpose().view(RetrievalGridArray)
+            return (
+                (mpy.sqrt_matrix(self.constraint_matrix))
+                .transpose()
+                .view(RetrievalGridArray)
+            )
 
     @property
     def constraint_vector(self) -> RetrievalGridArray:
@@ -1759,7 +1802,9 @@ class CurrentStateStateInfoOld(CurrentState):
         else:
             if self.retrieval_info is None:
                 raise RuntimeError("retrieval_info is None")
-            return copy(self.retrieval_info.retrieval_dict["constraintVectorFM"]).view(FullGridArray)
+            return copy(self.retrieval_info.retrieval_dict["constraintVectorFM"]).view(
+                FullGridArray
+            )
 
     @property
     def true_value(self) -> RetrievalGridArray:
@@ -1835,7 +1880,11 @@ class CurrentStateStateInfoOld(CurrentState):
     ) -> None:
         selem = self.state_info.state_element(state_element_id)
         selem.update_state(
-            current_fm, constraint_vector_fm, step_initial_fm, retrieval_initial_fm, true_value_fm
+            current_fm,
+            constraint_vector_fm,
+            step_initial_fm,
+            retrieval_initial_fm,
+            true_value_fm,
         )
 
     @property
@@ -1919,7 +1968,7 @@ class CurrentStateStateInfoOld(CurrentState):
         raise NotImplementedError()
 
     def state_element_old(
-            self, state_element_id: StateElementIdentifier | str, step: str ="current"
+        self, state_element_id: StateElementIdentifier | str, step: str = "current"
     ) -> StateElementOld:
         return self.state_info.state_element(state_element_id, step)
 

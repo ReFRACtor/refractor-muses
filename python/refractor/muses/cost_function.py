@@ -22,7 +22,7 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
     often but not always the apriori covariance and apriori vector. When
     they are we truly have a MaxAPosteriori, but when not this is a more
     general least squares with a quadratic penalty similar to a MaxAPosteriori.
-    
+
     We call this a MaxAPosteriori because we already have the machinery in place
     in framework for MaxAPosteriori that can be used directly for the more general
     problem.
@@ -80,7 +80,10 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         # If we don't have a basis matrix, the forward model state
         # vector size needs to match the retrieval state vector size
         if basis_matrix is None:
-            if self.fm_sv.observer_claimed_size != self.retrieval_sv_constraint_vector.shape[0]:
+            if (
+                self.fm_sv.observer_claimed_size
+                != self.retrieval_sv_constraint_vector.shape[0]
+            ):
                 raise RuntimeError(
                     f"Without a basis matrix, fm_sv size of {self.fm_sv.observer_claimed_size} should be same as retrieval_sv_constraint_vector size of {self.retrieval_sv_constraint_vector.shape[0]}"
                 )

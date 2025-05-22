@@ -43,7 +43,7 @@ if _typing.TYPE_CHECKING:
         FullGridArray,
         FullGridMappedArray,
         RetrievalGrid2dArray,
-        FullGrid2dArray
+        FullGrid2dArray,
     )
     from .misc import osp_setup
     from .muses_observation import (

@@ -25,8 +25,10 @@ def test_osp_state_element(osp_dir):
     covariance_directory = osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("OMIODWAVUV1"),
+        np.array([]),
         apriori_value,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )
@@ -36,7 +38,7 @@ def test_osp_state_element(osp_dir):
     assert selem.forward_model_sv_length == 1
     # Short term have this turned off, so we can compare with old
     # data. TODO Turn this back on when we have this working again
-    #npt.assert_allclose(selem.value_fm, [2.0])
+    # npt.assert_allclose(selem.value_fm, [2.0])
     npt.assert_allclose(selem.constraint_vector_fm, [0.0])
     cexpect = np.array([[2500.0]])
     cov_expect = np.array([[0.0004]])
@@ -133,8 +135,10 @@ def test_osp_state_element_constraint(osp_dir):
     covariance_directory = osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("OMICLOUDFRACTION"),
+        np.array([]),
         apriori_value,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )
@@ -192,32 +196,40 @@ def test_osp_state_element_latitude(osp_dir):
     covariance_directory = osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
+        np.array([]),
         apriori_value,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )
     latitude = 10
     selem2 = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
+        np.array([]),
         apriori_value,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )
     latitude = 60
     selem3 = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
+        np.array([]),
         apriori_value,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )
     latitude = -60
     selem4 = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
+        np.array([]),
         apriori_value,
         latitude,
+        "LAND",
         species_directory,
         covariance_directory,
     )

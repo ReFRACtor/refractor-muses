@@ -20,7 +20,9 @@ class OmiEofStateElement(StateElementImplementation):
         self.number_eof = number_eof
         value = np.zeros(number_eof).view(FullGridMappedArray)
         constraint_value = value.copy().view(FullGridMappedArray)
-        constraint_matrix = np.diag([10 * 10.0] * self.number_eof).view(RetrievalGrid2dArray)
+        constraint_matrix = np.diag([10 * 10.0] * self.number_eof).view(
+            RetrievalGrid2dArray
+        )
         apriori_cov_fm = np.diag([0.1 * 0.1] * self.number_eof).view(FullGrid2dArray)
         super().__init__(
             state_element_id, value, constraint_value, apriori_cov_fm, constraint_matrix

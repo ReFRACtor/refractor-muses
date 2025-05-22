@@ -25,6 +25,7 @@ if typing.TYPE_CHECKING:
     from .spectral_window_handle import SpectralWindowHandleSet
     from .retrieval_strategy import RetrievalStrategy
 
+
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
     """This contains information about the current strategy step."""
 

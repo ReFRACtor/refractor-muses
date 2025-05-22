@@ -57,12 +57,18 @@ class StateElementOspFileHandleNew(StateElementHandle):
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
         from .state_element_old_wrapper import StateElementOldWrapper
+
         # Issue with a few of the StateElements, punt short term so we can get the
         # rest of stuff working.
-        if(str(state_element_id) in ("CLOUDEXT", "cloudEffExt", "HDO","emissivity", "EMIS",
-                                     )):
-           return None
-           
+        if str(state_element_id) in (
+            "CLOUDEXT",
+            "cloudEffExt",
+            "HDO",
+            "emissivity",
+            "EMIS",
+        ):
+            return None
+
         # if state_element_id != self.sid:
         #    return None
         if self.measurement_id is None or self.retrieval_config is None:
@@ -104,4 +110,6 @@ StateElementHandleSet.add_default_handle(
     StateElementOspFileHandleNew(None, h_old), priority_order=0
 )
 
-__all__ = ["StateElementOspFileHandleNew",]
+__all__ = [
+    "StateElementOspFileHandleNew",
+]

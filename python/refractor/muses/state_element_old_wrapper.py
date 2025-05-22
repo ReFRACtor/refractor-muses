@@ -2,7 +2,13 @@ from __future__ import annotations
 from .state_element import StateElement, StateElementHandle
 from .identifier import StateElementIdentifier
 from .current_state import CurrentStateStateInfoOld, SoundingMetadata
-from .current_state import RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, FullGridArray
+from .current_state import (
+    RetrievalGridArray,
+    FullGridMappedArray,
+    RetrievalGrid2dArray,
+    FullGrid2dArray,
+    FullGridArray,
+)
 from loguru import logger
 import refractor.framework as rf  # type: ignore
 import numpy as np
@@ -15,6 +21,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from refractor.old_py_retrieve_wrapper import StateElementOld  # type: ignore
+
 
 class StateElementOldWrapper(StateElement):
     """This wraps around a CurrentStateStateInfoOld and presents the
@@ -83,7 +90,7 @@ class StateElementOldWrapper(StateElement):
         return None
 
     @property
-    def basis_matrix(self) -> np.ndarray | None:
+    def basis_matrix(self) -> np.ndarray:
         """Basis matrix going from retrieval vector to forward model
         vector. Would be nice to replace this with a general
         rf.StateMapping, but for now this is assumed in a lot of
@@ -92,18 +99,18 @@ class StateElementOldWrapper(StateElement):
         s1 = self.retrieval_slice
         s2 = self.fm_slice
         if bmatrix is None or s1 is None or s2 is None:
-            return None
+            return super().basis_matrix
         return bmatrix[s1, s2]
 
     @property
-    def map_to_parameter_matrix(self) -> np.ndarray | None:
+    def map_to_parameter_matrix(self) -> np.ndarray:
         """Go the other direction from the basis matrix, going from
         the forward model vector the retrieval vector."""
         mmatrix = self._current_state_old.map_to_parameter_matrix
         s1 = self.fm_slice
         s2 = self.retrieval_slice
         if mmatrix is None or s1 is None or s2 is None:
-            return None
+            return super().map_to_parameter_matrix
         return mmatrix[s1, s2]
 
     @property
@@ -137,7 +144,9 @@ class StateElementOldWrapper(StateElement):
             # Note that we pass in the inverse basis_matrix. This is temporary, we
             # want to match what the muses-py code does to avoid looking at round off differences.
             # But longer term, StateMappingBasisMatrix should calculate the inverse matrix.
-            return rf.StateMappingBasisMatrix(self.basis_matrix.transpose(), self.map_to_parameter_matrix.transpose())
+            return rf.StateMappingBasisMatrix(
+                self.basis_matrix.transpose(), self.map_to_parameter_matrix.transpose()
+            )
         return rf.StateMappingLinear()
 
     @property
@@ -183,12 +192,10 @@ class StateElementOldWrapper(StateElement):
     @property
     def value_fm(self) -> FullGridMappedArray:
         """Current value of StateElement"""
-        res = self._current_state_old.state_value(self.state_element_id).astype(
-            float
-        )
+        res = self._current_state_old.state_value(self.state_element_id).astype(float)
         # PCLOUD is an odd one. It returns as a 2 length vector,
         # but is actually on the first value is part of this.
-        if(self.state_element_id == StateElementIdentifier("PCLOUD")):
+        if self.state_element_id == StateElementIdentifier("PCLOUD"):
             return res[0:1].view(FullGridMappedArray)
         return res.view(FullGridMappedArray)
 
@@ -234,7 +241,11 @@ class StateElementOldWrapper(StateElement):
         r = self.retrieval_slice
         if r is None:
             raise RuntimeError("retrieval_slice is None")
-        return self._current_state_old.constraint_matrix[r, r].astype(float).view(RetrievalGrid2dArray)
+        return (
+            self._current_state_old.constraint_matrix[r, r]
+            .astype(float)
+            .view(RetrievalGrid2dArray)
+        )
 
     def constraint_cross_covariance(
         self, selem2: StateElement
@@ -273,35 +284,41 @@ class StateElementOldWrapper(StateElement):
         else:
             return None
         res = selem_old.sa_cross_covariance(selem2_old)
-        if(res is None):
+        if res is None:
             return None
         return res.view(FullGrid2dArray)
 
     @property
     def retrieval_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval."""
-        res = self._current_state_old.state_retrieval_initial_value(
-            self.state_element_id
-        ).astype(float).view(FullGridMappedArray)
+        res = (
+            self._current_state_old.state_retrieval_initial_value(self.state_element_id)
+            .astype(float)
+            .view(FullGridMappedArray)
+        )
         # PCLOUD is an odd one. It returns as a 2 length vector,
         # but is actually on the first value is part of this.
-        if(self.state_element_id == StateElementIdentifier("PCLOUD")):
+        if self.state_element_id == StateElementIdentifier("PCLOUD"):
             return res[0:1].view(FullGridMappedArray)
         return res
-    
+
     @property
     def step_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval step."""
         s = self.fm_slice
         if s is not None:
-            return self._current_state_old.initial_guess_full[s].view(FullGridArray).to_fm(self.state_mapping)
+            return (
+                self._current_state_old.initial_guess_full[s]
+                .view(FullGridArray)
+                .to_fm(self.state_mapping)
+            )
         # This may have already been mapped by type, if so map back
         res = self._current_state_old.state_step_initial_value(
             self.state_element_id
         ).astype(float)
         # PCLOUD is an odd one. It returns as a 2 length vector,
         # but is actually on the first value is part of this.
-        if(self.state_element_id == StateElementIdentifier("PCLOUD")):
+        if self.state_element_id == StateElementIdentifier("PCLOUD"):
             return res[0:1].view(FullGridMappedArray)
         return res.view(FullGridMappedArray)
 
@@ -311,7 +328,11 @@ class StateElementOldWrapper(StateElement):
         "None" if we don't have a value."""
         s = self.fm_slice
         if s is not None:
-            return self._current_state_old.true_value_full[s].view(FullGridArray).to_fm(self.state_mapping)
+            return (
+                self._current_state_old.true_value_full[s]
+                .view(FullGridArray)
+                .to_fm(self.state_mapping)
+            )
         res = self._current_state_old.state_true_value(self.state_element_id)
         if res is None:
             return res

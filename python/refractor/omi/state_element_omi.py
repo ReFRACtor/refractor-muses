@@ -8,7 +8,7 @@ from refractor.muses import (
     InstrumentIdentifier,
     MusesOmiObservation,
     MusesObservation,
-    FullGridMappedArray
+    FullGridMappedArray,
 )
 import numpy as np
 from pathlib import Path
@@ -33,7 +33,9 @@ def add_handle(
 ) -> None:
     StateElementHandleSet.add_default_handle(
         StateElementOspFileHandle(
-            StateElementIdentifier(sname), np.array([constraint_value]).view(FullGridMappedArray), cls=cls
+            StateElementIdentifier(sname),
+            np.array([constraint_value]).view(FullGridMappedArray),
+            cls=cls,
         ),
         priority_order=2,
     )
@@ -55,6 +57,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         state_element_id: StateElementIdentifier,
         obs: MusesObservation,
         latitude: float,
+        surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
@@ -66,6 +69,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
             np.array([]),
             constraint_vector_fm,
             latitude,
+            surface_type,
             species_directory,
             covariance_directory,
             selem_wrapper=selem_wrapper,
@@ -85,7 +89,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        copy_on_first_use:bool = False
+        copy_on_first_use: bool = False,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -104,6 +108,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
             state_element_id,
             obs,
             sounding_metadata.latitude.value,
+            sounding_metadata.surface_type,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
@@ -120,17 +125,21 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         state_element_id: StateElementIdentifier,
         obs: MusesOmiObservation,
         latitude: float,
+        surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
     ) -> None:
-        constraint_vector_fm = np.array([obs.monthly_minimum_surface_reflectance]).view(FullGridMappedArray)
+        constraint_vector_fm = np.array([obs.monthly_minimum_surface_reflectance]).view(
+            FullGridMappedArray
+        )
         super().__init__(
             state_element_id,
             np.array([]),
             constraint_vector_fm,
             latitude,
+            surface_type,
             species_directory,
             covariance_directory,
             selem_wrapper,
@@ -142,7 +151,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         cls,
         state_element_id: StateElementIdentifier,
         pressure_level: np.ndarray,
-        constraint_vector_fm: FullGridMappedArray|None,
+        constraint_vector_fm: FullGridMappedArray | None,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
@@ -150,7 +159,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        copy_on_first_use:bool = False
+        copy_on_first_use: bool = False,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -172,6 +181,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
             state_element_id,
             obs,
             sounding_metadata.latitude.value,
+            sounding_metadata.surface_type,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,

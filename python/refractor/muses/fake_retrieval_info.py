@@ -249,7 +249,7 @@ class FakeRetrievalInfo:
 
     @property
     def altitudeListFM(self) -> np.ndarray:
-        pdata : list[np.ndarray] = []
+        pdata: list[np.ndarray] = []
         # Convention of muses-py is to use [-2] for items that aren't on
         # pressure levels
         for sid in self.current_state.retrieval_state_element_id:
@@ -262,7 +262,7 @@ class FakeRetrievalInfo:
 
     @property
     def altitudeList(self) -> np.ndarray:
-        pdata : list[np.ndarray] = []
+        pdata: list[np.ndarray] = []
         # Convention of muses-py is to use [-2] for items that aren't on
         # pressure levels
         for sid in self.current_state.retrieval_state_element_id:
@@ -275,7 +275,7 @@ class FakeRetrievalInfo:
 
     @property
     def pressureListFM(self) -> np.ndarray:
-        pdata : list[np.ndarray] = []
+        pdata: list[np.ndarray] = []
         # Convention of muses-py is to use [-2] for items that aren't on
         # pressure levels
         for sid in self.current_state.retrieval_state_element_id:
@@ -288,7 +288,7 @@ class FakeRetrievalInfo:
 
     @property
     def pressureList(self) -> np.ndarray:
-        pdata : list[np.ndarray] = []
+        pdata: list[np.ndarray] = []
         # Convention of muses-py is to use [-2] for items that aren't on
         # pressure levels
         for sid in self.current_state.retrieval_state_element_id:
