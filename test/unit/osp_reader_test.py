@@ -12,6 +12,9 @@ import numpy.testing as npt
 def test_covariance(osp_dir):
     latitude = 30.0
     map_type = "linear"
+    r = OspCovarianceMatrixReader.read_dir(osp_dir / "Covariance" / "Covariance")
+    cov_matrix = r.read_cov(StateElementIdentifier("OMIODWAVUV1"), map_type, latitude)
+    npt.assert_allclose(cov_matrix.original_cov, np.array([[0.0004]]))
     pressure = np.array([1.0067983e+03, 1.0000000e+03, 9.0851400e+02, 8.2540200e+02,
        7.4989300e+02, 6.8129100e+02, 6.1896600e+02, 5.6234200e+02,
        5.1089800e+02, 4.6416000e+02, 4.2169800e+02, 3.8311700e+02,
@@ -29,11 +32,11 @@ def test_covariance(osp_dir):
        2.6101600e+00, 2.1544300e+00, 1.6156000e+00, 1.3335200e+00,
        1.0000000e+00, 6.8129200e-01, 3.8311800e-01, 2.1544300e-01,
        1.0000000e-01])
-    r = OspCovarianceMatrixReader.read_dir(osp_dir / "Covariance" / "Covariance")
-    d = r.read_cov(StateElementIdentifier("OMIODWAVUV1"), map_type, latitude, pressure)
-    npt.assert_allclose(d, np.array([[0.0004]]))
-    d = r.read_cov(StateElementIdentifier("TATM"), map_type, latitude, pressure)
+    cov_matrix = r.read_cov(StateElementIdentifier("TATM"), map_type, latitude)
+    d = cov_matrix.interpolated_covariance(pressure)
     assert d.shape == (65,65)
+    cov_matrix = r.read_cov(StateElementIdentifier("NH3"), map_type, latitude, "CLN")
+    cov_matrix = r.read_cov(StateElementIdentifier("NH3"), map_type, latitude, "ENH")
 
 def test_species(osp_dir):
     r = OspSpeciesReader.read_dir(
@@ -52,19 +55,19 @@ def test_species(osp_dir):
     assert t2["mapType"].lower() == "linear"
     assert t3["mapType"].lower() == "linear"
     cmatrix = r.read_constraint_matrix(
-        StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type")
+        StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type"), 1
     )
     npt.assert_allclose(cmatrix, [[2500.0]])
     # Repeat, to make sure caching works
     cmatrix = r.read_constraint_matrix(
-        StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type")
+        StateElementIdentifier("OMIODWAVUV1"), RetrievalType("a_retrieval_type"), 1
     )
     npt.assert_allclose(cmatrix, [[2500.0]])
     cmatrix2 = r.read_constraint_matrix(
-        StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("a_retrieval_type")
+        StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("a_retrieval_type"), 1
     )
     cmatrix3 = r.read_constraint_matrix(
-        StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("omicloud_ig_refine")
+        StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("omicloud_ig_refine"), 1
     )
     npt.assert_allclose(cmatrix2, [[400.0]])
     npt.assert_allclose(cmatrix3, [[4.0]])
@@ -82,8 +85,19 @@ def test_species_premade(osp_dir):
     r = OspSpeciesReader.read_dir(
         osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
     )
-    # Need a different example
-    #cov = r.read_constraint_matrix(StateElementIdentifier("TATM"), RetrievalType("default"))
+    cov = r.read_constraint_matrix(StateElementIdentifier("TATM"), RetrievalType("default"), 30)
 
+def test_species_h2o_hdo(osp_dir):
+    r = OspSpeciesReader.read_dir(
+        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+    )
+    # Test handling cross terms when we have both H2O and HDO.
+    cov = r.read_constraint_matrix(StateElementIdentifier("H2O"), RetrievalType("default"), 16,
+                                   sid2=StateElementIdentifier("H2O"))
+    cov2 = r.read_constraint_matrix(StateElementIdentifier("HDO"), RetrievalType("default"), 16,
+                                   sid2=StateElementIdentifier("HDO"))
+    cov3 = r.read_constraint_matrix(StateElementIdentifier("H2O"), RetrievalType("default"), 16,
+                                   sid2=StateElementIdentifier("HDO"))
+    
     
     

@@ -280,10 +280,15 @@ class StateElementOldWrapper(StateElement):
     @property
     def retrieval_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval."""
-        return self._current_state_old.state_retrieval_initial_value(
+        res = self._current_state_old.state_retrieval_initial_value(
             self.state_element_id
         ).astype(float).view(FullGridMappedArray)
-
+        # PCLOUD is an odd one. It returns as a 2 length vector,
+        # but is actually on the first value is part of this.
+        if(self.state_element_id == StateElementIdentifier("PCLOUD")):
+            return res[0:1].view(FullGridMappedArray)
+        return res
+    
     @property
     def step_initial_fm(self) -> FullGridMappedArray:
         """Value StateElement had at the start of the retrieval step."""
@@ -294,6 +299,10 @@ class StateElementOldWrapper(StateElement):
         res = self._current_state_old.state_step_initial_value(
             self.state_element_id
         ).astype(float)
+        # PCLOUD is an odd one. It returns as a 2 length vector,
+        # but is actually on the first value is part of this.
+        if(self.state_element_id == StateElementIdentifier("PCLOUD")):
+            return res[0:1].view(FullGridMappedArray)
         return res.view(FullGridMappedArray)
 
     @property

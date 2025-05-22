@@ -522,7 +522,6 @@ class StateInfoOld:
             gmao_path,
             gmao_type,
         )
-
         setupFilename = (
             Path(measurement_id["initialGuessSetupDirectory"])
             / "L2_Setup_Control_Constraint.asc"

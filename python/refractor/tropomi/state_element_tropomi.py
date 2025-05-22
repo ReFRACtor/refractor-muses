@@ -242,6 +242,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
         constraint_vector_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
         super().__init__(
             state_element_id,
+            np.array([]),
             constraint_vector_fm,
             latitude,
             species_directory,
@@ -298,6 +299,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
         ).view(FullGridMappedArray)
         super().__init__(
             state_element_id,
+            np.array([]),
             constraint_vector_fm,
             latitude,
             species_directory,

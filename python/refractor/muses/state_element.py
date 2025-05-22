@@ -172,13 +172,9 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
-        return None
-
-    @property
-    def pressure_list_fm(self) -> FullGridMappedArray | None:
-        """For state elements that are on pressure level, this returns
-        the pressure levels (None otherwise)"""
-        return None
+        if(self.pressure_list_fm is None):
+            return None
+        return self.pressure_list_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping)
 
     @property
     def value_ret(self) -> RetrievalGridArray:
@@ -310,6 +306,13 @@ class StateElement(object, metaclass=abc.ABCMeta):
         model state vector got updated when we called notify_solution. A 1 means
         it was updated, a 0 means it wasn't. This is used in the ErrorAnalysis."""
         raise NotImplementedError()
+
+    @property
+    def pressure_list_fm(self) -> FullGridMappedArray | None:
+        """For state elements that are on pressure level, this returns
+        the pressure levels (None otherwise). This is the levels that
+        the apriori_cov_fm are on."""
+        return None
 
     @abc.abstractmethod
     def update_state_element(
@@ -738,6 +741,9 @@ class StateElementImplementation(StateElement):
     
     @property
     def pressure_list(self) -> RetrievalGridArray | None:
+        # TODO - I think this can be removed, but we'll want to
+        # check. Default is just to convert pressure_list_fm, which I
+        # think is right - but double check
         if self._sold is None:
             return None
         return self._sold.pressure_list

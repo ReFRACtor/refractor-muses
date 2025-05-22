@@ -36,6 +36,37 @@ class RangeFind:
                 return v
         raise KeyError()
 
+class CovarianceMatrix:
+    '''Small class to handle the apriori_cov_fm read by OspCovarianceMatrixReader.
+    
+    For data on pressure levels, the data is read with one set of pressure levels, but
+    we need to convert this to the forward model pressure levels. This class handles that.
+    
+    Just so we have one interface, we also use the same class for covariances that aren't
+    on pressure levels - external class can just grab the covariance matrix without doing
+    interpolation.'''
+    def __init__(self, pressure_input : np.ndarray, original_cov : np.ndarray) -> None:
+        '''Pressure should be in hPa (what is used by muses-py).'''
+        self.pressure_input = pressure_input
+        self.original_cov = original_cov
+
+    def interpolated_covariance(self, pressure_level : np.ndarray) -> np.ndarray:
+        '''Interpolate the original_cov to the given pressure levels.
+        Pressure should be in hPa (what is used by muses-py).'''
+        p = self.pressure_input
+        # If out of range at top, just move top level. This is what muses-py does,
+        # I think the code for making the interpolation matrix requires this.
+        if p.min() > pressure_level.min():
+            p = p.copy()
+            p[-1] = pressure_level.min()
+        # TODO - short term convert to float32, just so we can directly compare
+        # with muses-py. We'll change this to float64, but good to do that as a single
+        # step so we don't mix in other changes
+        m = mpy.make_interpolation_matrix_susan(np.log(p.astype(np.float32)), np.log(pressure_level))
+        return np.matmul(np.matmul(m, self.original_cov.astype(np.float32)),m.transpose())
+        
+        
+
 class OspFileHandle:
     '''Small mixin, since I tend to put this code in a lot of places. Adds a
     _abs_path that handles the relative "../OSP" that tends to appear in the OSP
@@ -67,10 +98,10 @@ class OspCovarianceMatrixReader:
         """This looks through the given directory (e.g., OSP/Covariance/Covariance) and
         maps all the files found into a simple structure that we can use to look up
         the file to read for a particular StateElement"""
-        self.filename_data: dict[StateElementIdentifier, dict[str, RangeFind]] = {}
+        self.filename_data: dict[StateElementIdentifier, dict[str, dict[str, RangeFind]]] = {}
         for fname in covariance_directory.glob("Covariance_Matrix_*.asc"):
             m = re.match(
-                r"Covariance_Matrix_(\w+)_(\w+)_(\d+)([SN])_(\d+)([SN]).asc", fname.name
+                r"Covariance_Matrix_(\w+)_(\w+)_(\d+)([SN])_(\d+)([SN])(_([A-Z]+))?.asc", fname.name
             )
             if m:
                 sid = StateElementIdentifier(m[1])
@@ -79,33 +110,29 @@ class OspCovarianceMatrixReader:
                 r2 = float(m[5]) * (-1 if m[6] == "S" else 1)
                 if sid not in self.filename_data:
                     self.filename_data[sid] = {}
-                if maptype not in self.filename_data[sid]:
-                    self.filename_data[sid][maptype] = RangeFind()
-                self.filename_data[sid][maptype][(r1, r2)] = fname
+                spectype = m[8] if m[8] is not None else ''
+                if(spectype not in self.filename_data[sid]):
+                    self.filename_data[sid][spectype] = {}
+                if maptype not in self.filename_data[sid][spectype]:
+                    self.filename_data[sid][spectype][maptype] = RangeFind()
+                self.filename_data[sid][spectype][maptype][(r1, r2)] = fname
 
     def read_cov(
             self, sid: StateElementIdentifier, map_type: str, latitude: float,
-            pressure : np.ndarray
-    ) -> np.ndarray:
-        '''Read the covariance file, and if it is on levels interpolate it to
-        the desired pressure levels. The pressure should be given in hPa (the
-        default for all the muses-py stuff). Pressure doesn't change anything
-        for stuff on levels, but we still take it in just so we have a common
-        interface.'''
+            spectype : str | None = None,
+    ) -> CovarianceMatrix:
+        '''Read the covariance file.'''
         # The table has a column with the species name, a column with pressure, a
         # column with map type, and then the data. So we just subset for that
-        tf = TesFile(self.filename_data[sid][map_type.lower()][latitude]) 
+        if(spectype is None):
+            spectype = ''
+        tf = TesFile(self.filename_data[sid][spectype][map_type.lower()][latitude])
         d = np.array(tf.table)[:, 3:].astype(float)
         pressure_sa = np.array(tf.table)[:,1].astype(float)
+        return CovarianceMatrix(pressure_sa, d)
         if d.shape == (1, 1):
             return d
-        # If out of range at top, just move top level. This is what muses-py does,
-        # I think the code for making the interpolation matrix requires this.
-        if pressure_sa.min() > pressure.min():
-            pressure_sa[-1] = pressure.min()
-        m = mpy.make_interpolation_matrix_susan(np.log(pressure_sa), np.log(pressure))
-        return np.matmul(np.matmul(m, d),m.transpose())
-
+        
     @classmethod
     @cache
     def read_dir(cls, covariance_directory: Path) -> Self:
@@ -125,51 +152,70 @@ class OspSpeciesReader(OspFileHandle):
 
         """
         super().__init__(osp_dir=osp_dir, ref_path=species_directory, nlevel=4)
-        self.filename_data: dict[StateElementIdentifier, dict[RetrievalType, Path]] = {}
-        self._default_cache: dict[StateElementIdentifier, np.ndarray] = {}
+        self.filename_data: dict[StateElementIdentifier, dict[StateElementIdentifer | None, dict[RetrievalType, Path]]] = {}
+        self._default_cache: dict[StateElementIdentifier, dict[StateElementIdentifer, np.ndarray] ]= {}
         for fname in Path(species_directory).glob("*.asc"):
-            m = re.match(r"([A-Z0-9_]+)(_([a-z0-9_]+))?.asc", fname.name)
+            m = re.match(r"([A-Z0-9]+)(_([A-Z0-9]+))?(_([a-z0-9_]+))?.asc", fname.name)
             if m:
                 sid = StateElementIdentifier(m[1])
+                sid2 = None if m[3] is None else StateElementIdentifier(m[3])
                 rtype = (
-                    RetrievalType(m[3])
-                    if m[3] is not None
+                    RetrievalType(m[5])
+                    if m[5] is not None
                     else RetrievalType("default")
                 )
                 if sid not in self.filename_data:
                     self.filename_data[sid] = {}
-                self.filename_data[sid][rtype] = fname
+                if sid2 not in self.filename_data[sid]:
+                    self.filename_data[sid][sid2] = {}
+                self.filename_data[sid][sid2][rtype] = fname
 
     def read_constraint_matrix(
-        self, sid: StateElementIdentifier, retrieval_type: RetrievalType
+       self, sid: StateElementIdentifier, retrieval_type: RetrievalType,
+       num_retrieval: int, sid2: StateElementIdentifier | None = None,
+       spectype : str | None = None
     ) -> np.ndarray:
-        if retrieval_type in self.filename_data[sid] or sid not in self._default_cache:
-            t = self.read_file(sid, retrieval_type)
+        if retrieval_type in self.filename_data[sid][sid2] or sid not in self._default_cache or sid2 not in self._default_cache[sid]:
+            t = self.read_file(sid, retrieval_type, sid2=sid2)
             ctype = t["constraintType"].lower()
             if ctype == "diagonal":
                 s = float(t["sSubaDiagonalValues"])
                 cov = np.array([[1.0 / (s * s)]])
             elif ctype == "premade":
-                pass
-                #print(self._abs_path(t["constraintFilename"]))
-                #d = TesFile(self._abs_path(t["constraintFilename"]))
-                breakpoint()
+                # In a fairly obscure way, we replace the default "87" found in the
+                # constraint file name with the number of retrieval levels to find
+                # the constraint file - e.g., rather than reading
+                # Constraint_Matrix_TATM_NADIR_LINEAR_90S_90N_87.asc we read
+                # Constraint_Matrix_TATM_NADIR_LINEAR_90S_90N_30.asc if we have 30 levels
+                fname = self._abs_path(t["constraintFilename"])
+                fname = Path(re.sub(r'_87_87.asc$', f"_{num_retrieval}_{num_retrieval}.asc", str(self._abs_path(t["constraintFilename"]))))
+                if(spectype is None):
+                    fname = Path(re.sub(r'_87.asc$', f"_{num_retrieval}.asc", str(fname)))
+                else:
+                    fname = Path(re.sub(r'_87.asc$', f"_{num_retrieval}_{spectype}.asc", str(fname)))
+                d = TesFile(fname)
+                # First column is name of species, second is pressure, third is map type.
+                # We chop off just to get the data
+                cov = np.array(d.table)[:,3:].astype(float)
             else:
                 raise RuntimeError(f"Don't know how to handle {ctype}")
+            if(sid not in self._default_cache):
+                self._default_cache[sid] = {}
             if retrieval_type not in self.filename_data[
                 sid
-            ] or retrieval_type == RetrievalType("default"):
-                self._default_cache[sid] = cov
+            ][sid2] or retrieval_type == RetrievalType("default"):
+                self._default_cache[sid][sid2] = cov
             return cov
-        return self._default_cache[sid]
+        return self._default_cache[sid][sid2]
 
     def read_file(
-        self, sid: StateElementIdentifier, retrieval_type: RetrievalType
+            self, sid: StateElementIdentifier, retrieval_type: RetrievalType,
+            sid2 : StateElementIdentifier | None = None,
     ) -> TesFile:
-        if retrieval_type in self.filename_data[sid]:
-            fname = self.filename_data[sid][retrieval_type]
+        if retrieval_type in self.filename_data[sid][sid2]:
+            fname = self.filename_data[sid][sid2][retrieval_type]
         else:
-            fname = self.filename_data[sid][RetrievalType("default")]
+            fname = self.filename_data[sid][sid2][RetrievalType("default")]
         return self._tes_file(fname)
 
     @cache

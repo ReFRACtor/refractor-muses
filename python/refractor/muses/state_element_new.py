@@ -10,6 +10,7 @@ from .state_element_osp import StateElementOspFile
 from .current_state_state_info import h_old
 from .identifier import StateElementIdentifier
 from loguru import logger
+import numpy as np
 import typing
 from typing import cast
 
@@ -58,7 +59,8 @@ class StateElementOspFileHandleNew(StateElementHandle):
         from .state_element_old_wrapper import StateElementOldWrapper
         # Issue with a few of the StateElements, punt short term so we can get the
         # rest of stuff working.
-        if(str(state_element_id) in ("CLOUDEXT", "cloudEffExt", "HDO","emissivity", "EMIS")):
+        if(str(state_element_id) in ("CLOUDEXT", "cloudEffExt", "HDO","emissivity", "EMIS",
+                                     )):
            return None
            
         # if state_element_id != self.sid:
@@ -71,8 +73,18 @@ class StateElementOspFileHandleNew(StateElementHandle):
             )
         else:
             sold = None
+        # Determining pressure is spread across a number of muses-py functions. We'll need
+        # to track all this down, but short term just get this from the old data
+        if self.hold is not None:
+            p = self.hold.state_element(StateElementIdentifier("pressure"))
+            assert p is not None
+            pressure_level = np.array(p.value_fm)
+        else:
+            # For now, just a dummy value
+            pressure_level = np.array([])
         res = self.obj_cls.create_from_handle(
             state_element_id,
+            pressure_level,
             None,
             self.measurement_id,
             self.retrieval_config,
