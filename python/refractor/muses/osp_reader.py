@@ -113,8 +113,19 @@ class OspCovarianceMatrixReader:
         ] = {}
         for fname in covariance_directory.glob("Covariance_Matrix_*.asc"):
             m = re.match(
-                r"Covariance_Matrix_(\w+)_(\w+)_(\d+)([SN])_(\d+)([SN])(_([A-Z]+))?.asc",
+                r"""Covariance_Matrix_   # Start of file name
+                ([a-zA-Z0-9]+)_          # State element name, all of \w except "_" used to
+                                         # Separate stuff
+                ([a-zA-Z0-9]+)_          # Map type, e.g. "Linear", "Log"
+                (\d+)([SN])_             # Latitude start
+                (\d+)([SN])              # Latitude end
+                (_(([A-Z]+_)?[A-Z]+))?   # Possible special type, like "CLN", "ENH", "MOD"
+                                         # Possibly have "LAND", "OCEAN" before - "LAND_ENH"
+                                         # Only applies to a few state element types, currently
+                                         # NH3, CH3OH, HCOOH
+                .asc""",
                 fname.name,
+                re.VERBOSE
             )
             if m:
                 sid = StateElementIdentifier(m[1])
@@ -179,7 +190,14 @@ class OspSpeciesReader(OspFileHandle):
             StateElementIdentifier, dict[StateElementIdentifier | None, np.ndarray]
         ] = {}
         for fname in Path(species_directory).glob("*.asc"):
-            m = re.match(r"([A-Z0-9]+)(_([A-Z0-9]+))?(_([a-z0-9_]+))?.asc", fname.name)
+            m = re.match(r"""
+            ([A-Z0-9]+)           # First species name
+            (_([A-Z0-9]+))?       # Possibly second species name (for cross terms)
+            (_([a-z0-9_]+))?      # Possible retrieval type (e.g., "bt_ig_refine")
+            .asc""",
+            fname.name,
+            re.VERBOSE
+            )
             if m:
                 sid = StateElementIdentifier(m[1])
                 sid2 = None if m[3] is None else StateElementIdentifier(m[3])
@@ -219,6 +237,7 @@ class OspSpeciesReader(OspFileHandle):
                 # Constraint_Matrix_TATM_NADIR_LINEAR_90S_90N_87.asc we read
                 # Constraint_Matrix_TATM_NADIR_LINEAR_90S_90N_30.asc if we have 30 levels
                 fname = self._abs_path(t["constraintFilename"])
+                # Cross terms have two 87s, both get replaced with the same number
                 fname = Path(
                     re.sub(
                         r"_87_87.asc$",
@@ -226,6 +245,7 @@ class OspSpeciesReader(OspFileHandle):
                         str(self._abs_path(t["constraintFilename"])),
                     )
                 )
+                # Other terms have one 87 that gets replaced
                 if spectype is None:
                     fname = Path(
                         re.sub(r"_87.asc$", f"_{num_retrieval}.asc", str(fname))

@@ -104,6 +104,9 @@ class StateElementOspFile(StateElementImplementation):
         if self.state_element_id == StateElementIdentifier("NH3"):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("nh3type")
+            # If not specified, default value
+            if(spectype == ""):
+                spectype = "MOD"
         elif self.state_element_id == StateElementIdentifier("CH3OH"):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("ch3ohtype")
