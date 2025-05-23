@@ -103,6 +103,10 @@ class StateInfo(UserDict):
     def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
         return self._cross_state_info.cross_state_element_handle_set
 
+    @cross_state_element_handle_set.setter
+    def cross_state_element_handle_set(self, val: CrossStateElementHandleSet) -> None:
+        self._cross_state_info.cross_state_element_handle_set = val
+
     @property
     def cross_state_info(self) -> CrossStateInfo:
         return self._cross_state_info
@@ -211,7 +215,9 @@ class StateInfo(UserDict):
         # Create all the cross terms, so any coupling gets set up
         for sid in self.keys():
             if sid != state_element_id:
-                ky = tuple(StateElementIdentifier.sort_identifier([sid, state_element_id]))
+                ky = tuple(
+                    StateElementIdentifier.sort_identifier([sid, state_element_id])
+                )
                 _ = self.cross_state_info[ky]
         return self.data[state_element_id]
 

@@ -27,6 +27,7 @@ if typing.TYPE_CHECKING:
     from .observation_handle import ObservationHandleSet
     from .muses_observation import MeasurementId
     from .state_info import StateElement
+    from .cross_state_element import CrossStateElementHandleSet
 
 
 class CurrentStateStateInfo(CurrentState):
@@ -522,6 +523,14 @@ class CurrentStateStateInfo(CurrentState):
     @state_element_handle_set.setter
     def state_element_handle_set(self, val: StateElementHandleSet) -> None:
         self._state_info.state_element_handle_set = val
+
+    @property
+    def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
+        return self._state_info.cross_state_element_handle_set
+
+    @cross_state_element_handle_set.setter
+    def cross_state_element_handle_set(self, val: CrossStateElementHandleSet) -> None:
+        self._state_info.cross_state_element_handle_set = val
 
     def notify_update_target(
         self,

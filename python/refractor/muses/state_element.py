@@ -937,6 +937,7 @@ class StateElementImplementation(StateElement):
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
 
+
 class StateElementFillValueHandle(StateElementHandle):
     """There are a few state element (like OMICLOUDFRACTION) that get created even
     when we don't have the instrument data. These should just return a StateElement

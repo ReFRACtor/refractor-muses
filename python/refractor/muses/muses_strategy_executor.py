@@ -40,6 +40,7 @@ if typing.TYPE_CHECKING:
     from .cost_function_creator import CostFunctionCreator
     from .identifier import InstrumentIdentifier, FilterIdentifier
     from .state_info import StateElementHandleSet
+    from .cross_state_element import CrossStateElementHandleSet
 
 
 @contextmanager
@@ -188,6 +189,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
         return self.current_state.state_element_handle_set
+
+    @property
+    def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
+        return self.current_state.cross_state_element_handle_set
 
     @property
     def run_dir(self) -> Path:

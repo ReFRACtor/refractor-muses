@@ -38,6 +38,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, MusesStrategyHandleSet
     from .identifier import RetrievalType, InstrumentIdentifier, StrategyStepIdentifier
     from .state_info import StateElementHandleSet
+    from .cross_state_element import CrossStateElementHandleSet
 
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
@@ -347,6 +348,11 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     def state_element_handle_set(self) -> StateElementHandleSet:
         """The set of handles we use for each state element."""
         return self._strategy_executor.state_element_handle_set
+
+    @property
+    def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
+        """The set of handles we use for each state element."""
+        return self._strategy_executor.cross_state_element_handle_set
 
     @property
     def retrieval_strategy_step_set(self) -> RetrievalStrategyStepSet:
