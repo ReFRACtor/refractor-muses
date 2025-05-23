@@ -1,13 +1,14 @@
 from __future__ import annotations
 from .current_state import PropagatedQA, SoundingMetadata
 from .state_element import StateElementHandleSet, StateElement
+from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
+from .identifier import StateElementIdentifier
 import numpy as np
 import typing
 import copy
 from collections import UserDict
 
 if typing.TYPE_CHECKING:
-    from .identifier import StateElementIdentifier
     from .muses_observation import MeasurementId, ObservationHandleSet
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
@@ -17,6 +18,53 @@ RetrievalGridArray = np.ndarray
 ForwardModelGridArray = np.ndarray
 RetrievalGrid2dArray = np.ndarray
 ForwardModelGrid2dArray = np.ndarray
+
+
+class CrossStateInfo(UserDict):
+    """This is a helper class for StateInfo that handles the CrossStateElement terms.
+    This isn't really logically separate from StateInfo, but since we also treat
+    StateInfo like a dict like object it is useful to have a dict like object to handle
+    the CrossStateElement terms."""
+
+    def __init__(
+        self,
+        state_info: StateInfo,
+        cross_state_element_handle_set: CrossStateElementHandleSet | None = None,
+    ) -> None:
+        super().__init__()
+
+        if cross_state_element_handle_set is not None:
+            self.cross_state_element_handle_set = cross_state_element_handle_set
+        else:
+            self.cross_state_element_handle_set = copy.deepcopy(
+                CrossStateElementHandleSet.default_handle_set()
+            )
+        self.state_info = state_info
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
+    ) -> None:
+        self.cross_state_element_handle_set.notify_update_target(
+            measurement_id,
+            retrieval_config,
+            strategy,
+            observation_handle_set,
+            sounding_metadata,
+        )
+        self.data = {}
+
+    def __missing__(
+        self, ky: tuple[StateElementIdentifier, StateElementIdentifier]
+    ) -> CrossStateElement:
+        self.data[ky] = self.cross_state_element_handle_set.cross_state_element(
+            self.state_info[ky[0]], self.state_info[ky[1]]
+        )
+        return self.data[ky]
 
 
 class StateInfo(UserDict):
@@ -31,7 +79,9 @@ class StateInfo(UserDict):
     """
 
     def __init__(
-        self, state_element_handle_set: StateElementHandleSet | None = None
+        self,
+        state_element_handle_set: StateElementHandleSet | None = None,
+        cross_state_element_handle_set: CrossStateElementHandleSet | None = None,
     ) -> None:
         super().__init__()
         if state_element_handle_set is not None:
@@ -41,12 +91,21 @@ class StateInfo(UserDict):
                 StateElementHandleSet.default_handle_set()
             )
         self._state_element: dict[StateElementIdentifier, StateElement] = {}
+        self._cross_state_info = CrossStateInfo(self, cross_state_element_handle_set)
         self.propagated_qa = PropagatedQA()
         # Temp, clumsy but this will go away
         for p in sorted(self.state_element_handle_set.handle_set.keys(), reverse=True):
             for h in self.state_element_handle_set.handle_set[p]:
                 if hasattr(h, "_current_state_old"):
                     self._current_state_old = h._current_state_old
+
+    @property
+    def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
+        return self._cross_state_info.cross_state_element_handle_set
+
+    @property
+    def cross_state_info(self) -> CrossStateInfo:
+        return self._cross_state_info
 
     @property
     def brightness_temperature_data(self) -> dict[int, dict[str, float | None]]:
@@ -77,6 +136,9 @@ class StateInfo(UserDict):
             strategy,
             observation_handle_set,
             smeta,
+        )
+        self._cross_state_info.notify_update_target(
+            measurement_id, retrieval_config, strategy, observation_handle_set, smeta
         )
         self.data = {}
         self.propagated_qa = PropagatedQA()
@@ -146,6 +208,11 @@ class StateInfo(UserDict):
         self.data[state_element_id] = self.state_element_handle_set.state_element(
             state_element_id
         )
+        # Create all the cross terms, so any coupling gets set up
+        for sid in self.keys():
+            if sid != state_element_id:
+                ky = tuple(StateElementIdentifier.sort_identifier([sid, state_element_id]))
+                _ = self.cross_state_info[ky]
         return self.data[state_element_id]
 
 

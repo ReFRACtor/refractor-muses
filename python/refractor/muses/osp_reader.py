@@ -125,7 +125,7 @@ class OspCovarianceMatrixReader:
                                          # NH3, CH3OH, HCOOH
                 .asc""",
                 fname.name,
-                re.VERBOSE
+                re.VERBOSE,
             )
             if m:
                 sid = StateElementIdentifier(m[1])
@@ -190,13 +190,14 @@ class OspSpeciesReader(OspFileHandle):
             StateElementIdentifier, dict[StateElementIdentifier | None, np.ndarray]
         ] = {}
         for fname in Path(species_directory).glob("*.asc"):
-            m = re.match(r"""
+            m = re.match(
+                r"""
             ([A-Z0-9]+)           # First species name
             (_([A-Z0-9]+))?       # Possibly second species name (for cross terms)
             (_([a-z0-9_]+))?      # Possible retrieval type (e.g., "bt_ig_refine")
             .asc""",
-            fname.name,
-            re.VERBOSE
+                fname.name,
+                re.VERBOSE,
             )
             if m:
                 sid = StateElementIdentifier(m[1])

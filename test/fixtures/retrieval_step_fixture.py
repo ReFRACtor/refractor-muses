@@ -5,7 +5,7 @@ from refractor.muses import (
     RetrievalStrategy,
     InstrumentIdentifier,
     ProcessLocation,
-    CurrentState
+    CurrentState,
 )
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator

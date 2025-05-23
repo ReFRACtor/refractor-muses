@@ -482,9 +482,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     """
 
-    # Short term, turn off checking for unit tests    
+    # Short term, turn off checking for unit tests
     check_old_state_element_value = True
-    
+
     def __init__(self) -> None:
         # Cache these values, they don't normally change.
         self._fm_sv_loc: dict[StateElementIdentifier, tuple[int, int]] | None = None

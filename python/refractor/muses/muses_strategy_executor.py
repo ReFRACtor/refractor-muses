@@ -41,6 +41,7 @@ if typing.TYPE_CHECKING:
     from .identifier import InstrumentIdentifier, FilterIdentifier
     from .state_info import StateElementHandleSet
 
+
 @contextmanager
 def log_timing() -> Generator[None, None, None]:
     start_date = time.strftime("%c")

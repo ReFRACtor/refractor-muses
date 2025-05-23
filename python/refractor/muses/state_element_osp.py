@@ -2,7 +2,12 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
 from .state_element import StateElementImplementation, StateElement, StateElementHandle
-from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, CurrentState
+from .current_state import (
+    FullGridMappedArray,
+    RetrievalGrid2dArray,
+    FullGrid2dArray,
+    CurrentState,
+)
 from .identifier import StateElementIdentifier, RetrievalType
 from loguru import logger
 from pathlib import Path
@@ -105,7 +110,7 @@ class StateElementOspFile(StateElementImplementation):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("nh3type")
             # If not specified, default value
-            if(spectype == ""):
+            if spectype == "":
                 spectype = "MOD"
         elif self.state_element_id == StateElementIdentifier("CH3OH"):
             assert self._sold is not None

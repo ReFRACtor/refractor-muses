@@ -14,6 +14,7 @@ from .state_info_old import (
     RetrievableStateElementOld,
     StateElementHandleSetOld,
     StateInfoOld,
+    StateElementIdentifier,
 )
 import numpy as np
 import numbers
@@ -139,6 +140,8 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
         TRUE_Flag = False
         CONSTRAINT_Flag = False
 
+        #if self.name == StateElementIdentifier("HDO"):
+        #    breakpoint()
         result = mpy.get_vector(
             results_list,
             retrieval_info.retrieval_info_obj,

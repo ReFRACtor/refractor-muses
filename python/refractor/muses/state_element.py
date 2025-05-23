@@ -9,7 +9,7 @@ from .current_state import (
     RetrievalGrid2dArray,
     FullGrid2dArray,
     FullGridArray,
-    CurrentState
+    CurrentState,
 )
 import abc
 from loguru import logger
@@ -270,7 +270,14 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @abc.abstractproperty
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         """Constraint matrix, generally the inverse of apriori_cov, although see the
-        discussion in StateElement class about how this might be different."""
+        discussion in StateElement class about how this might be different.
+
+        Note that this should be the constraint matrix without considering any cross
+        terms. The cross terms are handled separately by CrossStateElement. In particular,
+        this matrix might get replaced by a cross term (e.g., instead of reading H2O.asc
+        we read H2O_H2O.asc) - however this class doesn't need to worry about this. It
+        should just always return the non-cross term informed constraint matrix and we
+        separately look at CrossStateElement to see if anything needs to be modified."""
         raise NotImplementedError()
 
     def constraint_cross_covariance(
@@ -929,7 +936,6 @@ class StateElementImplementation(StateElement):
             )
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
-
 
 class StateElementFillValueHandle(StateElementHandle):
     """There are a few state element (like OMICLOUDFRACTION) that get created even

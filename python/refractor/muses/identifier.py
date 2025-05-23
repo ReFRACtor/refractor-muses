@@ -1,6 +1,6 @@
 from __future__ import annotations
 import abc
-from .order_species import order_species
+from .order_species import order_species, compare_species
 
 
 class Identifier(object, metaclass=abc.ABCMeta):
@@ -76,6 +76,18 @@ class StateElementIdentifier(IdentifierStr):
 
     def __eq__(self, other: object) -> bool:
         return super().__eq__(other)
+
+    def __lt__(self, other: StateElementIdentifier) -> bool:
+        return compare_species(str(self), str(other)) < 0
+
+    def __le__(self, other: StateElementIdentifier) -> bool:
+        return compare_species(str(self), str(other)) <= 0
+
+    def __gt__(self, other: StateElementIdentifier) -> bool:
+        return compare_species(str(self), str(other)) > 0
+
+    def __ge__(self, other: StateElementIdentifier) -> bool:
+        return compare_species(str(self), str(other)) >= 0
 
     # unhashable type: 'StateElementIdentifier' if not defined
     def __hash__(self) -> int:
