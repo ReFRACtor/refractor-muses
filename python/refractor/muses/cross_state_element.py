@@ -1,6 +1,9 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandle, CreatorHandleSet
-from .identifier import StateElementIdentifier
+from .identifier import StateElementIdentifier, RetrievalType
+from .osp_reader import OspSpeciesReader
+
+from pathlib import Path
 from loguru import logger
 import abc
 import typing
@@ -8,8 +11,13 @@ import typing
 if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .retrieval_configuration import RetrievalConfiguration
-    from .muses_strategy import MusesStrategy
-    from .current_state import RetrievalGrid2dArray, StateElement, SoundingMetadata
+    from .muses_strategy import MusesStrategy, CurrentStrategyStep
+    from .current_state import (
+        RetrievalGrid2dArray,
+        StateElement,
+        SoundingMetadata,
+        RetrievalGridArray,
+    )
 
 
 class CrossStateElement:
@@ -46,6 +54,24 @@ class CrossStateElement:
     have cross terms in the future, we'll need to think through how to
     handle this and include it. Probably (but not certainly) similar
     to how we handle the constraint matrix.
+
+    Like with StateElement, a CrossStateElement gets notified when various things
+    happen in a retrieval. These are:
+
+    1. notify_start_retrieval called at the very start of a retrieval. So this can
+       do things like update the value and step_initial_fm to the retrieval_initial_fm.
+    2. notify_start_step called at the start of a retrieval step. So this can do
+       things like update the value and step_initial_fm to the next_step_initial_fm
+       determined in the previous step
+    3. notify_step_solution called when a retrieval step reaches a solution. This can
+       determine the step_initial_fm for the next step.
+    4. Note, we *don't* have notify_parameter_update like we do for StateElement. This just
+       didn't seem useful, so we didn't put that in. If this actually ends up being something
+       that we would be useful, we could easily add that in.
+
+    Note that the StateElement have already received the notify messages, so for example
+    in notify_step_solution you can depend on any StateElement you reference already has
+    been updated by a call to its notify_step_solution.
     """
 
     def __init__(
@@ -83,6 +109,46 @@ class CrossStateElement:
         constraint_matrix returned by those StateElement without
         change."""
         return (None, None, None)
+
+    def notify_start_retrieval(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        '''Called at the start of a retrieval (before the first step). The StateElements that
+        make up this cross term have already had notify_start_retrieval called on them.'''
+        pass
+
+    def notify_start_step(
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        '''Called each time at the start of a retrieval step.  The StateElements that make
+        up this cross term have already had notify_start_step called on them.'''
+        pass
+
+    def notify_step_solution(
+            self, xsol: RetrievalGridArray, retrieval_slice_selem_1: slice | None,
+            retrieval_slice_selem_2: slice | None,
+    ) -> None:
+        """Called when a retrieval step has a solution.
+
+        Note the StateElement have all been updated already, so if we need to update
+        something due to coupling (e.g., HDO for H2O update) the state elements have already
+        been updated (so you can read the value from H2O).
+        
+        We pass in the slice needed to get this the StateElement
+        values for the two StateElements in this cross term, or None
+        if we aren't actually retrieving one of the StateElements. It
+        just is more natural to have something outside this class
+        maintain this information (e.g the CurrentState), since this
+        depends on access to all the StateElement in the StateInfo.
+
+        """
+        pass
+
 
 
 class CrossStateElementHandle(CreatorHandle):
@@ -185,6 +251,130 @@ class CrossStateElementDefaultHandle(CrossStateElementHandle):
             )
         return CrossStateElementImplementation(state_element_1, state_element_2)
 
+
+class H2OCrossStateElementOsp(CrossStateElementImplementation):
+    """Handle the H2O x HDO cross term"""
+
+    def __init__(
+        self,
+        state_element_1: StateElement,
+        state_element_2: StateElement,
+        species_directory: Path,
+    ) -> None:
+        super().__init__(state_element_1, state_element_2)
+        self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
+        self.retrieval_type = RetrievalType("default")
+
+    def cross_constraint_matrix(
+        self,
+    ) -> tuple[
+        RetrievalGrid2dArray | None,
+        RetrievalGrid2dArray | None,
+        RetrievalGrid2dArray | None,
+    ]:
+        cm1 = self.osp_species_reader.read_constraint_matrix(
+            self.state_element_id_1,
+            self.retrieval_type,
+            self._state_element_1.basis_matrix.shape[0],
+            sid2=self.state_element_id_1,
+        ).view(RetrievalGrid2dArray)
+        cm2 = self.osp_species_reader.read_constraint_matrix(
+            self.state_element_id_1,
+            self.retrieval_type,
+            self._state_element_1.basis_matrix.shape[0],
+            sid2=self.state_element_id_2,
+        ).view(RetrievalGrid2dArray)
+        cm3 = self.osp_species_reader.read_constraint_matrix(
+            self.state_element_id_2,
+            self.retrieval_type,
+            self._state_element_2.basis_matrix.shape[0],
+            sid2=self.state_element_id_2,
+        ).view(RetrievalGrid2dArray)
+        return (cm1, cm2, cm3)
+
+    def notify_start_step(
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        super().notify_start_step(
+            current_strategy_step,
+            retrieval_config,
+            skip_initial_guess_update,
+        )
+        self.retrieval_type = current_strategy_step.retrieval_type
+        self._retrieve_both = False
+        if (
+            self.state_element_id_1 in current_strategy_step.retrieval_elements
+            and self.state_element_id_1 in current_strategy_step.retrieval_elements
+        ):
+            self._retrieve_both = True
+        self._retrieve_first = (
+            self.state_element_id_1 in current_strategy_step.retrieval_elements
+        )
+
+
+class H2OCrossStateElementOspHandle(CrossStateElementHandle):
+    def __init__(
+        self, sid_1: StateElementIdentifier, sid_2: StateElementIdentifier
+    ) -> None:
+        self.sid_1 = sid_1
+        self.sid_2 = sid_2
+        self.retrieval_config : RetrievalConfiguration | None = None
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
+    ) -> None:
+        self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
+        self.strategy = strategy
+        self.observation_handle_set = observation_handle_set
+        self.sounding_metadata = sounding_metadata
+
+    def cross_state_element(
+        self, state_element_1: StateElement, state_element_2: StateElement
+    ) -> CrossStateElement | None:
+        if (
+            state_element_1.state_element_id != self.sid_1
+            or state_element_2.state_element_id != self.sid_2
+        ):
+            return None
+        if self.retrieval_config is None:
+            raise RuntimeError("Need to call notify_update_target first")
+        res = H2OCrossStateElementOsp(
+            state_element_1,
+            state_element_2,
+            Path(self.retrieval_config["speciesDirectory"]),
+        )
+        if res is not None:
+            logger.debug(
+                f"Creating H2OCrossStateElementOsp for {self.sid_1} x {self.sid_2} cross state element"
+            )
+        return res
+
+
+# Handle the H2O cross terms
+CrossStateElementHandleSet.add_default_handle(
+    H2OCrossStateElementOspHandle(
+        StateElementIdentifier("H2O"), StateElementIdentifier("HDO")
+    )
+)
+CrossStateElementHandleSet.add_default_handle(
+    H2OCrossStateElementOspHandle(
+        StateElementIdentifier("H2O"), StateElementIdentifier("H2018")
+    )
+)
+CrossStateElementHandleSet.add_default_handle(
+    H2OCrossStateElementOspHandle(
+        StateElementIdentifier("H2O"), StateElementIdentifier("H2017")
+    )
+)
 
 # Fall back to our default handle. Note the vast majority of the cross terms will be this
 # type, we only have one example right now of a "interesting" cross term - the H2O x HDO term.

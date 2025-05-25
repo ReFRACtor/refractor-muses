@@ -12,6 +12,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId, ObservationHandleSet
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
+    from .current_state import CurrentState
 
 # A couple of aliases, just so we can clearly mark what grid data is on
 RetrievalGridArray = np.ndarray
@@ -66,6 +67,38 @@ class CrossStateInfo(UserDict):
         )
         return self.data[ky]
 
+    def notify_start_step(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        for celem in self.values():
+            celem.notify_start_step(
+                current_strategy_step,
+                retrieval_config,
+                skip_initial_guess_update,
+            )
+
+    def notify_start_retrieval(
+        self,
+        current_strategy_step: CurrentStrategyStep | None,
+        retrieval_config: RetrievalConfiguration,
+    ) -> None:
+        for celem in self.values():
+            celem.notify_start_retrieval(
+                current_strategy_step,
+                retrieval_config,
+            )
+
+    def notify_step_solution(
+        self, xsol: RetrievalGridArray, current_state: CurrentState
+    ) -> None:
+        for celem in self.values():
+            celem.notify_step_solution(
+                xsol, current_state.retrieval_sv_slice(celem.state_element_id_1),
+                current_state.retrieval_sv_slice(celem.state_element_id_2)
+            )
 
 class StateInfo(UserDict):
     """This class maintains the full state as we perform a retrieval.
@@ -170,6 +203,9 @@ class StateInfo(UserDict):
                 retrieval_config,
                 skip_initial_guess_update,
             )
+        self._cross_state_info.notify_start_step(
+            current_strategy_step, retrieval_config, skip_initial_guess_update
+        )
 
     def notify_start_retrieval(
         self,
@@ -190,6 +226,18 @@ class StateInfo(UserDict):
                 current_strategy_step,
                 retrieval_config,
             )
+        self._cross_state_info.notify_start_retrieval(
+            current_strategy_step, retrieval_config
+        )
+
+    def notify_step_solution(
+        self, xsol: RetrievalGridArray, current_state: CurrentState
+    ) -> None:
+        for selem in self.values():
+            selem.notify_step_solution(
+                xsol, current_state.retrieval_sv_slice(selem.state_element_id)
+            )
+        self._cross_state_info.notify_step_solution(xsol, current_state)
 
     def update_with_old(self) -> None:
         """Temporary, we have the StateInfoOld saved but not the new StateInfo in our

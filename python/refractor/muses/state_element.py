@@ -81,7 +81,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
     "Tropospheric Emission Spectrometer: Retrieval Method and Error Analysis"
     (https://ieeexplore.ieee.org/document/1624609).
 
-
     We have two state mappings, one that goes between the retrieval
     state vector and the forward model state vector, and a second that
     is used in the forward model. These are separated because
@@ -91,6 +90,15 @@ class StateElement(object, metaclass=abc.ABCMeta):
     were the mapTypeList. But we use the more generate rf.StateMapping here so
     we aren't restricted to just these two types of mappings (e.g., we
     might want to do a shape retrieval like OCO-2 does).
+
+    A few of the state elements have cross coupling, for example H2O and HDO. We
+    purposely have all the handling of that *outside* this StateElement, in a
+    CrossStateElement. So for the purposes of these state elements, we *always*
+    handle things as if the other term wasn't available. In particular, we return
+    the constraint_matrix as if we only had H2O. We have any updates/changes handled
+    in the CrossStateElement. This just makes the logic simpler - we don't need to somehow
+    maintain information about a cross term in this StateElement - we have a separate class
+    for that.
 
     The StateElement gets notified when various things happen in a retrieval. These
     are:
@@ -280,13 +288,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
         separately look at CrossStateElement to see if anything needs to be modified."""
         raise NotImplementedError()
 
-    def constraint_cross_covariance(
-        self, selem2: StateElement
-    ) -> RetrievalGrid2dArray | None:
-        """Return the constraint cross matrix with selem 2. This returns None
-        if there is no cross covariance."""
-        return None
-
     @abc.abstractproperty
     def apriori_cov_fm(self) -> FullGrid2dArray:
         """Apriori Covariance"""
@@ -366,6 +367,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
+        '''Called at the start of a retrieval (before the first step).'''
         pass
 
     def notify_start_step(
@@ -374,6 +376,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
+        '''Called each time at the start of a retrieval step.'''
         pass
 
     def notify_step_solution(
@@ -523,6 +526,17 @@ class StateElementImplementation(StateElement):
                 self.state_mapping_retrieval_to_fm, self.state_mapping
             )
 
+    # Temp, we'll remove shortly
+    def constraint_cross_covariance(
+            self, selem2: StateElement
+    ) -> RetrievalGrid2dArray | None:
+        if self._sold is not None:
+            res = self._sold.constraint_cross_covariance(selem2)
+            if res is None:
+                return None
+            return res.view(RetrievalGrid2dArray)
+        return None            
+
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
         if self._sold is None:
             raise RuntimeError("This shouldn't happen")
@@ -646,16 +660,6 @@ class StateElementImplementation(StateElement):
             npt.assert_allclose(res, res2)
             assert res.dtype == res2.dtype
         return res
-
-    def constraint_cross_covariance(
-        self, selem2: StateElement
-    ) -> RetrievalGrid2dArray | None:
-        if self._sold is not None:
-            res = self._sold.constraint_cross_covariance(selem2)
-            if res is None:
-                return None
-            return res.view(RetrievalGrid2dArray)
-        return None
 
     @property
     def apriori_cov_fm(self) -> FullGrid2dArray:

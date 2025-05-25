@@ -598,10 +598,7 @@ class CurrentStateStateInfo(CurrentState):
 
     def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
         self.match_old()
-        for selem in self._state_info.values():
-            selem.notify_step_solution(
-                xsol, self.retrieval_sv_slice(selem.state_element_id)
-            )
+        self._state_info.notify_step_solution(xsol, self)
 
 
 # Right now, only fall back to old py-retrieve code
