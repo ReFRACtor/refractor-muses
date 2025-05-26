@@ -249,29 +249,17 @@ class FakeRetrievalInfo:
 
     @property
     def altitudeListFM(self) -> np.ndarray:
-        pdata: list[np.ndarray] = []
-        # Convention of muses-py is to use [-2] for items that aren't on
-        # pressure levels
-        for sid in self.current_state.retrieval_state_element_id:
-            d = self.current_state.altitude_list_fm(sid)
-            if d is not None:
-                pdata.append(d)
-            else:
-                pdata.append(np.array([-2.0]))
-        return np.concatenate(pdata)
+        # The altitude isn't used anywhere, however it does need to exist (plot_results.py
+        # in muses-py copies this data, but doesn't do anything with it).
+        # Put in placeholder data, just so we have this available
+        return np.full(self.pressureListFM.shape, -2.0)
 
     @property
     def altitudeList(self) -> np.ndarray:
-        pdata: list[np.ndarray] = []
-        # Convention of muses-py is to use [-2] for items that aren't on
-        # pressure levels
-        for sid in self.current_state.retrieval_state_element_id:
-            d = self.current_state.altitude_list(sid)
-            if d is not None:
-                pdata.append(d)
-            else:
-                pdata.append(np.array([-2.0]))
-        return np.concatenate(pdata)
+        # The altitude isn't used anywhere, however it does need to exist (plot_results.py
+        # in muses-py copies this data, but doesn't do anything with it).
+        # Put in placeholder data, just so we have this available
+        return np.full(self.pressureList.shape, -2.0)
 
     @property
     def pressureListFM(self) -> np.ndarray:

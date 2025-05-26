@@ -719,25 +719,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    # TODO Are these actually needed?
-    def altitude_list(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> RetrievalGridArray | None:
-        """For state elements that are on pressure level, this returns
-        the altitude.  This is for the retrieval state vector
-        levels (generally smaller than the altitude_list_fm).
-        """
-        return None
-
-    def altitude_list_fm(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> FullGridMappedArray | None:
-        """For state elements that are on pressure level, this returns
-        the altitude.  This is for the forward model state
-        vector levels (generally larger than the altitude_list).
-        """
-        return None
-
     @property
     def forward_model_state_vector_element_list(self) -> list[StateElementIdentifier]:
         """List of StateElementIdentifier for each entry in the
@@ -2082,22 +2063,6 @@ class CurrentStateStateInfoOld(CurrentState):
         selem = self.state_element_old(state_element_id)
         if hasattr(selem, "pressureListFM"):
             return selem.pressureListFM.view(FullGridMappedArray)
-        return None
-
-    def altitude_list(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> RetrievalGridArray | None:
-        selem = self.state_element_old(state_element_id)
-        if hasattr(selem, "altitudeList"):
-            return selem.altitudeList.view(RetrievalGridArray)
-        return None
-
-    def altitude_list_fm(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> FullGridMappedArray | None:
-        selem = self.state_element_old(state_element_id)
-        if hasattr(selem, "altitudeListFM"):
-            return selem.altitudeListFM.view(FullGridMappedArray)
         return None
 
     # Some of these arguments may get put into the class, but for now have explicit
