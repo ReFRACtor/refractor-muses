@@ -264,6 +264,8 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
         super().__init__(state_element_1, state_element_2)
         self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
         self.retrieval_type = RetrievalType("default")
+        self._retrieve_both = False
+        self._retrieve_first = False
 
     def cross_constraint_matrix(
         self,
@@ -272,6 +274,9 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
         RetrievalGrid2dArray | None,
         RetrievalGrid2dArray | None,
     ]:
+        # Only update if we have a cross term
+        if(not self._retrieve_both):
+            return (None, None, None)
         cm1 = self.osp_species_reader.read_constraint_matrix(
             self.state_element_id_1,
             self.retrieval_type,
@@ -307,14 +312,24 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
         self._retrieve_both = False
         if (
             self.state_element_id_1 in current_strategy_step.retrieval_elements
-            and self.state_element_id_1 in current_strategy_step.retrieval_elements
+            and self.state_element_id_2 in current_strategy_step.retrieval_elements
         ):
             self._retrieve_both = True
         self._retrieve_first = (
             self.state_element_id_1 in current_strategy_step.retrieval_elements
         )
 
-
+    def notify_step_solution(
+            self, xsol: RetrievalGridArray, retrieval_slice_selem_1: slice | None,
+            retrieval_slice_selem_2: slice | None,
+    ) -> None:
+        # If we retrieve H2O but not HDO, then update HDO to maintain the ratio with
+        # H2O
+        if(not self._retrieve_both and self._retrieve_first):
+            logger.debug(f"In H2OCrossStateElementOsp, updating {self.state_element_id_2} to maintain the ratio with {self.state_element_id_1}")
+            v = self._state_element_1.value_fm * (self._state_element_2.step_initial_fm / self._state_element_1.step_initial_fm)
+            self._state_element_2.update_state_element(current_fm = v, next_step_initial_fm = v)
+            
 class H2OCrossStateElementOspHandle(CrossStateElementHandle):
     def __init__(
         self, sid_1: StateElementIdentifier, sid_2: StateElementIdentifier

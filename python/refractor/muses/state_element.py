@@ -348,6 +348,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         current_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
+        next_step_initial_fm: FullGridMappedArray | None = None,
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
@@ -553,7 +554,7 @@ class StateElementImplementation(StateElement):
             res2 = self._sold.basis_matrix
             if res2 is None:
                 raise RuntimeError("res2 should not be None")
-            npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2, 1e-12)
             # Special case, some of the basis matrix that happen to be integer
             # are left as int64. No real reason, but also no harm
             if res2.dtype != np.int64:
@@ -615,7 +616,7 @@ class StateElementImplementation(StateElement):
         if self._sold is not None and CurrentState.check_old_state_element_value:
             try:
                 res2 = self._sold.value_fm
-                npt.assert_allclose(res, res2)
+                npt.assert_allclose(res, res2, 1e-12)
                 assert res.dtype == res2.dtype
             except NotImplementedError:
                 pass
@@ -639,7 +640,7 @@ class StateElementImplementation(StateElement):
             except (AssertionError, RuntimeError):
                 res2 = None
             if res2 is not None:
-                npt.assert_allclose(res, res2)
+                npt.assert_allclose(res, res2, 1e-12)
                 assert res.dtype == res2.dtype
         return res
 
@@ -657,7 +658,7 @@ class StateElementImplementation(StateElement):
         res = self._constraint_matrix
         if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.constraint_matrix
-            npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2, 1e-12)
             assert res.dtype == res2.dtype
         return res
 
@@ -679,7 +680,7 @@ class StateElementImplementation(StateElement):
             except AssertionError:
                 res2 = None
             if res2 is not None and CurrentState.check_old_state_element_value:
-                npt.assert_allclose(res, res2)
+                npt.assert_allclose(res, res2, 1e-12)
                 assert res.dtype == res2.dtype
         return res
 
@@ -696,7 +697,7 @@ class StateElementImplementation(StateElement):
         res = self._retrieval_initial_fm
         if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.retrieval_initial_fm
-            npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2, 1e-12)
             assert res.dtype == res2.dtype
         return res
 
@@ -713,7 +714,7 @@ class StateElementImplementation(StateElement):
         res = self._step_initial_fm
         if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.step_initial_fm
-            npt.assert_allclose(res, res2)
+            npt.assert_allclose(res, res2, 1e-12)
             assert res.dtype == res2.dtype
         return res
 
@@ -799,6 +800,7 @@ class StateElementImplementation(StateElement):
         current_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
+        next_step_initial_fm: FullGridMappedArray | None = None,
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
@@ -810,6 +812,8 @@ class StateElementImplementation(StateElement):
                 self._constraint_vector_fm = constraint_vector_fm
         if step_initial_fm is not None:
             self._step_initial_fm = step_initial_fm
+        if next_step_initial_fm is not None:
+            self._next_step_initial_fm = next_step_initial_fm
         if retrieval_initial_fm is not None:
             self._retrieval_initial_fm = retrieval_initial_fm
         if true_value_fm is not None:

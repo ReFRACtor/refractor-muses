@@ -123,7 +123,7 @@ class OspCovarianceMatrixReader:
                                          # Possibly have "LAND", "OCEAN" before - "LAND_ENH"
                                          # Only applies to a few state element types, currently
                                          # NH3, CH3OH, HCOOH
-                .asc""",
+                \.asc$""",
                 fname.name,
                 re.VERBOSE,
             )
@@ -195,7 +195,7 @@ class OspSpeciesReader(OspFileHandle):
             ([A-Z0-9]+)           # First species name
             (_([A-Z0-9]+))?       # Possibly second species name (for cross terms)
             (_([a-z0-9_]+))?      # Possible retrieval type (e.g., "bt_ig_refine")
-            .asc""",
+            \.asc$""",
                 fname.name,
                 re.VERBOSE,
             )

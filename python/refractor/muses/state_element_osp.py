@@ -115,9 +115,14 @@ class StateElementOspFile(StateElementImplementation):
         elif self.state_element_id == StateElementIdentifier("CH3OH"):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("ch3ohtype")
-        elif self.state_element_id == StateElementIdentifier("HCOOH"):
-            assert self._sold is not None
-            spectype = self._sold._current_state_old.state_value_str("hcoohtype")
+        # Oddly, the spectype for HCOOH is *not* used in the filename. No idea why,
+        # probably some historical oddity. But you can examine about line 2150 of
+        # get_species_information.py in py-retrieve to see this. Only NH3 and
+        # CH3OH get their spectype used.
+        #elif self.state_element_id == StateElementIdentifier("HCOOH"):
+        #    assert self._sold is not None
+        #    spectype = self._sold._current_state_old.state_value_str("hcoohtype")
+        
         # When we have cross terms in the covariance, the non cross term also changes - this
         # makes sense because some for example the H2O signal goes into HDO. Right now, we
         # just "know" that if both H2O and HDO are being retrieved we want the cross term,
