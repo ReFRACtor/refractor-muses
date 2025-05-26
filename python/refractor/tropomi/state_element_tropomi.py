@@ -43,6 +43,7 @@ def add_handle(
         StateElementOspFileHandle(
             StateElementIdentifier(sname),
             np.array([constraint_value]).view(FullGridMappedArray),
+            np.array([constraint_value]).view(FullGridMappedArray),
             cls=cls,
             cov_is_constraint=cov_is_constraint,
         ),
@@ -246,6 +247,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
             state_element_id,
             None,
             constraint_vector_fm,
+            constraint_vector_fm,
             latitude,
             surface_type,
             species_directory,
@@ -306,6 +308,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
         super().__init__(
             state_element_id,
             None,
+            constraint_vector_fm,
             constraint_vector_fm,
             latitude,
             surface_type,

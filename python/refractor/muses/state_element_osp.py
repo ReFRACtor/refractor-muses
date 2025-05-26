@@ -54,6 +54,7 @@ class StateElementOspFile(StateElementImplementation):
         self,
         state_element_id: StateElementIdentifier,
         pressure_list_fm: FullGridMappedArray | None,
+        value_fm: FullGridMappedArray | None,
         constraint_vector_fm: FullGridMappedArray | None,
         latitude: float,
         surface_type: str,
@@ -63,11 +64,13 @@ class StateElementOspFile(StateElementImplementation):
         cov_is_constraint: bool = False,
         copy_on_first_use: bool = False,
     ):
-        if constraint_vector_fm is not None:
-            value_fm = constraint_vector_fm.copy()
-            constraint_vector_fm = constraint_vector_fm.copy()
+        if value_fm is not None:
+            value_fm = value_fm.copy()
         else:
             value_fm = None
+        if constraint_vector_fm is not None:
+            constraint_vector_fm = constraint_vector_fm.copy()
+        else:
             constraint_vector_fm = None
         self._map_type: str | None = None
         self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
@@ -289,6 +292,7 @@ class StateElementOspFile(StateElementImplementation):
         cls,
         state_element_id: StateElementIdentifier,
         pressure_list_fm: FullGridMappedArray | None,
+        value_fm: FullGridMappedArray | None,
         constraint_vector_fm: FullGridMappedArray | None,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
@@ -306,6 +310,7 @@ class StateElementOspFile(StateElementImplementation):
         res = cls(
             state_element_id,
             pressure_list_fm,
+            value_fm,
             constraint_vector_fm,
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
@@ -353,6 +358,7 @@ class StateElementOspFileHandle(StateElementHandle):
     def __init__(
         self,
         sid: StateElementIdentifier,
+        value_fm: FullGridMappedArray,
         constraint_vector_fm: FullGridMappedArray,
         hold: StateElementOldWrapperHandle | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
@@ -361,6 +367,7 @@ class StateElementOspFileHandle(StateElementHandle):
         self.obj_cls = cls
         self.sid = sid
         self.hold = hold
+        self.value_fm = value_fm
         self.constraint_vector_fm = constraint_vector_fm
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
@@ -406,6 +413,7 @@ class StateElementOspFileHandle(StateElementHandle):
         res = self.obj_cls.create_from_handle(
             state_element_id,
             pressure_list_fm,
+            self.value_fm,
             self.constraint_vector_fm,
             self.measurement_id,
             self.retrieval_config,

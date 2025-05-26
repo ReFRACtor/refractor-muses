@@ -1695,6 +1695,7 @@ class CurrentStateStateInfoOld(CurrentState):
         self._step_directory = (
             Path(step_directory) if step_directory is not None else None
         )
+        self._retrieval_info = None
 
     @property
     def state_info(self) -> StateInfoOld:

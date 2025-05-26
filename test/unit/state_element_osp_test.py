@@ -25,7 +25,8 @@ def test_osp_state_element(osp_dir):
     covariance_directory = osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("OMIODWAVUV1"),
-        np.array([]),
+        None,
+        apriori_value,
         apriori_value,
         latitude,
         "LAND",
@@ -135,7 +136,8 @@ def test_osp_state_element_constraint(osp_dir):
     covariance_directory = osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("OMICLOUDFRACTION"),
-        np.array([]),
+        None,
+        apriori_value,
         apriori_value,
         latitude,
         "LAND",
@@ -196,7 +198,8 @@ def test_osp_state_element_latitude(osp_dir):
     covariance_directory = osp_dir / "Covariance" / "Covariance"
     selem = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
-        np.array([]),
+        None,
+        apriori_value,
         apriori_value,
         latitude,
         "LAND",
@@ -206,7 +209,8 @@ def test_osp_state_element_latitude(osp_dir):
     latitude = 10
     selem2 = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
-        np.array([]),
+        None,
+        apriori_value,
         apriori_value,
         latitude,
         "LAND",
@@ -216,7 +220,8 @@ def test_osp_state_element_latitude(osp_dir):
     latitude = 60
     selem3 = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
-        np.array([]),
+        None,
+        apriori_value,
         apriori_value,
         latitude,
         "LAND",
@@ -226,7 +231,8 @@ def test_osp_state_element_latitude(osp_dir):
     latitude = -60
     selem4 = StateElementOspFile(
         StateElementIdentifier("PTGANG"),
-        np.array([]),
+        None,
+        apriori_value,
         apriori_value,
         latitude,
         "LAND",

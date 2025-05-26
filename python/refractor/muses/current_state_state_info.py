@@ -560,7 +560,6 @@ class CurrentStateStateInfo(CurrentState):
             self.setup_previous_aposteriori_cov_fm(
                 self._covariance_state_element_name, current_strategy_step
             )
-
             self._state_info.notify_start_retrieval(
                 current_strategy_step, retrieval_config
             )

@@ -270,12 +270,13 @@ class StateInfo(UserDict):
         for k, v in self.items():
             try:
                 if self._current_state_old.state_value_str(k) is None:
-                    v.update_state_element(
-                        current_fm=self._current_state_old.state_value(k),
-                        constraint_vector_fm=self._current_state_old.state_constraint_vector(
-                            k
-                        ),
-                    )
+                    v1 = self._current_state_old.state_value(k)
+                    v2 = self._current_state_old.state_constraint_vector(k)
+                    if(k == StateElementIdentifier("PCLOUD")):
+                        # Special handling for PCLOUD
+                        v1 = v1[0:1]
+                        v2 = v2[0:1]
+                    v.update_state_element(current_fm=v1, constraint_vector_fm=v2)
             except NotImplementedError:
                 # Not all the old elements exist, we just skip any one that doesn't
                 pass

@@ -476,9 +476,13 @@ class StateElementImplementation(StateElement):
         self._state_mapping = state_mapping
         self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
         self._pressure_list_fm: FullGridMappedArray | None = None
-        self._step_initial_fm = (
-            initial_value_fm if initial_value_fm is not None else constraint_vector_fm
-        )
+        self._step_initial_fm: FullGridMappedArray | None = None
+        if(initial_value_fm is not None):
+            self._step_initial_fm = initial_value_fm
+        elif(value_fm is not None):
+            self._step_initial_fm = value_fm.copy()
+        elif constraint_vector_fm is not None:
+            self._step_initial_fm = constraint_vector_fm.copy()
         self._retrieval_initial_fm: FullGridMappedArray | None = None
         if self._step_initial_fm is not None:
             self._retrieval_initial_fm = self._step_initial_fm.copy()
@@ -784,6 +788,20 @@ class StateElementImplementation(StateElement):
     ) -> None:
         if self._sold is not None:
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
+        # TODO It seems wrong to me, but muses-py copies whatever is in value_fm to
+        # the initial value. This then gets uses in muses_strategy_executor, where we first
+        # pass through all the steps and then restart.
+        #
+        # For now, duplicate this behavior to match muses-py. However what really should happen
+        # is that the initial value is calculated correctly the first time, without needing to go
+        # through all the steps. We can perhaps track down what is going on - maybe just
+        # round tripping with the RetrievalGridArray? Something else?
+        if self._value_fm is not None:
+            self._retrieval_initial_fm = self._value_fm.copy()
+
+        # Temp, this gets updated somewhere in old state info. Need to track down where
+        if self._sold is not None and self._sold.value_str is None:
+            self._retrieval_initial_fm = self._sold.retrieval_initial_fm
         # The value and step initial guess should be set to the retrieval initial value
         if self._retrieval_initial_fm is not None:
             self._value_fm = self._retrieval_initial_fm.copy()
@@ -838,6 +856,12 @@ class StateElementImplementation(StateElement):
             self.state_element_id
             in current_strategy_step.retrieval_elements_not_updated
         )
+        # Temp, somehow this seems to change in the old state info code
+        if self._sold is not None and self._sold.value_str is None:
+            try:
+                self._constraint_vector_fm = self._sold.constraint_vector_fm
+            except NotImplementedError:
+                pass
 
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None

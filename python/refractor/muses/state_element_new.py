@@ -86,10 +86,20 @@ class StateElementOspFileHandleNew(StateElementHandle):
         else:
             # For now, just a dummy value
             pressure_level = None
+        if sold is not None and sold.value_str is None:
+            value_fm = sold.value_fm
+            try:
+                constraint_vector_fm = sold.constraint_vector_fm
+            except NotImplementedError:
+                constraint_vector_fm = value_fm.copy()
+        else:
+            value_fm = None
+            constraint_vector_fm = None
         res = self.obj_cls.create_from_handle(
             state_element_id,
             pressure_level,
-            None,
+            value_fm,
+            constraint_vector_fm,
             self.measurement_id,
             self.retrieval_config,
             self.strategy,

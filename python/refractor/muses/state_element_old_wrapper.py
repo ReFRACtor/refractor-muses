@@ -150,26 +150,6 @@ class StateElementOldWrapper(StateElement):
         return rf.StateMappingLinear()
 
     @property
-    def altitude_list(self) -> RetrievalGridArray | None:
-        """For state elements that are on pressure level, this returns
-        the altitude levels (None otherwise)"""
-        res = self._current_state_old.altitude_list(self.state_element_id)
-        # Kind of obscure, but species are the only items with a pressumre list > 2
-        if res is None or len(res) < 3:
-            return None
-        return res
-
-    @property
-    def altitude_list_fm(self) -> FullGridMappedArray | None:
-        """For state elements that are on pressure level, this returns
-        the altitude levels (None otherwise)"""
-        res = self._current_state_old.altitude_list_fm(self.state_element_id)
-        # Kind of obscure, but species are the only items with a pressumre list > 2
-        if res is None or len(res) < 3:
-            return None
-        return res
-
-    @property
     def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
@@ -217,6 +197,7 @@ class StateElementOldWrapper(StateElement):
     def constraint_vector_fm(self) -> FullGridMappedArray:
         """Apriori value of StateElement"""
         if (
+            self._current_state_old._retrieval_info is None or
             self.state_element_id
             not in self._current_state_old.retrieval_state_element_id
         ):
@@ -233,6 +214,8 @@ class StateElementOldWrapper(StateElement):
                         res,
                     ]
                 ).astype(float)
+        if self.state_element_id == StateElementIdentifier("PCLOUD"):
+            return res[0:1].view(FullGridMappedArray)
         return res.view(FullGridMappedArray)
 
     @property
