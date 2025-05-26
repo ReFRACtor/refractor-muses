@@ -66,7 +66,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         constraint_vector_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
         super().__init__(
             state_element_id,
-            np.array([]),
+            None,
             constraint_vector_fm,
             latitude,
             surface_type,
@@ -80,7 +80,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        pressure_level: np.ndarray,
+        pressure_list_fm: FullGridMappedArray | None,
         constraint_vector_fm: FullGridMappedArray | None,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
@@ -136,7 +136,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         )
         super().__init__(
             state_element_id,
-            np.array([]),
+            None,
             constraint_vector_fm,
             latitude,
             surface_type,
@@ -150,7 +150,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        pressure_level: np.ndarray,
+        pressure_list_fm: FullGridMappedArray | None,
         constraint_vector_fm: FullGridMappedArray | None,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,

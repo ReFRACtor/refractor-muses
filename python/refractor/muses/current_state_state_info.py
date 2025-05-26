@@ -509,22 +509,6 @@ class CurrentStateStateInfo(CurrentState):
             return None
         return res.view(FullGridMappedArray)
 
-    def altitude_list(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> RetrievalGridArray | None:
-        res = self.state_element(state_element_id).altitude_list
-        if res is None:
-            return None
-        return res.view(RetrievalGridArray)
-
-    def altitude_list_fm(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> FullGridMappedArray | None:
-        res = self.state_element(state_element_id).altitude_list_fm
-        if res is None:
-            return None
-        return res.view(FullGridMappedArray)
-
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
         return self._state_info.state_element_handle_set

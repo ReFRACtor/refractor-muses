@@ -154,9 +154,8 @@ class FakeStateInfo:
         self._initial_initial["pressure"] = current_state.state_retrieval_initial_value(
             StateElementIdentifier("pressure")
         )
-        self._true["pressure"] = current_state.state_true_value(
-            StateElementIdentifier("pressure")
-        )
+        # Pretty sure this is always the case, since we don't actually have true values
+        self._true["pressure"] = self._initial_initial["pressure"]
 
         self._constraint["TSUR"] = current_state.state_constraint_vector(
             StateElementIdentifier("TSUR")

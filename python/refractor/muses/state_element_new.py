@@ -10,7 +10,6 @@ from .state_element_osp import StateElementOspFile
 from .current_state_state_info import h_old
 from .identifier import StateElementIdentifier
 from loguru import logger
-import numpy as np
 import typing
 from typing import cast
 
@@ -83,10 +82,10 @@ class StateElementOspFileHandleNew(StateElementHandle):
         if self.hold is not None:
             p = self.hold.state_element(StateElementIdentifier("pressure"))
             assert p is not None
-            pressure_level = np.array(p.value_fm)
+            pressure_level = p.value_fm.copy()
         else:
             # For now, just a dummy value
-            pressure_level = np.array([])
+            pressure_level = None
         res = self.obj_cls.create_from_handle(
             state_element_id,
             pressure_level,

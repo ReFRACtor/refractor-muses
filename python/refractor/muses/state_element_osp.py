@@ -53,7 +53,7 @@ class StateElementOspFile(StateElementImplementation):
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
-        pressure_level: np.ndarray,
+        pressure_list_fm: FullGridMappedArray | None,
         constraint_vector_fm: FullGridMappedArray | None,
         latitude: float,
         surface_type: str,
@@ -79,7 +79,7 @@ class StateElementOspFile(StateElementImplementation):
         self.latitude = latitude
         self.surface_type = surface_type
         self.retrieval_type = RetrievalType("default")
-        self._pressure_level = pressure_level
+        self._pressure_level = pressure_list_fm
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
@@ -157,6 +157,12 @@ class StateElementOspFile(StateElementImplementation):
             self._state_mapping = rf.StateMappingLog()
         else:
             raise RuntimeError(f"Don't recognize map_type {self._map_type}")
+        if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
+            self._pressure_list_fm = None
+        else:
+            if self._pressure_level is None:
+                raise RuntimeError("pressure_level should not be None")
+            self._pressure_list_fm = self._pressure_level.copy()
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
@@ -212,6 +218,8 @@ class StateElementOspFile(StateElementImplementation):
                 if self._sold is not None:
                     self._apriori_cov_fm = self._sold.apriori_cov_fm
             else:
+                if self._pressure_level is None:
+                    raise RuntimeError("pressure_level should not be None")
                 self._apriori_cov_fm = cov_matrix.interpolated_covariance(
                     self._pressure_level
                 ).view(FullGrid2dArray)
@@ -224,7 +232,12 @@ class StateElementOspFile(StateElementImplementation):
             raise RuntimeError("This can't happen")
         # Skip for H2O and HDO, we have moved cross term handling out so this is
         # different than the old data
-        if self._sold is not None and CurrentState.check_old_state_element_value and self.state_element_id not in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO")):
+        if (
+            self._sold is not None
+            and CurrentState.check_old_state_element_value
+            and self.state_element_id
+            not in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO"))
+        ):
             res2 = self._sold.constraint_matrix
             npt.assert_allclose(res, res2, 1e-15)
             assert res.dtype == res2.dtype
@@ -262,20 +275,20 @@ class StateElementOspFile(StateElementImplementation):
         the pressure levels (None otherwise). This is the levels that
         the apriori_cov_fm are on."""
         self._fill_in_state_mapping()
-        if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
-            return None
-        res = self._pressure_level
+        res = self._pressure_list_fm
+        if res is None:
+            return res
         if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.pressure_list_fm
             assert res2 is not None
             npt.assert_allclose(res, res2, 1e-15)
-        return res.view(FullGridMappedArray)
+        return res
 
     @classmethod
     def create_from_handle(
         cls,
         state_element_id: StateElementIdentifier,
-        pressure_level: np.ndarray,
+        pressure_list_fm: FullGridMappedArray | None,
         constraint_vector_fm: FullGridMappedArray | None,
         measurement_id: MeasurementId,
         retrieval_config: RetrievalConfiguration,
@@ -292,7 +305,7 @@ class StateElementOspFile(StateElementImplementation):
         """
         res = cls(
             state_element_id,
-            pressure_level,
+            pressure_list_fm,
             constraint_vector_fm,
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
@@ -387,13 +400,12 @@ class StateElementOspFileHandle(StateElementHandle):
         if self.hold is not None:
             p = self.hold.state_element(StateElementIdentifier("pressure"))
             assert p is not None
-            pressure_level = np.array(p.value_fm)
+            pressure_list_fm = p.value_fm.copy()
         else:
-            # For now, just a dummy value
-            pressure_level = np.array([])
+            pressure_list_fm = None
         res = self.obj_cls.create_from_handle(
             state_element_id,
-            pressure_level,
+            pressure_list_fm,
             self.constraint_vector_fm,
             self.measurement_id,
             self.retrieval_config,

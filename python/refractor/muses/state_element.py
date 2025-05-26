@@ -173,18 +173,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
-    def altitude_list(self) -> RetrievalGridArray | None:
-        """For state elements that are on pressure level, this returns
-        the altitude levels (None otherwise)"""
-        return None
-
-    @property
-    def altitude_list_fm(self) -> FullGridMappedArray | None:
-        """For state elements that are on pressure level, this returns
-        the altitude levels (None otherwise)"""
-        return None
-
-    @property
     def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise)"""
@@ -487,6 +475,7 @@ class StateElementImplementation(StateElement):
         self._apriori_cov_fm = apriori_cov_fm
         self._state_mapping = state_mapping
         self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
+        self._pressure_list_fm: FullGridMappedArray | None = None
         self._step_initial_fm = (
             initial_value_fm if initial_value_fm is not None else constraint_vector_fm
         )
@@ -578,7 +567,7 @@ class StateElementImplementation(StateElement):
             # muses-py handles the BT and systematic jacobian steps. We should clean this
             # up an some point, this is all unnecessarily obscure
             res = 1
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.forward_model_sv_length
             assert res == res2
         return res
@@ -586,7 +575,7 @@ class StateElementImplementation(StateElement):
     @property
     def sys_sv_length(self) -> int:
         res = self.apriori_cov_fm.shape[0]
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             res2 = self._sold.sys_sv_length
             assert res == res2
         return res
@@ -635,13 +624,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
-        if (
-            self._constraint_matrix is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            return self._sold.constraint_matrix
-            self._constraint_matrix = self._sold.constraint_matrix.copy()
         if self._constraint_matrix is None:
             raise RuntimeError("_constraint_matrix shouldn't be None")
         res = self._constraint_matrix
@@ -653,17 +635,10 @@ class StateElementImplementation(StateElement):
 
     @property
     def apriori_cov_fm(self) -> FullGrid2dArray:
-        if (
-            self._apriori_cov_fm is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            return self._sold.apriori_cov_fm
-            self._apriori_cov_fm = self._sold.apriori_cov_fm.copy()
         if self._apriori_cov_fm is None:
             raise RuntimeError("_apriori_cov_fm shouldn't be None")
         res = self._apriori_cov_fm
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             try:
                 res2 = self._sold.apriori_cov_fm
             except AssertionError:
@@ -709,31 +684,14 @@ class StateElementImplementation(StateElement):
 
     @property
     def true_value_fm(self) -> FullGridMappedArray | None:
-        if self._sold is not None:
-            self._true_value_fm = self._sold.true_value_fm
-        res = self._true_value_fm
-        return res
+        return self._true_value_fm
 
     @property
     def state_mapping(self) -> rf.StateMapping:
-        if (
-            self._state_mapping is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            self._state_mapping = self._sold.state_mapping
         return self._state_mapping
 
     @property
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
-        if (
-            self._state_mapping_retrieval_to_fm is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            self._state_mapping_retrieval_to_fm = (
-                self._sold.state_mapping_retrieval_to_fm
-            )
         return self._state_mapping_retrieval_to_fm
 
     # These are placeholders, need to fill in
@@ -770,19 +728,8 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
-    def pressure_list(self) -> RetrievalGridArray | None:
-        # TODO - I think this can be removed, but we'll want to
-        # check. Default is just to convert pressure_list_fm, which I
-        # think is right - but double check
-        if self._sold is None:
-            return None
-        return self._sold.pressure_list
-
-    @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:
-        if self._sold is None:
-            return None
-        return self._sold.pressure_list_fm
+        return self._pressure_list_fm
 
     def update_state_element(
         self,

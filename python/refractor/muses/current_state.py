@@ -727,7 +727,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         the altitude.  This is for the retrieval state vector
         levels (generally smaller than the altitude_list_fm).
         """
-        raise NotImplementedError()
+        return None
 
     def altitude_list_fm(
         self, state_element_id: StateElementIdentifier | str
@@ -736,7 +736,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         the altitude.  This is for the forward model state
         vector levels (generally larger than the altitude_list).
         """
-        raise NotImplementedError()
+        return None
 
     @property
     def forward_model_state_vector_element_list(self) -> list[StateElementIdentifier]:
