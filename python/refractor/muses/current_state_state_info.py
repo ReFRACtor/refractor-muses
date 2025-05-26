@@ -139,21 +139,30 @@ class CurrentStateStateInfo(CurrentState):
         if self.do_systematic:
             return np.zeros((1, 1)).view(RetrievalGrid2dArray)
         self.match_old()
+        # Note that we handle the cross terms after this. In
+        # particular, the constraint_matrix for H2OxH2O here will be
+        # without considering HDO being available. This gets changed
+        # in the next block with the cross terms.
         blist = [
             self._state_info[sid].constraint_matrix
             for sid in self.retrieval_state_element_id
         ]
         res = scipy.linalg.block_diag(*blist)
+        # Handle cross terms, and any updates because of cross terms (e.g., H2OxH2O)
         for i, selem1_sid in enumerate(self.retrieval_state_element_id):
             for selem2_sid in self.retrieval_state_element_id[i + 1 :]:
-                m = self._state_info[selem1_sid].constraint_cross_covariance(
-                    self._state_info[selem2_sid]
+                r1 = self.retrieval_sv_slice(selem1_sid)
+                r2 = self.retrieval_sv_slice(selem2_sid)
+                m_s1xs1, m_s1xs2, m_s2xs2 = self._state_info.cross_constraint_matrix(
+                    selem1_sid, selem2_sid
                 )
-                if m is not None:
-                    r1 = self.retrieval_sv_slice(selem1_sid)
-                    r2 = self.retrieval_sv_slice(selem2_sid)
-                    res[r1, r2] = m
-                    res[r2, r1] = np.transpose(m)
+                if m_s1xs1 is not None:
+                    res[r1, r1] = m_s1xs1
+                if m_s1xs2 is not None:
+                    res[r1, r2] = m_s1xs2
+                    res[r2, r1] = m_s1xs2.transpose()
+                if m_s2xs2 is not None:
+                    res[r2, r2] = m_s2xs2
         # TODO Remove current_state_old
         if CurrentState.check_old_state_element_value:
             res2 = self._current_state_old.constraint_matrix

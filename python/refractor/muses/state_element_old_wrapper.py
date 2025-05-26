@@ -343,6 +343,7 @@ class StateElementOldWrapper(StateElement):
         current_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
+        next_step_initial_fm: FullGridMappedArray | None = None,
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:

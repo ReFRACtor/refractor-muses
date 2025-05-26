@@ -173,3 +173,13 @@ def test_species_h2o_hdo(osp_dir):
     assert cov.shape == (16, 16)
     assert cov2.shape == (16, 16)
     assert cov3.shape == (16, 16)
+
+def test_species_covariance(osp_dir):
+    r = OspSpeciesReader.read_dir(
+        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
+    )
+    # Note that this returns a dummy identify matrix. See the comment in the code about
+    # this
+    cov = r.read_constraint_matrix(StateElementIdentifier("HDO"), RetrievalType("default"), 30)
+    assert cov.shape == (30,30)
+    

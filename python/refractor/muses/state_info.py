@@ -3,7 +3,6 @@ from .current_state import PropagatedQA, SoundingMetadata
 from .state_element import StateElementHandleSet, StateElement
 from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
 from .identifier import StateElementIdentifier
-import numpy as np
 import typing
 import copy
 from collections import UserDict
@@ -12,17 +11,12 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId, ObservationHandleSet
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .current_state import CurrentState
-
-# A couple of aliases, just so we can clearly mark what grid data is on
-RetrievalGridArray = np.ndarray
-ForwardModelGridArray = np.ndarray
-RetrievalGrid2dArray = np.ndarray
-ForwardModelGrid2dArray = np.ndarray
+    from .current_state import CurrentState, RetrievalGridArray, RetrievalGrid2dArray
 
 
 class CrossStateInfo(UserDict):
     """This is a helper class for StateInfo that handles the CrossStateElement terms.
+
     This isn't really logically separate from StateInfo, but since we also treat
     StateInfo like a dict like object it is useful to have a dict like object to handle
     the CrossStateElement terms."""
@@ -96,9 +90,11 @@ class CrossStateInfo(UserDict):
     ) -> None:
         for celem in self.values():
             celem.notify_step_solution(
-                xsol, current_state.retrieval_sv_slice(celem.state_element_id_1),
-                current_state.retrieval_sv_slice(celem.state_element_id_2)
+                xsol,
+                current_state.retrieval_sv_slice(celem.state_element_id_1),
+                current_state.retrieval_sv_slice(celem.state_element_id_2),
             )
+
 
 class StateInfo(UserDict):
     """This class maintains the full state as we perform a retrieval.
@@ -143,6 +139,34 @@ class StateInfo(UserDict):
     @property
     def cross_state_info(self) -> CrossStateInfo:
         return self._cross_state_info
+
+    def cross_constraint_matrix(
+        self,
+        state_element_id_1: StateElementIdentifier,
+        state_element_id_2: StateElementIdentifier,
+    ) -> tuple[
+        RetrievalGrid2dArray | None,
+        RetrievalGrid2dArray | None,
+        RetrievalGrid2dArray | None,
+    ]:
+        """Return a tuple, one for the cross term state_element_id_1 x
+        state_element_id_1, one for state_element_id_1 x
+        state_element_id_2 and one for state_element_id_2 x
+        state_element_id_2.
+
+        Note any or all of these can be "None", which means don't
+        change the cross term constraint matrix. In particular for the
+        state_element_id_1 x state_element_id_1 and state_element_id_2
+        x state_element_id_2 that means use the constraint_matrix
+        returned by those StateElement without change.
+        """
+        if state_element_id_1 > state_element_id_2:
+            raise RuntimeError(
+                "By convention, state_element_id_1 should always be < state_element_id_2"
+            )
+        return self.cross_state_info[
+            (state_element_id_1, state_element_id_2)
+        ].cross_constraint_matrix()
 
     @property
     def brightness_temperature_data(self) -> dict[int, dict[str, float | None]]:

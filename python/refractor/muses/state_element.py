@@ -98,7 +98,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     the constraint_matrix as if we only had H2O. We have any updates/changes handled
     in the CrossStateElement. This just makes the logic simpler - we don't need to somehow
     maintain information about a cross term in this StateElement - we have a separate class
-    for that.
+    for that. See CurrentStateStateInfo.constraint_matrix for an example of this.
 
     The StateElement gets notified when various things happen in a retrieval. These
     are:
@@ -368,7 +368,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        '''Called at the start of a retrieval (before the first step).'''
+        """Called at the start of a retrieval (before the first step)."""
         pass
 
     def notify_start_step(
@@ -377,7 +377,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        '''Called each time at the start of a retrieval step.'''
+        """Called each time at the start of a retrieval step."""
         pass
 
     def notify_step_solution(
@@ -526,17 +526,6 @@ class StateElementImplementation(StateElement):
             self._value_fm = param_subset.view(RetrievalGridArray).to_fm(
                 self.state_mapping_retrieval_to_fm, self.state_mapping
             )
-
-    # Temp, we'll remove shortly
-    def constraint_cross_covariance(
-            self, selem2: StateElement
-    ) -> RetrievalGrid2dArray | None:
-        if self._sold is not None:
-            res = self._sold.constraint_cross_covariance(selem2)
-            if res is None:
-                return None
-            return res.view(RetrievalGrid2dArray)
-        return None            
 
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
         if self._sold is None:

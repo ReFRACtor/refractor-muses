@@ -109,36 +109,22 @@ class StateElementOspFile(StateElementImplementation):
         if self.state_element_id == StateElementIdentifier("NH3"):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("nh3type")
-            # If not specified, default value
-            if spectype == "":
-                spectype = "MOD"
         elif self.state_element_id == StateElementIdentifier("CH3OH"):
             assert self._sold is not None
             spectype = self._sold._current_state_old.state_value_str("ch3ohtype")
         # Oddly, the spectype for HCOOH is *not* used in the filename. No idea why,
         # probably some historical oddity. But you can examine about line 2150 of
         # get_species_information.py in py-retrieve to see this. Only NH3 and
-        # CH3OH get their spectype used.
-        #elif self.state_element_id == StateElementIdentifier("HCOOH"):
+        # CH3OH get their spectype used. However for the apriori_cov_fm, spectype
+        # *is* used.
+        # elif self.state_element_id == StateElementIdentifier("HCOOH"):
         #    assert self._sold is not None
         #    spectype = self._sold._current_state_old.state_value_str("hcoohtype")
-        
-        # When we have cross terms in the covariance, the non cross term also changes - this
-        # makes sense because some for example the H2O signal goes into HDO. Right now, we
-        # just "know" that if both H2O and HDO are being retrieved we want the cross term,
-        # so we need H2O_H2O.asc instead of H2O.asc.
-        sid2 = None
-        if (
-            self.state_element_id
-            in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO"))
-            and self._h2o_and_hdo
-        ):
-            sid2 = self.state_element_id
+
         self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
             self.state_element_id,
             self.retrieval_type,
             self.basis_matrix.shape[0],
-            sid2=sid2,
             spectype=spectype,
         ).view(RetrievalGrid2dArray)
         # TODO Short term we cast this to float32, just so can match the old muses-py code.
@@ -198,12 +184,21 @@ class StateElementOspFile(StateElementImplementation):
             if self.state_element_id == StateElementIdentifier("NH3"):
                 assert self._sold is not None
                 spectype = self._sold._current_state_old.state_value_str("nh3type")
+                # Default value, if not given
+                if not spectype:
+                    spectype = "mod"
             elif self.state_element_id == StateElementIdentifier("CH3OH"):
                 assert self._sold is not None
                 spectype = self._sold._current_state_old.state_value_str("ch3ohtype")
+                # Default value, if not given
+                if not spectype:
+                    spectype = "mod"
             elif self.state_element_id == StateElementIdentifier("HCOOH"):
                 assert self._sold is not None
                 spectype = self._sold._current_state_old.state_value_str("hcoohtype")
+                # Default value, if not given
+                if not spectype:
+                    spectype = "mod"
             cov_matrix = self.osp_cov_reader.read_cov(
                 self.state_element_id,
                 self._map_type,
@@ -227,7 +222,9 @@ class StateElementOspFile(StateElementImplementation):
         res = self._constraint_matrix
         if res is None:
             raise RuntimeError("This can't happen")
-        if self._sold is not None and CurrentState.check_old_state_element_value:
+        # Skip for H2O and HDO, we have moved cross term handling out so this is
+        # different than the old data
+        if self._sold is not None and CurrentState.check_old_state_element_value and self.state_element_id not in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO")):
             res2 = self._sold.constraint_matrix
             npt.assert_allclose(res, res2, 1e-15)
             assert res.dtype == res2.dtype
@@ -329,14 +326,6 @@ class StateElementOspFile(StateElementImplementation):
                 self._step_initial_fm = self._sold.step_initial_fm.copy()
                 self._value_fm = self._step_initial_fm.copy()
         self.retrieval_type = current_strategy_step.retrieval_type
-        # Track is we have both H2O and HDO retrieved
-        self._h2o_and_hdo = False
-        if (
-            StateElementIdentifier("H2O") in current_strategy_step.retrieval_elements
-            and StateElementIdentifier("HDO")
-            in current_strategy_step.retrieval_elements
-        ):
-            self._h2o_and_hdo = True
         # Most of the time this will just return the same value, but there might be
         # certain steps with a different constraint matrix. So we empty the cache here
         # Note the reader does caching, so reading this multiple times isn't as

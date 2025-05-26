@@ -261,6 +261,16 @@ class OspSpeciesReader(OspFileHandle):
                 # First column is name of species, second is pressure, third is map type.
                 # We chop off just to get the data
                 cov = np.array(d.table)[:, 3:].astype(float)
+            elif ctype == "covariance":
+                # Note the covariance part of the code in py-retrieve doesn't actually work.
+                # This seems to be an old format that isn't really used anymore. We run into
+                # this with HDO, but this then gets replaced in HDO-HDO cross term.
+                # For now, just return a identity matrix, we can revisit this if needed - but
+                # we would need to first fix this in py-retrieve to figure out how this is
+                # suppose to work.
+                # Goes though get_species_information.py to supplier_constraint_matrix_ssuba.py
+                # (although with the wrong arguments)
+                cov = np.eye(num_retrieval)
             else:
                 raise RuntimeError(f"Don't know how to handle {ctype}")
             if sid not in self._default_cache:

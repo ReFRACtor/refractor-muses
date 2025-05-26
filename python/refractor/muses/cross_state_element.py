@@ -2,7 +2,7 @@ from __future__ import annotations
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .identifier import StateElementIdentifier, RetrievalType
 from .osp_reader import OspSpeciesReader
-
+from .current_state import FullGridMappedArray, RetrievalGrid2dArray
 from pathlib import Path
 from loguru import logger
 import abc
@@ -13,7 +13,6 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .current_state import (
-        RetrievalGrid2dArray,
         StateElement,
         SoundingMetadata,
         RetrievalGridArray,
@@ -102,12 +101,15 @@ class CrossStateElement:
         """Return a tuple, one for the cross term state_element_id_1 x
         state_element_id_1, one for state_element_id_1 x
         state_element_id_2 and one for state_element_id_2 x
-        state_element_id_2. Note any or all of these can be "None",
-        which means don't change the cross term constraint matrix. In
-        particular for the state_element_id_1 x state_element_id_1 and
-        state_element_id_2 x state_element_id_2 that means use the
-        constraint_matrix returned by those StateElement without
-        change."""
+        state_element_id_2.
+
+        Note any or all of these can be "None", which means don't
+        change the cross term constraint matrix. In particular for the
+        state_element_id_1 x state_element_id_1 and state_element_id_2
+        x state_element_id_2 that means use the constraint_matrix
+        returned by those StateElement without change.
+
+        """
         return (None, None, None)
 
     def notify_start_retrieval(
@@ -115,8 +117,8 @@ class CrossStateElement:
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        '''Called at the start of a retrieval (before the first step). The StateElements that
-        make up this cross term have already had notify_start_retrieval called on them.'''
+        """Called at the start of a retrieval (before the first step). The StateElements that
+        make up this cross term have already had notify_start_retrieval called on them."""
         pass
 
     def notify_start_step(
@@ -125,20 +127,22 @@ class CrossStateElement:
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        '''Called each time at the start of a retrieval step.  The StateElements that make
-        up this cross term have already had notify_start_step called on them.'''
+        """Called each time at the start of a retrieval step.  The StateElements that make
+        up this cross term have already had notify_start_step called on them."""
         pass
 
     def notify_step_solution(
-            self, xsol: RetrievalGridArray, retrieval_slice_selem_1: slice | None,
-            retrieval_slice_selem_2: slice | None,
+        self,
+        xsol: RetrievalGridArray,
+        retrieval_slice_selem_1: slice | None,
+        retrieval_slice_selem_2: slice | None,
     ) -> None:
         """Called when a retrieval step has a solution.
 
         Note the StateElement have all been updated already, so if we need to update
         something due to coupling (e.g., HDO for H2O update) the state elements have already
         been updated (so you can read the value from H2O).
-        
+
         We pass in the slice needed to get this the StateElement
         values for the two StateElements in this cross term, or None
         if we aren't actually retrieving one of the StateElements. It
@@ -148,7 +152,6 @@ class CrossStateElement:
 
         """
         pass
-
 
 
 class CrossStateElementHandle(CreatorHandle):
@@ -275,7 +278,7 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
         RetrievalGrid2dArray | None,
     ]:
         # Only update if we have a cross term
-        if(not self._retrieve_both):
+        if not self._retrieve_both:
             return (None, None, None)
         cm1 = self.osp_species_reader.read_constraint_matrix(
             self.state_element_id_1,
@@ -320,23 +323,36 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
         )
 
     def notify_step_solution(
-            self, xsol: RetrievalGridArray, retrieval_slice_selem_1: slice | None,
-            retrieval_slice_selem_2: slice | None,
+        self,
+        xsol: RetrievalGridArray,
+        retrieval_slice_selem_1: slice | None,
+        retrieval_slice_selem_2: slice | None,
     ) -> None:
         # If we retrieve H2O but not HDO, then update HDO to maintain the ratio with
         # H2O
-        if(not self._retrieve_both and self._retrieve_first):
-            logger.debug(f"In H2OCrossStateElementOsp, updating {self.state_element_id_2} to maintain the ratio with {self.state_element_id_1}")
-            v = self._state_element_1.value_fm * (self._state_element_2.step_initial_fm / self._state_element_1.step_initial_fm)
-            self._state_element_2.update_state_element(current_fm = v, next_step_initial_fm = v)
-            
+        if not self._retrieve_both and self._retrieve_first:
+            logger.debug(
+                f"In H2OCrossStateElementOsp, updating {self.state_element_id_2} to maintain the ratio with {self.state_element_id_1}"
+            )
+            v = (
+                self._state_element_1.value_fm
+                * (
+                    self._state_element_2.step_initial_fm
+                    / self._state_element_1.step_initial_fm
+                )
+            ).view(FullGridMappedArray)
+            self._state_element_2.update_state_element(
+                current_fm=v, next_step_initial_fm=v
+            )
+
+
 class H2OCrossStateElementOspHandle(CrossStateElementHandle):
     def __init__(
         self, sid_1: StateElementIdentifier, sid_2: StateElementIdentifier
     ) -> None:
         self.sid_1 = sid_1
         self.sid_2 = sid_2
-        self.retrieval_config : RetrievalConfiguration | None = None
+        self.retrieval_config: RetrievalConfiguration | None = None
 
     def notify_update_target(
         self,
