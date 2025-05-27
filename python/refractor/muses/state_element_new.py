@@ -86,6 +86,9 @@ class StateElementOspFileHandleNew(StateElementHandle):
         else:
             # For now, just a dummy value
             pressure_level = None
+        value_str = None
+        if sold is not None:
+            value_str = sold.value_str
         if sold is not None and sold.value_str is None:
             value_fm = sold.value_fm
             try:
@@ -107,7 +110,7 @@ class StateElementOspFileHandleNew(StateElementHandle):
             self.sounding_metadata,
             selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
-            copy_on_first_use=True,
+            value_str=value_str,
         )
         if res is not None:
             logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")

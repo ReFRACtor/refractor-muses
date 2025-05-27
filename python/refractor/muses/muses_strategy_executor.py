@@ -684,6 +684,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.current_state._current_state_old._state_info.retrieval_config.osp_dir = (
                 Path(self.osp_dir) if self.osp_dir is not None else None
             )
+        self.current_state._state_info.update_with_old()
         self.set_step(step_number)
         if ret_state_file is not None:
             t = RetrievalStepCaptureObserver.load_retrieval_state(ret_state_file)

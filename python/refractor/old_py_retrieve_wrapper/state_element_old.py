@@ -2768,8 +2768,10 @@ class StateElementInTopDictOld(MusesPyStateElementOld):
         super().__init__(state_info, name, step)
 
     @property
-    def value_str(self) -> str:
+    def value_str(self) -> str | None:
         v = self.state_info.state_info_dict[str(self.name)]
+        if isinstance(v, numbers.Number):
+            return None
         return str(v)
 
     @property

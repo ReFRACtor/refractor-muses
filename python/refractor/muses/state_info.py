@@ -272,7 +272,7 @@ class StateInfo(UserDict):
                 if self._current_state_old.state_value_str(k) is None:
                     v1 = self._current_state_old.state_value(k)
                     v2 = self._current_state_old.state_constraint_vector(k)
-                    if(k == StateElementIdentifier("PCLOUD")):
+                    if k == StateElementIdentifier("PCLOUD"):
                         # Special handling for PCLOUD
                         v1 = v1[0:1]
                         v2 = v2[0:1]

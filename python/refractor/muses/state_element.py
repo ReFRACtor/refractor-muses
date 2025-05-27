@@ -466,7 +466,6 @@ class StateElementImplementation(StateElement):
         true_value_fm: FullGridMappedArray | None = None,
         selem_wrapper: StateElementOldWrapper | None = None,
         value_str: str | None = None,
-        copy_on_first_use: bool = False,
     ) -> None:
         super().__init__(state_element_id)
         self._value_fm = value_fm
@@ -477,9 +476,9 @@ class StateElementImplementation(StateElement):
         self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
         self._pressure_list_fm: FullGridMappedArray | None = None
         self._step_initial_fm: FullGridMappedArray | None = None
-        if(initial_value_fm is not None):
+        if initial_value_fm is not None:
             self._step_initial_fm = initial_value_fm
-        elif(value_fm is not None):
+        elif value_fm is not None:
             self._step_initial_fm = value_fm.copy()
         elif constraint_vector_fm is not None:
             self._step_initial_fm = constraint_vector_fm.copy()
@@ -500,7 +499,6 @@ class StateElementImplementation(StateElement):
         self._next_step_initial_fm: FullGridMappedArray | None = None
         # Temp, until we have tested everything out
         self._sold = selem_wrapper
-        self._copy_on_first_use = copy_on_first_use
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
             self.update_initial_guess = self._update_initial_guess
 
@@ -586,12 +584,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def value_fm(self) -> FullGridMappedArray:
-        if (
-            self._value_fm is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            self._value_fm = self._sold.value_fm.copy()
         if self._value_fm is None:
             raise RuntimeError("_value_fm shouldn't be None")
         res = self._value_fm
@@ -606,13 +598,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def constraint_vector_fm(self) -> FullGridMappedArray:
-        if (
-            self._constraint_vector_fm is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            return self._sold.constraint_vector_fm
-            self._constraint_vector_fm = self._sold.constraint_vector_fm
         if self._constraint_vector_fm is None:
             raise RuntimeError("_constraint_vector_fm shouldn't be None")
         res = self._constraint_vector_fm
@@ -654,12 +639,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def retrieval_initial_fm(self) -> FullGridMappedArray:
-        if (
-            self._retrieval_initial_fm is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            self._retrieval_initial_fm = self._sold.retrieval_initial_fm.copy()
         if self._retrieval_initial_fm is None:
             raise RuntimeError("_retrieval_initial_fm shouldn't be None")
         res = self._retrieval_initial_fm
@@ -671,12 +650,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def step_initial_fm(self) -> FullGridMappedArray:
-        if (
-            self._step_initial_fm is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            self._step_initial_fm = self._sold.step_initial_fm.copy()
         if self._step_initial_fm is None:
             raise RuntimeError("_step_initial_fm shouldn't be None")
         res = self._step_initial_fm
@@ -719,12 +692,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def value_str(self) -> str | None:
-        if (
-            self._value_str is None
-            and self._copy_on_first_use
-            and self._sold is not None
-        ):
-            self._value_str = self._sold.value_str
         res = self._value_str
         if self._sold is not None:
             res2 = self._sold.value_str
@@ -806,13 +773,6 @@ class StateElementImplementation(StateElement):
         if self._retrieval_initial_fm is not None:
             self._value_fm = self._retrieval_initial_fm.copy()
             self._step_initial_fm = self._retrieval_initial_fm.copy()
-        # This is to support testing. We currently have a way of populate StateInfoOld when
-        # we restart a step, but not StateInfo. Longer term we will fix this, but short term
-        # just propagate any values in selem_wrapper to this class
-        if self._sold:
-            # self._value_fm = self._sold.value_fm
-            # self._step_initial_fm = self._sold.value_fm
-            pass
         self._next_step_initial_fm = None
 
     def notify_start_step(

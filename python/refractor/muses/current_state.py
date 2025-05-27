@@ -1695,7 +1695,7 @@ class CurrentStateStateInfoOld(CurrentState):
         self._step_directory = (
             Path(step_directory) if step_directory is not None else None
         )
-        self._retrieval_info = None
+        self._retrieval_info: RetrievalInfo | None = None
 
     @property
     def state_info(self) -> StateInfoOld:
@@ -1978,7 +1978,7 @@ class CurrentStateStateInfoOld(CurrentState):
         selem = self.state_element_old(state_element_id)
         if not hasattr(selem, "value_str"):
             return None
-        return str(selem.value_str)
+        return selem.value_str
 
     def state_true_value(
         self, state_element_id: StateElementIdentifier | str

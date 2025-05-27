@@ -62,7 +62,7 @@ class StateElementOspFile(StateElementImplementation):
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        copy_on_first_use: bool = False,
+        value_str: str | None = None,
     ):
         if value_fm is not None:
             value_fm = value_fm.copy()
@@ -97,7 +97,7 @@ class StateElementOspFile(StateElementImplementation):
             constraint_matrix=None,
             state_mapping=None,
             selem_wrapper=selem_wrapper,
-            copy_on_first_use=copy_on_first_use,
+            value_str=value_str,
         )
         if selem_wrapper is not None:
             if selem_wrapper.value_str is None:
@@ -252,12 +252,12 @@ class StateElementOspFile(StateElementImplementation):
         res = self._apriori_cov_fm
         if res is None:
             raise RuntimeError("This can't happen")
-        if self._sold is not None:
+        if self._sold is not None and CurrentState.check_old_state_element_value:
             try:
                 res2 = self._sold.apriori_cov_fm
             except AssertionError:
                 res2 = None
-            if res2 is not None and CurrentState.check_old_state_element_value:
+            if res2 is not None:
                 npt.assert_allclose(res, res2, 1e-15)
                 assert res.dtype == res2.dtype
         return res
@@ -301,7 +301,7 @@ class StateElementOspFile(StateElementImplementation):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        copy_on_first_use: bool = False,
+        value_str: str | None = None
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -318,7 +318,7 @@ class StateElementOspFile(StateElementImplementation):
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
             cov_is_constraint=cov_is_constraint,
-            copy_on_first_use=copy_on_first_use,
+            value_str=value_str
         )
         return res
 
@@ -337,7 +337,6 @@ class StateElementOspFile(StateElementImplementation):
         # grab from old data
         if (
             self._sold is not None
-            and self._copy_on_first_use
             and current_strategy_step.strategy_step.step_number == 0
         ):
             if self._sold.value_str is None:

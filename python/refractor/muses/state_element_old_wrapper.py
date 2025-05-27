@@ -197,8 +197,8 @@ class StateElementOldWrapper(StateElement):
     def constraint_vector_fm(self) -> FullGridMappedArray:
         """Apriori value of StateElement"""
         if (
-            self._current_state_old._retrieval_info is None or
-            self.state_element_id
+            self._current_state_old._retrieval_info is None
+            or self.state_element_id
             not in self._current_state_old.retrieval_state_element_id
         ):
             res = self._current_state_old.state_constraint_vector(
