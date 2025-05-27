@@ -60,7 +60,6 @@ class StateElementOspFile(StateElementImplementation):
         covariance_directory: Path,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        value_str: str | None = None,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
     ):
@@ -83,27 +82,6 @@ class StateElementOspFile(StateElementImplementation):
         self.surface_type = surface_type
         self.poltype = poltype
         self.poltype_used_constraint = poltype_used_constraint
-        # Temp
-        if state_element_id == StateElementIdentifier("NH3"):
-            assert selem_wrapper is not None
-            self.poltype = selem_wrapper._current_state_old.state_value_str("nh3type")
-            if self.poltype is None:
-                self.poltype = "mod"
-            self.poltype_used_constraint = True
-        elif state_element_id == StateElementIdentifier("CH3OH"):
-            assert selem_wrapper is not None
-            self.poltype = selem_wrapper._current_state_old.state_value_str("ch3ohtype")
-            if self.poltype is None:
-                self.poltype = "mod"
-            self.poltype_used_constraint = True
-        elif state_element_id == StateElementIdentifier("HCOOH"):
-            assert selem_wrapper is not None
-            self.poltype = selem_wrapper._current_state_old.state_value_str("hcoohtype")
-            if self.poltype is None:
-                self.poltype = "mod"
-            # Also, not used in the constraint name
-            self.poltype_used_constraint = False
-
         self.retrieval_type = RetrievalType("default")
         self._pressure_level = pressure_list_fm
         # This is to support testing. We currently have a way of populate StateInfoOld when
@@ -120,11 +98,12 @@ class StateElementOspFile(StateElementImplementation):
             constraint_matrix=None,
             state_mapping=None,
             selem_wrapper=selem_wrapper,
-            value_str=value_str,
         )
         if selem_wrapper is not None:
             if selem_wrapper.value_str is None:
                 self._step_initial_fm = selem_wrapper.value_fm
+        if self.poltype is not None:
+            self._metadata["poltype"] = self.poltype
 
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
@@ -269,7 +248,6 @@ class StateElementOspFile(StateElementImplementation):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        value_str: str | None = None,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
     ) -> Self | None:
@@ -288,7 +266,6 @@ class StateElementOspFile(StateElementImplementation):
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
             cov_is_constraint=cov_is_constraint,
-            value_str=value_str,
             poltype=poltype,
             poltype_used_constraint=poltype_used_constraint,
         )

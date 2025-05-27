@@ -867,10 +867,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Return a description of the full state."""
         res = ""
         for selem in self.full_state_element_id:
-            if self.state_value_str(selem) is not None:
-                res += f"{str(selem)}:\n{self.state_value_str(selem)}\n"
-            else:
-                res += f"{str(selem)}:\n{self.state_value(selem)}\n"
+            res += f"{str(selem)}:\n{self.state_value(selem)}\n"
         return res
 
     @abc.abstractproperty
@@ -918,16 +915,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if you are stashing the value for an internal state or something like that,
         you will want to make a copy of the returned value so it doesn't mysteriously
         change underneath you when the StateElement is updated.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def state_value_str(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> str | None:
-        """A small number of values in the full state are actually str (e.g.,
-        StateElementIdentifier("nh3type"). This is like state_value, but we
-        return a str instead. Return None if this doesn't apply.
         """
         raise NotImplementedError()
 
@@ -1499,11 +1486,6 @@ class CurrentStateUip(CurrentState):
             pass
         raise RuntimeError(f"Don't recognize {state_element_id}")
 
-    def state_value_str(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> str | None:
-        raise NotImplementedError()
-
     def state_step_initial_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
@@ -1625,11 +1607,6 @@ class CurrentStateDict(CurrentState):
     def state_step_initial_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
-        raise NotImplementedError()
-
-    def state_value_str(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> str | None:
         raise NotImplementedError()
 
     def state_true_value(
@@ -1953,7 +1930,7 @@ class CurrentStateStateInfoOld(CurrentState):
         self,
         state_element_id: StateElementIdentifier | str,
         step: str = "current",
-        other_name: bool=True,
+        other_name: bool = True,
     ) -> StateElementOld:
         sid = state_element_id
         # The old code uses CLOUDEXT and cloudEffExt and EMIS and emissivity as almost
@@ -1986,13 +1963,17 @@ class CurrentStateStateInfoOld(CurrentState):
         return copy(selem.value).view(FullGridMappedArray)
 
     def state_value_str(
-        self, state_element_id: StateElementIdentifier | str
+            self, state_element_id: StateElementIdentifier | str
     ) -> str | None:
+        '''We no longer use value_str in our StateElement, it was an awkward way
+        to handle poltype used by things like NH3. However we need access
+        to the old state element data so we provide that here.
+        '''
         selem = self.state_element_old(state_element_id)
         if not hasattr(selem, "value_str"):
             return None
         return selem.value_str
-
+    
     def state_true_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:

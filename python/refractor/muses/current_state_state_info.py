@@ -434,12 +434,6 @@ class CurrentStateStateInfo(CurrentState):
         res = self.state_element(state_element_id).step_initial_fm
         return res.view(FullGridMappedArray)
 
-    def state_value_str(
-        self, state_element_id: StateElementIdentifier | str
-    ) -> str | None:
-        res = self.state_element(state_element_id).value_str
-        return res
-
     def state_true_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:

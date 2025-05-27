@@ -116,6 +116,12 @@ class StateElement(object, metaclass=abc.ABCMeta):
        change to the rf.StateVector occurs. We don't have any code right now that actually
        makes use of this, but it just seems more consistent with the normal "updating
        a state vector updates objects that use that state" semantics in ReFRACtor.
+
+    This is the general approach used in most of our code (and very different from a
+    typical structured program like IDL). Things external to this class don't tell it
+    how to maintain its state, instead we just tell it when things happen and the
+    classes decide what to do with that information. So we have "notify_step_solution" rather
+    that "update _value_fm to this value".
     """
 
     def __init__(self, state_element_id: StateElementIdentifier):
@@ -243,20 +249,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
         This is the mapped state from state_mapping (so VMR rather than
         log(VMR) for a log mapping)"""
         raise NotImplementedError()
-
-    @property
-    def value_str(self) -> str | None:
-        """A small number of values in the full state are actually str (e.g.,
-        StateElementIdentifier("nh3type"). This is like value, but we
-        return a str instead. For most StateElement, this returns "None"
-        instead which indicates we don't have a str value.
-
-        It isn't clear that this is the best interface, on the other hand these
-        str values don't have an obvious other place to go. And these value are
-        at least in the spirit of other StateElement. So at least for now we
-        will support this, possibly reworking this in the future.
-        """
-        return None
 
     @abc.abstractproperty
     def constraint_vector_fm(self) -> FullGridMappedArray:
@@ -465,7 +457,6 @@ class StateElementImplementation(StateElement):
         initial_value_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
         selem_wrapper: StateElementOldWrapper | None = None,
-        value_str: str | None = None,
     ) -> None:
         super().__init__(state_element_id)
         self._value_fm = value_fm
@@ -486,7 +477,6 @@ class StateElementImplementation(StateElement):
         if self._step_initial_fm is not None:
             self._retrieval_initial_fm = self._step_initial_fm.copy()
         self._true_value_fm = true_value_fm
-        self._value_str = value_str
         self._updated_fm_flag: FullGridMappedArray | None = None
         if apriori_cov_fm is not None:
             self._updated_fm_flag = (
@@ -497,6 +487,7 @@ class StateElementImplementation(StateElement):
         self._retrieved_this_step = False
         self._initial_guess_not_updated = False
         self._next_step_initial_fm: FullGridMappedArray | None = None
+        self._metadata: dict[str, Any] = {}
         # Temp, until we have tested everything out
         self._sold = selem_wrapper
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
@@ -523,7 +514,7 @@ class StateElementImplementation(StateElement):
             raise RuntimeError("This shouldn't happen")
         self._sold.update_initial_guess(current_strategy_step)
 
-    def _check_result(self, res: str | float | np.ndarray | None, func_name: str) -> None:
+    def _check_result(self, res: float | np.ndarray | None, func_name: str) -> None:
         """Function to check against the old state element. This will go away at
         some point, but for now it is useful for spotting problems. No error if
         we don't have the old state element, we just skip the check. Also we
@@ -648,7 +639,6 @@ class StateElementImplementation(StateElement):
     def state_mapping_retrieval_to_fm(self) -> rf.StateMapping:
         return self._state_mapping_retrieval_to_fm
 
-    # These are placeholders, need to fill in
     @property
     def metadata(self) -> dict[str, Any]:
         """Some StateElement have extra metadata. There is really only one example
@@ -656,22 +646,18 @@ class StateElementImplementation(StateElement):
         way to handle this, but the current design just returns a dictionary with
         any extra metadata values. We can perhaps rework this if needed in the future.
         For most StateElement this will just be a empty dict."""
-        if self._sold is not None:
-            return self._sold.metadata
-        res: dict[str, Any] = {}
+        # I think we'll have a separate type for emissivity
+        # if self._sold is not None:
+        #    return self._sold.metadata
+        res = self._metadata
         return res
 
+    # These are placeholders, need to fill in
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
         if self._sold is None:
             raise RuntimeError("Not implemented yet")
         return self._sold.spectral_domain
-
-    @property
-    def value_str(self) -> str | None:
-        res = self._value_str
-        self._check_result(res, "value_str")
-        return res
 
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:

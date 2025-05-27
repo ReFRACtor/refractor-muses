@@ -92,9 +92,8 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        value_str: str | None = None,
         poltype: str | None = None,
-        poltype_used_constraint: bool = True
+        poltype_used_constraint: bool = True,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -166,9 +165,8 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        value_str: str | None = None,
         poltype: str | None = None,
-        poltype_used_constraint: bool = True
+        poltype_used_constraint: bool = True,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 

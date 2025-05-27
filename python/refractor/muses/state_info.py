@@ -220,10 +220,13 @@ class StateInfo(UserDict):
         # new StateElement, make sure everything get created (since
         # this happens on first use)
         for sid in self._current_state_old.full_state_element_id:
-            # Skip duplicates we are removing
+            # Skip duplicates we are removing, and poltype that we handling differently now
             if sid not in (
                 StateElementIdentifier("emissivity"),
                 StateElementIdentifier("cloudEffExt"),
+                StateElementIdentifier("nh3type"),
+                StateElementIdentifier("ch3ohtype"),
+                StateElementIdentifier("hcoohtype"),
             ):
                 _ = self[sid]
         for selem in self.values():
@@ -253,6 +256,9 @@ class StateInfo(UserDict):
             if sid not in (
                 StateElementIdentifier("emissivity"),
                 StateElementIdentifier("cloudEffExt"),
+                StateElementIdentifier("nh3type"),
+                StateElementIdentifier("ch3ohtype"),
+                StateElementIdentifier("hcoohtype"),
             ):
                 _ = self[sid]
         for selem in self.values():

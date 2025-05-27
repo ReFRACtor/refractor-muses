@@ -83,9 +83,6 @@ class StateElementOspFileHandleNew(StateElementHandle):
         else:
             # For now, just a dummy value
             pressure_level = None
-        value_str = None
-        if sold is not None:
-            value_str = sold.value_str
         if sold is not None and sold.value_str is None:
             value_fm = sold.value_fm
             try:
@@ -95,9 +92,29 @@ class StateElementOspFileHandleNew(StateElementHandle):
         else:
             value_fm = None
             constraint_vector_fm = None
-        # Fill in
+        # We can create a subtype if needed, but we just have a handful of these
+        # so we'll do this in line for now.
         poltype = None
         poltype_used_constraint = True
+        if state_element_id == StateElementIdentifier("NH3"):
+            assert sold is not None
+            poltype = sold._current_state_old.state_value_str("nh3type")
+            if poltype is None:
+                poltype = "mod"
+            poltype_used_constraint = True
+        elif state_element_id == StateElementIdentifier("CH3OH"):
+            assert sold is not None
+            poltype = sold._current_state_old.state_value_str("ch3ohtype")
+            if poltype is None:
+                poltype = "mod"
+            poltype_used_constraint = True
+        elif state_element_id == StateElementIdentifier("HCOOH"):
+            assert sold is not None
+            poltype = sold._current_state_old.state_value_str("hcoohtype")
+            if poltype is None:
+                poltype = "mod"
+            # Not used in the constraint name
+            poltype_used_constraint = False
         res = self.obj_cls.create_from_handle(
             state_element_id,
             pressure_level,
@@ -110,7 +127,6 @@ class StateElementOspFileHandleNew(StateElementHandle):
             self.sounding_metadata,
             selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
-            value_str=value_str,
             poltype=poltype,
             poltype_used_constraint=poltype_used_constraint,
         )

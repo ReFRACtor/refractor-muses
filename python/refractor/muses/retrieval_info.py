@@ -36,7 +36,7 @@ class RetrievalInfo:
             self._map_type(current_state, i) for i in self.species_list_sys
         ]
 
-    def _map_type(self, current_state: CurrentState, sid: str) -> str:
+    def _map_type(self, current_state: CurrentStateStateInfoOld, sid: str) -> str:
         smap = current_state.state_mapping(StateElementIdentifier(sid))
         if isinstance(smap, rf.StateMappingLinear):
             return "linear"
