@@ -6,13 +6,11 @@ from .current_state import (
     FullGridMappedArray,
     RetrievalGrid2dArray,
     FullGrid2dArray,
-    CurrentState,
 )
 from .identifier import StateElementIdentifier, RetrievalType
 from loguru import logger
 from pathlib import Path
 import numpy as np
-import numpy.testing as npt
 import typing
 from typing import cast, Self
 
@@ -63,6 +61,8 @@ class StateElementOspFile(StateElementImplementation):
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
         value_str: str | None = None,
+        poltype: str | None = None,
+        poltype_used_constraint: bool = True,
     ):
         if value_fm is not None:
             value_fm = value_fm.copy()
@@ -81,6 +81,29 @@ class StateElementOspFile(StateElementImplementation):
             )
         self.latitude = latitude
         self.surface_type = surface_type
+        self.poltype = poltype
+        self.poltype_used_constraint = poltype_used_constraint
+        # Temp
+        if state_element_id == StateElementIdentifier("NH3"):
+            assert selem_wrapper is not None
+            self.poltype = selem_wrapper._current_state_old.state_value_str("nh3type")
+            if self.poltype is None:
+                self.poltype = "mod"
+            self.poltype_used_constraint = True
+        elif state_element_id == StateElementIdentifier("CH3OH"):
+            assert selem_wrapper is not None
+            self.poltype = selem_wrapper._current_state_old.state_value_str("ch3ohtype")
+            if self.poltype is None:
+                self.poltype = "mod"
+            self.poltype_used_constraint = True
+        elif state_element_id == StateElementIdentifier("HCOOH"):
+            assert selem_wrapper is not None
+            self.poltype = selem_wrapper._current_state_old.state_value_str("hcoohtype")
+            if self.poltype is None:
+                self.poltype = "mod"
+            # Also, not used in the constraint name
+            self.poltype_used_constraint = False
+
         self.retrieval_type = RetrievalType("default")
         self._pressure_level = pressure_list_fm
         # This is to support testing. We currently have a way of populate StateInfoOld when
@@ -106,29 +129,11 @@ class StateElementOspFile(StateElementImplementation):
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
             return
-        # Special handling for a few types. These should get moved into their own classes,
-        # but for now just handle it inline so we can get bulk stuff in place.
-        spectype: None | str = None
-        if self.state_element_id == StateElementIdentifier("NH3"):
-            assert self._sold is not None
-            spectype = self._sold._current_state_old.state_value_str("nh3type")
-        elif self.state_element_id == StateElementIdentifier("CH3OH"):
-            assert self._sold is not None
-            spectype = self._sold._current_state_old.state_value_str("ch3ohtype")
-        # Oddly, the spectype for HCOOH is *not* used in the filename. No idea why,
-        # probably some historical oddity. But you can examine about line 2150 of
-        # get_species_information.py in py-retrieve to see this. Only NH3 and
-        # CH3OH get their spectype used. However for the apriori_cov_fm, spectype
-        # *is* used.
-        # elif self.state_element_id == StateElementIdentifier("HCOOH"):
-        #    assert self._sold is not None
-        #    spectype = self._sold._current_state_old.state_value_str("hcoohtype")
-
         self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
             self.state_element_id,
             self.retrieval_type,
             self.basis_matrix.shape[0],
-            spectype=spectype,
+            poltype=self.poltype if self.poltype_used_constraint else None,
         ).view(RetrievalGrid2dArray)
         # TODO Short term we cast this to float32, just so can match the old muses-py code.
         # We'll change this shortly, but we want to do this one step at a time so we know
@@ -187,32 +192,11 @@ class StateElementOspFile(StateElementImplementation):
         else:
             self._fill_in_state_mapping()
             assert self._map_type is not None
-            # Special handling for a few types. These should get moved into their own classes,
-            # but for now just handle it inline so we can get bulk stuff in place.
-            spectype: None | str = None
-            if self.state_element_id == StateElementIdentifier("NH3"):
-                assert self._sold is not None
-                spectype = self._sold._current_state_old.state_value_str("nh3type")
-                # Default value, if not given
-                if not spectype:
-                    spectype = "mod"
-            elif self.state_element_id == StateElementIdentifier("CH3OH"):
-                assert self._sold is not None
-                spectype = self._sold._current_state_old.state_value_str("ch3ohtype")
-                # Default value, if not given
-                if not spectype:
-                    spectype = "mod"
-            elif self.state_element_id == StateElementIdentifier("HCOOH"):
-                assert self._sold is not None
-                spectype = self._sold._current_state_old.state_value_str("hcoohtype")
-                # Default value, if not given
-                if not spectype:
-                    spectype = "mod"
             cov_matrix = self.osp_cov_reader.read_cov(
                 self.state_element_id,
                 self._map_type,
                 self.latitude,
-                spectype=spectype if spectype is not None else "",
+                poltype=self.poltype,
             )
             if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
                 self._apriori_cov_fm = cov_matrix.original_cov.view(FullGrid2dArray)
@@ -235,8 +219,10 @@ class StateElementOspFile(StateElementImplementation):
             raise RuntimeError("This can't happen")
         # Skip for H2O and HDO, we have moved cross term handling out so this is
         # different than the old data
-        if(self.state_element_id
-            not in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO"))):
+        if self.state_element_id not in (
+            StateElementIdentifier("H2O"),
+            StateElementIdentifier("HDO"),
+        ):
             self._check_result(res, "constraint_matrix")
         return res
 
@@ -284,6 +270,8 @@ class StateElementOspFile(StateElementImplementation):
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
         value_str: str | None = None,
+        poltype: str | None = None,
+        poltype_used_constraint: bool = True,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -301,6 +289,8 @@ class StateElementOspFile(StateElementImplementation):
             selem_wrapper=selem_wrapper,
             cov_is_constraint=cov_is_constraint,
             value_str=value_str,
+            poltype=poltype,
+            poltype_used_constraint=poltype_used_constraint,
         )
         return res
 

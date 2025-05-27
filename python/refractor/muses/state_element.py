@@ -523,20 +523,24 @@ class StateElementImplementation(StateElement):
             raise RuntimeError("This shouldn't happen")
         self._sold.update_initial_guess(current_strategy_step)
 
-    def _check_result(self, res : float | np.ndarray | None, func_name : str) -> None:
-        '''Function to check against the old state element. This will go away at
+    def _check_result(self, res: str | float | np.ndarray | None, func_name: str) -> None:
+        """Function to check against the old state element. This will go away at
         some point, but for now it is useful for spotting problems. No error if
         we don't have the old state element, we just skip the check. Also we
         have variable in CurrentState. This is also temporary, we are doing this
         to work around issues with unit tests using data that isn't in sync. This
         should go away when we regenerate the saved state data to not use the
-        old state elements, but we'll hold off on that until the end.'''
-        if res is None or self._sold is None or not CurrentState.check_old_state_element_value:
+        old state elements, but we'll hold off on that until the end."""
+        if (
+            res is None
+            or self._sold is None
+            or not CurrentState.check_old_state_element_value
+        ):
             return
         res2 = getattr(self._sold, func_name)
         if res2 is None:
             raise RuntimeError("res2 should not be None")
-        if(isinstance(res, np.ndarray)):
+        if isinstance(res, np.ndarray):
             npt.assert_allclose(res, res2, 1e-12)
             # Special case, some of the basis matrix that happen to be integer
             # are left as int64. No real reason, but also no harm
@@ -544,7 +548,6 @@ class StateElementImplementation(StateElement):
                 assert res.dtype == res2.dtype
         else:
             assert res == res2
-        
 
     # TODO This can perhaps go away? Replace with a mapping?
     @property

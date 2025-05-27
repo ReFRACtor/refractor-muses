@@ -27,7 +27,6 @@ class StateElementOspFileHandleNew(StateElementHandle):
         sid: StateElementIdentifier | None,
         hold: StateElementOldWrapperHandle | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
-        # cls: type[StateElementImplementation] = StateElementImplementation,
         cov_is_constraint: bool = False,
     ) -> None:
         self.obj_cls = cls
@@ -96,6 +95,9 @@ class StateElementOspFileHandleNew(StateElementHandle):
         else:
             value_fm = None
             constraint_vector_fm = None
+        # Fill in
+        poltype = None
+        poltype_used_constraint = True
         res = self.obj_cls.create_from_handle(
             state_element_id,
             pressure_level,
@@ -109,6 +111,8 @@ class StateElementOspFileHandleNew(StateElementHandle):
             selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
             value_str=value_str,
+            poltype=poltype,
+            poltype_used_constraint=poltype_used_constraint,
         )
         if res is not None:
             logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")

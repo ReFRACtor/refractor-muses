@@ -977,9 +977,7 @@ class RetrievalL2Output(RetrievalOutput):
                     "native_emissivity"
                 )
 
-            selem = self.current_state.state_element(
-                StateElementIdentifier("EMIS")
-            )
+            selem = self.current_state.state_element(StateElementIdentifier("EMIS"))
             species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(
                 [
                     selem.metadata["camel_distance"],

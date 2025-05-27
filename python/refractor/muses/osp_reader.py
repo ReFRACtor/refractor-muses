@@ -119,7 +119,7 @@ class OspCovarianceMatrixReader:
                 ([a-zA-Z0-9]+)_          # Map type, e.g. "Linear", "Log"
                 (\d+)([SN])_             # Latitude start
                 (\d+)([SN])              # Latitude end
-                (_(([A-Z]+_)?[A-Z]+))?   # Possible special type, like "CLN", "ENH", "MOD"
+                (_(([A-Z]+_)?[A-Z]+))?   # Possible pollution type, like "CLN", "ENH", "MOD"
                                          # Possibly have "LAND", "OCEAN" before - "LAND_ENH"
                                          # Only applies to a few state element types, currently
                                          # NH3, CH3OH, HCOOH
@@ -134,26 +134,33 @@ class OspCovarianceMatrixReader:
                 r2 = float(m[5]) * (-1 if m[6] == "S" else 1)
                 if sid not in self.filename_data:
                     self.filename_data[sid] = {}
-                spectype = m[8] if m[8] is not None else ""
-                if spectype not in self.filename_data[sid]:
-                    self.filename_data[sid][spectype] = {}
-                if maptype not in self.filename_data[sid][spectype]:
-                    self.filename_data[sid][spectype][maptype] = RangeFind()
-                self.filename_data[sid][spectype][maptype][(r1, r2)] = fname
+                poltype = m[8] if m[8] is not None else ""
+                if poltype not in self.filename_data[sid]:
+                    self.filename_data[sid][poltype] = {}
+                if maptype not in self.filename_data[sid][poltype]:
+                    self.filename_data[sid][poltype][maptype] = RangeFind()
+                self.filename_data[sid][poltype][maptype][(r1, r2)] = fname
 
     def read_cov(
         self,
         sid: StateElementIdentifier,
         map_type: str,
         latitude: float,
-        spectype: str | None = None,
+        poltype: str | None = None,
     ) -> CovarianceMatrix:
-        """Read the covariance file."""
+        """Read the covariance file for the given StateElementIdentifier. We
+        also take the map type (e.g. linear, log) and the latitude which is
+        used to refine the file read.
+
+        There are a few StateElementIdentifier that are further refined by the
+        pollution type (e.g, CLN, ENH, MOD). For those species, the pollution type
+        can be given.
+        """
         # The table has a column with the species name, a column with pressure, a
         # column with map type, and then the data. So we just subset for that
-        if spectype is None:
-            spectype = ""
-        tf = TesFile(self.filename_data[sid][spectype][map_type.lower()][latitude])
+        if poltype is None:
+            poltype = ""
+        tf = TesFile(self.filename_data[sid][poltype][map_type.lower()][latitude])
         d = np.array(tf.table)[:, 3:].astype(float)
         pressure_sa = np.array(tf.table)[:, 1].astype(float)
         return CovarianceMatrix(pressure_sa, d)
@@ -219,8 +226,20 @@ class OspSpeciesReader(OspFileHandle):
         retrieval_type: RetrievalType,
         num_retrieval: int,
         sid2: StateElementIdentifier | None = None,
-        spectype: str | None = None,
+        poltype: str | None = None,
     ) -> np.ndarray:
+        """Read the constraint matrix for the given StateElementIdentifier.
+        Some of the file names depend on the number of retrieved levels, so
+        we take that in. If you know your StateElementIdentifier doesn't depend on
+        this, you can just pass in a fill value (e.g., -1).
+
+        For cross state elements, a second StateElementIdentifier can be given
+        (e.g. H2O and HDO).
+
+        There are a few StateElementIdentifier that are further refined by the
+        pollution type (e.g, CLN, ENH, MOD). For those species, the pollution type
+        can be given.
+        """
         if (
             retrieval_type in self.filename_data[sid][sid2]
             or sid not in self._default_cache
@@ -247,14 +266,14 @@ class OspSpeciesReader(OspFileHandle):
                     )
                 )
                 # Other terms have one 87 that gets replaced
-                if spectype is None:
+                if poltype is None:
                     fname = Path(
                         re.sub(r"_87.asc$", f"_{num_retrieval}.asc", str(fname))
                     )
                 else:
                     fname = Path(
                         re.sub(
-                            r"_87.asc$", f"_{num_retrieval}_{spectype}.asc", str(fname)
+                            r"_87.asc$", f"_{num_retrieval}_{poltype}.asc", str(fname)
                         )
                     )
                 d = TesFile(fname)

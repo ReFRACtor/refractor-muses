@@ -53,9 +53,11 @@ class StateElementOldWrapper(StateElement):
     # Used by error_analysis. Isn't clear if this can go away and be replaced by
     # something, but for now leave this in place
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
-        return cast(
-            CurrentStateStateInfoOld, self._current_state_old
-        ).state_element_old(self.state_element_id, other_name=False).update_initial_guess(current_strategy_step)
+        return (
+            cast(CurrentStateStateInfoOld, self._current_state_old)
+            .state_element_old(self.state_element_id, other_name=False)
+            .update_initial_guess(current_strategy_step)
+        )
 
     @property
     def metadata(self) -> dict[str, Any]:
@@ -199,8 +201,8 @@ class StateElementOldWrapper(StateElement):
     def constraint_vector_fm(self) -> FullGridMappedArray:
         """Apriori value of StateElement"""
         if (
-            self.state_element_id  == StateElementIdentifier("EMIS") or
-            self._current_state_old._retrieval_info is None
+            self.state_element_id == StateElementIdentifier("EMIS")
+            or self._current_state_old._retrieval_info is None
             or self.state_element_id
             not in self._current_state_old.retrieval_state_element_id
         ):
@@ -255,9 +257,13 @@ class StateElementOldWrapper(StateElement):
     @cached_property
     def apriori_cov_fm(self) -> FullGrid2dArray:
         """Apriori Covariance"""
-        return cast(
-            CurrentStateStateInfoOld, self._current_state_old
-        ).state_element_old(self.state_element_id, other_name=False).sa_covariance()[0].astype(float).view(FullGrid2dArray)
+        return (
+            cast(CurrentStateStateInfoOld, self._current_state_old)
+            .state_element_old(self.state_element_id, other_name=False)
+            .sa_covariance()[0]
+            .astype(float)
+            .view(FullGrid2dArray)
+        )
 
     def apriori_cross_covariance_fm(
         self, selem2: StateElement

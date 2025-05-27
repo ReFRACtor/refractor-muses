@@ -171,10 +171,8 @@ class FakeStateInfo:
             StateElementIdentifier("CLOUDEXT")
         )
         self._cloud_pars["num_frequencies"] = self._cloud_pars["frequency"].shape[0]
-        t = np.array(
-            current_state.state_value(StateElementIdentifier("CLOUDEXT"))
-        )
-        self._current["cloudEffExt"] = np.vstack((t, t))
+        t2 = np.array(current_state.state_value(StateElementIdentifier("CLOUDEXT")))
+        self._current["cloudEffExt"] = np.vstack((t2, t2))
         self._true["cloudEffExt"] = np.zeros(self._current["cloudEffExt"].shape)
         self._emis_pars: dict[str, Any] = {}
         # I think this is always 'yes', it looks like the logic in muses-py for setting

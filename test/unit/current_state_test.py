@@ -110,9 +110,9 @@ def test_current_state(
     assert cstate.state_value(StateElementIdentifier("EMIS"))[0] == pytest.approx(
         0.98081997
     )
-    assert cstate.state_spectral_domain_wavelength(
-        StateElementIdentifier("EMIS")
-    )[0] == pytest.approx(600)
+    assert cstate.state_spectral_domain_wavelength(StateElementIdentifier("EMIS"))[
+        0
+    ] == pytest.approx(600)
     assert cstate.sounding_metadata.latitude.value == pytest.approx(62.8646)
     assert cstate.sounding_metadata.longitude.value == pytest.approx(81.0379)
     assert cstate.sounding_metadata.surface_altitude.convert(

@@ -1950,8 +1950,10 @@ class CurrentStateStateInfoOld(CurrentState):
         raise NotImplementedError()
 
     def state_element_old(
-            self, state_element_id: StateElementIdentifier | str, step: str = "current",
-            other_name=True,
+        self,
+        state_element_id: StateElementIdentifier | str,
+        step: str = "current",
+        other_name: bool=True,
     ) -> StateElementOld:
         sid = state_element_id
         # The old code uses CLOUDEXT and cloudEffExt and EMIS and emissivity as almost
@@ -1959,9 +1961,9 @@ class CurrentStateStateInfoOld(CurrentState):
         # make sense - but was how the code was set up. We want to collapse this to just
         # CLOUDEXT and EMIS, which we do here. Depending on what we are doing with this,
         # we either want to use the other name or not when we go to the old code.
-        if(other_name and str(sid) == "CLOUDEXT"):
+        if other_name and str(sid) == "CLOUDEXT":
             sid = StateElementIdentifier("cloudEffExt")
-        if(other_name and str(sid) == "EMIS"):
+        if other_name and str(sid) == "EMIS":
             sid = StateElementIdentifier("emissivity")
         return self.state_info.state_element(sid, step)
 
