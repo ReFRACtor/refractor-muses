@@ -235,15 +235,9 @@ class StateElementOspFile(StateElementImplementation):
             raise RuntimeError("This can't happen")
         # Skip for H2O and HDO, we have moved cross term handling out so this is
         # different than the old data
-        if (
-            self._sold is not None
-            and CurrentState.check_old_state_element_value
-            and self.state_element_id
-            not in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO"))
-        ):
-            res2 = self._sold.constraint_matrix
-            npt.assert_allclose(res, res2, 1e-15)
-            assert res.dtype == res2.dtype
+        if(self.state_element_id
+            not in (StateElementIdentifier("H2O"), StateElementIdentifier("HDO"))):
+            self._check_result(res, "constraint_matrix")
         return res
 
     @property
@@ -252,14 +246,7 @@ class StateElementOspFile(StateElementImplementation):
         res = self._apriori_cov_fm
         if res is None:
             raise RuntimeError("This can't happen")
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            try:
-                res2 = self._sold.apriori_cov_fm
-            except AssertionError:
-                res2 = None
-            if res2 is not None:
-                npt.assert_allclose(res, res2, 1e-15)
-                assert res.dtype == res2.dtype
+        self._check_result(res, "apriori_cov_fm")
         return res
 
     @property
@@ -279,12 +266,7 @@ class StateElementOspFile(StateElementImplementation):
         the apriori_cov_fm are on."""
         self._fill_in_state_mapping()
         res = self._pressure_list_fm
-        if res is None:
-            return res
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.pressure_list_fm
-            assert res2 is not None
-            npt.assert_allclose(res, res2, 1e-15)
+        self._check_result(res, "pressure_list_fm")
         return res
 
     @classmethod

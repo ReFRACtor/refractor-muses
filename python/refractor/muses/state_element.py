@@ -523,6 +523,29 @@ class StateElementImplementation(StateElement):
             raise RuntimeError("This shouldn't happen")
         self._sold.update_initial_guess(current_strategy_step)
 
+    def _check_result(self, res : float | np.ndarray | None, func_name : str) -> None:
+        '''Function to check against the old state element. This will go away at
+        some point, but for now it is useful for spotting problems. No error if
+        we don't have the old state element, we just skip the check. Also we
+        have variable in CurrentState. This is also temporary, we are doing this
+        to work around issues with unit tests using data that isn't in sync. This
+        should go away when we regenerate the saved state data to not use the
+        old state elements, but we'll hold off on that until the end.'''
+        if res is None or self._sold is None or not CurrentState.check_old_state_element_value:
+            return
+        res2 = getattr(self._sold, func_name)
+        if res2 is None:
+            raise RuntimeError("res2 should not be None")
+        if(isinstance(res, np.ndarray)):
+            npt.assert_allclose(res, res2, 1e-12)
+            # Special case, some of the basis matrix that happen to be integer
+            # are left as int64. No real reason, but also no harm
+            if res2.dtype != np.int64:
+                assert res.dtype == res2.dtype
+        else:
+            assert res == res2
+        
+
     # TODO This can perhaps go away? Replace with a mapping?
     @property
     def basis_matrix(self) -> np.ndarray:
@@ -530,15 +553,7 @@ class StateElementImplementation(StateElement):
             res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose()
         else:
             res = np.eye(self.value_fm.shape[0])
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.basis_matrix
-            if res2 is None:
-                raise RuntimeError("res2 should not be None")
-            npt.assert_allclose(res, res2, 1e-12)
-            # Special case, some of the basis matrix that happen to be integer
-            # are left as int64. No real reason, but also no harm
-            if res2.dtype != np.int64:
-                assert res.dtype == res2.dtype
+        self._check_result(res, "basis_matrix")
         return res
 
     # TODO This can perhaps go away? Replace with a mapping?
@@ -548,15 +563,7 @@ class StateElementImplementation(StateElement):
             res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose()
         else:
             res = np.eye(self.value_fm.shape[0])
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.map_to_parameter_matrix
-            if res2 is None:
-                raise RuntimeError("res2 should not be None")
-            npt.assert_allclose(res, res2, atol=1e-12)
-            # Special case, some of the basis matrix that happen to be integer
-            # are left as int64. No real reason, but also no harm
-            if res2.dtype != np.int64:
-                assert res.dtype == res2.dtype
+        self._check_result(res, "map_to_parameter_matrix")
         return res
 
     @property
@@ -569,31 +576,21 @@ class StateElementImplementation(StateElement):
             # muses-py handles the BT and systematic jacobian steps. We should clean this
             # up an some point, this is all unnecessarily obscure
             res = 1
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.forward_model_sv_length
-            assert res == res2
+        self._check_result(res, "forward_model_sv_length")
         return res
 
     @property
     def sys_sv_length(self) -> int:
         res = self.apriori_cov_fm.shape[0]
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.sys_sv_length
-            assert res == res2
+        self._check_result(res, "sys_sv_length")
         return res
 
     @property
     def value_fm(self) -> FullGridMappedArray:
-        if self._value_fm is None:
-            raise RuntimeError("_value_fm shouldn't be None")
         res = self._value_fm
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            try:
-                res2 = self._sold.value_fm
-                npt.assert_allclose(res, res2, 1e-12)
-                assert res.dtype == res2.dtype
-            except NotImplementedError:
-                pass
+        if res is None:
+            raise RuntimeError("_value_fm shouldn't be None")
+        self._check_result(res, "value_fm")
         return res
 
     @property
@@ -601,14 +598,7 @@ class StateElementImplementation(StateElement):
         if self._constraint_vector_fm is None:
             raise RuntimeError("_constraint_vector_fm shouldn't be None")
         res = self._constraint_vector_fm
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            try:
-                res2 = self._sold.constraint_vector_fm
-            except (AssertionError, RuntimeError):
-                res2 = None
-            if res2 is not None:
-                npt.assert_allclose(res, res2, 1e-12)
-                assert res.dtype == res2.dtype
+        self._check_result(res, "constraint_vector_fm")
         return res
 
     @property
@@ -616,10 +606,7 @@ class StateElementImplementation(StateElement):
         if self._constraint_matrix is None:
             raise RuntimeError("_constraint_matrix shouldn't be None")
         res = self._constraint_matrix
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.constraint_matrix
-            npt.assert_allclose(res, res2, 1e-12)
-            assert res.dtype == res2.dtype
+        self._check_result(res, "constraint_matrix")
         return res
 
     @property
@@ -627,14 +614,7 @@ class StateElementImplementation(StateElement):
         if self._apriori_cov_fm is None:
             raise RuntimeError("_apriori_cov_fm shouldn't be None")
         res = self._apriori_cov_fm
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            try:
-                res2 = self._sold.apriori_cov_fm
-            except AssertionError:
-                res2 = None
-            if res2 is not None and CurrentState.check_old_state_element_value:
-                npt.assert_allclose(res, res2, 1e-12)
-                assert res.dtype == res2.dtype
+        self._check_result(res, "apriori_cov_fm")
         return res
 
     @property
@@ -642,10 +622,7 @@ class StateElementImplementation(StateElement):
         if self._retrieval_initial_fm is None:
             raise RuntimeError("_retrieval_initial_fm shouldn't be None")
         res = self._retrieval_initial_fm
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.retrieval_initial_fm
-            npt.assert_allclose(res, res2, 1e-12)
-            assert res.dtype == res2.dtype
+        self._check_result(res, "retrieval_initial_fm")
         return res
 
     @property
@@ -653,10 +630,7 @@ class StateElementImplementation(StateElement):
         if self._step_initial_fm is None:
             raise RuntimeError("_step_initial_fm shouldn't be None")
         res = self._step_initial_fm
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.step_initial_fm
-            npt.assert_allclose(res, res2, 1e-12)
-            assert res.dtype == res2.dtype
+        self._check_result(res, "step_initial_fm")
         return res
 
     @property
@@ -693,14 +667,14 @@ class StateElementImplementation(StateElement):
     @property
     def value_str(self) -> str | None:
         res = self._value_str
-        if self._sold is not None:
-            res2 = self._sold.value_str
-            assert res == res2
+        self._check_result(res, "value_str")
         return res
 
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:
-        return self._pressure_list_fm
+        res = self._pressure_list_fm
+        self._check_result(res, "pressure_list_fm")
+        return res
 
     def update_state_element(
         self,
@@ -743,9 +717,7 @@ class StateElementImplementation(StateElement):
         res = np.zeros((self.apriori_cov_fm.shape[0],), dtype=bool)
         if self._retrieved_this_step:
             res[:] = True
-        if self._sold is not None and CurrentState.check_old_state_element_value:
-            res2 = self._sold.updated_fm_flag
-            npt.assert_allclose(res, res2)
+        self._check_result(res, "updated_fm_flag")
         return res.view(FullGridMappedArray)
 
     def notify_start_retrieval(
