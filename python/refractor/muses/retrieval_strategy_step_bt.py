@@ -20,7 +20,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
     BT_IG_Refine steps to execute.
 
     If the table indicates, we update the cloud effective extinction
-    (cloudEffExt) and/or tsurface (TSUR).
+    (CLOUDEXT) and/or tsurface (TSUR).
 
     """
 
@@ -62,7 +62,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
     ) -> None:
         """Calculate brightness temperature, and use to update
         cstate.brightness_temperature_data. We also update TSUR and
-        cloudEffExt in current state."""
+        CLOUDEXT in current state."""
         # Note from py-retrieve: issue with negative radiances, so take mean
         #
         # I'm not actually sure that is true, we filter out bad samples. But
@@ -123,10 +123,10 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             tsurIG[row] = 0
 
         if cloudIG[row] > 0:
-            newv = cstate.state_value("cloudEffExt")
+            newv = cstate.state_value("CLOUDEXT")
             newv[:] = cloudIG[row]
             cstate.update_full_state_element(
-                StateElementIdentifier("cloudEffExt"),
+                StateElementIdentifier("CLOUDEXT"),
                 step_initial_fm=newv,
                 current_fm=newv,
                 constraint_vector_fm=newv,

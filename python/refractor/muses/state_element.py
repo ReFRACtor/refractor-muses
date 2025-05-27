@@ -162,7 +162,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     def map_to_parameter_matrix(self) -> np.ndarray:
         """Go the other direction from the basis matrix, going from
         the forward model vector the retrieval vector."""
-        return np.eye(1)
+        return np.eye(self.value_fm.shape[0])
 
     @abc.abstractproperty
     def forward_model_sv_length(self) -> int:
@@ -789,10 +789,7 @@ class StateElementImplementation(StateElement):
             )
         # handling for cloudEffExt, see below. We should move this into it's own
         # class, but for now just plop this in here
-        if self.state_element_id in (
-            StateElementIdentifier("cloudEffExt"),
-            StateElementIdentifier("CLOUDEXT"),
-        ):
+        if self.state_element_id == StateElementIdentifier("CLOUDEXT"):
             self.is_bt_ig_refine = (
                 current_strategy_step.retrieval_type == RetrievalType("bt_ig_refine")
             )
@@ -843,18 +840,11 @@ class StateElementImplementation(StateElement):
         # Also CLOUDEXT seems to be a sort of alias for cloudEffExt, but we don't
         # have that fully supported yet - should probably add that
         if (
-            self.state_element_id
-            in (
-                StateElementIdentifier("cloudEffExt"),
-                StateElementIdentifier("CLOUDEXT"),
-            )
+            self.state_element_id == StateElementIdentifier("CLOUDEXT")
             and self.is_bt_ig_refine
             and self._sold is not None
         ):
-            self._value_fm = self._sold._current_state_old.state_value("cloudEffExt")
-            if self.state_element_id == StateElementIdentifier("CLOUDEXT"):
-                # Bizarrely, different dim for cloudEffExt vs CLOUDEXT
-                self._value_fm = self._value_fm[0, :].view(FullGridMappedArray)
+            self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")
             self._next_step_initial_fm = self._value_fm.copy()
         elif retrieval_slice is not None:
             self._value_fm = (

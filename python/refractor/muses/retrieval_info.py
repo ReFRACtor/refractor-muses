@@ -296,7 +296,7 @@ class RetrievalInfo:
         current_state: CurrentStateStateInfoOld,
         o_retrievalInfo: mpy.ObjectView,
     ) -> None:
-        selem = current_state.state_element_old(StateElementIdentifier(species_name))
+        selem = current_state.state_element_old(StateElementIdentifier(species_name), other_name=False)
 
         row = o_retrievalInfo.n_totalParameters
         rowFM = o_retrievalInfo.n_totalParametersFM

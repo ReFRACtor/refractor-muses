@@ -38,7 +38,7 @@ class StateElementOldWrapper(StateElement):
         super().__init__(state_element_id)
         self._current_state_old = current_state_old
         # Bit klunky, but way to push notifications down a bit so
-        # it looks like we are just notifying StateElement, even though
+        # it looks like we are just notifying StateElement, even athough
         # we forward that to self._current_state_old
         self.is_first = is_first
         if hasattr(self._old_selem, "update_initial_guess"):
@@ -53,7 +53,9 @@ class StateElementOldWrapper(StateElement):
     # Used by error_analysis. Isn't clear if this can go away and be replaced by
     # something, but for now leave this in place
     def _update_initial_guess(self, current_strategy_step: CurrentStrategyStep) -> None:
-        self._old_selem.update_initial_guess(current_strategy_step)
+        return cast(
+            CurrentStateStateInfoOld, self._current_state_old
+        ).state_element_old(self.state_element_id, other_name=False).update_initial_guess(current_strategy_step)
 
     @property
     def metadata(self) -> dict[str, Any]:
@@ -64,7 +66,7 @@ class StateElementOldWrapper(StateElement):
         For most StateElement this will just be a empty dict."""
         # Kind of klunky, that this should be just a placeholder
         res: dict[str, Any] = {}
-        if self.state_element_id == StateElementIdentifier("emissivity"):
+        if self.state_element_id == StateElementIdentifier("EMIS"):
             res["camel_distance"] = self._old_selem.camel_distance
             res["prior_source"] = self._old_selem.prior_source
         return res
@@ -197,6 +199,7 @@ class StateElementOldWrapper(StateElement):
     def constraint_vector_fm(self) -> FullGridMappedArray:
         """Apriori value of StateElement"""
         if (
+            self.state_element_id  == StateElementIdentifier("EMIS") or
             self._current_state_old._retrieval_info is None
             or self.state_element_id
             not in self._current_state_old.retrieval_state_element_id
@@ -252,7 +255,9 @@ class StateElementOldWrapper(StateElement):
     @cached_property
     def apriori_cov_fm(self) -> FullGrid2dArray:
         """Apriori Covariance"""
-        return self._old_selem.sa_covariance()[0].astype(float).view(FullGrid2dArray)
+        return cast(
+            CurrentStateStateInfoOld, self._current_state_old
+        ).state_element_old(self.state_element_id, other_name=False).sa_covariance()[0].astype(float).view(FullGrid2dArray)
 
     def apriori_cross_covariance_fm(
         self, selem2: StateElement

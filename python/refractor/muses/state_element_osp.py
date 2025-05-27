@@ -301,7 +301,7 @@ class StateElementOspFile(StateElementImplementation):
         sounding_metadata: SoundingMetadata,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
-        value_str: str | None = None
+        value_str: str | None = None,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -318,7 +318,7 @@ class StateElementOspFile(StateElementImplementation):
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
             cov_is_constraint=cov_is_constraint,
-            value_str=value_str
+            value_str=value_str,
         )
         return res
 

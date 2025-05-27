@@ -107,11 +107,11 @@ def test_current_state(
         pass
     cstate = rs.current_state
     assert cstate.sounding_metadata.wrong_tai_time == pytest.approx(839312679.58409)
-    assert cstate.state_value(StateElementIdentifier("emissivity"))[0] == pytest.approx(
+    assert cstate.state_value(StateElementIdentifier("EMIS"))[0] == pytest.approx(
         0.98081997
     )
     assert cstate.state_spectral_domain_wavelength(
-        StateElementIdentifier("emissivity")
+        StateElementIdentifier("EMIS")
     )[0] == pytest.approx(600)
     assert cstate.sounding_metadata.latitude.value == pytest.approx(62.8646)
     assert cstate.sounding_metadata.longitude.value == pytest.approx(81.0379)
@@ -121,12 +121,12 @@ def test_current_state(
     assert cstate.sounding_metadata.tai_time == pytest.approx(839312683.58409)
     assert cstate.sounding_metadata.sounding_id == "20190807_065_04_08_5"
     assert cstate.sounding_metadata.is_land
-    assert cstate.state_value(StateElementIdentifier("cloudEffExt"))[
+    assert cstate.state_value(StateElementIdentifier("CLOUDEXT"))[0] == pytest.approx(
+        1e-29
+    )
+    assert cstate.state_spectral_domain_wavelength(StateElementIdentifier("CLOUDEXT"))[
         0
-    ] == pytest.approx(1e-29)
-    assert cstate.state_spectral_domain_wavelength(
-        StateElementIdentifier("cloudEffExt")
-    )[0] == pytest.approx(600)
+    ] == pytest.approx(600)
     assert cstate.state_value(StateElementIdentifier("PCLOUD"))[0] == pytest.approx(
         500.0
     )

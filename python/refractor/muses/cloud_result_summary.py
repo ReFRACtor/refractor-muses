@@ -234,12 +234,12 @@ class CloudResultSummary:
     @property
     def cloudODAve(self) -> float:
         freq = self.current_state.state_spectral_domain_wavelength(
-            StateElementIdentifier("cloudEffExt")
+            StateElementIdentifier("CLOUDEXT")
         )
         if freq is None:
             raise RuntimeError("This shouldn't happen")
         ind = np.where((freq >= 974) & (freq <= 1201))[0]
-        ceffect = self.state_value_vec("cloudEffExt")
+        ceffect = self.state_value_vec("CLOUDEXT")
         if len(ind) > 0:
             res = np.sum(ceffect[0, ind]) / len(ceffect[0, ind]) * self.cloud_factor
         else:

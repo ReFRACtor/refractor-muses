@@ -168,26 +168,27 @@ class FakeStateInfo:
         # this to 'no' is never active.
         self._cloud_pars["use"] = "yes"
         self._cloud_pars["frequency"] = current_state.state_spectral_domain_wavelength(
-            StateElementIdentifier("cloudEffExt")
+            StateElementIdentifier("CLOUDEXT")
         )
         self._cloud_pars["num_frequencies"] = self._cloud_pars["frequency"].shape[0]
-        self._current["cloudEffExt"] = np.array(
-            current_state.state_value(StateElementIdentifier("cloudEffExt"))
+        t = np.array(
+            current_state.state_value(StateElementIdentifier("CLOUDEXT"))
         )
+        self._current["cloudEffExt"] = np.vstack((t, t))
         self._true["cloudEffExt"] = np.zeros(self._current["cloudEffExt"].shape)
         self._emis_pars: dict[str, Any] = {}
         # I think this is always 'yes', it looks like the logic in muses-py for setting
         # this to 'no' is never active.
         self._emis_pars["use"] = "yes"
         self._emis_pars["frequency"] = current_state.state_spectral_domain_wavelength(
-            StateElementIdentifier("emissivity")
+            StateElementIdentifier("EMIS")
         )
         self._emis_pars["num_frequencies"] = self._emis_pars["frequency"].shape[0]
         self._current["emissivity"] = np.array(
-            current_state.state_value(StateElementIdentifier("emissivity"))
+            current_state.state_value(StateElementIdentifier("EMIS"))
         )
         self._constraint["emissivity"] = np.array(
-            current_state.state_constraint_vector(StateElementIdentifier("emissivity"))
+            current_state.state_constraint_vector(StateElementIdentifier("EMIS"))
         )
         self._true["emissivity"] = np.zeros(self._current["emissivity"].shape)
         self._calibration_pars: dict[str, Any] = {}

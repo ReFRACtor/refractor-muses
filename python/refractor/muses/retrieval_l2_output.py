@@ -415,7 +415,7 @@ class RetrievalL2Output(RetrievalOutput):
             ],
         }
 
-        if self.state_sd_wavelength("emissivity").shape[0] == 0:
+        if self.state_sd_wavelength("EMIS").shape[0] == 0:
             del species_datad["EMISSIVITY_CONSTRAINT"]
             del species_datad["EMISSIVITY_ERROR"]
             del species_datad["EMISSIVITY_INITIAL"]
@@ -791,7 +791,7 @@ class RetrievalL2Output(RetrievalOutput):
         )
 
         # AT_LINE 355 write_products_one.pro
-        if self.state_sd_wavelength("cloudEffExt").shape[0] > 0:
+        if self.state_sd_wavelength("CLOUDEXT").shape[0] > 0:
             species_data.CLOUDFREQUENCY = [
                 600,
                 650,
@@ -839,7 +839,7 @@ class RetrievalL2Output(RetrievalOutput):
             # AT_LINE 363 write_products_one.pro
             # AT_LINE 374 src_ms-2018-12-10/write_products_one.pro
             species_data.CLOUDEFFECTIVEOPTICALDEPTH = (
-                self.state_value_vec("cloudEffExt")[0, :] * convertToOD
+                self.state_value_vec("CLOUDEXT")[0, :] * convertToOD
             )
 
             indf = utilList.WhereEqualIndices(self.species_list_fm, "CLOUDEXT")
@@ -956,13 +956,13 @@ class RetrievalL2Output(RetrievalOutput):
                 mpy.get_diagonal(self.results.Sx[array_2d_indices])
             )
 
-        if self.state_sd_wavelength("emissivity").shape[0] > 0:
-            species_data.EMISSIVITY_CONSTRAINT = self.state_constraint_vec("emissivity")
+        if self.state_sd_wavelength("EMIS").shape[0] > 0:
+            species_data.EMISSIVITY_CONSTRAINT = self.state_constraint_vec("EMIS")
             species_data.EMISSIVITY_INITIAL = self.state_retrieval_initial_value_vec(
-                "emissivity"
+                "EMIS"
             )
-            species_data.EMISSIVITY = self.state_value_vec("emissivity")
-            species_data.EMISSIVITY_WAVENUMBER = self.state_sd_wavelength("emissivity")
+            species_data.EMISSIVITY = self.state_value_vec("EMIS")
+            species_data.EMISSIVITY_WAVENUMBER = self.state_sd_wavelength("EMIS")
 
             # This test doesn't work, since nothing has accessed this yet. I believe this
             # is always in the state, get_state_initial.py in py-retrieve always fills this
@@ -978,7 +978,7 @@ class RetrievalL2Output(RetrievalOutput):
                 )
 
             selem = self.current_state.state_element(
-                StateElementIdentifier("emissivity")
+                StateElementIdentifier("EMIS")
             )
             species_data.EMISSIVITY_OFFSET_DISTANCE = np.array(
                 [

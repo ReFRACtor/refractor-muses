@@ -61,8 +61,6 @@ class StateElementOspFileHandleNew(StateElementHandle):
         # rest of stuff working.
         if str(state_element_id) in (
             "CLOUDEXT",
-            "cloudEffExt",
-            "emissivity",
             "EMIS",
         ):
             return None

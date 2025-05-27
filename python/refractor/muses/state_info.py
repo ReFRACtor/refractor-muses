@@ -220,7 +220,10 @@ class StateInfo(UserDict):
         # new StateElement, make sure everything get created (since
         # this happens on first use)
         for sid in self._current_state_old.full_state_element_id:
-            _ = self[sid]
+            # Skip duplicates we are removing
+            if(sid not in (StateElementIdentifier("emissivity"),
+                           StateElementIdentifier("cloudEffExt"))):
+                _ = self[sid]
         for selem in self.values():
             selem.notify_start_step(
                 current_strategy_step,
@@ -244,7 +247,10 @@ class StateInfo(UserDict):
         # new StateElement, make sure everything get created (since
         # this happens on first use)
         for sid in self._current_state_old.full_state_element_id:
-            _ = self[sid]
+            # Skip duplicates we are removing
+            if(sid not in (StateElementIdentifier("emissivity"),
+                           StateElementIdentifier("cloudEffExt"))):
+                _ = self[sid]
         for selem in self.values():
             selem.notify_start_retrieval(
                 current_strategy_step,

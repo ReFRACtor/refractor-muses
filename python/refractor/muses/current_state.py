@@ -1860,7 +1860,7 @@ class CurrentStateStateInfoOld(CurrentState):
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
-        selem = self.state_info.state_element(state_element_id)
+        selem = self.state_element_old(state_element_id)
         selem.update_state(
             current_fm,
             constraint_vector_fm,
@@ -1950,9 +1950,20 @@ class CurrentStateStateInfoOld(CurrentState):
         raise NotImplementedError()
 
     def state_element_old(
-        self, state_element_id: StateElementIdentifier | str, step: str = "current"
+            self, state_element_id: StateElementIdentifier | str, step: str = "current",
+            other_name=True,
     ) -> StateElementOld:
-        return self.state_info.state_element(state_element_id, step)
+        sid = state_element_id
+        # The old code uses CLOUDEXT and cloudEffExt and EMIS and emissivity as almost
+        # synonyms. The code does different things for each value, which really doesn't
+        # make sense - but was how the code was set up. We want to collapse this to just
+        # CLOUDEXT and EMIS, which we do here. Depending on what we are doing with this,
+        # we either want to use the other name or not when we go to the old code.
+        if(other_name and str(sid) == "CLOUDEXT"):
+            sid = StateElementIdentifier("cloudEffExt")
+        if(other_name and str(sid) == "EMIS"):
+            sid = StateElementIdentifier("emissivity")
+        return self.state_info.state_element(sid, step)
 
     def state_spectral_domain_wavelength(
         self, state_element_id: StateElementIdentifier | str
@@ -1995,7 +2006,7 @@ class CurrentStateStateInfoOld(CurrentState):
     def state_constraint_vector(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
-        selem = self.state_element_old(state_element_id)
+        selem = self.state_element_old(state_element_id, other_name=True)
         return copy(selem.apriori_value).view(FullGridMappedArray)
 
     def state_apriori_covariance(
@@ -2041,7 +2052,7 @@ class CurrentStateStateInfoOld(CurrentState):
     def state_mapping(
         self, state_element_id: StateElementIdentifier | str
     ) -> rf.StateMapping:
-        selem = self.state_element_old(state_element_id)
+        selem = self.state_element_old(state_element_id, other_name=False)
         mtype = selem.map_type
         if mtype == "linear":
             return rf.StateMappingLinear()
@@ -2053,7 +2064,7 @@ class CurrentStateStateInfoOld(CurrentState):
     def pressure_list(
         self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
-        selem = self.state_element_old(state_element_id)
+        selem = self.state_element_old(state_element_id, other_name=False)
         if hasattr(selem, "pressureList"):
             return selem.pressureList.view(RetrievalGridArray)
         return None
@@ -2061,7 +2072,7 @@ class CurrentStateStateInfoOld(CurrentState):
     def pressure_list_fm(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
-        selem = self.state_element_old(state_element_id)
+        selem = self.state_element_old(state_element_id, other_name=False)
         if hasattr(selem, "pressureListFM"):
             return selem.pressureListFM.view(FullGridMappedArray)
         return None
@@ -2079,7 +2090,7 @@ class CurrentStateStateInfoOld(CurrentState):
         from .retrieval_info import RetrievalInfo
 
         for selem_id in current_strategy_step.retrieval_elements:
-            selem = self.state_element_old(selem_id)
+            selem = self.state_element_old(selem_id, other_name=False)
             selem.update_initial_guess(current_strategy_step)
 
         self._retrieval_info = RetrievalInfo(

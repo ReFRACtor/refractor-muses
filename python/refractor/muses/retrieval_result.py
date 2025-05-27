@@ -211,12 +211,12 @@ class RetrievalResult:
     @property
     def Desert_Emiss_QA(self) -> float:
         wlen = self.current_state.state_spectral_domain_wavelength(
-            StateElementIdentifier("emissivity")
+            StateElementIdentifier("EMIS")
         )
         if wlen is None:
             raise RuntimeError("Expected to find emissivity frequencies")
         ind = np.argmin(np.abs(wlen - 1025))
-        return self.state_value_vec("emissivity")[ind]
+        return self.state_value_vec("EMIS")[ind]
 
     @property
     def species_list_fm(self) -> list[str]:
