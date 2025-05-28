@@ -11,7 +11,6 @@ from refractor.muses import (
     MusesObservation,
     MusesRunDir,
     RefractorUip,
-    RetrievalInfo,
     RetrievalConfiguration,
     RetrievalStrategy,
     RetrievalStrategyCaptureObserver,
@@ -23,6 +22,7 @@ from refractor.old_py_retrieve_wrapper import (
     RetrievableStateElementOld,
     StateInfoOld,
     SingleSpeciesHandleOld,
+    RetrievalInfo,
 )
 from typing import Callable
 import subprocess

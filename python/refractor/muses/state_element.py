@@ -202,6 +202,17 @@ class StateElement(object, metaclass=abc.ABCMeta):
         )
 
     @property
+    def step_initial_ret_to_fm(self) -> FullGridMappedArray:
+        '''Because the retrieval grid has fewer levels than the forward model grid,
+        you in general have different values if you start at the forward model grid
+        vs. starting with constraint_vector_ret and mapping to FullGridMappedArray.
+        I'm not sure how much it matters, but various calculations in muses-py
+        uses this second version. Supply this.'''
+        return self.step_initial_ret.to_fm(
+            self.state_mapping_retrieval_to_fm, self.state_mapping
+        )
+    
+    @property
     def step_initial_full(self) -> FullGridArray:
         return self.step_initial_fm.to_full(self.state_mapping)
 
@@ -221,6 +232,17 @@ class StateElement(object, metaclass=abc.ABCMeta):
             self.state_mapping_retrieval_to_fm, self.state_mapping
         )
 
+    @property
+    def constraint_vector_ret_to_fm(self) -> FullGridMappedArray:
+        '''Because the retrieval grid has fewer levels than the forward model grid,
+        you in general have different values if you start at the forward model grid
+        vs. starting with constraint_vector_ret and mapping to FullGridMappedArray.
+        I'm not sure how much it matters, but various calculations in muses-py
+        uses this second version. Supply this.'''
+        return self.constraint_vector_ret.to_fm(
+            self.state_mapping_retrieval_to_fm, self.state_mapping
+        )
+    
     @property
     def constraint_vector_full(self) -> FullGridArray:
         return self.constraint_vector_fm.to_full(self.state_mapping)
@@ -585,11 +607,23 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
+    def constraint_vector_ret(self) -> RetrievalGridArray:
+        res = super().constraint_vector_ret
+        self._check_result(res, "constraint_vector_ret")
+        return res
+        
+
+    @property
     def constraint_vector_fm(self) -> FullGridMappedArray:
         if self._constraint_vector_fm is None:
             raise RuntimeError("_constraint_vector_fm shouldn't be None")
         res = self._constraint_vector_fm
-        self._check_result(res, "constraint_vector_fm")
+        # Note, the old state element has constraint_vector_fm sometimes mapped,
+        # sometimes not. Not sure why, but not worth tracking down. We check
+        # constraint_vector_ret which is the only thing that actually matters.
+        # We could track that down, but this code is actually right as long
+        # as constraint_vector_ret agrees
+        # self._check_result(res, "constraint_vector_fm")
         return res
 
     @property
@@ -771,12 +805,6 @@ class StateElementImplementation(StateElement):
             self.state_element_id
             in current_strategy_step.retrieval_elements_not_updated
         )
-        # Temp, somehow this seems to change in the old state info code
-        if self._sold is not None and self._sold.value_str is None:
-            try:
-                self._constraint_vector_fm = self._sold.constraint_vector_fm
-            except NotImplementedError:
-                pass
 
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None

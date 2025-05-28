@@ -289,6 +289,9 @@ class StateElementOspFile(StateElementImplementation):
                 assert self._step_initial_fm is not None
                 self._value_fm = self._step_initial_fm.copy()
         self.retrieval_type = current_strategy_step.retrieval_type
+        if(self.state_element_id in current_strategy_step.retrieval_elements):
+            self._constraint_vector_fm = self.constraint_vector_ret_to_fm
+            
         # Most of the time this will just return the same value, but there might be
         # certain steps with a different constraint matrix. So we empty the cache here
         # Note the reader does caching, so reading this multiple times isn't as

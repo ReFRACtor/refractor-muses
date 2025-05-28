@@ -8,7 +8,6 @@ from refractor.muses import (
     MusesRunDir,
     RefractorUip,
     RetrievalConfiguration,
-    RetrievalInfo,
     RetrievalStrategy,
     SimulatedObservation,
     SimulatedObservationHandle,
@@ -21,6 +20,7 @@ from refractor.old_py_retrieve_wrapper import (
     RetrievableStateElementOld,
     StateInfoOld,
     SingleSpeciesHandleOld,
+    RetrievalInfo,
 )
 from refractor.tropomi import TropomiSwirForwardModelHandle, TropomiSwirFmObjectCreator
 import refractor.framework as rf

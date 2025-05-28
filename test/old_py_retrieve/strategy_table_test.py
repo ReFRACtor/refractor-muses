@@ -1,6 +1,5 @@
 from refractor.muses import (
     MusesRunDir,
-    RetrievalInfo,
     CurrentStrategyStep,
     RetrievalConfiguration,
 )
@@ -8,6 +7,7 @@ from refractor.old_py_retrieve_wrapper import (
     StrategyTable,
     RetrievableStateElementOld,
     StateInfoOld,
+    RetrievalInfo,
 )
 import subprocess
 import numpy as np

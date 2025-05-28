@@ -6,7 +6,24 @@ from pathlib import Path
 from copy import copy
 import os
 import typing
-from refractor.muses import StateElementIdentifier, RetrievalConfiguration, MeasurementId, CurrentStrategyStep, MusesStrategy, ObservationHandleSet, StateElement, StateElementHandleSet, CurrentState, RetrievalGridArray, FullGridArray, FullGridMappedArray, FullGrid2dArray, RetrievalGrid2dArray, SoundingMetadata, PropagatedQA
+from refractor.muses import (
+    StateElementIdentifier,
+    RetrievalConfiguration,
+    MeasurementId,
+    CurrentStrategyStep,
+    MusesStrategy,
+    ObservationHandleSet,
+    StateElement,
+    StateElementHandleSet,
+    CurrentState,
+    RetrievalGridArray,
+    FullGridArray,
+    FullGridMappedArray,
+    FullGrid2dArray,
+    RetrievalGrid2dArray,
+    SoundingMetadata,
+    PropagatedQA,
+)
 from .retrieval_info import RetrievalInfo
 
 if typing.TYPE_CHECKING:
@@ -15,6 +32,7 @@ if typing.TYPE_CHECKING:
         StateElementOld,
         StateElementHandleSetOld,
     )
+
 
 class CurrentStateStateInfoOld(CurrentState):
     """Implementation of CurrentState that uses our StateInfoOld. This is
@@ -349,17 +367,17 @@ class CurrentStateStateInfoOld(CurrentState):
         return copy(selem.value).view(FullGridMappedArray)
 
     def state_value_str(
-            self, state_element_id: StateElementIdentifier | str
+        self, state_element_id: StateElementIdentifier | str
     ) -> str | None:
-        '''We no longer use value_str in our StateElement, it was an awkward way
+        """We no longer use value_str in our StateElement, it was an awkward way
         to handle poltype used by things like NH3. However we need access
         to the old state element data so we provide that here.
-        '''
+        """
         selem = self.state_element_old(state_element_id)
         if not hasattr(selem, "value_str"):
             return None
         return selem.value_str
-    
+
     def state_true_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
@@ -552,5 +570,6 @@ class CurrentStateStateInfoOld(CurrentState):
             self.state_info.copy_current_initial()
 
 
-__all__ = [    "CurrentStateStateInfoOld", ]
-
+__all__ = [
+    "CurrentStateStateInfoOld",
+]

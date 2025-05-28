@@ -4,7 +4,17 @@ import numpy as np
 import typing
 from typing import Any, cast
 from functools import cached_property
-from refractor.muses import StateElement, StateElementIdentifier,     RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, FullGridArray, CurrentStrategyStep, RetrievalConfiguration
+from refractor.muses import (
+    StateElement,
+    StateElementIdentifier,
+    RetrievalGridArray,
+    FullGridMappedArray,
+    RetrievalGrid2dArray,
+    FullGrid2dArray,
+    FullGridArray,
+    CurrentStrategyStep,
+    RetrievalConfiguration,
+)
 from .current_state_state_info_old import CurrentStateStateInfoOld
 
 if typing.TYPE_CHECKING:

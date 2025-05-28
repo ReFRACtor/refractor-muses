@@ -593,19 +593,20 @@ class CurrentStateStateInfo(CurrentState):
 class StateElementOldWrapperHandle(StateElementHandle):
     def __init__(self) -> None:
         self.is_first = True
-        self._current_state_old_v = None
+        self._current_state_old_v: Any | None = None
 
     # Map to Any because mypy gets confused mapping to old_py_retrieve_wrapper,
     # so we just punt to tracking types there
     @property
     def _current_state_old(self) -> Any:
-        '''One level of indirection, just to break circular dependency in importing
-        files.'''
-        if(self._current_state_old_v is None):
+        """One level of indirection, just to break circular dependency in importing
+        files."""
+        if self._current_state_old_v is None:
             from refractor.old_py_retrieve_wrapper import CurrentStateStateInfoOld
+
             self._current_state_old_v = CurrentStateStateInfoOld(None)
         return self._current_state_old_v
-    
+
     def notify_update_target(
         self,
         measurement_id: MeasurementId,
@@ -620,17 +621,22 @@ class StateElementOldWrapperHandle(StateElementHandle):
         )
         self.is_first = True
 
+    @typing.no_type_check
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
-        from refractor.old_py_retrieve_wrapper import StateElementOldWrapper # type: ignore
+        from refractor.old_py_retrieve_wrapper import StateElementOldWrapper
+
         logger.debug(f"Creating old state element wrapper for {state_element_id}")
-        r = StateElementOldWrapper(state_element_id, self._current_state_old, self.is_first) # type: ignore
+        r = StateElementOldWrapper(
+            state_element_id,
+            self._current_state_old,
+            self.is_first,
+        )
         self.is_first = False
         return cast(StateElement, r)
 
+
 h_old = StateElementOldWrapperHandle()
 StateElementHandleSet.add_default_handle(h_old, priority_order=-1)
-__all__ = [
-    "CurrentStateStateInfo", "StateElementOldWrapperHandle"
-]
+__all__ = ["CurrentStateStateInfo", "StateElementOldWrapperHandle"]

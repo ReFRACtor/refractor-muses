@@ -11,6 +11,7 @@ import typing
 if typing.TYPE_CHECKING:
     from .current_state_state_info_old import CurrentStateStateInfoOld
 
+
 class RetrievalInfo:
     """Not sure if we'll keep this or not, but pull out RetrievalInfo stuff so
     we can figure out the interface and if we should replace this.
