@@ -6,6 +6,7 @@ from .current_state import (
     FullGridMappedArray,
     RetrievalGrid2dArray,
     FullGrid2dArray,
+    RetrievalGridArray
 )
 from .identifier import StateElementIdentifier, RetrievalType
 from loguru import logger
@@ -290,7 +291,12 @@ class StateElementOspFile(StateElementImplementation):
                 self._value_fm = self._step_initial_fm.copy()
         self.retrieval_type = current_strategy_step.retrieval_type
         if(self.state_element_id in current_strategy_step.retrieval_elements):
-            self._constraint_vector_fm = self.constraint_vector_ret_to_fm
+            t = np.array(self._constraint_vector_fm.to_ret(self.state_mapping_retrieval_to_fm, self.state_mapping))
+            # I'm not sure if all types get this correct or not, but I think so.
+            if t.min() < 0 and t.max() > 0:
+                logger.info(f"Fixing negative mapping for constraint vector for {self.state_element_id}")
+                t[t<0] = t[t>0].min()
+            self._constraint_vector_fm = t.view(RetrievalGridArray).to_fm(self.state_mapping_retrieval_to_fm, self.state_mapping)
             
         # Most of the time this will just return the same value, but there might be
         # certain steps with a different constraint matrix. So we empty the cache here
