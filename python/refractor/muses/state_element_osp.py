@@ -12,13 +12,9 @@ from loguru import logger
 from pathlib import Path
 import numpy as np
 import typing
-from typing import cast, Self
+from typing import Self, Any
 
 if typing.TYPE_CHECKING:
-    from .state_element_old_wrapper import (
-        StateElementOldWrapper,
-        StateElementOldWrapperHandle,
-    )
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
@@ -58,7 +54,7 @@ class StateElementOspFile(StateElementImplementation):
         surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
-        selem_wrapper: StateElementOldWrapper | None = None,
+        selem_wrapper: Any | None = None,
         cov_is_constraint: bool = False,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
@@ -246,7 +242,7 @@ class StateElementOspFile(StateElementImplementation):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
-        selem_wrapper: StateElementOldWrapper | None = None,
+        selem_wrapper: Any | None = None,
         cov_is_constraint: bool = False,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
@@ -290,6 +286,7 @@ class StateElementOspFile(StateElementImplementation):
         ):
             if self._sold.value_str is None:
                 self._step_initial_fm = self._sold.step_initial_fm.copy()
+                assert self._step_initial_fm is not None
                 self._value_fm = self._step_initial_fm.copy()
         self.retrieval_type = current_strategy_step.retrieval_type
         # Most of the time this will just return the same value, but there might be
@@ -308,7 +305,7 @@ class StateElementOspFileHandle(StateElementHandle):
         sid: StateElementIdentifier,
         value_fm: FullGridMappedArray,
         constraint_vector_fm: FullGridMappedArray,
-        hold: StateElementOldWrapperHandle | None = None,
+        hold: Any | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
         cov_is_constraint: bool = False,
     ) -> None:
@@ -338,16 +335,12 @@ class StateElementOspFileHandle(StateElementHandle):
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
-        from .state_element_old_wrapper import StateElementOldWrapper
-
         if state_element_id != self.sid:
             return None
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
         if self.hold is not None:
-            sold = cast(
-                StateElementOldWrapper, self.hold.state_element(state_element_id)
-            )
+            sold = self.hold.state_element(state_element_id)
         else:
             sold = None
         # Determining pressure is spread across a number of muses-py functions. We'll need

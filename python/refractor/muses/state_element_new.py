@@ -11,13 +11,12 @@ from .current_state_state_info import h_old
 from .identifier import StateElementIdentifier
 from loguru import logger
 import typing
-from typing import cast
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy
     from .retrieval_configuration import RetrievalConfiguration
-    from .state_element_old_wrapper import StateElementOldWrapperHandle
     from .current_state import SoundingMetadata
 
 
@@ -25,7 +24,7 @@ class StateElementOspFileHandleNew(StateElementHandle):
     def __init__(
         self,
         sid: StateElementIdentifier | None,
-        hold: StateElementOldWrapperHandle | None = None,
+        hold: Any | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
         cov_is_constraint: bool = False,
     ) -> None:
@@ -54,8 +53,6 @@ class StateElementOspFileHandleNew(StateElementHandle):
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
-        from .state_element_old_wrapper import StateElementOldWrapper
-
         # Issue with a few of the StateElements, punt short term so we can get the
         # rest of stuff working.
         if str(state_element_id) in (
@@ -69,9 +66,7 @@ class StateElementOspFileHandleNew(StateElementHandle):
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
         if self.hold is not None:
-            sold = cast(
-                StateElementOldWrapper, self.hold.state_element(state_element_id)
-            )
+            sold = self.hold.state_element(state_element_id)
         else:
             sold = None
         # Determining pressure is spread across a number of muses-py functions. We'll need

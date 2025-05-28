@@ -45,6 +45,7 @@ if _typing.TYPE_CHECKING:
         RetrievalGrid2dArray,
         FullGrid2dArray,
     )
+    from .current_state_state_info import StateElementOldWrapperHandle
     from .misc import osp_setup
     from .muses_observation import (
         MeasurementId,
@@ -70,10 +71,6 @@ if _typing.TYPE_CHECKING:
         StateElementFixedValueHandle,
     )
     from .state_element_osp import StateElementOspFileHandle, StateElementOspFile
-    from .state_element_old_wrapper import (
-        StateElementOldWrapper,
-        StateElementOldWrapperHandle,
-    )
     from .identifier import (
         FilterIdentifier,
         InstrumentIdentifier,
@@ -89,7 +86,7 @@ if _typing.TYPE_CHECKING:
     )
     from .refractor_capture_directory import muses_py_call
     from .refractor_capture_directory import RefractorCaptureDirectory
-    from .retrieval_info import RetrievalInfo
+    from .retrieval_result import RetrievalResult
     from .spectral_window_handle import SpectralWindowHandleSet
     from .cost_function_creator import CostFunctionCreator
     from .priority_handle_set import PriorityHandleSet

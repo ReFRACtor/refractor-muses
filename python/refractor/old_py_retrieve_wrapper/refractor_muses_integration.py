@@ -7,10 +7,10 @@ import refractor.muses.muses_py as mpy
 from refractor.muses import (
     register_replacement_function_in_block,
     RefractorUip,
-    RetrievalInfo,
 )
 from .muses_retrieval_step import MusesRetrievalStep
 from .muses_forward_model_step import MusesForwardModelStep
+from .retrieval_info import RetrievalInfo
 import numpy as np
 import copy
 import os

@@ -9,15 +9,16 @@ from .current_state import (
     FullGrid2dArray,
 )
 from .identifier import StateElementIdentifier
-from .state_element_old_wrapper import StateElementOldWrapperHandle
-from .state_info import StateElementHandleSet
+from .state_element import StateElementHandleSet, StateElementHandle, StateElement
 import numpy as np
 import scipy  # type: ignore
 import refractor.framework as rf  # type: ignore
 import numpy.testing as npt
 from pathlib import Path
 from copy import copy
+from loguru import logger
 import typing
+from typing import Any, cast
 
 if typing.TYPE_CHECKING:
     from .current_state import PropagatedQA, SoundingMetadata
@@ -42,13 +43,14 @@ class CurrentStateStateInfo(CurrentState):
 
         super().__init__()
         self._state_info = StateInfo()
-        # Temp
-        self._current_state_old = self._state_info._current_state_old
         self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
             None
         )
         self.do_systematic = False
         self._step_directory: None | Path = None
+        # Temp, while we are using the old state info stuff as a scaffold
+        # for making the new
+        self._current_state_old = self._state_info._current_state_old
         # Temp, while until we move previous_aposteriori_cov_fm to StateElements
         self._covariance_state_element_name: list[StateElementIdentifier] = []
 
@@ -66,7 +68,7 @@ class CurrentStateStateInfo(CurrentState):
     def match_old(self) -> None:
         """A kludge to handle current_state_override with our old state info stuff.
         Temporarily, ensure that the two are in sync"""
-        cstate = self._state_info._current_state_old
+        cstate = self._current_state_old
         if (
             self.retrieval_state_element_override
             != cstate.retrieval_state_element_override
@@ -588,8 +590,47 @@ class CurrentStateStateInfo(CurrentState):
 
 
 # Right now, only fall back to old py-retrieve code
+class StateElementOldWrapperHandle(StateElementHandle):
+    def __init__(self) -> None:
+        self.is_first = True
+        self._current_state_old_v = None
+
+    # Map to Any because mypy gets confused mapping to old_py_retrieve_wrapper,
+    # so we just punt to tracking types there
+    @property
+    def _current_state_old(self) -> Any:
+        '''One level of indirection, just to break circular dependency in importing
+        files.'''
+        if(self._current_state_old_v is None):
+            from refractor.old_py_retrieve_wrapper import CurrentStateStateInfoOld
+            self._current_state_old_v = CurrentStateStateInfoOld(None)
+        return self._current_state_old_v
+    
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        self._current_state_old.notify_update_target(
+            measurement_id, retrieval_config, strategy, observation_handle_set
+        )
+        self.is_first = True
+
+    def state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement | None:
+        from refractor.old_py_retrieve_wrapper import StateElementOldWrapper # type: ignore
+        logger.debug(f"Creating old state element wrapper for {state_element_id}")
+        r = StateElementOldWrapper(state_element_id, self._current_state_old, self.is_first) # type: ignore
+        self.is_first = False
+        return cast(StateElement, r)
+
 h_old = StateElementOldWrapperHandle()
 StateElementHandleSet.add_default_handle(h_old, priority_order=-1)
 __all__ = [
-    "CurrentStateStateInfo",
+    "CurrentStateStateInfo", "StateElementOldWrapperHandle"
 ]

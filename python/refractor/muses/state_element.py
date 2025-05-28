@@ -19,9 +19,6 @@ from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from .state_element_old_wrapper import (
-        StateElementOldWrapper,
-    )
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
@@ -456,7 +453,7 @@ class StateElementImplementation(StateElement):
         state_mapping: rf.StateMapping | None = rf.StateMappingLinear(),
         initial_value_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
-        selem_wrapper: StateElementOldWrapper | None = None,
+        selem_wrapper: Any | None = None,
     ) -> None:
         super().__init__(state_element_id)
         self._value_fm = value_fm
@@ -806,6 +803,7 @@ class StateElementImplementation(StateElement):
             and self._sold is not None
         ):
             self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")
+            assert self._value_fm is not None
             self._next_step_initial_fm = self._value_fm.copy()
         elif retrieval_slice is not None:
             self._value_fm = (

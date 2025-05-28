@@ -31,6 +31,11 @@ if _typing.TYPE_CHECKING:
     from .muses_ray_info import MusesRayInfo
     from .muses_altitude import MusesAltitude
     from .muses_optical_depth_file import MusesOpticalDepthFile
+    from .state_element_old_wrapper import (
+        StateElementOldWrapper,
+    )
+    from .retrieval_info import RetrievalInfo
+    from .current_state_state_info_old import CurrentStateStateInfoOld
 
 del _i
 del _re

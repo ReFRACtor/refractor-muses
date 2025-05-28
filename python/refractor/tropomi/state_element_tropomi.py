@@ -4,8 +4,6 @@ from refractor.muses import (
     StateElement,
     StateElementHandle,
     StateElementImplementation,
-    StateElementOldWrapper,
-    StateElementOldWrapperHandle,
     StateElementOspFileHandle,
     StateElementOspFile,
     StateElementFillValueHandle,
@@ -16,6 +14,7 @@ from refractor.muses import (
     FullGridMappedArray,
     FullGrid2dArray,
     RetrievalGrid2dArray,
+    StateElementOldWrapperHandle,
 )
 import numpy as np
 from pathlib import Path
@@ -27,7 +26,6 @@ if typing.TYPE_CHECKING:
         MusesStrategy,
         ObservationHandleSet,
         SoundingMetadata,
-        StateElementOldWrapper,
         RetrievalConfiguration,
         MeasurementId,
     )
@@ -112,9 +110,7 @@ class StateElementTropomiFileHandle(StateElementHandle):
             ),
         )
         if self.h_old is not None:
-            sold = cast(
-                StateElementOldWrapper, self.h_old.state_element(state_element_id)
-            )
+            sold = self.h_old.state_element(state_element_id)
         else:
             sold = None
         res = self.obj_cls(
@@ -184,9 +180,7 @@ class StateElementTropomiFileFixedHandle(StateElementHandle):
             ),
         )
         if self.h_old is not None:
-            sold = cast(
-                StateElementOldWrapper, self.h_old.state_element(state_element_id)
-            )
+            sold = self.h_old.state_element(state_element_id)
         else:
             sold = None
         res = self.obj_cls(
@@ -238,7 +232,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
         surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
-        selem_wrapper: StateElementOldWrapper | None = None,
+        selem_wrapper: Any | None = None,
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:
@@ -264,7 +258,7 @@ class StateElementTropomiCloudPressure(StateElementImplementation):
         self,
         state_element_id: StateElementIdentifier,
         obs: MusesObservation,
-        selem_wrapper: StateElementOldWrapper | None = None,
+        selem_wrapper: Any | None = None,
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:
@@ -292,7 +286,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
         surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
-        selem_wrapper: StateElementOldWrapper | None = None,
+        selem_wrapper: Any | None = None,
         band: int = -1,
         cov_is_constraint: bool = False,
     ) -> None:

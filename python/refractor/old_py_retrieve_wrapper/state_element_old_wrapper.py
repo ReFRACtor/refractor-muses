@@ -1,26 +1,14 @@
 from __future__ import annotations
-from .state_element import StateElement, StateElementHandle
-from .identifier import StateElementIdentifier
-from .current_state import CurrentStateStateInfoOld, SoundingMetadata
-from .current_state import (
-    RetrievalGridArray,
-    FullGridMappedArray,
-    RetrievalGrid2dArray,
-    FullGrid2dArray,
-    FullGridArray,
-)
-from loguru import logger
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
 from typing import Any, cast
 from functools import cached_property
+from refractor.muses import StateElement, StateElementIdentifier,     RetrievalGridArray, FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray, FullGridArray, CurrentStrategyStep, RetrievalConfiguration
+from .current_state_state_info_old import CurrentStateStateInfoOld
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import ObservationHandleSet, MeasurementId
-    from .muses_strategy import MusesStrategy, CurrentStrategyStep
-    from .retrieval_configuration import RetrievalConfiguration
-    from refractor.old_py_retrieve_wrapper import StateElementOld  # type: ignore
+    from .state_element_old import StateElementOld  # type: ignore
 
 
 class StateElementOldWrapper(StateElement):
@@ -383,36 +371,4 @@ class StateElementOldWrapper(StateElement):
             self._current_state_old.notify_step_solution(xsol)
 
 
-class StateElementOldWrapperHandle(StateElementHandle):
-    def __init__(self) -> None:
-        from .current_state import CurrentStateStateInfoOld
-
-        self._current_state_old = CurrentStateStateInfoOld(None)
-        self.is_first = True
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        """Clear any caching associated with assuming the target being retrieved is fixed"""
-        self._current_state_old.notify_update_target(
-            measurement_id, retrieval_config, strategy, observation_handle_set
-        )
-        self.is_first = True
-
-    def state_element(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement | None:
-        logger.debug(f"Creating old state element wrapper for {state_element_id}")
-        r = StateElementOldWrapper(
-            state_element_id, self._current_state_old, self.is_first
-        )
-        self.is_first = False
-        return r
-
-
-__all__ = ["StateElementOldWrapper", "StateElementOldWrapperHandle"]
+__all__ = ["StateElementOldWrapper"]

@@ -1,18 +1,15 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
-from .identifier import StateElementIdentifier
+from refractor.muses import StateElementIdentifier, CurrentStrategyStep, RetrievalResult
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
 from pathlib import Path
-import typing
 from typing import Any
+import typing
 
 if typing.TYPE_CHECKING:
-    from .current_state import CurrentStateStateInfoOld, CurrentState
-    from .muses_strategy_executor import CurrentStrategyStep
-    from .retrieval_result import RetrievalResult
-
+    from .current_state_state_info_old import CurrentStateStateInfoOld
 
 class RetrievalInfo:
     """Not sure if we'll keep this or not, but pull out RetrievalInfo stuff so

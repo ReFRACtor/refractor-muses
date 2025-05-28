@@ -20,10 +20,10 @@ if typing.TYPE_CHECKING:
         MusesStrategy,
         ObservationHandleSet,
         SoundingMetadata,
-        StateElementOldWrapper,
         RetrievalConfiguration,
         MeasurementId,
     )
+    from refractor.old_py_retrieve_wrapper import StateElementOldWrapper
 
 
 def add_handle(
