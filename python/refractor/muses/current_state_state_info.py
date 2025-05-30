@@ -204,14 +204,14 @@ class CurrentStateStateInfo(CurrentState):
                     self._state_info[sid].constraint_vector_ret
                     for sid in self.retrieval_state_element_id
                 ]
-            )
+            ).view(RetrievalGridArray)
         if CurrentState.check_old_state_element_value:
             res2 = self._current_state_old.constraint_vector
             # Short term, see if this is only difference
             return res2.view(RetrievalGridArray)
             # Need to fix
             npt.assert_allclose(res, res2)
-        return res.view(RetrievalGridArray)
+        return res
 
     @property
     def constraint_vector_full(self) -> FullGridArray:
@@ -224,7 +224,7 @@ class CurrentStateStateInfo(CurrentState):
         # arrays - it is cleaner than having a "special rule". But for now, conform
         # to the convention
         if len(self.retrieval_state_element_id) == 0:
-            res = np.zeros((1,))
+            res = np.zeros((1,)).view(FullGridArray)
         else:
             self.match_old()
             res = np.concatenate(
@@ -232,17 +232,15 @@ class CurrentStateStateInfo(CurrentState):
                     self._state_info[sid].constraint_vector_full
                     for sid in self.retrieval_state_element_id
                 ]
-            )
+            ).view(FullGridArray)
         if CurrentState.check_old_state_element_value:
             try:
                 res2 = self._current_state_old.constraint_vector_full
-                # Short term, see if this is only difference
-                return res2.view(FullGridArray)
                 # Need to fix
                 npt.assert_allclose(res, res2)
             except KeyError:
                 pass
-        return res.view(FullGridArray)
+        return res
 
     @property
     def true_value(self) -> RetrievalGridArray:
@@ -427,40 +425,37 @@ class CurrentStateStateInfo(CurrentState):
     def state_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
-        res = self.state_element(state_element_id).value_fm
-        return res.view(FullGridMappedArray)
+        return self.state_element(state_element_id).value_fm
 
     def state_step_initial_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
-        res = self.state_element(state_element_id).step_initial_fm
-        return res.view(FullGridMappedArray)
+        return self.state_element(state_element_id).step_initial_fm
 
     def state_true_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
-        res = self.state_element(state_element_id).true_value_fm
-        if res is None:
-            return None
-        return res.view(FullGridMappedArray)
+        return self.state_element(state_element_id).true_value_fm
 
     def state_retrieval_initial_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
-        res = self.state_element(state_element_id).retrieval_initial_fm
-        return res.view(FullGridMappedArray)
+        return self.state_element(state_element_id).retrieval_initial_fm
 
     def state_constraint_vector(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
-        res = self.state_element(state_element_id).constraint_vector_fm
-        return res.view(FullGridMappedArray)
+        return self.state_element(state_element_id).constraint_vector_fm
 
+    def state_constraint_vector_fmprime(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArray:
+        return self.state_element(state_element_id).constraint_vector_fmprime
+    
     def state_apriori_covariance(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGrid2dArray:
-        res = self.state_element(state_element_id).apriori_cov_fm
-        return res.view(FullGrid2dArray)
+        return self.state_element(state_element_id).apriori_cov_fm
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
@@ -492,18 +487,12 @@ class CurrentStateStateInfo(CurrentState):
     def pressure_list(
         self, state_element_id: StateElementIdentifier | str
     ) -> RetrievalGridArray | None:
-        res = self.state_element(state_element_id).pressure_list
-        if res is None:
-            return None
-        return res.view(RetrievalGridArray)
+        return self.state_element(state_element_id).pressure_list
 
     def pressure_list_fm(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray | None:
-        res = self.state_element(state_element_id).pressure_list_fm
-        if res is None:
-            return None
-        return res.view(FullGridMappedArray)
+        return self.state_element(state_element_id).pressure_list_fm
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:

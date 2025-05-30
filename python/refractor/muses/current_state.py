@@ -284,11 +284,11 @@ class RetrievalGridArray(np.ndarray):
             rf.ArrayAd_double_1(self)
         ).value.view(FullGridArray)
 
-    def to_fm(
+    def to_fmprime(
         self,
         state_mapping_retrieval_to_fm: rf.StateMapping,
         state_mapping: rf.StateMapping,
-    ) -> FullGridMappedArray:
+    ) -> FullGridMappedArrayFromRetGrid:
         # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
         # work directly with numpy, but is it easy enough for us just to route this this
         # class
@@ -355,6 +355,63 @@ class FullGridMappedArray(np.ndarray):
             state_mapping.retrieval_state(rf.ArrayAd_double_1(self))
         ).value.view(RetrievalGridArray)
 
+    def to_fmprime(
+        self,
+        state_mapping_retrieval_to_fm: rf.StateMapping,
+        state_mapping: rf.StateMapping,
+    ) -> FullGridMappedArrayFromRetGrid:
+        return self.to_ret(state_mapping_retrieval_to_fm,
+                           state_mapping).to_fmprime(state_mapping_retrieval_to_fm,
+                                                     state_mapping)
+
+class FullGridMappedArrayFromRetGrid(np.ndarray):
+    """Data in in the forward model state vector/full state vector.
+    Mapped (e.g., log(vmr) is converted to VMR).
+
+    This is similar to FullGridMappedArray, however this gets mapped
+    from the FullGridMappedArray to the RetrievalGridArray and then back.
+    Because the RetrievalGridArray has fewer levels, there is an infinite
+    number of FullGridMappedArray values that map to a RetrievalGridArray. The
+    inverse mapping picks one, which in general isn't the one we started from.
+    So although FullGridMappedArray.to_ret == FullGridMappedArrayFromRetGrid.to_ret,
+    in general FullGridMappedArray != FullGridMappedArrayFromRetGrid.
+
+    Do distinguish this, if we have FullGridMappedArray as fm we call
+    FullGridMappedArrayFromRetGrid fmprime.
+
+    It isn't completely clear if muses-py *should* be using
+    FullGridMappedArrayFromRetGrid, but it currently does. In the current code,
+    it isn't clear if this was intended or not. But we will duplicate the current
+    behavior, and by using a separate grid we'll at least make it explicit that this
+    is what is being done. We can then take a second pass through the code and
+    decide if this is actually what we *should* be doing.
+
+    See discussion in RetrievalGridArray about adding this type to a
+    numpy array.
+
+    See CurrentState for a description of the various state vectors.
+    """
+
+    def to_full(self, state_mapping: rf.StateMapping) -> FullGridArray:
+        # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
+        # work directly with numpy, but is it easy enough for us just to route this this
+        # class
+        return state_mapping.retrieval_state(rf.ArrayAd_double_1(self)).value.view(
+            FullGridArray
+        )
+
+    def to_ret(
+        self,
+        state_mapping_retrieval_to_fm: rf.StateMapping,
+        state_mapping: rf.StateMapping,
+    ) -> RetrievalGridArray:
+        # rf.StateMapping only works with ArrayAd_double_1. We could extend this to
+        # work directly with numpy, but is it easy enough for us just to route this this
+        # class
+        return state_mapping_retrieval_to_fm.retrieval_state(
+            state_mapping.retrieval_state(rf.ArrayAd_double_1(self))
+        ).value.view(RetrievalGridArray)
+    
 
 class RetrievalGrid2dArray(np.ndarray):
     """2d matrix going with RetrievalGridArray (e.g., the constraint matrix). This
@@ -982,6 +1039,14 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         you will want to make a copy of the returned value so it doesn't mysteriously
         change underneath you when the StateElement is updated.
         """
+        raise NotImplementedError()
+
+    def state_constraint_vector_fmprime(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridMappedArrayFromRetGrid:
+        '''Map state_constraint_vector to the retrieval grid, and back to
+        the forward model grid. See discussion of this in FullGridMappedArrayFromRetGrid.
+        '''
         raise NotImplementedError()
 
     @property

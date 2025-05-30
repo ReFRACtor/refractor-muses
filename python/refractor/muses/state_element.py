@@ -233,13 +233,13 @@ class StateElement(object, metaclass=abc.ABCMeta):
         )
 
     @property
-    def constraint_vector_ret_to_fm(self) -> FullGridMappedArray:
+    def constraint_vector_fmprime(self) -> FullGridMappedArrayFromRetGrid:
         '''Because the retrieval grid has fewer levels than the forward model grid,
         you in general have different values if you start at the forward model grid
         vs. starting with constraint_vector_ret and mapping to FullGridMappedArray.
         I'm not sure how much it matters, but various calculations in muses-py
         uses this second version. Supply this.'''
-        return self.constraint_vector_ret.to_fm(
+        return self.constraint_vector_fm.to_fmprime(
             self.state_mapping_retrieval_to_fm, self.state_mapping
         )
     
@@ -708,9 +708,7 @@ class StateElementImplementation(StateElement):
         if current_fm is not None:
             self._value_fm = current_fm
         if constraint_vector_fm is not None:
-            # TODO get rid of None tests here
-            if self._constraint_vector_fm is not None:
-                self._constraint_vector_fm = constraint_vector_fm
+            self._constraint_vector_fm = constraint_vector_fm
         if step_initial_fm is not None:
             self._step_initial_fm = step_initial_fm
         if next_step_initial_fm is not None:
@@ -834,10 +832,16 @@ class StateElementImplementation(StateElement):
             assert self._value_fm is not None
             self._next_step_initial_fm = self._value_fm.copy()
         elif retrieval_slice is not None:
+            # Note we really are replacing value_fm as a FullGridMappedArray with
+            # the results from the RetrievalGridArray solution. This is what we want
+            # to do after a retrieval step. We have the "fprime" here just to make
+            # that explicit that this is what we are intending on doing here. Sp
+            # to_fmprime returns a FullGridMappedArrayFromRetGrid, but we then use
+            # that as a FullGridMappedArray.
             self._value_fm = (
                 xsol[retrieval_slice]
                 .view(RetrievalGridArray)
-                .to_fm(self.state_mapping_retrieval_to_fm, self.state_mapping)
+                .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping).view(FullGridMappedArray)
             )
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()

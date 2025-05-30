@@ -165,7 +165,8 @@ class RetrievalOutput:
 
     def state_constraint_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
-        return self.current_state.state_constraint_vector(
+        # TODO Should this be fmprime?
+        return self.current_state.state_constraint_vector_fmprime(
             StateElementIdentifier(state_name)
         )
 
