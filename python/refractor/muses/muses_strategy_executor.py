@@ -574,11 +574,14 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         # running. We should track this down when we start working on
         # the initial guess/state info portion. But for now, leave
         # this in place until we understand this
+        sinfo_old = self.current_state._state_info._current_state_old._state_info
+        sinfo_old.snapshot_to_file("before_run_through.txt")
         self.restart()
         while not self.is_done():
             self.notify_start_step(skip_initial_guess_update=True)
             self.next_step()
         self.notify_update(ProcessLocation("starting retrieval steps"))
+        sinfo_old.snapshot_to_file("after_run_through.txt")
         self.restart()
         while not self.is_done():
             if (
@@ -591,6 +594,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.notify_update(ProcessLocation("notify_start_step done"))
             self.run_step()
             self.next_step()
+        sinfo_old.snapshot_to_file("after_full_run.txt")
         self.notify_update("retrieval done")
 
     def continue_retrieval(self, stop_after_step: None | int = None) -> None:

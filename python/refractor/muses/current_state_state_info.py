@@ -356,6 +356,13 @@ class CurrentStateStateInfo(CurrentState):
             retrieval_initial_fm=retrieval_initial_fm,
             true_value_fm=true_value_fm,
         )
+        self._current_state_old.state_element_old(state_element_id).update_state(
+                current=current_fm,
+                apriori=constraint_vector_fm if constraint_vector_fm is not None else next_constraint_vector_fm,
+                initial=step_initial_fm if step_initial_fm is not None else next_step_initial_fm,
+                initial_initial=retrieval_initial_fm,
+                true=true_value_fm,
+            )
 
     def clear_cache(self) -> None:
         super().clear_cache()

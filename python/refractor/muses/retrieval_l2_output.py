@@ -957,7 +957,7 @@ class RetrievalL2Output(RetrievalOutput):
             )
 
         if self.state_sd_wavelength("EMIS").shape[0] > 0:
-            species_data.EMISSIVITY_CONSTRAINT = self.state_constraint_vec("EMIS")
+            species_data.EMISSIVITY_CONSTRAINT = self.state_constraint_vec_fm("EMIS")
             species_data.EMISSIVITY_INITIAL = self.state_retrieval_initial_value_vec(
                 "EMIS"
             )

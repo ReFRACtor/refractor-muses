@@ -165,10 +165,19 @@ class RetrievalOutput:
 
     def state_constraint_vec(self, state_name: str) -> np.ndarray:
         """Get the state value for the given state name"""
-        # TODO Should this be fmprime?
+        # TODO Should this actually be fmprime?
         return self.current_state.state_constraint_vector_fmprime(
             StateElementIdentifier(state_name)
         )
+
+    def state_constraint_vec_fm(self, state_name: str) -> np.ndarray:
+        """Get the state value for the given state name"""
+        # TODO Not really clear why some things are fmprime, and some fm.
+        # But duplicate what muses-py currently does here
+        return self.current_state.state_constraint_vector(
+            StateElementIdentifier(state_name)
+        )
+    
 
     def state_constraint(self, state_name: str) -> float:
         """Get the state value for the given state name"""

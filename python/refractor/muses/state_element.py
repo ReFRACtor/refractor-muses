@@ -761,14 +761,8 @@ class StateElementImplementation(StateElement):
             self._retrieval_initial_fm = retrieval_initial_fm
         if true_value_fm is not None:
             self._true_value = true_value_fm
-        if self._sold is not None:
-            self._sold.update_state_element(
-                current_fm,
-                constraint_vector_fm,
-                step_initial_fm,
-                retrieval_initial_fm,
-                true_value_fm,
-            )
+        # We don't update sold here. This gets handled one level higher, in
+        # current_state_state_info.py
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:

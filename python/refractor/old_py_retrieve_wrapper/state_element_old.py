@@ -140,8 +140,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
         TRUE_Flag = False
         CONSTRAINT_Flag = False
 
-        # if self.name == StateElementIdentifier("HDO"):
-        #    breakpoint()
         result = mpy.get_vector(
             results_list,
             retrieval_info.retrieval_info_obj,
@@ -569,9 +567,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
         # AT_LINE 157 Get_Species_Information.pro
         mapType = speciesInformationFile.mapType.lower()
         constraintType = speciesInformationFile.constraintType.lower()
-        # if(str(self.name) == "H2O"):
-        #    breakpoint()
-        # spectral species
         # AT_LINE 161 Get_Species_Information.pro
         # self.m_debug_mode = True
         if "TROPOMI" in species_name:
@@ -2453,8 +2448,6 @@ class MusesPyOmiStateElementOld(MusesPyStateElementOld):
         self.mapToState = np.eye(1)
         self.mapToParameters = np.eye(1)
         # Not sure if the is covariance, or sqrt covariance
-        # if str(self.name) == "OMIODWAVUV1":
-        #    breakpoint()
         sfile = self.species_information_file(current_strategy_step.retrieval_type)
         sSubaDiagonalValues = float(sfile.sSubaDiagonalValues)
         self.constraintMatrix = np.diag(

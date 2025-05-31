@@ -294,7 +294,7 @@ class RetrievalGridArray(np.ndarray):
         # class
         return state_mapping.mapped_state(
             state_mapping_retrieval_to_fm.mapped_state(rf.ArrayAd_double_1(self))
-        ).value.view(FullGridMappedArray)
+        ).value.view(FullGridMappedArrayFromRetGrid)
 
 
 class FullGridArray(np.ndarray):
@@ -1700,6 +1700,7 @@ __all__ = [
     "RetrievalGridArray",
     "FullGridArray",
     "FullGridMappedArray",
+    "FullGridMappedArrayFromRetGrid",
     "RetrievalGrid2dArray",
     "FullGrid2dArray",
 ]
