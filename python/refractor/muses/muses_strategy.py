@@ -167,7 +167,7 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
         current_state.notify_step_solution(xsol.view(RetrievalGridArray))
         for selem_id in self.current_strategy_step_dict["update_constraint_elements"]:
             v = current_state.state_value(selem_id)
-            current_state.update_full_state_element(selem_id, constraint_vector_fm=v)
+            current_state.update_full_state_element(selem_id, next_constraint_vector_fm=v)
 
     def muses_microwindows_fname(self) -> str:
         """This is very specific, but there is some complicated code used to generate the

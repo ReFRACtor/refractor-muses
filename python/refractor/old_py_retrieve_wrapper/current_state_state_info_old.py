@@ -147,8 +147,7 @@ class CurrentStateStateInfoOld(CurrentState):
                 .view(RetrievalGridArray)
             )
 
-    @property
-    def constraint_vector(self) -> RetrievalGridArray:
+    def constraint_vector(self, fix_negative : bool=True) -> RetrievalGridArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.zeros((len(self.initial_guess),)).view(RetrievalGridArray)
@@ -237,17 +236,19 @@ class CurrentStateStateInfoOld(CurrentState):
         state_element_id: StateElementIdentifier,
         current_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
+        next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
+        next_step_initial_fm: FullGridMappedArray | None = None,
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
         selem = self.state_element_old(state_element_id)
         selem.update_state(
-            current_fm,
-            constraint_vector_fm,
-            step_initial_fm,
-            retrieval_initial_fm,
-            true_value_fm,
+            current=current_fm,
+            apriori=constraint_vector_fm if constraint_vector_fm is not None else next_constraint_vector_fm,
+            initial=step_initial_fm if step_initial_fm else next_step_initial_fm,
+            initial_initial=retrieval_initial_fm,
+            true=true_value_fm,
         )
 
     @property

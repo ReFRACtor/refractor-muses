@@ -233,7 +233,7 @@ class FakeRetrievalInfo:
 
     @property
     def constraintVector(self) -> np.ndarray:
-        return self.current_state.constraint_vector
+        return self.current_state.constraint_vector(fix_negative=True)
 
     @property
     def constraintVectorListFM(self) -> np.ndarray:

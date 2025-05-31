@@ -5,6 +5,7 @@ from .current_state import (
     RetrievalGridArray,
     FullGridArray,
     FullGridMappedArray,
+    FullGridMappedArrayFromRetGrid,
     RetrievalGrid2dArray,
     FullGrid2dArray,
 )
@@ -185,8 +186,7 @@ class CurrentStateStateInfo(CurrentState):
                 .view(RetrievalGridArray)
             )
 
-    @property
-    def constraint_vector(self) -> RetrievalGridArray:
+    def constraint_vector(self, fix_negative : bool=True) -> RetrievalGridArray:
         # TODO
         # By convention, muses-py returns a length 1 array even if we don't
         # have any retrieval_state_element_id. I think this was just to avoid
@@ -199,17 +199,18 @@ class CurrentStateStateInfo(CurrentState):
             res = np.zeros((1,)).view(RetrievalGridArray)
         else:
             self.match_old()
-            res = np.concatenate(
-                [
-                    self._state_info[sid].constraint_vector_ret
-                    for sid in self.retrieval_state_element_id
-                ]
-            ).view(RetrievalGridArray)
+            resv : list[np.ndarray] = []
+            for sid in self.retrieval_state_element_id:
+                selem = self._state_info[sid]
+                v = np.array(selem.constraint_vector_ret)
+                if(fix_negative and selem.should_fix_negative and
+                   v.min() < 0 and v.max() > 0):
+                    logger.info(f"Fixing negative mapping for constraint vector for {sid}")
+                    v[v<0] = v[v>0].min()
+                resv.append(v)
+            res = np.concatenate(resv).view(RetrievalGridArray)
         if CurrentState.check_old_state_element_value:
-            res2 = self._current_state_old.constraint_vector
-            # Short term, see if this is only difference
-            return res2.view(RetrievalGridArray)
-            # Need to fix
+            res2 = self._current_state_old.constraint_vector(fix_negative=fix_negative)
             npt.assert_allclose(res, res2)
         return res
 
@@ -250,7 +251,7 @@ class CurrentStateStateInfo(CurrentState):
         res = np.zeros(
             (
                 len(
-                    self.constraint_vector,
+                    self.constraint_vector(),
                 )
             )
         )
@@ -339,17 +340,21 @@ class CurrentStateStateInfo(CurrentState):
         state_element_id: StateElementIdentifier,
         current_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
+        next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
+        next_step_initial_fm: FullGridMappedArray | None = None,
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
         self.match_old()
         self._state_info[state_element_id].update_state_element(
-            current_fm,
-            constraint_vector_fm,
-            step_initial_fm,
-            retrieval_initial_fm,
-            true_value_fm,
+            current_fm=current_fm,
+            constraint_vector_fm=constraint_vector_fm,
+            next_constraint_vector_fm=next_constraint_vector_fm,
+            step_initial_fm=step_initial_fm,
+            next_step_initial_fm=next_step_initial_fm,
+            retrieval_initial_fm=retrieval_initial_fm,
+            true_value_fm=true_value_fm,
         )
 
     def clear_cache(self) -> None:
@@ -449,7 +454,7 @@ class CurrentStateStateInfo(CurrentState):
 
     def state_constraint_vector_fmprime(
         self, state_element_id: StateElementIdentifier | str
-    ) -> FullGridMappedArray:
+    ) -> FullGridMappedArrayFromRetGrid:
         return self.state_element(state_element_id).constraint_vector_fmprime
     
     def state_apriori_covariance(

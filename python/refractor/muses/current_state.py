@@ -604,7 +604,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         state_element_id: StateElementIdentifier,
         current_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
+        next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
+        next_step_initial_fm: FullGridMappedArray | None = None,
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
@@ -633,8 +635,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Sqrt matrix from covariance"""
         return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
 
-    @property
-    def constraint_vector(self) -> RetrievalGridArray:
+    def constraint_vector(self, fix_negative : bool=True) -> RetrievalGridArray:
         """Apriori value"""
         raise NotImplementedError()
 
@@ -1297,8 +1298,7 @@ class CurrentStateUip(CurrentState):
             # much of a problem.
             return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
 
-    @property
-    def constraint_vector(self) -> RetrievalGridArray:
+    def constraint_vector(self, fix_negative : bool=True) -> RetrievalGridArray:
         if self.ret_info:
             return self.ret_info["const_vec"].view(RetrievalGridArray)
         else:

@@ -6,6 +6,7 @@ from .identifier import StateElementIdentifier, RetrievalType
 from .current_state import (
     RetrievalGridArray,
     FullGridMappedArray,
+    FullGridMappedArrayFromRetGrid,
     RetrievalGrid2dArray,
     FullGrid2dArray,
     FullGridArray,
@@ -144,6 +145,23 @@ class StateElement(object, metaclass=abc.ABCMeta):
         return res
 
     @property
+    def should_fix_negative(self) -> bool:
+        '''For some StateElement, it doesn't make sense to have negative values on the
+        retrieval grid. An example of this is VMR (with a linear mapping), where negative
+        VMR never makes sense.
+
+        We leave the actual values alone, but in some cases we can correct for this. For
+        example, it makes sense to have the constraint_vector used in the solver replace
+        these values - we don't want the regularization we add to our cost function to
+        try pulling values negative.
+
+        So have the StateElement indicate if it shouldn't be negative - but by design it
+        doesn't actually do anything about this. Instead we handle this at a higher level, to
+        make it explicit that we are changing values.
+        '''
+        return False
+
+    @property
     def state_element_id(self) -> StateElementIdentifier:
         return self._state_element_id
 
@@ -202,13 +220,13 @@ class StateElement(object, metaclass=abc.ABCMeta):
         )
 
     @property
-    def step_initial_ret_to_fm(self) -> FullGridMappedArray:
+    def step_initial_ret_to_fmprime(self) -> FullGridMappedArrayFromRetGrid:
         '''Because the retrieval grid has fewer levels than the forward model grid,
         you in general have different values if you start at the forward model grid
         vs. starting with constraint_vector_ret and mapping to FullGridMappedArray.
         I'm not sure how much it matters, but various calculations in muses-py
         uses this second version. Supply this.'''
-        return self.step_initial_ret.to_fm(
+        return self.step_initial_ret.to_fmprime(
             self.state_mapping_retrieval_to_fm, self.state_mapping
         )
     
@@ -346,6 +364,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         self,
         current_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
+        next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
         next_step_initial_fm: FullGridMappedArray | None = None,
         retrieval_initial_fm: FullGridMappedArray | None = None,
@@ -506,6 +525,7 @@ class StateElementImplementation(StateElement):
         self._retrieved_this_step = False
         self._initial_guess_not_updated = False
         self._next_step_initial_fm: FullGridMappedArray | None = None
+        self._next_constraint_vector_fm: FullGridMappedArray | None = None
         self._metadata: dict[str, Any] = {}
         # Temp, until we have tested everything out
         self._sold = selem_wrapper
@@ -533,7 +553,8 @@ class StateElementImplementation(StateElement):
             raise RuntimeError("This shouldn't happen")
         self._sold.update_initial_guess(current_strategy_step)
 
-    def _check_result(self, res: float | np.ndarray | None, func_name: str) -> None:
+    def _check_result(self, res: float | np.ndarray | None, func_name: str,
+                      exclude_negative : bool=False) -> None:
         """Function to check against the old state element. This will go away at
         some point, but for now it is useful for spotting problems. No error if
         we don't have the old state element, we just skip the check. Also we
@@ -551,13 +572,33 @@ class StateElementImplementation(StateElement):
         if res2 is None:
             raise RuntimeError("res2 should not be None")
         if isinstance(res, np.ndarray):
-            npt.assert_allclose(res, res2, 1e-12)
+            # For some values, the old code truncated negative values.
+            # We handle this outside of StateElement. Exclude these points,
+            # they can be different and this isn't a problem
+            if(exclude_negative and self.should_fix_negative):
+                if(np.count_nonzero(res>0) > 0):
+                    npt.assert_allclose(res[res>0], res2[res>0], 1e-12)
+            else:
+                npt.assert_allclose(res, res2, 1e-12)
             # Special case, some of the basis matrix that happen to be integer
             # are left as int64. No real reason, but also no harm
             if res2.dtype != np.int64:
                 assert res.dtype == res2.dtype
         else:
             assert res == res2
+
+    @property
+    def should_fix_negative(self) -> bool:
+        # Not sure of the exact logic here. We can rework this if needed, perhaps put
+        # in a general linear constraint library? But for now, we use the simple logic
+        # of 1) if we are something that has pressure levels and 2) we use a linear mapping
+        # then we say we shouldn't go negative.
+        # This is probably too simple in general, but this should be at least a reasonable
+        # stand in here until/unless we need something more sophisticated
+        if(isinstance(self.state_mapping, rf.StateMappingLinear) and
+           self._pressure_list_fm is not None):
+            return True
+        return False
 
     # TODO This can perhaps go away? Replace with a mapping?
     @property
@@ -609,7 +650,7 @@ class StateElementImplementation(StateElement):
     @property
     def constraint_vector_ret(self) -> RetrievalGridArray:
         res = super().constraint_vector_ret
-        self._check_result(res, "constraint_vector_ret")
+        self._check_result(res, "constraint_vector_ret", exclude_negative=True)
         return res
         
 
@@ -700,6 +741,7 @@ class StateElementImplementation(StateElement):
         self,
         current_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
+        next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
         next_step_initial_fm: FullGridMappedArray | None = None,
         retrieval_initial_fm: FullGridMappedArray | None = None,
@@ -709,6 +751,8 @@ class StateElementImplementation(StateElement):
             self._value_fm = current_fm
         if constraint_vector_fm is not None:
             self._constraint_vector_fm = constraint_vector_fm
+        if next_constraint_vector_fm is not None:
+            self._next_constraint_vector_fm = next_constraint_vector_fm
         if step_initial_fm is not None:
             self._step_initial_fm = step_initial_fm
         if next_step_initial_fm is not None:
@@ -764,6 +808,7 @@ class StateElementImplementation(StateElement):
             self._value_fm = self._retrieval_initial_fm.copy()
             self._step_initial_fm = self._retrieval_initial_fm.copy()
         self._next_step_initial_fm = None
+        self._next_constraint_vector_fm = None
 
     def notify_start_step(
         self,
@@ -793,6 +838,9 @@ class StateElementImplementation(StateElement):
         if self._next_step_initial_fm is not None:
             self._step_initial_fm = self._next_step_initial_fm
             self._next_step_initial_fm = None
+        if self._next_constraint_vector_fm is not None:
+            self._constraint_vector_fm = self._next_constraint_vector_fm
+            self._next_constraint_vector_fm = None
         # Set value to initial value
         if self._step_initial_fm is not None:
             self._value_fm = self._step_initial_fm.copy()
