@@ -597,7 +597,7 @@ class StateElementOldWrapperHandle(StateElementHandle):
         self._current_state_old_v: Any | None = None
 
     # Map to Any because mypy gets confused mapping to old_py_retrieve_wrapper,
-    # so we just punt to tracking types there
+    # so we just punt on tracking types there
     @property
     def _current_state_old(self) -> Any:
         """One level of indirection, just to break circular dependency in importing

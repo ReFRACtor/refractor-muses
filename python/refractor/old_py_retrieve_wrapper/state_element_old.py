@@ -207,6 +207,8 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             # ind = where(result NE 0)
             if ind.size > 0:
                 self.state_info.state_info_obj.current["emissivity"][ind] = result[ind]
+                #print(self.state_info.state_info_obj.current["emissivity"][54])
+                #breakpoint()
         elif str(self.name) == "CLOUDEXT":
             # Note that the variable ind is the list of frequencies that are retrieved
             # AT_LINE 85 Update_State.pro
@@ -216,7 +218,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                     self.state_info.state_info_obj.current["cloudEffExt"][0, ind] = (
                         result[ind]
                     )
-
                     # update all frequencies surrounded by current windows
                     # I think the PGE only updates retrieved frequencies
                     # AT_LINE 91 Update_State.pro
@@ -299,6 +300,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                     self.state_info.state_info_obj.current["cloudEffExt"][0, ind] = (
                         resetAve
                     )
+                    #breakpoint()
             # end part of: if stepType != 'bt_ig_refine':
 
             if self.state_info.state_info_obj.current["cloudEffExt"][0, 0] == 0.01:

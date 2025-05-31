@@ -110,7 +110,7 @@ class StateElementOspFile(StateElementImplementation):
         if self._constraint_matrix is not None:
             return
         # TODO Short term work around this, until we are ready to support this.
-        if(self.state_element_id == StateElementIdentifier("CLOUDEXT")):
+        if(str(self.state_element_id) in ("CLOUDEXT", "EMIS")):
            self._constraint_matrix = self._sold.constraint_matrix
            return
         self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
@@ -149,7 +149,7 @@ class StateElementOspFile(StateElementImplementation):
             self._state_mapping = rf.StateMappingLog()
         else:
             raise RuntimeError(f"Don't recognize map_type {self._map_type}")
-        if str(self.state_element_id) in ("CLOUDEXT"):
+        if str(self.state_element_id) in ("CLOUDEXT", "EMIS"):
             # This actually looks like the frequency instead of pressure. But it is
             # what the muses-py code expects
             self._pressure_list_fm = self._sold.pressure_list_fm

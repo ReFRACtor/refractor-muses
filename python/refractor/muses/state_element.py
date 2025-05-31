@@ -531,6 +531,7 @@ class StateElementImplementation(StateElement):
         self._sold = selem_wrapper
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
             self.update_initial_guess = self._update_initial_guess
+        self.is_bt_ig_refine = False
 
     def notify_parameter_update(self, param_subset: np.ndarray) -> None:
         # Skip if we aren't actually retrieving. This fits with the hokey way that
@@ -643,6 +644,17 @@ class StateElementImplementation(StateElement):
 
     @property
     def value_fm(self) -> FullGridMappedArray:
+        # If step s_bt_ig_refine, update using the old code. See
+        # comment below in notify_step_solution, same issue
+        if(self.is_bt_ig_refine and self._sold is not None):
+            self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")[0,:]
+            assert self._value_fm is not None
+            self._next_step_initial_fm = self._value_fm.copy()
+        # Keep running into issues here, just punt for now
+        if str(self.state_element_id) in ("EMIS"):
+            self._value_fm = self._sold.value_fm.copy()
+        if str(self.state_element_id) in ("CLOUDEXT"):
+            self._value_fm = self._sold.value_fm[0,:].copy().view(FullGridMappedArray)
         res = self._value_fm
         if res is None:
             raise RuntimeError("_value_fm shouldn't be None")
@@ -695,6 +707,9 @@ class StateElementImplementation(StateElement):
 
     @property
     def step_initial_fm(self) -> FullGridMappedArray:
+        # Punt
+        if str(self.state_element_id) in ("EMIS"):
+            self._step_initial_fm = self._sold.step_initial_fm.copy()
         if self._step_initial_fm is None:
             raise RuntimeError("_step_initial_fm shouldn't be None")
         res = self._step_initial_fm
@@ -831,7 +846,6 @@ class StateElementImplementation(StateElement):
                 self._state_mapping_retrieval_to_fm = (
                     self._sold.state_mapping_retrieval_to_fm
                 )
-
         # Update the initial value if we have a setting from the previous step
         if self._next_step_initial_fm is not None:
             self._step_initial_fm = self._next_step_initial_fm
@@ -842,6 +856,14 @@ class StateElementImplementation(StateElement):
         # Set value to initial value
         if self._step_initial_fm is not None:
             self._value_fm = self._step_initial_fm.copy()
+        # Not sure what exactly is going on here, but somehow the
+        # value is being changed before we start this step. Just
+        # steal from old element for now, we'll need to sort this out.
+        # Note that this is out of sync with self._step_initial_fm, which
+        # actually seems to be the case. Probably a mistake, but duplicate for now
+        if self.state_element_id == StateElementIdentifier("EMIS"):
+            if self.state_element_id in current_strategy_step.retrieval_elements:
+                self._value_fm = self._sold.value_fm
         self._retrieved_this_step = (
             self.state_element_id in current_strategy_step.retrieval_elements
         )
@@ -890,13 +912,22 @@ class StateElementImplementation(StateElement):
                 .view(RetrievalGridArray)
                 .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping).view(FullGridMappedArray)
             )
-            # Not sure of the
-            if(self.state_element_id == StateElementIdentifier("CLOUDEXT")):
-                self._value_fm[self.updated_fm_flag == 1] = res[self.updated_fm_flag == 1]
+            # Not sure of the logic here. I think this is a way to calculate
+            # self.updated_fm_flag
+            updfl = (np.abs(np.sum(self.map_to_parameter_matrix, axis=1)) >= 1e-10)
+            if(str(self.state_element_id) in ("CLOUDEXT", "EMIS")):
+                self._value_fm[updfl] = res[updfl]
             else:
                 self._value_fm = res
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
+            # Not sure what exactly is going on here, but somehow the
+            # value is being changed before we start this step. Just
+            # steal from old element for now, we'll need to sort this out.
+            # Note that this is out of sync with self._step_initial_fm, which
+            # actually seems to be the case. Probably a mistake, but duplicate for now
+            if self.state_element_id == StateElementIdentifier("EMIS"):
+                self._value_fm = self._sold.value_fm
 
 
 class StateElementFillValueHandle(StateElementHandle):
