@@ -839,7 +839,7 @@ class RetrievalL2Output(RetrievalOutput):
             # AT_LINE 363 write_products_one.pro
             # AT_LINE 374 src_ms-2018-12-10/write_products_one.pro
             species_data.CLOUDEFFECTIVEOPTICALDEPTH = (
-                self.state_value_vec("CLOUDEXT")[0, :] * convertToOD
+                self.state_value_vec("CLOUDEXT")[:] * convertToOD
             )
 
             indf = utilList.WhereEqualIndices(self.species_list_fm, "CLOUDEXT")

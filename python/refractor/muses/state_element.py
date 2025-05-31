@@ -571,6 +571,8 @@ class StateElementImplementation(StateElement):
         res2 = getattr(self._sold, func_name)
         if res2 is None:
             raise RuntimeError("res2 should not be None")
+        if(self.state_element_id == StateElementIdentifier("CLOUDEXT") and isinstance(res, np.ndarray) and len(res.shape) == 1 and len(res2.shape) == 2):
+            res2 = res2[0,:]
         if isinstance(res, np.ndarray):
             # For some values, the old code truncated negative values.
             # We handle this outside of StateElement. Exclude these points,
@@ -797,6 +799,8 @@ class StateElementImplementation(StateElement):
         # Temp, this gets updated somewhere in old state info. Need to track down where
         if self._sold is not None and self._sold.value_str is None:
             self._retrieval_initial_fm = self._sold.retrieval_initial_fm
+            if(str(self.state_element_id) in  ("CLOUDEXT",)):
+                self._retrieval_initial_fm = self._retrieval_initial_fm[0,:]
         # The value and step initial guess should be set to the retrieval initial value
         if self._retrieval_initial_fm is not None:
             self._value_fm = self._retrieval_initial_fm.copy()
@@ -870,7 +874,7 @@ class StateElementImplementation(StateElement):
             and self.is_bt_ig_refine
             and self._sold is not None
         ):
-            self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")
+            self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")[0,:]
             assert self._value_fm is not None
             self._next_step_initial_fm = self._value_fm.copy()
         elif retrieval_slice is not None:
@@ -880,11 +884,17 @@ class StateElementImplementation(StateElement):
             # that explicit that this is what we are intending on doing here. Sp
             # to_fmprime returns a FullGridMappedArrayFromRetGrid, but we then use
             # that as a FullGridMappedArray.
-            self._value_fm = (
+
+            res = (
                 xsol[retrieval_slice]
                 .view(RetrievalGridArray)
                 .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping).view(FullGridMappedArray)
             )
+            # Not sure of the
+            if(self.state_element_id == StateElementIdentifier("CLOUDEXT")):
+                self._value_fm[self.updated_fm_flag == 1] = res[self.updated_fm_flag == 1]
+            else:
+                self._value_fm = res
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
 

@@ -241,7 +241,7 @@ class CloudResultSummary:
         ind = np.where((freq >= 974) & (freq <= 1201))[0]
         ceffect = self.state_value_vec("CLOUDEXT")
         if len(ind) > 0:
-            res = np.sum(ceffect[0, ind]) / len(ceffect[0, ind]) * self.cloud_factor
+            res = np.sum(ceffect[ind]) / len(ceffect[ind]) * self.cloud_factor
         else:
             res = 0
         return res

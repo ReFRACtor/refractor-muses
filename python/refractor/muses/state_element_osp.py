@@ -11,6 +11,7 @@ from .identifier import StateElementIdentifier, RetrievalType
 from loguru import logger
 from pathlib import Path
 import numpy as np
+import numpy.testing as npt
 import typing
 from typing import Self, Any
 
@@ -83,7 +84,7 @@ class StateElementOspFile(StateElementImplementation):
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
-        if selem_wrapper is not None:
+        if False and selem_wrapper is not None:
             if selem_wrapper.value_str is None:
                 value_fm = selem_wrapper.value_fm
         super().__init__(
@@ -96,14 +97,22 @@ class StateElementOspFile(StateElementImplementation):
             selem_wrapper=selem_wrapper,
         )
         if selem_wrapper is not None:
-            if selem_wrapper.value_str is None:
+            if False and selem_wrapper.value_str is None:
                 self._step_initial_fm = selem_wrapper.value_fm
         if self.poltype is not None:
             self._metadata["poltype"] = self.poltype
+        # TODO Need better way to handle this
+        if self.state_element_id == StateElementIdentifier("EMIS"):
+            self._metadata["camel_distance"] = self._sold.metadata["camel_distance"]
+            self._metadata["prior_source"] = self._sold.metadata["prior_source"]
 
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
             return
+        # TODO Short term work around this, until we are ready to support this.
+        if(self.state_element_id == StateElementIdentifier("CLOUDEXT")):
+           self._constraint_matrix = self._sold.constraint_matrix
+           return
         self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
             self.state_element_id,
             self.retrieval_type,
@@ -140,7 +149,11 @@ class StateElementOspFile(StateElementImplementation):
             self._state_mapping = rf.StateMappingLog()
         else:
             raise RuntimeError(f"Don't recognize map_type {self._map_type}")
-        if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
+        if str(self.state_element_id) in ("CLOUDEXT"):
+            # This actually looks like the frequency instead of pressure. But it is
+            # what the muses-py code expects
+            self._pressure_list_fm = self._sold.pressure_list_fm
+        elif self._retrieval_levels is None or len(self._retrieval_levels) < 2:
             self._pressure_list_fm = None
         else:
             if self._pressure_level is None:
@@ -278,16 +291,6 @@ class StateElementOspFile(StateElementImplementation):
             retrieval_config,
             skip_initial_guess_update,
         )
-        # We need to get the initial guess stuff in place, but for now just
-        # grab from old data
-        if (
-            self._sold is not None
-            and current_strategy_step.strategy_step.step_number == 0
-        ):
-            if self._sold.value_str is None:
-                self._step_initial_fm = self._sold.step_initial_fm.copy()
-                assert self._step_initial_fm is not None
-                self._value_fm = self._step_initial_fm.copy()
         self.retrieval_type = current_strategy_step.retrieval_type
             
         # Most of the time this will just return the same value, but there might be

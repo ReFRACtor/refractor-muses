@@ -2983,7 +2983,10 @@ class CloudStateOld(StateElementWithFrequencyOld):
             (true, "true"),
         ):
             if v is not None:
-                self.state_info.state_info_dict[stp]["cloudEffExt"] = v
+                if(len(v.shape) == 2):
+                    self.state_info.state_info_dict[stp]["cloudEffExt"] = v
+                else:
+                    self.state_info.state_info_dict[stp]["cloudEffExt"] = v[np.newaxis,:]
 
 
 class CalibrationState(StateElementWithFrequencyOld):
