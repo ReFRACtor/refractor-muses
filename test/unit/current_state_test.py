@@ -2699,10 +2699,13 @@ def test_retrieval_grid_array():
     )
     assert isinstance(initial_value_ret.to_full(smap_ret_to_fm), FullGridArray)
     assert isinstance(
-        initial_value_ret.to_fmprime(smap_ret_to_fm, smap), FullGridMappedArrayFromRetGrid
+        initial_value_ret.to_fmprime(smap_ret_to_fm, smap),
+        FullGridMappedArrayFromRetGrid,
     )
     npt.assert_allclose(initial_value_ret.to_full(smap_ret_to_fm), initial_value_full)
-    npt.assert_allclose(initial_value_ret.to_fmprime(smap_ret_to_fm, smap), initial_value_fm)
+    npt.assert_allclose(
+        initial_value_ret.to_fmprime(smap_ret_to_fm, smap), initial_value_fm
+    )
 
     assert isinstance(initial_value_full.to_ret(smap_ret_to_fm), RetrievalGridArray)
     assert isinstance(initial_value_full.to_fm(smap), FullGridMappedArray)

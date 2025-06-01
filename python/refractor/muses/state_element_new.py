@@ -84,15 +84,13 @@ class StateElementOspFileHandleNew(StateElementHandle):
                 constraint_vector_fm = sold.constraint_vector_fm
             except NotImplementedError:
                 constraint_vector_fm = value_fm.copy()
-            if str(state_element_id) in (
-                    "CLOUDEXT",
-            ):
+            if str(state_element_id) in ("CLOUDEXT",):
                 # For some reason these are 2d. I'm pretty sure this is just some left
                 # over thing or other, anything other than row 0 isn't used. For nowm
                 # make 1 d so we don't need some special handling. We can revisit if
                 # we actually determine this should be 2d
-                value_fm = value_fm[0,:]
-                constraint_vector_fm = constraint_vector_fm[0,:]
+                value_fm = value_fm[0, :]
+                constraint_vector_fm = constraint_vector_fm[0, :]
         else:
             value_fm = None
             constraint_vector_fm = None

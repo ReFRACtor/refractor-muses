@@ -177,7 +177,6 @@ class RetrievalOutput:
         return self.current_state.state_constraint_vector(
             StateElementIdentifier(state_name)
         )
-    
 
     def state_constraint(self, state_name: str) -> float:
         """Get the state value for the given state name"""

@@ -2,16 +2,11 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
 from .state_element import StateElementImplementation, StateElement, StateElementHandle
-from .current_state import (
-    FullGridMappedArray,
-    RetrievalGrid2dArray,
-    FullGrid2dArray
-)
+from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
 from .identifier import StateElementIdentifier, RetrievalType
 from loguru import logger
 from pathlib import Path
 import numpy as np
-import numpy.testing as npt
 import typing
 from typing import Self, Any
 
@@ -101,18 +96,10 @@ class StateElementOspFile(StateElementImplementation):
                 self._step_initial_fm = selem_wrapper.value_fm
         if self.poltype is not None:
             self._metadata["poltype"] = self.poltype
-        # TODO Need better way to handle this
-        if self.state_element_id == StateElementIdentifier("EMIS"):
-            self._metadata["camel_distance"] = self._sold.metadata["camel_distance"]
-            self._metadata["prior_source"] = self._sold.metadata["prior_source"]
 
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
             return
-        # TODO Short term work around this, until we are ready to support this.
-        if(str(self.state_element_id) in ("CLOUDEXT", "EMIS")):
-           self._constraint_matrix = self._sold.constraint_matrix
-           return
         self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
             self.state_element_id,
             self.retrieval_type,
@@ -149,11 +136,7 @@ class StateElementOspFile(StateElementImplementation):
             self._state_mapping = rf.StateMappingLog()
         else:
             raise RuntimeError(f"Don't recognize map_type {self._map_type}")
-        if str(self.state_element_id) in ("CLOUDEXT", "EMIS"):
-            # This actually looks like the frequency instead of pressure. But it is
-            # what the muses-py code expects
-            self._pressure_list_fm = self._sold.pressure_list_fm
-        elif self._retrieval_levels is None or len(self._retrieval_levels) < 2:
+        if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
             self._pressure_list_fm = None
         else:
             if self._pressure_level is None:
@@ -292,7 +275,7 @@ class StateElementOspFile(StateElementImplementation):
             skip_initial_guess_update,
         )
         self.retrieval_type = current_strategy_step.retrieval_type
-            
+
         # Most of the time this will just return the same value, but there might be
         # certain steps with a different constraint matrix. So we empty the cache here
         # Note the reader does caching, so reading this multiple times isn't as

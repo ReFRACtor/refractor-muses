@@ -360,9 +360,10 @@ class FullGridMappedArray(np.ndarray):
         state_mapping_retrieval_to_fm: rf.StateMapping,
         state_mapping: rf.StateMapping,
     ) -> FullGridMappedArrayFromRetGrid:
-        return self.to_ret(state_mapping_retrieval_to_fm,
-                           state_mapping).to_fmprime(state_mapping_retrieval_to_fm,
-                                                     state_mapping)
+        return self.to_ret(state_mapping_retrieval_to_fm, state_mapping).to_fmprime(
+            state_mapping_retrieval_to_fm, state_mapping
+        )
+
 
 class FullGridMappedArrayFromRetGrid(np.ndarray):
     """Data in in the forward model state vector/full state vector.
@@ -411,7 +412,7 @@ class FullGridMappedArrayFromRetGrid(np.ndarray):
         return state_mapping_retrieval_to_fm.retrieval_state(
             state_mapping.retrieval_state(rf.ArrayAd_double_1(self))
         ).value.view(RetrievalGridArray)
-    
+
 
 class RetrievalGrid2dArray(np.ndarray):
     """2d matrix going with RetrievalGridArray (e.g., the constraint matrix). This
@@ -635,7 +636,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Sqrt matrix from covariance"""
         return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
 
-    def constraint_vector(self, fix_negative : bool=True) -> RetrievalGridArray:
+    def constraint_vector(self, fix_negative: bool = True) -> RetrievalGridArray:
         """Apriori value"""
         raise NotImplementedError()
 
@@ -1045,9 +1046,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def state_constraint_vector_fmprime(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArrayFromRetGrid:
-        '''Map state_constraint_vector to the retrieval grid, and back to
+        """Map state_constraint_vector to the retrieval grid, and back to
         the forward model grid. See discussion of this in FullGridMappedArrayFromRetGrid.
-        '''
+        """
         raise NotImplementedError()
 
     @property
@@ -1298,7 +1299,7 @@ class CurrentStateUip(CurrentState):
             # much of a problem.
             return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
 
-    def constraint_vector(self, fix_negative : bool=True) -> RetrievalGridArray:
+    def constraint_vector(self, fix_negative: bool = True) -> RetrievalGridArray:
         if self.ret_info:
             return self.ret_info["const_vec"].view(RetrievalGridArray)
         else:

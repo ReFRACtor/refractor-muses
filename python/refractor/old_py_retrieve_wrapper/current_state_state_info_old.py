@@ -147,7 +147,7 @@ class CurrentStateStateInfoOld(CurrentState):
                 .view(RetrievalGridArray)
             )
 
-    def constraint_vector(self, fix_negative : bool=True) -> RetrievalGridArray:
+    def constraint_vector(self, fix_negative: bool = True) -> RetrievalGridArray:
         # Not sure about systematic handling here.
         if self.do_systematic:
             return np.zeros((len(self.initial_guess),)).view(RetrievalGridArray)
@@ -245,7 +245,9 @@ class CurrentStateStateInfoOld(CurrentState):
         selem = self.state_element_old(state_element_id)
         selem.update_state(
             current=current_fm,
-            apriori=constraint_vector_fm if constraint_vector_fm is not None else next_constraint_vector_fm,
+            apriori=constraint_vector_fm
+            if constraint_vector_fm is not None
+            else next_constraint_vector_fm,
             initial=step_initial_fm if step_initial_fm else next_step_initial_fm,
             initial_initial=retrieval_initial_fm,
             true=true_value_fm,

@@ -2,7 +2,7 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
-from .identifier import StateElementIdentifier, RetrievalType
+from .identifier import StateElementIdentifier
 from .current_state import (
     RetrievalGridArray,
     FullGridMappedArray,
@@ -146,7 +146,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def should_fix_negative(self) -> bool:
-        '''For some StateElement, it doesn't make sense to have negative values on the
+        """For some StateElement, it doesn't make sense to have negative values on the
         retrieval grid. An example of this is VMR (with a linear mapping), where negative
         VMR never makes sense.
 
@@ -158,7 +158,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
         So have the StateElement indicate if it shouldn't be negative - but by design it
         doesn't actually do anything about this. Instead we handle this at a higher level, to
         make it explicit that we are changing values.
-        '''
+        """
         return False
 
     @property
@@ -221,15 +221,15 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def step_initial_ret_to_fmprime(self) -> FullGridMappedArrayFromRetGrid:
-        '''Because the retrieval grid has fewer levels than the forward model grid,
+        """Because the retrieval grid has fewer levels than the forward model grid,
         you in general have different values if you start at the forward model grid
         vs. starting with constraint_vector_ret and mapping to FullGridMappedArray.
         I'm not sure how much it matters, but various calculations in muses-py
-        uses this second version. Supply this.'''
+        uses this second version. Supply this."""
         return self.step_initial_ret.to_fmprime(
             self.state_mapping_retrieval_to_fm, self.state_mapping
         )
-    
+
     @property
     def step_initial_full(self) -> FullGridArray:
         return self.step_initial_fm.to_full(self.state_mapping)
@@ -252,15 +252,15 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @property
     def constraint_vector_fmprime(self) -> FullGridMappedArrayFromRetGrid:
-        '''Because the retrieval grid has fewer levels than the forward model grid,
+        """Because the retrieval grid has fewer levels than the forward model grid,
         you in general have different values if you start at the forward model grid
         vs. starting with constraint_vector_ret and mapping to FullGridMappedArray.
         I'm not sure how much it matters, but various calculations in muses-py
-        uses this second version. Supply this.'''
+        uses this second version. Supply this."""
         return self.constraint_vector_fm.to_fmprime(
             self.state_mapping_retrieval_to_fm, self.state_mapping
         )
-    
+
     @property
     def constraint_vector_full(self) -> FullGridArray:
         return self.constraint_vector_fm.to_full(self.state_mapping)
@@ -554,8 +554,12 @@ class StateElementImplementation(StateElement):
             raise RuntimeError("This shouldn't happen")
         self._sold.update_initial_guess(current_strategy_step)
 
-    def _check_result(self, res: float | np.ndarray | None, func_name: str,
-                      exclude_negative : bool=False) -> None:
+    def _check_result(
+        self,
+        res: float | np.ndarray | None,
+        func_name: str,
+        exclude_negative: bool = False,
+    ) -> None:
         """Function to check against the old state element. This will go away at
         some point, but for now it is useful for spotting problems. No error if
         we don't have the old state element, we just skip the check. Also we
@@ -572,15 +576,15 @@ class StateElementImplementation(StateElement):
         res2 = getattr(self._sold, func_name)
         if res2 is None:
             raise RuntimeError("res2 should not be None")
-        if(self.state_element_id == StateElementIdentifier("CLOUDEXT") and isinstance(res, np.ndarray) and len(res.shape) == 1 and len(res2.shape) == 2):
-            res2 = res2[0,:]
+        if isinstance(res, np.ndarray) and len(res.shape) == 1 and len(res2.shape) == 2:
+            res2 = res2[0, :]
         if isinstance(res, np.ndarray):
             # For some values, the old code truncated negative values.
             # We handle this outside of StateElement. Exclude these points,
             # they can be different and this isn't a problem
-            if(exclude_negative and self.should_fix_negative):
-                if(np.count_nonzero(res>0) > 0):
-                    npt.assert_allclose(res[res>0], res2[res>0], 1e-12)
+            if exclude_negative and self.should_fix_negative:
+                if np.count_nonzero(res > 0) > 0:
+                    npt.assert_allclose(res[res > 0], res2[res > 0], 1e-12)
             else:
                 npt.assert_allclose(res, res2, 1e-12)
             # Special case, some of the basis matrix that happen to be integer
@@ -598,8 +602,10 @@ class StateElementImplementation(StateElement):
         # then we say we shouldn't go negative.
         # This is probably too simple in general, but this should be at least a reasonable
         # stand in here until/unless we need something more sophisticated
-        if(isinstance(self.state_mapping, rf.StateMappingLinear) and
-           self._pressure_list_fm is not None):
+        if (
+            isinstance(self.state_mapping, rf.StateMappingLinear)
+            and self._pressure_list_fm is not None
+        ):
             return True
         return False
 
@@ -644,17 +650,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def value_fm(self) -> FullGridMappedArray:
-        # If step s_bt_ig_refine, update using the old code. See
-        # comment below in notify_step_solution, same issue
-        if(self.is_bt_ig_refine and self._sold is not None):
-            self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")[0,:]
-            assert self._value_fm is not None
-            self._next_step_initial_fm = self._value_fm.copy()
-        # Keep running into issues here, just punt for now
-        if str(self.state_element_id) in ("EMIS"):
-            self._value_fm = self._sold.value_fm.copy()
-        if str(self.state_element_id) in ("CLOUDEXT"):
-            self._value_fm = self._sold.value_fm[0,:].copy().view(FullGridMappedArray)
         res = self._value_fm
         if res is None:
             raise RuntimeError("_value_fm shouldn't be None")
@@ -666,7 +661,6 @@ class StateElementImplementation(StateElement):
         res = super().constraint_vector_ret
         self._check_result(res, "constraint_vector_ret", exclude_negative=True)
         return res
-        
 
     @property
     def constraint_vector_fm(self) -> FullGridMappedArray:
@@ -707,9 +701,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def step_initial_fm(self) -> FullGridMappedArray:
-        # Punt
-        if str(self.state_element_id) in ("EMIS"):
-            self._step_initial_fm = self._sold.step_initial_fm.copy()
         if self._step_initial_fm is None:
             raise RuntimeError("_step_initial_fm shouldn't be None")
         res = self._step_initial_fm
@@ -814,8 +805,13 @@ class StateElementImplementation(StateElement):
         # Temp, this gets updated somewhere in old state info. Need to track down where
         if self._sold is not None and self._sold.value_str is None:
             self._retrieval_initial_fm = self._sold.retrieval_initial_fm
-            if(str(self.state_element_id) in  ("CLOUDEXT",)):
-                self._retrieval_initial_fm = self._retrieval_initial_fm[0,:]
+            if (
+                isinstance(self._retrieval_initial_fm, np.ndarray)
+                and len(self._retrieval_initial_fm.shape) == 2
+            ):
+                self._retrieval_initial_fm = self._retrieval_initial_fm[0, :].view(
+                    FullGridMappedArray
+                )
         # The value and step initial guess should be set to the retrieval initial value
         if self._retrieval_initial_fm is not None:
             self._value_fm = self._retrieval_initial_fm.copy()
@@ -835,17 +831,6 @@ class StateElementImplementation(StateElement):
                 retrieval_config,
                 skip_initial_guess_update,
             )
-        # handling for cloudEffExt, see below. We should move this into it's own
-        # class, but for now just plop this in here
-        if self.state_element_id == StateElementIdentifier("CLOUDEXT"):
-            self.is_bt_ig_refine = (
-                current_strategy_step.retrieval_type == RetrievalType("bt_ig_refine")
-            )
-            # Also, the basis matrix changes for CLOUDEXT from one step to the next
-            if self._sold is not None:
-                self._state_mapping_retrieval_to_fm = (
-                    self._sold.state_mapping_retrieval_to_fm
-                )
         # Update the initial value if we have a setting from the previous step
         if self._next_step_initial_fm is not None:
             self._step_initial_fm = self._next_step_initial_fm
@@ -856,14 +841,6 @@ class StateElementImplementation(StateElement):
         # Set value to initial value
         if self._step_initial_fm is not None:
             self._value_fm = self._step_initial_fm.copy()
-        # Not sure what exactly is going on here, but somehow the
-        # value is being changed before we start this step. Just
-        # steal from old element for now, we'll need to sort this out.
-        # Note that this is out of sync with self._step_initial_fm, which
-        # actually seems to be the case. Probably a mistake, but duplicate for now
-        if self.state_element_id == StateElementIdentifier("EMIS"):
-            if self.state_element_id in current_strategy_step.retrieval_elements:
-                self._value_fm = self._sold.value_fm
         self._retrieved_this_step = (
             self.state_element_id in current_strategy_step.retrieval_elements
         )
@@ -883,23 +860,7 @@ class StateElementImplementation(StateElement):
         # this step. But skip if we are on the not updated list
         self._next_step_initial_fm = None
 
-        # We have some odd logic in StateElementOld for cloudEffExt for the
-        # bt_ig_refine step. We will need to duplicate this, but short term
-        # just punt and use the old value. Note that we end up at about
-        # line 264, there cloudEffExt is set to an average value, but we will
-        # need to work through this. Probably special handling on
-        # notify_step_solution for cloudEffExt, for bt_ig_refine step.
-        # Also CLOUDEXT seems to be a sort of alias for cloudEffExt, but we don't
-        # have that fully supported yet - should probably add that
-        if (
-            self.state_element_id == StateElementIdentifier("CLOUDEXT")
-            and self.is_bt_ig_refine
-            and self._sold is not None
-        ):
-            self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")[0,:]
-            assert self._value_fm is not None
-            self._next_step_initial_fm = self._value_fm.copy()
-        elif retrieval_slice is not None:
+        if retrieval_slice is not None:
             # Note we really are replacing value_fm as a FullGridMappedArray with
             # the results from the RetrievalGridArray solution. This is what we want
             # to do after a retrieval step. We have the "fprime" here just to make
@@ -910,24 +871,12 @@ class StateElementImplementation(StateElement):
             res = (
                 xsol[retrieval_slice]
                 .view(RetrievalGridArray)
-                .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping).view(FullGridMappedArray)
+                .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
+                .view(FullGridMappedArray)
             )
-            # Not sure of the logic here. I think this is a way to calculate
-            # self.updated_fm_flag
-            updfl = (np.abs(np.sum(self.map_to_parameter_matrix, axis=1)) >= 1e-10)
-            if(str(self.state_element_id) in ("CLOUDEXT", "EMIS")):
-                self._value_fm[updfl] = res[updfl]
-            else:
-                self._value_fm = res
+            self._value_fm = res
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
-            # Not sure what exactly is going on here, but somehow the
-            # value is being changed before we start this step. Just
-            # steal from old element for now, we'll need to sort this out.
-            # Note that this is out of sync with self._step_initial_fm, which
-            # actually seems to be the case. Probably a mistake, but duplicate for now
-            if self.state_element_id == StateElementIdentifier("EMIS"):
-                self._value_fm = self._sold.value_fm
 
 
 class StateElementFillValueHandle(StateElementHandle):

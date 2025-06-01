@@ -207,8 +207,8 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             # ind = where(result NE 0)
             if ind.size > 0:
                 self.state_info.state_info_obj.current["emissivity"][ind] = result[ind]
-                #print(self.state_info.state_info_obj.current["emissivity"][54])
-                #breakpoint()
+                # print(self.state_info.state_info_obj.current["emissivity"][54])
+                # breakpoint()
         elif str(self.name) == "CLOUDEXT":
             # Note that the variable ind is the list of frequencies that are retrieved
             # AT_LINE 85 Update_State.pro
@@ -300,7 +300,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                     self.state_info.state_info_obj.current["cloudEffExt"][0, ind] = (
                         resetAve
                     )
-                    #breakpoint()
+                    # breakpoint()
             # end part of: if stepType != 'bt_ig_refine':
 
             if self.state_info.state_info_obj.current["cloudEffExt"][0, 0] == 0.01:
@@ -2985,10 +2985,12 @@ class CloudStateOld(StateElementWithFrequencyOld):
             (true, "true"),
         ):
             if v is not None:
-                if(len(v.shape) == 2):
+                if len(v.shape) == 2:
                     self.state_info.state_info_dict[stp]["cloudEffExt"] = v
                 else:
-                    self.state_info.state_info_dict[stp]["cloudEffExt"] = v[np.newaxis,:]
+                    self.state_info.state_info_dict[stp]["cloudEffExt"] = v[
+                        np.newaxis, :
+                    ]
 
 
 class CalibrationState(StateElementWithFrequencyOld):
