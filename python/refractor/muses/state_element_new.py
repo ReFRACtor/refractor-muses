@@ -23,7 +23,7 @@ if typing.TYPE_CHECKING:
 class StateElementOspFileHandleNew(StateElementHandle):
     def __init__(
         self,
-        sid: StateElementIdentifier | None,
+        sid: StateElementIdentifier | None = None,
         hold: Any | None = None,
         cls: type[StateElementOspFile] = StateElementOspFile,
         cov_is_constraint: bool = False,

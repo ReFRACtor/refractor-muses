@@ -6,10 +6,67 @@ from refractor.muses import (
     RetrievalConfiguration,
     RetrievalType,
     CurrentStrategyStepDict,
+    MusesRunDir,
+    MeasurementIdFile,
+    MusesStrategyStepList,
+    h_old,
+    SoundingMetadata, ObservationHandleSet,
+    StateElementOspFileHandleNew
 )
 import numpy as np
 import numpy.testing as npt
+from loguru import logger
+import sys
+import os
+import pytest
 
+@pytest.fixture(scope="function")
+def airs_omi_shandle(osp_dir,
+    gmao_dir,
+    joint_omi_test_in_dir,
+    isolated_dir
+):
+    '''Set up the old state info, and return a StateElementOspFileHandleNew'''
+    # The setup is really noisy with the logger. Since we aren't actually testing this,
+    # suppress this just so we can see what we actually care about
+    logger.remove()
+    r = MusesRunDir(
+        joint_omi_test_in_dir,
+        osp_dir,
+        gmao_dir,
+    )
+    # The old state element stuff assumes it is in the run directory
+    os.chdir(r.run_dir)
+    tfilename = r.run_dir / "Table.asc"
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        tfilename,
+        osp_dir=osp_dir
+    )
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
+    strat = MusesStrategyStepList.create_from_strategy_file(tfilename, osp_dir=osp_dir)
+    strat.notify_update_target(measurement_id)
+    measurement_id.filter_list_dict = strat.filter_list_dict
+    obs_hset = ObservationHandleSet.default_handle_set()
+    obs_hset.notify_update_target(measurement_id)
+    smeta = SoundingMetadata.create_from_measurement_id(
+        measurement_id, strat.instrument_name[0]
+    )
+    h_old.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
+    strat.restart()
+    cstate_old = h_old._current_state_old
+    cstate_old.notify_start_retrieval(strat.current_strategy_step(),rconfig)
+    while not strat.is_done():
+        cstate_old.notify_start_step(strat.current_strategy_step(),rconfig,
+            skip_initial_guess_update=True,
+        )
+        strat.next_step(cstate_old)
+    strat.restart()
+    cstate_old.notify_start_retrieval(strat.current_strategy_step(),rconfig)
+    cstate_old.notify_start_step(strat.current_strategy_step(),rconfig)
+    logger.add(sys.stderr, level="DEBUG")
+    shand = StateElementOspFileHandleNew(hold=h_old)
+    shand.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
+    return shand, strat, rconfig
 
 def test_osp_state_element(osp_dir):
     apriori_value = np.array(
@@ -251,3 +308,19 @@ def test_osp_state_element_latitude(osp_dir):
     npt.assert_allclose(selem2.apriori_cov_fm, cov_expect2)
     npt.assert_allclose(selem3.apriori_cov_fm, cov_expect3)
     npt.assert_allclose(selem4.apriori_cov_fm, cov_expect4)
+
+def test_tatm(airs_omi_shandle):
+    shand, strat, rconfig = airs_omi_shandle
+    selem = shand.state_element(StateElementIdentifier("TATM"))
+    selem.notify_start_retrieval(strat.current_strategy_step(),rconfig)
+    selem.notify_start_step(strat.current_strategy_step(),rconfig)
+    print(selem.value_fm)
+    print(selem.step_initial_fm)
+    print(selem.retrieval_initial_fm)
+    print(selem.state_mapping)
+    print(selem.state_mapping_retrieval_to_fm)
+    
+    
+    
+    
+

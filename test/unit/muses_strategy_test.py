@@ -5,7 +5,7 @@ from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
 def test_muses_strategy_file(joint_omi_step_8):
     rs, rsetp, kwargs = joint_omi_step_8
     # Comare with old py-retrieve code
-    stable = MusesStrategyStepList.create_from_strategy_table_file(
+    stable = MusesStrategyStepList.create_from_strategy_file(
         rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
     )
     stable_old = MusesStrategyOldStrategyTable(

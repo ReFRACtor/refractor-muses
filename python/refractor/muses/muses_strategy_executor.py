@@ -582,6 +582,13 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.next_step()
         self.notify_update(ProcessLocation("starting retrieval steps"))
         sinfo_old.snapshot_to_file("after_run_through.txt")
+        if False:
+            # Temp, second pass
+            self.restart()
+            while not self.is_done():
+                self.notify_start_step(skip_initial_guess_update=True)
+                self.next_step()
+                sinfo_old.snapshot_to_file("after_run_through2.txt")
         self.restart()
         while not self.is_done():
             if (

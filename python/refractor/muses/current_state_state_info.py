@@ -650,4 +650,4 @@ class StateElementOldWrapperHandle(StateElementHandle):
 
 h_old = StateElementOldWrapperHandle()
 StateElementHandleSet.add_default_handle(h_old, priority_order=-1)
-__all__ = ["CurrentStateStateInfo", "StateElementOldWrapperHandle"]
+__all__ = ["CurrentStateStateInfo", "StateElementOldWrapperHandle", "h_old"]

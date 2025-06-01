@@ -10,6 +10,7 @@ from .identifier import (
     StrategyStepIdentifier,
     IdentifierSortByWaveLength,
 )
+from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import RetrievalGridArray
 import os
 import abc
@@ -22,7 +23,6 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
-    from .spectral_window_handle import SpectralWindowHandleSet
     from .retrieval_strategy import RetrievalStrategy
 
 
@@ -491,7 +491,7 @@ class MusesStrategyFileHandle(MusesStrategyHandle):
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
         """
-        return MusesStrategyStepList.create_from_strategy_table_file(
+        return MusesStrategyStepList.create_from_strategy_file(
             measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
         )
 
@@ -528,7 +528,7 @@ class MusesStrategyStepList(MusesStrategyImp):
         self._cur_step_count = 0
 
     @classmethod
-    def create_from_strategy_table_file(
+    def create_from_strategy_file(
         cls,
         filename: str | os.PathLike[str],
         osp_dir: str | os.PathLike[str] | None = None,
@@ -802,7 +802,7 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         """Return MusesStrategy if we can process the given
         measurement_id, or None if we can't.
         """
-        s = MusesStrategyStepList.create_from_strategy_table_file(
+        s = MusesStrategyStepList.create_from_strategy_file(
             measurement_id["run_dir"] / "Table.asc", osp_dir, spectral_window_handle_set
         )
         s.current_strategy_list[
