@@ -66,7 +66,7 @@ def airs_omi_shandle(osp_dir,
     logger.add(sys.stderr, level="DEBUG")
     shand = StateElementOspFileHandleNew(hold=h_old)
     shand.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
-    return shand, strat, rconfig
+    return shand, strat, rconfig, cstate_old
 
 def test_osp_state_element(osp_dir):
     apriori_value = np.array(
@@ -310,7 +310,7 @@ def test_osp_state_element_latitude(osp_dir):
     npt.assert_allclose(selem4.apriori_cov_fm, cov_expect4)
 
 def test_tatm(airs_omi_shandle):
-    shand, strat, rconfig = airs_omi_shandle
+    shand, strat, rconfig, cstate_old = airs_omi_shandle
     selem = shand.state_element(StateElementIdentifier("TATM"))
     selem.notify_start_retrieval(strat.current_strategy_step(),rconfig)
     selem.notify_start_step(strat.current_strategy_step(),rconfig)
@@ -319,6 +319,15 @@ def test_tatm(airs_omi_shandle):
     print(selem.retrieval_initial_fm)
     print(selem.state_mapping)
     print(selem.state_mapping_retrieval_to_fm)
+    while not strat.is_done():
+        cstate_old.notify_start_step(strat.current_strategy_step(),rconfig)
+        selem.notify_start_step(strat.current_strategy_step(),rconfig)
+        print(selem.value_fm)
+        print(selem.step_initial_fm)
+        print(selem.retrieval_initial_fm)
+        print(selem.state_mapping)
+        print(selem.state_mapping_retrieval_to_fm)
+        strat.next_step(cstate_old)
     
     
     

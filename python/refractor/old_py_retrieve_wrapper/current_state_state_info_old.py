@@ -515,6 +515,27 @@ class CurrentStateStateInfoOld(CurrentState):
         self.state_info.notify_update_target(
             measurement_id, retrieval_config, strategy, observation_handle_set
         )
+        # According to Susan, historically the initial guess stuff was translated
+        # to and from the retrieval grid. This was done so that paired retrievals
+        # are in sync, so if we retrieve H2O with O3 held fixed and then O3 we
+        # don't want the O3 to jump a bunch as it goes to the retrieval grid. She
+        # said this is less important now where a lot of stuff is retrieved at the
+        # same time. But muses-py cycled through all the strategy table, which
+        # had the side effect of calling get_initial_guess() and taking values to
+        # and from the retrieval grid (so FullGridMappedArrayFromRetGrid). For
+        # now, we duplicate this here.
+        curdir = os.getcwd()
+        try:
+            os.chdir(retrieval_config["run_dir"])
+            cstepnum = strategy.current_strategy_step().strategy_step.step_number
+            strategy.restart()
+            while not strategy.is_done():
+                self.notify_start_step(strategy.current_strategy_step(),retrieval_config,
+                                       skip_initial_guess_update=True)
+                strategy.next_step(self)
+            strategy.set_step(cstepnum, self)
+        finally:
+            os.chdir(curdir)
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:

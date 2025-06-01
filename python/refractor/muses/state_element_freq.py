@@ -334,8 +334,10 @@ class StateElementCloudExtHandle(StateElementHandle):
         # over thing or other, anything other than row 0 isn't used. For nowm
         # make 1 d so we don't need some special handling. We can revisit if
         # we actually determine this should be 2d
-        value_fm = value_fm[0, :]
-        constraint_vector_fm = constraint_vector_fm[0, :]
+        if(len(value_fm.shape) == 2):
+            value_fm = value_fm[0, :]
+        if(len(constraint_vector_fm.shape) == 2):
+            constraint_vector_fm = constraint_vector_fm[0, :]
 
         res = self.obj_cls.create_from_handle(
             state_element_id,

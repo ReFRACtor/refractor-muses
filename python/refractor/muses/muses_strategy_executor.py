@@ -562,34 +562,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             )
         self.restart()
         self.notify_update(ProcessLocation("initial set up done"))
-
-        # Note the original muses-py ran through all the initial guess
-        # steps at the beginning to make sure there weren't any
-        # issues. I think we can remove this, it isn't particularly
-        # important to fail early and it seems a waste of time to go
-        # through this twice.
-        #
-        # However, the output actually changes if we don't run
-        # this. This is bad, our initial guess shouldn't modify future
-        # running. We should track this down when we start working on
-        # the initial guess/state info portion. But for now, leave
-        # this in place until we understand this
-        sinfo_old = self.current_state._state_info._current_state_old._state_info
-        sinfo_old.snapshot_to_file("before_run_through.txt")
-        self.restart()
-        while not self.is_done():
-            self.notify_start_step(skip_initial_guess_update=True)
-            self.next_step()
-        self.notify_update(ProcessLocation("starting retrieval steps"))
-        sinfo_old.snapshot_to_file("after_run_through.txt")
-        if False:
-            # Temp, second pass
-            self.restart()
-            while not self.is_done():
-                self.notify_start_step(skip_initial_guess_update=True)
-                self.next_step()
-                sinfo_old.snapshot_to_file("after_run_through2.txt")
-        self.restart()
         while not self.is_done():
             if (
                 stop_at_step is not None
@@ -601,7 +573,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             self.notify_update(ProcessLocation("notify_start_step done"))
             self.run_step()
             self.next_step()
-        sinfo_old.snapshot_to_file("after_full_run.txt")
         self.notify_update("retrieval done")
 
     def continue_retrieval(self, stop_after_step: None | int = None) -> None:
