@@ -563,14 +563,14 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         self.restart()
         self.notify_update(ProcessLocation("initial set up done"))
         while not self.is_done():
+            self.notify_update(ProcessLocation("starting run_step"))
+            self.notify_start_step()
+            self.notify_update(ProcessLocation("notify_start_step done"))
             if (
                 stop_at_step is not None
                 and stop_at_step == self.current_strategy_step.strategy_step.step_number
             ):
                 return
-            self.notify_update(ProcessLocation("starting run_step"))
-            self.notify_start_step()
-            self.notify_update(ProcessLocation("notify_start_step done"))
             self.run_step()
             self.next_step()
         self.notify_update("retrieval done")

@@ -109,7 +109,7 @@ def test_current_state(
     cstate = rs.current_state
     assert cstate.sounding_metadata.wrong_tai_time == pytest.approx(839312679.58409)
     assert cstate.state_value(StateElementIdentifier("EMIS"))[0] == pytest.approx(
-        0.98081997
+        0.9822874992046337
     )
     assert cstate.state_spectral_domain_wavelength(StateElementIdentifier("EMIS"))[
         0
@@ -133,7 +133,7 @@ def test_current_state(
     )
     assert cstate.state_value(StateElementIdentifier("PSUR"))[0] == pytest.approx(0.0)
     assert cstate.sounding_metadata.local_hour == pytest.approx(11.40252685546875)
-    assert cstate.sounding_metadata.height.value[0] == 0
+    assert cstate.sounding_metadata.height.value[0] == 0.16982704162597656
     assert cstate.state_value(StateElementIdentifier("TATM"))[0] == pytest.approx(
         293.28302002
     )
