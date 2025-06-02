@@ -48,8 +48,16 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
     strat.notify_update_target(measurement_id)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
-    obs_hset.add_handle(MusesObservationHandlePickleSave(InstrumentIdentifier("AIRS"), MusesAirsObservation))
-    obs_hset.add_handle(MusesObservationHandlePickleSave(InstrumentIdentifier("OMI"), MusesOmiObservation))
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("AIRS"), MusesAirsObservation
+        )
+    )
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("OMI"), MusesOmiObservation
+        )
+    )
     obs_hset.notify_update_target(measurement_id)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id, strat.instrument_name[0]

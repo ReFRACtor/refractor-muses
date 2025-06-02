@@ -327,9 +327,17 @@ class CurrentStateStateInfo(CurrentState):
     def propagated_qa(self) -> PropagatedQA:
         return self._state_info.propagated_qa
 
-    @property
-    def brightness_temperature_data(self) -> dict:
-        return self._state_info.brightness_temperature_data
+    def brightness_temperature_data(self, step: int) -> dict[str, float | None] | None:
+        if step in self._state_info.brightness_temperature_data:
+            return self._state_info.brightness_temperature_data[step]
+        return None
+
+    def set_brightness_temperature_data(
+        self, step: int, val: dict[str, float | None]
+    ) -> None:
+        if self.record is not None:
+            self.record.record("set_brightness_temperature_data", step, val)
+        self._state_info.brightness_temperature_data[step] = val
 
     @property
     def updated_fm_flag(self) -> FullGridArray:
@@ -352,6 +360,18 @@ class CurrentStateStateInfo(CurrentState):
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
+        if self.record is not None:
+            self.record.record(
+                "update_full_state_element",
+                state_element_id,
+                current_fm,
+                constraint_vector_fm,
+                next_constraint_vector_fm,
+                step_initial_fm,
+                next_step_initial_fm,
+                retrieval_initial_fm,
+                true_value_fm,
+            )
         self.match_old()
         self._state_info[state_element_id].update_state_element(
             current_fm=current_fm,
@@ -555,6 +575,8 @@ class CurrentStateStateInfo(CurrentState):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
+        if self.record is not None:
+            self.record.notify_start_retrieval()
         if current_strategy_step is not None:
             self.match_old()
             self._retrieval_element_id = current_strategy_step.retrieval_elements
@@ -581,6 +603,8 @@ class CurrentStateStateInfo(CurrentState):
         # current_strategy_step being None means we are past the last step in our
         # MusesStrategy, so we just skip doing anything
         if current_strategy_step is not None:
+            if self.record is not None:
+                self.record.notify_start_retrieval()
             self.match_old()
             self._retrieval_element_id = current_strategy_step.retrieval_elements
             self._sys_element_id = current_strategy_step.error_analysis_interferents
@@ -596,6 +620,8 @@ class CurrentStateStateInfo(CurrentState):
             self.clear_cache()
 
     def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
+        if self.record is not None:
+            self.record.record("notify_step_solution", xsol)
         self.match_old()
         self._state_info.notify_step_solution(xsol, self)
 

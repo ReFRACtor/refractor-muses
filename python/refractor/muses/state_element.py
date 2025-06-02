@@ -778,14 +778,14 @@ class StateElementImplementation(StateElement):
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
         self._value_fm = self._retrieval_initial_fm.copy()
         self._step_initial_fm = self._retrieval_initial_fm.copy()
-        
+
         # TODO Should constraint_vector_fm be allowed to be different
         # from retrieval_initial_fm?  This is the case currently in
         # muses-py, and is certainly mathematically allowed. But it might make
         # more sense to not have our constraint regularization try to pull the
         # state vector from its initial value. It isn't clear if this was
         # intended with muses-py, or just an accident in the code.
-        
+
         self._constraint_vector_fm = self._retrieval_start_constraint_fm.copy()
         self._next_step_initial_fm = None
         self._next_constraint_vector_fm = None

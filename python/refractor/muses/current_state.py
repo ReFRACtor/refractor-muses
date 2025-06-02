@@ -22,6 +22,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy
     from .observation_handle import ObservationHandleSet
     from .state_info import StateElement, StateElementHandleSet
+    from .record_and_play_func import CurrentStateRecordAndPlay
 
 
 class PropagatedQA:
@@ -552,6 +553,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         # Temp
         self._posteriori_slice: dict[StateElementIdentifier, slice] = {}
         self._previous_posteriori_cov_fm = np.zeros((0, 0))
+        self.record: None | CurrentStateRecordAndPlay = None
 
     # TODO Replace this awkward interface. Only used in a couple of places, should
     # have a simpler interface.
@@ -570,8 +572,21 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def propagated_qa(self) -> PropagatedQA:
         raise NotImplementedError()
 
-    @property
-    def brightness_temperature_data(self) -> dict:
+    def propagated_qa_update(
+        self, retrieval_state_element_id: list[StateElementIdentifier], qa_flag: int
+    ) -> None:
+        if self.record is not None:
+            self.record.record(
+                "propagated_qa_update", retrieval_state_element_id, qa_flag
+            )
+        self.propagated_qa.update(retrieval_state_element_id, qa_flag)
+
+    def brightness_temperature_data(self, step: int) -> dict[str, float | None] | None:
+        raise NotImplementedError()
+
+    def set_brightness_temperature_data(
+        self, step: int, val: dict[str, float | None]
+    ) -> None:
         raise NotImplementedError()
 
     def clear_cache(self) -> None:
@@ -599,7 +614,6 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    # TODO Check in constraint_vector_fm should be mapped or not
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
@@ -1110,6 +1124,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Update the previous_aposteriori_cov_fm for this retrieval step. Comes from
         ErrorAnalysis. We have the previous_aposteriori_cov_fm for retrieval_state_element_id,
         and the retrieval_state_element_id x systematic_state_element_id off diagonal matrix."""
+        if self.record:
+            self.record.record(
+                "update_previous_aposteriori_cov_fm", Sx, off_diagonal_sys
+            )
         # Zero out all the cross terms with retrieval_state_element_id
         v1 = np.zeros((self._previous_posteriori_cov_fm.shape[0]), dtype=bool)
         for sid in self.retrieval_state_element_id:

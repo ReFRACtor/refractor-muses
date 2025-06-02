@@ -80,18 +80,18 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             np.mean(frequency), np.mean(self.cfunc.max_a_posteriori.model)
         )
 
-        btdata = cstate.brightness_temperature_data
-        btdata[step] = {}
-        btdata[step]["diff"] = radiance_bt_fit[0] - radiance_bt_obs[0]
-        btdata[step]["obs"] = radiance_bt_obs[0]
-        btdata[step]["fit"] = radiance_bt_fit[0]
-        btdata[step]["species_igr"] = None
+        btdata = {}
+        btdata["diff"] = radiance_bt_fit[0] - radiance_bt_obs[0]
+        btdata["obs"] = radiance_bt_obs[0]
+        btdata["fit"] = radiance_bt_fit[0]
+        btdata["species_igr"] = None
 
-        bt_diff = btdata[step]["diff"]
+        bt_diff = btdata["diff"]
 
         # If next step is NOT BT, evaluate what to do with "cloud". Otherwise,
         # we are done.
         if strategy.is_next_bt():
+            cstate.set_brightness_temperature_data(step, btdata)
             return
 
         cfile = TesFile(retrieval_config["CloudParameterFilename"])
@@ -111,15 +111,15 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
                 f"No entry in file, {cfile.file_name} For BT difference of {bt_diff}"
             )
 
-        btdata[step]["species_igr"] = np.array(cfile.table["SPECIES_IGR"])[row]
+        btdata["species_igr"] = np.array(cfile.table["SPECIES_IGR"])[row]
 
         # for IGR and TSUR modification for TSUR, must be daytime land
         if (
             not cstate.sounding_metadata.is_day
             or cstate.sounding_metadata.surface_type in ("OCEAN", "FRESH")
-        ) and "TSUR" in btdata[step]["species_igr"]:
+        ) and "TSUR" in btdata["species_igr"]:
             logger.info("Must be land, daytime for TSUR IGR")
-            btdata[step]["species_igr"] = None
+            btdata["species_igr"] = None
             tsurIG[row] = 0
 
         if cloudIG[row] > 0:
@@ -135,13 +135,14 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             # use difference in observed - fit to change TSUR.  Note, we
             # assume weak clouds.
             newv = cstate.state_value("TSUR")
-            newv = newv + btdata[step]["obs"] - btdata[step]["fit"]
+            newv = newv + btdata["obs"] - btdata["fit"]
             cstate.update_full_state_element(
                 StateElementIdentifier("TSUR"),
                 step_initial_fm=newv,
                 current_fm=newv,
                 constraint_vector_fm=newv,
             )
+        cstate.set_brightness_temperature_data(step, btdata)
 
 
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())

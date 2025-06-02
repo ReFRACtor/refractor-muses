@@ -212,9 +212,15 @@ class CurrentStateStateInfoOld(CurrentState):
     def propagated_qa(self) -> PropagatedQA:
         return self.state_info.propagated_qa
 
-    @property
-    def brightness_temperature_data(self) -> dict:
-        return self.state_info.brightness_temperature_data
+    def brightness_temperature_data(self, step: int) -> dict[str, float | None] | None:
+        if step in self.state_info.brightness_temperature_data:
+            return self.state_info.brightness_temperature_data[step]
+        return None
+
+    def set_brightness_temperature_data(
+        self, step: int, val: dict[str, float | None]
+    ) -> None:
+        self.state_info.brightness_temperature_data[step] = val
 
     @property
     def updated_fm_flag(self) -> FullGridArray:
@@ -528,7 +534,7 @@ class CurrentStateStateInfoOld(CurrentState):
         try:
             os.chdir(retrieval_config["run_dir"])
             cstep = strategy.current_strategy_step()
-            if(cstep is None):
+            if cstep is None:
                 raise RuntimeError("Called with strategy is_done() is True")
             cstepnum = cstep.strategy_step.step_number
             strategy.restart()

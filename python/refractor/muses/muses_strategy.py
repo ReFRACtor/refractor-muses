@@ -673,17 +673,16 @@ class MusesStrategyStepList(MusesStrategyImp):
         # Nothing to do if this isn't a BT step, or if we don't have the
         # brightness_temperature_data
         cstep = self.current_strategy_step()
+        btdata = current_state.brightness_temperature_data(self._cur_step_count)
         if (
             cstep is None
             or cstep.retrieval_type != RetrievalType("BT")
-            or self._cur_step_count not in current_state.brightness_temperature_data
+            or btdata is None
         ):
             return
 
         # List of species determine in RetrievalStrategyStepBT
-        species_igr = current_state.brightness_temperature_data[self._cur_step_count][
-            "species_igr"
-        ]
+        species_igr = btdata["species_igr"]
         if species_igr is None:
             return
 

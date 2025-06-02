@@ -169,15 +169,14 @@ class StrategyTable:
     def _handle_bt(self, current_state: CurrentState):
         # We may introduce more complicated conditional steps, but at this
         # point the only thing that gets this treatment is BT steps.
+        btdata = current_state.brightness_temperature_data(self.table_step)
         if (
             self.retrieval_type != RetrievalType("BT")
             or self.is_next_bt()
-            or self.table_step not in current_state.brightness_temperature_data
+            or btdata is None
         ):
             return
-        species_igr = current_state.brightness_temperature_data[self.table_step][
-            "species_igr"
-        ]
+        species_igr = btdata["species_igr"]
         found = False
         available = ""
         step = self.table_step

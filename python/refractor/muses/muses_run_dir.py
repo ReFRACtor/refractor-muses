@@ -42,8 +42,8 @@ class MusesRunDir:
             (path_prefix / "GMAO").symlink_to(gmao_dir)
         for f in ("Table", "DateTime"):
             shutil.copy(refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc")
-        for f in refractor_sounding_dir.glob("*_obs.pkl"):
-            (self.run_dir / f.name).symlink_to(f)
+        for f2 in refractor_sounding_dir.glob("*_obs.pkl"):
+            (self.run_dir / f2.name).symlink_to(f2)
         for f in ("PRECONV_2STOKES", "rayTable-NADIR", "observationTable-NADIR"):
             if (refractor_sounding_dir / f"{f}.asc").exists():
                 shutil.copy(

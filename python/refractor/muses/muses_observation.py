@@ -649,7 +649,7 @@ class SimulatedObservation(MusesObservationImp):
         super().__init__(
             obs.muses_py_dict, obs.sounding_desc, num_channels=obs.num_channels
         )
-        self._obs = copy.deepcopy(obs)
+        self._obs: MusesObservationImp = copy.deepcopy(obs)
         # We only have replacement_spectrum where the current spectral
         # window is. We just pretend that all the pixels outside of
         # the spectral window are bad, because we don't have other
@@ -849,18 +849,20 @@ class MusesObservationHandle(ObservationHandle):
             self.existing_obs = obs
         return obs
 
+
 class MusesObservationHandlePickleSave(MusesObservationHandle):
-    '''It can take a surprising amount of time to read in the observation data.
+    """It can take a surprising amount of time to read in the observation data.
     We are only talking about a few seconds, but since this is such a common thing
     in unit tests it is worth having a quicker way to do this.
 
     This handle is a simple adapter that saves the observation out as a pickle, and
     then the next time a observation gets read in a unit test we can read the pickle
-    file.'''
+    file."""
+
     def notify_update_target(self, measurement_id: MeasurementId) -> None:
         super().notify_update_target(measurement_id)
-        pname = self.measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
-        if(pname.exists()):
+        pname = measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
+        if pname.exists():
             self.existing_obs = pickle.load(open(pname, "rb"))
 
     def observation(
@@ -872,13 +874,18 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
         osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> MusesObservation | None:
-        might_save = (self.existing_obs is None)
-        res = super().observation(instrument_name, current_state, spec_win, fm_sv, osp_dir, **kwargs)
-        if(res is not None and might_save and self.existing_obs is not None):
+        if self.measurement_id is None:
+            raise RuntimeError("Call notify_update_target first")
+        might_save = self.existing_obs is None
+        res = super().observation(
+            instrument_name, current_state, spec_win, fm_sv, osp_dir, **kwargs
+        )
+        if res is not None and might_save and self.existing_obs is not None:
             pname = self.measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
             pickle.dump(self.existing_obs, open(pname, "wb"))
         return res
-            
+
+
 class MusesAirsObservation(MusesObservationImp):
     def __init__(
         self,
