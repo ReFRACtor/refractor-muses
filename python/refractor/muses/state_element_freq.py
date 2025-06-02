@@ -49,8 +49,8 @@ class StateElementEmis(StateElementFreqShared):
         self,
         state_element_id: StateElementIdentifier,
         pressure_list_fm: FullGridMappedArray | None,
-        value_fm: FullGridMappedArray | None,
-        constraint_vector_fm: FullGridMappedArray | None,
+        value_fm: FullGridMappedArray,
+        constraint_vector_fm: FullGridMappedArray,
         latitude: float,
         surface_type: str,
         species_directory: Path,
@@ -170,7 +170,9 @@ class StateElementCloudExt(StateElementFreqShared):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        super().notify_start_step(current_strategy_step, retrieval_config, skip_initial_guess_update)
+        super().notify_start_step(
+            current_strategy_step, retrieval_config, skip_initial_guess_update
+        )
         self.is_bt_ig_refine = current_strategy_step.retrieval_type == RetrievalType(
             "bt_ig_refine"
         )
@@ -334,9 +336,9 @@ class StateElementCloudExtHandle(StateElementHandle):
         # over thing or other, anything other than row 0 isn't used. For nowm
         # make 1 d so we don't need some special handling. We can revisit if
         # we actually determine this should be 2d
-        if(len(value_fm.shape) == 2):
+        if len(value_fm.shape) == 2:
             value_fm = value_fm[0, :]
-        if(len(constraint_vector_fm.shape) == 2):
+        if len(constraint_vector_fm.shape) == 2:
             constraint_vector_fm = constraint_vector_fm[0, :]
 
         res = self.obj_cls.create_from_handle(

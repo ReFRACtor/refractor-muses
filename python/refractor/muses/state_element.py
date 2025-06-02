@@ -486,8 +486,8 @@ class StateElementImplementation(StateElement):
     def __init__(
         self,
         state_element_id: StateElementIdentifier,
-        value_fm: FullGridMappedArray | None,
-        constraint_vector_fm: FullGridMappedArray | None,
+        value_fm: FullGridMappedArray,
+        constraint_vector_fm: FullGridMappedArray,
         apriori_cov_fm: FullGrid2dArray | None,
         constraint_matrix: RetrievalGrid2dArray | None,
         state_mapping_retrieval_to_fm: rf.StateMapping | None = rf.StateMappingLinear(),
@@ -498,22 +498,18 @@ class StateElementImplementation(StateElement):
     ) -> None:
         super().__init__(state_element_id)
         self._value_fm = value_fm
+        self._retrieval_start_constraint_fm = constraint_vector_fm.copy()
         self._constraint_vector_fm = constraint_vector_fm
         self._constraint_matrix = constraint_matrix
         self._apriori_cov_fm = apriori_cov_fm
         self._state_mapping = state_mapping
         self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
         self._pressure_list_fm: FullGridMappedArray | None = None
-        self._step_initial_fm: FullGridMappedArray | None = None
         if initial_value_fm is not None:
             self._step_initial_fm = initial_value_fm
         elif value_fm is not None:
             self._step_initial_fm = value_fm.copy()
-        elif constraint_vector_fm is not None:
-            self._step_initial_fm = constraint_vector_fm.copy()
-        self._retrieval_initial_fm: FullGridMappedArray | None = None
-        if self._step_initial_fm is not None:
-            self._retrieval_initial_fm = self._step_initial_fm.copy()
+        self._retrieval_initial_fm = self._step_initial_fm.copy()
         self._true_value_fm = true_value_fm
         self._updated_fm_flag: FullGridMappedArray | None = None
         if apriori_cov_fm is not None:
@@ -651,8 +647,6 @@ class StateElementImplementation(StateElement):
     @property
     def value_fm(self) -> FullGridMappedArray:
         res = self._value_fm
-        if res is None:
-            raise RuntimeError("_value_fm shouldn't be None")
         self._check_result(res, "value_fm")
         return res
 
@@ -664,8 +658,6 @@ class StateElementImplementation(StateElement):
 
     @property
     def constraint_vector_fm(self) -> FullGridMappedArray:
-        if self._constraint_vector_fm is None:
-            raise RuntimeError("_constraint_vector_fm shouldn't be None")
         res = self._constraint_vector_fm
         # Note, the old state element has constraint_vector_fm sometimes mapped,
         # sometimes not. Not sure why, but not worth tracking down. We check
@@ -693,16 +685,12 @@ class StateElementImplementation(StateElement):
 
     @property
     def retrieval_initial_fm(self) -> FullGridMappedArray:
-        if self._retrieval_initial_fm is None:
-            raise RuntimeError("_retrieval_initial_fm shouldn't be None")
         res = self._retrieval_initial_fm
         self._check_result(res, "retrieval_initial_fm")
         return res
 
     @property
     def step_initial_fm(self) -> FullGridMappedArray:
-        if self._step_initial_fm is None:
-            raise RuntimeError("_step_initial_fm shouldn't be None")
         res = self._step_initial_fm
         self._check_result(res, "step_initial_fm")
         return res
@@ -726,9 +714,6 @@ class StateElementImplementation(StateElement):
         way to handle this, but the current design just returns a dictionary with
         any extra metadata values. We can perhaps rework this if needed in the future.
         For most StateElement this will just be a empty dict."""
-        # I think we'll have a separate type for emissivity
-        # if self._sold is not None:
-        #    return self._sold.metadata
         res = self._metadata
         return res
 
@@ -791,31 +776,17 @@ class StateElementImplementation(StateElement):
     ) -> None:
         if self._sold is not None:
             self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
-        # TODO It seems wrong to me, but muses-py copies whatever is in value_fm to
-        # the initial value. This then gets uses in muses_strategy_executor, where we first
-        # pass through all the steps and then restart.
-        #
-        # For now, duplicate this behavior to match muses-py. However what really should happen
-        # is that the initial value is calculated correctly the first time, without needing to go
-        # through all the steps. We can perhaps track down what is going on - maybe just
-        # round tripping with the RetrievalGridArray? Something else?
-        if self._value_fm is not None:
-            self._retrieval_initial_fm = self._value_fm.copy()
-
-        # Temp, this gets updated somewhere in old state info. Need to track down where
-        if self._sold is not None and self._sold.value_str is None:
-            self._retrieval_initial_fm = self._sold.retrieval_initial_fm
-            if (
-                isinstance(self._retrieval_initial_fm, np.ndarray)
-                and len(self._retrieval_initial_fm.shape) == 2
-            ):
-                self._retrieval_initial_fm = self._retrieval_initial_fm[0, :].view(
-                    FullGridMappedArray
-                )
-        # The value and step initial guess should be set to the retrieval initial value
-        if self._retrieval_initial_fm is not None:
-            self._value_fm = self._retrieval_initial_fm.copy()
-            self._step_initial_fm = self._retrieval_initial_fm.copy()
+        self._value_fm = self._retrieval_initial_fm.copy()
+        self._step_initial_fm = self._retrieval_initial_fm.copy()
+        
+        # TODO Should constraint_vector_fm be allowed to be different
+        # from retrieval_initial_fm?  This is the case currently in
+        # muses-py, and is certainly mathematically allowed. But it might make
+        # more sense to not have our constraint regularization try to pull the
+        # state vector from its initial value. It isn't clear if this was
+        # intended with muses-py, or just an accident in the code.
+        
+        self._constraint_vector_fm = self._retrieval_start_constraint_fm.copy()
         self._next_step_initial_fm = None
         self._next_constraint_vector_fm = None
 
@@ -839,8 +810,7 @@ class StateElementImplementation(StateElement):
             self._constraint_vector_fm = self._next_constraint_vector_fm
             self._next_constraint_vector_fm = None
         # Set value to initial value
-        if self._step_initial_fm is not None:
-            self._value_fm = self._step_initial_fm.copy()
+        self._value_fm = self._step_initial_fm.copy()
         self._retrieved_this_step = (
             self.state_element_id in current_strategy_step.retrieval_elements
         )

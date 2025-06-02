@@ -849,7 +849,36 @@ class MusesObservationHandle(ObservationHandle):
             self.existing_obs = obs
         return obs
 
+class MusesObservationHandlePickleSave(MusesObservationHandle):
+    '''It can take a surprising amount of time to read in the observation data.
+    We are only talking about a few seconds, but since this is such a common thing
+    in unit tests it is worth having a quicker way to do this.
 
+    This handle is a simple adapter that saves the observation out as a pickle, and
+    then the next time a observation gets read in a unit test we can read the pickle
+    file.'''
+    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+        super().notify_update_target(measurement_id)
+        pname = self.measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
+        if(pname.exists()):
+            self.existing_obs = pickle.load(open(pname, "rb"))
+
+    def observation(
+        self,
+        instrument_name: InstrumentIdentifier,
+        current_state: CurrentState | None,
+        spec_win: MusesSpectralWindow | None,
+        fm_sv: rf.StateVector | None,
+        osp_dir: str | os.PathLike[str] | None = None,
+        **kwargs: Any,
+    ) -> MusesObservation | None:
+        might_save = (self.existing_obs is None)
+        res = super().observation(instrument_name, current_state, spec_win, fm_sv, osp_dir, **kwargs)
+        if(res is not None and might_save and self.existing_obs is not None):
+            pname = self.measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
+            pickle.dump(self.existing_obs, open(pname, "wb"))
+        return res
+            
 class MusesAirsObservation(MusesObservationImp):
     def __init__(
         self,
@@ -2555,4 +2584,5 @@ __all__ = [
     "MeasurementIdFile",
     "SimulatedObservation",
     "SimulatedObservationHandle",
+    "MusesObservationHandlePickleSave",
 ]

@@ -92,8 +92,7 @@ class StateElementOspFileHandleNew(StateElementHandle):
                 value_fm = value_fm[0, :]
                 constraint_vector_fm = constraint_vector_fm[0, :]
         else:
-            value_fm = None
-            constraint_vector_fm = None
+            raise RuntimeError("Not currently supported")
         # We can create a subtype if needed, but we just have a handful of these
         # so we'll do this in line for now.
         poltype = None

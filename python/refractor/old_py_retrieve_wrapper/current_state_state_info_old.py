@@ -527,11 +527,17 @@ class CurrentStateStateInfoOld(CurrentState):
         curdir = os.getcwd()
         try:
             os.chdir(retrieval_config["run_dir"])
-            cstepnum = strategy.current_strategy_step().strategy_step.step_number
+            cstep = strategy.current_strategy_step()
+            if(cstep is None):
+                raise RuntimeError("Called with strategy is_done() is True")
+            cstepnum = cstep.strategy_step.step_number
             strategy.restart()
             while not strategy.is_done():
-                self.notify_start_step(strategy.current_strategy_step(),retrieval_config,
-                                       skip_initial_guess_update=True)
+                self.notify_start_step(
+                    strategy.current_strategy_step(),
+                    retrieval_config,
+                    skip_initial_guess_update=True,
+                )
                 strategy.next_step(self)
             strategy.set_step(cstepnum, self)
         finally:
