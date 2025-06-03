@@ -25,6 +25,7 @@ class MusesRunDir:
         gmao_dir: str | os.PathLike[str],
         path_prefix: str | os.PathLike[str] = ".",
         skip_sym_link: bool = False,
+        skip_obs_link: bool = False,
     ) -> None:
         """Set up a run directory in the given path_prefix with the
         data saved in a sounding 1 save directory (e.g.,
@@ -42,8 +43,9 @@ class MusesRunDir:
             (path_prefix / "GMAO").symlink_to(gmao_dir)
         for f in ("Table", "DateTime"):
             shutil.copy(refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc")
-        for f2 in refractor_sounding_dir.glob("*_obs.pkl"):
-            (self.run_dir / f2.name).symlink_to(f2)
+        if not skip_obs_link:
+            for f2 in refractor_sounding_dir.glob("*_obs.pkl"):
+                (self.run_dir / f2.name).symlink_to(f2)
         for f in ("PRECONV_2STOKES", "rayTable-NADIR", "observationTable-NADIR"):
             if (refractor_sounding_dir / f"{f}.asc").exists():
                 shutil.copy(

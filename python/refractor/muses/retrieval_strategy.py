@@ -425,17 +425,14 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._capture_directory.save_directory(self.run_dir, vlidort_input=None)
         pickle.dump([self, kwargs], open(save_pickle_file, "wb"))
 
-    def save_state_info(self, save_pickle_file: str | os.PathLike[str]) -> None:
-        self._strategy_executor.save_state_info(save_pickle_file)
-
-    def load_state_info(
+    def load_step_info(
         self,
-        state_info_pickle_file: str | os.PathLike[str],
+        current_state_replay_file: str | os.PathLike[str],
         step_number: int,
         ret_state_file: str | os.PathLike[str] | None = None,
     ) -> None:
-        self._strategy_executor.load_state_info(
-            state_info_pickle_file, step_number, ret_state_file
+        self._strategy_executor.load_step_info(
+            current_state_replay_file, step_number, ret_state_file
         )
 
     @classmethod
@@ -514,36 +511,6 @@ class RetrievalStrategyCaptureObserver:
         retrieval_strategy.add_observer(self)
 
 
-class StateInfoCaptureObserver:
-    """Helper class, pickles RetrievalStrategy.state_info at each time
-    notify_update is called. Intended for unit tests and other kinds
-    of debugging.
-
-    """
-
-    def __init__(
-        self, basefname: str, location_to_capture: str | ProcessLocation
-    ) -> None:
-        self.basefname = basefname
-        if isinstance(location_to_capture, ProcessLocation):
-            self.location_to_capture = location_to_capture
-        else:
-            self.location_to_capture = ProcessLocation(location_to_capture)
-
-    def notify_update(
-        self,
-        retrieval_strategy: RetrievalStrategy,
-        location: ProcessLocation,
-        **kwargs: Any,
-    ) -> None:
-        if location != self.location_to_capture:
-            return
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        # fname = f"{self.basefname}_{retrieval_strategy.step_number}.json.gz"
-        fname = f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
-        retrieval_strategy.save_state_info(fname)
-
-
 class RetrievalStrategyMemoryUse:
     def __init__(self) -> None:
         # Need pympler here, but don't generally need it. Include this
@@ -581,5 +548,4 @@ __all__ = [
     "RetrievalStrategy",
     "RetrievalStrategyCaptureObserver",
     "RetrievalStrategyMemoryUse",
-    "StateInfoCaptureObserver",
 ]

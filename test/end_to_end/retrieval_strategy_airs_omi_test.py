@@ -9,6 +9,18 @@ from refractor.muses import (
     MusesRunDir,
 )
 
+# Temp
+from refractor.muses import (
+    MusesObservationHandlePickleSave,
+    MusesOmiObservation,
+    MusesTropomiObservation,
+    MusesAirsObservation,
+    MusesCrisObservation,
+    MusesTesObservation,
+    InstrumentIdentifier,
+)
+import sys
+
 # Use refractor forward model, or use py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
 # run_refractor = False
@@ -81,3 +93,55 @@ def test_retrieval_strategy_airs_omi(
         logger.remove(lognum)
     diff_is_error = True
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
+
+
+def test_load_step(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir, vlidort_cli):
+    logger.remove()
+    r = MusesRunDir(
+        joint_omi_test_in_dir,
+        osp_dir,
+        gmao_dir,
+    )
+    rs = RetrievalStrategy(None, vlidort_cli=vlidort_cli, osp_dir=osp_dir)
+    obs_hset = rs.observation_handle_set
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("AIRS"), MusesAirsObservation
+        ),
+        priority_order=2,
+    )
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("OMI"), MusesOmiObservation
+        ),
+        priority_order=2,
+    )
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("CRIS"), MusesCrisObservation
+        ),
+        priority_order=2,
+    )
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("TROPOMI"), MusesTropomiObservation
+        ),
+        priority_order=2,
+    )
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("TES"), MusesTesObservation
+        ),
+        priority_order=2,
+    )
+    rs.update_target(r.run_dir / "Table.asc")
+    step_number = 8
+    dir = joint_omi_test_in_dir
+    rs.load_step_info(
+        dir / "current_state_record.pkl",
+        step_number,
+        ret_state_file=dir / f"retrieval_state_step_{step_number}.json.gz",
+    )
+    # rs.continue_retrieval(stop_after_step=step_number)
+    logger.add(sys.stderr, level="DEBUG")
+    # breakpoint()

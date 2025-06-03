@@ -545,6 +545,8 @@ class CurrentStateStateInfoOld(CurrentState):
                     skip_initial_guess_update=True,
                 )
                 strategy.next_step(self)
+            self.state_info.copy_current_initialInitial()
+            self.state_info.copy_current_initial()
             strategy.set_step(cstepnum, self)
         finally:
             os.chdir(curdir)

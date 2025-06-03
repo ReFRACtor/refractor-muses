@@ -26,5 +26,5 @@ def test_rplay():
     sfunc.add_mul(30.0, 2)
     assert sfunc.val == 10 + 20 + 30 * 2
     sfunc2 = SimpleFunc()
-    p.play(sfunc2, {"v2": 3})
+    p.replay(sfunc2, {"v2": 3})
     assert sfunc2.val == 10 + 20 + 30 * 3

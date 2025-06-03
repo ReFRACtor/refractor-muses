@@ -202,7 +202,10 @@ class ResultIrk(UserDict):
                     "lirfk_segs",
                     "vmr",
                 ):
-                    res[k][k2] = res[k][k2].tolist()
+                    if res[k][k2] is None:
+                        res[k][k2] = None
+                    else:
+                        res[k][k2] = res[k][k2].tolist()
         return res
 
     def set_state(self, d: dict[str, Any]) -> None:

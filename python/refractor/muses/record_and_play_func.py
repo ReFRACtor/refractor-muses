@@ -27,7 +27,7 @@ class RecordAndPlayFunc:
     def record(self, funcname: str, *args: Any) -> None:
         self._record.append((funcname, args))
 
-    def play(self, obj: Any, placeholder: dict[str, Any]) -> None:
+    def replay(self, obj: Any, placeholder: dict[str, Any]) -> None:
         for funcname, avlist in self._record:
             alist = []
             for av in avlist:
@@ -53,16 +53,19 @@ class CurrentStateRecordAndPlay:
         self._next_record = None
 
     def notify_start_step(self) -> None:
-        if(self._next_record is not None):
+        if self._next_record is not None:
             self._full_record.append(self._next_record)
         self._next_record = RecordAndPlayFunc()
 
     def record(self, funcname: str, *args: Any) -> None:
+        if self._next_record is None:
+            raise RuntimeError("Need to call notify_start_step before record")
         self._next_record.record(funcname, *args)
 
     def save_pickle(self, fname: str | os.PathLike[str]) -> None:
         """Save the record of the functions called to the given file."""
-        self._full_record.append(self._next_record)
+        if self._next_record is not None:
+            self._full_record.append(self._next_record)
         self._next_record = RecordAndPlayFunc()
         pickle.dump(self._full_record, open(fname, "wb"))
 
@@ -71,7 +74,7 @@ class CurrentStateRecordAndPlay:
         self._full_record = pickle.load(open(fname, "rb"))
         self._next_record = RecordAndPlayFunc()
 
-    def play(
+    def replay(
         self,
         current_state: CurrentState,
         strategy: MusesStrategy,
@@ -82,27 +85,35 @@ class CurrentStateRecordAndPlay:
         """Play back the function calls and also take the strategy to the given
         step number. We can either stop at the start of the step, and play back
         everything for the step and stop before the next step."""
-        strategy.restart()
-        current_state.notify_start_retrieval(
-            strategy.current_strategy_step(), retrieval_config
-        )
-        while not strategy.is_done():
-            current_state.notify_start_step(
+        # The old state info stuff assumes we are in the run directory. We can
+        # probably move away from this once we are using all our new stuff, but
+        # for now we need to be in this directory
+        curdir = os.getcwd()
+        try:
+            os.chdir(retrieval_config["run_dir"])
+            strategy.restart()
+            current_state.notify_start_retrieval(
                 strategy.current_strategy_step(), retrieval_config
             )
-            cstrat = strategy.current_strategy_step()
-            if cstrat is None:
-                raise RuntimeError("This shouldn't be able to happen")
-            i = cstrat.strategy_step.step_number
-            if i == step_number and at_start_step:
-                return
-            self._full_record[i].play(
-                current_state,
-                {"current_strategy_step": strategy.current_strategy_step()},
-            )
-            if i == step_number:
-                return
-            strategy.next_step(current_state)
+            while not strategy.is_done():
+                current_state.notify_start_step(
+                    strategy.current_strategy_step(), retrieval_config
+                )
+                cstrat = strategy.current_strategy_step()
+                if cstrat is None:
+                    raise RuntimeError("This shouldn't be able to happen")
+                i = cstrat.strategy_step.step_number
+                if i == step_number and at_start_step:
+                    return
+                self._full_record[i].replay(
+                    current_state,
+                    {"current_strategy_step": strategy.current_strategy_step()},
+                )
+                if i == step_number:
+                    return
+                strategy.next_step(current_state)
+        finally:
+            os.chdir(curdir)
 
 
 __all__ = ["RecordAndPlayFunc", "CurrentStateRecordAndPlay"]

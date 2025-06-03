@@ -22,12 +22,25 @@ def test_radiance_result_summary(joint_tropomi_step_12_output):
         ret_res.radianceIterations[0, 0, :][fslice],
         rstep.NESR[fslice],
     )
-    assert rsum.radiance_residual_mean == approx(-0.016962118397373542)
-    assert rsum.radiance_residual_rms == approx(4.097508548116728)
-    assert rsum.radiance_residual_mean_initial == approx(-10.533994365730303)
-    assert rsum.radiance_residual_rms_initial == approx(17.98897105856759)
-    assert rsum.radiance_snr == approx(623.9468620299166)
-    assert rsum.radiance_residual_rms_relative_continuum == approx(0.000526006841888145)
-    assert rsum.radiance_continuum == approx(0.08342921788652663)
-    assert rsum.residual_slope == approx(0.03338386427243988)
-    assert rsum.residual_quadratic == approx(-1.5004715029448592)
+    if False:
+        print(rsum.radiance_residual_mean)
+        print(rsum.radiance_residual_rms)
+        print(rsum.radiance_residual_mean_initial)
+        print(rsum.radiance_residual_rms_initial)
+        print(rsum.radiance_snr)
+        print(rsum.radiance_residual_rms_relative_continuum)
+        print(rsum.radiance_continuum)
+        print(rsum.residual_slope)
+        print(rsum.residual_quadratic)
+
+    assert rsum.radiance_residual_mean == approx(-0.01894818332062393)
+    assert rsum.radiance_residual_rms == approx(4.097515323702615)
+    assert rsum.radiance_residual_mean_initial == approx(-10.533994208879513)
+    assert rsum.radiance_residual_rms_initial == approx(17.98897124186496)
+    assert rsum.radiance_snr == approx(623.9488480948398)
+    assert rsum.radiance_residual_rms_relative_continuum == approx(
+        0.0005259849508727864
+    )
+    assert rsum.radiance_continuum == approx(0.08342909399663756)
+    assert rsum.residual_slope == approx(0.03695308972199365)
+    assert rsum.residual_quadratic == approx(-1.5049600230580278)

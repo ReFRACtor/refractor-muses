@@ -18,11 +18,11 @@ from .spectral_window_handle import SpectralWindowHandleSet
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
+from .record_and_play_func import CurrentStateRecordAndPlay
 import refractor.framework as rf  # type: ignore
 import abc
 import copy
 import os
-import pickle
 from loguru import logger
 import time
 import functools
@@ -486,8 +486,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         )
 
     def set_step(self, step_number: int) -> None:
-        """Go to the given step. This is used by RetrievalStrategy.load_state_info
-        where we jump to a given step number."""
+        """Go to the given step."""
         with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
             self.restart()
             while self.current_strategy_step.strategy_step.step_number < step_number:
@@ -616,58 +615,37 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             finally:
                 os.chdir(curdir)
 
-    def save_state_info(self, save_pickle_file: str | os.PathLike[str]) -> None:
-        """Dump a pickled version of the StateInfo object.
-        We may play with this, but currently we gzip this.
-        We would like to have something a bit more stable, not tied to the
-        object structure. But for now, just do a straight json dump of the object"""
-
-        # Doesn't work yet. Not overly important, looks like a bug in
-        # jsonpickle Just use normal pickle for now, we want to change
-        # what gets saved anyways
-        #
-        # with gzip.GzipFile(save_pickle_file, "wb") as fh:
-        #    fh.write(jsonpickle.encode(self.state_info).encode('utf-8'))
-        pickle.dump(
-            self.current_state._current_state_old._state_info,
-            open(save_pickle_file, "wb"),
-        )
-
-    def load_state_info(
+    def load_step_info(
         self,
-        state_info_pickle_file: str | os.PathLike[str],
+        current_state_replay_file: str | os.PathLike[str],
         step_number: int,
         ret_state_file: str | os.PathLike[str] | None = None,
     ) -> None:
-        """This pairs with save_state_info. Instead of pickling the
-        entire RetrievalStrategy, we just save the state. We then
-        set up to process the given target_filename with the given
-        state, jumping to the given retrieval step_number.
+        """This pairs with CurrentStateRecordAndPlay. Instead of
+        pickling the entire RetrievalStrategy, we just save functions
+        used on CurrentState. We then set up to process the given
+        target_filename jumping to the given retrieval step_number.
 
-        Note for some tests in addition to the StateInfo we want the
+        Note for some tests in addition to the CurrentState we want the
         results saved by RetrievalStepCaptureObserver (e.g., we want
         to test the output writing). You can optionally pass in the
         json file for this and we will also pass that information to
         the RetrievalStrategyStep.
 
+        Take a look at the capture_data_test.py examples for how to
+        save this data
         """
-        # self._state_info = jsonpickle.decode(
-        #    gzip.open(state_info_pickle_file, "rb").read())
-        hset = self.state_element_handle_set
-        self.current_state._current_state_old._state_info = pickle.load(
-            open(state_info_pickle_file, "rb")
-        )
-        self.current_state.state_element_handle_set = hset
-        if (
-            self.current_state._current_state_old._state_info.retrieval_config
-            is not None
-        ):
-            self.current_state._current_state_old._state_info.retrieval_config.base_dir = self.run_dir
-            self.current_state._current_state_old._state_info.retrieval_config.osp_dir = (
-                Path(self.osp_dir) if self.osp_dir is not None else None
+        rplay = CurrentStateRecordAndPlay(current_state_replay_file)
+        # Note we go to the end of the previous step. We then are ready
+        # for the current retrieval step.
+        if step_number > 0:
+            rplay.replay(
+                self.current_state,
+                self.strategy,
+                self.retrieval_config,
+                step_number - 1,
             )
-        self.current_state._state_info.update_with_old()
-        self.set_step(step_number)
+            self.next_step()
         if ret_state_file is not None:
             t = RetrievalStepCaptureObserver.load_retrieval_state(ret_state_file)
             self.kwargs["ret_state"] = t
