@@ -3,12 +3,12 @@ import pytest
 
 
 @pytest.mark.old_py_retrieve_test
-def test_muses_strategy_old(joint_omi_current_state, osp_dir):
-    cstate, cstate_record, strategy, rconfig, measurement_id = joint_omi_current_state
+def test_muses_strategy_old(joint_omi_step_8):
+    rs, rsetp, kwargs = joint_omi_step_8
     stable = MusesStrategyOldStrategyTable(
-        rconfig["run_dir"] / "Table.asc", osp_dir
+        rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
     )
-    stable.notify_update_target(measurement_id)
+    stable.notify_update_target(rs.measurement_id)
     print(stable.filter_list_dict)
     print(stable.retrieval_elements)
     print(stable.error_analysis_interferents)
@@ -18,7 +18,7 @@ def test_muses_strategy_old(joint_omi_current_state, osp_dir):
     # affects the MusesStrategyOldStrategyTable, so we get away with only using one
     # cstate since brightness_temperature_data doesn't change after the step it is
     # calculated.
-    cstate_record.play(cstate, strategy, rconfig, 8)
+    cstate = rs.current_state
     stable.restart()
     while not stable.is_done():
         print(stable.current_strategy_step())
