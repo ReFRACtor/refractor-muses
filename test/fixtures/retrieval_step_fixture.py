@@ -3,13 +3,24 @@ import pytest
 from refractor.muses import (
     MusesRunDir,
     RetrievalStrategy,
-    InstrumentIdentifier,
     ProcessLocation,
     CurrentState,
+    CurrentStateRecordAndPlay,
+    CurrentStateStateInfo,
+    MusesObservationHandlePickleSave,
+    MusesAirsObservation,
+    MusesOmiObservation,
+    InstrumentIdentifier,
+    ObservationHandleSet,
+    MusesStrategyStepList,
+    MeasurementIdFile,
+    RetrievalConfiguration,
 )
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
 from pathlib import Path
+from loguru import logger
+import sys
 
 # Fixtures that set up a full RetrievalStrategy at a given retrieval step, for use
 # in testing that is hard to do outside of a full retrieval
@@ -334,6 +345,38 @@ def omi_fm_object_creator_step_0(
     res.rstep = rstep
     return res
 
+@pytest.fixture(scope="function")
+def joint_omi_current_state(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
+    '''Set up the CurrentState, for the start of the retrieval of a joint air/omi
+    target'''
+    # The setup is really noisy with the logger. Since we aren't actually testing this,
+    # suppress this just so we can see what we actually care about
+    logger.remove()
+    r = MusesRunDir(
+        joint_omi_test_in_dir,
+        osp_dir,
+        gmao_dir,
+    )
+    # The old state element stuff assumes it is in the run directory
+    os.chdir(r.run_dir)
+    tfilename = r.run_dir / "Table.asc"
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        tfilename, osp_dir=osp_dir
+    )
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
+    strat = MusesStrategyStepList.create_from_strategy_file(tfilename, osp_dir=osp_dir)
+    strat.notify_update_target(measurement_id)
+    measurement_id.filter_list_dict = strat.filter_list_dict
+    obs_hset = ObservationHandleSet()
+    obs_hset.add_handle(MusesObservationHandlePickleSave(InstrumentIdentifier("AIRS"), MusesAirsObservation))
+    obs_hset.add_handle(MusesObservationHandlePickleSave(InstrumentIdentifier("OMI"), MusesOmiObservation))
+    obs_hset.notify_update_target(measurement_id)
+    cstate = CurrentStateStateInfo()
+    cstate.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    cstate.notify_start_retrieval(strat.current_strategy_step(), rconfig)
+    cstate_record = CurrentStateRecordAndPlay(joint_omi_test_in_dir / "current_state_record.pkl")
+    logger.add(sys.stderr, level="DEBUG")
+    return cstate, cstate_record, strat, rconfig, measurement_id
 
 @pytest.fixture(scope="function")
 def omi_fm_object_creator_step_1(

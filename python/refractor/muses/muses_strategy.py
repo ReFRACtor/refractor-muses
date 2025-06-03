@@ -680,7 +680,6 @@ class MusesStrategyStepList(MusesStrategyImp):
             or btdata is None
         ):
             return
-
         # List of species determine in RetrievalStrategyStepBT
         species_igr = btdata["species_igr"]
         if species_igr is None:

@@ -4,6 +4,7 @@ from refractor.muses import (
     RetrievalStepCaptureObserver,
     RetrievalStrategy,
     StateInfoCaptureObserver,
+    CurrentStateRecordAndPlay,
 )
 from refractor.tropomi import TropomiForwardModelHandle, TropomiSwirForwardModelHandle
 from refractor.omi import OmiForwardModelHandle
@@ -108,17 +109,14 @@ def test_capture_airs_omi_retrieval_strategy(
     )
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rs.clear_observers()
-    rscap = StateInfoCaptureObserver(
-        joint_omi_test_in_dir / "state_info_step", "starting run_step"
-    )
-    rs.add_observer(rscap)
+    rs.strategy_executor.current_state.record = CurrentStateRecordAndPlay()
     rscap2 = RetrievalStepCaptureObserver(
         joint_omi_test_in_dir / "retrieval_state_step"
     )
     rs.add_observer(rscap2)
     rs.update_target(r.run_dir / "Table.asc")
     rs.retrieval_ms()
-
+    rs.strategy_executor.current_state.record.save_pickle(joint_omi_test_in_dir / "current_state_record.pkl")
 
 @pytest.mark.capture_test
 def test_capture_airs_irk(

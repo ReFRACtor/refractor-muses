@@ -604,7 +604,7 @@ class CurrentStateStateInfo(CurrentState):
         # MusesStrategy, so we just skip doing anything
         if current_strategy_step is not None:
             if self.record is not None:
-                self.record.notify_start_retrieval()
+                self.record.notify_start_step()
             self.match_old()
             self._retrieval_element_id = current_strategy_step.retrieval_elements
             self._sys_element_id = current_strategy_step.error_analysis_interferents

@@ -42,18 +42,19 @@ class CurrentStateRecordAndPlay:
     """Add step information and interaction with CurrentState for recording and playing
     back to a certain step."""
 
-    def __init__(self, fname: str | os.PathLike[str] | None) -> None:
+    def __init__(self, fname: str | os.PathLike[str] | None = None) -> None:
         self._full_record: list[RecordAndPlayFunc] = []
-        self._next_record = RecordAndPlayFunc()
+        self._next_record: RecordAndPlayFunc | None = None
         if fname is not None:
             self.load_pickle(fname)
 
     def notify_start_retrieval(self) -> None:
         self._full_record = []
-        self._next_record = RecordAndPlayFunc()
+        self._next_record = None
 
     def notify_start_step(self) -> None:
-        self._full_record.append(self._next_record)
+        if(self._next_record is not None):
+            self._full_record.append(self._next_record)
         self._next_record = RecordAndPlayFunc()
 
     def record(self, funcname: str, *args: Any) -> None:
@@ -76,7 +77,7 @@ class CurrentStateRecordAndPlay:
         strategy: MusesStrategy,
         retrieval_config: RetrievalConfiguration,
         step_number: int,
-        at_start_step: bool,
+        at_start_step: bool = False,
     ) -> None:
         """Play back the function calls and also take the strategy to the given
         step number. We can either stop at the start of the step, and play back
