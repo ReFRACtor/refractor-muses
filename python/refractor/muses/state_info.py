@@ -124,6 +124,7 @@ class StateInfo(UserDict):
         self._sounding_metadata : SoundingMetadata | None = None
         self.propagated_qa = PropagatedQA()
         self._current_state_old = None
+        self._brightness_temperature_data: dict[int, dict[str, float | None]] = {}
         # Temp, clumsy but this will go away
         for p in sorted(self.state_element_handle_set.handle_set.keys(), reverse=True):
             for h in self.state_element_handle_set.handle_set[p]:
@@ -172,12 +173,7 @@ class StateInfo(UserDict):
 
     @property
     def brightness_temperature_data(self) -> dict[int, dict[str, float | None]]:
-        # Right now, need the old brightness_temperature_data.
-        # We can probably straighten this out later, but as we forward stuff
-        # to the old current_state_old we need to have the data there
-        if self._current_state_old is None:
-            raise RuntimeError("Need _current_state_old")
-        return self._current_state_old.state_info.brightness_temperature_data
+        return self._brightness_temperature_data
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
@@ -207,6 +203,7 @@ class StateInfo(UserDict):
         )
         self.data = {}
         self.propagated_qa = PropagatedQA()
+        self._brightness_temperature_data = {}
 
     def notify_start_step(
         self,
