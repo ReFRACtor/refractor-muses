@@ -45,6 +45,7 @@ import os
 #     cfunc2 = rf.read_shelve("cfunc.xml")
 
 
+@pytest.mark.long_test    
 @pytest.mark.old_py_retrieve_test
 def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
     """Compare the results from our CostFunction with directly calling
@@ -114,6 +115,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
     # the target of our fm_wrapper.
 
 
+@pytest.mark.long_test    
 @pytest.mark.old_py_retrieve_test
 def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
     """Compare the results from our CostFunction with directly calling
@@ -183,6 +185,7 @@ def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
     # the target of our fm_wrapper.
 
 
+@pytest.mark.long_test    
 @pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_tropomi(
     isolated_dir,
@@ -264,6 +267,7 @@ def test_residual_fm_jac_tropomi(
     )
 
 
+@pytest.mark.long_test    
 @pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_omi(
     isolated_dir,
@@ -349,6 +353,7 @@ def test_residual_fm_jac_omi(
     )
 
 
+@pytest.mark.long_test    
 @pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_omi2(
     isolated_dir,
@@ -398,6 +403,7 @@ def test_residual_fm_jac_omi2(
     )
 
 
+@pytest.mark.long_test    
 @pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_tropomi2(
     isolated_dir,

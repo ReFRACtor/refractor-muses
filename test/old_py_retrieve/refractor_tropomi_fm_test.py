@@ -23,6 +23,7 @@ import pytest
 # ============================================================================
 
 
+@pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_muses_py(
@@ -78,6 +79,7 @@ def test_refractor_fm_muses_py(
     )
 
 
+@pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize(
     "step_number",
@@ -148,6 +150,7 @@ def test_refractor_joint_fm_muses_py(
     assert np.abs(o_jacobian - o_jacobian2).max() < 1e-15
 
 
+@pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_refractor(
@@ -217,6 +220,7 @@ def test_refractor_fm_refractor(
     assert np.max(np.abs((o_radiance2 - o_radiance) / o_radiance2 * 100.0)) < 0.15
 
 
+@pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize(
     "step_number",
@@ -328,6 +332,7 @@ def test_refractor_joint_fm_refractor(
         plt.savefig("plot2.png", dpi=300)
 
 
+@pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 def test_refractor_detailed_fm_refractor(
     isolated_dir,
