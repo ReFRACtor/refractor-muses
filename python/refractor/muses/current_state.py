@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
     )
     from .refractor_uip import RefractorUip
     from .retrieval_configuration import RetrievalConfiguration
-    from .muses_observation import MeasurementId
+    from .muses_observation import MeasurementId, MusesObservation
     from .muses_strategy import CurrentStrategyStep
     from .muses_strategy import MusesStrategy
     from .observation_handle import ObservationHandleSet
@@ -79,7 +79,7 @@ class SoundingMetadata:
 
     @classmethod
     def create_from_measurement_id(
-        cls, measurement_id: MeasurementId, instrument: InstrumentIdentifier
+            cls, measurement_id: MeasurementId, instrument: InstrumentIdentifier, obs: MusesObservation
     ) -> Self:
         res = cls()
         instrument_name = str(instrument)
@@ -120,9 +120,7 @@ class SoundingMetadata:
         i_date_struct["minute"] = date_struct["utctime"].minute
         i_date_struct["second"] = date_struct["utctime"].second
         res._day_flag = bool(mpy.daytime(i_date_struct, res._longitude.value))
-
-        # Need to fill these in
-        res._surface_altitude = rf.DoubleWithUnit(0, "km")
+        res._surface_altitude = obs.surface_altitude
         return res
 
     @classmethod

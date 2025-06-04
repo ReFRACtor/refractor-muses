@@ -830,7 +830,7 @@ class RetrievalL2Output(RetrievalOutput):
                 self.state_value_vec("H2O"),
                 self.state_value("PCLOUD"),
                 self.state_value("scalePressure"),
-                self.current_state.sounding_metadata.surface_altitude.value * 1000,
+                self.current_state.sounding_metadata.surface_altitude.convert("m").value,
                 self.current_state.sounding_metadata.latitude.value,
             )
 

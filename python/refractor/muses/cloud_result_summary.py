@@ -299,7 +299,7 @@ class CloudResultSummary:
             self.state_value_vec("H2O"),
             self.state_value("PCLOUD"),
             scale_pressure,
-            self.current_state.sounding_metadata.surface_altitude.value * 1000,
+            self.current_state.sounding_metadata.surface_altitude.convert("m").value,
             self.current_state.sounding_metadata.latitude.value,
         )
         # TODO Rounding currently done. I', not sure this makes a lot of sense,

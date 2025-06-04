@@ -176,7 +176,7 @@ class MeasurementIdFile(MeasurementId):
         return v
 
 
-class MusesObservation(rf.ObservationSvImpBase):
+class MusesObservation(rf.ObservationSvImpBase, metaclass=abc.ABCMeta):
     """The Observation for MUSES is a standard ReFRACtor Observation,
     with a few extra pieces needed by the MUSES code.
 
@@ -231,12 +231,12 @@ class MusesObservation(rf.ObservationSvImpBase):
         else:
             super().__init__(coeff, in_map)
 
-    @property
+    @abc.abstractproperty
     def instrument_name(self) -> InstrumentIdentifier:
         """Name of instrument observation is for."""
         raise NotImplementedError()
 
-    @property
+    @abc.abstractproperty
     def filter_data(self) -> list[tuple[FilterIdentifier, int]]:
         """This returns a list of filter names and sizes. This is used
         as metadata in the py-retrieve structure called
@@ -260,7 +260,7 @@ class MusesObservation(rf.ObservationSvImpBase):
         """
         raise NotImplementedError()
 
-    @property
+    @abc.abstractproperty
     def sounding_desc(self) -> dict[str, Any]:
         """Different types of instruments have different description
         of the sounding ID. This gets used in retrieval_l2_output for
@@ -339,6 +339,10 @@ class MusesObservation(rf.ObservationSvImpBase):
             self.spectral_window.include_bad_sample = t1
             self.spectral_window.full_band = t2
             self.spectral_window.do_raman_ext = t3
+
+    @abc.abstractproperty
+    def surface_altitude(self) -> rf.DoubleWithUnit:
+        raise NotImplementedError()
 
 
 class MusesObservationImp(MusesObservation):
@@ -754,6 +758,9 @@ class SimulatedObservation(MusesObservationImp):
         """
         return self._nesr_full[sensor_index]
 
+    @property
+    def surface_altitude(self) -> rf.DoubleWithUnit:
+        return self._obs.surface_altitude
 
 class SimulatedObservationHandle(ObservationHandle):
     """Just return the given observation always for the given
@@ -1067,6 +1074,9 @@ class MusesAirsObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["radiance"]["NESR"]
 
+    @property
+    def surface_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(float(self.muses_py_dict["surfaceAltitude"]), "m")
 
 class MusesTesObservation(MusesObservationImp):
     def __init__(
@@ -1449,6 +1459,10 @@ class MusesTesObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["radianceStruct"]["NESR"]
 
+    @property
+    def surface_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(float(self.muses_py_dict["surfaceElevation"]), "m")
+    
 
 class MusesCrisObservation(MusesObservationImp):
     def __init__(
@@ -1683,6 +1697,13 @@ class MusesCrisObservation(MusesObservationImp):
             raise RuntimeError("sensor_index out of range")
         return self.muses_py_dict["NESR"]
 
+    @property
+    def surface_altitude(self) -> rf.DoubleWithUnit:
+        # TODO the old muses-py code replaces negative altitude with 0. Not
+        # sure if this should be done or not, but that is the only instrument that
+        # has this behavior. Assume this is right
+        r = float(self.muses_py_dict["SURFACEALTITUDE"])
+        return rf.DoubleWithUnit(0.0 if r < 0 else r, "m")
 
 class MusesDispersion:
     """Helper class, just pull out the calculation of the wavelength
@@ -2101,6 +2122,16 @@ class MusesTropomiObservation(MusesObservationReflectance):
                 utc_time,
                 i_windows,
             )
+            # Reading of the surface height is done separately. In muses-py this
+            # was a side effect of setting up the StateInfo.
+            for i in range(len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])):
+                surfaceAltitude = mpy.read_tropomi_surface_altitude(
+                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
+                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
+                )
+                o_tropomi["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][i] = (
+                    surfaceAltitude
+                )
         sdesc = {
             "TROPOMI_ATRACK_INDEX_BAND1": np.int16(-999),
             "TROPOMI_XTRACK_INDEX_BAND1": np.int16(-999),
@@ -2319,6 +2350,9 @@ class MusesTropomiObservation(MusesObservationReflectance):
         """List of state element names for this observation"""
         return self.state_element_name_list_from_filter(self.filter_list)
 
+    @property
+    def surface_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(float(self.muses_py_dict["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][-1]), "m")
 
 class MusesOmiObservation(MusesObservationReflectance):
     """Observation for OMI"""
@@ -2560,6 +2594,12 @@ class MusesOmiObservation(MusesObservationReflectance):
         """List of state element names for this observation"""
         return self.state_element_name_list_from_filter(self.filter_list)
 
+    @property
+    def surface_altitude(self) -> rf.DoubleWithUnit:
+        return rf.DoubleWithUnit(float(self.muses_py_dict["Earth_Radiance"]["ObservationTable"][
+            "TerrainHeight"
+        ][0]), "m")
+    
 
 ObservationHandleSet.add_default_handle(
     MusesObservationHandle(InstrumentIdentifier("AIRS"), MusesAirsObservation)
