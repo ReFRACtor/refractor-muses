@@ -133,7 +133,7 @@ def test_current_state(
     )
     assert cstate.state_value(StateElementIdentifier("PSUR"))[0] == pytest.approx(0.0)
     assert cstate.sounding_metadata.local_hour == pytest.approx(11.40252685546875)
-    assert cstate.sounding_metadata.height.value[0] == 0.16982704162597656
+    assert cstate.height().value[0] == 0.16982704162597656
     assert cstate.state_value(StateElementIdentifier("TATM"))[0] == pytest.approx(
         293.28302002
     )

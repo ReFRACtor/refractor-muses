@@ -72,14 +72,6 @@ class SoundingMetadata:
         self._longitude = rf.DoubleWithUnit(0, "deg")
         self._surface_altitude = rf.DoubleWithUnit(0, "km")
         self._day_flag = False
-        self._height = rf.ArrayWithUnit_double_1(
-            np.array(
-                [
-                    0,
-                ]
-            ),
-            "km",
-        )
         self._surface_type = ""
         self._tai_time = 0.0
         self._sounding_id = ""
@@ -131,14 +123,6 @@ class SoundingMetadata:
 
         # Need to fill these in
         res._surface_altitude = rf.DoubleWithUnit(0, "km")
-        res._height = rf.ArrayWithUnit_double_1(
-            np.array(
-                [
-                    0,
-                ]
-            ),
-            "km",
-        )
         return res
 
     @classmethod
@@ -160,9 +144,6 @@ class SoundingMetadata:
             state_info.state_info_dict[step]["tsa"]["surfaceAltitudeKm"], "km"
         )
         res._day_flag = bool(state_info.state_info_dict[step]["tsa"]["dayFlag"])
-        res._height = rf.ArrayWithUnit_double_1(
-            state_info.state_info_dict[step]["heightKm"], "km"
-        )
         res._surface_type = state_info.state_info_dict[step]["surfaceType"].upper()
         res._tai_time = state_info._tai_time
         res._sounding_id = state_info._sounding_id
@@ -180,10 +161,6 @@ class SoundingMetadata:
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return self._surface_altitude
-
-    @property
-    def height(self) -> rf.DoubleWithUnit:
-        return self._height
 
     @property
     def tai_time(self) -> float:
@@ -567,6 +544,22 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         a bit awkward, but it is how muses-py was set up. This is only used in a few places,
         so we'll go ahead and use the same logic here."""
         raise NotImplementedError()
+
+    def height(self) -> rf.ArrayWithUnit_double_1:
+        """We already have height objects for our forward model, but this particular
+        value gets written out as metadata in a few places. Calculate this the
+        same way. We can possibly remove this in the future, but for now do this.
+        """
+        (results, _) = mpy.compute_altitude_pge(
+            self.state_value("pressure"),
+            self.state_value("TATM"),
+            self.state_value("H2O"),
+            self.sounding_metadata.surface_altitude.convert("m").value,
+            self.sounding_metadata.latitude.value,
+            None,
+            True,
+        )
+        return rf.ArrayWithUnit_double_1(results["altitude"] / 1000.0, "km")
 
     @property
     def propagated_qa(self) -> PropagatedQA:

@@ -526,8 +526,6 @@ class StateElementImplementation(StateElement):
         self._metadata: dict[str, Any] = {}
         self._spectral_domain = spectral_domain
         # Temp, until we have tested everything out
-        if( isinstance(selem_wrapper, bool)):
-            breakpoint()
         self._sold = selem_wrapper
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
             self.update_initial_guess = self._update_initial_guess

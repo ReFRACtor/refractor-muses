@@ -245,7 +245,7 @@ class RetrievalL2Output(RetrievalOutput):
             geo_data.LANDFLAG = np.int32(0)
             geo_data.SURFACETYPEFOOTPRINT = np.int32(2)
 
-            if np.amin(np.abs(smeta.height.convert("km").value)) > 0.1:
+            if np.amin(np.abs(self.current_state.height().convert("km").value)) > 0.1:
                 geo_data.SURFACETYPEFOOTPRINT = 1
 
         hour = smeta.local_hour

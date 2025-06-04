@@ -58,7 +58,7 @@ class FakeStateInfo:
         self._current["tsa"]["surfaceAltitudeKm"] = (
             current_state.sounding_metadata.surface_altitude.value
         )
-        self._current["heightKm"] = current_state.sounding_metadata.height.value
+        self._current["heightKm"] = current_state.height().value
         self._current["scalePressure"] = self.state_value("scalePressure")
 
         # I think this is a fixed list

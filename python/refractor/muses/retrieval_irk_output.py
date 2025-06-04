@@ -214,7 +214,10 @@ class RetrievalIrkOutput(RetrievalOutput):
 
         irk_data.dominantSurfaceType = smeta.surface_type
         irk_data.surfaceTypeFootprint = np.int32(2) if smeta.is_ocean else np.int32(3)
-        if smeta.is_ocean and np.amin(np.abs(smeta.height.convert("km").value)) > 0.1:
+        if (
+            smeta.is_ocean
+            and np.amin(np.abs(self.current_state.height().convert("km").value)) > 0.1
+        ):
             irk_data.surfaceTypeFootprint = np.int32(1)
 
         irk_data.LATITUDE = smeta.latitude.value
