@@ -122,6 +122,7 @@ class StateInfo(UserDict):
         self._state_element: dict[StateElementIdentifier, StateElement] = {}
         self._cross_state_info = CrossStateInfo(self, cross_state_element_handle_set)
         self.propagated_qa = PropagatedQA()
+        self._current_state_old = None
         # Temp, clumsy but this will go away
         for p in sorted(self.state_element_handle_set.handle_set.keys(), reverse=True):
             for h in self.state_element_handle_set.handle_set[p]:
@@ -173,12 +174,16 @@ class StateInfo(UserDict):
         # Right now, need the old brightness_temperature_data.
         # We can probably straighten this out later, but as we forward stuff
         # to the old current_state_old we need to have the data there
+        if self._current_state_old is None:
+            raise RuntimeError("Need _current_state_old")
         return self._current_state_old.state_info.brightness_temperature_data
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
         # Right now, use the old SoundingMetadata. We'll want to move this over,
         # but that can wait a bit
+        if self._current_state_old is None:
+            raise RuntimeError("Need _current_state_old")
         return self._current_state_old.sounding_metadata
 
     def notify_update_target(
@@ -211,11 +216,14 @@ class StateInfo(UserDict):
         skip_initial_guess_update: bool = False,
     ) -> None:
         # TODO, we want to remove this
-        self._current_state_old.notify_start_step(
-            current_strategy_step,
-            retrieval_config,
-            skip_initial_guess_update,
-        )
+        if self._current_state_old is not None:
+            self._current_state_old.notify_start_step(
+                current_strategy_step,
+                retrieval_config,
+                skip_initial_guess_update,
+            )
+        if self._current_state_old is None:
+            raise RuntimeError("Need _current_state_old")
         # Since we aren't actually doing the init stuff yet in our
         # new StateElement, make sure everything get created (since
         # this happens on first use)
@@ -244,13 +252,15 @@ class StateInfo(UserDict):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        # TODO, we want to remove this
-        self._current_state_old.notify_start_retrieval(
-            current_strategy_step, retrieval_config
-        )
+        if self._current_state_old is not None:
+            self._current_state_old.notify_start_retrieval(
+                current_strategy_step, retrieval_config
+            )
         # Since we aren't actually doing the init stuff yet in our
         # new StateElement, make sure everything get created (since
         # this happens on first use)
+        if self._current_state_old is None:
+            raise RuntimeError("Need _current_state_old")
         for sid in self._current_state_old.full_state_element_id:
             # Skip duplicates we are removing
             if sid not in (
@@ -273,29 +283,13 @@ class StateInfo(UserDict):
     def notify_step_solution(
         self, xsol: RetrievalGridArray, current_state: CurrentState
     ) -> None:
+        if self._current_state_old is not None:
+            self._current_state_old.notify_step_solution(xsol)
         for selem in self.values():
             selem.notify_step_solution(
                 xsol, current_state.retrieval_sv_slice(selem.state_element_id)
             )
         self._cross_state_info.notify_step_solution(xsol, current_state)
-
-    def update_with_old(self) -> None:
-        """Temporary, we have the StateInfoOld saved but not the new StateInfo in our
-        capture tests. We will get to doing StateInfo, but for now use the old data to
-        update the new data for the purpose of unit tests."""
-        for k, v in self.items():
-            try:
-                if self._current_state_old.state_value_str(k) is None:
-                    v1 = self._current_state_old.state_value(k)
-                    v2 = self._current_state_old.state_constraint_vector(k)
-                    if k == StateElementIdentifier("PCLOUD"):
-                        # Special handling for PCLOUD
-                        v1 = v1[0:1]
-                        v2 = v2[0:1]
-                    v.update_state_element(current_fm=v1, constraint_vector_fm=v2)
-            except NotImplementedError:
-                # Not all the old elements exist, we just skip any one that doesn't
-                pass
 
     def __missing__(self, state_element_id: StateElementIdentifier) -> StateElement:
         self.data[state_element_id] = self.state_element_handle_set.state_element(

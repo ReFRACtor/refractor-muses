@@ -1,6 +1,7 @@
 # Not really sure about the design or these, or how much to pull out.
 # For now, just create these as separate classes.
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from .state_element import (
     StateElementHandle,
     StateElement,
@@ -26,6 +27,41 @@ if typing.TYPE_CHECKING:
 class StateElementFreqShared(StateElementOspFile):
     """Clumsy class, hopefully will go away. It isn't clear what is in
     common between EMIS and CLOUDEXT, we'll try putting that stuff here."""
+
+    def __init__(
+        self,
+        state_element_id: StateElementIdentifier,
+        pressure_list_fm: FullGridMappedArray | None,
+        value_fm: FullGridMappedArray,
+        constraint_vector_fm: FullGridMappedArray,
+        latitude: float,
+        surface_type: str,
+        species_directory: Path,
+        covariance_directory: Path,
+        spectral_domain: rf.SpectralDomain | None = None,
+        selem_wrapper: Any | None = None,
+        cov_is_constraint: bool = False,
+        poltype: str | None = None,
+        poltype_used_constraint: bool = True,
+    ):
+        super().__init__(
+            state_element_id,
+            pressure_list_fm,
+            value_fm,
+            constraint_vector_fm,
+            latitude,
+            surface_type,
+            species_directory,
+            covariance_directory,
+            spectral_domain=spectral_domain,
+            selem_wrapper=selem_wrapper,
+            cov_is_constraint=cov_is_constraint,
+            poltype=poltype,
+            poltype_used_constraint=poltype_used_constraint,
+        )
+        if self._sold is None:
+            raise RuntimeError("Need sold")
+        self._spectral_domain = self._sold.spectral_domain
 
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
@@ -55,6 +91,7 @@ class StateElementEmis(StateElementFreqShared):
         surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
+        spectral_domain: rf.SpectralDomain | None = None,
         selem_wrapper: Any | None = None,
         cov_is_constraint: bool = False,
         poltype: str | None = None,
@@ -69,10 +106,11 @@ class StateElementEmis(StateElementFreqShared):
             surface_type,
             species_directory,
             covariance_directory,
-            selem_wrapper,
-            cov_is_constraint,
-            poltype,
-            poltype_used_constraint,
+            spectral_domain=spectral_domain,
+            selem_wrapper=selem_wrapper,
+            cov_is_constraint=cov_is_constraint,
+            poltype=poltype,
+            poltype_used_constraint=poltype_used_constraint,
         )
         if self._sold is None:
             raise RuntimeError("Need sold")
@@ -265,6 +303,7 @@ class StateElementEmisHandle(StateElementHandle):
             return None
         pressure_level = None
         value_fm = sold.value_fm
+        spectral_domain = sold.spectral_domain
         try:
             constraint_vector_fm = sold.constraint_vector_fm
         except NotImplementedError:
@@ -279,6 +318,7 @@ class StateElementEmisHandle(StateElementHandle):
             self.strategy,
             self.observation_handle_set,
             self.sounding_metadata,
+            spectral_domain=spectral_domain,
             selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
         )
@@ -328,6 +368,7 @@ class StateElementCloudExtHandle(StateElementHandle):
             return None
         pressure_level = None
         value_fm = sold.value_fm
+        spectral_domain = sold.spectral_domain
         try:
             constraint_vector_fm = sold.constraint_vector_fm
         except NotImplementedError:
@@ -351,6 +392,7 @@ class StateElementCloudExtHandle(StateElementHandle):
             self.strategy,
             self.observation_handle_set,
             self.sounding_metadata,
+            spectral_domain=spectral_domain,
             selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
         )

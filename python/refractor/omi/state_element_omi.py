@@ -1,4 +1,5 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     StateElementHandleSet,
     StateElementOspFileHandle,
@@ -90,6 +91,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
+        spectral_domain: rf.SpectralDomain | None = None,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
         poltype: str | None = None,
@@ -147,8 +149,8 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
             surface_type,
             species_directory,
             covariance_directory,
-            selem_wrapper,
-            cov_is_constraint,
+            selem_wrapper=selem_wrapper,
+            cov_is_constraint=cov_is_constraint,
         )
 
     @classmethod
@@ -163,6 +165,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
+        spectral_domain: rf.SpectralDomain | None = None,
         selem_wrapper: StateElementOldWrapper | None = None,
         cov_is_constraint: bool = False,
         poltype: str | None = None,

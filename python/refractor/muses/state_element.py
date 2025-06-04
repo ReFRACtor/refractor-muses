@@ -494,6 +494,7 @@ class StateElementImplementation(StateElement):
         state_mapping: rf.StateMapping | None = rf.StateMappingLinear(),
         initial_value_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
+        spectral_domain: rf.SpectralDomain | None = None,
         selem_wrapper: Any | None = None,
     ) -> None:
         super().__init__(state_element_id)
@@ -523,7 +524,10 @@ class StateElementImplementation(StateElement):
         self._next_step_initial_fm: FullGridMappedArray | None = None
         self._next_constraint_vector_fm: FullGridMappedArray | None = None
         self._metadata: dict[str, Any] = {}
+        self._spectral_domain = spectral_domain
         # Temp, until we have tested everything out
+        if( isinstance(selem_wrapper, bool)):
+            breakpoint()
         self._sold = selem_wrapper
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
             self.update_initial_guess = self._update_initial_guess
@@ -717,12 +721,9 @@ class StateElementImplementation(StateElement):
         res = self._metadata
         return res
 
-    # These are placeholders, need to fill in
     @property
     def spectral_domain(self) -> rf.SpectralDomain | None:
-        if self._sold is None:
-            raise RuntimeError("Not implemented yet")
-        return self._sold.spectral_domain
+        return self._spectral_domain
 
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:
@@ -774,8 +775,6 @@ class StateElementImplementation(StateElement):
         current_strategy_step: CurrentStrategyStep | None,
         retrieval_config: RetrievalConfiguration,
     ) -> None:
-        if self._sold is not None:
-            self._sold.notify_start_retrieval(current_strategy_step, retrieval_config)
         self._value_fm = self._retrieval_initial_fm.copy()
         self._step_initial_fm = self._retrieval_initial_fm.copy()
 
@@ -796,12 +795,6 @@ class StateElementImplementation(StateElement):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        if self._sold is not None:
-            self._sold.notify_start_step(
-                current_strategy_step,
-                retrieval_config,
-                skip_initial_guess_update,
-            )
         # Update the initial value if we have a setting from the previous step
         if self._next_step_initial_fm is not None:
             self._step_initial_fm = self._next_step_initial_fm
@@ -822,10 +815,6 @@ class StateElementImplementation(StateElement):
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
     ) -> None:
-        # We've already called notify_parameter_update, so no need to update
-        # self._value here
-        if self._sold is not None:
-            self._sold.notify_step_solution(xsol, retrieval_slice)
         # Default is that the next initial value is whatever the solution was from
         # this step. But skip if we are on the not updated list
         self._next_step_initial_fm = None

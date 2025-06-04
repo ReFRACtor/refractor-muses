@@ -53,14 +53,6 @@ class StateElementOspFileHandleNew(StateElementHandle):
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
-        # Issue with a few of the StateElements, punt short term so we can get the
-        # rest of stuff working.
-        if False and str(state_element_id) in (
-            "CLOUDEXT",
-            "EMIS",
-        ):
-            return None
-
         # if state_element_id != self.sid:
         #    return None
         if self.measurement_id is None or self.retrieval_config is None:
@@ -78,7 +70,9 @@ class StateElementOspFileHandleNew(StateElementHandle):
         else:
             # For now, just a dummy value
             pressure_level = None
+        spectral_domain = None
         if sold is not None and sold.value_str is None:
+            spectral_domain = sold.spectral_domain
             value_fm = sold.value_fm
             try:
                 constraint_vector_fm = sold.constraint_vector_fm
@@ -127,6 +121,7 @@ class StateElementOspFileHandleNew(StateElementHandle):
             self.observation_handle_set,
             self.sounding_metadata,
             selem_wrapper=sold,
+            spectral_domain=spectral_domain,
             cov_is_constraint=self.cov_is_constraint,
             poltype=poltype,
             poltype_used_constraint=poltype_used_constraint,

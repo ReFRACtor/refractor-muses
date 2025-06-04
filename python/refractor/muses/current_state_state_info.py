@@ -70,6 +70,8 @@ class CurrentStateStateInfo(CurrentState):
         """A kludge to handle current_state_override with our old state info stuff.
         Temporarily, ensure that the two are in sync"""
         cstate = self._current_state_old
+        if cstate is None:
+            return
         if (
             self.retrieval_state_element_override
             != cstate.retrieval_state_element_override
@@ -101,7 +103,10 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        if CurrentState.check_old_state_element_value:
+        if (
+            CurrentState.check_old_state_element_value
+            and self._current_state_old is not None
+        ):
             res2 = self._current_state_old.initial_guess
             # Short term, see if this is only difference
             # return res2.view(RetrievalGridArray)
@@ -129,7 +134,10 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             )
-        if CurrentState.check_old_state_element_value:
+        if (
+            CurrentState.check_old_state_element_value
+            and self._current_state_old is not None
+        ):
             res2 = self._current_state_old.initial_guess_full
             # Short term, see if this is only difference
             # return res2.view(FullGridArray)
@@ -167,7 +175,10 @@ class CurrentStateStateInfo(CurrentState):
                 if m_s2xs2 is not None:
                     res[r2, r2] = m_s2xs2
         # TODO Remove current_state_old
-        if CurrentState.check_old_state_element_value:
+        if (
+            CurrentState.check_old_state_element_value
+            and self._current_state_old is not None
+        ):
             res2 = self._current_state_old.constraint_matrix
             # Short term, see if this is only difference
             return res2.view(RetrievalGrid2dArray)
@@ -215,7 +226,10 @@ class CurrentStateStateInfo(CurrentState):
                     v[v < 0] = v[v > 0].min()
                 resv.append(v)
             res = np.concatenate(resv).view(RetrievalGridArray)
-        if CurrentState.check_old_state_element_value:
+        if (
+            CurrentState.check_old_state_element_value
+            and self._current_state_old is not None
+        ):
             res2 = self._current_state_old.constraint_vector(fix_negative=fix_negative)
             npt.assert_allclose(res, res2)
         return res
@@ -240,7 +254,10 @@ class CurrentStateStateInfo(CurrentState):
                     for sid in self.retrieval_state_element_id
                 ]
             ).view(FullGridArray)
-        if CurrentState.check_old_state_element_value:
+        if (
+            CurrentState.check_old_state_element_value
+            and self._current_state_old is not None
+        ):
             try:
                 res2 = self._current_state_old.constraint_vector_full
                 # Need to fix
@@ -382,17 +399,18 @@ class CurrentStateStateInfo(CurrentState):
             retrieval_initial_fm=retrieval_initial_fm,
             true_value_fm=true_value_fm,
         )
-        self._current_state_old.state_element_old(state_element_id).update_state(
-            current=current_fm,
-            apriori=constraint_vector_fm
-            if constraint_vector_fm is not None
-            else next_constraint_vector_fm,
-            initial=step_initial_fm
-            if step_initial_fm is not None
-            else next_step_initial_fm,
-            initial_initial=retrieval_initial_fm,
-            true=true_value_fm,
-        )
+        if self._current_state_old is not None:
+            self._current_state_old.state_element_old(state_element_id).update_state(
+                current=current_fm,
+                apriori=constraint_vector_fm
+                if constraint_vector_fm is not None
+                else next_constraint_vector_fm,
+                initial=step_initial_fm
+                if step_initial_fm is not None
+                else next_step_initial_fm,
+                initial_initial=retrieval_initial_fm,
+                true=true_value_fm,
+            )
 
     def clear_cache(self) -> None:
         super().clear_cache()

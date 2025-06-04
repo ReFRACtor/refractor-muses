@@ -50,6 +50,7 @@ class StateElementOspFile(StateElementImplementation):
         surface_type: str,
         species_directory: Path,
         covariance_directory: Path,
+        spectral_domain: rf.SpectralDomain | None = None,
         selem_wrapper: Any | None = None,
         cov_is_constraint: bool = False,
         poltype: str | None = None,
@@ -90,6 +91,7 @@ class StateElementOspFile(StateElementImplementation):
             constraint_matrix=None,
             state_mapping=None,
             selem_wrapper=selem_wrapper,
+            spectral_domain=spectral_domain,
         )
         if selem_wrapper is not None:
             if False and selem_wrapper.value_str is None:
@@ -238,6 +240,7 @@ class StateElementOspFile(StateElementImplementation):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
+        spectral_domain: rf.SpectralDomain | None = None,
         selem_wrapper: Any | None = None,
         cov_is_constraint: bool = False,
         poltype: str | None = None,
@@ -256,6 +259,7 @@ class StateElementOspFile(StateElementImplementation):
             sounding_metadata.surface_type,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
+            spectral_domain=spectral_domain,
             selem_wrapper=selem_wrapper,
             cov_is_constraint=cov_is_constraint,
             poltype=poltype,
@@ -348,8 +352,8 @@ class StateElementOspFileHandle(StateElementHandle):
             self.strategy,
             self.observation_handle_set,
             self.sounding_metadata,
-            sold,
-            self.cov_is_constraint,
+            selem_wrapper=sold,
+            cov_is_constraint=self.cov_is_constraint,
         )
         if res is not None:
             logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
