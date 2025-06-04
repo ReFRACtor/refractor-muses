@@ -215,28 +215,21 @@ class StateInfo(UserDict):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
-        # TODO, we want to remove this
         if self._current_state_old is not None:
             self._current_state_old.notify_start_step(
                 current_strategy_step,
                 retrieval_config,
                 skip_initial_guess_update,
             )
-        if self._current_state_old is None:
-            raise RuntimeError("Need _current_state_old")
-        # Since we aren't actually doing the init stuff yet in our
-        # new StateElement, make sure everything get created (since
-        # this happens on first use)
-        for sid in self._current_state_old.full_state_element_id:
-            # Skip duplicates we are removing, and poltype that we handling differently now
-            if sid not in (
-                StateElementIdentifier("emissivity"),
-                StateElementIdentifier("cloudEffExt"),
-                StateElementIdentifier("nh3type"),
-                StateElementIdentifier("ch3ohtype"),
-                StateElementIdentifier("hcoohtype"),
-            ):
-                _ = self[sid]
+        # Make sure we have all the elements we are going to be using in
+        # the retrieval, and we notify them about the step
+        lst = current_strategy_step.retrieval_elements
+        lst.extend(current_strategy_step.error_analysis_interferents)
+        for sid in lst:
+            _ = self[sid]
+        for i,sid in enumerate(lst):
+            for sid2 in lst[i+1:]:
+                _ = self._cross_state_info[(sid, sid2)]
         for selem in self.values():
             selem.notify_start_step(
                 current_strategy_step,
@@ -256,21 +249,6 @@ class StateInfo(UserDict):
             self._current_state_old.notify_start_retrieval(
                 current_strategy_step, retrieval_config
             )
-        # Since we aren't actually doing the init stuff yet in our
-        # new StateElement, make sure everything get created (since
-        # this happens on first use)
-        if self._current_state_old is None:
-            raise RuntimeError("Need _current_state_old")
-        for sid in self._current_state_old.full_state_element_id:
-            # Skip duplicates we are removing
-            if sid not in (
-                StateElementIdentifier("emissivity"),
-                StateElementIdentifier("cloudEffExt"),
-                StateElementIdentifier("nh3type"),
-                StateElementIdentifier("ch3ohtype"),
-                StateElementIdentifier("hcoohtype"),
-            ):
-                _ = self[sid]
         for selem in self.values():
             selem.notify_start_retrieval(
                 current_strategy_step,
