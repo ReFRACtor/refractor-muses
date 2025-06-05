@@ -587,7 +587,7 @@ class StateElementImplementation(StateElement):
                 npt.assert_allclose(res, res2, 1e-12)
             # Special case, some of the basis matrix that happen to be integer
             # are left as int64. No real reason, but also no harm
-            if res2.dtype != np.int64:
+            if res.dtype != bool and res2.dtype != np.int64:
                 assert res.dtype == res2.dtype
         else:
             assert res == res2
@@ -758,12 +758,13 @@ class StateElementImplementation(StateElement):
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
-        # We don't yet have support for the items that depend on frequency, so
-        # use the old state element stuff until we get this working
-        if self._sold is not None:
-            return self._sold.updated_fm_flag
-        res = np.zeros((self.apriori_cov_fm.shape[0],), dtype=bool)
-        if self._retrieved_this_step:
+        # This is what muses-py does. I'm not sure about the logic here - what if we
+        # update something and it just doesn't move? But none the less, match what
+        # muses-py does. Also - what should the logic be if value_fm is zero?
+        res = np.abs((self.step_initial_fm-self.value_fm)/self.value_fm) > 1e-6
+        # Special case if nothing moves - assumption is that we started at the
+        # the "true" value.
+        if(np.count_nonzero(res) == 0):
             res[:] = True
         self._check_result(res, "updated_fm_flag")
         return res.view(FullGridMappedArray)

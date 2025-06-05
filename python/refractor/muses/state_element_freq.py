@@ -79,6 +79,14 @@ class StateElementFreqShared(StateElementOspFile):
         # what the muses-py code expects
         self._pressure_list_fm = self._sold.pressure_list_fm
 
+    @property
+    def updated_fm_flag(self) -> FullGridMappedArray:
+        if self._sold is None:
+            raise RuntimeError("Need sold")
+        res = self._sold.updated_fm_flag
+        self._check_result(res, "updated_fm_flag")
+        return res
+
 
 class StateElementEmis(StateElementFreqShared):
     def __init__(
