@@ -126,6 +126,7 @@ def test_species(osp_dir):
     )
     npt.assert_allclose(cmatrix2, [[400.0]])
     npt.assert_allclose(cmatrix3, [[4.0]])
+    assert r.retrieval_levels(StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("omicloud_ig_refine")) is None
 
 
 def test_osp_l2_setup_control_initial(osp_dir):
@@ -145,6 +146,9 @@ def test_species_premade(osp_dir):
         StateElementIdentifier("TATM"), RetrievalType("default"), 30
     )
     assert cov.shape == (30, 30)
+    assert (list(r.retrieval_levels(StateElementIdentifier("TATM"), RetrievalType("default"))) ==
+            [ 1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 53, 54, 55, 58, 60, 62, 64, 66])
+          
 
 
 def test_species_h2o_hdo(osp_dir):

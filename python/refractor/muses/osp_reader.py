@@ -301,6 +301,25 @@ class OspSpeciesReader(OspFileHandle):
             return cov
         return self._default_cache[sid][sid2]
 
+    def retrieval_levels(
+        self,
+        sid: StateElementIdentifier,
+        retrieval_type: RetrievalType,
+    ) -> np.ndarray | None:
+        t = self.read_file(sid, retrieval_type)
+        r = [int(i) for i in t["retrievalLevels"].split(",")]
+        if(len(r) == 1 and r[0] == 0):
+            return None
+        return np.array(r, dtype=int)
+
+    def map_type(
+        self,
+        sid: StateElementIdentifier,
+        retrieval_type: RetrievalType,
+    ) -> str:
+        t = self.read_file(sid, retrieval_type)
+        return t["mapType"].lower()
+    
     def read_file(
         self,
         sid: StateElementIdentifier,

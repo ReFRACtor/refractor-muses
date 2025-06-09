@@ -1,6 +1,7 @@
 # Might end up breaking this file up, for now have all the stuff here
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
+import refractor.muses.muses_py as mpy  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .identifier import StateElementIdentifier
 from .current_state import (
@@ -614,7 +615,9 @@ class StateElementImplementation(StateElement):
             res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose()
         else:
             res = np.eye(self.value_fm.shape[0])
-        self._check_result(res, "basis_matrix")
+        # Only present in sold when we are retrieving
+        if(self._retrieved_this_step):
+            self._check_result(res, "basis_matrix")
         return res
 
     # TODO This can perhaps go away? Replace with a mapping?
@@ -624,7 +627,9 @@ class StateElementImplementation(StateElement):
             res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose()
         else:
             res = np.eye(self.value_fm.shape[0])
-        self._check_result(res, "map_to_parameter_matrix")
+        # Only present in sold when we are retrieving
+        if(self._retrieved_this_step):
+            self._check_result(res, "map_to_parameter_matrix")
         return res
 
     @property
@@ -768,6 +773,21 @@ class StateElementImplementation(StateElement):
             res[:] = True
         self._check_result(res, "updated_fm_flag")
         return res.view(FullGridMappedArray)
+
+    def tes_levels(self, retrieval_levels: np.ndarray, pressure_input: np.ndarray) -> np.ndarray:
+        '''This is a mapping from the "retrieval_levels" found in the
+        OSP species files to the levels used in the generation of the
+        basis matrix. This is a mapping from the input pressure levels
+        to the forward model pressure levels
+        '''
+        if(self.pressure_list_fm is None):
+            raise RuntimeError("Need pressure_list_fm")
+        res = mpy.supplier_retrieval_levels_tes(retrieval_levels, pressure_input,
+                                                self.pressure_list_fm)
+        # Filter out any levels out of range
+        res = np.array([i for i in res if i <= self.pressure_list_fm.shape[0]])
+        return res
+        
 
     def notify_start_retrieval(
         self,

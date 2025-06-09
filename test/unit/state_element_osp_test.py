@@ -83,7 +83,10 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
     return shand, strat, rconfig, cstate_old
 
 
-def test_osp_state_element(osp_dir):
+def test_osp_state_element(osp_dir, omi_test_in_dir):
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
+    )
     apriori_value = np.array(
         [
             0.0,
@@ -131,7 +134,6 @@ def test_osp_state_element(osp_dir):
     npt.assert_allclose(selem.retrieval_initial_fm, [0.0])
     npt.assert_allclose(selem.step_initial_fm, [3.0])
     cstep = CurrentStrategyStepDict({}, None)
-    rconfig = RetrievalConfiguration()
     selem.notify_start_retrieval(cstep, rconfig)
     # After starting the retrieval, the retrieval_initial_value should be the step_initial_value
     npt.assert_allclose(selem.retrieval_initial_fm, [0.0])
@@ -150,7 +152,7 @@ def test_osp_state_element(osp_dir):
     selem.update_state_element(step_initial_fm=np.array([4.0]))
     npt.assert_allclose(selem.step_initial_fm, [4.0])
     npt.assert_allclose(selem.value_fm, [0.0])
-    selem.notify_start_step(cstep_ret, None, rconfig)
+    selem.notify_start_step(cstep_ret, rconfig)
     npt.assert_allclose(selem.step_initial_fm, [4.0])
     npt.assert_allclose(selem.value_fm, [4.0])
     # Pretend like we got a solution to update
@@ -166,7 +168,7 @@ def test_osp_state_element(osp_dir):
     npt.assert_allclose(selem.step_initial_fm, [4.0])
     npt.assert_allclose(selem.value_fm, [5.0])
     # Start next step. Initial guess should be updated now
-    selem.notify_start_step(cstep_ret, None, rconfig)
+    selem.notify_start_step(cstep_ret, rconfig)
     npt.assert_allclose(selem.step_initial_fm, [5.0])
     npt.assert_allclose(selem.value_fm, [5.0])
     # Repeat, but with item on the no update list. Check that we don't update the
@@ -174,7 +176,7 @@ def test_osp_state_element(osp_dir):
     cstep_ret.retrieval_elements_not_updated = [
         StateElementIdentifier("OMIODWAVUV1"),
     ]
-    selem.notify_start_step(cstep_ret, None, rconfig)
+    selem.notify_start_step(cstep_ret, rconfig)
     npt.assert_allclose(selem.step_initial_fm, [5.0])
     npt.assert_allclose(selem.value_fm, [5.0])
     selem.notify_step_solution(
@@ -188,13 +190,16 @@ def test_osp_state_element(osp_dir):
     npt.assert_allclose(selem.step_initial_fm, [5.0])
     npt.assert_allclose(selem.value_fm, [6.0])
     # Initial guess should remain unchanged
-    selem.notify_start_step(cstep_ret, None, rconfig)
+    selem.notify_start_step(cstep_ret, rconfig)
     npt.assert_allclose(selem.step_initial_fm, [5.0])
     npt.assert_allclose(selem.value_fm, [5.0])
 
 
-def test_osp_state_element_constraint(osp_dir):
+def test_osp_state_element_constraint(osp_dir, omi_test_in_dir):
     """Check that the constraint matrix update for specific retrieval types is handled correctly"""
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        omi_test_in_dir / "Table.asc", osp_dir=osp_dir
+    )
     apriori_value = np.array(
         [
             0.0,
@@ -232,8 +237,7 @@ def test_osp_state_element_constraint(osp_dir):
         },
         None,
     )
-    rconfig = RetrievalConfiguration()
-    selem.notify_start_step(cstep_ret, None, rconfig)
+    selem.notify_start_step(cstep_ret, rconfig)
     cmatrix2 = np.array(
         [
             [
@@ -251,7 +255,7 @@ def test_osp_state_element_constraint(osp_dir):
         },
         None,
     )
-    selem.notify_start_step(cstep_ret, None, rconfig)
+    selem.notify_start_step(cstep_ret, rconfig)
     npt.assert_allclose(selem.constraint_matrix, cmatrix1)
 
 
@@ -343,4 +347,6 @@ def test_tatm(airs_omi_shandle):
         print(selem.retrieval_initial_fm)
         print(selem.state_mapping)
         print(selem.state_mapping_retrieval_to_fm)
+        print(selem.basis_matrix)
+        print(selem.map_to_parameter_matrix)
         strat.next_step(cstate_old)

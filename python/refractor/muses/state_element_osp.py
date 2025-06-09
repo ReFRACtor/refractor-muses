@@ -1,5 +1,6 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
+import refractor.muses.muses_py as mpy  # type: ignore
 from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
 from .state_element import StateElementImplementation, StateElement, StateElementHandle
 from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
@@ -77,6 +78,7 @@ class StateElementOspFile(StateElementImplementation):
         self.poltype_used_constraint = poltype_used_constraint
         self.retrieval_type = RetrievalType("default")
         self._pressure_level = pressure_list_fm
+        self._pressure_species_input = np.array([0.0,]) # Filled in with notify_start_step.
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
@@ -122,16 +124,12 @@ class StateElementOspFile(StateElementImplementation):
     def _fill_in_state_mapping(self) -> None:
         if self._state_mapping is not None:
             return
-        t = self.osp_species_reader.read_file(
+        self._retrieval_levels = self.osp_species_reader.retrieval_levels(
             self.state_element_id, self.retrieval_type
         )
-        if "retrievalLevels" in t:
-            self._retrieval_levels: list[int] | None = [
-                int(i) for i in t["retrievalLevels"].split(",")
-            ]
-        else:
-            self._retrieval_levels = None
-        self._map_type = t["mapType"].lower()
+        self._map_type = self.osp_species_reader.map_type(
+            self.state_element_id, self.retrieval_type
+        )
         if self._map_type == "linear":
             self._state_mapping = rf.StateMappingLinear()
         elif self._map_type == "log":
@@ -148,10 +146,12 @@ class StateElementOspFile(StateElementImplementation):
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
             return
-        if self._sold is not None:
-            # We'll want to create this shortly
+        self._fill_in_state_mapping()
+        if(self._retrieval_levels is not None):
+            lv = self.tes_levels(self._retrieval_levels, self._pressure_species_input)
+            t = mpy.make_maps(self.pressure_list_fm, lv)
             self._state_mapping_retrieval_to_fm = (
-                self._sold.state_mapping_retrieval_to_fm
+                rf.StateMappingBasisMatrix(t["toState"].transpose(), t["toPars"].transpose())
             )
         else:
             self._state_mapping_retrieval_to_fm = rf.StateMappingLinear()
@@ -284,6 +284,7 @@ class StateElementOspFile(StateElementImplementation):
         # certain steps with a different constraint matrix. So we empty the cache here
         # Note the reader does caching, so reading this multiple times isn't as
         # inefficient as it might seem.
+        self._pressure_species_input = retrieval_config["pressure_species_input"]
         self._constraint_matrix = None
         self._map_type = None
         self._state_mapping = None
