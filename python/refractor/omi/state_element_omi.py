@@ -96,6 +96,8 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         cov_is_constraint: bool = False,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
+        diag_cov: bool = False,
+        diag_directory: Path | None = None,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -170,6 +172,8 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         cov_is_constraint: bool = False,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
+        diag_cov: bool = False,
+        diag_directory: Path | None = None,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 

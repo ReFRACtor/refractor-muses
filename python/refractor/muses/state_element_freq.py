@@ -43,6 +43,8 @@ class StateElementFreqShared(StateElementOspFile):
         cov_is_constraint: bool = False,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
+        diag_cov: bool = False,
+        diag_directory: Path | None = None,
     ):
         super().__init__(
             state_element_id,
@@ -58,6 +60,8 @@ class StateElementFreqShared(StateElementOspFile):
             cov_is_constraint=cov_is_constraint,
             poltype=poltype,
             poltype_used_constraint=poltype_used_constraint,
+            diag_cov=diag_cov,
+            diag_directory=diag_directory,
         )
         if self._sold is None:
             raise RuntimeError("Need sold")
@@ -83,7 +87,12 @@ class StateElementFreqShared(StateElementOspFile):
         if self._sold is None:
             raise RuntimeError("Need sold")
         self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
-        
+    
+    def _fill_in_apriori(self) -> None:
+        if self._sold is None:
+            raise RuntimeError("Need sold")
+        self._apriori_cov_fm = self._sold.apriori_cov_fm
+
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
         if self._sold is None:
@@ -109,6 +118,8 @@ class StateElementEmis(StateElementFreqShared):
         cov_is_constraint: bool = False,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
+        diag_cov: bool = False,
+        diag_directory: Path | None = None,
     ):
         super().__init__(
             state_element_id,
@@ -124,6 +135,8 @@ class StateElementEmis(StateElementFreqShared):
             cov_is_constraint=cov_is_constraint,
             poltype=poltype,
             poltype_used_constraint=poltype_used_constraint,
+            diag_cov=diag_cov,
+            diag_directory=diag_directory,
         )
         if self._sold is None:
             raise RuntimeError("Need sold")

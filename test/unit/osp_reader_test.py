@@ -2,6 +2,7 @@ from refractor.muses import (
     OspCovarianceMatrixReader,
     StateElementIdentifier,
     OspSpeciesReader,
+    OspDiagonalUncertainityReader,
     OspL2SetupControlInitial,
     RetrievalType,
 )
@@ -91,6 +92,16 @@ def test_covariance(osp_dir):
     cov_matrix = r.read_cov(StateElementIdentifier("NH3"), map_type, latitude, "ENH")
 
 
+def test_diagonal_uncertainity(osp_dir):
+    latitude = 30.0
+    stype = "OCEAN"
+    r = OspDiagonalUncertainityReader.read_dir(
+        osp_dir / "Covariance" / "Covariance" / "DiagonalUncertainty"
+    )
+    cmatrix = r.read_cov(StateElementIdentifier("TSUR"), stype, latitude)
+    npt.assert_allclose(cmatrix, [[0.36]])
+
+
 def test_species(osp_dir):
     r = OspSpeciesReader.read_dir(
         osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
@@ -126,7 +137,13 @@ def test_species(osp_dir):
     )
     npt.assert_allclose(cmatrix2, [[400.0]])
     npt.assert_allclose(cmatrix3, [[4.0]])
-    assert r.retrieval_levels(StateElementIdentifier("OMICLOUDFRACTION"), RetrievalType("omicloud_ig_refine")) is None
+    assert (
+        r.retrieval_levels(
+            StateElementIdentifier("OMICLOUDFRACTION"),
+            RetrievalType("omicloud_ig_refine"),
+        )
+        is None
+    )
 
 
 def test_osp_l2_setup_control_initial(osp_dir):
@@ -146,9 +163,42 @@ def test_species_premade(osp_dir):
         StateElementIdentifier("TATM"), RetrievalType("default"), 30
     )
     assert cov.shape == (30, 30)
-    assert (list(r.retrieval_levels(StateElementIdentifier("TATM"), RetrievalType("default"))) ==
-            [ 1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 53, 54, 55, 58, 60, 62, 64, 66])
-          
+    assert list(
+        r.retrieval_levels(StateElementIdentifier("TATM"), RetrievalType("default"))
+    ) == [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        21,
+        24,
+        27,
+        30,
+        33,
+        36,
+        39,
+        42,
+        45,
+        48,
+        51,
+        53,
+        54,
+        55,
+        58,
+        60,
+        62,
+        64,
+        66,
+    ]
 
 
 def test_species_h2o_hdo(osp_dir):

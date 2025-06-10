@@ -101,6 +101,75 @@ class OspFileHandle:
         return self.osp_dir / v
 
 
+class OspDiagonalUncertainityReader:
+    """There are a handful of state elements that get the covariance data from
+    a diagonal uncertainty file. Isn't really clear why this isn't just treated
+    the same as the other covariance matrixes, but perhaps this is historical. In
+    any case, we need to be able to read these.
+
+    These files are found in OSP/Covariance/Covariance/DiagonalUncertainty/.
+
+    """
+
+    def __init__(self, diagonal_directory: Path) -> None:
+        """This looks through the given directory (e.g.,
+        OSP/Covariance/Covariance/DiagonalUncertainty) and maps all
+        the files found into a simple structure that we can use to
+        look up the file to read for a particular StateElement
+        """
+        self.filename_data: dict[
+            StateElementIdentifier, dict[str, dict[str, RangeFind]]
+        ] = {}
+        for stype in ("LAND", "OCEAN"):
+            for fname in (diagonal_directory / stype).glob("Diagonal_Uncertainty_*"):
+                m = re.match(
+                    r"""Diagonal_Uncertainty_   # Start of file name
+                    ([a-zA-Z0-9]+)_             # State element name, all of \w except "_" used to
+                                                # Separate stuff
+                    (NADIR|LIMB)_               # View type
+                    (\d+)([SN])_                # Latitude start
+                    (\d+)([SN])                 # Latitude end
+                    """,
+                    fname.name,
+                    re.VERBOSE,
+                )
+                if m is not None:
+                    sid = StateElementIdentifier(m[1])
+                    vtype = m[2]
+                    r1 = float(m[3]) * (-1 if m[4] == "S" else 1)
+                    r2 = float(m[5]) * (-1 if m[6] == "S" else 1)
+                    if sid not in self.filename_data:
+                        self.filename_data[sid] = {}
+                    if stype not in self.filename_data[sid]:
+                        self.filename_data[sid][stype] = {}
+                    if vtype not in self.filename_data[sid][stype]:
+                        self.filename_data[sid][stype][vtype] = RangeFind()
+                    self.filename_data[sid][stype][vtype][(r1, r2)] = fname
+
+    def read_cov(
+        self,
+        sid: StateElementIdentifier,
+        stype: str,
+        latitude: float,
+        vtype: str = "NADIR",
+    ) -> np.ndarray:
+        """Read the covariance file for the given StateElementIdentifier. We
+        also take the surface type (e.g. LAND, OCEAN) and the latitude which is
+        used to refine the file read.
+
+        We also take the view type (NADIR, LIMB), although I think this is always
+        NADIR.
+        """
+        tf = TesFile(self.filename_data[sid][stype][vtype][latitude])
+        d = np.array(tf.table)
+        return d * d
+
+    @classmethod
+    @cache
+    def read_dir(cls, diagonal_directory: Path) -> Self:
+        return cls(diagonal_directory)
+
+
 class OspCovarianceMatrixReader:
     """This reads file found in OSP/Covariance/Covariance"""
 
@@ -308,7 +377,7 @@ class OspSpeciesReader(OspFileHandle):
     ) -> np.ndarray | None:
         t = self.read_file(sid, retrieval_type)
         r = [int(i) for i in t["retrievalLevels"].split(",")]
-        if(len(r) == 1 and r[0] == 0):
+        if len(r) == 1 and r[0] == 0:
             return None
         return np.array(r, dtype=int)
 
@@ -319,7 +388,7 @@ class OspSpeciesReader(OspFileHandle):
     ) -> str:
         t = self.read_file(sid, retrieval_type)
         return t["mapType"].lower()
-    
+
     def read_file(
         self,
         sid: StateElementIdentifier,
@@ -424,5 +493,6 @@ __all__ = [
     "RangeFind",
     "OspCovarianceMatrixReader",
     "OspSpeciesReader",
+    "OspDiagonalUncertainityReader",
     "OspL2SetupControlInitial",
 ]

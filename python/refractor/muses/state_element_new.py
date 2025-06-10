@@ -110,6 +110,12 @@ class StateElementOspFileHandleNew(StateElementHandle):
                 poltype = "mod"
             # Not used in the constraint name
             poltype_used_constraint = False
+        diag_cov = False
+        # There are a handful of state element that muses-py just "knows" get
+        # the apriori covariance from a different diagonal uncertainty file
+        # (see get_prior_covariance.py in muses-py, about line 100)
+        if str(state_element_id) in ("PCLOUD", "PSUR", "RESSCALE", "TSUR"):
+            diag_cov = True
         res = self.obj_cls.create_from_handle(
             state_element_id,
             pressure_level,
@@ -120,11 +126,15 @@ class StateElementOspFileHandleNew(StateElementHandle):
             self.strategy,
             self.observation_handle_set,
             self.sounding_metadata,
-            selem_wrapper=sold,
+            # We are at the point where this isn't needed. We can still pass this
+            # in if we want to track down some issue that arises, but don't normally
+            # depend on StateElementOld
+            # selem_wrapper=sold, 
             spectral_domain=spectral_domain,
             cov_is_constraint=self.cov_is_constraint,
             poltype=poltype,
             poltype_used_constraint=poltype_used_constraint,
+            diag_cov=diag_cov,
         )
         if res is not None:
             logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")

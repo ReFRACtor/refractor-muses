@@ -121,7 +121,7 @@ class StateInfo(UserDict):
             )
         self._state_element: dict[StateElementIdentifier, StateElement] = {}
         self._cross_state_info = CrossStateInfo(self, cross_state_element_handle_set)
-        self._sounding_metadata : SoundingMetadata | None = None
+        self._sounding_metadata: SoundingMetadata | None = None
         self.propagated_qa = PropagatedQA()
         self._current_state_old = None
         self._brightness_temperature_data: dict[int, dict[str, float | None]] = {}
@@ -177,7 +177,7 @@ class StateInfo(UserDict):
 
     @property
     def sounding_metadata(self) -> SoundingMetadata:
-        if(self._sounding_metadata is None):
+        if self._sounding_metadata is None:
             raise RuntimeError("Need to call notify_update_target first")
         return self._sounding_metadata
 
@@ -189,7 +189,15 @@ class StateInfo(UserDict):
         observation_handle_set: ObservationHandleSet,
     ) -> None:
         self._sounding_metadata = SoundingMetadata.create_from_measurement_id(
-            measurement_id, strategy.instrument_name[0], observation_handle_set.observation(strategy.instrument_name[0], None, None, None, osp_dir=retrieval_config.osp_dir)
+            measurement_id,
+            strategy.instrument_name[0],
+            observation_handle_set.observation(
+                strategy.instrument_name[0],
+                None,
+                None,
+                None,
+                osp_dir=retrieval_config.osp_dir,
+            ),
         )
         self.state_element_handle_set.notify_update_target(
             measurement_id,
@@ -199,7 +207,11 @@ class StateInfo(UserDict):
             self._sounding_metadata,
         )
         self._cross_state_info.notify_update_target(
-            measurement_id, retrieval_config, strategy, observation_handle_set, self._sounding_metadata
+            measurement_id,
+            retrieval_config,
+            strategy,
+            observation_handle_set,
+            self._sounding_metadata,
         )
         self.data = {}
         self.propagated_qa = PropagatedQA()
@@ -219,13 +231,13 @@ class StateInfo(UserDict):
             )
         # Make sure we have all the elements we are going to be using in
         # the retrieval, and we notify them about the step
-        if(current_strategy_step is not None):
+        if current_strategy_step is not None:
             lst = current_strategy_step.retrieval_elements
             lst.extend(current_strategy_step.error_analysis_interferents)
             for sid in lst:
                 _ = self[sid]
-            for i,sid in enumerate(lst):
-                for sid2 in lst[i+1:]:
+            for i, sid in enumerate(lst):
+                for sid2 in lst[i + 1 :]:
                     _ = self._cross_state_info[(sid, sid2)]
         for selem in self.values():
             selem.notify_start_step(

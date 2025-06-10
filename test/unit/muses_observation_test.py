@@ -327,6 +327,7 @@ def test_create_muses_omi_observation(
     print(obs.filter_data)
     print(obs.surface_altitude)
 
+
 def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
     xtrack_uv1 = 10
     xtrack_uv2 = 20

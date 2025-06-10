@@ -79,7 +79,10 @@ class SoundingMetadata:
 
     @classmethod
     def create_from_measurement_id(
-            cls, measurement_id: MeasurementId, instrument: InstrumentIdentifier, obs: MusesObservation
+        cls,
+        measurement_id: MeasurementId,
+        instrument: InstrumentIdentifier,
+        obs: MusesObservation,
     ) -> Self:
         res = cls()
         instrument_name = str(instrument)

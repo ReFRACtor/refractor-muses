@@ -21,7 +21,7 @@ import pytest
 # ============================================================================
 
 
-@pytest.mark.long_test    
+@pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_muses_py(
@@ -77,7 +77,7 @@ def test_refractor_fm_muses_py(
     )
 
 
-@pytest.mark.long_test    
+@pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_refractor(
@@ -141,7 +141,7 @@ def test_refractor_fm_refractor(
     assert np.max(np.abs((o_radiance2 - o_radiance) / o_radiance2 * 100.0)) < 0.1
 
 
-@pytest.mark.long_test    
+@pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 def test_refractor_detailed_fm_refractor(
     isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_obs_step_2, omi_test_in_dir

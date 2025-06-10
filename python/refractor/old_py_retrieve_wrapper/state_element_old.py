@@ -95,7 +95,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             maptype,
             i_directory,
         )
-
         return (matrix, pressureSa)
 
     def sa_cross_covariance(self, selem2: StateElementOld):

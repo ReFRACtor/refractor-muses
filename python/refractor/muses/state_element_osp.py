@@ -1,7 +1,11 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 import refractor.muses.muses_py as mpy  # type: ignore
-from .osp_reader import OspCovarianceMatrixReader, OspSpeciesReader
+from .osp_reader import (
+    OspCovarianceMatrixReader,
+    OspSpeciesReader,
+    OspDiagonalUncertainityReader,
+)
 from .state_element import StateElementImplementation, StateElement, StateElementHandle
 from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
 from .identifier import StateElementIdentifier, RetrievalType
@@ -56,6 +60,8 @@ class StateElementOspFile(StateElementImplementation):
         cov_is_constraint: bool = False,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
+        diag_cov: bool = False,
+        diag_directory: Path | None = None,
     ):
         if value_fm is not None:
             value_fm = value_fm.copy()
@@ -66,11 +72,19 @@ class StateElementOspFile(StateElementImplementation):
         else:
             constraint_vector_fm = None
         self._map_type: str | None = None
+        self._surf_type: str | None = None
         self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
         self.cov_is_constraint = cov_is_constraint
+        self.diag_cov = diag_cov
         if not self.cov_is_constraint:
             self.osp_cov_reader = OspCovarianceMatrixReader.read_dir(
                 covariance_directory
+            )
+        if self.diag_cov:
+            self.osp_diag_reader = OspDiagonalUncertainityReader.read_dir(
+                diag_directory
+                if diag_directory is not None
+                else covariance_directory / "DiagonalUncertainty"
             )
         self.latitude = latitude
         self.surface_type = surface_type
@@ -78,7 +92,11 @@ class StateElementOspFile(StateElementImplementation):
         self.poltype_used_constraint = poltype_used_constraint
         self.retrieval_type = RetrievalType("default")
         self._pressure_level = pressure_list_fm
-        self._pressure_species_input = np.array([0.0,]) # Filled in with notify_start_step.
+        self._pressure_species_input = np.array(
+            [
+                0.0,
+            ]
+        )  # Filled in with notify_start_step.
         # This is to support testing. We currently have a way of populate StateInfoOld when
         # we restart a step, but not StateInfo. Longer term we will fix this, but short term
         # just propagate any values in selem_wrapper to this class
@@ -147,11 +165,11 @@ class StateElementOspFile(StateElementImplementation):
         if self._state_mapping_retrieval_to_fm is not None:
             return
         self._fill_in_state_mapping()
-        if(self._retrieval_levels is not None):
+        if self._retrieval_levels is not None:
             lv = self.tes_levels(self._retrieval_levels, self._pressure_species_input)
             t = mpy.make_maps(self.pressure_list_fm, lv)
-            self._state_mapping_retrieval_to_fm = (
-                rf.StateMappingBasisMatrix(t["toState"].transpose(), t["toPars"].transpose())
+            self._state_mapping_retrieval_to_fm = rf.StateMappingBasisMatrix(
+                t["toState"].transpose(), t["toPars"].transpose()
             )
         else:
             self._state_mapping_retrieval_to_fm = rf.StateMappingLinear()
@@ -165,24 +183,25 @@ class StateElementOspFile(StateElementImplementation):
         else:
             self._fill_in_state_mapping()
             assert self._map_type is not None
-            cov_matrix = self.osp_cov_reader.read_cov(
-                self.state_element_id,
-                self._map_type,
-                self.latitude,
-                poltype=self.poltype,
-            )
-            if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
-                self._apriori_cov_fm = cov_matrix.original_cov.view(FullGrid2dArray)
-                # TODO Temp, we have things like TSUR that are hard coded to using a diagonal matrix.
-                # Just punt for now.
-                if self._sold is not None:
-                    self._apriori_cov_fm = self._sold.apriori_cov_fm
-            else:
-                if self._pressure_level is None:
-                    raise RuntimeError("pressure_level should not be None")
-                self._apriori_cov_fm = cov_matrix.interpolated_covariance(
-                    self._pressure_level
+            if self.diag_cov:
+                self._apriori_cov_fm = self.osp_diag_reader.read_cov(
+                    self.state_element_id, self.surface_type, self.latitude
                 ).view(FullGrid2dArray)
+            else:
+                cov_matrix = self.osp_cov_reader.read_cov(
+                    self.state_element_id,
+                    self._map_type,
+                    self.latitude,
+                    poltype=self.poltype,
+                )
+                if self._retrieval_levels is None or len(self._retrieval_levels) < 2:
+                    self._apriori_cov_fm = cov_matrix.original_cov.view(FullGrid2dArray)
+                else:
+                    if self._pressure_level is None:
+                        raise RuntimeError("pressure_level should not be None")
+                    self._apriori_cov_fm = cov_matrix.interpolated_covariance(
+                        self._pressure_level
+                    ).view(FullGrid2dArray)
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
@@ -245,6 +264,8 @@ class StateElementOspFile(StateElementImplementation):
         cov_is_constraint: bool = False,
         poltype: str | None = None,
         poltype_used_constraint: bool = True,
+        diag_cov: bool = False,
+        diag_directory: Path | None = None,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -264,6 +285,8 @@ class StateElementOspFile(StateElementImplementation):
             cov_is_constraint=cov_is_constraint,
             poltype=poltype,
             poltype_used_constraint=poltype_used_constraint,
+            diag_cov=diag_cov,
+            diag_directory=diag_directory,
         )
         return res
 
@@ -331,10 +354,9 @@ class StateElementOspFileHandle(StateElementHandle):
             return None
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
-        if self.hold is not None:
-            sold = self.hold.state_element(state_element_id)
-        else:
-            sold = None
+        sold = (
+            self.hold.state_element(state_element_id) if self.hold is not None else None
+        )
         # Determining pressure is spread across a number of muses-py functions. We'll need
         # to track all this down, but short term just get this from the old data
         if self.hold is not None:

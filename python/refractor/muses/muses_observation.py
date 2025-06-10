@@ -762,6 +762,7 @@ class SimulatedObservation(MusesObservationImp):
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return self._obs.surface_altitude
 
+
 class SimulatedObservationHandle(ObservationHandle):
     """Just return the given observation always for the given
     instrument.  This is intended for testing, with for example a
@@ -1077,6 +1078,7 @@ class MusesAirsObservation(MusesObservationImp):
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(float(self.muses_py_dict["surfaceAltitude"]), "m")
+
 
 class MusesTesObservation(MusesObservationImp):
     def __init__(
@@ -1462,7 +1464,7 @@ class MusesTesObservation(MusesObservationImp):
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
         return rf.DoubleWithUnit(float(self.muses_py_dict["surfaceElevation"]), "m")
-    
+
 
 class MusesCrisObservation(MusesObservationImp):
     def __init__(
@@ -1704,6 +1706,7 @@ class MusesCrisObservation(MusesObservationImp):
         # has this behavior. Assume this is right
         r = float(self.muses_py_dict["SURFACEALTITUDE"])
         return rf.DoubleWithUnit(0.0 if r < 0 else r, "m")
+
 
 class MusesDispersion:
     """Helper class, just pull out the calculation of the wavelength
@@ -2124,7 +2127,9 @@ class MusesTropomiObservation(MusesObservationReflectance):
             )
             # Reading of the surface height is done separately. In muses-py this
             # was a side effect of setting up the StateInfo.
-            for i in range(len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])):
+            for i in range(
+                len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])
+            ):
                 surfaceAltitude = mpy.read_tropomi_surface_altitude(
                     o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
                     o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
@@ -2352,7 +2357,15 @@ class MusesTropomiObservation(MusesObservationReflectance):
 
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(float(self.muses_py_dict["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][-1]), "m")
+        return rf.DoubleWithUnit(
+            float(
+                self.muses_py_dict["Earth_Radiance"]["ObservationTable"][
+                    "TerrainHeight"
+                ][-1]
+            ),
+            "m",
+        )
+
 
 class MusesOmiObservation(MusesObservationReflectance):
     """Observation for OMI"""
@@ -2596,10 +2609,15 @@ class MusesOmiObservation(MusesObservationReflectance):
 
     @property
     def surface_altitude(self) -> rf.DoubleWithUnit:
-        return rf.DoubleWithUnit(float(self.muses_py_dict["Earth_Radiance"]["ObservationTable"][
-            "TerrainHeight"
-        ][0]), "m")
-    
+        return rf.DoubleWithUnit(
+            float(
+                self.muses_py_dict["Earth_Radiance"]["ObservationTable"][
+                    "TerrainHeight"
+                ][0]
+            ),
+            "m",
+        )
+
 
 ObservationHandleSet.add_default_handle(
     MusesObservationHandle(InstrumentIdentifier("AIRS"), MusesAirsObservation)

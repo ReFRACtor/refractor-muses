@@ -616,7 +616,7 @@ class StateElementImplementation(StateElement):
         else:
             res = np.eye(self.value_fm.shape[0])
         # Only present in sold when we are retrieving
-        if(self._retrieved_this_step):
+        if self._retrieved_this_step:
             self._check_result(res, "basis_matrix")
         return res
 
@@ -628,7 +628,7 @@ class StateElementImplementation(StateElement):
         else:
             res = np.eye(self.value_fm.shape[0])
         # Only present in sold when we are retrieving
-        if(self._retrieved_this_step):
+        if self._retrieved_this_step:
             self._check_result(res, "map_to_parameter_matrix")
         return res
 
@@ -766,28 +766,30 @@ class StateElementImplementation(StateElement):
         # This is what muses-py does. I'm not sure about the logic here - what if we
         # update something and it just doesn't move? But none the less, match what
         # muses-py does. Also - what should the logic be if value_fm is zero?
-        res = np.abs((self.step_initial_fm-self.value_fm)/self.value_fm) > 1e-6
+        res = np.abs((self.step_initial_fm - self.value_fm) / self.value_fm) > 1e-6
         # Special case if nothing moves - assumption is that we started at the
         # the "true" value.
-        if(np.count_nonzero(res) == 0):
+        if np.count_nonzero(res) == 0:
             res[:] = True
         self._check_result(res, "updated_fm_flag")
         return res.view(FullGridMappedArray)
 
-    def tes_levels(self, retrieval_levels: np.ndarray, pressure_input: np.ndarray) -> np.ndarray:
-        '''This is a mapping from the "retrieval_levels" found in the
+    def tes_levels(
+        self, retrieval_levels: np.ndarray, pressure_input: np.ndarray
+    ) -> np.ndarray:
+        """This is a mapping from the "retrieval_levels" found in the
         OSP species files to the levels used in the generation of the
         basis matrix. This is a mapping from the input pressure levels
         to the forward model pressure levels
-        '''
-        if(self.pressure_list_fm is None):
+        """
+        if self.pressure_list_fm is None:
             raise RuntimeError("Need pressure_list_fm")
-        res = mpy.supplier_retrieval_levels_tes(retrieval_levels, pressure_input,
-                                                self.pressure_list_fm)
+        res = mpy.supplier_retrieval_levels_tes(
+            retrieval_levels, pressure_input, self.pressure_list_fm
+        )
         # Filter out any levels out of range
         res = np.array([i for i in res if i <= self.pressure_list_fm.shape[0]])
         return res
-        
 
     def notify_start_retrieval(
         self,
