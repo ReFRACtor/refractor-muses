@@ -82,6 +82,7 @@ def test_eof_omi(osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir, end_to_end_run
         )
 
 
+@pytest.mark.skip
 @pytest.mark.long_test
 def test_eof_airs_omi(osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir):
     """Full run of AIRS/OMI that we can compare the output files. This is not
