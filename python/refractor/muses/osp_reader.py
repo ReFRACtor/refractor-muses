@@ -349,6 +349,11 @@ class OspSpeciesReader(OspFileHandle):
                 # First column is name of species, second is pressure, third is map type.
                 # We chop off just to get the data
                 cov = np.array(d.table)[:, 3:].astype(float)
+            elif ctype == "full":
+                d = np.array(TesFile(self._abs_path(t["sSubaFilename"])).table)
+                # First column is name of species, second is pressure, third is map type.
+                # We chop off just to get the data
+                cov = np.linalg.inv(d[:,3:].astype(float))
             elif ctype == "covariance":
                 # Note the covariance part of the code in py-retrieve doesn't actually work.
                 # This seems to be an old format that isn't really used anymore. We run into

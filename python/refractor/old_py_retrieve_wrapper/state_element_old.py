@@ -1514,6 +1514,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                         )
             elif constraintType.lower() == "full":
                 sSubaFilename = speciesInformationFile.sSubaFilename
+                #breakpoint()
                 constraintMatrix = mpy.supplier_constraint_matrix_ssuba(
                     constraintVector,
                     species_name,

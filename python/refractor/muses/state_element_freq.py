@@ -7,7 +7,7 @@ from .state_element import (
     StateElement,
     StateElementHandleSet,
 )
-from .current_state import FullGridMappedArray, RetrievalGridArray
+from .current_state import FullGridMappedArray, RetrievalGridArray, RetrievalGrid2dArray
 from .state_element_osp import StateElementOspFile
 from .identifier import StateElementIdentifier, RetrievalType
 from .current_state_state_info import h_old
@@ -73,7 +73,14 @@ class StateElementFreqShared(StateElementOspFile):
         if self._sold is None:
             raise RuntimeError("Need sold")
         # TODO Short term work around this, until we are ready to support this.
+        cmatrix = self.osp_species_reader.read_constraint_matrix(
+            self.state_element_id,
+            self.retrieval_type,
+            self.basis_matrix.shape[0],
+            poltype=self.poltype if self.poltype_used_constraint else None,
+        ).view(RetrievalGrid2dArray)
         self._constraint_matrix = self._sold.constraint_matrix
+        #breakpoint()
 
     def _fill_in_state_mapping(self) -> None:
         super()._fill_in_state_mapping()

@@ -197,11 +197,13 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @property
     def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
-        the pressure levels (None otherwise)"""
+        the pressure levels (None otherwise). Note unlike other things on
+        RetrievalGridArray, this is always in pressure units (so we don't take
+        the log if self.state_mapping is log)."""
         if self.pressure_list_fm is None:
             return None
         return self.pressure_list_fm.to_ret(
-            self.state_mapping_retrieval_to_fm, self.state_mapping
+            self.state_mapping_retrieval_to_fm, rf.StateMappingLinear()
         )
 
     @property
