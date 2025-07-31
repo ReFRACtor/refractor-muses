@@ -129,7 +129,7 @@ class StateElementOspFileHandleNew(StateElementHandle):
             # We are at the point where this isn't needed. We can still pass this
             # in if we want to track down some issue that arises, but don't normally
             # depend on StateElementOld
-            # selem_wrapper=sold, 
+            # selem_wrapper=sold,
             spectral_domain=spectral_domain,
             cov_is_constraint=self.cov_is_constraint,
             poltype=poltype,

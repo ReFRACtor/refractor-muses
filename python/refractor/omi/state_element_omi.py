@@ -13,7 +13,7 @@ from refractor.muses import (
 )
 import numpy as np
 from pathlib import Path
-from typing import cast, Self
+from typing import cast, Self, Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -98,6 +98,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         poltype_used_constraint: bool = True,
         diag_cov: bool = False,
         diag_directory: Path | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -174,6 +175,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         poltype_used_constraint: bool = True,
         diag_cov: bool = False,
         diag_directory: Path | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 

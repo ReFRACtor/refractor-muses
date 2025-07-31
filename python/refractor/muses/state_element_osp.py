@@ -62,6 +62,7 @@ class StateElementOspFile(StateElementImplementation):
         poltype_used_constraint: bool = True,
         diag_cov: bool = False,
         diag_directory: Path | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         if value_fm is not None:
             value_fm = value_fm.copy()
@@ -73,7 +74,7 @@ class StateElementOspFile(StateElementImplementation):
             constraint_vector_fm = None
         self._map_type: str | None = None
         self._surf_type: str | None = None
-        self.osp_species_reader = OspSpeciesReader.read_dir(species_directory)
+        self.osp_species_reader : OspSpeciesReader = OspSpeciesReader.read_dir(species_directory)
         self.cov_is_constraint = cov_is_constraint
         self.diag_cov = diag_cov
         if not self.cov_is_constraint:
@@ -118,6 +119,8 @@ class StateElementOspFile(StateElementImplementation):
                 self._step_initial_fm = selem_wrapper.value_fm
         if self.poltype is not None:
             self._metadata["poltype"] = self.poltype
+        if metadata is not None:
+            self._metadata.update(metadata)
 
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
@@ -266,6 +269,7 @@ class StateElementOspFile(StateElementImplementation):
         poltype_used_constraint: bool = True,
         diag_cov: bool = False,
         diag_directory: Path | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Self | None:
         """Create object from the set of parameter the StateElementOspFileHandle supplies.
 
@@ -287,6 +291,7 @@ class StateElementOspFile(StateElementImplementation):
             poltype_used_constraint=poltype_used_constraint,
             diag_cov=diag_cov,
             diag_directory=diag_directory,
+            metadata=metadata,
         )
         return res
 

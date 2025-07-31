@@ -45,6 +45,7 @@ class StateElementFreqShared(StateElementOspFile):
         poltype_used_constraint: bool = True,
         diag_cov: bool = False,
         diag_directory: Path | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         super().__init__(
             state_element_id,
@@ -62,6 +63,7 @@ class StateElementFreqShared(StateElementOspFile):
             poltype_used_constraint=poltype_used_constraint,
             diag_cov=diag_cov,
             diag_directory=diag_directory,
+            metadata=metadata,
         )
         if self._sold is None:
             raise RuntimeError("Need sold")
@@ -80,7 +82,7 @@ class StateElementFreqShared(StateElementOspFile):
             poltype=self.poltype if self.poltype_used_constraint else None,
         ).view(RetrievalGrid2dArray)
         self._constraint_matrix = self._sold.constraint_matrix
-        #breakpoint()
+        # breakpoint()
 
     def _fill_in_state_mapping(self) -> None:
         super()._fill_in_state_mapping()
@@ -94,7 +96,7 @@ class StateElementFreqShared(StateElementOspFile):
         if self._sold is None:
             raise RuntimeError("Need sold")
         self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
-    
+
     def _fill_in_apriori(self) -> None:
         if self._sold is None:
             raise RuntimeError("Need sold")
@@ -127,6 +129,7 @@ class StateElementEmis(StateElementFreqShared):
         poltype_used_constraint: bool = True,
         diag_cov: bool = False,
         diag_directory: Path | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         super().__init__(
             state_element_id,
@@ -144,12 +147,10 @@ class StateElementEmis(StateElementFreqShared):
             poltype_used_constraint=poltype_used_constraint,
             diag_cov=diag_cov,
             diag_directory=diag_directory,
+            metadata=metadata,
         )
         if self._sold is None:
             raise RuntimeError("Need sold")
-        # TODO Need better way to handle this
-        self._metadata["camel_distance"] = self._sold.metadata["camel_distance"]
-        self._metadata["prior_source"] = self._sold.metadata["prior_source"]
 
     @property
     def value_fm(self) -> FullGridMappedArray:
@@ -354,6 +355,10 @@ class StateElementEmisHandle(StateElementHandle):
             spectral_domain=spectral_domain,
             selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
+            metadata={
+                "camel_distance": sold.metadata["camel_distance"],
+                "prior_source": sold.metadata["prior_source"],
+            },
         )
         if res is not None:
             logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
