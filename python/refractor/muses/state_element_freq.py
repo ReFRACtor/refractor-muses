@@ -27,48 +27,7 @@ if typing.TYPE_CHECKING:
 class StateElementFreqShared(StateElementOspFile):
     """Clumsy class, hopefully will go away. It isn't clear what is in
     common between EMIS and CLOUDEXT, we'll try putting that stuff here."""
-
-    def __init__(
-        self,
-        state_element_id: StateElementIdentifier,
-        pressure_list_fm: FullGridMappedArray | None,
-        value_fm: FullGridMappedArray,
-        constraint_vector_fm: FullGridMappedArray,
-        latitude: float,
-        surface_type: str,
-        species_directory: Path,
-        covariance_directory: Path,
-        spectral_domain: rf.SpectralDomain | None = None,
-        selem_wrapper: Any | None = None,
-        cov_is_constraint: bool = False,
-        poltype: str | None = None,
-        poltype_used_constraint: bool = True,
-        diag_cov: bool = False,
-        diag_directory: Path | None = None,
-        metadata: dict[str, Any] | None = None,
-    ):
-        super().__init__(
-            state_element_id,
-            pressure_list_fm,
-            value_fm,
-            constraint_vector_fm,
-            latitude,
-            surface_type,
-            species_directory,
-            covariance_directory,
-            spectral_domain=spectral_domain,
-            selem_wrapper=selem_wrapper,
-            cov_is_constraint=cov_is_constraint,
-            poltype=poltype,
-            poltype_used_constraint=poltype_used_constraint,
-            diag_cov=diag_cov,
-            diag_directory=diag_directory,
-            metadata=metadata,
-        )
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        self._spectral_domain = self._sold.spectral_domain
-
+        
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
             return
