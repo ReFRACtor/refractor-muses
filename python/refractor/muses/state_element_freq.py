@@ -45,11 +45,14 @@ class StateElementFreqShared(StateElementOspFile):
 
     def _fill_in_state_mapping(self) -> None:
         super()._fill_in_state_mapping()
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        # This actually looks like the frequency instead of pressure. But it is
-        # what the muses-py code expects
-        self._pressure_list_fm = self._sold.pressure_list_fm
+        # TODO Fix this
+        # Note very confusingly this is actually the spectral domain wavelength
+        # instead of pressure. We should fix this naming at some point, but for
+        # now match what py-retrieve expects.
+        if(self._retrieved_this_step):
+            self._pressure_list_fm = self.spectral_domain.data.view(FullGridMappedArray)
+        else:
+            self._pressure_list_fm = None
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._sold is None:
@@ -71,46 +74,6 @@ class StateElementFreqShared(StateElementOspFile):
 
 
 class StateElementEmis(StateElementFreqShared):
-    def __init__(
-        self,
-        state_element_id: StateElementIdentifier,
-        pressure_list_fm: FullGridMappedArray | None,
-        value_fm: FullGridMappedArray,
-        constraint_vector_fm: FullGridMappedArray,
-        latitude: float,
-        surface_type: str,
-        species_directory: Path,
-        covariance_directory: Path,
-        spectral_domain: rf.SpectralDomain | None = None,
-        selem_wrapper: Any | None = None,
-        cov_is_constraint: bool = False,
-        poltype: str | None = None,
-        poltype_used_constraint: bool = True,
-        diag_cov: bool = False,
-        diag_directory: Path | None = None,
-        metadata: dict[str, Any] | None = None,
-    ):
-        super().__init__(
-            state_element_id,
-            pressure_list_fm,
-            value_fm,
-            constraint_vector_fm,
-            latitude,
-            surface_type,
-            species_directory,
-            covariance_directory,
-            spectral_domain=spectral_domain,
-            selem_wrapper=selem_wrapper,
-            cov_is_constraint=cov_is_constraint,
-            poltype=poltype,
-            poltype_used_constraint=poltype_used_constraint,
-            diag_cov=diag_cov,
-            diag_directory=diag_directory,
-            metadata=metadata,
-        )
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-
     @property
     def value_fm(self) -> FullGridMappedArray:
         if self._sold is None:
