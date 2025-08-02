@@ -1,6 +1,5 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-import refractor.muses.muses_py as mpy  # type: ignore
 from .osp_reader import (
     OspCovarianceMatrixReader,
     OspSpeciesReader,
@@ -74,7 +73,9 @@ class StateElementOspFile(StateElementImplementation):
             constraint_vector_fm = None
         self._map_type: str | None = None
         self._surf_type: str | None = None
-        self.osp_species_reader : OspSpeciesReader = OspSpeciesReader.read_dir(species_directory)
+        self.osp_species_reader: OspSpeciesReader = OspSpeciesReader.read_dir(
+            species_directory
+        )
         self.cov_is_constraint = cov_is_constraint
         self.diag_cov = diag_cov
         if not self.cov_is_constraint:
@@ -169,10 +170,9 @@ class StateElementOspFile(StateElementImplementation):
             return
         self._fill_in_state_mapping()
         if self._retrieval_levels is not None:
-            lv = self.tes_levels(self._retrieval_levels, self._pressure_species_input)
-            t = mpy.make_maps(self.pressure_list_fm, lv)
-            self._state_mapping_retrieval_to_fm = rf.StateMappingBasisMatrix(
-                t["toState"].transpose(), t["toPars"].transpose()
+            ind = self.tes_levels(self._retrieval_levels, self._pressure_species_input)
+            self._state_mapping_retrieval_to_fm = (
+                rf.StateMappingBasisMatrix.from_x_subset(self.pressure_list_fm, ind)
             )
         else:
             self._state_mapping_retrieval_to_fm = rf.StateMappingLinear()

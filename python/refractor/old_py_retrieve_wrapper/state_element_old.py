@@ -1338,6 +1338,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                 stepFMSelect = mpy.mw_frequency_needed(
                     microwindows, frequencyIn, stepType, freqMode
                 )
+                # breakpoint()
 
                 nn = len(stepFMSelect)
                 ind = np.where(stepFMSelect != 0)
@@ -1358,6 +1359,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                 maps = mpy.make_maps(
                     stateInfo.cloudPars["frequency"][0:nn], ind, linearFlag, averageFlag
                 )
+                # breakpoint()
                 maps = mpy.ObjectView(maps)
                 mapToState = maps.toState
                 mapToParameters = maps.toPars

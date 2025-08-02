@@ -2,6 +2,7 @@
 # For now, just create these as separate classes.
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
+import refractor.muses.muses_py as mpy  # type: ignore
 from .state_element import (
     StateElementHandle,
     StateElement,
@@ -27,7 +28,46 @@ if typing.TYPE_CHECKING:
 class StateElementFreqShared(StateElementOspFile):
     """Clumsy class, hopefully will go away. It isn't clear what is in
     common between EMIS and CLOUDEXT, we'll try putting that stuff here."""
-        
+
+    def __init__(
+        self,
+        state_element_id: StateElementIdentifier,
+        pressure_list_fm: FullGridMappedArray | None,
+        value_fm: FullGridMappedArray,
+        constraint_vector_fm: FullGridMappedArray,
+        latitude: float,
+        surface_type: str,
+        species_directory: Path,
+        covariance_directory: Path,
+        spectral_domain: rf.SpectralDomain | None = None,
+        selem_wrapper: Any | None = None,
+        cov_is_constraint: bool = False,
+        poltype: str | None = None,
+        poltype_used_constraint: bool = True,
+        diag_cov: bool = False,
+        diag_directory: Path | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            state_element_id,
+            pressure_list_fm,
+            value_fm,
+            constraint_vector_fm,
+            latitude,
+            surface_type,
+            species_directory,
+            covariance_directory,
+            spectral_domain=spectral_domain,
+            selem_wrapper=selem_wrapper,
+            cov_is_constraint=cov_is_constraint,
+            poltype=poltype,
+            poltype_used_constraint=poltype_used_constraint,
+            diag_cov=diag_cov,
+            diag_directory=diag_directory,
+            metadata=metadata,
+        )
+        self.microwindows: list[dict] = []
+
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
             return
@@ -49,15 +89,40 @@ class StateElementFreqShared(StateElementOspFile):
         # Note very confusingly this is actually the spectral domain wavelength
         # instead of pressure. We should fix this naming at some point, but for
         # now match what py-retrieve expects.
-        if(self._retrieved_this_step):
+        if self._retrieved_this_step:
+            assert self.spectral_domain is not None
             self._pressure_list_fm = self.spectral_domain.data.view(FullGridMappedArray)
         else:
             self._pressure_list_fm = None
 
+    def _freq_mode(self) -> None | str | float:
+        return None
+
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
+        if self._state_mapping_retrieval_to_fm is not None:
+            return
         if self._sold is None:
             raise RuntimeError("Need sold")
+        self._fill_in_state_mapping()
+        # cloud param. for emis we don't use retrieval_type or freq_mode
+        assert self.spectral_domain is not None
+        wflag = mpy.mw_frequency_needed(
+            self.microwindows,
+            self.spectral_domain.data,
+            self.retrieval_type,
+            self._freq_mode(),
+        )
+        ind = np.array([i for i in np.nonzero(wflag)[0]])
+        new_state_mapping_retrieval_to_fm = rf.StateMappingBasisMatrix.from_x_subset(
+            self.spectral_domain.data.view(FullGridMappedArray), ind, log_interp=False
+        )
         self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
+        # Line 1240 state_element_old for emis
+        # Line 1366 state_element_old for cloud
+        # print(self)
+        # breakpoint()
+        # if isinstance(self, StateElementEmis):
+        #    breakpoint()
 
     def _fill_in_apriori(self) -> None:
         if self._sold is None:
@@ -71,6 +136,25 @@ class StateElementFreqShared(StateElementOspFile):
         res = self._sold.updated_fm_flag
         self._check_result(res, "updated_fm_flag")
         return res
+
+    def notify_start_step(
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        super().notify_start_step(
+            current_strategy_step,
+            retrieval_config,
+            skip_initial_guess_update,
+        )
+        # Grab microwindow information, needed in later calculations
+        self.microwindows = []
+        for swin in current_strategy_step.spectral_window_dict.values():
+            self.microwindows.extend(swin.muses_microwindows())
+        # Filter out the UV windows, this just isn't wanted in
+        # mw_frequency_needed
+        self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
 
 
 class StateElementEmis(StateElementFreqShared):

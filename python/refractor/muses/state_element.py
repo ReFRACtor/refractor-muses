@@ -789,8 +789,8 @@ class StateElementImplementation(StateElement):
         res = mpy.supplier_retrieval_levels_tes(
             retrieval_levels, pressure_input, self.pressure_list_fm
         )
-        # Filter out any levels out of range
-        res = np.array([i for i in res if i <= self.pressure_list_fm.shape[0]])
+        # Filter out any levels out of range, and convert to 0 based
+        res = np.array([i - 1 for i in res if i <= self.pressure_list_fm.shape[0]])
         return res
 
     def notify_start_retrieval(

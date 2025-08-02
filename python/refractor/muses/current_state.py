@@ -344,6 +344,28 @@ class FullGridMappedArray(np.ndarray):
         )
 
 
+def _from_x_subset(
+    cls: type[rf.StateMappingBasisMatrix],
+    x: FullGridMappedArray,
+    ind: np.ndarray,
+    log_interp: bool = True,
+) -> rf.StateMappingBasisMatrix:
+    """We often have a full grid defined by a set of parameters (pressure, or for a
+    few StateElement wavelength), and have the retrieval grid defined as a subset.
+    This function calculates the state_mapping_retrieval_to_fm needed to go to
+    and from this. This is the equivalent of the muses-py code mpy.make_maps.
+
+    For something like pressure, we work in log(x). For wavelength, we work in x.
+    You can select x interpolation by passing log_interp as False."""
+    # Temp
+    lv = ind + 1
+    t = mpy.make_maps(x, lv, i_linearFlag=(not log_interp))
+    return rf.StateMappingBasisMatrix(t["toState"].transpose(), t["toPars"].transpose())
+
+
+rf.StateMappingBasisMatrix.from_x_subset = classmethod(_from_x_subset)
+
+
 class FullGridMappedArrayFromRetGrid(np.ndarray):
     """Data in in the forward model state vector/full state vector.
     Mapped (e.g., log(vmr) is converted to VMR).
