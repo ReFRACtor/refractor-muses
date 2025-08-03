@@ -71,17 +71,15 @@ class StateElementFreqShared(StateElementOspFile):
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
             return
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        # TODO Short term work around this, until we are ready to support this.
-        cmatrix = self.osp_species_reader.read_constraint_matrix(
+        self._constraint_matrix = self.osp_species_reader.read_constraint_matrix(
             self.state_element_id,
             self.retrieval_type,
             self.basis_matrix.shape[0],
             poltype=self.poltype if self.poltype_used_constraint else None,
+            pressure_list=self.pressure_list,
+            pressure_list_fm=self.pressure_list_fm,
+            map_to_parameter_matrix=self.map_to_parameter_matrix,
         ).view(RetrievalGrid2dArray)
-        self._constraint_matrix = self._sold.constraint_matrix
-        # breakpoint()
 
     def _fill_in_state_mapping(self) -> None:
         super()._fill_in_state_mapping()
@@ -149,7 +147,7 @@ class StateElementEmis(StateElementFreqShared):
             self.spectral_domain.data.view(FullGridMappedArray), ind, log_interp=False
         )
         t = self._sold.state_mapping_retrieval_to_fm
-        #if(np.abs(self._state_mapping_retrieval_to_fm.basis_matrix - t.basis_matrix).max() > 1e-12):
+        # if(np.abs(self._state_mapping_retrieval_to_fm.basis_matrix - t.basis_matrix).max() > 1e-12):
         #    breakpoint()
         # Temp, until we sort this out
         self._state_mapping_retrieval_to_fm = t

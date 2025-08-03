@@ -1296,7 +1296,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                             mapToState[:, kk] = 0
                             num_rows_cleared = num_rows_cleared + 1
                 # end for kk in range(0, nn):
-                #breakpoint()
+                # breakpoint()
 
                 # Set pars for retrieval
                 # AT_LINE 294 Get_Species_Information.pro
@@ -1489,6 +1489,8 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                 if self.state_info.has_true_values():
                     trueParameterList = np.sum(m * trueParameterListFM)
 
+            # if((species_name == 'EMIS')     or (species_name == 'CLOUDEXT')):
+            #    breakpoint()
             # AT_LINE 443 Get_Species_Information.pro
             # Now get constraint matrix.
             if constraintType.lower() == "tikhonov":

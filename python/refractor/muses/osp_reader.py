@@ -10,6 +10,10 @@ from typing import Any, Self, Iterator
 from functools import cache
 import re
 from .identifier import StateElementIdentifier, RetrievalType
+import typing
+
+if typing.TYPE_CHECKING:
+    from .current_state import RetrievalGridArray, FullGridMappedArray
 
 
 class RangeFind:
@@ -296,6 +300,9 @@ class OspSpeciesReader(OspFileHandle):
         num_retrieval: int,
         sid2: StateElementIdentifier | None = None,
         poltype: str | None = None,
+        pressure_list: RetrievalGridArray | None = None,
+        pressure_list_fm: FullGridMappedArray | None = None,
+        map_to_parameter_matrix: np.ndarray | None = None,
     ) -> np.ndarray:
         """Read the constraint matrix for the given StateElementIdentifier.
         Some of the file names depend on the number of retrieved levels, so
@@ -313,6 +320,10 @@ class OspSpeciesReader(OspFileHandle):
             retrieval_type in self.filename_data[sid][sid2]
             or sid not in self._default_cache
             or sid2 not in self._default_cache[sid]
+            # Cache might be incorrect if we use map_to_parameter_matrix, since this
+            # may change. This is really some pretty complicated logic, not sure
+            # that we can do anything about that.
+            or map_to_parameter_matrix is not None
         ):
             t = self.read_file(sid, retrieval_type, sid2=sid2)
             ctype = t["constraintType"].lower()
@@ -350,10 +361,28 @@ class OspSpeciesReader(OspFileHandle):
                 # We chop off just to get the data
                 cov = np.array(d.table)[:, 3:].astype(float)
             elif ctype == "full":
-                d2 = np.array(TesFile(self._abs_path(t["sSubaFilename"])).table)
-                # First column is name of species, second is pressure, third is map type.
-                # We chop off just to get the data
-                cov = np.linalg.inv(d2[:, 3:].astype(float))
+                # There is a completely different set of logic for a handful of state elements.
+                # see state_element_old.py around line 1523
+                if sid in (
+                    StateElementIdentifier("EMIS"),
+                    StateElementIdentifier("CLOUDEXT"),
+                    StateElementIdentifier("CALSCALE"),
+                    StateElementIdentifier("CALOFFSET"),
+                ):
+                    cov = mpy.supplier_constraint_matrix_ssuba(
+                        np.zeros((0,)),
+                        "",
+                        None,
+                        map_to_parameter_matrix,
+                        pressure_list_fm,
+                        pressure_list,
+                        str(self._abs_path(t["sSubaFilename"])),
+                    )
+                else:
+                    d2 = np.array(TesFile(self._abs_path(t["sSubaFilename"])).table)
+                    # First column is name of species, second is pressure, third is map type.
+                    # We chop off just to get the data
+                    cov = np.linalg.inv(d2[:, 3:].astype(float))
             elif ctype == "covariance":
                 # Note the covariance part of the code in py-retrieve doesn't actually work.
                 # This seems to be an old format that isn't really used anymore. We run into

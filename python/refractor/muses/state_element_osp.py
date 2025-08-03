@@ -213,10 +213,13 @@ class StateElementOspFile(StateElementImplementation):
         if res is None:
             raise RuntimeError("This can't happen")
         # Skip for H2O and HDO, we have moved cross term handling out so this is
-        # different than the old data
+        # different than the old data. Also EMIS and CLOUDEXT have different handling,
+        # and can be slightly larger than check_result, so skip for them
         if self.state_element_id not in (
             StateElementIdentifier("H2O"),
             StateElementIdentifier("HDO"),
+            StateElementIdentifier("EMIS"),
+            StateElementIdentifier("CLOUDEXT"),
         ):
             self._check_result(res, "constraint_matrix")
         return res
