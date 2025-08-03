@@ -1296,6 +1296,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                             mapToState[:, kk] = 0
                             num_rows_cleared = num_rows_cleared + 1
                 # end for kk in range(0, nn):
+                #breakpoint()
 
                 # Set pars for retrieval
                 # AT_LINE 294 Get_Species_Information.pro

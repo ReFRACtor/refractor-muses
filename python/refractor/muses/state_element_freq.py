@@ -95,35 +95,6 @@ class StateElementFreqShared(StateElementOspFile):
         else:
             self._pressure_list_fm = None
 
-    def _freq_mode(self) -> None | str | float:
-        return None
-
-    def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
-        if self._state_mapping_retrieval_to_fm is not None:
-            return
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        self._fill_in_state_mapping()
-        # cloud param. for emis we don't use retrieval_type or freq_mode
-        assert self.spectral_domain is not None
-        wflag = mpy.mw_frequency_needed(
-            self.microwindows,
-            self.spectral_domain.data,
-            self.retrieval_type,
-            self._freq_mode(),
-        )
-        ind = np.array([i for i in np.nonzero(wflag)[0]])
-        new_state_mapping_retrieval_to_fm = rf.StateMappingBasisMatrix.from_x_subset(
-            self.spectral_domain.data.view(FullGridMappedArray), ind, log_interp=False
-        )
-        self._state_mapping_retrieval_to_fm = self._sold.state_mapping_retrieval_to_fm
-        # Line 1240 state_element_old for emis
-        # Line 1366 state_element_old for cloud
-        # print(self)
-        # breakpoint()
-        # if isinstance(self, StateElementEmis):
-        #    breakpoint()
-
     def _fill_in_apriori(self) -> None:
         if self._sold is None:
             raise RuntimeError("Need sold")
@@ -136,25 +107,6 @@ class StateElementFreqShared(StateElementOspFile):
         res = self._sold.updated_fm_flag
         self._check_result(res, "updated_fm_flag")
         return res
-
-    def notify_start_step(
-        self,
-        current_strategy_step: CurrentStrategyStep,
-        retrieval_config: RetrievalConfiguration,
-        skip_initial_guess_update: bool = False,
-    ) -> None:
-        super().notify_start_step(
-            current_strategy_step,
-            retrieval_config,
-            skip_initial_guess_update,
-        )
-        # Grab microwindow information, needed in later calculations
-        self.microwindows = []
-        for swin in current_strategy_step.spectral_window_dict.values():
-            self.microwindows.extend(swin.muses_microwindows())
-        # Filter out the UV windows, this just isn't wanted in
-        # mw_frequency_needed
-        self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
 
 
 class StateElementEmis(StateElementFreqShared):
@@ -181,6 +133,28 @@ class StateElementEmis(StateElementFreqShared):
         res = self._step_initial_fm
         self._check_result(res, "step_initial_fm")
         return res
+
+    def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
+        if self._state_mapping_retrieval_to_fm is not None:
+            return
+        self._fill_in_state_mapping()
+        assert self.spectral_domain is not None
+        # TODO See about doing this directly
+        wflag = mpy.mw_frequency_needed(
+            self.microwindows,
+            self.spectral_domain.data,
+        )
+        ind = np.array([i for i in np.nonzero(wflag)[0]])
+        self._state_mapping_retrieval_to_fm = rf.StateMappingBasisMatrix.from_x_subset(
+            self.spectral_domain.data.view(FullGridMappedArray), ind, log_interp=False
+        )
+        t = self._sold.state_mapping_retrieval_to_fm
+        #if(np.abs(self._state_mapping_retrieval_to_fm.basis_matrix - t.basis_matrix).max() > 1e-12):
+        #    breakpoint()
+        # Temp, until we sort this out
+        self._state_mapping_retrieval_to_fm = t
+        # Line 1240 state_element_old for emis
+        # Line 1366 state_element_old for cloud
 
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
@@ -224,6 +198,25 @@ class StateElementEmis(StateElementFreqShared):
                 raise RuntimeError("Need sold")
             self._value_fm = self._sold.value_fm
 
+    def notify_start_step(
+        self,
+        current_strategy_step: CurrentStrategyStep,
+        retrieval_config: RetrievalConfiguration,
+        skip_initial_guess_update: bool = False,
+    ) -> None:
+        super().notify_start_step(
+            current_strategy_step,
+            retrieval_config,
+            skip_initial_guess_update,
+        )
+        # Grab microwindow information, needed in later calculations
+        self.microwindows = []
+        for swin in current_strategy_step.spectral_window_dict.values():
+            self.microwindows.extend(swin.muses_microwindows())
+        # Filter out the UV windows, this just isn't wanted in
+        # mw_frequency_needed
+        self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
+
 
 class StateElementCloudExt(StateElementFreqShared):
     @property
@@ -242,6 +235,24 @@ class StateElementCloudExt(StateElementFreqShared):
         self._check_result(res, "value_fm")
         return res
 
+    def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
+        if self._state_mapping_retrieval_to_fm is not None:
+            return
+        self._fill_in_state_mapping()
+        assert self.spectral_domain is not None
+        wflag = mpy.mw_frequency_needed(
+            self.microwindows,
+            self.spectral_domain.data,
+            self.retrieval_type,
+            self.freq_mode,
+        )
+        ind = np.array([i for i in np.nonzero(wflag)[0]])
+        self._state_mapping_retrieval_to_fm = rf.StateMappingBasisMatrix.from_x_subset(
+            self.spectral_domain.data.view(FullGridMappedArray), ind, log_interp=False
+        )
+        # Line 1240 state_element_old for emis
+        # Line 1366 state_element_old for cloud
+
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep,
@@ -249,8 +260,18 @@ class StateElementCloudExt(StateElementFreqShared):
         skip_initial_guess_update: bool = False,
     ) -> None:
         super().notify_start_step(
-            current_strategy_step, retrieval_config, skip_initial_guess_update
+            current_strategy_step,
+            retrieval_config,
+            skip_initial_guess_update,
         )
+        # Grab microwindow information, needed in later calculations
+        self.microwindows = []
+        for swin in current_strategy_step.spectral_window_dict.values():
+            self.microwindows.extend(swin.muses_microwindows())
+        # Filter out the UV windows, this just isn't wanted in
+        # mw_frequency_needed
+        self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
+        self.freq_mode = retrieval_config["CLOUDEXT_IGR_Min_Freq_Spacing"]
         self.is_bt_ig_refine = current_strategy_step.retrieval_type == RetrievalType(
             "bt_ig_refine"
         )
