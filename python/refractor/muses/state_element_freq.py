@@ -105,6 +105,9 @@ class StateElementFreqShared(StateElementOspFile):
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
+        # Might be only bt_ig_refine that is different?
+        if(not self.is_bt_ig_refine):
+            return super().updated_fm_flag
         if self._sold is None:
             raise RuntimeError("Need sold")
         res = self._sold.updated_fm_flag
@@ -222,6 +225,14 @@ class StateElementEmis(StateElementFreqShared):
         # mw_frequency_needed
         self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
 
+    @property
+    def updated_fm_flag(self) -> FullGridMappedArray:
+        # This one is different, we'll need to track down why.
+        if self._sold is None:
+            raise RuntimeError("Need sold")
+        res = self._sold.updated_fm_flag
+        self._check_result(res, "updated_fm_flag")
+        return res
 
 class StateElementCloudExt(StateElementFreqShared):
     @property
