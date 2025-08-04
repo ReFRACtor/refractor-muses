@@ -81,6 +81,16 @@ class StateElementFreqShared(StateElementOspFile):
             map_to_parameter_matrix=self.map_to_parameter_matrix,
         ).view(RetrievalGrid2dArray)
 
+    def _fill_in_apriori(self) -> None:
+        if self._apriori_cov_fm is not None:
+            return
+        super()._fill_in_apriori()
+        # TODO - This is done to match the existing data. We'll want to remove this
+        # at some point, but it will update the expected results. Go ahead and
+        # hold this fixed for now, so we can make just this one change and know it
+        # is why the output changes. We round this to 32 bit, and then back to 64 bit float
+        self._apriori_cov_fm = self._apriori_cov_fm.astype(np.float32).astype(np.float64)
+        
     def _fill_in_state_mapping(self) -> None:
         super()._fill_in_state_mapping()
         # TODO Fix this
@@ -92,11 +102,6 @@ class StateElementFreqShared(StateElementOspFile):
             self._pressure_list_fm = self.spectral_domain.data.view(FullGridMappedArray)
         else:
             self._pressure_list_fm = None
-
-    def _fill_in_apriori(self) -> None:
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        self._apriori_cov_fm = self._sold.apriori_cov_fm
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
@@ -146,6 +151,8 @@ class StateElementEmis(StateElementFreqShared):
         self._state_mapping_retrieval_to_fm = rf.StateMappingBasisMatrix.from_x_subset(
             self.spectral_domain.data.view(FullGridMappedArray), ind, log_interp=False
         )
+        if self._sold is None:
+            raise RuntimeError("Need sold")
         t = self._sold.state_mapping_retrieval_to_fm
         # if(np.abs(self._state_mapping_retrieval_to_fm.basis_matrix - t.basis_matrix).max() > 1e-12):
         #    breakpoint()
