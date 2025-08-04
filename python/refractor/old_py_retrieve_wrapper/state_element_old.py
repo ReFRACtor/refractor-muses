@@ -184,8 +184,9 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             # if all at i.g., then must've started at true e.g. for spectral
             # window selection.  Here we want accurate error estimates.
             do_update_fm[:] = 1
-        #if(str(self.name) == "CLOUDEXT"):
-        #    breakpoint()
+        if(False and str(self.name) == "CLOUDEXT"):
+            print(result)
+            breakpoint()
         my_map = mpy.get_one_map(retrieval_info.retrieval_info_obj, ij)
 
         # Get indices influenced by retrieval.

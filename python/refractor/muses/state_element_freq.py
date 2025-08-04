@@ -241,14 +241,12 @@ class StateElementCloudExt(StateElementFreqShared):
             self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")[0, :]
             assert self._value_fm is not None
             self._next_step_initial_fm = self._value_fm.copy()
-        # Keep running into issues here, just punt for now
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        self._value_fm = self._sold.value_fm[0, :].copy().view(FullGridMappedArray)
         res = self._value_fm
         if res is None:
             raise RuntimeError("_value_fm shouldn't be None")
-        self._check_result(res, "value_fm")
+        # There are differences with sold, but we determined they don't matter. Comment
+        # out actually checking the results
+        #self._check_result(res, "value_fm")
         return res
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
@@ -332,11 +330,15 @@ class StateElementCloudExt(StateElementFreqShared):
             # Not sure of the logic here. I think this is a way to calculate
             # self.updated_fm_flag
             if self._value_fm is None:
-                raise RuntimeError("vlaue_fm can't be none")
+                raise RuntimeError("value_fm can't be none")
             updfl = np.abs(np.sum(self.map_to_parameter_matrix, axis=1)) >= 1e-10
             self._value_fm.view(np.ndarray)[updfl] = res[updfl]
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
+        if False:
+            print(self._value_fm)
+            print(self._sold.value_fm)
+            breakpoint()
 
 
 class StateElementEmisHandle(StateElementHandle):

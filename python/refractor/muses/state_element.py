@@ -825,7 +825,6 @@ class StateElementImplementation(StateElement):
         if self._next_constraint_vector_fm is not None:
             self._constraint_vector_fm = self._next_constraint_vector_fm
             self._next_constraint_vector_fm = None
-        # Set value to initial value
         self._value_fm = self._step_initial_fm.copy()
         self._retrieved_this_step = (
             self.state_element_id in current_strategy_step.retrieval_elements
@@ -834,6 +833,11 @@ class StateElementImplementation(StateElement):
             self.state_element_id
             in current_strategy_step.retrieval_elements_not_updated
         )
+        # Set value to initial value
+        if(False and self.state_element_id == StateElementIdentifier("CLOUDEXT")):
+            print(self._value_fm)
+            print(self._sold.value_fm)
+            breakpoint()
 
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
