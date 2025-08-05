@@ -240,6 +240,9 @@ class StateElementCloudExt(StateElementFreqShared):
         # mw_frequency_needed
         self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
         self.freq_mode = retrieval_config["CLOUDEXT_IGR_Min_Freq_Spacing"]
+        self.update_ave = retrieval_config["CLOUDEXT_IGR_Average"].lower()
+        self.max_ave = float(retrieval_config["CLOUDEXT_IGR_Max"])
+        self.reset_ave = float(retrieval_config["CLOUDEXT_Reset_Value"])
         self.is_bt_ig_refine = current_strategy_step.retrieval_type == RetrievalType(
             "bt_ig_refine"
         )
@@ -249,48 +252,60 @@ class StateElementCloudExt(StateElementFreqShared):
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
     ) -> None:
-        # We've already called notify_parameter_update, so no need to update
-        # self._value here
         if self._sold is not None:
             self._sold.notify_step_solution(xsol, retrieval_slice)
         # Default is that the next initial value is whatever the solution was from
         # this step. But skip if we are on the not updated list
         self._next_step_initial_fm = None
+        if(retrieval_slice is None):
+            return
+        
+        # Note we really are replacing value_fm as a FullGridMappedArray with
+        # the results from the RetrievalGridArray solution. This is what we want
+        # to do after a retrieval step. We have the "fprime" here just to make
+        # that explicit that this is what we are intending on doing here. Sp
+        # to_fmprime returns a FullGridMappedArrayFromRetGrid, but we then use
+        # that as a FullGridMappedArray.
 
-        # We have some odd logic in StateElementOld for cloudEffExt for the
-        # bt_ig_refine step. We will need to duplicate this, but short term
-        # just punt and use the old value. Note that we end up at about
-        # line 264, there cloudEffExt is set to an average value, but we will
-        # need to work through this. Probably special handling on
-        # notify_step_solution for cloudEffExt, for bt_ig_refine step.
-        # Also CLOUDEXT seems to be a sort of alias for cloudEffExt, but we don't
-        # have that fully supported yet - should probably add that
-        if self.is_bt_ig_refine and self._sold is not None:
-            self._value_fm = self._sold.value_fm[0, :].copy()
-            assert self._value_fm is not None
+        res = (
+            xsol[retrieval_slice]
+            .view(RetrievalGridArray)
+            .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
+            .view(FullGridMappedArray)
+        )
+        # Set of values actually updated
+        updfl = np.abs(np.sum(self.map_to_parameter_matrix, axis=1)) >= 1e-10
+        ind = np.array([i for i in np.nonzero(updfl)[0]])
+        if self._value_fm is None:
+            raise RuntimeError("value_fm can't be none")
+        varr = self._value_fm.view(np.ndarray)
+        # Special handling for bt_ig_refine step, we use average value rather than
+        # copying the full set over
+        if self.is_bt_ig_refine:
+            if ind.size < 4:
+                if ind.size > 0:
+                    ave = np.exp(np.sum(np.log(res[updfl])) / len(result[updfl]))
+            else:
+                ind0 = ind[1:ind.size-1] # Exclude end points
+                ave = np.exp(np.sum(np.log(res[ind0])) / len(res[ind0]))
+            varr[:] = ave
+            if self.update_ave == "no":
+                if ind.size > 0:
+                    varr[updfl] = res[updfl]
+                    varr[ind.min(),ind.max()+1] = np.exp(
+                        mpy.idl_interpol_1d(
+                            np.log(res[updfl]),
+                            self.spectral_domain.data[updfl],
+                            self.spectral_domain.data[ind.min(),ind.max()+1])
+                    )
+            else:
+                varr[:] = ave
+            varr[varr >= self.max_ave] = self.reset_ave
+        else:
+            # For other steps, just handle like normal. Update data not held fixed
+            varr[updfl] = res[updfl]
+        if not self._initial_guess_not_updated:
             self._next_step_initial_fm = self._value_fm.copy()
-        elif retrieval_slice is not None:
-            # Note we really are replacing value_fm as a FullGridMappedArray with
-            # the results from the RetrievalGridArray solution. This is what we want
-            # to do after a retrieval step. We have the "fprime" here just to make
-            # that explicit that this is what we are intending on doing here. Sp
-            # to_fmprime returns a FullGridMappedArrayFromRetGrid, but we then use
-            # that as a FullGridMappedArray.
-
-            res = (
-                xsol[retrieval_slice]
-                .view(RetrievalGridArray)
-                .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
-                .view(FullGridMappedArray)
-            )
-            # Not sure of the logic here. I think this is a way to calculate
-            # self.updated_fm_flag
-            if self._value_fm is None:
-                raise RuntimeError("value_fm can't be none")
-            updfl = np.abs(np.sum(self.map_to_parameter_matrix, axis=1)) >= 1e-10
-            self._value_fm.view(np.ndarray)[updfl] = res[updfl]
-            if not self._initial_guess_not_updated:
-                self._next_step_initial_fm = self._value_fm.copy()
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
