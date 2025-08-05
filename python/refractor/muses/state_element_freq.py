@@ -155,20 +155,11 @@ class StateElementEmis(StateElementFreqShared):
                 .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
                 .view(FullGridMappedArray)
             )
-            # Not sure of the logic here. I think this is a way to calculate
-            # self.updated_fm_flag
-            updfl = np.abs(np.sum(self.map_to_parameter_matrix, axis=1)) >= 1e-10
+            # Exclude rows that we aren't updating with the basis matrix.
+            updfl = np.max(np.abs(self.basis_matrix),axis=0) >= 1e-10
             if self._value_fm is None:
                 raise RuntimeError("self._value_fm can't be none")
             self._value_fm.view(np.ndarray)[updfl] = res[updfl]
-            # Not sure what exactly is going on here, but somehow the
-            # value is being changed before we start this step. Just
-            # steal from old element for now, we'll need to sort this out.
-            # Note that this is out of sync with self._step_initial_fm, which
-            # actually seems to be the case. Probably a mistake, but duplicate for now
-            if self._sold is None:
-                raise RuntimeError("Need sold")
-            self._value_fm = self._sold.value_fm
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
 
