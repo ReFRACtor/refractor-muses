@@ -366,6 +366,36 @@ def _from_x_subset(
 rf.StateMappingBasisMatrix.from_x_subset = classmethod(_from_x_subset)
 
 
+def _from_x_subset_exclude_gap(
+    cls: type[rf.StateMappingBasisMatrix],
+    x: FullGridMappedArray,
+    ind: np.ndarray,
+    log_interp: bool = True,
+    gap_threshold: float = 50.0,
+) -> rf.StateMappingBasisMatrix:
+    """This is a variation of from_x_subset where we exclude frequencies not
+    retrieved that are in a gap > threshold. The idea here is that for points
+    far from where we are actually retrieving we are better just leaving the
+    data as is rather than interpolating through where we are far from the points"""
+    lv = ind + 1
+    t = mpy.make_maps(x, lv, i_linearFlag=(not log_interp))
+    x_ret = x[ind]
+    m = t["toState"]
+    ind = np.searchsorted(x_ret, x)
+    for k in range(m.shape[1]):
+        if ind[k] > 0 and ind[k] < x_ret.shape[0]:
+            diff1 = x[k] - x_ret[ind[k] - 1]
+            diff2 = x_ret[ind[k]] - x[k]
+            if diff1 > 0 and diff2 > 0 and diff1 + diff2 > gap_threshold:
+                m[:, k] = 0
+    return rf.StateMappingBasisMatrix(t["toState"].transpose(), t["toPars"].transpose())
+
+
+rf.StateMappingBasisMatrix.from_x_subset_exclude_gap = classmethod(
+    _from_x_subset_exclude_gap
+)
+
+
 class FullGridMappedArrayFromRetGrid(np.ndarray):
     """Data in in the forward model state vector/full state vector.
     Mapped (e.g., log(vmr) is converted to VMR).

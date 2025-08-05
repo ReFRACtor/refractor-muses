@@ -89,8 +89,11 @@ class StateElementFreqShared(StateElementOspFile):
         # at some point, but it will update the expected results. Go ahead and
         # hold this fixed for now, so we can make just this one change and know it
         # is why the output changes. We round this to 32 bit, and then back to 64 bit float
-        self._apriori_cov_fm = self._apriori_cov_fm.astype(np.float32).astype(np.float64)
-        
+        assert self._apriori_cov_fm is not None
+        self._apriori_cov_fm = self._apriori_cov_fm.astype(np.float32).astype(
+            np.float64
+        )
+
     def _fill_in_state_mapping(self) -> None:
         super()._fill_in_state_mapping()
         # TODO Fix this
@@ -102,6 +105,7 @@ class StateElementFreqShared(StateElementOspFile):
             self._pressure_list_fm = self.spectral_domain.data.view(FullGridMappedArray)
         else:
             self._pressure_list_fm = None
+
 
 class StateElementEmis(StateElementFreqShared):
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
@@ -115,16 +119,14 @@ class StateElementEmis(StateElementFreqShared):
             self.spectral_domain.data,
         )
         ind = np.array([i for i in np.nonzero(wflag)[0]])
-        self._state_mapping_retrieval_to_fm = rf.StateMappingBasisMatrix.from_x_subset(
-            self.spectral_domain.data.view(FullGridMappedArray), ind, log_interp=False
+        self._state_mapping_retrieval_to_fm = (
+            rf.StateMappingBasisMatrix.from_x_subset_exclude_gap(
+                self.spectral_domain.data.view(FullGridMappedArray),
+                ind,
+                log_interp=False,
+                gap_threshold=50.0,
+            )
         )
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        t = self._sold.state_mapping_retrieval_to_fm
-        # if(np.abs(self._state_mapping_retrieval_to_fm.basis_matrix - t.basis_matrix).max() > 1e-12):
-        #    breakpoint()
-        # Temp, until we sort this out
-        self._state_mapping_retrieval_to_fm = t
         # Line 1240 state_element_old for emis
         # Line 1366 state_element_old for cloud
 
@@ -190,7 +192,7 @@ class StateElementEmis(StateElementFreqShared):
         self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
         t = self._sold.value_fm.copy()
         if np.abs(self._value_fm - t).max() > 1e-12:
-            #breakpoint()
+            # breakpoint()
             self._value_fm = t
 
     @property
@@ -201,6 +203,7 @@ class StateElementEmis(StateElementFreqShared):
         res = self._sold.updated_fm_flag
         self._check_result(res, "updated_fm_flag")
         return res
+
 
 class StateElementCloudExt(StateElementFreqShared):
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
@@ -246,9 +249,9 @@ class StateElementCloudExt(StateElementFreqShared):
         self.is_bt_ig_refine = current_strategy_step.retrieval_type == RetrievalType(
             "bt_ig_refine"
         )
-        if(self.is_bt_ig_refine):
+        if self.is_bt_ig_refine:
             self._value_fm[self._value_fm >= self.max_ave] = self.reset_ave
-                
+
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
     ) -> None:
@@ -257,9 +260,9 @@ class StateElementCloudExt(StateElementFreqShared):
         # Default is that the next initial value is whatever the solution was from
         # this step. But skip if we are on the not updated list
         self._next_step_initial_fm = None
-        if(retrieval_slice is None):
+        if retrieval_slice is None:
             return
-        
+
         # Note we really are replacing value_fm as a FullGridMappedArray with
         # the results from the RetrievalGridArray solution. This is what we want
         # to do after a retrieval step. We have the "fprime" here just to make
@@ -278,25 +281,28 @@ class StateElementCloudExt(StateElementFreqShared):
         ind = np.array([i for i in np.nonzero(updfl)[0]])
         if self._value_fm is None:
             raise RuntimeError("value_fm can't be none")
+        if self.spectral_domain is None:
+            raise RuntimeError("spectral_domain can't be none")
         varr = self._value_fm.view(np.ndarray)
         # Special handling for bt_ig_refine step, we use average value rather than
         # copying the full set over
         if self.is_bt_ig_refine:
             if ind.size < 4:
                 if ind.size > 0:
-                    ave = np.exp(np.sum(np.log(res[updfl])) / len(result[updfl]))
+                    ave = np.exp(np.sum(np.log(res[updfl])) / len(res[updfl]))
             else:
-                ind0 = ind[1:ind.size-1] # Exclude end points
+                ind0 = ind[1 : ind.size - 1]  # Exclude end points
                 ave = np.exp(np.sum(np.log(res[ind0])) / len(res[ind0]))
             varr[:] = ave
             if self.update_ave == "no":
                 if ind.size > 0:
                     varr[updfl] = res[updfl]
-                    varr[ind.min(),ind.max()+1] = np.exp(
+                    varr[ind.min(), ind.max() + 1] = np.exp(
                         mpy.idl_interpol_1d(
                             np.log(res[updfl]),
                             self.spectral_domain.data[updfl],
-                            self.spectral_domain.data[ind.min(),ind.max()+1])
+                            self.spectral_domain.data[ind.min(), ind.max() + 1],
+                        )
                     )
             else:
                 varr[:] = ave
@@ -309,7 +315,7 @@ class StateElementCloudExt(StateElementFreqShared):
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
-        if(not self.is_bt_ig_refine):
+        if not self.is_bt_ig_refine:
             return super().updated_fm_flag
         # bt_ig_refine is handled differently
         assert self.spectral_domain is not None
@@ -321,12 +327,11 @@ class StateElementCloudExt(StateElementFreqShared):
         )
         ind = np.array([i for i in np.nonzero(wflag)[0]])
         res = np.zeros(wflag.shape)
-        res[ind[0]:ind[1]+1]=1
+        res[ind[0] : ind[1] + 1] = 1
         self._check_result(res, "updated_fm_flag")
-        return res
+        return res.view(FullGridMappedArray)
 
 
-                
 class StateElementEmisHandle(StateElementHandle):
     def __init__(
         self,
@@ -464,7 +469,7 @@ class StateElementCloudExtHandle(StateElementHandle):
             # We are at the point where this isn't needed. We can still pass this
             # in if we want to track down some issue that arises, but don't normally
             # depend on StateElementOld
-            #selem_wrapper=sold,
+            # selem_wrapper=sold,
             spectral_domain=spectral_domain,
             cov_is_constraint=self.cov_is_constraint,
         )

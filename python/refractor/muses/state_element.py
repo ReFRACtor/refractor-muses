@@ -660,7 +660,7 @@ class StateElementImplementation(StateElement):
         # self._sold.value_fm this doesn't actually matter. So skip check for
         # this particular state element
         if self.state_element_id not in (StateElementIdentifier("CLOUDEXT"),):
-           self._check_result(res, "value_fm")
+            self._check_result(res, "value_fm")
         return res
 
     @property
