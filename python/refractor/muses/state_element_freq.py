@@ -120,24 +120,16 @@ class StateElementEmis(StateElementFreqShared):
     def value_fm(self) -> FullGridMappedArray:
         if self._sold is None:
             raise RuntimeError("Need sold")
+        #t = self._sold.value_fm.copy()
+        # Looks like difference is the values that get zeroed out.
+        #if np.abs(self._value_fm - t).max() > 1e-12:
+        #    breakpoint()
         # Keep running into issues here, just punt for now
         self._value_fm = self._sold.value_fm.copy()
         res = self._value_fm
         if res is None:
             raise RuntimeError("_value_fm shouldn't be None")
         self._check_result(res, "value_fm")
-        return res
-
-    @property
-    def step_initial_fm(self) -> FullGridMappedArray:
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        # Punt
-        self._step_initial_fm = self._sold.step_initial_fm.copy()
-        if self._step_initial_fm is None:
-            raise RuntimeError("_step_initial_fm shouldn't be None")
-        res = self._step_initial_fm
-        self._check_result(res, "step_initial_fm")
         return res
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
@@ -179,7 +171,7 @@ class StateElementEmis(StateElementFreqShared):
             # Note we really are replacing value_fm as a FullGridMappedArray with
             # the results from the RetrievalGridArray solution. This is what we want
             # to do after a retrieval step. We have the "fprime" here just to make
-            # that explicit that this is what we are intending on doing here. Sp
+            # that explicit that this is what we are intending on doing here. So
             # to_fmprime returns a FullGridMappedArrayFromRetGrid, but we then use
             # that as a FullGridMappedArray.
 
@@ -195,8 +187,6 @@ class StateElementEmis(StateElementFreqShared):
             if self._value_fm is None:
                 raise RuntimeError("self._value_fm can't be none")
             self._value_fm.view(np.ndarray)[updfl] = res[updfl]
-            if not self._initial_guess_not_updated:
-                self._next_step_initial_fm = self._value_fm.copy()
             # Not sure what exactly is going on here, but somehow the
             # value is being changed before we start this step. Just
             # steal from old element for now, we'll need to sort this out.
@@ -205,6 +195,8 @@ class StateElementEmis(StateElementFreqShared):
             if self._sold is None:
                 raise RuntimeError("Need sold")
             self._value_fm = self._sold.value_fm
+            if not self._initial_guess_not_updated:
+                self._next_step_initial_fm = self._value_fm.copy()
 
     def notify_start_step(
         self,
