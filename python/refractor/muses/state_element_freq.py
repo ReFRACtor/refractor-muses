@@ -235,20 +235,6 @@ class StateElementEmis(StateElementFreqShared):
         return res
 
 class StateElementCloudExt(StateElementFreqShared):
-    @property
-    def value_fm(self) -> FullGridMappedArray:
-        if self.is_bt_ig_refine and self._sold is not None:
-            self._value_fm = self._sold._current_state_old.state_value("CLOUDEXT")[0, :]
-            assert self._value_fm is not None
-            self._next_step_initial_fm = self._value_fm.copy()
-        res = self._value_fm
-        if res is None:
-            raise RuntimeError("_value_fm shouldn't be None")
-        # There are differences with sold, but we determined they don't matter. Comment
-        # out actually checking the results
-        #self._check_result(res, "value_fm")
-        return res
-
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
             return
@@ -289,6 +275,8 @@ class StateElementCloudExt(StateElementFreqShared):
         self.is_bt_ig_refine = current_strategy_step.retrieval_type == RetrievalType(
             "bt_ig_refine"
         )
+        if(self.is_bt_ig_refine):
+            self._value_fm = self._sold.value_fm[0, :].copy()
 
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
@@ -310,7 +298,7 @@ class StateElementCloudExt(StateElementFreqShared):
         # Also CLOUDEXT seems to be a sort of alias for cloudEffExt, but we don't
         # have that fully supported yet - should probably add that
         if self.is_bt_ig_refine and self._sold is not None:
-            self._value_fm = self._sold.value_fm[0, :]
+            self._value_fm = self._sold.value_fm[0, :].copy()
             assert self._value_fm is not None
             self._next_step_initial_fm = self._value_fm.copy()
         elif retrieval_slice is not None:
