@@ -335,11 +335,6 @@ class StateElementCloudExt(StateElementFreqShared):
             self._value_fm.view(np.ndarray)[updfl] = res[updfl]
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
-        if False:
-            print(self._value_fm)
-            print(self._sold.value_fm)
-            breakpoint()
-
 
 class StateElementEmisHandle(StateElementHandle):
     def __init__(

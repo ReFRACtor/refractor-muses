@@ -184,9 +184,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             # if all at i.g., then must've started at true e.g. for spectral
             # window selection.  Here we want accurate error estimates.
             do_update_fm[:] = 1
-        if(False and str(self.name) == "CLOUDEXT"):
-            print(result)
-            breakpoint()
         my_map = mpy.get_one_map(retrieval_info.retrieval_info_obj, ij)
 
         # Get indices influenced by retrieval.
@@ -208,8 +205,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             # ind = where(result NE 0)
             if ind.size > 0:
                 self.state_info.state_info_obj.current["emissivity"][ind] = result[ind]
-                # print(self.state_info.state_info_obj.current["emissivity"][54])
-                # breakpoint()
         elif str(self.name) == "CLOUDEXT":
             # Note that the variable ind is the list of frequencies that are retrieved
             # AT_LINE 85 Update_State.pro
@@ -301,7 +296,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                     self.state_info.state_info_obj.current["cloudEffExt"][0, ind] = (
                         resetAve
                     )
-                    # breakpoint()
             # end part of: if stepType != 'bt_ig_refine':
 
             if self.state_info.state_info_obj.current["cloudEffExt"][0, 0] == 0.01:
@@ -1298,7 +1292,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                             mapToState[:, kk] = 0
                             num_rows_cleared = num_rows_cleared + 1
                 # end for kk in range(0, nn):
-                # breakpoint()
 
                 # Set pars for retrieval
                 # AT_LINE 294 Get_Species_Information.pro
@@ -1341,7 +1334,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                 stepFMSelect = mpy.mw_frequency_needed(
                     microwindows, frequencyIn, stepType, freqMode
                 )
-                # breakpoint()
 
                 nn = len(stepFMSelect)
                 ind = np.where(stepFMSelect != 0)
@@ -1362,7 +1354,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                 maps = mpy.make_maps(
                     stateInfo.cloudPars["frequency"][0:nn], ind, linearFlag, averageFlag
                 )
-                # breakpoint()
                 maps = mpy.ObjectView(maps)
                 mapToState = maps.toState
                 mapToParameters = maps.toPars
@@ -1491,8 +1482,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                 if self.state_info.has_true_values():
                     trueParameterList = np.sum(m * trueParameterListFM)
 
-            # if((species_name == 'EMIS')     or (species_name == 'CLOUDEXT')):
-            #    breakpoint()
             # AT_LINE 443 Get_Species_Information.pro
             # Now get constraint matrix.
             if constraintType.lower() == "tikhonov":
@@ -1521,7 +1510,6 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                         )
             elif constraintType.lower() == "full":
                 sSubaFilename = speciesInformationFile.sSubaFilename
-                # breakpoint()
                 constraintMatrix = mpy.supplier_constraint_matrix_ssuba(
                     constraintVector,
                     species_name,
