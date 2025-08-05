@@ -247,8 +247,8 @@ class StateElementCloudExt(StateElementFreqShared):
             "bt_ig_refine"
         )
         if(self.is_bt_ig_refine):
-            self._value_fm = self._sold.value_fm[0, :].copy()
-
+            self._value_fm[self._value_fm >= self.max_ave] = self.reset_ave
+                
     def notify_step_solution(
         self, xsol: RetrievalGridArray, retrieval_slice: slice | None
     ) -> None:
@@ -461,8 +461,11 @@ class StateElementCloudExtHandle(StateElementHandle):
             self.strategy,
             self.observation_handle_set,
             self.sounding_metadata,
+            # We are at the point where this isn't needed. We can still pass this
+            # in if we want to track down some issue that arises, but don't normally
+            # depend on StateElementOld
+            #selem_wrapper=sold,
             spectral_domain=spectral_domain,
-            selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
         )
         if res is not None:
