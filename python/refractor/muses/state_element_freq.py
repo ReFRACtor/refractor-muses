@@ -103,35 +103,7 @@ class StateElementFreqShared(StateElementOspFile):
         else:
             self._pressure_list_fm = None
 
-    @property
-    def updated_fm_flag(self) -> FullGridMappedArray:
-        # Might be only bt_ig_refine that is different?
-        if(not self.is_bt_ig_refine):
-            return super().updated_fm_flag
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        res = self._sold.updated_fm_flag
-        self._check_result(res, "updated_fm_flag")
-        return res
-
-
 class StateElementEmis(StateElementFreqShared):
-    @property
-    def value_fm(self) -> FullGridMappedArray:
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        #t = self._sold.value_fm.copy()
-        # Looks like difference is the values that get zeroed out.
-        #if np.abs(self._value_fm - t).max() > 1e-12:
-        #    breakpoint()
-        # Keep running into issues here, just punt for now
-        self._value_fm = self._sold.value_fm.copy()
-        res = self._value_fm
-        if res is None:
-            raise RuntimeError("_value_fm shouldn't be None")
-        self._check_result(res, "value_fm")
-        return res
-
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
             return
@@ -216,6 +188,10 @@ class StateElementEmis(StateElementFreqShared):
         # Filter out the UV windows, this just isn't wanted in
         # mw_frequency_needed
         self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
+        t = self._sold.value_fm.copy()
+        if np.abs(self._value_fm - t).max() > 1e-12:
+            #breakpoint()
+            self._value_fm = t
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
@@ -316,6 +292,19 @@ class StateElementCloudExt(StateElementFreqShared):
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
 
+    @property
+    def updated_fm_flag(self) -> FullGridMappedArray:
+        # Might be only bt_ig_refine that is different?
+        if(not self.is_bt_ig_refine):
+            return super().updated_fm_flag
+        if self._sold is None:
+            raise RuntimeError("Need sold")
+        res = self._sold.updated_fm_flag
+        self._check_result(res, "updated_fm_flag")
+        return res
+
+
+                
 class StateElementEmisHandle(StateElementHandle):
     def __init__(
         self,
