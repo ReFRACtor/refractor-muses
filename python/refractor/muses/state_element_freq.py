@@ -294,12 +294,19 @@ class StateElementCloudExt(StateElementFreqShared):
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
-        # Might be only bt_ig_refine that is different?
         if(not self.is_bt_ig_refine):
             return super().updated_fm_flag
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        res = self._sold.updated_fm_flag
+        # bt_ig_refine is handled differently
+        assert self.spectral_domain is not None
+        wflag = mpy.mw_frequency_needed(
+            self.microwindows,
+            self.spectral_domain.data,
+            self.retrieval_type,
+            self.freq_mode,
+        )
+        ind = np.array([i for i in np.nonzero(wflag)[0]])
+        res = np.zeros(wflag.shape)
+        res[ind[0]:ind[1]+1]=1
         self._check_result(res, "updated_fm_flag")
         return res
 
