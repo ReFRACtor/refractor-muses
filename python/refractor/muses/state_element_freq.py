@@ -188,10 +188,11 @@ class StateElementEmis(StateElementFreqShared):
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
-        # This one is different, we'll need to track down why.
-        if self._sold is None:
-            raise RuntimeError("Need sold")
-        res = self._sold.updated_fm_flag
+        res = np.empty(self._value_fm.shape, dtype=bool).view(FullGridMappedArray)
+        # This actually seems wrong to me, I don't think we aren't updating all the
+        # elements of value_fm. However, this is what muses-py currently returns, so
+        # match that.
+        res[:] = True
         self._check_result(res, "updated_fm_flag")
         return res
 
