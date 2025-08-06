@@ -155,11 +155,11 @@ class StateElementEmis(StateElementFreqShared):
                 .to_fmprime(self.state_mapping_retrieval_to_fm, self.state_mapping)
                 .view(FullGridMappedArray)
             )
-            # Exclude rows that we aren't updating with the basis matrix.
-            updfl = np.max(np.abs(self.basis_matrix),axis=0) >= 1e-10
             if self._value_fm is None:
                 raise RuntimeError("self._value_fm can't be none")
-            self._value_fm.view(np.ndarray)[updfl] = res[updfl]
+            self._value_fm.view(np.ndarray)[self.fm_update_flag] = res[
+                self.fm_update_flag
+            ]
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
 
@@ -181,10 +181,11 @@ class StateElementEmis(StateElementFreqShared):
         # Filter out the UV windows, this just isn't wanted in
         # mw_frequency_needed
         self.microwindows = [mw for mw in self.microwindows if "UV" not in mw["filter"]]
-        t = self._sold.value_fm.copy()
-        if np.abs(self._value_fm - t).max() > 1e-12:
-            # breakpoint()
-            self._value_fm = t
+        if self._retrieved_this_step:
+            # muses-py maps value_fm to fmprime when we are doing a retrieval step
+            self._value_fm[self.fm_update_flag] = self._value_fm.to_fmprime(
+                self.state_mapping_retrieval_to_fm, self.state_mapping
+            )[self.fm_update_flag]
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
@@ -269,8 +270,7 @@ class StateElementCloudExt(StateElementFreqShared):
             .view(FullGridMappedArray)
         )
         # Set of values actually updated
-        updfl = np.abs(np.sum(self.map_to_parameter_matrix, axis=1)) >= 1e-10
-        ind = np.array([i for i in np.nonzero(updfl)[0]])
+        ind = np.array([i for i in np.nonzero(self.fm_update_flag)[0]])
         if self._value_fm is None:
             raise RuntimeError("value_fm can't be none")
         if self.spectral_domain is None:
@@ -281,18 +281,21 @@ class StateElementCloudExt(StateElementFreqShared):
         if self.is_bt_ig_refine:
             if ind.size < 4:
                 if ind.size > 0:
-                    ave = np.exp(np.sum(np.log(res[updfl])) / len(res[updfl]))
+                    ave = np.exp(
+                        np.sum(np.log(res[self.fm_update_flag]))
+                        / len(res[self.fm_update_flag])
+                    )
             else:
                 ind0 = ind[1 : ind.size - 1]  # Exclude end points
                 ave = np.exp(np.sum(np.log(res[ind0])) / len(res[ind0]))
             varr[:] = ave
             if self.update_ave == "no":
                 if ind.size > 0:
-                    varr[updfl] = res[updfl]
+                    varr[self.fm_update_flag] = res[self.fm_update_flag]
                     varr[ind.min(), ind.max() + 1] = np.exp(
                         mpy.idl_interpol_1d(
-                            np.log(res[updfl]),
-                            self.spectral_domain.data[updfl],
+                            np.log(res[self.fm_update_flag]),
+                            self.spectral_domain.data[self.fm_update_flag],
                             self.spectral_domain.data[ind.min(), ind.max() + 1],
                         )
                     )
@@ -301,7 +304,7 @@ class StateElementCloudExt(StateElementFreqShared):
             varr[varr >= self.max_ave] = self.reset_ave
         else:
             # For other steps, just handle like normal. Update data not held fixed
-            varr[updfl] = res[updfl]
+            varr[self.fm_update_flag] = res[self.fm_update_flag]
         if not self._initial_guess_not_updated:
             self._next_step_initial_fm = self._value_fm.copy()
 
@@ -381,7 +384,10 @@ class StateElementEmisHandle(StateElementHandle):
             self.observation_handle_set,
             self.sounding_metadata,
             spectral_domain=spectral_domain,
-            selem_wrapper=sold,
+            # We are at the point where this isn't needed. We can still pass this
+            # in if we want to track down some issue that arises, but don't normally
+            # depend on StateElementOld
+            # selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
             metadata={
                 "camel_distance": sold.metadata["camel_distance"],

@@ -635,6 +635,25 @@ class StateElementImplementation(StateElement):
         return res
 
     @property
+    def fm_update_flag(self) -> np.ndarray:
+        """For some of the StateElement, we set up the state_mapping_retrieval_to_fm so
+        that we map identically to 0. This is a way to hold some of the forward model
+        elements constant. This is currently just done for EMIS and CLOUDEXT.
+
+        Note this is pretty much the same idea and updated_fm_flag, however we keep these
+        distinct. This is more to match the old muses-py behavior, somewhat confusingly these
+        flags don't always have the same values.
+
+        update_fm_flag is just used in the ErrorAnalysis to hold error estimates constant.
+        fm_update_flag is used to determine which part of value_fm get updated. These should
+        be the same, but currently aren't.
+
+        TODO - Figure out how to make these the same.
+        """
+        # We just find rows in the basis_matrix that are all zero.
+        return np.max(np.abs(self.basis_matrix), axis=0) >= 1e-10
+
+    @property
     def forward_model_sv_length(self) -> int:
         if self._retrieved_this_step:
             res = self.apriori_cov_fm.shape[0]
