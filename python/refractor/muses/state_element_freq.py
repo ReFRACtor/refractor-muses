@@ -69,6 +69,58 @@ class StateElementFreqShared(StateElementOspFile):
 
 
 class StateElementEmis(StateElementFreqShared):
+    def __init__(self, rconfig: RetrievalConfiguration, smeta: SoundingMetadata):
+        """Create a StateElementEmis, and set up the initial guess. Note that
+        this does *not* do the retrieval_initial_fm_from_cycle, we can do that
+        after creating this StateElement. The creates one at that matches the
+        start of a old muse-py retrieval, but before it cycles through all the
+        steps."""
+        f = TesFile(Path(rconfig["Single_State_Directory"]) / "State_Emissivity_IR.asc")
+        if f.table is None:
+            raise RuntimeError("Trouble reading file")
+        # Despite the name frequency, this is actually wavelength. Also, we don't actually
+        # read the Emissivity column. I'm guessing this was an older way to get the
+        # initial guess that got replaced
+        spectral_domain = rf.SpectralDomain(f.table["Frequency"], rf.Unit("nm"))
+        # Use get_emis_uwis to get the emissivity. This matches what
+        # script_retrieval_setup_ms does.
+        emis_type = rconfig["TIR_EMIS_Source"]
+        uwis_data = mpy.get_emis_uwis.get_emis_dispatcher(
+            emis_type,
+            smeta.latitude.value,
+            smeta.longitude.value,
+            smeta.surface_altitude.value,
+            1 if smeta.is_ocean else 0,
+            smeta.year,
+            smeta.month,
+            spectral_domain.data,
+            rconfig.get("CAMEL_Coef_Directory"),
+            rconfig.get("CAMEL_Lab_Directory"),
+        )
+        value_fm = uwis_data["instr_emis"].view(FullGridMappedArray)
+        # Other things we may need
+        # native_emis = uwis_data['native_emis']
+        # native_emis_wavenumber = uwis_data['native_wavenumber']
+        camel_distance = uwis_data["dist_to_tgt"]
+        prior_source = mpy.get_emis_uwis.UwisCamelOptions.emis_source_citation(
+            emis_type
+        )
+        super().__init__(
+            StateElementIdentifier("EMIS"),
+            None,
+            value_fm.copy(),
+            value_fm.copy(),
+            smeta.latitude.value,
+            smeta.surface_type,
+            Path(rconfig["speciesDirectory"]),
+            Path(rconfig["covarianceDirectory"]),
+            spectral_domain=spectral_domain,
+            metadata={
+                "camel_distance": camel_distance,
+                "prior_source": prior_source,
+            },
+        )
+
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
             return
@@ -322,74 +374,9 @@ class StateElementEmisHandle(StateElementHandle):
 
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
-        if self.hold is not None:
-            sold = self.hold.state_element(state_element_id)
-        else:
-            # Currently require sold
-            return None
-        pressure_level = None
-        value_fm = sold.value_fm
-        # We should put this into a stand alone class in a bit
-        # Wavelength comes from a fixed file
-        f = TesFile(
-            Path(self.retrieval_config["Single_State_Directory"])
-            / "State_Emissivity_IR.asc"
-        )
-        # Despite the name frequency, this is actually wavelength. Also, we don't actually
-        # read the Emissivity column. I'm guessing this was an older way to get the
-        # initial guess that got replaced
-        if f.table is None:
-            raise RuntimeError("Trouble reading file")
-        spectral_domain = rf.SpectralDomain(f.table["Frequency"], rf.Unit("nm"))
-        # spectral_domain = sold.spectral_domain
-        emis_type = self.retrieval_config["TIR_EMIS_Source"]
-        uwis_data = mpy.get_emis_uwis.get_emis_dispatcher(
-            emis_type,
-            self.sounding_metadata.latitude.value,
-            self.sounding_metadata.longitude.value,
-            self.sounding_metadata.surface_altitude.value,
-            1 if self.sounding_metadata.is_ocean else 0,
-            self.sounding_metadata.year,
-            self.sounding_metadata.month,
-            spectral_domain.data,
-            self.retrieval_config.get("CAMEL_Coef_Directory"),
-            self.retrieval_config.get("CAMEL_Lab_Directory"),
-        )
-        constraint_vector_fm = uwis_data["instr_emis"].view(FullGridMappedArray)
-        # native_emis = uwis_data['native_emis']
-        # native_emis_wavenumber = uwis_data['native_wavenumber']
-        camel_distance = uwis_data["dist_to_tgt"]
-        prior_source = mpy.get_emis_uwis.UwisCamelOptions.emis_source_citation(
-            emis_type
-        )
-        # constraint_vector_fm = sold.constraint_vector_fm
-        # sold.metadata["camel_distance"]
-        # sold.metadata["prior_source"]
-        res = self.obj_cls.create_from_handle(
-            state_element_id,
-            pressure_level,
-            constraint_vector_fm.copy(),
-            constraint_vector_fm.copy(),
-            self.measurement_id,
-            self.retrieval_config,
-            self.strategy,
-            self.observation_handle_set,
-            self.sounding_metadata,
-            spectral_domain=spectral_domain,
-            # We are at the point where this isn't needed. We can still pass this
-            # in if we want to track down some issue that arises, but don't normally
-            # depend on StateElementOld
-            # selem_wrapper=sold,
-            cov_is_constraint=self.cov_is_constraint,
-            metadata={
-                "camel_distance": camel_distance,
-                "prior_source": prior_source,
-            },
-        )
-        assert res is not None
+        res = StateElementEmis(self.retrieval_config, self.sounding_metadata)
         self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
-        if res is not None:
-            logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
+        logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
         return res
 
 
