@@ -24,6 +24,8 @@ if typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
     from .retrieval_strategy import RetrievalStrategy
+    from .state_element import StateElement
+    from .retrieval_configuration import RetrievalConfiguration
 
 
 class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
@@ -430,11 +432,11 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def next_step(self, current_state: CurrentState) -> None:
+    def next_step(self, current_state: CurrentState | None) -> None:
         """Advance to the next step."""
         raise NotImplementedError()
 
-    def set_step(self, step_number: int, current_state: CurrentState) -> None:
+    def set_step(self, step_number: int, current_state: CurrentState | None) -> None:
         """Set the step number to the given value"""
         # Default is just to restart and proceed through the given number of steps.
         self.restart()
@@ -450,6 +452,68 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
     def current_strategy_step(self) -> CurrentStrategyStep | None:
         """Return the CurrentStrategyStep for the current step. Returns None is self.is_done()"""
         raise NotImplementedError
+
+    def retrieval_initial_fm_from_cycle(
+        self, selem: StateElement, retrieval_config: RetrievalConfiguration
+    ) -> None:
+        """This cycles a state element through all the strategy steps, and uses the
+        final value_fm to set the retrieval_initial_fm.
+
+        Note that the actual steps used in a strategy table might depend on the results
+        of previous steps. It isn't clear what we want to do in general here, but what
+        we do is pass through all possible steps.
+
+        According to Susan, historically the initial guess stuff was translated
+        to and from the retrieval grid. This was done so that paired retrievals
+        are in sync, so if we retrieve H2O with O3 held fixed and then O3 we
+        don't want the O3 to jump a bunch as it goes to the retrieval grid. She
+        said this is less important now where a lot of stuff is retrieved at the
+        same time.
+
+        But muses-py cycled through all the strategy table, which
+        had the side effect of calling get_initial_guess() and taking values to
+        and from the retrieval grid (so FullGridMappedArrayFromRetGrid). This function
+        tries to duplicate this.
+
+        We might 1) decide not to continue doing this or 2) We can't actually do this
+        with a generate MusesStrategy (we don't know all the steps until we actuall
+        process them). But for now, we will have this code in place.
+
+        Note that we update selem in place. We don't generally want to have side effects,
+        that update arguments, but in this case the entire job of the function is to
+        update selem.
+
+        TODO - Decide if this is something we want to continue doing
+        """
+        if self.is_done():
+            raise RuntimeError(
+                "Can't call retrieval_initial_fm_from_cycle id we are done"
+            )
+        cstep = self.current_strategy_step()
+        if cstep is None:
+            raise RuntimeError("This can't happen")
+        cstepnum = cstep.strategy_step.step_number
+        self.restart()
+        while not self.is_done():
+            cstep = self.current_strategy_step()
+            if cstep is None:
+                raise RuntimeError("This can't happen")
+            selem.notify_start_step(
+                cstep,
+                retrieval_config,
+                skip_initial_guess_update=True,
+            )
+            selem.update_state_element(next_step_initial_fm=selem.value_fm.copy())
+            self.next_step(None)
+        self.set_step(cstepnum, None)
+        # Note, rightly or wrongly we don't update constraint_vector.
+        # This is to match what muses-py does
+        # TODO Determine if this is the correct behavior
+        selem.update_state_element(
+            retrieval_initial_fm=selem.value_fm.copy(),
+            step_initial_fm=selem.value_fm.copy(),
+            next_step_initial_fm=None,
+        )
 
 
 class MusesStrategyImp(MusesStrategy):
@@ -658,9 +722,10 @@ class MusesStrategyStepList(MusesStrategyImp):
         self._cur_step_index = 0
         self._cur_step_count = 0
 
-    def next_step(self, current_state: CurrentState) -> None:
+    def next_step(self, current_state: CurrentState | None) -> None:
         """Advance to the next step."""
-        self._handle_bt(current_state)
+        if current_state is not None:
+            self._handle_bt(current_state)
         self._cur_step_count += 1
         self._cur_step_index += 1
         while (

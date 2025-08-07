@@ -12,6 +12,7 @@ from .current_state import FullGridMappedArray, RetrievalGridArray, RetrievalGri
 from .state_element_osp import StateElementOspFile
 from .identifier import StateElementIdentifier, RetrievalType
 from .current_state_state_info import h_old
+from .tes_file import TesFile
 import numpy as np
 from pathlib import Path
 from loguru import logger
@@ -26,47 +27,7 @@ if typing.TYPE_CHECKING:
 
 
 class StateElementFreqShared(StateElementOspFile):
-    """Clumsy class, hopefully will go away. It isn't clear what is in
-    common between EMIS and CLOUDEXT, we'll try putting that stuff here."""
-
-    def __init__(
-        self,
-        state_element_id: StateElementIdentifier,
-        pressure_list_fm: FullGridMappedArray | None,
-        value_fm: FullGridMappedArray,
-        constraint_vector_fm: FullGridMappedArray,
-        latitude: float,
-        surface_type: str,
-        species_directory: Path,
-        covariance_directory: Path,
-        spectral_domain: rf.SpectralDomain | None = None,
-        selem_wrapper: Any | None = None,
-        cov_is_constraint: bool = False,
-        poltype: str | None = None,
-        poltype_used_constraint: bool = True,
-        diag_cov: bool = False,
-        diag_directory: Path | None = None,
-        metadata: dict[str, Any] | None = None,
-    ):
-        super().__init__(
-            state_element_id,
-            pressure_list_fm,
-            value_fm,
-            constraint_vector_fm,
-            latitude,
-            surface_type,
-            species_directory,
-            covariance_directory,
-            spectral_domain=spectral_domain,
-            selem_wrapper=selem_wrapper,
-            cov_is_constraint=cov_is_constraint,
-            poltype=poltype,
-            poltype_used_constraint=poltype_used_constraint,
-            diag_cov=diag_cov,
-            diag_directory=diag_directory,
-            metadata=metadata,
-        )
-        self.microwindows: list[dict] = []
+    """Handful of functions common to StateElementEmis and StateElementCloudExt"""
 
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
@@ -175,7 +136,7 @@ class StateElementEmis(StateElementFreqShared):
             skip_initial_guess_update,
         )
         # Grab microwindow information, needed in later calculations
-        self.microwindows = []
+        self.microwindows: list[dict] = []
         for swin in current_strategy_step.spectral_window_dict.values():
             self.microwindows.extend(swin.muses_microwindows())
         # Filter out the UV windows, this just isn't wanted in
@@ -229,7 +190,7 @@ class StateElementCloudExt(StateElementFreqShared):
             skip_initial_guess_update,
         )
         # Grab microwindow information, needed in later calculations
-        self.microwindows = []
+        self.microwindows: list[dict] = []
         for swin in current_strategy_step.spectral_window_dict.values():
             self.microwindows.extend(swin.muses_microwindows())
         # Filter out the UV windows, this just isn't wanted in
@@ -368,16 +329,47 @@ class StateElementEmisHandle(StateElementHandle):
             return None
         pressure_level = None
         value_fm = sold.value_fm
-        spectral_domain = sold.spectral_domain
-        try:
-            constraint_vector_fm = sold.constraint_vector_fm
-        except NotImplementedError:
-            constraint_vector_fm = value_fm.copy()
+        # We should put this into a stand alone class in a bit
+        # Wavelength comes from a fixed file
+        f = TesFile(
+            Path(self.retrieval_config["Single_State_Directory"])
+            / "State_Emissivity_IR.asc"
+        )
+        # Despite the name frequency, this is actually wavelength. Also, we don't actually
+        # read the Emissivity column. I'm guessing this was an older way to get the
+        # initial guess that got replaced
+        if f.table is None:
+            raise RuntimeError("Trouble reading file")
+        spectral_domain = rf.SpectralDomain(f.table["Frequency"], rf.Unit("nm"))
+        # spectral_domain = sold.spectral_domain
+        emis_type = self.retrieval_config["TIR_EMIS_Source"]
+        uwis_data = mpy.get_emis_uwis.get_emis_dispatcher(
+            emis_type,
+            self.sounding_metadata.latitude.value,
+            self.sounding_metadata.longitude.value,
+            self.sounding_metadata.surface_altitude.value,
+            1 if self.sounding_metadata.is_ocean else 0,
+            self.sounding_metadata.year,
+            self.sounding_metadata.month,
+            spectral_domain.data,
+            self.retrieval_config.get("CAMEL_Coef_Directory"),
+            self.retrieval_config.get("CAMEL_Lab_Directory"),
+        )
+        constraint_vector_fm = uwis_data["instr_emis"].view(FullGridMappedArray)
+        # native_emis = uwis_data['native_emis']
+        # native_emis_wavenumber = uwis_data['native_wavenumber']
+        camel_distance = uwis_data["dist_to_tgt"]
+        prior_source = mpy.get_emis_uwis.UwisCamelOptions.emis_source_citation(
+            emis_type
+        )
+        # constraint_vector_fm = sold.constraint_vector_fm
+        # sold.metadata["camel_distance"]
+        # sold.metadata["prior_source"]
         res = self.obj_cls.create_from_handle(
             state_element_id,
             pressure_level,
-            value_fm,
-            constraint_vector_fm,
+            constraint_vector_fm.copy(),
+            constraint_vector_fm.copy(),
             self.measurement_id,
             self.retrieval_config,
             self.strategy,
@@ -390,10 +382,12 @@ class StateElementEmisHandle(StateElementHandle):
             # selem_wrapper=sold,
             cov_is_constraint=self.cov_is_constraint,
             metadata={
-                "camel_distance": sold.metadata["camel_distance"],
-                "prior_source": sold.metadata["prior_source"],
+                "camel_distance": camel_distance,
+                "prior_source": prior_source,
             },
         )
+        assert res is not None
+        self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
         if res is not None:
             logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
         return res

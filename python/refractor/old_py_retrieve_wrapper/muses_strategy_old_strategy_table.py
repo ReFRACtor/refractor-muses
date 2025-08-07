@@ -76,7 +76,7 @@ class MusesStrategyOldStrategyTable(MusesStrategyImp):
         """Set step to the first one."""
         self._stable.table_step = 0
 
-    def next_step(self, current_state: CurrentState) -> None:
+    def next_step(self, current_state: CurrentState | None) -> None:
         """Advance to the next step."""
         self._stable.next_step(current_state)
 

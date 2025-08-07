@@ -172,6 +172,36 @@ class SoundingMetadata:
         return self._utc_time
 
     @property
+    def year(self) -> int:
+        date_struct = mpy.utc_from_string(self.utc_time)
+        return date_struct["utctime"].year
+
+    @property
+    def month(self) -> int:
+        date_struct = mpy.utc_from_string(self.utc_time)
+        return date_struct["utctime"].month
+
+    @property
+    def day(self) -> int:
+        date_struct = mpy.utc_from_string(self.utc_time)
+        return date_struct["utctime"].day
+
+    @property
+    def hour(self) -> int:
+        date_struct = mpy.utc_from_string(self.utc_time)
+        return date_struct["utctime"].hour
+
+    @property
+    def minute(self) -> int:
+        date_struct = mpy.utc_from_string(self.utc_time)
+        return date_struct["utctime"].minute
+
+    @property
+    def second(self) -> int:
+        date_struct = mpy.utc_from_string(self.utc_time)
+        return date_struct["utctime"].second
+
+    @property
     def local_hour(self) -> int:
         timestruct = mpy.utc(self.utc_time)
         hour = timestruct["hour"] + self.longitude.convert("deg").value / 180.0 * 12

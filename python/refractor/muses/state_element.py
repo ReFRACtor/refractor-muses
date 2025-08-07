@@ -759,6 +759,11 @@ class StateElementImplementation(StateElement):
         self._check_result(res, "pressure_list_fm")
         return res
 
+    @property
+    def retrieved_this_step(self) -> bool:
+        """Return true if the current step retrieves this StateElement, false otherwise"""
+        return self._retrieved_this_step
+
     def update_state_element(
         self,
         current_fm: FullGridMappedArray | None = None,

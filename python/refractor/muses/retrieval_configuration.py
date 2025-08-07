@@ -95,6 +95,17 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # Add in cloud parameters.
         f = TesFile.create(res["CloudParameterFilename"])
         res._data.update(f)
+        # Add in initial guess configuration
+        f = TesFile.create(
+            Path(res["initialGuessSetupDirectory"], "L2_Setup_Control_Initial.asc")
+        )
+        res._data.update(f)
+        # For some odd reason, Single_State_Directory is not relative path like
+        # most others. No idea why this is different, but set up so we can handle
+        # the same way
+        res["Single_State_Directory"] = str(
+            Path("../OSP", res["Single_State_Directory"])
+        )
         f = TesFile.create(res["allTESPressureLevelsFilename"])
         # This is the pressure levels that species information uses. This
         # is generally the initial pressure levels the forward model
