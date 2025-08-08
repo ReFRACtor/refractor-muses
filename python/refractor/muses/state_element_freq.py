@@ -11,7 +11,6 @@ from .state_element import (
 from .current_state import FullGridMappedArray, RetrievalGridArray, RetrievalGrid2dArray
 from .state_element_osp import StateElementOspFile
 from .identifier import StateElementIdentifier, RetrievalType
-from .current_state_state_info import h_old
 from .tes_file import TesFile
 import numpy as np
 from pathlib import Path
@@ -69,7 +68,9 @@ class StateElementFreqShared(StateElementOspFile):
 
 
 class StateElementEmis(StateElementFreqShared):
-    def __init__(self, rconfig: RetrievalConfiguration, smeta: SoundingMetadata):
+    def __init__(
+        self, rconfig: RetrievalConfiguration, smeta: SoundingMetadata
+    ) -> None:
         """Create a StateElementEmis, and set up the initial guess. Note that
         this does *not* do the retrieval_initial_fm_from_cycle, we can do that
         after creating this StateElement. The creates one at that matches the
@@ -212,6 +213,32 @@ class StateElementEmis(StateElementFreqShared):
 
 
 class StateElementCloudExt(StateElementFreqShared):
+    def __init__(
+        self, rconfig: RetrievalConfiguration, smeta: SoundingMetadata
+    ) -> None:
+        """Create a StateElementCloudExt, and set up the initial guess. Note that
+        this does *not* do the retrieval_initial_fm_from_cycle, we can do that
+        after creating this StateElement. The creates one at that matches the
+        start of a old muse-py retrieval, but before it cycles through all the
+        steps."""
+        f = TesFile(Path(rconfig["Single_State_Directory"]) / "State_Cloud_IR.asc")
+        if f.table is None:
+            raise RuntimeError("Trouble reading file")
+        # Despite the name frequency, this is actually wavelength.
+        spectral_domain = rf.SpectralDomain(f.table["Frequencies"], rf.Unit("nm"))
+        value_fm = np.array(f.table["verticalEXT"]).view(FullGridMappedArray)
+        super().__init__(
+            StateElementIdentifier("CLOUDEXT"),
+            None,
+            value_fm.copy(),
+            value_fm.copy(),
+            smeta.latitude.value,
+            smeta.surface_type,
+            Path(rconfig["speciesDirectory"]),
+            Path(rconfig["covarianceDirectory"]),
+            spectral_domain=spectral_domain,
+        )
+
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
             return
@@ -414,55 +441,14 @@ class StateElementCloudExtHandle(StateElementHandle):
 
         if self.measurement_id is None or self.retrieval_config is None:
             raise RuntimeError("Need to call notify_update_target first")
-        if self.hold is not None:
-            sold = self.hold.state_element(state_element_id)
-        else:
-            # currently required
-            return None
-        pressure_level = None
-        value_fm = sold.value_fm
-        spectral_domain = sold.spectral_domain
-        try:
-            constraint_vector_fm = sold.constraint_vector_fm
-        except NotImplementedError:
-            constraint_vector_fm = value_fm.copy()
-        # For some reason these are 2d. I'm pretty sure this is just some left
-        # over thing or other, anything other than row 0 isn't used. For nowm
-        # make 1 d so we don't need some special handling. We can revisit if
-        # we actually determine this should be 2d
-        if len(value_fm.shape) == 2:
-            value_fm = value_fm[0, :]
-        if len(constraint_vector_fm.shape) == 2:
-            constraint_vector_fm = constraint_vector_fm[0, :]
-
-        res = self.obj_cls.create_from_handle(
-            state_element_id,
-            pressure_level,
-            value_fm,
-            constraint_vector_fm,
-            self.measurement_id,
-            self.retrieval_config,
-            self.strategy,
-            self.observation_handle_set,
-            self.sounding_metadata,
-            # We are at the point where this isn't needed. We can still pass this
-            # in if we want to track down some issue that arises, but don't normally
-            # depend on StateElementOld
-            # selem_wrapper=sold,
-            spectral_domain=spectral_domain,
-            cov_is_constraint=self.cov_is_constraint,
-        )
-        if res is not None:
-            logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
+        res = StateElementCloudExt(self.retrieval_config, self.sounding_metadata)
+        self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
+        logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
         return res
 
 
-StateElementHandleSet.add_default_handle(
-    StateElementEmisHandle(h_old), priority_order=1
-)
-StateElementHandleSet.add_default_handle(
-    StateElementCloudExtHandle(h_old), priority_order=1
-)
+StateElementHandleSet.add_default_handle(StateElementEmisHandle(), priority_order=1)
+StateElementHandleSet.add_default_handle(StateElementCloudExtHandle(), priority_order=1)
 
 __all__ = [
     "StateElementEmis",

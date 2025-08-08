@@ -124,12 +124,12 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
 
         if cloudIG[row] > 0:
             newv = cstate.state_value("CLOUDEXT")
-            newv[:] = cloudIG[row]
+            newv[:] = cloudIG[row][0]
             cstate.update_full_state_element(
                 StateElementIdentifier("CLOUDEXT"),
-                step_initial_fm=newv,
-                current_fm=newv,
-                constraint_vector_fm=newv,
+                step_initial_fm=newv.copy(),
+                current_fm=newv.copy(),
+                constraint_vector_fm=newv.copy(),
             )
         if tsurIG[row] != 0:
             # use difference in observed - fit to change TSUR.  Note, we
@@ -138,9 +138,9 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             newv = newv + btdata["obs"] - btdata["fit"]
             cstate.update_full_state_element(
                 StateElementIdentifier("TSUR"),
-                step_initial_fm=newv,
-                current_fm=newv,
-                constraint_vector_fm=newv,
+                step_initial_fm=newv.copy(),
+                current_fm=newv.copy(),
+                constraint_vector_fm=newv.copy(),
             )
         cstate.set_brightness_temperature_data(step, btdata)
 
