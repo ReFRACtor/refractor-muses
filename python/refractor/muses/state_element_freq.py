@@ -5,7 +5,6 @@ from .state_element import (
     StateElementInitHandle,
     StateElementHandleSet,
 )
-from .current_state_state_info import h_old
 from .current_state import FullGridMappedArray, RetrievalGridArray, RetrievalGrid2dArray
 from .state_element_osp import StateElementOspFile
 from .identifier import StateElementIdentifier, RetrievalType
@@ -372,15 +371,11 @@ class StateElementCloudExt(StateElementFreqShared):
 
 
 StateElementHandleSet.add_default_handle(
-    StateElementInitHandle(
-        StateElementIdentifier("EMIS"), StateElementEmis, hold=h_old
-    ),
+    StateElementInitHandle(StateElementIdentifier("EMIS"), StateElementEmis),
     priority_order=0,
 )
 StateElementHandleSet.add_default_handle(
-    StateElementInitHandle(
-        StateElementIdentifier("CLOUDEXT"), StateElementCloudExt, hold=h_old
-    ),
+    StateElementInitHandle(StateElementIdentifier("CLOUDEXT"), StateElementCloudExt),
     priority_order=0,
 )
 
