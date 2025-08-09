@@ -11,7 +11,7 @@ from .identifier import (
     IdentifierSortByWaveLength,
 )
 from .spectral_window_handle import SpectralWindowHandleSet
-from .current_state import RetrievalGridArray
+from .current_state import RetrievalGridArray, CurrentState
 import os
 import abc
 import typing
@@ -485,35 +485,42 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
 
         TODO - Decide if this is something we want to continue doing
         """
-        if self.is_done():
-            raise RuntimeError(
-                "Can't call retrieval_initial_fm_from_cycle id we are done"
-            )
-        cstep = self.current_strategy_step()
-        if cstep is None:
-            raise RuntimeError("This can't happen")
-        cstepnum = cstep.strategy_step.step_number
-        self.restart()
-        while not self.is_done():
+        # Don't check against the old state element values while doing this, the
+        # whole point is to update stuff to match what muses-py did
+        original_value = CurrentState.check_old_state_element_value
+        try:
+            CurrentState.check_old_state_element_value = False
+            if self.is_done():
+                raise RuntimeError(
+                    "Can't call retrieval_initial_fm_from_cycle id we are done"
+                )
             cstep = self.current_strategy_step()
             if cstep is None:
                 raise RuntimeError("This can't happen")
-            selem.notify_start_step(
-                cstep,
-                retrieval_config,
-                skip_initial_guess_update=True,
+            cstepnum = cstep.strategy_step.step_number
+            self.restart()
+            while not self.is_done():
+                cstep = self.current_strategy_step()
+                if cstep is None:
+                    raise RuntimeError("This can't happen")
+                selem.notify_start_step(
+                    cstep,
+                    retrieval_config,
+                    skip_initial_guess_update=True,
+                )
+                selem.update_state_element(next_step_initial_fm=selem.value_fm.copy())
+                self.next_step(None)
+            self.set_step(cstepnum, None)
+            # Note, rightly or wrongly we don't update constraint_vector.
+            # This is to match what muses-py does
+            # TODO Determine if this is the correct behavior
+            selem.update_state_element(
+                retrieval_initial_fm=selem.value_fm.copy(),
+                step_initial_fm=selem.value_fm.copy(),
+                next_step_initial_fm=None,
             )
-            selem.update_state_element(next_step_initial_fm=selem.value_fm.copy())
-            self.next_step(None)
-        self.set_step(cstepnum, None)
-        # Note, rightly or wrongly we don't update constraint_vector.
-        # This is to match what muses-py does
-        # TODO Determine if this is the correct behavior
-        selem.update_state_element(
-            retrieval_initial_fm=selem.value_fm.copy(),
-            step_initial_fm=selem.value_fm.copy(),
-            next_step_initial_fm=None,
-        )
+        finally:
+            CurrentState.check_old_state_element_value = original_value
 
 
 class MusesStrategyImp(MusesStrategy):

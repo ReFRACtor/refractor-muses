@@ -1,26 +1,22 @@
-# Not really sure about the design or these, or how much to pull out.
-# For now, just create these as separate classes.
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 import refractor.muses.muses_py as mpy  # type: ignore
 from .state_element import (
-    StateElementHandle,
-    StateElement,
+    StateElementInitHandle,
     StateElementHandleSet,
 )
+from .current_state_state_info import h_old
 from .current_state import FullGridMappedArray, RetrievalGridArray, RetrievalGrid2dArray
 from .state_element_osp import StateElementOspFile
 from .identifier import StateElementIdentifier, RetrievalType
 from .tes_file import TesFile
 import numpy as np
 from pathlib import Path
-from loguru import logger
 import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import ObservationHandleSet, MeasurementId
-    from .muses_strategy import MusesStrategy, CurrentStrategyStep
+    from .muses_strategy import CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .current_state import SoundingMetadata
 
@@ -69,7 +65,11 @@ class StateElementFreqShared(StateElementOspFile):
 
 class StateElementEmis(StateElementFreqShared):
     def __init__(
-        self, rconfig: RetrievalConfiguration, smeta: SoundingMetadata
+        self,
+        rconfig: RetrievalConfiguration,
+        smeta: SoundingMetadata,
+        selem_wrapper: Any | None = None,
+        **kwargs: Any,
     ) -> None:
         """Create a StateElementEmis, and set up the initial guess. Note that
         this does *not* do the retrieval_initial_fm_from_cycle, we can do that
@@ -109,12 +109,13 @@ class StateElementEmis(StateElementFreqShared):
         super().__init__(
             StateElementIdentifier("EMIS"),
             None,
-            value_fm.copy(),
-            value_fm.copy(),
+            value_fm,
+            value_fm,
             smeta.latitude.value,
             smeta.surface_type,
             Path(rconfig["speciesDirectory"]),
             Path(rconfig["covarianceDirectory"]),
+            selem_wrapper=selem_wrapper,
             spectral_domain=spectral_domain,
             metadata={
                 "camel_distance": camel_distance,
@@ -171,9 +172,7 @@ class StateElementEmis(StateElementFreqShared):
             )
             if self._value_fm is None:
                 raise RuntimeError("self._value_fm can't be none")
-            self._value_fm.view(np.ndarray)[self.fm_update_flag] = res[
-                self.fm_update_flag
-            ]
+            self._value_fm[self.fm_update_flag] = res[self.fm_update_flag]
             if not self._initial_guess_not_updated:
                 self._next_step_initial_fm = self._value_fm.copy()
 
@@ -214,7 +213,11 @@ class StateElementEmis(StateElementFreqShared):
 
 class StateElementCloudExt(StateElementFreqShared):
     def __init__(
-        self, rconfig: RetrievalConfiguration, smeta: SoundingMetadata
+        self,
+        rconfig: RetrievalConfiguration,
+        smeta: SoundingMetadata,
+        selem_wrapper: Any | None = None,
+        **kwargs: Any,
     ) -> None:
         """Create a StateElementCloudExt, and set up the initial guess. Note that
         this does *not* do the retrieval_initial_fm_from_cycle, we can do that
@@ -230,13 +233,14 @@ class StateElementCloudExt(StateElementFreqShared):
         super().__init__(
             StateElementIdentifier("CLOUDEXT"),
             None,
-            value_fm.copy(),
-            value_fm.copy(),
+            value_fm,
+            value_fm,
             smeta.latitude.value,
             smeta.surface_type,
             Path(rconfig["speciesDirectory"]),
             Path(rconfig["covarianceDirectory"]),
             spectral_domain=spectral_domain,
+            selem_wrapper=selem_wrapper,
         )
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
@@ -315,7 +319,7 @@ class StateElementCloudExt(StateElementFreqShared):
             raise RuntimeError("value_fm can't be none")
         if self.spectral_domain is None:
             raise RuntimeError("spectral_domain can't be none")
-        varr = self._value_fm.view(np.ndarray)
+        varr = self._value_fm
         # Special handling for bt_ig_refine step, we use average value rather than
         # copying the full set over
         if self.is_bt_ig_refine:
@@ -367,88 +371,18 @@ class StateElementCloudExt(StateElementFreqShared):
         return res.view(FullGridMappedArray)
 
 
-class StateElementEmisHandle(StateElementHandle):
-    def __init__(
-        self,
-        hold: Any | None = None,
-    ) -> None:
-        self.obj_cls = StateElementEmis
-        self.sid = StateElementIdentifier("EMIS")
-        self.hold = hold
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
-        self.cov_is_constraint = False
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
-
-    def state_element(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement | None:
-        if state_element_id != self.sid:
-            return None
-
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
-        res = StateElementEmis(self.retrieval_config, self.sounding_metadata)
-        self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
-        logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
-        return res
-
-
-class StateElementCloudExtHandle(StateElementHandle):
-    def __init__(
-        self,
-        hold: Any | None = None,
-    ) -> None:
-        self.obj_cls = StateElementCloudExt
-        self.sid = StateElementIdentifier("CLOUDEXT")
-        self.hold = hold
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
-        self.cov_is_constraint = False
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
-
-    def state_element(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement | None:
-        if state_element_id != self.sid:
-            return None
-
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
-        res = StateElementCloudExt(self.retrieval_config, self.sounding_metadata)
-        self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
-        logger.debug(f"New Creating {self.obj_cls.__name__} for {state_element_id}")
-        return res
-
-
-StateElementHandleSet.add_default_handle(StateElementEmisHandle(), priority_order=1)
-StateElementHandleSet.add_default_handle(StateElementCloudExtHandle(), priority_order=1)
+StateElementHandleSet.add_default_handle(
+    StateElementInitHandle(
+        StateElementIdentifier("EMIS"), StateElementEmis, hold=h_old
+    ),
+    priority_order=0,
+)
+StateElementHandleSet.add_default_handle(
+    StateElementInitHandle(
+        StateElementIdentifier("CLOUDEXT"), StateElementCloudExt, hold=h_old
+    ),
+    priority_order=0,
+)
 
 __all__ = [
     "StateElementEmis",

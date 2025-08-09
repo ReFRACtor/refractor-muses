@@ -501,20 +501,48 @@ class StateElementImplementation(StateElement):
         selem_wrapper: Any | None = None,
     ) -> None:
         super().__init__(state_element_id)
-        self._value_fm = value_fm
-        self._retrieval_start_constraint_fm = constraint_vector_fm.copy()
-        self._constraint_vector_fm = constraint_vector_fm
-        self._constraint_matrix = constraint_matrix
-        self._apriori_cov_fm = apriori_cov_fm
+        self._value_fm = value_fm.astype(np.float64).view(FullGridMappedArray)
+        self._retrieval_start_constraint_fm = constraint_vector_fm.astype(
+            np.float64, copy=True
+        ).view(FullGridMappedArray)
+        self._constraint_vector_fm = constraint_vector_fm.astype(
+            np.float64, copy=True
+        ).view(FullGridMappedArray)
+        if constraint_matrix is not None:
+            self._constraint_matrix: RetrievalGrid2dArray | None = (
+                constraint_matrix.astype(np.float64, copy=True).view(
+                    RetrievalGrid2dArray
+                )
+            )
+        else:
+            self._constraint_matrix = None
+        if apriori_cov_fm is not None:
+            self._apriori_cov_fm: FullGrid2dArray | None = apriori_cov_fm.astype(
+                np.float64, copy=True
+            ).view(FullGrid2dArray)
+        else:
+            self._apriori_cov_fm = None
         self._state_mapping = state_mapping
         self._state_mapping_retrieval_to_fm = state_mapping_retrieval_to_fm
         self._pressure_list_fm: FullGridMappedArray | None = None
         if initial_value_fm is not None:
-            self._step_initial_fm = initial_value_fm
-        elif value_fm is not None:
-            self._step_initial_fm = value_fm.copy()
-        self._retrieval_initial_fm = self._step_initial_fm.copy()
-        self._true_value_fm = true_value_fm
+            self._step_initial_fm = initial_value_fm.astype(np.float64, copy=True).view(
+                FullGridMappedArray
+            )
+        else:
+            self._step_initial_fm = value_fm.astype(np.float64, copy=True).view(
+                FullGridMappedArray
+            )
+
+        self._retrieval_initial_fm = self._step_initial_fm.astype(
+            np.float64, copy=True
+        ).view(FullGridMappedArray)
+        if true_value_fm is not None:
+            self._true_value_fm: FullGridMappedArray | None = true_value_fm.astype(
+                np.float64, copy=True
+            ).view(FullGridMappedArray)
+        else:
+            self._true_value_fm = None
         self._updated_fm_flag: FullGridMappedArray | None = None
         if apriori_cov_fm is not None:
             self._updated_fm_flag = (
@@ -579,6 +607,8 @@ class StateElementImplementation(StateElement):
             raise RuntimeError("res2 should not be None")
         if isinstance(res, np.ndarray) and len(res.shape) == 1 and len(res2.shape) == 2:
             res2 = res2[0, :]
+        if isinstance(res, np.ndarray) and len(res.shape) == 2 and len(res2.shape) == 1:
+            res2 = res2[np.newaxis, :]
         if isinstance(res, np.ndarray):
             # For some values, the old code truncated negative values.
             # We handle this outside of StateElement. Exclude these points,
@@ -614,9 +644,10 @@ class StateElementImplementation(StateElement):
     @property
     def basis_matrix(self) -> np.ndarray:
         if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
-            res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose()
+            res = self.state_mapping_retrieval_to_fm.basis_matrix.transpose().view()
         else:
             res = np.eye(self.value_fm.shape[0])
+        res.flags.writeable = False
         # Only present in sold when we are retrieving
         if self._retrieved_this_step:
             self._check_result(res, "basis_matrix")
@@ -626,9 +657,10 @@ class StateElementImplementation(StateElement):
     @property
     def map_to_parameter_matrix(self) -> np.ndarray:
         if isinstance(self.state_mapping_retrieval_to_fm, rf.StateMappingBasisMatrix):
-            res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose()
+            res = self.state_mapping_retrieval_to_fm.inverse_basis_matrix.transpose().view()
         else:
             res = np.eye(self.value_fm.shape[0])
+        res.flags.writeable = False
         # Only present in sold when we are retrieving
         if self._retrieved_this_step:
             self._check_result(res, "map_to_parameter_matrix")
@@ -674,7 +706,8 @@ class StateElementImplementation(StateElement):
 
     @property
     def value_fm(self) -> FullGridMappedArray:
-        res = self._value_fm
+        res = self._value_fm.view()
+        res.flags.writeable = False
         # For CLOUDEXT, we determined that although there are differences with
         # self._sold.value_fm this doesn't actually matter. So skip check for
         # this particular state element
@@ -684,13 +717,15 @@ class StateElementImplementation(StateElement):
 
     @property
     def constraint_vector_ret(self) -> RetrievalGridArray:
-        res = super().constraint_vector_ret
+        res = super().constraint_vector_ret.view()
+        res.flags.writeable = False
         self._check_result(res, "constraint_vector_ret", exclude_negative=True)
         return res
 
     @property
     def constraint_vector_fm(self) -> FullGridMappedArray:
-        res = self._constraint_vector_fm
+        res = self._constraint_vector_fm.view()
+        res.flags.writeable = False
         # Note, the old state element has constraint_vector_fm sometimes mapped,
         # sometimes not. Not sure why, but not worth tracking down. We check
         # constraint_vector_ret which is the only thing that actually matters.
@@ -703,7 +738,8 @@ class StateElementImplementation(StateElement):
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         if self._constraint_matrix is None:
             raise RuntimeError("_constraint_matrix shouldn't be None")
-        res = self._constraint_matrix
+        res = self._constraint_matrix.view()
+        res.flags.writeable = False
         self._check_result(res, "constraint_matrix")
         return res
 
@@ -711,25 +747,34 @@ class StateElementImplementation(StateElement):
     def apriori_cov_fm(self) -> FullGrid2dArray:
         if self._apriori_cov_fm is None:
             raise RuntimeError("_apriori_cov_fm shouldn't be None")
-        res = self._apriori_cov_fm
+        res = self._apriori_cov_fm.view()
+        res.flags.writeable = False
         self._check_result(res, "apriori_cov_fm")
         return res
 
     @property
     def retrieval_initial_fm(self) -> FullGridMappedArray:
-        res = self._retrieval_initial_fm
+        res = self._retrieval_initial_fm.view()
+        res.flags.writeable = False
         self._check_result(res, "retrieval_initial_fm")
         return res
 
     @property
     def step_initial_fm(self) -> FullGridMappedArray:
-        res = self._step_initial_fm
+        res = self._step_initial_fm.view()
+        res.flags.writeable = False
         self._check_result(res, "step_initial_fm")
         return res
 
     @property
     def true_value_fm(self) -> FullGridMappedArray | None:
-        return self._true_value_fm
+        if self._true_value_fm is not None:
+            res: FullGridMappedArray | None = self._true_value_fm.view()
+            assert res is not None
+            res.flags.writeable = False
+        else:
+            res = None
+        return res
 
     @property
     def state_mapping(self) -> rf.StateMapping:
@@ -755,7 +800,12 @@ class StateElementImplementation(StateElement):
 
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:
-        res = self._pressure_list_fm
+        if self._pressure_list_fm is not None:
+            res: FullGridMappedArray | None = self._pressure_list_fm.view()
+            assert res is not None
+            res.flags.writeable = False
+        else:
+            res = None
         self._check_result(res, "pressure_list_fm")
         return res
 
@@ -775,19 +825,33 @@ class StateElementImplementation(StateElement):
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
         if current_fm is not None:
-            self._value_fm = current_fm
+            self._value_fm = current_fm.astype(np.float64, copy=True).view(
+                FullGridMappedArray
+            )
         if constraint_vector_fm is not None:
-            self._constraint_vector_fm = constraint_vector_fm
+            self._constraint_vector_fm = constraint_vector_fm.astype(
+                np.float64, copy=True
+            ).view(FullGridMappedArray)
         if next_constraint_vector_fm is not None:
-            self._next_constraint_vector_fm = next_constraint_vector_fm
+            self._next_constraint_vector_fm = next_constraint_vector_fm.astype(
+                np.float64, copy=True
+            ).view(FullGridMappedArray)
         if step_initial_fm is not None:
-            self._step_initial_fm = step_initial_fm
+            self._step_initial_fm = step_initial_fm.astype(np.float64, copy=True).view(
+                FullGridMappedArray
+            )
         if next_step_initial_fm is not None:
-            self._next_step_initial_fm = next_step_initial_fm
+            self._next_step_initial_fm = next_step_initial_fm.astype(
+                np.float64, copy=True
+            ).view(FullGridMappedArray)
         if retrieval_initial_fm is not None:
-            self._retrieval_initial_fm = retrieval_initial_fm
+            self._retrieval_initial_fm = retrieval_initial_fm.astype(
+                np.float64, copy=True
+            ).view(FullGridMappedArray)
         if true_value_fm is not None:
-            self._true_value = true_value_fm
+            self._true_value = true_value_fm.astype(np.float64, copy=True).view(
+                FullGridMappedArray
+            )
         # We don't update sold here. This gets handled one level higher, in
         # current_state_state_info.py
 
@@ -926,6 +990,72 @@ class StateElementFillValueHandle(StateElementHandle):
         )
 
 
+class StateElementInit(StateElement):
+    def __init__(
+        self, rconfig: RetrievalConfiguration, smeta: SoundingMetadata, **kwargs: Any
+    ):
+        """Common interface used to create a StateElement."""
+        pass
+
+
+class StateElementInitHandle(StateElementHandle):
+    """A lot of StateElementHandle just call the __init__ function of a class to
+    create the object. This generic handle works for this common case."""
+
+    def __init__(
+        self,
+        sid: StateElementIdentifier,
+        obj_cls: Any | type[StateElementInit],
+        hold: Any | None = None,
+    ):
+        """Create handler for the given StateElementIdentifier, using the given class.
+        Optionally can pass in a handler for creating the StateElementOldWrapper and
+        using to verify the StateElement. We did that during initial development. We
+        don't generally do this now, but it can be useful if we need to diagnose a
+        problem. Since we have the mechanics in place already, we still support this.
+        This will likely get phased out at some point when it isn't worth maintaining
+        any longer."""
+        self.sid = sid
+        self.obj_cls = obj_cls
+        self.hold = hold
+        self.measurement_id: MeasurementId | None = None
+        self.retrieval_config: RetrievalConfiguration | None = None
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
+    ) -> None:
+        self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
+        self.strategy = strategy
+        self.observation_handle_set = observation_handle_set
+        self.sounding_metadata = sounding_metadata
+
+    def state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement | None:
+        if state_element_id != self.sid:
+            return None
+
+        sold = (
+            self.hold.state_element(state_element_id) if self.hold is not None else None
+        )
+        if self.measurement_id is None or self.retrieval_config is None:
+            raise RuntimeError("Need to call notify_update_target first")
+        res = self.obj_cls(
+            self.retrieval_config, self.sounding_metadata, selem_wrapper=sold
+        )
+        # Only need to cycle if we have pressure levels or spectral domain
+        if res.pressure_list_fm is not None or res.spectral_domain is not None:
+            self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
+        logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
+        return res
+
+
 class StateElementFixedValueHandle(StateElementHandle):
     """Create state element from static values, rather than getting this from somewhere else."""
 
@@ -958,6 +1088,7 @@ __all__ = [
     "StateElement",
     "StateElementImplementation",
     "StateElementHandle",
+    "StateElementInitHandle",
     "StateElementHandleSet",
     "StateElementFillValueHandle",
     "StateElementFixedValueHandle",

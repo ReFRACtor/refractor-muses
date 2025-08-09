@@ -141,8 +141,10 @@ class StateElementOspFileHandleNew(StateElementHandle):
         return res
 
 
+# We want to replace this, but fall back to this for now until everything is in
+# place
 StateElementHandleSet.add_default_handle(
-    StateElementOspFileHandleNew(None, h_old), priority_order=0
+    StateElementOspFileHandleNew(None, h_old), priority_order=-1
 )
 
 __all__ = [

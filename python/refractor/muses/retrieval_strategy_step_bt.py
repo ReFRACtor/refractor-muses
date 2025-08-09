@@ -123,7 +123,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             tsurIG[row] = 0
 
         if cloudIG[row] > 0:
-            newv = cstate.state_value("CLOUDEXT")
+            newv = cstate.state_value("CLOUDEXT").copy()
             newv[:] = cloudIG[row][0]
             cstate.update_full_state_element(
                 StateElementIdentifier("CLOUDEXT"),

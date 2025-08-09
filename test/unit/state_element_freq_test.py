@@ -40,3 +40,4 @@ def test_state_element_cloudext(airs_omi_old_shandle):
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
     npt.assert_allclose(s.value_fm, sold_value_fm)
     # Also check spectral domain
+    npt.assert_allclose(s.spectral_domain.data, sold.spectral_domain.data)

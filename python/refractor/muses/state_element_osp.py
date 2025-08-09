@@ -93,7 +93,12 @@ class StateElementOspFile(StateElementImplementation):
         self.poltype = poltype
         self.poltype_used_constraint = poltype_used_constraint
         self.retrieval_type = RetrievalType("default")
-        self._pressure_level = pressure_list_fm
+        if pressure_list_fm is not None:
+            self._pressure_level: FullGridMappedArray | None = pressure_list_fm.astype(
+                np.float64, copy=True
+            ).view(FullGridMappedArray)
+        else:
+            self._pressure_level = None
         self._pressure_species_input = np.array(
             [
                 0.0,
@@ -117,7 +122,9 @@ class StateElementOspFile(StateElementImplementation):
         )
         if selem_wrapper is not None:
             if False and selem_wrapper.value_str is None:
-                self._step_initial_fm = selem_wrapper.value_fm
+                self._step_initial_fm = selem_wrapper.value_fm.astype(
+                    np.float64, copy=True
+                )
         if self.poltype is not None:
             self._metadata["poltype"] = self.poltype
         if metadata is not None:
@@ -182,7 +189,7 @@ class StateElementOspFile(StateElementImplementation):
             return
         if self.cov_is_constraint:
             self._fill_in_constraint()
-            self._apriori_cov_fm = self.constraint_matrix.view(FullGrid2dArray)
+            self._apriori_cov_fm = self.constraint_matrix.copy().view(FullGrid2dArray)
         else:
             self._fill_in_state_mapping()
             assert self._map_type is not None
@@ -209,9 +216,9 @@ class StateElementOspFile(StateElementImplementation):
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
         self._fill_in_constraint()
-        res = self._constraint_matrix
-        if res is None:
-            raise RuntimeError("This can't happen")
+        assert self._constraint_matrix is not None
+        res = self._constraint_matrix.view()
+        res.flags.writeable = False
         # Skip for H2O and HDO, we have moved cross term handling out so this is
         # different than the old data. Also EMIS and CLOUDEXT have different handling,
         # and can be slightly larger than check_result, so skip for them
@@ -227,7 +234,9 @@ class StateElementOspFile(StateElementImplementation):
     @property
     def apriori_cov_fm(self) -> FullGrid2dArray:
         self._fill_in_apriori()
-        res = self._apriori_cov_fm
+        assert self._apriori_cov_fm is not None
+        res = self._apriori_cov_fm.view()
+        res.flags.writeable = False
         if res is None:
             raise RuntimeError("This can't happen")
         self._check_result(res, "apriori_cov_fm")
@@ -249,7 +258,12 @@ class StateElementOspFile(StateElementImplementation):
         the pressure levels (None otherwise). This is the levels that
         the apriori_cov_fm are on."""
         self._fill_in_state_mapping()
-        res = self._pressure_list_fm
+        if self._pressure_list_fm is not None:
+            res: FullGridMappedArray | None = self._pressure_list_fm.view()
+            assert res is not None
+            res.flags.writeable = False
+        else:
+            res = None
         self._check_result(res, "pressure_list_fm")
         return res
 
@@ -315,7 +329,9 @@ class StateElementOspFile(StateElementImplementation):
         # certain steps with a different constraint matrix. So we empty the cache here
         # Note the reader does caching, so reading this multiple times isn't as
         # inefficient as it might seem.
-        self._pressure_species_input = retrieval_config["pressure_species_input"]
+        self._pressure_species_input = np.array(
+            retrieval_config["pressure_species_input"]
+        ).astype(np.float64, copy=True)
         self._constraint_matrix = None
         self._map_type = None
         self._state_mapping = None
