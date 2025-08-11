@@ -7,11 +7,9 @@ from .state_element import (
     StateElementHandleSet,
 )
 from .state_element_osp import StateElementOspFile
-from .current_state_state_info import h_old
 from .identifier import StateElementIdentifier
 from loguru import logger
 import typing
-from typing import Any
 
 if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
@@ -23,18 +21,20 @@ if typing.TYPE_CHECKING:
 class StateElementOspFileHandleNew(StateElementHandle):
     def __init__(
         self,
-        sid: StateElementIdentifier | None = None,
-        hold: Any | None = None,
-        cls: type[StateElementOspFile] = StateElementOspFile,
-        cov_is_constraint: bool = False,
     ) -> None:
-        self.obj_cls = cls
-        # Not actually used
-        self.sid = sid
-        self.hold = hold
+        self.obj_cls = StateElementOspFile
+        self._hold = None
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
-        self.cov_is_constraint = cov_is_constraint
+        self.cov_is_constraint = False
+
+    @property
+    def hold(self):
+        # Extra level of indirection to handle cycle in including old_py_retrieve_wrapper
+        if self._hold is None:
+            from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
+            self._hold = state_element_old_wrapper_handle
+        return self._hold
 
     def notify_update_target(
         self,
@@ -144,7 +144,7 @@ class StateElementOspFileHandleNew(StateElementHandle):
 # We want to replace this, but fall back to this for now until everything is in
 # place
 StateElementHandleSet.add_default_handle(
-    StateElementOspFileHandleNew(None, h_old), priority_order=-1
+    StateElementOspFileHandleNew(), priority_order=-1
 )
 
 __all__ = [

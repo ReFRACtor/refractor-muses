@@ -6,7 +6,6 @@ from .state_element import (
     StateElementInitHandle,
     StateElementHandleSet,
 )
-from .current_state_state_info import h_old
 from .current_state import FullGridMappedArray
 from pathlib import Path
 import numpy as np
@@ -54,7 +53,9 @@ class StateElementPcloud(StateElementOspFile):
 
 StateElementHandleSet.add_default_handle(
     StateElementInitHandle(
-        StateElementIdentifier("PCLOUD"), StateElementPcloud, hold=h_old
+        StateElementIdentifier("PCLOUD"),
+        StateElementPcloud,
+        include_old_state_info=True,
     ),
     priority_order=0,
 )

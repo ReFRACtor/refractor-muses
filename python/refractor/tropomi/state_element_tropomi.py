@@ -14,7 +14,6 @@ from refractor.muses import (
     FullGridMappedArray,
     FullGrid2dArray,
     RetrievalGrid2dArray,
-    StateElementOldWrapperHandle,
 )
 import numpy as np
 from pathlib import Path
@@ -29,6 +28,7 @@ if typing.TYPE_CHECKING:
         RetrievalConfiguration,
         MeasurementId,
     )
+    from refractor.old_py_retrieve_wrapper import StateElementOldWrapperHandle
 
 
 def add_handle(

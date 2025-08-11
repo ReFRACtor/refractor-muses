@@ -33,6 +33,8 @@ if _typing.TYPE_CHECKING:
     from .muses_optical_depth_file import MusesOpticalDepthFile
     from .state_element_old_wrapper import (
         StateElementOldWrapper,
+        StateElementOldWrapperHandle,
+        state_element_old_wrapper_handle,
     )
     from .retrieval_info import RetrievalInfo
     from .current_state_state_info_old import CurrentStateStateInfoOld

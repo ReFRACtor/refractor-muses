@@ -6,6 +6,8 @@ from typing import Any, cast
 from functools import cached_property
 from refractor.muses import (
     StateElement,
+    StateElementHandle,
+    StateElementHandleSet,
     StateElementIdentifier,
     RetrievalGridArray,
     FullGridMappedArray,
@@ -16,9 +18,16 @@ from refractor.muses import (
     RetrievalConfiguration,
 )
 from .current_state_state_info_old import CurrentStateStateInfoOld
+from loguru import logger
 
 if typing.TYPE_CHECKING:
     from .state_element_old import StateElementOld  # type: ignore
+    from refractor.muses import (
+        SoundingMetadata,
+        ObservationHandleSet,
+        MusesStrategy,
+        MeasurementId,
+    )
 
 
 class StateElementOldWrapper(StateElement):
@@ -382,4 +391,65 @@ class StateElementOldWrapper(StateElement):
             self._current_state_old.notify_step_solution(xsol)
 
 
-__all__ = ["StateElementOldWrapper"]
+# Right now, only fall back to old py-retrieve code
+class StateElementOldWrapperHandle(StateElementHandle):
+    def __init__(self) -> None:
+        self.is_first = True
+        self._current_state_old_v: Any | None = None
+
+    # Map to Any because mypy gets confused mapping to old_py_retrieve_wrapper,
+    # so we just punt on tracking types there
+    @property
+    def _current_state_old(self) -> Any:
+        """One level of indirection, just to break circular dependency in importing
+        files."""
+        if self._current_state_old_v is None:
+            from refractor.old_py_retrieve_wrapper import CurrentStateStateInfoOld
+
+            self._current_state_old_v = CurrentStateStateInfoOld(None)
+        return self._current_state_old_v
+
+    # Note this function isn't currently called, instead StateInfo
+    # handles this. But leave this in place in case we need to back to
+    # using this. Other than extra computation, it doesn't hurt for
+    # this to be called twice.
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
+    ) -> None:
+        """Clear any caching associated with assuming the target being retrieved is fixed"""
+        self._current_state_old.notify_update_target(
+            measurement_id, retrieval_config, strategy, observation_handle_set
+        )
+        self.is_first = True
+
+    @typing.no_type_check
+    def state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement | None:
+        from refractor.old_py_retrieve_wrapper import StateElementOldWrapper
+
+        logger.debug(f"Creating old state element wrapper for {state_element_id}")
+        r = StateElementOldWrapper(
+            state_element_id,
+            self._current_state_old,
+            self.is_first,
+        )
+        self.is_first = False
+        return cast(StateElement, r)
+
+
+state_element_old_wrapper_handle = StateElementOldWrapperHandle()
+
+# We can fall back on the old StateElementOldWrapper if needed, but
+# we have all these replaced with our newer StateElement.
+if False:
+    StateElementHandleSet.add_default_handle(
+        state_element_old_wrapper_handle, priority_order=-2
+    )
+
+__all__ = ["StateElementOldWrapper", "state_element_old_wrapper_handle"]

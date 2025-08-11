@@ -111,6 +111,7 @@ class StateInfo(UserDict):
         self,
         state_element_handle_set: StateElementHandleSet | None = None,
         cross_state_element_handle_set: CrossStateElementHandleSet | None = None,
+        include_old_state_info: bool = True,
     ) -> None:
         super().__init__()
         if state_element_handle_set is not None:
@@ -125,11 +126,19 @@ class StateInfo(UserDict):
         self.propagated_qa = PropagatedQA()
         self._current_state_old = None
         self._brightness_temperature_data: dict[int, dict[str, float | None]] = {}
-        # Temp, clumsy but this will go away
-        for p in sorted(self.state_element_handle_set.handle_set.keys(), reverse=True):
-            for h in self.state_element_handle_set.handle_set[p]:
-                if hasattr(h, "_current_state_old"):
-                    self._current_state_old = h._current_state_old
+        # For now, still integrate in with the old state info stuff from muses-py.
+        # This should eventually go away, but this proved useful as both initial
+        # scaffolding, and later as a way to compare against the "right" answer.
+        # We need just one of the these floating around, so we grab this from
+        # the StateElementOldWrapperHandle.
+        if include_old_state_info:
+            from refractor.old_py_retrieve_wrapper import (
+                state_element_old_wrapper_handle,
+            )
+
+            self._current_state_old = (
+                state_element_old_wrapper_handle._current_state_old
+            )
 
     @property
     def cross_state_element_handle_set(self) -> CrossStateElementHandleSet:
@@ -199,6 +208,10 @@ class StateInfo(UserDict):
                 osp_dir=retrieval_config.osp_dir,
             ),
         )
+        if self._current_state_old is not None:
+            self._current_state_old.notify_update_target(
+                measurement_id, retrieval_config, strategy, observation_handle_set
+            )
         self.state_element_handle_set.notify_update_target(
             measurement_id,
             retrieval_config,

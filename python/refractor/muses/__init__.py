@@ -45,7 +45,6 @@ if _typing.TYPE_CHECKING:
         RetrievalGrid2dArray,
         FullGrid2dArray,
     )
-    from .current_state_state_info import StateElementOldWrapperHandle
     from .misc import osp_setup
     from .muses_observation import (
         MeasurementId,

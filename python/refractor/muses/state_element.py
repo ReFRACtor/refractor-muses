@@ -1006,7 +1006,7 @@ class StateElementInitHandle(StateElementHandle):
         self,
         sid: StateElementIdentifier,
         obj_cls: Any | type[StateElementInit],
-        hold: Any | None = None,
+        include_old_state_info: bool = False,
     ):
         """Create handler for the given StateElementIdentifier, using the given class.
         Optionally can pass in a handler for creating the StateElementOldWrapper and
@@ -1017,9 +1017,18 @@ class StateElementInitHandle(StateElementHandle):
         any longer."""
         self.sid = sid
         self.obj_cls = obj_cls
-        self.hold = hold
+        self._hold = None
+        self.include_old_state_info = include_old_state_info
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
+
+    @property
+    def hold(self):
+        # Extra level of indirection to handle cycle in including old_py_retrieve_wrapper
+        if self._hold is None and self.include_old_state_info:
+            from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
+            self._hold = state_element_old_wrapper_handle
+        return self._hold
 
     def notify_update_target(
         self,

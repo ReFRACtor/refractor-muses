@@ -9,7 +9,6 @@ from refractor.muses import (
     MusesRunDir,
     MeasurementIdFile,
     MusesStrategyStepList,
-    h_old,
     SoundingMetadata,
     ObservationHandleSet,
     StateElementOspFileHandleNew,
@@ -18,6 +17,7 @@ from refractor.muses import (
     MusesOmiObservation,
     InstrumentIdentifier,
 )
+from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
 import numpy as np
 import numpy.testing as npt
 from loguru import logger
@@ -66,9 +66,9 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
             strat.instrument_name[0], None, None, None, osp_dir=osp_dir
         ),
     )
-    h_old.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
+    state_element_old_wrapper_handle.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
     strat.restart()
-    cstate_old = h_old._current_state_old
+    cstate_old = state_element_old_wrapper_handle._current_state_old
     cstate_old.notify_start_retrieval(strat.current_strategy_step(), rconfig)
     while not strat.is_done():
         cstate_old.notify_start_step(
@@ -81,7 +81,7 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
     cstate_old.notify_start_retrieval(strat.current_strategy_step(), rconfig)
     cstate_old.notify_start_step(strat.current_strategy_step(), rconfig)
     logger.add(sys.stderr, level="DEBUG")
-    shand = StateElementOspFileHandleNew(hold=h_old)
+    shand = StateElementOspFileHandleNew()
     shand.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
     return shand, strat, rconfig, cstate_old
 
