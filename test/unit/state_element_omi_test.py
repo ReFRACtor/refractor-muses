@@ -7,23 +7,14 @@ import numpy as np
 import numpy.testing as npt
 
 
-def test_omi_cloud_fraction_state_element(osp_dir, joint_omi_obs_step_8):
-    _, omi_obs = joint_omi_obs_step_8
-    # State element is just a StateElementOspFile (already tested), but with
-    # the apriori/initial guess coming from the omi_obs cloud fraction.
-    # Dummy value, most of the elements don't actually depend on latitude
-    latitude = 10.0
-    species_directory = (
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
-    )
-    covariance_directory = osp_dir / "Covariance" / "Covariance"
-    selem = StateElementOmiCloudFraction(
+def test_omi_cloud_fraction_state_element(airs_omi_old_shandle):
+    _, _, rconfig, strat, obs_hset, smeta = airs_omi_old_shandle
+    selem = StateElementOmiCloudFraction.create(
         StateElementIdentifier("OMICLOUDFRACTION"),
-        omi_obs,
-        latitude,
-        "LAND",
-        species_directory,
-        covariance_directory,
+        retrieval_config = rconfig,
+        strategy=strat,
+        observation_handle_set=obs_hset,
+        sounding_metadata=smeta
     )
     vexpect = np.array([0.32976987957954407])
     npt.assert_allclose(selem.value_fm, vexpect)
@@ -31,23 +22,14 @@ def test_omi_cloud_fraction_state_element(osp_dir, joint_omi_obs_step_8):
     npt.assert_allclose(selem.retrieval_initial_fm, vexpect)
 
 
-def test_omi_surface_state_element(osp_dir, joint_omi_obs_step_8):
-    _, omi_obs = joint_omi_obs_step_8
-    # State element is just a StateElementOspFile (already tested), but with
-    # the apriori/initial guess coming from the omi_obs monthly minimum surface reflectance
-    # Dummy value, most of the elements don't actually depend on latitude
-    latitude = 10.0
-    species_directory = (
-        osp_dir / "Strategy_Tables" / "ops" / "OSP-OMI-AIRS-v10" / "Species-66"
-    )
-    covariance_directory = osp_dir / "Covariance" / "Covariance"
-    selem = StateElementOmiSurfaceAlbedo(
+def test_omi_cloud_fraction_state_element(airs_omi_old_shandle):
+    _, _, rconfig, strat, obs_hset, smeta = airs_omi_old_shandle
+    selem = StateElementOmiSurfaceAlbedo.create(
         StateElementIdentifier("OMISURFACEALBEDOUV1"),
-        omi_obs,
-        latitude,
-        "LAND",
-        species_directory,
-        covariance_directory,
+        retrieval_config = rconfig,
+        strategy=strat,
+        observation_handle_set=obs_hset,
+        sounding_metadata=smeta
     )
     vexpect = np.array([0.052])
     npt.assert_allclose(selem.value_fm, vexpect)

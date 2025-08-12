@@ -5,9 +5,11 @@ from refractor.muses import (
     StateElementHandle,
     StateElementImplementation,
     StateElementOspFileHandle,
+    StateElementOspFileFixedValue,
     StateElementOspFile,
     StateElementFillValueHandle,
     StateElementIdentifier,
+    StateElementWithCreateHandle,
     InstrumentIdentifier,
     MusesTropomiObservation,
     MusesObservation,
@@ -48,6 +50,20 @@ def add_handle(
         priority_order=2,
     )
 
+def add_fixed_handle(sname: str, initial_value: float, **kwargs : Any) -> None:
+    StateElementHandleSet.add_default_handle(
+        StateElementWithCreateHandle(
+            StateElementIdentifier(sname),
+            StateElementOspFileFixedValue,
+            initial_value=np.array(
+                [
+                    initial_value,
+                ]
+            ).view(FullGridMappedArray),
+            **kwargs
+        ),
+        priority_order=2,
+    )
 
 def add_fill_handle(
     sname: str,
@@ -317,36 +333,36 @@ add_tropomi_file_handle("TROPOMICLOUDFRACTION", StateElementTropomiCloudFraction
 # This gets created even if we don't have TROPOMI data
 add_fill_handle("TROPOMICLOUDFRACTION")
 add_tropomi_file_fixed_handle("TROPOMICLOUDPRESSURE", StateElementTropomiCloudPressure)
-add_handle("TROPOMICLOUDSURFACEALBEDO", 0.8)
-add_handle("TROPOMIRADIANCESHIFTBAND1", 0.0)
-add_handle("TROPOMIRADIANCESHIFTBAND2", 0.0)
-add_handle("TROPOMIRADIANCESHIFTBAND3", 0.0)
-add_handle("TROPOMIRADIANCESHIFTBAND7", 0.0, cov_is_constraint=True)
-add_handle("TROPOMIRADSQUEEZEBAND1", 0.0)
-add_handle("TROPOMIRADSQUEEZEBAND2", 0.0)
-add_handle("TROPOMIRADSQUEEZEBAND3", 0.0)
-add_handle("TROPOMIRADSQUEEZEBAND7", 0.0, cov_is_constraint=True)
-add_handle("TROPOMIRESSCALE", 1.0)
-add_handle("TROPOMIRESSCALEO0BAND1", 1.0)
-add_handle("TROPOMIRESSCALEO1BAND1", 0.0)
-add_handle("TROPOMIRESSCALEO2BAND1", 0.0)
-add_handle("TROPOMIRESSCALEO0BAND2", 1.0)
-add_handle("TROPOMIRESSCALEO1BAND2", 0.0)
-add_handle("TROPOMIRESSCALEO2BAND2", 0.0)
-add_handle("TROPOMIRESSCALEO0BAND3", 1.0)
-add_handle("TROPOMIRESSCALEO1BAND3", 0.0)
-add_handle("TROPOMIRESSCALEO2BAND3", 0.0)
-add_handle("TROPOMIRESSCALEO0BAND7", 1.0, cov_is_constraint=True)
-add_handle("TROPOMIRESSCALEO1BAND7", 0.0, cov_is_constraint=True)
-add_handle("TROPOMIRESSCALEO2BAND7", 0.0, cov_is_constraint=True)
-add_handle("TROPOMIRINGSFBAND1", 1.9)
-add_handle("TROPOMIRINGSFBAND2", 1.9)
-add_handle("TROPOMIRINGSFBAND3", 1.9)
-add_handle("TROPOMIRINGSFBAND7", 1.9, cov_is_constraint=True)
-add_handle("TROPOMISOLARSHIFTBAND1", 0.0)
-add_handle("TROPOMISOLARSHIFTBAND2", 0.0)
-add_handle("TROPOMISOLARSHIFTBAND3", 0.0)
-add_handle("TROPOMISOLARSHIFTBAND7", 0.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMICLOUDSURFACEALBEDO", 0.8)
+add_fixed_handle("TROPOMIRADIANCESHIFTBAND1", 0.0)
+add_fixed_handle("TROPOMIRADIANCESHIFTBAND2", 0.0)
+add_fixed_handle("TROPOMIRADIANCESHIFTBAND3", 0.0)
+add_fixed_handle("TROPOMIRADIANCESHIFTBAND7", 0.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMIRADSQUEEZEBAND1", 0.0)
+add_fixed_handle("TROPOMIRADSQUEEZEBAND2", 0.0)
+add_fixed_handle("TROPOMIRADSQUEEZEBAND3", 0.0)
+add_fixed_handle("TROPOMIRADSQUEEZEBAND7", 0.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMIRESSCALE", 1.0)
+add_fixed_handle("TROPOMIRESSCALEO0BAND1", 1.0)
+add_fixed_handle("TROPOMIRESSCALEO1BAND1", 0.0)
+add_fixed_handle("TROPOMIRESSCALEO2BAND1", 0.0)
+add_fixed_handle("TROPOMIRESSCALEO0BAND2", 1.0)
+add_fixed_handle("TROPOMIRESSCALEO1BAND2", 0.0)
+add_fixed_handle("TROPOMIRESSCALEO2BAND2", 0.0)
+add_fixed_handle("TROPOMIRESSCALEO0BAND3", 1.0)
+add_fixed_handle("TROPOMIRESSCALEO1BAND3", 0.0)
+add_fixed_handle("TROPOMIRESSCALEO2BAND3", 0.0)
+add_fixed_handle("TROPOMIRESSCALEO0BAND7", 1.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMIRESSCALEO1BAND7", 0.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMIRESSCALEO2BAND7", 0.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMIRINGSFBAND1", 1.9)
+add_fixed_handle("TROPOMIRINGSFBAND2", 1.9)
+add_fixed_handle("TROPOMIRINGSFBAND3", 1.9)
+add_fixed_handle("TROPOMIRINGSFBAND7", 1.9, cov_is_constraint=True)
+add_fixed_handle("TROPOMISOLARSHIFTBAND1", 0.0)
+add_fixed_handle("TROPOMISOLARSHIFTBAND2", 0.0)
+add_fixed_handle("TROPOMISOLARSHIFTBAND3", 0.0)
+add_fixed_handle("TROPOMISOLARSHIFTBAND7", 0.0, cov_is_constraint=True)
 add_tropomi_file_handle(
     "TROPOMISURFACEALBEDOBAND1", StateElementTropomiSurfaceAlbedo, band=1
 )
@@ -362,17 +378,17 @@ add_tropomi_file_handle(
     band=7,
     cov_is_constraint=True,
 )
-add_handle("TROPOMISURFACEALBEDOSLOPEBAND1", 0.0)
-add_handle("TROPOMISURFACEALBEDOSLOPEBAND2", 0.0)
-add_handle("TROPOMISURFACEALBEDOSLOPEBAND3", 0.0)
-add_handle("TROPOMISURFACEALBEDOSLOPEBAND7", 0.0, cov_is_constraint=True)
-add_handle("TROPOMISURFACEALBEDOSLOPEORDER2BAND2", 0.0)
-add_handle("TROPOMISURFACEALBEDOSLOPEORDER2BAND3", 0.0)
-add_handle("TROPOMISURFACEALBEDOSLOPEORDER2BAND7", 0.0, cov_is_constraint=True)
-add_handle("TROPOMITEMPSHIFTBAND1", 1.0)
-add_handle("TROPOMITEMPSHIFTBAND2", 1.0)
-add_handle("TROPOMITEMPSHIFTBAND3", 1.0)
-add_handle("TROPOMITEMPSHIFTBAND7", 1.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMISURFACEALBEDOSLOPEBAND1", 0.0)
+add_fixed_handle("TROPOMISURFACEALBEDOSLOPEBAND2", 0.0)
+add_fixed_handle("TROPOMISURFACEALBEDOSLOPEBAND3", 0.0)
+add_fixed_handle("TROPOMISURFACEALBEDOSLOPEBAND7", 0.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMISURFACEALBEDOSLOPEORDER2BAND2", 0.0)
+add_fixed_handle("TROPOMISURFACEALBEDOSLOPEORDER2BAND3", 0.0)
+add_fixed_handle("TROPOMISURFACEALBEDOSLOPEORDER2BAND7", 0.0, cov_is_constraint=True)
+add_fixed_handle("TROPOMITEMPSHIFTBAND1", 1.0)
+add_fixed_handle("TROPOMITEMPSHIFTBAND2", 1.0)
+add_fixed_handle("TROPOMITEMPSHIFTBAND3", 1.0)
+add_fixed_handle("TROPOMITEMPSHIFTBAND7", 1.0, cov_is_constraint=True)
 
 __all__ = [
     "StateElementTropomiCloudFraction",

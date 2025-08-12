@@ -452,7 +452,7 @@ class StateElementOspFileFixedValue(StateElementOspFile):
     ]:
         if initial_value is None or sid is None:
             return StateElementIdentifier("Dummy"), None, None, {}
-        return sid, initial_value, None, {}
+        return sid, initial_value, None, kwargs
 
 
 class StateElementOspFileHandle(StateElementHandle):
