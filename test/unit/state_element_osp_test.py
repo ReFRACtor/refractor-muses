@@ -30,7 +30,7 @@ import pytest
 
 @pytest.fixture(scope="function")
 def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
-    """Set up the old state info, and return a StateElementOspFileHandleNew"""
+    """Set up the old state info, and return a handle"""
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
     logger.remove()

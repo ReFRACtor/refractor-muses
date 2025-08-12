@@ -1,7 +1,6 @@
 from __future__ import annotations
 from refractor.muses import (
     StateElementHandleSet,
-    StateElementOspFileHandle,
     StateElementWithCreateHandle,
     StateElementOspFileFixedValue,
     StateElementFillValueHandle,
@@ -23,22 +22,6 @@ if typing.TYPE_CHECKING:
         SoundingMetadata,
         RetrievalConfiguration,
         MeasurementId,
-    )
-
-
-def add_handle(
-    sname: str,
-    constraint_value: float,
-    cls: type[StateElementOspFile] = StateElementOspFile,
-) -> None:
-    StateElementHandleSet.add_default_handle(
-        StateElementOspFileHandle(
-            StateElementIdentifier(sname),
-            np.array([constraint_value]).view(FullGridMappedArray),
-            np.array([constraint_value]).view(FullGridMappedArray),
-            cls=cls,
-        ),
-        priority_order=2,
     )
 
 
@@ -164,7 +147,7 @@ add_fixed_handle("OMIODWAVSLOPEUV2", 0.0)
 add_fixed_handle("OMIODWAVUV1", 0.0)
 add_fixed_handle("OMIODWAVUV2", 0.0)
 # Doesn't actually seem to be in muses-py, although there is a species file for this
-# add_handle("OMIRESSCALE", 0.0)
+# add_fixes_handle("OMIRESSCALE", 0.0)
 add_fixed_handle("OMIRINGSFUV1", 1.9)
 add_fixed_handle("OMIRINGSFUV2", 1.9)
 add_fixed_handle("OMISURFACEALBEDOSLOPEUV2", 0.0)

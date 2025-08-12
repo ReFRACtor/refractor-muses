@@ -1,25 +1,19 @@
 from __future__ import annotations
 from refractor.muses import (
     StateElementHandleSet,
-    StateElement,
-    StateElementHandle,
-    StateElementImplementation,
-    StateElementOspFileHandle,
     StateElementOspFileFixedValue,
     StateElementOspFile,
     StateElementFillValueHandle,
     StateElementIdentifier,
+    StateElementWithCreate,
     StateElementWithCreateHandle,
     InstrumentIdentifier,
-    MusesTropomiObservation,
-    MusesObservation,
     FullGridMappedArray,
     FullGrid2dArray,
     RetrievalGrid2dArray,
 )
 import numpy as np
-from pathlib import Path
-from typing import cast, Any
+from typing import Any, Self
 import typing
 
 if typing.TYPE_CHECKING:
@@ -30,27 +24,20 @@ if typing.TYPE_CHECKING:
         RetrievalConfiguration,
         MeasurementId,
     )
-    from refractor.old_py_retrieve_wrapper import StateElementOldWrapperHandle
 
 
-def add_handle(
+def add_class_handle(
     sname: str,
-    constraint_value: float,
-    cls: type[StateElementOspFile] = StateElementOspFile,
-    cov_is_constraint: bool = False,
+    cls: type[StateElementWithCreate],
+    **kwargs: Any,
 ) -> None:
     StateElementHandleSet.add_default_handle(
-        StateElementOspFileHandle(
-            StateElementIdentifier(sname),
-            np.array([constraint_value]).view(FullGridMappedArray),
-            np.array([constraint_value]).view(FullGridMappedArray),
-            cls=cls,
-            cov_is_constraint=cov_is_constraint,
-        ),
+        StateElementWithCreateHandle(StateElementIdentifier(sname), cls, **kwargs),
         priority_order=2,
     )
 
-def add_fixed_handle(sname: str, initial_value: float, **kwargs : Any) -> None:
+
+def add_fixed_handle(sname: str, initial_value: float, **kwargs: Any) -> None:
     StateElementHandleSet.add_default_handle(
         StateElementWithCreateHandle(
             StateElementIdentifier(sname),
@@ -60,10 +47,11 @@ def add_fixed_handle(sname: str, initial_value: float, **kwargs : Any) -> None:
                     initial_value,
                 ]
             ).view(FullGridMappedArray),
-            **kwargs
+            **kwargs,
         ),
         priority_order=2,
     )
+
 
 def add_fill_handle(
     sname: str,
@@ -73,218 +61,77 @@ def add_fill_handle(
     )
 
 
-class StateElementTropomiFileHandle(StateElementHandle):
-    """Add tropomi file input and band to creation"""
-
-    def __init__(
-        self,
-        sid: StateElementIdentifier,
-        cls: Any,
-        band: int = -1,
-        h_old: StateElementOldWrapperHandle | None = None,
-        cov_is_constraint: bool = False,
-    ) -> None:
-        self.obj_cls = cls
-        self.sid = sid
-        self.h_old = h_old
-        self.band = band
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
-        self.cov_is_constraint = cov_is_constraint
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
-
-    def state_element(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement | None:
-        if state_element_id != self.sid:
-            return None
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
-        if InstrumentIdentifier("TROPOMI") not in self.strategy.instrument_name:
-            return None
-        obs = cast(
-            MusesTropomiObservation,
-            self.observation_handle_set.observation(
-                InstrumentIdentifier("TROPOMI"),
-                None,
-                None,
-                None,
-                osp_dir=self.retrieval_config.osp_dir,
-            ),
-        )
-        if self.h_old is not None:
-            sold = self.h_old.state_element(state_element_id)
-        else:
-            sold = None
-        res = self.obj_cls(
-            state_element_id,
-            obs,
-            self.sounding_metadata.latitude.value,
-            self.sounding_metadata.surface_type,
-            Path(self.retrieval_config["speciesDirectory"]),
-            Path(self.retrieval_config["covarianceDirectory"]),
-            selem_wrapper=sold,
-            band=self.band,
-            cov_is_constraint=self.cov_is_constraint,
-        )
-        return res
-
-
-class StateElementTropomiFileFixedHandle(StateElementHandle):
-    """Add tropomi file input and band to creation"""
-
-    def __init__(
-        self,
-        sid: StateElementIdentifier,
-        cls: Any,
-        band: int = -1,
-        h_old: StateElementOldWrapperHandle | None = None,
-        cov_is_constraint: bool = False,
-    ) -> None:
-        self.obj_cls = cls
-        self.sid = sid
-        self.h_old = h_old
-        self.band = band
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
-        self.cov_is_constraint = cov_is_constraint
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
-
-    def state_element(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement | None:
-        if state_element_id != self.sid:
-            return None
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
-        if InstrumentIdentifier("TROPOMI") not in self.strategy.instrument_name:
-            return None
-        obs = cast(
-            MusesTropomiObservation,
-            self.observation_handle_set.observation(
-                InstrumentIdentifier("TROPOMI"),
-                None,
-                None,
-                None,
-                osp_dir=self.retrieval_config.osp_dir,
-            ),
-        )
-        if self.h_old is not None:
-            sold = self.h_old.state_element(state_element_id)
-        else:
-            sold = None
-        res = self.obj_cls(
-            state_element_id,
-            obs,
-            selem_wrapper=sold,
-            band=self.band,
-            cov_is_constraint=self.cov_is_constraint,
-        )
-        return res
-
-
-def add_tropomi_file_handle(
-    sname: str, cls: Any, band: int = -1, cov_is_constraint: bool = False
-) -> None:
-    StateElementHandleSet.add_default_handle(
-        StateElementTropomiFileHandle(
-            StateElementIdentifier(sname),
-            cls,
-            band=band,
-            cov_is_constraint=cov_is_constraint,
-        ),
-        priority_order=2,
-    )
-
-
-def add_tropomi_file_fixed_handle(
-    sname: str, cls: Any, band: int = -1, cov_is_constraint: bool = False
-) -> None:
-    StateElementHandleSet.add_default_handle(
-        StateElementTropomiFileFixedHandle(
-            StateElementIdentifier(sname),
-            cls,
-            band=band,
-            cov_is_constraint=cov_is_constraint,
-        ),
-        priority_order=2,
-    )
-
-
 class StateElementTropomiCloudFraction(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
 
-    def __init__(
-        self,
-        state_element_id: StateElementIdentifier,
-        obs: MusesObservation,
-        latitude: float,
-        surface_type: str,
-        species_directory: Path,
-        covariance_directory: Path,
+    @classmethod
+    def _setup_create(
+        cls,
+        sid: StateElementIdentifier | None,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        measurement_id: MeasurementId | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
-        band: int = -1,
-        cov_is_constraint: bool = False,
-    ) -> None:
-        constraint_vector_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
-        super().__init__(
-            state_element_id,
+        **kwargs: Any,
+    ) -> tuple[
+        StateElementIdentifier,
+        FullGridMappedArray | None,
+        FullGridMappedArray | None,
+        dict[str, Any],
+    ]:
+        if strategy is None or observation_handle_set is None:
+            raise RuntimeError("Need strategy and observation_handle_set supplied")
+        if InstrumentIdentifier("TROPOMI") not in strategy.instrument_name:
+            return StateElementIdentifier("Dummy"), None, None, {}
+        obs = observation_handle_set.observation(
+            InstrumentIdentifier("TROPOMI"),
             None,
-            constraint_vector_fm,
-            constraint_vector_fm,
-            latitude,
-            surface_type,
-            species_directory,
-            covariance_directory,
-            selem_wrapper=selem_wrapper,
-            cov_is_constraint=cov_is_constraint,
+            None,
+            None,
+            osp_dir=retrieval_config.osp_dir,
         )
+        value_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
+        kwargs = {"selem_wrapper": selem_wrapper}
+        return StateElementIdentifier("TROPOMICLOUDFRACTION"), value_fm, None, kwargs
 
 
-class StateElementTropomiCloudPressure(StateElementImplementation):
+class StateElementTropomiCloudPressure(StateElementWithCreate):
     """Variation that gets the apriori/initial guess from the observation file"""
 
-    def __init__(
-        self,
-        state_element_id: StateElementIdentifier,
-        obs: MusesObservation,
+    @classmethod
+    def create(
+        cls,
+        sid: StateElementIdentifier | None = None,
+        measurement_id: MeasurementId | None = None,
+        retrieval_config: RetrievalConfiguration | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
+        sounding_metadata: SoundingMetadata | None = None,
         selem_wrapper: Any | None = None,
-        band: int = -1,
-        cov_is_constraint: bool = False,
-    ) -> None:
-        constraint_vector_fm = np.array([obs.cloud_pressure.value]).view(
-            FullGridMappedArray
+        **kwargs: Any,
+    ) -> Self | None:
+        if (
+            retrieval_config is None
+            or strategy is None
+            or observation_handle_set is None
+        ):
+            raise RuntimeError("Need strategy and observation_handle_set supplied")
+        if InstrumentIdentifier("TROPOMI") not in strategy.instrument_name:
+            return None
+        obs = observation_handle_set.observation(
+            InstrumentIdentifier("TROPOMI"),
+            None,
+            None,
+            None,
+            osp_dir=retrieval_config.osp_dir,
         )
-        super().__init__(
-            state_element_id,
-            constraint_vector_fm,
-            constraint_vector_fm,
+        value_fm = np.array([obs.cloud_pressure.value]).view(FullGridMappedArray)
+        return cls(
+            StateElementIdentifier("TROPOMICLOUDPRESSURE"),
+            value_fm,
+            value_fm,
             np.array([[-999.0]]).view(FullGrid2dArray),
             np.array([[-999.0]]).view(RetrievalGrid2dArray),
             selem_wrapper=selem_wrapper,
@@ -294,19 +141,36 @@ class StateElementTropomiCloudPressure(StateElementImplementation):
 class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
 
-    def __init__(
-        self,
-        state_element_id: StateElementIdentifier,
-        obs: MusesObservation,
-        latitude: float,
-        surface_type: str,
-        species_directory: Path,
-        covariance_directory: Path,
+    @classmethod
+    def _setup_create(
+        cls,
+        sid: StateElementIdentifier | None,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        measurement_id: MeasurementId | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
         band: int = -1,
-        cov_is_constraint: bool = False,
-    ) -> None:
-        constraint_vector_fm = np.array(
+        **kwargs: Any,
+    ) -> tuple[
+        StateElementIdentifier,
+        FullGridMappedArray | None,
+        FullGridMappedArray | None,
+        dict[str, Any],
+    ]:
+        if sid is None or strategy is None or observation_handle_set is None:
+            raise RuntimeError("Need strategy and observation_handle_set supplied")
+        if InstrumentIdentifier("TROPOMI") not in strategy.instrument_name:
+            return StateElementIdentifier("Dummy"), None, None, {}
+        obs = observation_handle_set.observation(
+            InstrumentIdentifier("TROPOMI"),
+            None,
+            None,
+            None,
+            osp_dir=retrieval_config.osp_dir,
+        )
+        value_fm = np.array(
             [
                 float(
                     obs.muses_py_dict["SurfaceAlbedo"][
@@ -315,24 +179,14 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
                 )
             ]
         ).view(FullGridMappedArray)
-        super().__init__(
-            state_element_id,
-            None,
-            constraint_vector_fm,
-            constraint_vector_fm,
-            latitude,
-            surface_type,
-            species_directory,
-            covariance_directory,
-            selem_wrapper=selem_wrapper,
-            cov_is_constraint=cov_is_constraint,
-        )
+        kwargs = {"selem_wrapper": selem_wrapper}
+        return sid, value_fm, None, kwargs
 
 
-add_tropomi_file_handle("TROPOMICLOUDFRACTION", StateElementTropomiCloudFraction)
+add_class_handle("TROPOMICLOUDFRACTION", StateElementTropomiCloudFraction)
 # This gets created even if we don't have TROPOMI data
 add_fill_handle("TROPOMICLOUDFRACTION")
-add_tropomi_file_fixed_handle("TROPOMICLOUDPRESSURE", StateElementTropomiCloudPressure)
+add_class_handle("TROPOMICLOUDPRESSURE", StateElementTropomiCloudPressure)
 add_fixed_handle("TROPOMICLOUDSURFACEALBEDO", 0.8)
 add_fixed_handle("TROPOMIRADIANCESHIFTBAND1", 0.0)
 add_fixed_handle("TROPOMIRADIANCESHIFTBAND2", 0.0)
@@ -363,16 +217,10 @@ add_fixed_handle("TROPOMISOLARSHIFTBAND1", 0.0)
 add_fixed_handle("TROPOMISOLARSHIFTBAND2", 0.0)
 add_fixed_handle("TROPOMISOLARSHIFTBAND3", 0.0)
 add_fixed_handle("TROPOMISOLARSHIFTBAND7", 0.0, cov_is_constraint=True)
-add_tropomi_file_handle(
-    "TROPOMISURFACEALBEDOBAND1", StateElementTropomiSurfaceAlbedo, band=1
-)
-add_tropomi_file_handle(
-    "TROPOMISURFACEALBEDOBAND2", StateElementTropomiSurfaceAlbedo, band=2
-)
-add_tropomi_file_handle(
-    "TROPOMISURFACEALBEDOBAND3", StateElementTropomiSurfaceAlbedo, band=3
-)
-add_tropomi_file_handle(
+add_class_handle("TROPOMISURFACEALBEDOBAND1", StateElementTropomiSurfaceAlbedo, band=1)
+add_class_handle("TROPOMISURFACEALBEDOBAND2", StateElementTropomiSurfaceAlbedo, band=2)
+add_class_handle("TROPOMISURFACEALBEDOBAND3", StateElementTropomiSurfaceAlbedo, band=3)
+add_class_handle(
     "TROPOMISURFACEALBEDOBAND7",
     StateElementTropomiSurfaceAlbedo,
     band=7,

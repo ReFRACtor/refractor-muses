@@ -1043,7 +1043,9 @@ class StateElementWithCreate(StateElementImplementation):
     Note we generally create objects that have *not* been through
     retrieval_initial_fm_from_cycle, we do that step after creating this.
     So for a lot of classes we match the value_fm at the start of the old muses-py
-    retrieval, but before it cycles through all the steps.
+    retrieval, but before it cycles through all the steps. The class indicates
+    if it needs to go through retrieval_initial_fm_from_cycle through the function
+    need_retrieval_initial_fm_from_cycle.
     """
 
     def __init__(
@@ -1091,7 +1093,7 @@ class StateElementWithCreate(StateElementImplementation):
 
     def need_retrieval_initial_fm_from_cycle(self) -> bool:
         """Return True if we need to have retrieval_initial_fm_from_cycle run for
-        this StateElement"""
+        this StateElement."""
         if self._need_retrieval_initial_fm_from_cyle is None:
             self._need_retrieval_initial_fm_from_cyle = (
                 self.pressure_list_fm is not None or self.spectral_domain is not None
@@ -1099,6 +1101,11 @@ class StateElementWithCreate(StateElementImplementation):
         return self._need_retrieval_initial_fm_from_cyle
 
     def notify_done_retrieval_initial_fm_from_cycle(self) -> None:
+        """Called when we have run
+        MusesStrategy.retrieval_initial_fm_from_cycle, just to mark
+        this as done. This automatically gets called by
+        MusesStrategy.retrieval_initial_fm_from_cycle.
+        """
         self._need_retrieval_initial_fm_from_cyle = False
 
 
@@ -1115,7 +1122,7 @@ class StateElementWithCreateHandle(StateElementHandle):
     ):
         """Create handler for the given StateElementIdentifier, using
         the given class.
-        
+
         Optionally we can include the old state info
         StateElementOldWrapper and using to verify the
         StateElement. We did that during initial development. We don't
@@ -1124,6 +1131,9 @@ class StateElementWithCreateHandle(StateElementHandle):
         already, we still support this.  This will likely get phased
         out at some point when it isn't worth maintaining any longer.
 
+        Any extra keywords supplied get passed through to the create
+        function, so you can add specific stuff needed (e.g., a
+        band_id or other arguments).
         """
         self.sid = sid
         self.obj_cls = obj_cls

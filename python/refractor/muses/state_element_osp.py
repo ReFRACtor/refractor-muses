@@ -5,10 +5,9 @@ from .osp_reader import (
     OspSpeciesReader,
     OspDiagonalUncertainityReader,
 )
-from .state_element import StateElementWithCreate, StateElement, StateElementHandle
+from .state_element import StateElementWithCreate
 from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
 from .identifier import StateElementIdentifier, RetrievalType
-from loguru import logger
 from pathlib import Path
 import numpy as np
 import typing
@@ -357,51 +356,6 @@ class StateElementOspFile(StateElementWithCreate):
         )
         return res
 
-    @classmethod
-    def create_from_handle(
-        cls,
-        state_element_id: StateElementIdentifier,
-        pressure_list_fm: FullGridMappedArray | None,
-        value_fm: FullGridMappedArray,
-        constraint_vector_fm: FullGridMappedArray,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-        spectral_domain: rf.SpectralDomain | None = None,
-        selem_wrapper: Any | None = None,
-        cov_is_constraint: bool = False,
-        poltype: str | None = None,
-        poltype_used_constraint: bool = True,
-        diag_cov: bool = False,
-        diag_directory: Path | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> Self | None:
-        """Create object from the set of parameter the StateElementOspFileHandle supplies.
-
-        We don't actually use all the arguments, but they are there for other classes
-        """
-        res = cls(
-            state_element_id,
-            pressure_list_fm,
-            value_fm,
-            constraint_vector_fm,
-            sounding_metadata.latitude.value,
-            sounding_metadata.surface_type,
-            Path(retrieval_config["speciesDirectory"]),
-            Path(retrieval_config["covarianceDirectory"]),
-            spectral_domain=spectral_domain,
-            selem_wrapper=selem_wrapper,
-            cov_is_constraint=cov_is_constraint,
-            poltype=poltype,
-            poltype_used_constraint=poltype_used_constraint,
-            diag_cov=diag_cov,
-            diag_directory=diag_directory,
-            metadata=metadata,
-        )
-        return res
-
     def notify_start_step(
         self,
         current_strategy_step: CurrentStrategyStep,
@@ -455,77 +409,7 @@ class StateElementOspFileFixedValue(StateElementOspFile):
         return sid, initial_value, None, kwargs
 
 
-class StateElementOspFileHandle(StateElementHandle):
-    def __init__(
-        self,
-        sid: StateElementIdentifier,
-        value_fm: FullGridMappedArray,
-        constraint_vector_fm: FullGridMappedArray,
-        hold: Any | None = None,
-        cls: type[StateElementOspFile] = StateElementOspFile,
-        cov_is_constraint: bool = False,
-    ) -> None:
-        self.obj_cls = cls
-        self.sid = sid
-        self.hold = hold
-        self.value_fm = value_fm
-        self.constraint_vector_fm = constraint_vector_fm
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
-        self.cov_is_constraint = cov_is_constraint
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
-
-    def state_element(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement | None:
-        if state_element_id != self.sid:
-            return None
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
-        sold = (
-            self.hold.state_element(state_element_id) if self.hold is not None else None
-        )
-        # Determining pressure is spread across a number of muses-py functions. We'll need
-        # to track all this down, but short term just get this from the old data
-        if self.hold is not None:
-            p = self.hold.state_element(StateElementIdentifier("pressure"))
-            assert p is not None
-            pressure_list_fm = p.value_fm.copy()
-        else:
-            pressure_list_fm = None
-        res = self.obj_cls.create_from_handle(
-            state_element_id,
-            pressure_list_fm,
-            self.value_fm,
-            self.constraint_vector_fm,
-            self.measurement_id,
-            self.retrieval_config,
-            self.strategy,
-            self.observation_handle_set,
-            self.sounding_metadata,
-            selem_wrapper=sold,
-            cov_is_constraint=self.cov_is_constraint,
-        )
-        if res is not None:
-            logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
-        return res
-
-
 __all__ = [
-    "StateElementOspFileHandle",
     "StateElementOspFile",
     "StateElementOspFileFixedValue",
 ]

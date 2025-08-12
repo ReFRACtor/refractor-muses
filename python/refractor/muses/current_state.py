@@ -31,8 +31,9 @@ class PropagatedQA:
     like flags copied from one step to the next. But pull this
     together into one place so we can track this.
 
-    TODO Note that we might just make this appear like any other StateElementOld,
-    but at least for now leave this as separate because that is how
+    TODO Note that we might just make this appear like any other
+    StateElementOld, but at least for now leave this as separate
+    because that is how muse-py does this.
 
     """
 
@@ -61,10 +62,12 @@ class PropagatedQA:
 
 
 class SoundingMetadata:
-    """Not really clear that this belongs in the StateInfoOld, but the muses-py seems
-    to at least allow the possibility of this changing from one step to the next.
-    I'm not sure if that actually can happen, but there isn't another obvious place
-    to put this metadata so we'll go ahead and keep this here."""
+    """Not really clear that this belongs in the CurrentState, but the
+    muses-py seems to at least allow the possibility of this changing
+    from one step to the next.  I'm not sure if that actually can
+    happen, but there isn't another obvious place to put this metadata
+    so we'll go ahead and keep this here.
+    """
 
     def __init__(self) -> None:
         """Note you normally call one of the creator functions rather than __init__"""

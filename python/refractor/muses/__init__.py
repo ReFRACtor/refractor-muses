@@ -72,7 +72,6 @@ if _typing.TYPE_CHECKING:
         StateElementWithCreateHandle,
     )
     from .state_element_osp import (
-        StateElementOspFileHandle,
         StateElementOspFile,
         StateElementOspFileFixedValue,
     )
