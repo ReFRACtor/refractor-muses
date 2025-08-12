@@ -17,7 +17,7 @@ import abc
 from loguru import logger
 import numpy as np
 import numpy.testing as npt
-from typing import Any
+from typing import Any, Self
 import typing
 
 if typing.TYPE_CHECKING:
@@ -990,81 +990,6 @@ class StateElementFillValueHandle(StateElementHandle):
         )
 
 
-class StateElementInit(StateElement):
-    def __init__(
-        self, rconfig: RetrievalConfiguration, smeta: SoundingMetadata, **kwargs: Any
-    ):
-        """Common interface used to create a StateElement."""
-        pass
-
-
-class StateElementInitHandle(StateElementHandle):
-    """A lot of StateElementHandle just call the __init__ function of a class to
-    create the object. This generic handle works for this common case."""
-
-    def __init__(
-        self,
-        sid: StateElementIdentifier,
-        obj_cls: Any | type[StateElementInit],
-        include_old_state_info: bool = False,
-    ):
-        """Create handler for the given StateElementIdentifier, using the given class.
-        Optionally can pass in a handler for creating the StateElementOldWrapper and
-        using to verify the StateElement. We did that during initial development. We
-        don't generally do this now, but it can be useful if we need to diagnose a
-        problem. Since we have the mechanics in place already, we still support this.
-        This will likely get phased out at some point when it isn't worth maintaining
-        any longer."""
-        self.sid = sid
-        self.obj_cls = obj_cls
-        self._hold = None
-        self.include_old_state_info = include_old_state_info
-        self.measurement_id: MeasurementId | None = None
-        self.retrieval_config: RetrievalConfiguration | None = None
-
-    @property
-    def hold(self):
-        # Extra level of indirection to handle cycle in including old_py_retrieve_wrapper
-        if self._hold is None and self.include_old_state_info:
-            from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
-            self._hold = state_element_old_wrapper_handle
-        return self._hold
-
-    def notify_update_target(
-        self,
-        measurement_id: MeasurementId,
-        retrieval_config: RetrievalConfiguration,
-        strategy: MusesStrategy,
-        observation_handle_set: ObservationHandleSet,
-        sounding_metadata: SoundingMetadata,
-    ) -> None:
-        self.measurement_id = measurement_id
-        self.retrieval_config = retrieval_config
-        self.strategy = strategy
-        self.observation_handle_set = observation_handle_set
-        self.sounding_metadata = sounding_metadata
-
-    def state_element(
-        self, state_element_id: StateElementIdentifier
-    ) -> StateElement | None:
-        if state_element_id != self.sid:
-            return None
-
-        sold = (
-            self.hold.state_element(state_element_id) if self.hold is not None else None
-        )
-        if self.measurement_id is None or self.retrieval_config is None:
-            raise RuntimeError("Need to call notify_update_target first")
-        res = self.obj_cls(
-            self.retrieval_config, self.sounding_metadata, selem_wrapper=sold
-        )
-        # Only need to cycle if we have pressure levels or spectral domain
-        if res.pressure_list_fm is not None or res.spectral_domain is not None:
-            self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
-        logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
-        return res
-
-
 class StateElementFixedValueHandle(StateElementHandle):
     """Create state element from static values, rather than getting this from somewhere else."""
 
@@ -1093,12 +1018,131 @@ class StateElementFixedValueHandle(StateElementHandle):
         )
 
 
+class StateElementWithCreate(StateElementImplementation):
+    """While we can have the StateElementHandle determine all the
+    things needed to create a StateElement, often it makes sense to
+    have the StateElement just handle this. At the same time, we don't
+    want "fat" interfaces where our relatively low level StateElement
+    objects depend on lot of high level classes.
+
+    So we use a level of indirection, we have a "create" function that
+    uses these high level classes (so we aren't passing in a zillion
+    arguments). The create function then determines what is actually needed to
+    pass generally to a __init__ function.
+
+    Just as a convenience, we pass all the arguments as keyword arguments, just
+    so classes can easily ignore arguments it doesn't need.
+
+    Note StateElement classes aren't required to use this interface,
+    only if this makes sense. The classes can derive from StateElement
+    or StateElementImplementation instead of StateElementWithCreate,
+    and then just supply their own StateElementHandle.
+
+    Note we generally create objects that have *not* been through
+    retrieval_initial_fm_from_cycle, we do that step after creating this.
+    So for a lot of classes we match the value_fm at the start of the old muses-py
+    retrieval, but before it cycles through all the steps.
+    """
+
+    @classmethod
+    def create(
+        cls,
+        sid: StateElementIdentifier | None = None,
+        measurement_id: MeasurementId | None = None,
+        retrieval_config: RetrievalConfiguration | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
+        sounding_metadata: SoundingMetadata | None = None,
+        selem_wrapper: Any | None = None,
+    ) -> Self | None:
+        pass
+
+
+class StateElementWithCreateHandle(StateElementHandle):
+    """A lot of StateElementHandle just call the __init__ function of a class to
+    create the object. This generic handle works for this common case."""
+
+    def __init__(
+        self,
+        sid: StateElementIdentifier,
+        obj_cls: type[StateElementWithCreate],
+        include_old_state_info: bool = False,
+    ):
+        """Create handler for the given StateElementIdentifier, using the given class.
+        Optionally we can include the old state info StateElementOldWrapper and
+        using to verify the StateElement. We did that during initial development. We
+        don't generally do this now, but it can be useful if we need to diagnose a
+        problem. Since we have the mechanics in place already, we still support this.
+        This will likely get phased out at some point when it isn't worth maintaining
+        any longer."""
+        self.sid = sid
+        self.obj_cls = obj_cls
+        self._hold: Any | None = None
+        self.include_old_state_info = include_old_state_info
+        self.measurement_id: MeasurementId | None = None
+        self.retrieval_config: RetrievalConfiguration | None = None
+
+    @property
+    def hold(self) -> Any:
+        # Extra level of indirection to handle cycle in including old_py_retrieve_wrapper
+        if self._hold is None and self.include_old_state_info:
+            from refractor.old_py_retrieve_wrapper import (
+                state_element_old_wrapper_handle,
+            )
+
+            self._hold = state_element_old_wrapper_handle
+        return self._hold
+
+    def notify_update_target(
+        self,
+        measurement_id: MeasurementId,
+        retrieval_config: RetrievalConfiguration,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
+        sounding_metadata: SoundingMetadata,
+    ) -> None:
+        self.measurement_id = measurement_id
+        self.retrieval_config = retrieval_config
+        self.strategy = strategy
+        self.observation_handle_set = observation_handle_set
+        self.sounding_metadata = sounding_metadata
+
+    def state_element(
+        self, state_element_id: StateElementIdentifier
+    ) -> StateElement | None:
+        if state_element_id != self.sid:
+            return None
+
+        sold = (
+            self.hold.state_element(state_element_id) if self.hold is not None else None
+        )
+        if self.measurement_id is None or self.retrieval_config is None:
+            raise RuntimeError("Need to call notify_update_target first")
+        res = self.obj_cls.create(
+            sid=state_element_id,
+            measurement_id=self.measurement_id,
+            retrieval_config=self.retrieval_config,
+            strategy=self.strategy,
+            observation_handle_set=self.observation_handle_set,
+            sounding_metadata=self.sounding_metadata,
+            selem_wrapper=sold,
+        )
+        if res is None:
+            return None
+        # Only need to cycle if we have pressure levels or spectral domain
+        if res.pressure_list_fm is not None or res.spectral_domain is not None:
+            self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
+        logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
+        return res
+
+
 __all__ = [
     "StateElement",
     "StateElementImplementation",
     "StateElementHandle",
-    "StateElementInitHandle",
     "StateElementHandleSet",
     "StateElementFillValueHandle",
     "StateElementFixedValueHandle",
+    "StateElementWithCreate",
+    "StateElementWithCreateHandle",
 ]

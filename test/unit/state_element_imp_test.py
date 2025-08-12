@@ -14,7 +14,7 @@ def test_state_element_pcloud(airs_omi_old_shandle):
     # steps
     sold_constraint_vector_fm = sold.constraint_vector_fm
     npt.assert_allclose(sold_value_fm, sold_constraint_vector_fm)
-    s = StateElementPcloud(rconfig, smeta)
+    s = StateElementPcloud.create(retrieval_config=rconfig, sounding_metadata=smeta)
     npt.assert_allclose(s.value_fm, sold_constraint_vector_fm)
     npt.assert_allclose(s.value_fm, sold_value_fm)
     # Cycle through strategy steps, and check value_fm after that

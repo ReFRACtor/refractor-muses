@@ -2,7 +2,7 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 import refractor.muses.muses_py as mpy  # type: ignore
 from .state_element import (
-    StateElementInitHandle,
+    StateElementWithCreateHandle,
     StateElementHandleSet,
 )
 from .current_state import FullGridMappedArray, RetrievalGridArray, RetrievalGrid2dArray
@@ -12,10 +12,11 @@ from .tes_file import TesFile
 import numpy as np
 from pathlib import Path
 import typing
-from typing import Any
+from typing import Any, Self
 
 if typing.TYPE_CHECKING:
-    from .muses_strategy import CurrentStrategyStep
+    from .muses_observation import ObservationHandleSet, MeasurementId
+    from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .current_state import SoundingMetadata
 
@@ -63,19 +64,20 @@ class StateElementFreqShared(StateElementOspFile):
 
 
 class StateElementEmis(StateElementFreqShared):
-    def __init__(
-        self,
-        rconfig: RetrievalConfiguration,
-        smeta: SoundingMetadata,
+    @classmethod
+    def _setup_create(
+        cls,
+        sid: StateElementIdentifier,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        measurement_id: MeasurementId | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
-        **kwargs: Any,
-    ) -> None:
-        """Create a StateElementEmis, and set up the initial guess. Note that
-        this does *not* do the retrieval_initial_fm_from_cycle, we can do that
-        after creating this StateElement. The creates one at that matches the
-        start of a old muse-py retrieval, but before it cycles through all the
-        steps."""
-        f = TesFile(Path(rconfig["Single_State_Directory"]) / "State_Emissivity_IR.asc")
+    ) -> tuple[StateElementIdentifier, np.ndarray, np.ndarray | None, dict[str, Any]]:
+        f = TesFile(
+            Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc"
+        )
         if f.table is None:
             raise RuntimeError("Trouble reading file")
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
@@ -84,18 +86,18 @@ class StateElementEmis(StateElementFreqShared):
         spectral_domain = rf.SpectralDomain(f.table["Frequency"], rf.Unit("nm"))
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
-        emis_type = rconfig["TIR_EMIS_Source"]
+        emis_type = retrieval_config["TIR_EMIS_Source"]
         uwis_data = mpy.get_emis_uwis.get_emis_dispatcher(
             emis_type,
-            smeta.latitude.value,
-            smeta.longitude.value,
-            smeta.surface_altitude.value,
-            1 if smeta.is_ocean else 0,
-            smeta.year,
-            smeta.month,
+            sounding_metadata.latitude.value,
+            sounding_metadata.longitude.value,
+            sounding_metadata.surface_altitude.value,
+            1 if sounding_metadata.is_ocean else 0,
+            sounding_metadata.year,
+            sounding_metadata.month,
             spectral_domain.data,
-            rconfig.get("CAMEL_Coef_Directory"),
-            rconfig.get("CAMEL_Lab_Directory"),
+            retrieval_config.get("CAMEL_Coef_Directory"),
+            retrieval_config.get("CAMEL_Lab_Directory"),
         )
         value_fm = uwis_data["instr_emis"].view(FullGridMappedArray)
         # Other things we may need
@@ -105,22 +107,15 @@ class StateElementEmis(StateElementFreqShared):
         prior_source = mpy.get_emis_uwis.UwisCamelOptions.emis_source_citation(
             emis_type
         )
-        super().__init__(
-            StateElementIdentifier("EMIS"),
-            None,
-            value_fm,
-            value_fm,
-            smeta.latitude.value,
-            smeta.surface_type,
-            Path(rconfig["speciesDirectory"]),
-            Path(rconfig["covarianceDirectory"]),
-            selem_wrapper=selem_wrapper,
-            spectral_domain=spectral_domain,
-            metadata={
+        kwargs = {
+            "spectral_domain": spectral_domain,
+            "selem_wrapper": selem_wrapper,
+            "metadata": {
                 "camel_distance": camel_distance,
                 "prior_source": prior_source,
             },
-        )
+        }
+        return StateElementIdentifier("EMIS"), value_fm, None, kwargs
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
@@ -211,36 +206,27 @@ class StateElementEmis(StateElementFreqShared):
 
 
 class StateElementCloudExt(StateElementFreqShared):
-    def __init__(
-        self,
-        rconfig: RetrievalConfiguration,
-        smeta: SoundingMetadata,
+    @classmethod
+    def _setup_create(
+        cls,
+        sid: StateElementIdentifier,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        measurement_id: MeasurementId | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
-        **kwargs: Any,
-    ) -> None:
-        """Create a StateElementCloudExt, and set up the initial guess. Note that
-        this does *not* do the retrieval_initial_fm_from_cycle, we can do that
-        after creating this StateElement. The creates one at that matches the
-        start of a old muse-py retrieval, but before it cycles through all the
-        steps."""
-        f = TesFile(Path(rconfig["Single_State_Directory"]) / "State_Cloud_IR.asc")
+    ) -> tuple[StateElementIdentifier, np.ndarray, np.ndarray | None, dict[str, Any]]:
+        f = TesFile(
+            Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc"
+        )
         if f.table is None:
             raise RuntimeError("Trouble reading file")
         # Despite the name frequency, this is actually wavelength.
         spectral_domain = rf.SpectralDomain(f.table["Frequencies"], rf.Unit("nm"))
         value_fm = np.array(f.table["verticalEXT"]).view(FullGridMappedArray)
-        super().__init__(
-            StateElementIdentifier("CLOUDEXT"),
-            None,
-            value_fm,
-            value_fm,
-            smeta.latitude.value,
-            smeta.surface_type,
-            Path(rconfig["speciesDirectory"]),
-            Path(rconfig["covarianceDirectory"]),
-            spectral_domain=spectral_domain,
-            selem_wrapper=selem_wrapper,
-        )
+        kwargs = {"spectral_domain": spectral_domain, "selem_wrapper": selem_wrapper}
+        return StateElementIdentifier("CLOUDEXT"), value_fm, None, kwargs
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
@@ -371,11 +357,13 @@ class StateElementCloudExt(StateElementFreqShared):
 
 
 StateElementHandleSet.add_default_handle(
-    StateElementInitHandle(StateElementIdentifier("EMIS"), StateElementEmis),
+    StateElementWithCreateHandle(StateElementIdentifier("EMIS"), StateElementEmis),
     priority_order=0,
 )
 StateElementHandleSet.add_default_handle(
-    StateElementInitHandle(StateElementIdentifier("CLOUDEXT"), StateElementCloudExt),
+    StateElementWithCreateHandle(
+        StateElementIdentifier("CLOUDEXT"), StateElementCloudExt
+    ),
     priority_order=0,
 )
 

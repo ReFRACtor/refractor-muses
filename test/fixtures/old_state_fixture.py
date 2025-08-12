@@ -63,9 +63,18 @@ def cris_tropomi_old_shandle(
             strat.instrument_name[0], None, None, None, osp_dir=osp_dir
         ),
     )
-    state_element_old_wrapper_handle.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
+    state_element_old_wrapper_handle.notify_update_target(
+        measurement_id, rconfig, strat, obs_hset, smeta
+    )
     logger.add(sys.stderr, level="DEBUG")
-    return state_element_old_wrapper_handle, measurement_id, rconfig, strat, obs_hset, smeta
+    return (
+        state_element_old_wrapper_handle,
+        measurement_id,
+        rconfig,
+        strat,
+        obs_hset,
+        smeta,
+    )
 
 
 @pytest.fixture(scope="function")
@@ -108,6 +117,15 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
             strat.instrument_name[0], None, None, None, osp_dir=osp_dir
         ),
     )
-    state_element_old_wrapper_handle.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
+    state_element_old_wrapper_handle.notify_update_target(
+        measurement_id, rconfig, strat, obs_hset, smeta
+    )
     logger.add(sys.stderr, level="DEBUG")
-    return state_element_old_wrapper_handle, measurement_id, rconfig, strat, obs_hset, smeta
+    return (
+        state_element_old_wrapper_handle,
+        measurement_id,
+        rconfig,
+        strat,
+        obs_hset,
+        smeta,
+    )

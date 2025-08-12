@@ -5,7 +5,7 @@ from .osp_reader import (
     OspSpeciesReader,
     OspDiagonalUncertainityReader,
 )
-from .state_element import StateElementImplementation, StateElement, StateElementHandle
+from .state_element import StateElementWithCreate, StateElement, StateElementHandle
 from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
 from .identifier import StateElementIdentifier, RetrievalType
 from loguru import logger
@@ -21,7 +21,7 @@ if typing.TYPE_CHECKING:
     from .current_state import SoundingMetadata
 
 
-class StateElementOspFile(StateElementImplementation):
+class StateElementOspFile(StateElementWithCreate):
     """This implementation of StateElement gets the apriori/initial guess as a hard coded
     value, and the constraint_matrix and apriori_cov_fm from OSP files. This seems a
     bit convoluted to me - why not just have all the values given in the python configuration
@@ -265,6 +265,70 @@ class StateElementOspFile(StateElementImplementation):
         else:
             res = None
         self._check_result(res, "pressure_list_fm")
+        return res
+
+    @classmethod
+    def _setup_create(
+        cls,
+        sid: StateElementIdentifier,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        measurement_id: MeasurementId | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
+        selem_wrapper: Any | None = None,
+    ) -> tuple[StateElementIdentifier, np.ndarray, np.ndarray | None, dict[str, Any]]:
+        """Return the StateElementIdentifier, initial value_fm, constraint_vector_fm
+        (if different, can be None if we don't have a separate constraint_vector_fm value), and
+        any key word arguments that should be passed to the object constructor.
+
+        If for some reason we can't actually construct this cls, value_fm can be returned
+        as None"""
+        pass
+
+    @classmethod
+    def create(
+        cls,
+        sid: StateElementIdentifier | None = None,
+        measurement_id: MeasurementId | None = None,
+        retrieval_config: RetrievalConfiguration | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
+        sounding_metadata: SoundingMetadata | None = None,
+        selem_wrapper: Any | None = None,
+    ) -> Self | None:
+        if retrieval_config is None or sounding_metadata is None:
+            raise RuntimeError("Need retrieval_config and sounding_metadata")
+        # Determining pressure is spread across a number of muses-py functions. We'll need
+        # to track all this down, but short term just get this from the old data
+        from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
+
+        p = state_element_old_wrapper_handle.state_element(
+            StateElementIdentifier("pressure")
+        )
+        pressure_list_fm = p.value_fm.copy()
+        sid2, value_fm, constraint_vector_fm, kwargs = cls._setup_create(
+            sid,
+            retrieval_config,
+            sounding_metadata,
+            measurement_id=measurement_id,
+            strategy=strategy,
+            observation_handle_set=observation_handle_set,
+            selem_wrapper=selem_wrapper,
+        )
+        if value_fm is None:
+            return None
+        res = cls(
+            sid2,
+            pressure_list_fm,
+            value_fm,
+            constraint_vector_fm if constraint_vector_fm is not None else value_fm,
+            sounding_metadata.latitude.value,
+            sounding_metadata.surface_type,
+            Path(retrieval_config["speciesDirectory"]),
+            Path(retrieval_config["covarianceDirectory"]),
+            **kwargs,
+        )
         return res
 
     @classmethod

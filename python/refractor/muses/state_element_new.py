@@ -10,6 +10,7 @@ from .state_element_osp import StateElementOspFile
 from .identifier import StateElementIdentifier
 from loguru import logger
 import typing
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
@@ -23,16 +24,19 @@ class StateElementOspFileHandleNew(StateElementHandle):
         self,
     ) -> None:
         self.obj_cls = StateElementOspFile
-        self._hold = None
+        self._hold: Any | None = None
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
         self.cov_is_constraint = False
 
     @property
-    def hold(self):
+    def hold(self) -> Any | None:
         # Extra level of indirection to handle cycle in including old_py_retrieve_wrapper
         if self._hold is None:
-            from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
+            from refractor.old_py_retrieve_wrapper import (
+                state_element_old_wrapper_handle,
+            )
+
             self._hold = state_element_old_wrapper_handle
         return self._hold
 

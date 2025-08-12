@@ -66,7 +66,9 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
             strat.instrument_name[0], None, None, None, osp_dir=osp_dir
         ),
     )
-    state_element_old_wrapper_handle.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
+    state_element_old_wrapper_handle.notify_update_target(
+        measurement_id, rconfig, strat, obs_hset, smeta
+    )
     strat.restart()
     cstate_old = state_element_old_wrapper_handle._current_state_old
     cstate_old.notify_start_retrieval(strat.current_strategy_step(), rconfig)
