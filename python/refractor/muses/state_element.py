@@ -1113,13 +1113,18 @@ class StateElementWithCreateHandle(StateElementHandle):
         include_old_state_info: bool = False,
         **kwargs: Any,
     ):
-        """Create handler for the given StateElementIdentifier, using the given class.
-        Optionally we can include the old state info StateElementOldWrapper and
-        using to verify the StateElement. We did that during initial development. We
-        don't generally do this now, but it can be useful if we need to diagnose a
-        problem. Since we have the mechanics in place already, we still support this.
-        This will likely get phased out at some point when it isn't worth maintaining
-        any longer."""
+        """Create handler for the given StateElementIdentifier, using
+        the given class.
+        
+        Optionally we can include the old state info
+        StateElementOldWrapper and using to verify the
+        StateElement. We did that during initial development. We don't
+        generally do this now, but it can be useful if we need to
+        diagnose a problem. Since we have the mechanics in place
+        already, we still support this.  This will likely get phased
+        out at some point when it isn't worth maintaining any longer.
+
+        """
         self.sid = sid
         self.obj_cls = obj_cls
         self._hold: Any | None = None

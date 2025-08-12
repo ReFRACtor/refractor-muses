@@ -68,6 +68,7 @@ if _typing.TYPE_CHECKING:
         StateElementHandleSet,
         StateElementFillValueHandle,
         StateElementFixedValueHandle,
+        StateElementWithCreate,
         StateElementWithCreateHandle,
     )
     from .state_element_osp import (
