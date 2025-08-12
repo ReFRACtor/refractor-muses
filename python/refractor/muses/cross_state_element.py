@@ -2,7 +2,7 @@ from __future__ import annotations
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .identifier import StateElementIdentifier, RetrievalType
 from .osp_reader import OspSpeciesReader
-from .current_state import FullGridMappedArray, RetrievalGrid2dArray
+from .retrieval_array import FullGridMappedArray, RetrievalGrid2dArray
 from pathlib import Path
 from loguru import logger
 import abc

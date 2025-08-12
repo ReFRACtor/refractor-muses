@@ -8,7 +8,7 @@ from typing import Any
 
 if typing.TYPE_CHECKING:
     from .identifier import InstrumentIdentifier
-    from .current_state import RetrievalGridArray
+    from .retrieval_array import RetrievalGridArray
 
 
 class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):

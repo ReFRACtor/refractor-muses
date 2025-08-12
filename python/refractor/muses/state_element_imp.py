@@ -6,7 +6,7 @@ from .state_element import (
     StateElementWithCreateHandle,
     StateElementHandleSet,
 )
-from .current_state import FullGridMappedArray
+from .retrieval_array import FullGridMappedArray
 from pathlib import Path
 import numpy as np
 from typing import Any
@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy
     from .retrieval_configuration import RetrievalConfiguration
-    from .current_state import SoundingMetadata, FullGridMappedArray
+    from .sounding_metadata import SoundingMetadata
 
 
 class StateElementPcloud(StateElementOspFile):

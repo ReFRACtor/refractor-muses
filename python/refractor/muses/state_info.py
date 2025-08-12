@@ -1,5 +1,6 @@
 from __future__ import annotations
-from .current_state import PropagatedQA, SoundingMetadata
+from .current_state import PropagatedQA
+from .sounding_metadata import SoundingMetadata
 from .state_element import StateElementHandleSet, StateElement
 from .cross_state_element import CrossStateElement, CrossStateElementHandleSet
 from .identifier import StateElementIdentifier
@@ -11,7 +12,8 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId, ObservationHandleSet
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .current_state import CurrentState, RetrievalGridArray, RetrievalGrid2dArray
+    from .current_state import CurrentState
+    from .retrieval_array import RetrievalGridArray, RetrievalGrid2dArray
 
 
 class CrossStateInfo(UserDict):

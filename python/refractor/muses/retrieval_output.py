@@ -21,7 +21,8 @@ if typing.TYPE_CHECKING:
     from .retrieval_strategy_step import RetrievalStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .retrieval_result import RetrievalResult
-    from .current_state import CurrentState, SoundingMetadata
+    from .current_state import CurrentState
+    from .sounding_metadata import SoundingMetadata
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MusesObservation
 

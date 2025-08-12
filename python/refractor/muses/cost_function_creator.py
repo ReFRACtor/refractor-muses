@@ -4,7 +4,7 @@ from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 from .current_state import CurrentState, CurrentStateUip
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
-from .current_state import RetrievalGridArray
+from .retrieval_array import RetrievalGridArray
 import refractor.framework as rf  # type: ignore
 import copy
 from loguru import logger

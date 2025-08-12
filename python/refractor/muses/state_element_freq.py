@@ -5,7 +5,11 @@ from .state_element import (
     StateElementWithCreateHandle,
     StateElementHandleSet,
 )
-from .current_state import FullGridMappedArray, RetrievalGridArray, RetrievalGrid2dArray
+from .retrieval_array import (
+    FullGridMappedArray,
+    RetrievalGridArray,
+    RetrievalGrid2dArray,
+)
 from .state_element_osp import StateElementOspFile
 from .identifier import StateElementIdentifier, RetrievalType
 from .tes_file import TesFile
@@ -18,7 +22,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .current_state import SoundingMetadata
+    from .sounding_metadata import SoundingMetadata
 
 
 class StateElementFreqShared(StateElementOspFile):

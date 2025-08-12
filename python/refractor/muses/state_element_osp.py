@@ -6,7 +6,7 @@ from .osp_reader import (
     OspDiagonalUncertainityReader,
 )
 from .state_element import StateElementWithCreate
-from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
+from .retrieval_array import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
 from .identifier import StateElementIdentifier, RetrievalType
 from pathlib import Path
 import numpy as np
@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .current_state import SoundingMetadata
+    from .sounding_metadata import SoundingMetadata
 
 
 class StateElementOspFile(StateElementWithCreate):

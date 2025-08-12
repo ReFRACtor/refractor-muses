@@ -7,7 +7,7 @@ from .muses_levmar_solver import MusesLevmarSolver
 from .observation_handle import mpy_radiance_from_observation_list
 from .retrieval_result import RetrievalResult
 from .identifier import RetrievalType, ProcessLocation
-from .current_state import RetrievalGridArray
+from .retrieval_array import RetrievalGridArray
 import numpy as np
 import json
 import gzip

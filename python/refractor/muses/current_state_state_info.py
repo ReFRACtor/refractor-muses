@@ -1,7 +1,7 @@
 from __future__ import annotations
 from . import muses_py as mpy  # type: ignore
-from .current_state import (
-    CurrentState,
+from .current_state import CurrentState
+from .retrieval_array import (
     RetrievalGridArray,
     FullGridArray,
     FullGridMappedArray,
@@ -21,7 +21,8 @@ from loguru import logger
 import typing
 
 if typing.TYPE_CHECKING:
-    from .current_state import PropagatedQA, SoundingMetadata
+    from .current_state import PropagatedQA
+    from .sounding_metadata import SoundingMetadata
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import CurrentStrategyStep
     from .muses_strategy import MusesStrategy

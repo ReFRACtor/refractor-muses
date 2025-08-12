@@ -4,15 +4,15 @@ import refractor.framework as rf  # type: ignore
 import refractor.muses.muses_py as mpy  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .identifier import StateElementIdentifier, StrategyStepIdentifier
-from .current_state import (
+from .retrieval_array import (
     RetrievalGridArray,
     FullGridMappedArray,
     FullGridMappedArrayFromRetGrid,
     RetrievalGrid2dArray,
     FullGrid2dArray,
     FullGridArray,
-    CurrentState,
 )
+from .current_state import CurrentState
 import abc
 from loguru import logger
 import numpy as np
@@ -25,7 +25,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .cost_function_creator import CostFunctionStateElementNotify
-    from .current_state import SoundingMetadata
+    from .sounding_metadata import SoundingMetadata
 
 
 class StateElement(object, metaclass=abc.ABCMeta):

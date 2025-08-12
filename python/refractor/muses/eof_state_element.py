@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .identifier import StateElementIdentifier
 from .state_element import StateElementImplementation, StateElementHandle, StateElement
-from .current_state import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
+from .retrieval_array import FullGridMappedArray, RetrievalGrid2dArray, FullGrid2dArray
 import numpy as np
 import typing
 

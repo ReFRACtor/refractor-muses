@@ -14,7 +14,8 @@ if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
     from .muses_strategy import MusesStrategy
     from .retrieval_configuration import RetrievalConfiguration
-    from .current_state import SoundingMetadata, FullGridMappedArray
+    from .sounding_metadata import SoundingMetadata
+    from .retrieval_array import FullGridMappedArray
 
 
 class StateElementOldInitialValue(StateElementOspFile):

@@ -11,7 +11,8 @@ from .identifier import (
     IdentifierSortByWaveLength,
 )
 from .spectral_window_handle import SpectralWindowHandleSet
-from .current_state import RetrievalGridArray, CurrentState
+from .current_state import CurrentState
+from .retrieval_array import RetrievalGridArray
 import os
 import abc
 import typing

@@ -13,7 +13,7 @@ from .identifier import StateElementIdentifier, RetrievalType
 import typing
 
 if typing.TYPE_CHECKING:
-    from .current_state import RetrievalGridArray, FullGridMappedArray
+    from .retrieval_array import RetrievalGridArray, FullGridMappedArray
 
 
 class RangeFind:
