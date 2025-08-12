@@ -1064,7 +1064,7 @@ class StateElementWithCreateHandle(StateElementHandle):
 
     def __init__(
         self,
-        sid: StateElementIdentifier,
+        sid: StateElementIdentifier | None,
         obj_cls: type[StateElementWithCreate],
         include_old_state_info: bool = False,
     ):
@@ -1110,7 +1110,7 @@ class StateElementWithCreateHandle(StateElementHandle):
     def state_element(
         self, state_element_id: StateElementIdentifier
     ) -> StateElement | None:
-        if state_element_id != self.sid:
+        if self.sid is not None and state_element_id != self.sid:
             return None
 
         sold = (

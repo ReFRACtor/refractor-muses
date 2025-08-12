@@ -409,6 +409,8 @@ class OspSpeciesReader(OspFileHandle):
         sid: StateElementIdentifier,
         retrieval_type: RetrievalType,
     ) -> np.ndarray | None:
+        if sid not in self.filename_data:
+            return None
         t = self.read_file(sid, retrieval_type)
         r = [int(i) for i in t["retrievalLevels"].split(",")]
         if len(r) == 1 and r[0] == 0:
@@ -420,6 +422,8 @@ class OspSpeciesReader(OspFileHandle):
         sid: StateElementIdentifier,
         retrieval_type: RetrievalType,
     ) -> str:
+        if sid not in self.filename_data:
+            return "linear"
         t = self.read_file(sid, retrieval_type)
         return t["mapType"].lower()
 

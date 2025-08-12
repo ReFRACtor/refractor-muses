@@ -270,21 +270,26 @@ class StateElementOspFile(StateElementWithCreate):
     @classmethod
     def _setup_create(
         cls,
-        sid: StateElementIdentifier,
+        sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
-    ) -> tuple[StateElementIdentifier, np.ndarray, np.ndarray | None, dict[str, Any]]:
+    ) -> tuple[
+        StateElementIdentifier,
+        FullGridMappedArray | None,
+        FullGridMappedArray | None,
+        dict[str, Any],
+    ]:
         """Return the StateElementIdentifier, initial value_fm, constraint_vector_fm
         (if different, can be None if we don't have a separate constraint_vector_fm value), and
         any key word arguments that should be passed to the object constructor.
 
         If for some reason we can't actually construct this cls, value_fm can be returned
         as None"""
-        pass
+        return StateElementIdentifier("Dummy"), None, None, {}
 
     @classmethod
     def create(
@@ -320,7 +325,11 @@ class StateElementOspFile(StateElementWithCreate):
             return None
         res = cls(
             sid2,
-            pressure_list_fm,
+            # I think this logic is sufficient to only have pressure for
+            # state elements on pressure levels. We can rework this if needed.
+            pressure_list_fm
+            if value_fm.shape[0] == pressure_list_fm.shape[0]
+            else None,
             value_fm,
             constraint_vector_fm if constraint_vector_fm is not None else value_fm,
             sounding_metadata.latitude.value,

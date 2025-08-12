@@ -11,7 +11,8 @@ from refractor.muses import (
     MusesStrategyStepList,
     SoundingMetadata,
     ObservationHandleSet,
-    StateElementOspFileHandleNew,
+    StateElementWithCreateHandle,
+    StateElementOldInitialValue,
     MusesObservationHandlePickleSave,
     MusesAirsObservation,
     MusesOmiObservation,
@@ -83,7 +84,7 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
     cstate_old.notify_start_retrieval(strat.current_strategy_step(), rconfig)
     cstate_old.notify_start_step(strat.current_strategy_step(), rconfig)
     logger.add(sys.stderr, level="DEBUG")
-    shand = StateElementOspFileHandleNew()
+    shand = StateElementWithCreateHandle(None, StateElementOldInitialValue)
     shand.notify_update_target(measurement_id, rconfig, strat, obs_hset, smeta)
     return shand, strat, rconfig, cstate_old
 

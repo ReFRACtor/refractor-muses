@@ -12,7 +12,7 @@ from .tes_file import TesFile
 import numpy as np
 from pathlib import Path
 import typing
-from typing import Any, Self
+from typing import Any
 
 if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
@@ -67,14 +67,19 @@ class StateElementEmis(StateElementFreqShared):
     @classmethod
     def _setup_create(
         cls,
-        sid: StateElementIdentifier,
+        sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
-    ) -> tuple[StateElementIdentifier, np.ndarray, np.ndarray | None, dict[str, Any]]:
+    ) -> tuple[
+        StateElementIdentifier,
+        FullGridMappedArray | None,
+        FullGridMappedArray | None,
+        dict[str, Any],
+    ]:
         f = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc"
         )
@@ -209,14 +214,19 @@ class StateElementCloudExt(StateElementFreqShared):
     @classmethod
     def _setup_create(
         cls,
-        sid: StateElementIdentifier,
+        sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
-    ) -> tuple[StateElementIdentifier, np.ndarray, np.ndarray | None, dict[str, Any]]:
+    ) -> tuple[
+        StateElementIdentifier,
+        FullGridMappedArray | None,
+        FullGridMappedArray | None,
+        dict[str, Any],
+    ]:
         f = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc"
         )
