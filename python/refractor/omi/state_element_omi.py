@@ -3,6 +3,8 @@ import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     StateElementHandleSet,
     StateElementOspFileHandle,
+    StateElementWithCreateHandle,
+    StateElementOspFileFixedValue,
     StateElementFillValueHandle,
     StateElementOspFile,
     StateElementIdentifier,
@@ -38,6 +40,21 @@ def add_handle(
             np.array([constraint_value]).view(FullGridMappedArray),
             np.array([constraint_value]).view(FullGridMappedArray),
             cls=cls,
+        ),
+        priority_order=2,
+    )
+
+
+def add_fixed_handle(sname: str, initial_value: float) -> None:
+    StateElementHandleSet.add_default_handle(
+        StateElementWithCreateHandle(
+            StateElementIdentifier(sname),
+            StateElementOspFileFixedValue,
+            initial_value=np.array(
+                [
+                    initial_value,
+                ]
+            ).view(FullGridMappedArray),
         ),
         priority_order=2,
     )
@@ -209,17 +226,17 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
 add_handle("OMICLOUDFRACTION", -999.0, StateElementOmiCloudFraction)
 # This gets created even if we don't have OMI data
 add_fill_handle("OMICLOUDFRACTION")
-add_handle("OMINRADWAVUV1", 0.0)
-add_handle("OMINRADWAVUV2", 0.0)
-add_handle("OMIODWAVSLOPEUV1", 0.0)
-add_handle("OMIODWAVSLOPEUV2", 0.0)
-add_handle("OMIODWAVUV1", 0.0)
-add_handle("OMIODWAVUV2", 0.0)
+add_fixed_handle("OMINRADWAVUV1", 0.0)
+add_fixed_handle("OMINRADWAVUV2", 0.0)
+add_fixed_handle("OMIODWAVSLOPEUV1", 0.0)
+add_fixed_handle("OMIODWAVSLOPEUV2", 0.0)
+add_fixed_handle("OMIODWAVUV1", 0.0)
+add_fixed_handle("OMIODWAVUV2", 0.0)
 # Doesn't actually seem to be in muses-py, although there is a species file for this
 # add_handle("OMIRESSCALE", 0.0)
-add_handle("OMIRINGSFUV1", 1.9)
-add_handle("OMIRINGSFUV2", 1.9)
-add_handle("OMISURFACEALBEDOSLOPEUV2", 0.0)
+add_fixed_handle("OMIRINGSFUV1", 1.9)
+add_fixed_handle("OMIRINGSFUV2", 1.9)
+add_fixed_handle("OMISURFACEALBEDOSLOPEUV2", 0.0)
 add_handle("OMISURFACEALBEDOUV1", -999.0, StateElementOmiSurfaceAlbedo)
 add_handle("OMISURFACEALBEDOUV2", -999.0, StateElementOmiSurfaceAlbedo)
 add_fill_handle("OMISURFACEALBEDOUV1")

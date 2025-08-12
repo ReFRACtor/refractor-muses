@@ -277,6 +277,7 @@ class StateElementOspFile(StateElementWithCreate):
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
+        **kwargs: Any,
     ) -> tuple[
         StateElementIdentifier,
         FullGridMappedArray | None,
@@ -301,6 +302,7 @@ class StateElementOspFile(StateElementWithCreate):
         observation_handle_set: ObservationHandleSet | None = None,
         sounding_metadata: SoundingMetadata | None = None,
         selem_wrapper: Any | None = None,
+        **extra_kwargs: Any,
     ) -> Self | None:
         if retrieval_config is None or sounding_metadata is None:
             raise RuntimeError("Need retrieval_config and sounding_metadata")
@@ -320,6 +322,7 @@ class StateElementOspFile(StateElementWithCreate):
             strategy=strategy,
             observation_handle_set=observation_handle_set,
             selem_wrapper=selem_wrapper,
+            **extra_kwargs,
         )
         if value_fm is None:
             return None
@@ -411,6 +414,33 @@ class StateElementOspFile(StateElementWithCreate):
         self._state_mapping_retrieval_to_fm = None
 
 
+class StateElementOspFileFixedValue(StateElementOspFile):
+    """There are some StateElements that just have a fixed initial value.
+    This class support that."""
+
+    @classmethod
+    def _setup_create(
+        cls,
+        sid: StateElementIdentifier | None,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        measurement_id: MeasurementId | None = None,
+        strategy: MusesStrategy | None = None,
+        observation_handle_set: ObservationHandleSet | None = None,
+        selem_wrapper: Any | None = None,
+        initial_value: FullGridMappedArray | None = None,
+        **kwargs: Any,
+    ) -> tuple[
+        StateElementIdentifier,
+        FullGridMappedArray | None,
+        FullGridMappedArray | None,
+        dict[str, Any],
+    ]:
+        if initial_value is None or sid is None:
+            return StateElementIdentifier("Dummy"), None, None, {}
+        return sid, initial_value, None, {}
+
+
 class StateElementOspFileHandle(StateElementHandle):
     def __init__(
         self,
@@ -483,4 +513,5 @@ class StateElementOspFileHandle(StateElementHandle):
 __all__ = [
     "StateElementOspFileHandle",
     "StateElementOspFile",
+    "StateElementOspFileFixedValue",
 ]

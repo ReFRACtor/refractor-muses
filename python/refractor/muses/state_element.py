@@ -1054,6 +1054,7 @@ class StateElementWithCreate(StateElementImplementation):
         observation_handle_set: ObservationHandleSet | None = None,
         sounding_metadata: SoundingMetadata | None = None,
         selem_wrapper: Any | None = None,
+        **kwargs: Any,
     ) -> Self | None:
         pass
 
@@ -1067,6 +1068,7 @@ class StateElementWithCreateHandle(StateElementHandle):
         sid: StateElementIdentifier | None,
         obj_cls: type[StateElementWithCreate],
         include_old_state_info: bool = False,
+        **kwargs: Any,
     ):
         """Create handler for the given StateElementIdentifier, using the given class.
         Optionally we can include the old state info StateElementOldWrapper and
@@ -1081,6 +1083,7 @@ class StateElementWithCreateHandle(StateElementHandle):
         self.include_old_state_info = include_old_state_info
         self.measurement_id: MeasurementId | None = None
         self.retrieval_config: RetrievalConfiguration | None = None
+        self.extra_kwargs = kwargs
 
     @property
     def hold(self) -> Any:
@@ -1126,6 +1129,7 @@ class StateElementWithCreateHandle(StateElementHandle):
             observation_handle_set=self.observation_handle_set,
             sounding_metadata=self.sounding_metadata,
             selem_wrapper=sold,
+            **self.extra_kwargs,
         )
         if res is None:
             return None

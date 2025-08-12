@@ -32,6 +32,7 @@ class StateElementPcloud(StateElementOspFile):
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
+        **kwargs: Any,
     ) -> tuple[
         StateElementIdentifier,
         FullGridMappedArray | None,

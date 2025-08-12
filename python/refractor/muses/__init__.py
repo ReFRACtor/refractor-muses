@@ -68,8 +68,13 @@ if _typing.TYPE_CHECKING:
         StateElementHandleSet,
         StateElementFillValueHandle,
         StateElementFixedValueHandle,
+        StateElementWithCreateHandle,
     )
-    from .state_element_osp import StateElementOspFileHandle, StateElementOspFile
+    from .state_element_osp import (
+        StateElementOspFileHandle,
+        StateElementOspFile,
+        StateElementOspFileFixedValue,
+    )
     from .identifier import (
         FilterIdentifier,
         InstrumentIdentifier,

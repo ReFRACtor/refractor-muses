@@ -74,6 +74,7 @@ class StateElementEmis(StateElementFreqShared):
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
+        **kwargs: Any,
     ) -> tuple[
         StateElementIdentifier,
         FullGridMappedArray | None,
@@ -221,6 +222,7 @@ class StateElementCloudExt(StateElementFreqShared):
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         selem_wrapper: Any | None = None,
+        **kwargs: Any,
     ) -> tuple[
         StateElementIdentifier,
         FullGridMappedArray | None,
