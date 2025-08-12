@@ -3,7 +3,7 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 import refractor.muses.muses_py as mpy  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
-from .identifier import StateElementIdentifier
+from .identifier import StateElementIdentifier, StrategyStepIdentifier
 from .current_state import (
     RetrievalGridArray,
     FullGridMappedArray,
@@ -561,6 +561,7 @@ class StateElementImplementation(StateElement):
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
             self.update_initial_guess = self._update_initial_guess
         self.is_bt_ig_refine = False
+        self._current_strategy_step: StrategyStepIdentifier | None = None
 
     def notify_parameter_update(self, param_subset: np.ndarray) -> None:
         # Skip if we aren't actually retrieving. This fits with the hokey way that
@@ -910,6 +911,7 @@ class StateElementImplementation(StateElement):
         retrieval_config: RetrievalConfiguration,
         skip_initial_guess_update: bool = False,
     ) -> None:
+        self._current_strategy_step = current_strategy_step.strategy_step
         # Update the initial value if we have a setting from the previous step
         if self._next_step_initial_fm is not None:
             self._step_initial_fm = self._next_step_initial_fm
@@ -1044,6 +1046,35 @@ class StateElementWithCreate(StateElementImplementation):
     retrieval, but before it cycles through all the steps.
     """
 
+    def __init__(
+        self,
+        state_element_id: StateElementIdentifier,
+        value_fm: FullGridMappedArray,
+        constraint_vector_fm: FullGridMappedArray,
+        apriori_cov_fm: FullGrid2dArray | None,
+        constraint_matrix: RetrievalGrid2dArray | None,
+        state_mapping_retrieval_to_fm: rf.StateMapping | None = rf.StateMappingLinear(),
+        state_mapping: rf.StateMapping | None = rf.StateMappingLinear(),
+        initial_value_fm: FullGridMappedArray | None = None,
+        true_value_fm: FullGridMappedArray | None = None,
+        spectral_domain: rf.SpectralDomain | None = None,
+        selem_wrapper: Any | None = None,
+    ) -> None:
+        super().__init__(
+            state_element_id,
+            value_fm,
+            constraint_vector_fm,
+            apriori_cov_fm,
+            constraint_matrix,
+            state_mapping_retrieval_to_fm,
+            state_mapping,
+            initial_value_fm,
+            true_value_fm,
+            spectral_domain,
+            selem_wrapper,
+        )
+        self._need_retrieval_initial_fm_from_cyle: bool | None = None
+
     @classmethod
     def create(
         cls,
@@ -1057,6 +1088,18 @@ class StateElementWithCreate(StateElementImplementation):
         **kwargs: Any,
     ) -> Self | None:
         pass
+
+    def need_retrieval_initial_fm_from_cycle(self) -> bool:
+        """Return True if we need to have retrieval_initial_fm_from_cycle run for
+        this StateElement"""
+        if self._need_retrieval_initial_fm_from_cyle is None:
+            self._need_retrieval_initial_fm_from_cyle = (
+                self.pressure_list_fm is not None or self.spectral_domain is not None
+            )
+        return self._need_retrieval_initial_fm_from_cyle
+
+    def notify_done_retrieval_initial_fm_from_cycle(self) -> None:
+        self._need_retrieval_initial_fm_from_cyle = False
 
 
 class StateElementWithCreateHandle(StateElementHandle):
@@ -1133,8 +1176,7 @@ class StateElementWithCreateHandle(StateElementHandle):
         )
         if res is None:
             return None
-        # Only need to cycle if we have pressure levels or spectral domain
-        if res.pressure_list_fm is not None or res.spectral_domain is not None:
+        if res.need_retrieval_initial_fm_from_cycle():
             self.strategy.retrieval_initial_fm_from_cycle(res, self.retrieval_config)
         logger.debug(f"Creating {self.obj_cls.__name__} for {state_element_id}")
         return res

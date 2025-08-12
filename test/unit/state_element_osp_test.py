@@ -17,6 +17,7 @@ from refractor.muses import (
     MusesAirsObservation,
     MusesOmiObservation,
     InstrumentIdentifier,
+    StrategyStepIdentifier,
 )
 from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
 import numpy as np
@@ -152,6 +153,7 @@ def test_osp_state_element(osp_dir, omi_test_in_dir):
             "retrieval_elements": [StateElementIdentifier("OMIODWAVUV1")],
             "retrieval_type": RetrievalType("default"),
             "retrieval_elements_not_updated": [],
+            "strategy_step" : StrategyStepIdentifier(1, "step_1")
         },
         None,
     )
@@ -240,6 +242,7 @@ def test_osp_state_element_constraint(osp_dir, omi_test_in_dir):
             "retrieval_elements": [StateElementIdentifier("OMICLOUDFRACTION")],
             "retrieval_type": RetrievalType("omicloud_ig_refine"),
             "retrieval_elements_not_updated": [],
+            "strategy_step" : StrategyStepIdentifier(1, "step_1")
         },
         None,
     )
@@ -258,6 +261,7 @@ def test_osp_state_element_constraint(osp_dir, omi_test_in_dir):
             "retrieval_elements": [StateElementIdentifier("OMICLOUDFRACTION")],
             "retrieval_type": RetrievalType("not_special_step"),
             "retrieval_elements_not_updated": [],
+            "strategy_step" : StrategyStepIdentifier(1, "step_1")
         },
         None,
     )

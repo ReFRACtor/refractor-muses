@@ -519,6 +519,11 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 step_initial_fm=selem.value_fm.copy(),
                 next_step_initial_fm=None,
             )
+            # StateElementWithCreate has a notify_done_retrieval_initial_fm_from_cycle. Call
+            # if the StateElement has this attribute - no error if it doesn't. Just marks so
+            # we know this has already been run
+            if hasattr(selem, "notify_done_retrieval_initial_fm_from_cycle"):
+                selem.notify_done_retrieval_initial_fm_from_cycle()
         finally:
             CurrentState.check_old_state_element_value = original_value
 

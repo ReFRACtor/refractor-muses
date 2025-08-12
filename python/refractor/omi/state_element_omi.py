@@ -63,6 +63,8 @@ def add_fixed_handle(sname: str, initial_value: float) -> None:
 def add_fill_handle(
     sname: str,
 ) -> None:
+    # Lower priority, so we only create fill data if we couldn't create the actual
+    # StateElement.
     StateElementHandleSet.add_default_handle(
         StateElementFillValueHandle(StateElementIdentifier(sname)), priority_order=1
     )
