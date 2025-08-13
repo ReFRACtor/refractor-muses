@@ -66,6 +66,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
     @classmethod
     def _setup_create(
         cls,
+        pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
@@ -102,6 +103,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
     @classmethod
     def _setup_create(
         cls,
+        pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,

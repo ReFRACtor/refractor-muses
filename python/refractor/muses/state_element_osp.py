@@ -261,7 +261,7 @@ class StateElementOspFile(StateElementWithCreate):
                     self.pressure_list_fm is not None
                     or self.spectral_domain is not None
                 )
-            except FileNotFoundError:
+            except (FileNotFoundError, RuntimeError):
                 self._need_retrieval_initial_fm_from_cyle = False
         return self._need_retrieval_initial_fm_from_cyle
 
@@ -283,6 +283,7 @@ class StateElementOspFile(StateElementWithCreate):
     @classmethod
     def _setup_create(
         cls,
+        pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
@@ -328,6 +329,7 @@ class StateElementOspFile(StateElementWithCreate):
         )
         pressure_list_fm = p.value_fm.copy()
         sid2, value_fm, constraint_vector_fm, kwargs = cls._setup_create(
+            pressure_list_fm,
             sid,
             retrieval_config,
             sounding_metadata,
@@ -389,6 +391,7 @@ class StateElementOspFileFixedValue(StateElementOspFile):
     @classmethod
     def _setup_create(
         cls,
+        pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,

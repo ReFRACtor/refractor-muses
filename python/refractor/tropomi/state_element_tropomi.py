@@ -67,6 +67,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
     @classmethod
     def _setup_create(
         cls,
+        pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
@@ -144,6 +145,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
     @classmethod
     def _setup_create(
         cls,
+        pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
