@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata
     from .retrieval_array import FullGridMappedArray
+    from .state_info import StateInfo
 
 
 class StateElementOldInitialValue(StateElementOspFile):
@@ -34,6 +35,7 @@ class StateElementOldInitialValue(StateElementOspFile):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwarg: Any,
     ) -> tuple[

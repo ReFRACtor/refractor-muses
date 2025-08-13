@@ -22,6 +22,7 @@ if typing.TYPE_CHECKING:
         SoundingMetadata,
         RetrievalConfiguration,
         MeasurementId,
+        StateInfo,
     )
 
 
@@ -73,6 +74,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwargs: Any,
     ) -> tuple[
@@ -110,6 +112,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwargs: Any,
     ) -> tuple[

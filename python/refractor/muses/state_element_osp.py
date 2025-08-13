@@ -18,6 +18,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata
+    from .state_info import StateInfo
 
 
 class StateElementOspFile(StateElementWithCreate):
@@ -290,6 +291,7 @@ class StateElementOspFile(StateElementWithCreate):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwargs: Any,
     ) -> tuple[
@@ -315,6 +317,7 @@ class StateElementOspFile(StateElementWithCreate):
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         sounding_metadata: SoundingMetadata | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **extra_kwargs: Any,
     ) -> Self | None:
@@ -336,6 +339,7 @@ class StateElementOspFile(StateElementWithCreate):
             measurement_id=measurement_id,
             strategy=strategy,
             observation_handle_set=observation_handle_set,
+            state_info=state_info,
             selem_wrapper=selem_wrapper,
             **extra_kwargs,
         )
@@ -398,6 +402,7 @@ class StateElementOspFileFixedValue(StateElementOspFile):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         initial_value: FullGridMappedArray | None = None,
         **kwargs: Any,

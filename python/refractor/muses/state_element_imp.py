@@ -17,6 +17,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata
+    from .state_info import StateInfo
 
 
 class StateElementFromSingle(StateElementOspFile):
@@ -32,6 +33,7 @@ class StateElementFromSingle(StateElementOspFile):
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         sounding_metadata: SoundingMetadata | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **extra_kwargs: Any,
     ) -> Self | None:
@@ -39,26 +41,35 @@ class StateElementFromSingle(StateElementOspFile):
             raise RuntimeError("Need retrieval_config")
         # Check if the state element is in the list of Species_List_From_Single, if not
         # we can't process it
-        if sid is not None and sid not in [StateElementIdentifier(i) for i in retrieval_config["Species_List_From_Single"].split(",")]:
+        if sid is not None and sid not in [
+            StateElementIdentifier(i)
+            for i in retrieval_config["Species_List_From_Single"].split(",")
+        ]:
             return None
-        cls.fcloud = TesFile(
+        fcloud = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc"
         )
-        cls.fatm = TesFile(
+        fatm = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc"
         )
-        cls.fcal = TesFile(
-            Path(retrieval_config["Single_State_Directory"]) / "State_CalibrationData.asc"
+        fcal = TesFile(
+            Path(retrieval_config["Single_State_Directory"])
+            / "State_CalibrationData.asc"
         )
         return super(StateElementFromSingle, cls).create(
             sid,
-                                 measurement_id,
-                                 retrieval_config,
-                                 strategy,
-                                 observation_handle_set,
-                                 sounding_metadata,
-                                 selem_wrapper,
-                                 **extra_kwargs)
+            measurement_id,
+            retrieval_config,
+            strategy,
+            observation_handle_set,
+            sounding_metadata,
+            state_info,
+            selem_wrapper,
+            fcloud=fcloud,
+            fatm=fatm,
+            fcal=fcal,
+            **extra_kwargs,
+        )
 
     @classmethod
     def _setup_create(
@@ -70,7 +81,11 @@ class StateElementFromSingle(StateElementOspFile):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
+        fatm: TesFile | None = None,
+        fcloud: TesFile | None = None,
+        fcal: TesFile | None = None,
         **kwargs: Any,
     ) -> tuple[
         StateElementIdentifier,
@@ -78,15 +93,19 @@ class StateElementFromSingle(StateElementOspFile):
         FullGridMappedArray | None,
         dict[str, Any],
     ]:
-        if sid is None:
+        if sid is None or fatm is None or fatm.table is None:
             return StateElementIdentifier("Dummy"), None, None, {}
-        value_fm = np.array(cls.fatm.table[str(sid)]).view(FullGridMappedArray)
-        value_fm = value_fm[(value_fm.shape[0] - pressure_list_fm.shape[0]):]
+        value_fm = np.array(fatm.table[str(sid)]).view(FullGridMappedArray)
+        value_fm = value_fm[(value_fm.shape[0] - pressure_list_fm.shape[0]) :].view(
+            FullGridMappedArray
+        )
         kwargs = {"selem_wrapper": selem_wrapper}
         return sid, value_fm, None, kwargs
 
+
 class StateElementPcloud(StateElementFromSingle):
     """State element for PCLOUD."""
+
     @classmethod
     def _setup_create(
         cls,
@@ -97,7 +116,11 @@ class StateElementPcloud(StateElementFromSingle):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
+        fatm: TesFile | None = None,
+        fcloud: TesFile | None = None,
+        fcal: TesFile | None = None,
         **kwargs: Any,
     ) -> tuple[
         StateElementIdentifier,
@@ -105,9 +128,11 @@ class StateElementPcloud(StateElementFromSingle):
         FullGridMappedArray | None,
         dict[str, Any],
     ]:
+        if fcloud is None:
+            return StateElementIdentifier("Dummy"), None, None, {}
         value_fm = np.array(
             [
-                float(cls.fcloud["CloudPressure"]),
+                float(fcloud["CloudPressure"]),
             ]
         ).view(FullGridMappedArray)
         # There are a handful of state element that muses-py just "knows" get
@@ -146,7 +171,7 @@ StateElementHandleSet.add_default_handle(
         include_old_state_info=True,
     ),
     # Temp, until we get second handle in place
-    #priority_order=0,
+    # priority_order=0,
     priority_order=-100,
 )
 
@@ -166,7 +191,7 @@ StateElementHandleSet.add_default_handle(
         include_old_state_info=True,
     ),
     # Temp, until we get second handle in place
-    #priority_order=0,
+    # priority_order=0,
     priority_order=-100,
 )
 
@@ -180,6 +205,4 @@ StateElementHandleSet.add_default_handle(
 )
 
 
-__all__ = [
-    "StateElementPcloud", "StateElementFromSingle"
-]
+__all__ = ["StateElementPcloud", "StateElementFromSingle"]

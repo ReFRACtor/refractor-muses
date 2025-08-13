@@ -39,6 +39,7 @@ if _typing.TYPE_CHECKING:
         CurrentStateUip,
         PropagatedQA,
     )
+    from .state_info import StateInfo
     from .sounding_metadata import SoundingMetadata
     from .retrieval_array import (
         RetrievalGridArray,

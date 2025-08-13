@@ -26,6 +26,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .cost_function_creator import CostFunctionStateElementNotify
     from .sounding_metadata import SoundingMetadata
+    from .state_info import StateInfo
 
 
 class StateElement(object, metaclass=abc.ABCMeta):
@@ -434,6 +435,7 @@ class StateElementHandle(CreatorHandle):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
+        state_info: StateInfo | None = None,
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # Default is to do nothing
@@ -467,6 +469,7 @@ class StateElementHandleSet(CreatorHandleSet):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
+        state_info: StateInfo | None = None,
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
@@ -477,6 +480,7 @@ class StateElementHandleSet(CreatorHandleSet):
                     strategy,
                     observation_handle_set,
                     sounding_metadata,
+                    state_info,
                 )
 
 
@@ -1086,6 +1090,7 @@ class StateElementWithCreate(StateElementImplementation):
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         sounding_metadata: SoundingMetadata | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwargs: Any,
     ) -> Self | None:
@@ -1161,12 +1166,14 @@ class StateElementWithCreateHandle(StateElementHandle):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
+        state_info: StateInfo | None = None,
     ) -> None:
         self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config
         self.strategy = strategy
         self.observation_handle_set = observation_handle_set
         self.sounding_metadata = sounding_metadata
+        self.state_info = state_info
 
     def state_element(
         self, state_element_id: StateElementIdentifier
@@ -1186,6 +1193,7 @@ class StateElementWithCreateHandle(StateElementHandle):
             strategy=self.strategy,
             observation_handle_set=self.observation_handle_set,
             sounding_metadata=self.sounding_metadata,
+            state_info=self.state_info,
             selem_wrapper=sold,
             **self.extra_kwargs,
         )

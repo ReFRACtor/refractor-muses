@@ -23,6 +23,7 @@ if typing.TYPE_CHECKING:
         SoundingMetadata,
         RetrievalConfiguration,
         MeasurementId,
+        StateInfo,
     )
 
 
@@ -74,6 +75,7 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwargs: Any,
     ) -> tuple[
@@ -110,6 +112,7 @@ class StateElementTropomiCloudPressure(StateElementWithCreate):
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
         sounding_metadata: SoundingMetadata | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwargs: Any,
     ) -> Self | None:
@@ -152,6 +155,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         band: int = -1,
         **kwargs: Any,

@@ -23,6 +23,7 @@ if typing.TYPE_CHECKING:
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata
+    from .state_info import StateInfo
 
 
 class StateElementFreqShared(StateElementOspFile):
@@ -78,6 +79,7 @@ class StateElementEmis(StateElementFreqShared):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwargs: Any,
     ) -> tuple[
@@ -227,6 +229,7 @@ class StateElementCloudExt(StateElementFreqShared):
         measurement_id: MeasurementId | None = None,
         strategy: MusesStrategy | None = None,
         observation_handle_set: ObservationHandleSet | None = None,
+        state_info: StateInfo | None = None,
         selem_wrapper: Any | None = None,
         **kwargs: Any,
     ) -> tuple[

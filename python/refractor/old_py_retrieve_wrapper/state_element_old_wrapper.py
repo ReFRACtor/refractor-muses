@@ -9,6 +9,7 @@ from refractor.muses import (
     StateElementHandle,
     StateElementHandleSet,
     StateElementIdentifier,
+    StateInfo,
     RetrievalGridArray,
     FullGridMappedArray,
     RetrievalGrid2dArray,
@@ -420,6 +421,7 @@ class StateElementOldWrapperHandle(StateElementHandle):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
+        state_info: StateInfo | None = None,
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         self._current_state_old.notify_update_target(
