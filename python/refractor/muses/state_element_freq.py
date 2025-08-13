@@ -10,7 +10,7 @@ from .retrieval_array import (
     RetrievalGridArray,
     RetrievalGrid2dArray,
 )
-from .state_element_osp import StateElementOspFile
+from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .identifier import StateElementIdentifier, RetrievalType
 from .tes_file import TesFile
 import numpy as np
@@ -19,11 +19,9 @@ import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import ObservationHandleSet, MeasurementId
-    from .muses_strategy import MusesStrategy, CurrentStrategyStep
+    from .muses_strategy import CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata
-    from .state_info import StateInfo
 
 
 class StateElementFreqShared(StateElementOspFile):
@@ -70,24 +68,13 @@ class StateElementFreqShared(StateElementOspFile):
 
 class StateElementEmis(StateElementFreqShared):
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
+    ) -> OspSetupReturn | None:
         f = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc"
         )
@@ -120,15 +107,18 @@ class StateElementEmis(StateElementFreqShared):
         prior_source = mpy.get_emis_uwis.UwisCamelOptions.emis_source_citation(
             emis_type
         )
-        kwargs = {
+        create_kwargs = {
             "spectral_domain": spectral_domain,
-            "selem_wrapper": selem_wrapper,
             "metadata": {
                 "camel_distance": camel_distance,
                 "prior_source": prior_source,
             },
         }
-        return StateElementIdentifier("EMIS"), value_fm, None, kwargs
+        return OspSetupReturn(
+            value_fm=value_fm,
+            sid=StateElementIdentifier("EMIS"),
+            create_kwargs=create_kwargs,
+        )
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:
@@ -220,24 +210,12 @@ class StateElementEmis(StateElementFreqShared):
 
 class StateElementCloudExt(StateElementFreqShared):
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
+    ) -> OspSetupReturn | None:
         f = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc"
         )
@@ -246,8 +224,12 @@ class StateElementCloudExt(StateElementFreqShared):
         # Despite the name frequency, this is actually wavelength.
         spectral_domain = rf.SpectralDomain(f.table["Frequencies"], rf.Unit("nm"))
         value_fm = np.array(f.table["verticalEXT"]).view(FullGridMappedArray)
-        kwargs = {"spectral_domain": spectral_domain, "selem_wrapper": selem_wrapper}
-        return StateElementIdentifier("CLOUDEXT"), value_fm, None, kwargs
+        create_kwargs = {"spectral_domain": spectral_domain}
+        return OspSetupReturn(
+            value_fm=value_fm,
+            sid=StateElementIdentifier("CLOUDEXT"),
+            create_kwargs=create_kwargs,
+        )
 
     def _fill_in_state_mapping_retrieval_to_fm(self) -> None:
         if self._state_mapping_retrieval_to_fm is not None:

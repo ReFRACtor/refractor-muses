@@ -5,18 +5,13 @@ from .state_element import (
     StateElementHandleSet,
     StateElementWithCreateHandle,
 )
-from .state_element_osp import StateElementOspFile
+from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .identifier import StateElementIdentifier
 import typing
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import ObservationHandleSet, MeasurementId
-    from .muses_strategy import MusesStrategy
-    from .retrieval_configuration import RetrievalConfiguration
-    from .sounding_metadata import SoundingMetadata
-    from .retrieval_array import FullGridMappedArray
-    from .state_info import StateInfo
+    pass
 
 
 class StateElementOldInitialValue(StateElementOspFile):
@@ -26,31 +21,17 @@ class StateElementOldInitialValue(StateElementOspFile):
     developing our new StateElement."""
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
-        retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
+        sid: StateElementIdentifier,
         **kwarg: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
+    ) -> OspSetupReturn | None:
         from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
 
-        if sid is None:
-            return StateElementIdentifier("Dummy"), None, None, {}
         sold = state_element_old_wrapper_handle.state_element(sid)
         if sold is None:
-            return sid, None, None, {}
+            return None
         spectral_domain = None
         spectral_domain = sold.spectral_domain
         value_fm = sold.value_fm
@@ -91,13 +72,17 @@ class StateElementOldInitialValue(StateElementOspFile):
         # (see get_prior_covariance.py in muses-py, about line 100)
         if str(sid) in ("PCLOUD", "PSUR", "RESSCALE", "TSUR"):
             diag_cov = True
-        kwarg = {
+        create_kwarg = {
             "spectral_domain": spectral_domain,
             "poltype": poltype,
             "poltype_used_constraint": poltype_used_constraint,
             "diag_cov": diag_cov,
         }
-        return sid, value_fm, constraint_vector_fm, kwarg
+        return OspSetupReturn(
+            value_fm=value_fm,
+            constraint_vector_fm=constraint_vector_fm,
+            create_kwargs=create_kwarg,
+        )
 
 
 # We want to replace this, but fall back to this for now until everything is in

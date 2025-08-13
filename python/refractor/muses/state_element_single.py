@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .state_element_osp import StateElementOspFile
+from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .tes_file import TesFile
 from .identifier import StateElementIdentifier
 from .state_element import (
@@ -72,64 +72,33 @@ class StateElementFromSingle(StateElementOspFile):
         )
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
+        sid: StateElementIdentifier,
         pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
-        retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
-        fatm: TesFile | None = None,
-        fcloud: TesFile | None = None,
-        fcal: TesFile | None = None,
+        fatm: TesFile,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
-        if sid is None or fatm is None or fatm.table is None:
-            return StateElementIdentifier("Dummy"), None, None, {}
+    ) -> OspSetupReturn | None:
+        if fatm.table is None:
+            return None
         value_fm = np.array(fatm.table[str(sid)]).view(FullGridMappedArray)
         value_fm = value_fm[(value_fm.shape[0] - pressure_list_fm.shape[0]) :].view(
             FullGridMappedArray
         )
-        kwargs = {"selem_wrapper": selem_wrapper}
-        return sid, value_fm, None, kwargs
+        return OspSetupReturn(value_fm)
 
 
 class StateElementPcloud(StateElementFromSingle):
     """State element for PCLOUD."""
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
-        retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
-        fatm: TesFile | None = None,
-        fcloud: TesFile | None = None,
-        fcal: TesFile | None = None,
+        fcloud: TesFile,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
-        if fcloud is None:
-            return StateElementIdentifier("Dummy"), None, None, {}
+    ) -> OspSetupReturn | None:
         value_fm = np.array(
             [
                 float(fcloud["CloudPressure"]),
@@ -138,8 +107,12 @@ class StateElementPcloud(StateElementFromSingle):
         # There are a handful of state element that muses-py just "knows" get
         # the apriori covariance from a different diagonal uncertainty file
         # (see get_prior_covariance.py in muses-py, about line 100)
-        kwargs = {"diag_cov": True, "selem_wrapper": selem_wrapper}
-        return StateElementIdentifier("PCLOUD"), value_fm, None, kwargs
+        kwargs = {"diag_cov": True}
+        return OspSetupReturn(
+            value_fm=value_fm,
+            sid=StateElementIdentifier("PCLOUD"),
+            create_kwargs=kwargs,
+        )
 
 
 StateElementHandleSet.add_default_handle(

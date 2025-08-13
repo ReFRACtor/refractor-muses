@@ -11,7 +11,8 @@ from .identifier import StateElementIdentifier, RetrievalType
 from pathlib import Path
 import numpy as np
 import typing
-from typing import Self, Any
+from typing import Self, Any, NamedTuple
+
 
 if typing.TYPE_CHECKING:
     from .muses_observation import ObservationHandleSet, MeasurementId
@@ -19,6 +20,14 @@ if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata
     from .state_info import StateInfo
+
+
+# Return type for _setup_create
+class OspSetupReturn(NamedTuple):
+    value_fm: FullGridMappedArray
+    constraint_vector_fm: FullGridMappedArray | None = None
+    sid: StateElementIdentifier | None = None
+    create_kwargs: dict[str, Any] = {}
 
 
 class StateElementOspFile(StateElementWithCreate):
@@ -282,31 +291,32 @@ class StateElementOspFile(StateElementWithCreate):
         return res
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
-        retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
-        **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
+        **kwargs: Any,  # Mark as kwarg only, to make mypy happy when down stream
+        # classes ignore arguments
+        # List of arguments
+        # pressure_list_fm: FullGridMappedArray,
+        # sid: StateElementIdentifier,
+        # retrieval_config: RetrievalConfiguration,
+        # sounding_metadata: SoundingMetadata,
+        # measurement_id: MeasurementId,
+        # strategy: MusesStrategy,
+        # observation_handle_set: ObservationHandleSet,
+        # state_info: StateInfo,
+        # selem_wrapper: Any,
+        # **kwargs: Any,
+    ) -> OspSetupReturn | None:
         """Return the StateElementIdentifier, initial value_fm, constraint_vector_fm
-        (if different, can be None if we don't have a separate constraint_vector_fm value), and
-        any key word arguments that should be passed to the object constructor.
+        (if different, can be None if we don't have a separate constraint_vector_fm value),
+        any key word arguments that should be passed to the object constructor, and if
+        we need to modify it the StateElementIdentifier (useful for example for a single
+        StateElementIdentifier which we then don't need to pass to the create function"
 
-        If for some reason we can't actually construct this cls, value_fm can be returned
-        as None"""
-        return StateElementIdentifier("Dummy"), None, None, {}
+        If for some reason we can't actually construct this cls, return None
+        """
+        return None
 
     @classmethod
     def create(
@@ -331,11 +341,11 @@ class StateElementOspFile(StateElementWithCreate):
             StateElementIdentifier("pressure")
         )
         pressure_list_fm = p.value_fm.copy()
-        sid2, value_fm, constraint_vector_fm, kwargs = cls._setup_create(
-            pressure_list_fm,
-            sid,
-            retrieval_config,
-            sounding_metadata,
+        sret = cls._setup_create(
+            pressure_list_fm=pressure_list_fm,
+            sid=sid,
+            retrieval_config=retrieval_config,
+            sounding_metadata=sounding_metadata,
             measurement_id=measurement_id,
             strategy=strategy,
             observation_handle_set=observation_handle_set,
@@ -343,22 +353,30 @@ class StateElementOspFile(StateElementWithCreate):
             selem_wrapper=selem_wrapper,
             **extra_kwargs,
         )
-        if value_fm is None:
+        if sret is None:
             return None
+        sid2 = sret.sid if sret.sid is not None else sid
+        if sid2 is None:
+            raise RuntimeError(
+                "Either you need to pass in the StateElementIdentifier, or this class needs to fill that in. Neither of these happened"
+            )
         res = cls(
             sid2,
             # I think this logic is sufficient to only have pressure for
             # state elements on pressure levels. We can rework this if needed.
             pressure_list_fm
-            if value_fm.shape[0] == pressure_list_fm.shape[0]
+            if sret.value_fm.shape[0] == pressure_list_fm.shape[0]
             else None,
-            value_fm,
-            constraint_vector_fm if constraint_vector_fm is not None else value_fm,
+            sret.value_fm,
+            sret.constraint_vector_fm
+            if sret.constraint_vector_fm is not None
+            else sret.value_fm,
             sounding_metadata.latitude.value,
             sounding_metadata.surface_type,
             Path(retrieval_config["speciesDirectory"]),
             Path(retrieval_config["covarianceDirectory"]),
-            **kwargs,
+            selem_wrapper=selem_wrapper,
+            **sret.create_kwargs,
         )
         return res
 
@@ -393,31 +411,21 @@ class StateElementOspFileFixedValue(StateElementOspFile):
     This class support that."""
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
-        retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
-        initial_value: FullGridMappedArray | None = None,
+        initial_value: FullGridMappedArray,
+        create_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
-        if initial_value is None or sid is None:
-            return StateElementIdentifier("Dummy"), None, None, {}
-        return sid, initial_value, None, kwargs
+    ) -> OspSetupReturn | None:
+        return OspSetupReturn(
+            value_fm=initial_value,
+            create_kwargs=create_kwargs if create_kwargs is not None else {},
+        )
 
 
 __all__ = [
     "StateElementOspFile",
     "StateElementOspFileFixedValue",
+    "OspSetupReturn",
 ]

@@ -7,6 +7,7 @@ from refractor.muses import (
     StateElementOspFile,
     StateElementWithCreate,
     StateElementIdentifier,
+    OspSetupReturn,
     InstrumentIdentifier,
     MusesOmiObservation,
     FullGridMappedArray,
@@ -19,10 +20,7 @@ if typing.TYPE_CHECKING:
     from refractor.muses import (
         MusesStrategy,
         ObservationHandleSet,
-        SoundingMetadata,
         RetrievalConfiguration,
-        MeasurementId,
-        StateInfo,
     )
 
 
@@ -65,28 +63,16 @@ class StateElementOmiCloudFraction(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
-        if strategy is None or observation_handle_set is None:
-            raise RuntimeError("Need strategy and observation_handle_set supplied")
+    ) -> OspSetupReturn | None:
         if InstrumentIdentifier("OMI") not in strategy.instrument_name:
-            return StateElementIdentifier("Dummy"), None, None, {}
+            return None
         obs = observation_handle_set.observation(
             InstrumentIdentifier("OMI"),
             None,
@@ -95,36 +81,26 @@ class StateElementOmiCloudFraction(StateElementOspFile):
             osp_dir=retrieval_config.osp_dir,
         )
         value_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
-        kwargs = {"selem_wrapper": selem_wrapper}
-        return StateElementIdentifier("OMICLOUDFRACTION"), value_fm, None, kwargs
+        return OspSetupReturn(
+            value_fm=value_fm, sid=StateElementIdentifier("OMICLOUDFRACTION")
+        )
 
 
 class StateElementOmiSurfaceAlbedo(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
+        sid: StateElementIdentifier,
         retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
-        if sid is None or strategy is None or observation_handle_set is None:
-            raise RuntimeError("Need sid, strategy and observation_handle_set supplied")
+    ) -> OspSetupReturn | None:
         if InstrumentIdentifier("OMI") not in strategy.instrument_name:
-            return StateElementIdentifier("Dummy"), None, None, {}
+            return None
         obs = cast(
             MusesOmiObservation,
             observation_handle_set.observation(
@@ -138,8 +114,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
         value_fm = np.array([obs.monthly_minimum_surface_reflectance]).view(
             FullGridMappedArray
         )
-        kwargs = {"selem_wrapper": selem_wrapper}
-        return sid, value_fm, None, kwargs
+        return OspSetupReturn(value_fm)
 
 
 add_class_handle("OMICLOUDFRACTION", StateElementOmiCloudFraction)

@@ -77,6 +77,7 @@ if _typing.TYPE_CHECKING:
     from .state_element_osp import (
         StateElementOspFile,
         StateElementOspFileFixedValue,
+        OspSetupReturn,
     )
     from .identifier import (
         FilterIdentifier,

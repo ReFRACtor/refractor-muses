@@ -7,6 +7,7 @@ from refractor.muses import (
     StateElementIdentifier,
     StateElementWithCreate,
     StateElementWithCreateHandle,
+    OspSetupReturn,
     InstrumentIdentifier,
     FullGridMappedArray,
     FullGrid2dArray,
@@ -48,7 +49,7 @@ def add_fixed_handle(sname: str, initial_value: float, **kwargs: Any) -> None:
                     initial_value,
                 ]
             ).view(FullGridMappedArray),
-            **kwargs,
+            create_kwargs=kwargs,
         ),
         priority_order=2,
     )
@@ -66,28 +67,16 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
         retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
-        if strategy is None or observation_handle_set is None:
-            raise RuntimeError("Need strategy and observation_handle_set supplied")
+    ) -> OspSetupReturn | None:
         if InstrumentIdentifier("TROPOMI") not in strategy.instrument_name:
-            return StateElementIdentifier("Dummy"), None, None, {}
+            return None
         obs = observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
             None,
@@ -96,8 +85,9 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
             osp_dir=retrieval_config.osp_dir,
         )
         value_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
-        kwargs = {"selem_wrapper": selem_wrapper}
-        return StateElementIdentifier("TROPOMICLOUDFRACTION"), value_fm, None, kwargs
+        return OspSetupReturn(
+            value_fm=value_fm, sid=StateElementIdentifier("TROPOMICLOUDFRACTION")
+        )
 
 
 class StateElementTropomiCloudPressure(StateElementWithCreate):
@@ -146,29 +136,18 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
 
     @classmethod
+    # type: ignore[override]
     def _setup_create(
         cls,
-        pressure_list_fm: FullGridMappedArray,
-        sid: StateElementIdentifier | None,
+        sid: StateElementIdentifier,
         retrieval_config: RetrievalConfiguration,
-        sounding_metadata: SoundingMetadata,
-        measurement_id: MeasurementId | None = None,
-        strategy: MusesStrategy | None = None,
-        observation_handle_set: ObservationHandleSet | None = None,
-        state_info: StateInfo | None = None,
-        selem_wrapper: Any | None = None,
+        strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
         band: int = -1,
         **kwargs: Any,
-    ) -> tuple[
-        StateElementIdentifier,
-        FullGridMappedArray | None,
-        FullGridMappedArray | None,
-        dict[str, Any],
-    ]:
-        if sid is None or strategy is None or observation_handle_set is None:
-            raise RuntimeError("Need strategy and observation_handle_set supplied")
+    ) -> OspSetupReturn | None:
         if InstrumentIdentifier("TROPOMI") not in strategy.instrument_name:
-            return StateElementIdentifier("Dummy"), None, None, {}
+            return None
         obs = observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
             None,
@@ -185,8 +164,7 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
                 )
             ]
         ).view(FullGridMappedArray)
-        kwargs = {"selem_wrapper": selem_wrapper}
-        return sid, value_fm, None, kwargs
+        return OspSetupReturn(value_fm)
 
 
 add_class_handle("TROPOMICLOUDFRACTION", StateElementTropomiCloudFraction)
