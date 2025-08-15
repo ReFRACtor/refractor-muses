@@ -544,6 +544,11 @@ class CurrentStateStateInfoOld(CurrentState):
                     retrieval_config,
                     skip_initial_guess_update=True,
                 )
+                if False:
+                    # We've need this debugging enough time that just keep the code
+                    # here. If we haven't used this in a while, we can delete this block
+                    print(strategy.current_strategy_step().strategy_step.step_number)
+                    print(self.state_value(StateElementIdentifier("N2O"))[45])
                 strategy.next_step(self)
             self.state_info.copy_current_initialInitial()
             self.state_info.copy_current_initial()

@@ -369,7 +369,7 @@ class CurrentStateStateInfo(CurrentState):
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
-        current_fm: FullGridMappedArray | None = None,
+        value_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
         next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
@@ -381,7 +381,7 @@ class CurrentStateStateInfo(CurrentState):
             self.record.record(
                 "update_full_state_element",
                 state_element_id,
-                current_fm,
+                value_fm,
                 constraint_vector_fm,
                 next_constraint_vector_fm,
                 step_initial_fm,
@@ -391,7 +391,7 @@ class CurrentStateStateInfo(CurrentState):
             )
         self.match_old()
         self._state_info[state_element_id].update_state_element(
-            current_fm=current_fm,
+            value_fm=value_fm,
             constraint_vector_fm=constraint_vector_fm,
             next_constraint_vector_fm=next_constraint_vector_fm,
             step_initial_fm=step_initial_fm,
@@ -401,7 +401,7 @@ class CurrentStateStateInfo(CurrentState):
         )
         if self._current_state_old is not None:
             self._current_state_old.state_element_old(state_element_id).update_state(
-                current=current_fm,
+                current=value_fm,
                 apriori=constraint_vector_fm
                 if constraint_vector_fm is not None
                 else next_constraint_vector_fm,

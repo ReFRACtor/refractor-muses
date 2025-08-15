@@ -40,7 +40,14 @@ class StateElementFromSingle(StateElementOspFile):
         if retrieval_config is None:
             raise RuntimeError("Need retrieval_config")
         # Check if the state element is in the list of Species_List_From_Single, if not
-        # we can't process it
+        # we don't process it
+        #
+        # Note this is really just a sanity check, we only create handles down below
+        # for the state elements in this list. The L2_Setup_Control_Initial.asc doesn't
+        # really control this, and it doesn't like it really controlled muses-py old
+        # initial guess stuff. But we should at least notice if there is an inconsistency
+        # here. Perhaps this can go away, it isn't really clear why we can't just do
+        # this in our python configuration vs. a separate control file.
         if sid is not None and sid not in [
             StateElementIdentifier(i)
             for i in retrieval_config["Species_List_From_Single"].split(",")

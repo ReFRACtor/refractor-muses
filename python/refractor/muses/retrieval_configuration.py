@@ -53,7 +53,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
 
     def __getitem__(self, key: str) -> Any:
-        return self._abs_dir(self._data[key])
+        return self.abs_dir(self._data[key])
 
     def __setitem__(self, key: str, val: Any) -> None:
         self._data[key] = val
@@ -149,7 +149,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # skip this, we'll at least try that for now.
         return res
 
-    def _abs_dir(self, v: Any) -> Any:
+    def abs_dir(self, v: Any) -> Any:
         """Convert values like ../OSP to the osp_dir passed in. Expand
         user ~ and environment variables. Convert relative paths to
         absolute paths.

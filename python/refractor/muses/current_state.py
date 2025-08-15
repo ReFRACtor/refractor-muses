@@ -255,7 +255,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def update_full_state_element(
         self,
         state_element_id: StateElementIdentifier,
-        current_fm: FullGridMappedArray | None = None,
+        value_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
         next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,

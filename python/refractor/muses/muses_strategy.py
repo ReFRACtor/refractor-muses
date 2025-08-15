@@ -12,7 +12,7 @@ from .identifier import (
 )
 from .spectral_window_handle import SpectralWindowHandleSet
 from .current_state import CurrentState
-from .retrieval_array import RetrievalGridArray
+from .retrieval_array import RetrievalGridArray, FullGridMappedArray
 import os
 import abc
 import typing
@@ -509,7 +509,11 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                     retrieval_config,
                     skip_initial_guess_update=True,
                 )
-                selem.update_state_element(next_step_initial_fm=selem.value_fm.copy())
+                if False and selem.retrieved_this_step:
+                    value_fm = selem.value_fm.to_fmprime(selem.state_mapping_retrieval_to_fm,
+                                                         selem.state_mapping).view(FullGridMappedArray)
+                    selem.update_state_element(value_fm=value_fm)
+                selem.update_state_element(next_step_initial_fm=selem.value_fm)
                 self.next_step(None)
             self.set_step(cstepnum, None)
             # Note, rightly or wrongly we don't update constraint_vector.

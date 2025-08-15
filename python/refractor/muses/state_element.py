@@ -196,6 +196,10 @@ class StateElement(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @property
+    def retrieved_this_step(self) -> bool:
+        raise NotImplementedError()
+
+    @property
     def pressure_list(self) -> RetrievalGridArray | None:
         """For state elements that are on pressure level, this returns
         the pressure levels (None otherwise). Note unlike other things on
@@ -366,7 +370,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def update_state_element(
         self,
-        current_fm: FullGridMappedArray | None = None,
+        value_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
         next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
@@ -821,7 +825,7 @@ class StateElementImplementation(StateElement):
 
     def update_state_element(
         self,
-        current_fm: FullGridMappedArray | None = None,
+        value_fm: FullGridMappedArray | None = None,
         constraint_vector_fm: FullGridMappedArray | None = None,
         next_constraint_vector_fm: FullGridMappedArray | None = None,
         step_initial_fm: FullGridMappedArray | None = None,
@@ -829,8 +833,8 @@ class StateElementImplementation(StateElement):
         retrieval_initial_fm: FullGridMappedArray | None = None,
         true_value_fm: FullGridMappedArray | None = None,
     ) -> None:
-        if current_fm is not None:
-            self._value_fm = current_fm.astype(np.float64, copy=True).view(
+        if value_fm is not None:
+            self._value_fm = value_fm.astype(np.float64, copy=True).view(
                 FullGridMappedArray
             )
         if constraint_vector_fm is not None:

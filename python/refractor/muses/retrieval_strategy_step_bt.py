@@ -128,7 +128,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             cstate.update_full_state_element(
                 StateElementIdentifier("CLOUDEXT"),
                 step_initial_fm=newv.copy(),
-                current_fm=newv.copy(),
+                value_fm=newv.copy(),
                 constraint_vector_fm=newv.copy(),
             )
         if tsurIG[row] != 0:
@@ -139,7 +139,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             cstate.update_full_state_element(
                 StateElementIdentifier("TSUR"),
                 step_initial_fm=newv.copy(),
-                current_fm=newv.copy(),
+                value_fm=newv.copy(),
                 constraint_vector_fm=newv.copy(),
             )
         cstate.set_brightness_temperature_data(step, btdata)

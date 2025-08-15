@@ -342,7 +342,7 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
                 )
             ).view(FullGridMappedArray)
             self._state_element_2.update_state_element(
-                current_fm=v, next_step_initial_fm=v
+                value_fm=v, next_step_initial_fm=v
             )
 
 
