@@ -47,9 +47,6 @@ Options:
   -t --targets=dirlist
       Target directories
 
-  --vlidort-cli=v
-      Path to the directory in which vlidort_cli executable can be found.
-
   -v --version
       Print program version
 
@@ -148,14 +145,6 @@ def retrieve_wrap(rs, target_dir, in_process=False):
         if(args.mpi):
             # Add back stdout, to capture any other logging not tied to target
             logger.add(sys.stdout)
-
-# Pass location of VLIDORT. We do this separately, so the refractor config file
-# doesn't need to worry about setting this up
-if(args.vlidort_cli):    
-    rs.vlidort_cli = args.vlidort_cli
-else:
-    rs.vlidort_cli = os.environ.get("MUSES_VLIDORT_CLI",
-                                    "~/muses/muses-vlidort/build/release/vlidort_cli")
 
 # Set up for MPI run, if needed
 target_dir_full_list = glob.glob(os.path.expanduser(args.targets))

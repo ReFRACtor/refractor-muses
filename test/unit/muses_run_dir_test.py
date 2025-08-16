@@ -10,6 +10,6 @@ def test_muses_run_dir(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
 # retrieval just to make sure we can. Can turn on for specific debugging if needed.
 @pytest.mark.skip
 @pytest.mark.long_test
-def test_muses_full_run(isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir):
+def test_muses_full_run(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
     r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir)
-    r.run_retrieval(vlidort_cli=vlidort_cli)
+    r.run_retrieval()

@@ -35,7 +35,6 @@ match_py_retrieve = False
 def test_retrieval_strategy_airs_omi(
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     python_fp_logger,
     end_to_end_run_dir,
     joint_omi_test_in_dir,
@@ -61,7 +60,6 @@ def test_retrieval_strategy_airs_omi(
     )
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
-        vlidort_cli=vlidort_cli,
         write_omi_radiance_pickle=not run_refractor,
     )
     try:
@@ -95,14 +93,14 @@ def test_retrieval_strategy_airs_omi(
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
 
 
-def test_load_step(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir, vlidort_cli):
+def test_load_step(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
     logger.remove()
     r = MusesRunDir(
         joint_omi_test_in_dir,
         osp_dir,
         gmao_dir,
     )
-    rs = RetrievalStrategy(None, vlidort_cli=vlidort_cli, osp_dir=osp_dir)
+    rs = RetrievalStrategy(None, osp_dir=osp_dir)
     obs_hset = rs.observation_handle_set
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(

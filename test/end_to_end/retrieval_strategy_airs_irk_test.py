@@ -22,7 +22,6 @@ match_py_retrieve = False
 def test_retrieval_strategy_airs_irk(
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     python_fp_logger,
     end_to_end_run_dir,
     airs_irk_test_in_dir,
@@ -52,7 +51,7 @@ def test_retrieval_strategy_airs_irk(
         gmao_dir,
         path_prefix=dir,
     )
-    rs = RetrievalStrategy(r.run_dir / "Table.asc", vlidort_cli=vlidort_cli)
+    rs = RetrievalStrategy(r.run_dir / "Table.asc")
     try:
         lognum = logger.add(dir / "retrieve.log")
         # Grab each step so we can separately test output

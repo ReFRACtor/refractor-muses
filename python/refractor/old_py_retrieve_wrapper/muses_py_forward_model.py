@@ -294,7 +294,6 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
         rstep,
         iteration,
         pickle_file,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
     ):
         """Grab the UIP and directory that can be used to call
         tropomi_fm/omi_fm.
@@ -308,7 +307,7 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
                 "fm_wrapper", _CaptureUip(func_count=iteration)
             ):
                 try:
-                    rstep.run_retrieval(vlidort_cli=vlidort_cli)
+                    rstep.run_retrieval()
                 except _FakeUipExecption as e:
                     res = RefractorUip(
                         uip=e.uip, basis_matrix=cretinfo.ret_info["basis_matrix"]
@@ -322,7 +321,6 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
         path=".",
         osp_dir=None,
         gmao_dir=None,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
     ):
         """This goes with uip_from_muses_retrieval_step, it turns around
         and calls tropomi_fm/omi_fm with the saved data."""
@@ -340,7 +338,6 @@ class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
             with osswrapper(rf_uip.uip):
                 with muses_py_call(
                     ".",
-                    vlidort_cli=vlidort_cli,
                     debug=self.py_retrieve_debug,
                     vlidort_nstokes=self.py_retrieve_vlidort_nstokes,
                     vlidort_nstreams=self.py_retrieve_vlidort_nstreams,

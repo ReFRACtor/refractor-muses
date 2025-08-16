@@ -510,8 +510,9 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                     skip_initial_guess_update=True,
                 )
                 if False and selem.retrieved_this_step:
-                    value_fm = selem.value_fm.to_fmprime(selem.state_mapping_retrieval_to_fm,
-                                                         selem.state_mapping).view(FullGridMappedArray)
+                    value_fm = selem.value_fm.to_fmprime(
+                        selem.state_mapping_retrieval_to_fm, selem.state_mapping
+                    ).view(FullGridMappedArray)
                     selem.update_state_element(value_fm=value_fm)
                 selem.update_state_element(next_step_initial_fm=selem.value_fm)
                 self.next_step(None)

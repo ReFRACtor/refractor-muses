@@ -49,7 +49,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
         print(uncer.shape)
 
 
-def test_muses_tropomi_forward_model(joint_tropomi_step_12, vlidort_cli, osp_dir):
+def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
     rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
     obs_tropomi = rs.observation_handle_set.observation(
@@ -62,7 +62,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, vlidort_cli, osp_dir
     )
     obs_tropomi.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
-    fm = MusesTropomiForwardModel(rf_uip, obs_tropomi, mid, vlidort_cli=vlidort_cli)
+    fm = MusesTropomiForwardModel(rf_uip, obs_tropomi, mid)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -126,7 +126,7 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
         print(uncer.shape)
 
 
-def test_muses_omi_forward_model(joint_omi_step_8, vlidort_cli, osp_dir):
+def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
     rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
     obs_omi = rs.observation_handle_set.observation(
@@ -139,7 +139,7 @@ def test_muses_omi_forward_model(joint_omi_step_8, vlidort_cli, osp_dir):
     )
     obs_omi.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
-    fm = MusesOmiForwardModel(rf_uip, obs_omi, mid, vlidort_cli=vlidort_cli)
+    fm = MusesOmiForwardModel(rf_uip, obs_omi, mid)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

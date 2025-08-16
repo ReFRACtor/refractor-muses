@@ -71,13 +71,9 @@ class MusesForwardModelStep:
             raise RuntimeError("Need to set runbase first")
         return self.run_path / self.capture_directory.runbase
 
-    def run_forward_model(
-        self,
-        vlidort_cli: str
-        | os.PathLike[str] = "~/muses/muses-vlidort/build/release/vlidort_cli",
-    ) -> dict[str, Any]:
+    def run_forward_model(self) -> dict[str, Any]:
         """Run the retrieval step with the saved parameters"""
-        with muses_py_call(self.run_forward_model_path, vlidort_cli=vlidort_cli):
+        with muses_py_call(self.run_forward_model_path):
             return mpy.run_forward_model(**self.params)
 
     @classmethod
@@ -87,8 +83,6 @@ class MusesForwardModelStep:
         step: int = 1,
         capture_directory: bool = False,
         save_pickle_file: None | str | os.PathLike[str] = None,
-        vlidort_cli: str
-        | os.PathLike[str] = "~/muses/muses-vlidort/build/release/vlidort_cli",
         suppress_noisy_output: bool = True,
     ) -> Self:
         """This grabs the arguments passed to run_forward_model and stores them
@@ -98,7 +92,7 @@ class MusesForwardModelStep:
         # somehow into a base class. But right now we only have a
         # few lasses, so this probably isn't worth it. So we are currently
         # just duplicating the code.
-        with muses_py_call(os.path.dirname(strategy_table), vlidort_cli=vlidort_cli):
+        with muses_py_call(os.path.dirname(strategy_table)):
             try:
                 with register_replacement_function_in_block(
                     "run_forward_model", _CaptureParams(func_count=step)

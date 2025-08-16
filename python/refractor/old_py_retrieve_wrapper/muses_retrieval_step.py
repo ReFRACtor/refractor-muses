@@ -67,13 +67,11 @@ class MusesRetrievalStep:
 
     def run_retrieval(
         self,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
         vlidort_nstokes=2,
     ):
         """Run the retrieval step with the saved parameters"""
         with muses_py_call(
             self.run_retrieval_path,
-            vlidort_cli=vlidort_cli,
             vlidort_nstokes=vlidort_nstokes,
         ):
             return mpy.run_retrieval(**self.params)
@@ -85,7 +83,6 @@ class MusesRetrievalStep:
         step=1,
         capture_directory=False,
         save_pickle_file=None,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
         suppress_noisy_output=True,
     ):
         """This grabs the arguments passed to run_retrieval and stores them
@@ -95,7 +92,7 @@ class MusesRetrievalStep:
         # somehow into a base class. But right now we only have these
         # two classes, so this probably isn't worth it. So we are currently
         # just duplicating the code.
-        with muses_py_call(os.path.dirname(strategy_table), vlidort_cli=vlidort_cli):
+        with muses_py_call(os.path.dirname(strategy_table)):
             try:
                 with register_replacement_function_in_block(
                     "run_retrieval", _CaptureParams(func_count=step)

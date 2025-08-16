@@ -23,7 +23,6 @@ match_py_retrieve = False
 def test_retrieval_strategy_cris_tropomi(
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     python_fp_logger,
     end_to_end_run_dir,
     joint_tropomi_test_in_dir,
@@ -51,7 +50,6 @@ def test_retrieval_strategy_cris_tropomi(
         r.run_dir / "Table.asc",
         writeOutput=True,
         writePlots=True,
-        vlidort_cli=vlidort_cli,
         write_tropomi_radiance_pickle=not run_refractor,
     )
     try:

@@ -93,24 +93,19 @@ class MusesRunDir:
 
     def run_retrieval(
         self,
-        vlidort_cli: str
-        | os.PathLike[str] = "~/muses/muses-vlidort/build/release/vlidort_cli",
         debug: bool = False,
         plots: bool = False,
     ) -> None:
-        """Do a run of py_retrieve. Note this is a full run.
-
-        Note OMI, but not TROPOMI now uses a separate vlidort_cli, which
-        can be passed in."""
-        with muses_py_call(self.run_dir, vlidort_cli=vlidort_cli):
+        """Do a run of py_retrieve. Note this is a full run."""
+        with muses_py_call(self.run_dir):
             from py_retrieve.cli import cli  # type: ignore
 
             try:
                 arg = [
                     "--targets",
                     str(self.run_dir),
-                    "--vlidort-cli",
-                    str(vlidort_cli),
+                    # "--vlidort-cli",
+                    # str(vlidort_cli),
                 ]
                 if debug:
                     arg.append("--debug")

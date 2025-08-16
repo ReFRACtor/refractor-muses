@@ -240,7 +240,6 @@ class RefractorUip:
         step: int = 1,
         capture_directory: bool = False,
         save_pickle_file: str | None = None,
-        vlidort_cli: str = "~/muses/muses-vlidort/build/release/vlidort_cli",
         suppress_noisy_output: bool = True,
     ) -> Self:
         """This creates a UIP from a run directory (e.g., created
@@ -285,7 +284,7 @@ class RefractorUip:
         #
         # A better long term solution it to get muses-py to add a function
         # call.
-        with muses_py_call(os.path.dirname(strategy_table), vlidort_cli=vlidort_cli):
+        with muses_py_call(os.path.dirname(strategy_table)):
             try:
                 cfun = _CaptureUip(func_count=step)
                 with register_replacement_function_in_block("run_retrieval", cfun):

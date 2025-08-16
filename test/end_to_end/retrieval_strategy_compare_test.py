@@ -15,7 +15,6 @@ run_refractor = True
 def test_compare_retrieval_cris_tropomi(
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     end_to_end_run_dir,
     joint_tropomi_test_expected_dir,
     joint_tropomi_test_refractor_expected_dir,
@@ -38,7 +37,6 @@ def test_compare_retrieval_cris_tropomi(
 def test_compare_retrieval_airs_omi(
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     end_to_end_run_dir,
     joint_omi_test_expected_dir,
     joint_omi_test_refractor_expected_dir,
@@ -59,7 +57,7 @@ def test_compare_retrieval_airs_omi(
 
 @pytest.mark.compare_test
 def test_compare_retrieval_tes(
-    osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir, tes_test_expected_dir
+    osp_dir, gmao_dir, end_to_end_run_dir, tes_test_expected_dir
 ):
     """The test_retrieval_strategy_tes already checks the results, but it is nice
     to have a stand alone run that just checks the results. Note that this depends on
@@ -75,7 +73,7 @@ def test_compare_retrieval_tes(
 
 @pytest.mark.compare_test
 def test_compare_retrieval_airs_irk(
-    osp_dir, gmao_dir, vlidort_cli, airs_irk_test_expected_dir, end_to_end_run_dir
+    osp_dir, gmao_dir, airs_irk_test_expected_dir, end_to_end_run_dir
 ):
     """The test_retrieval_strategy_airs_irk already checks the results, but it is
     nice to have a stand alone run that just checks the results. Note that this

@@ -68,7 +68,7 @@ def run_capture(rs, run_dir, dir):
 
 @pytest.mark.capture_test
 def test_capture_tropomi_cris_retrieval_strategy(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir
 ):
     r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir, skip_obs_link=True)
     rs = RetrievalStrategy(None)
@@ -81,7 +81,7 @@ def test_capture_tropomi_cris_retrieval_strategy(
 
 @pytest.mark.capture_test
 def test_capture_tropomi_retrieval_strategy(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, tropomi_test_in_dir
 ):
     r = MusesRunDir(tropomi_test_in_dir, osp_dir, gmao_dir, skip_obs_link=True)
     rs = RetrievalStrategy(None)
@@ -94,7 +94,7 @@ def test_capture_tropomi_retrieval_strategy(
 
 @pytest.mark.capture_test
 def test_capture_tropomi_band7_retrieval_strategy(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_band7_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, tropomi_band7_test_in_dir
 ):
     r = MusesRunDir(tropomi_band7_test_in_dir, osp_dir, gmao_dir, skip_obs_link=True)
     rs = RetrievalStrategy(None)
@@ -107,7 +107,7 @@ def test_capture_tropomi_band7_retrieval_strategy(
 
 @pytest.mark.capture_test
 def test_capture_omi_retrieval_strategy(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, omi_test_in_dir
 ):
     r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir, skip_obs_link=True)
     rs = RetrievalStrategy(None)
@@ -120,7 +120,7 @@ def test_capture_omi_retrieval_strategy(
 
 @pytest.mark.capture_test
 def test_capture_airs_omi_retrieval_strategy(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_omi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir
 ):
     r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir, skip_obs_link=True)
     rs = RetrievalStrategy(None)
@@ -133,9 +133,7 @@ def test_capture_airs_omi_retrieval_strategy(
 
 
 @pytest.mark.capture_test
-def test_capture_airs_irk(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, airs_irk_test_in_dir
-):
+def test_capture_airs_irk(isolated_dir, osp_dir, gmao_dir, airs_irk_test_in_dir):
     r = MusesRunDir(airs_irk_test_in_dir, osp_dir, gmao_dir, skip_obs_link=True)
     rs = RetrievalStrategy(None)
     run_capture(rs, r.run_dir, airs_irk_test_in_dir)

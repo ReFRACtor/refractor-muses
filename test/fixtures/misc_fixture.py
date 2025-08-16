@@ -71,10 +71,3 @@ def python_fp_logger(tmpdir):
     yield
     PythonFpLogger.turn_off_logger()
     FpLogger.turn_on_logger()
-
-
-@pytest.fixture(scope="session")
-def vlidort_cli():
-    return os.environ.get(
-        "MUSES_VLIDORT_CLI", "~/muses/muses-vlidort/build/release/vlidort_cli"
-    )

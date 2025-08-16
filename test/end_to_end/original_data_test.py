@@ -17,7 +17,7 @@ from refractor.muses import MusesRunDir
 @pytest.mark.skip
 @pytest.mark.long_test
 def test_original_retrieval_cris_tropomi(
-    osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir, joint_tropomi_test_in_dir
+    osp_dir, gmao_dir, end_to_end_run_dir, joint_tropomi_test_in_dir
 ):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -39,7 +39,7 @@ def test_original_retrieval_cris_tropomi(
     )
     # rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
     # rmi.register_with_muses_py()
-    r.run_retrieval(vlidort_cli=vlidort_cli, debug=True, plots=True)
+    r.run_retrieval(debug=True, plots=True)
 
 
 # This test was used to generate the original test data using py-retrieve. We have
@@ -51,7 +51,7 @@ def test_original_retrieval_cris_tropomi(
 @pytest.mark.skip
 @pytest.mark.long_test
 def test_original_retrieval_airs_omi(
-    osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir, joint_omi_test_in_dir
+    osp_dir, gmao_dir, end_to_end_run_dir, joint_omi_test_in_dir
 ):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -73,14 +73,12 @@ def test_original_retrieval_airs_omi(
     )
     # rmi = RefractorMusesIntegration(vlidort_cli=vlidort_cli, save_debug_data=True)
     # rmi.register_with_muses_py()
-    r.run_retrieval(vlidort_cli=vlidort_cli)
+    r.run_retrieval()
 
 
 @pytest.mark.skip
 @pytest.mark.long_test
-def test_original_retrieval_tes(
-    osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir, test_base_path
-):
+def test_original_retrieval_tes(osp_dir, gmao_dir, end_to_end_run_dir, test_base_path):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -95,13 +93,13 @@ def test_original_retrieval_tes(
         gmao_dir,
         path_prefix=dir,
     )
-    r.run_retrieval(vlidort_cli=vlidort_cli)
+    r.run_retrieval()
 
 
 @pytest.mark.skip
 @pytest.mark.long_test
 def test_original_retrieval_airs_irk(
-    osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir, test_base_path
+    osp_dir, gmao_dir, end_to_end_run_dir, test_base_path
 ):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
@@ -119,4 +117,4 @@ def test_original_retrieval_airs_irk(
         gmao_dir,
         path_prefix=dir,
     )
-    r.run_retrieval(vlidort_cli=vlidort_cli)
+    r.run_retrieval()

@@ -30,7 +30,7 @@ import os
 
 # Not working yet
 # @pytest.mark.skip
-# def test_tropomi_pickle(isolated_dir, vlidort_cli, osp_dir):
+# def test_tropomi_pickle(isolated_dir, osp_dir):
 #     rs, rstep, _ = set_up_run_to_location(
 #         joint_tropomi_test_in_dir, 12, "done get_initial_guess"
 #     )
@@ -47,7 +47,7 @@ import os
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
-def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
+def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
 
@@ -78,9 +78,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
     creator = CostFunctionCreator()
     obs_cris.spectral_window.include_bad_sample = True
     obs_tropomi.spectral_window.include_bad_sample = True
-    cfunc = creator.cost_function_from_uip(
-        rf_uip, [obs_cris, obs_tropomi], None, vlidort_cli=vlidort_cli
-    )
+    cfunc = creator.cost_function_from_uip(rf_uip, [obs_cris, obs_tropomi], None)
     (
         o_radiance,
         jac_fm,
@@ -89,7 +87,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
     with osswrapper(rf_uip.uip):
-        with muses_py_call(rf_uip.run_dir, vlidort_cli=vlidort_cli):
+        with muses_py_call(rf_uip.run_dir):
             (
                 o_radiance2,
                 jac_fm2,
@@ -117,7 +115,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, vlidort_cli, osp_dir):
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
-def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
+def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
 
@@ -148,9 +146,7 @@ def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
     creator = CostFunctionCreator()
     obs_airs.spectral_window.include_bad_sample = True
     obs_omi.spectral_window.include_bad_sample = True
-    cfunc = creator.cost_function_from_uip(
-        rf_uip, [obs_airs, obs_omi], None, vlidort_cli=vlidort_cli
-    )
+    cfunc = creator.cost_function_from_uip(rf_uip, [obs_airs, obs_omi], None)
     (
         o_radiance,
         jac_fm,
@@ -159,7 +155,7 @@ def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
     with osswrapper(rf_uip.uip):
-        with muses_py_call(rf_uip.run_dir, vlidort_cli=vlidort_cli):
+        with muses_py_call(rf_uip.run_dir):
             (
                 o_radiance2,
                 jac_fm2,
@@ -189,7 +185,6 @@ def test_fm_wrapper_omi(joint_omi_step_8, vlidort_cli, osp_dir):
 @pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_tropomi(
     isolated_dir,
-    vlidort_cli,
     osp_dir,
     gmao_dir,
     joint_tropomi_obs_step_12,
@@ -227,7 +222,6 @@ def test_residual_fm_jac_tropomi(
         rf_uip,
         [obs_cris, obs_tropomi],
         rrefractor.params["ret_info"],
-        vlidort_cli=vlidort_cli,
     )
     (uip, o_residual, o_jacobian_ret, radiance_out, o_jacobianOut, o_stop_flag) = (
         cfunc.residual_fm_jacobian(**rrefractor.params)
@@ -245,7 +239,7 @@ def test_residual_fm_jac_tropomi(
         radiance_out2,
         o_jacobianOut2,
         o_stop_flag2,
-    ) = rmuses_py.residual_fm_jacobian(vlidort_cli=vlidort_cli)
+    ) = rmuses_py.residual_fm_jacobian()
     assert o_stop_flag == o_stop_flag2
     # Note we put in fill values for bad samples, while muses-py actually
     # runs the forward model on all the data. It isn't clear what we want
@@ -271,7 +265,6 @@ def test_residual_fm_jac_tropomi(
 @pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_omi(
     isolated_dir,
-    vlidort_cli,
     osp_dir,
     gmao_dir,
     joint_omi_obs_step_8,
@@ -315,7 +308,6 @@ def test_residual_fm_jac_omi(
         rf_uip,
         [obs_airs, obs_omi],
         rrefractor.params["ret_info"],
-        vlidort_cli=vlidort_cli,
     )
     (uip, o_residual, o_jacobian_ret, radiance_out, o_jacobianOut, o_stop_flag) = (
         cfunc.residual_fm_jacobian(**rrefractor.params)
@@ -333,7 +325,7 @@ def test_residual_fm_jac_omi(
         radiance_out2,
         o_jacobianOut2,
         o_stop_flag2,
-    ) = rmuses_py.residual_fm_jacobian(vlidort_cli=vlidort_cli)
+    ) = rmuses_py.residual_fm_jacobian()
     assert o_stop_flag == o_stop_flag2
     # Note we put in fill values for bad samples, while muses-py actually
     # runs the forward model on all the data. It isn't clear what we want
@@ -357,7 +349,6 @@ def test_residual_fm_jac_omi(
 @pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_omi2(
     isolated_dir,
-    vlidort_cli,
     osp_dir,
     gmao_dir,
     joint_omi_obs_step_8,
@@ -396,7 +387,6 @@ def test_residual_fm_jac_omi2(
         rf_uip,
         joint_omi_obs_step_8,
         rrefractor.params["ret_info"],
-        vlidort_cli=vlidort_cli,
     )
     (uip, o_residual, o_jacobian_ret, radiance_out, o_jacobianOut, o_stop_flag) = (
         cfunc.residual_fm_jacobian(**rrefractor.params)
@@ -407,7 +397,6 @@ def test_residual_fm_jac_omi2(
 @pytest.mark.old_py_retrieve_test
 def test_residual_fm_jac_tropomi2(
     isolated_dir,
-    vlidort_cli,
     osp_dir,
     gmao_dir,
     joint_tropomi_obs_step_12,
@@ -446,7 +435,7 @@ def test_residual_fm_jac_tropomi2(
     )
     creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(
-        rf_uip, obslist, rrefractor.params["ret_info"], vlidort_cli=vlidort_cli
+        rf_uip, obslist, rrefractor.params["ret_info"]
     )
     (uip, o_residual, o_jacobian_ret, radiance_out, o_jacobianOut, o_stop_flag) = (
         cfunc.residual_fm_jacobian(**rrefractor.params)

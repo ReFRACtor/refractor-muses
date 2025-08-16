@@ -6,6 +6,20 @@ from contextlib import contextmanager
 from . import muses_py as mpy  # type: ignore
 from pathlib import Path
 from typing import Generator
+import shutil
+from functools import cache
+
+
+@cache
+def vlidort_cli_from_path() -> Path:
+    """We use to need to point to vlidort_cli. There might still be special cases
+    where we want to do this, so muses_py_call will allow this to get passed in. But
+    most of the time, you want to just grab the one in the path. This figure this out
+    """
+    t = shutil.which("vlidort_cli")
+    if t is None:
+        raise RuntimeError("Can't find vlidort_cli in the path")
+    return Path(t).parent
 
 
 @contextmanager
@@ -34,7 +48,7 @@ def muses_py_call(
     curdir = os.getcwd()
     old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
     if vlidort_cli is None:
-        vlidort_cli = "~/muses/muses-vlidort/build/release/vlidort_cli"
+        vlidort_cli = vlidort_cli_from_path()
     # Temporary, make sure libgfortran.so.4 is in path. See
     # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
     # Note that currently omi uses muses-vlidort repository build, which

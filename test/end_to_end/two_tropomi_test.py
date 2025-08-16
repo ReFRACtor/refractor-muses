@@ -21,7 +21,6 @@ def test_two_tropomi(
     isolated_dir,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     tropomi_test_in_dir,
     tropomi_test_in_dir3,
 ):
@@ -32,7 +31,9 @@ def test_two_tropomi(
     r2 = MusesRunDir(tropomi_test_in_dir3, osp_dir, gmao_dir, skip_sym_link=True)
 
     rs = RetrievalStrategy(
-        None, writeOutput=True, writePlots=True, vlidort_cli=vlidort_cli
+        None,
+        writeOutput=True,
+        writePlots=True,
     )
     rs.forward_model_handle_set.add_handle(
         TropomiForwardModelHandle(

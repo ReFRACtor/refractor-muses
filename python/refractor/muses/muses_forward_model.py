@@ -599,7 +599,6 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
         instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        vlidort_cli: str = "~/muses/muses-vlidort/build/release/vlidort_cli",
         vlidort_nstokes: int = 2,
         vlidort_nstreams: int = 4,
         **kwargs: Any,
@@ -609,14 +608,12 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
         )
         self.vlidort_nstreams = vlidort_nstreams
         self.vlidort_nstokes = vlidort_nstokes
-        self.vlidort_cli = vlidort_cli
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
         with muses_py_call(
             self.rf_uip.run_dir,
-            vlidort_cli=self.vlidort_cli,
             vlidort_nstokes=self.vlidort_nstokes,
             vlidort_nstreams=self.vlidort_nstreams,
         ):

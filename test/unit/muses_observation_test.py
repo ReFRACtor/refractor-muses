@@ -49,7 +49,7 @@ def test_measurement_id(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
 
 
 def test_create_muses_airs_observation(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_omi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir
 ):
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go
@@ -120,9 +120,7 @@ def test_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir)
     print(obs)
 
 
-def test_create_muses_tes_observation(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, tes_test_in_dir
-):
+def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
     # This depends on files in Susan's OSP. Run if these are available, but
     # don't fail if they aren't
     if not (osp_dir / "Strategy_Tables/ssund").exists():
@@ -172,7 +170,7 @@ def test_create_muses_tes_observation(
 
 
 def test_create_muses_tropomi_observation(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir
 ):
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go
@@ -227,7 +225,7 @@ def test_create_muses_tropomi_observation(
 
 
 def test_create_muses_cris_observation(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir
 ):
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go
@@ -272,7 +270,7 @@ def test_create_muses_cris_observation(
 
 
 def test_create_muses_omi_observation(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_omi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir
 ):
     # Don't need a lot from run dir, but this modifies the path in Measurement_ID.asc
     # to point to our test data rather than original location of these files, so go

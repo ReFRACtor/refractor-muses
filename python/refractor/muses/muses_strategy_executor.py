@@ -133,15 +133,11 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         retrieval_strategy_step_set: RetrievalStrategyStepSet | None = None,
         spectral_window_handle_set: SpectralWindowHandleSet | None = None,
         qa_data_handle_set: QaDataHandleSet | None = None,
-        vlidort_cli: Path | None = None,
         **kwargs: Any,
     ) -> None:
         self.rs = rs
         self.current_state = CurrentStateStateInfo()
-        self.vlidort_cli = vlidort_cli
         self.kwargs = copy.copy(kwargs)
-        if vlidort_cli is not None:
-            self.kwargs["vlidort_cli"] = vlidort_cli
         if observation_handle_set is None:
             self.observation_handle_set = copy.deepcopy(
                 ObservationHandleSet.default_handle_set()
@@ -325,7 +321,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             if str(iname) in o_xxx:
                 if hasattr(obs, "muses_py_dict"):
                     o_xxx[str(iname)] = obs.muses_py_dict
-        with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
+        with muses_py_call(self.run_dir):
             return RefractorUip.create_uip(
                 fake_state_info,
                 fake_table,
@@ -487,7 +483,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
     def set_step(self, step_number: int) -> None:
         """Go to the given step."""
-        with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
+        with muses_py_call(self.run_dir):
             self.restart()
             while self.current_strategy_step.strategy_step.step_number < step_number:
                 self.notify_start_step(skip_initial_guess_update=True)
@@ -544,7 +540,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         with log_timing():
             # Currently the initialization etc. code assumes we are in the run directory.
             # Hopefully we can remove this in the future, but for now we need this
-            with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
+            with muses_py_call(self.run_dir):
                 self.execute_retrieval_body(stop_at_step=stop_at_step)
 
     def execute_retrieval_body(self, stop_at_step: None | int = None) -> None:
@@ -577,7 +573,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def continue_retrieval(self, stop_after_step: None | int = None) -> None:
         """After saving a pickled step, you can continue the processing starting
         at that step to diagnose a problem."""
-        with muses_py_call(self.run_dir, vlidort_cli=self.vlidort_cli):
+        with muses_py_call(self.run_dir):
             while not self.is_done():
                 self.notify_start_step()
                 self.notify_update(ProcessLocation("starting run_step"))

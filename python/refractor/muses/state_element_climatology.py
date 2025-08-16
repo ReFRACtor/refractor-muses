@@ -78,7 +78,9 @@ class StateElementFromClimatology(StateElementOspFile):
         sounding_metadata: SoundingMetadata,
         **kwargs: Any,
     ) -> OspSetupReturn | None:
-        clim_dir = Path(retrieval_config.abs_dir("../OSP/Climatology/Climatology_files"))
+        clim_dir = Path(
+            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
+        )
         value_fm, _ = cls.read_climatology_2022(
             sid, pressure_list_fm, False, clim_dir, sounding_metadata
         )

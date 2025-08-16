@@ -42,7 +42,6 @@ def set_up_run_to_location(
     location: str | ProcessLocation,
     osp_dir: str | Path,
     gmao_dir: str | Path,
-    vlidort_cli: str,
     include_ret_state=True,
 ):
     """Set up directory and run the given step number to the given
@@ -78,7 +77,7 @@ def set_up_run_to_location(
     # TODO Short term turn off checking values. This is temporary, we will replace the
     # old state info stuff in a bit
     # CurrentState.check_old_state_element_value = False
-    rs = RetrievalStrategy(None, vlidort_cli=vlidort_cli, osp_dir=osp_dir)
+    rs = RetrievalStrategy(None, osp_dir=osp_dir)
     obs_hset = rs.observation_handle_set
     obs_hset.add_handle(
         MusesObservationHandlePickleSave(
@@ -155,20 +154,18 @@ def run_step_to_location(
 
 
 @pytest.fixture(scope="function")
-def joint_omi_step_8(
-    isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir, vlidort_cli
-):
+def joint_omi_step_8(isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_omi_test_in_dir, 8, "retrieval input", osp_dir, gmao_dir, vlidort_cli
+        joint_omi_test_in_dir, 8, "retrieval input", osp_dir, gmao_dir
     )
     os.chdir(rs.run_dir)
     return rs, rstep, kwargs
 
 
 @pytest.fixture(scope="function")
-def omi_step_0(isolated_dir, omi_test_in_dir, osp_dir, gmao_dir, vlidort_cli):
+def omi_step_0(isolated_dir, omi_test_in_dir, osp_dir, gmao_dir):
     rs, rstep, kwargs = set_up_run_to_location(
-        omi_test_in_dir, 0, "retrieval input", osp_dir, gmao_dir, vlidort_cli
+        omi_test_in_dir, 0, "retrieval input", osp_dir, gmao_dir
     )
     os.chdir(rs.run_dir)
     return rs, rstep, kwargs
@@ -180,10 +177,9 @@ def joint_tropomi_step_12(
     joint_tropomi_test_in_dir,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
 ):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 12, "retrieval input", osp_dir, gmao_dir, vlidort_cli
+        joint_tropomi_test_in_dir, 12, "retrieval input", osp_dir, gmao_dir
     )
     os.chdir(rs.run_dir)
     return rs, rstep, kwargs
@@ -195,10 +191,9 @@ def joint_tropomi_step_12_output(
     joint_tropomi_test_in_dir,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
 ):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 12, "retrieval step", osp_dir, gmao_dir, vlidort_cli
+        joint_tropomi_test_in_dir, 12, "retrieval step", osp_dir, gmao_dir
     )
     os.chdir(rs.run_dir)
     return rs, rstep, kwargs
@@ -210,10 +205,9 @@ def airs_irk_step_6(
     airs_irk_test_in_dir,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
 ):
     rs, rstep, kwargs = set_up_run_to_location(
-        airs_irk_test_in_dir, 6, "IRK step", osp_dir, gmao_dir, vlidort_cli
+        airs_irk_test_in_dir, 6, "IRK step", osp_dir, gmao_dir
     )
     os.chdir(rs.run_dir)
     return rs, rstep, kwargs
@@ -221,7 +215,7 @@ def airs_irk_step_6(
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_0(
-    request, isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_test_in_dir
+    request, isolated_dir, osp_dir, gmao_dir, tropomi_test_in_dir
 ):
     """Fixture for TropomiFmObjectCreator, at the start of step 1"""
 
@@ -236,7 +230,6 @@ def tropomi_fm_object_creator_step_0(
         "retrieval input",
         osp_dir,
         gmao_dir,
-        vlidort_cli,
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
@@ -274,7 +267,6 @@ def tropomi_fm_object_creator_swir_step(
     isolated_dir,
     josh_osp_dir,
     gmao_dir,
-    vlidort_cli,
     tropomi_band7_test_in_dir,
 ):
     """Fixture for TropomiFmObjectCreator, just so we don't need to repeat code
@@ -293,7 +285,6 @@ def tropomi_fm_object_creator_swir_step(
         "retrieval input",
         josh_osp_dir,
         gmao_dir,
-        vlidort_cli,
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
@@ -324,7 +315,7 @@ def tropomi_fm_object_creator_swir_step(
 
 @pytest.fixture(scope="function")
 def tropomi_fm_object_creator_step_1(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, tropomi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, tropomi_test_in_dir
 ):
     """Fixture for TropomiFmObjectCreator, at the start of step 1"""
     rs, rstep, _ = set_up_run_to_location(
@@ -333,7 +324,6 @@ def tropomi_fm_object_creator_step_1(
         "retrieval input",
         osp_dir,
         gmao_dir,
-        vlidort_cli,
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
@@ -364,9 +354,7 @@ def tropomi_fm_object_creator_step_1(
 
 
 @pytest.fixture(scope="function")
-def omi_fm_object_creator_step_0(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir
-):
+def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
     """Fixture for OmiFmObjectCreator, at the start of step 0"""
     rs, rstep, _ = set_up_run_to_location(
         omi_test_in_dir,
@@ -374,7 +362,6 @@ def omi_fm_object_creator_step_0(
         "retrieval input",
         osp_dir,
         gmao_dir,
-        vlidort_cli,
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
@@ -403,9 +390,7 @@ def omi_fm_object_creator_step_0(
 
 
 @pytest.fixture(scope="function")
-def omi_fm_object_creator_step_1(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir
-):
+def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
     """Fixture for OmiFmObjectCreator, at the start of step 0"""
     rs, rstep, _ = set_up_run_to_location(
         omi_test_in_dir,
@@ -413,7 +398,6 @@ def omi_fm_object_creator_step_1(
         "retrieval input",
         osp_dir,
         gmao_dir,
-        vlidort_cli,
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)

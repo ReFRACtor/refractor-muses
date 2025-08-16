@@ -25,7 +25,7 @@ import pytest
 @pytest.mark.old_py_retrieve_test
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_muses_py(
-    isolated_dir, step_number, osp_dir, gmao_dir, vlidort_cli, omi_test_in_dir
+    isolated_dir, step_number, osp_dir, gmao_dir, omi_test_in_dir
 ):
     # Just pick an iteration to use. Not sure that we care about looping
     # here.
@@ -38,7 +38,6 @@ def test_refractor_fm_muses_py(
             osp_dir=osp_dir,
             gmao_dir=gmao_dir,
             path="fm_muses_py/",
-            vlidort_cli=vlidort_cli,
         )
     )
     # Compare with py_retrieve. Should be identical, since we are doing the
@@ -50,7 +49,6 @@ def test_refractor_fm_muses_py(
             osp_dir=osp_dir,
             gmao_dir=gmao_dir,
             path="py_retrieve/",
-            vlidort_cli=vlidort_cli,
         )
     )
     assert o_success_flag == 1
@@ -85,7 +83,6 @@ def test_refractor_fm_refractor(
     step_number,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     omi_obs_step_1,
     omi_obs_step_2,
     omi_test_in_dir,
@@ -115,7 +112,6 @@ def test_refractor_fm_refractor(
             osp_dir=osp_dir,
             gmao_dir=gmao_dir,
             path="fm_muses_ref/",
-            vlidort_cli=vlidort_cli,
         )
     )
     # Compare with py-retrieve run
@@ -126,7 +122,6 @@ def test_refractor_fm_refractor(
             osp_dir=osp_dir,
             gmao_dir=gmao_dir,
             path="fm_muses_py/",
-            vlidort_cli=vlidort_cli,
         )
     )
     print("******************************************")
@@ -144,7 +139,7 @@ def test_refractor_fm_refractor(
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 def test_refractor_detailed_fm_refractor(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, omi_obs_step_2, omi_test_in_dir
+    isolated_dir, osp_dir, gmao_dir, omi_obs_step_2, omi_test_in_dir
 ):
     """Look at each piece in detail, so make sure we are agreeing"""
     step_number = 2
@@ -169,7 +164,6 @@ def test_refractor_detailed_fm_refractor(
             osp_dir=osp_dir,
             gmao_dir=gmao_dir,
             path="fm_muses_ref/",
-            vlidort_cli=vlidort_cli,
         )
     )
     # Compare with py-retrieve run
@@ -182,7 +176,6 @@ def test_refractor_detailed_fm_refractor(
             osp_dir=osp_dir,
             gmao_dir=gmao_dir,
             path="fm_muses_py/",
-            vlidort_cli=vlidort_cli,
         )
     )
 

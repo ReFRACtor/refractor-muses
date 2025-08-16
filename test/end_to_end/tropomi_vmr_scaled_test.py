@@ -205,9 +205,7 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
 
 
 @pytest.mark.long_test
-def test_tropomi_vrm_scaled(
-    osp_dir, gmao_dir, vlidort_cli, end_to_end_run_dir, tropomi_test_in_dir
-):
+def test_tropomi_vrm_scaled(osp_dir, gmao_dir, end_to_end_run_dir, tropomi_test_in_dir):
     """Full run, that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -216,7 +214,7 @@ def test_tropomi_vrm_scaled(
     dir = end_to_end_run_dir / "tropomi_vmr_scaled"
     subprocess.run(["rm", "-r", str(dir)])
     r = MusesRunDir(tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir)
-    rs = RetrievalStrategy(None, vlidort_cli=vlidort_cli)
+    rs = RetrievalStrategy(None)
     # Modify the Table.asc to add a scaled element. This is just a short cut,
     # so we don't need to make a new strategy table. Eventually a new table
     # will be needed in the OSP directory, but it is too early for that.

@@ -2,16 +2,13 @@ from refractor.muses import QaFlagValueFile, MusesPyQaDataHandle
 from fixtures.retrieval_step_fixture import set_up_run_to_location
 
 
-def test_qa_data_qa_flag(
-    isolated_dir, joint_tropomi_test_in_dir, osp_dir, gmao_dir, vlidort_cli
-):
+def test_qa_data_qa_flag(isolated_dir, joint_tropomi_test_in_dir, osp_dir, gmao_dir):
     rs, rstep, _ = set_up_run_to_location(
         joint_tropomi_test_in_dir,
         10,
         "retrieval step",
         osp_dir,
         gmao_dir,
-        vlidort_cli,
     )
     res = rs.qa_data_handle_set.qa_flag(rstep.results, rs.current_strategy_step)
     assert res == "BAD"

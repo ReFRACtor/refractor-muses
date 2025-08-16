@@ -91,9 +91,7 @@ def test_current_state_uip(joint_tropomi_step_12):
     print(mp.retrieval_indexes)
 
 
-def test_current_state(
-    isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir
-):
+def test_current_state(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
     try:
         with all_output_disabled():
             r = MusesRunDir(
@@ -163,7 +161,7 @@ def test_update_cloudfraction(omi_step_0):
 
 # We will come back to this in a short bit
 @pytest.mark.skip
-def test_work(isolated_dir, osp_dir, gmao_dir, vlidort_cli, joint_tropomi_test_in_dir):
+def test_work(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
     try:
         # with all_output_disabled():
         if True:

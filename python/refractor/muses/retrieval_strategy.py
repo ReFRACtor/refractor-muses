@@ -105,7 +105,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
     def __init__(
         self,
         filename: str | os.PathLike[str],
-        vlidort_cli: str | os.PathLike[str] | None = None,
         writeOutput: bool = False,
         writePlots: bool = False,
         osp_dir: str | os.PathLike[str] | None = None,
@@ -114,7 +113,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         logger.info(f"Strategy table filename {filename}")
         self._capture_directory = RefractorCaptureDirectory()
         self._observers: set[Any] = set()
-        self._vlidort_cli = Path(vlidort_cli) if vlidort_cli is not None else None
 
         self._cost_function_creator = CostFunctionCreator(rs=self)
         self._forward_model_handle_set = (
@@ -124,7 +122,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
             self._cost_function_creator.observation_handle_set
         )
         self._kwargs: dict[str, Any] = kwargs
-        self._kwargs["vlidort_cli"] = self._vlidort_cli
 
         self.osp_dir = osp_dir
         if self.osp_dir is None:
@@ -262,15 +259,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
             loc = ProcessLocation(loc)
         for obs in self._observers:
             obs.notify_update(self, loc, **kwargs)
-
-    @property
-    def vlidort_cli(self) -> Path | None:
-        return self._vlidort_cli
-
-    @vlidort_cli.setter
-    def vlidort_cli(self, v: str | os.PathLike[str]) -> None:
-        self._vlidort_cli = Path(v)
-        self._kwargs["vlidort_cli"] = Path(v)
 
     @property
     def keyword_arguments(self) -> dict:
@@ -443,7 +431,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         change_to_dir: bool = False,
         osp_dir: str | os.PathLike[str] | None = None,
         gmao_dir: str | os.PathLike[str] | None = None,
-        vlidort_cli: str | os.PathLike[str] | None = None,
     ) -> tuple[RetrievalStrategy, dict]:
         """This pairs with save_pickle.
 
@@ -473,9 +460,6 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         res._capture_directory.extract_directory(
             path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir
         )
-        if vlidort_cli is not None:
-            res.vlidort_cli = vlidort_cli
-            kwargs["vlidort_cli"] = vlidort_cli
         return res, kwargs
 
 

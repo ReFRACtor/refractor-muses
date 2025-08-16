@@ -17,7 +17,6 @@ match_py_retrieve = False
 def test_retrieval_strategy_tes(
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     python_fp_logger,
     end_to_end_run_dir,
     tes_test_in_dir,
@@ -42,7 +41,6 @@ def test_retrieval_strategy_tes(
     )
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
-        vlidort_cli=vlidort_cli,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")

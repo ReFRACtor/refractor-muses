@@ -56,7 +56,6 @@ def test_capture_joint_tropomi_residual_fm_jac(
     osp_dir,
     gmao_dir,
     joint_tropomi_test_in_dir,
-    vlidort_cli,
 ):
     rstep = load_muses_retrieval_step(
         joint_tropomi_test_in_dir,
@@ -70,7 +69,6 @@ def test_capture_joint_tropomi_residual_fm_jac(
         capture_directory=True,
         save_pickle_file=joint_tropomi_test_in_dir
         / f"residual_fm_jac_{step_number}_{iteration}.pkl",
-        vlidort_cli=vlidort_cli,
     )
 
 
@@ -102,7 +100,6 @@ def test_capture_joint_omi_residual_fm_jac(
     osp_dir,
     joint_omi_test_in_dir,
     gmao_dir,
-    vlidort_cli,
 ):
     rstep = load_muses_retrieval_step(
         joint_omi_test_in_dir,
@@ -117,7 +114,6 @@ def test_capture_joint_omi_residual_fm_jac(
         save_pickle_file=joint_omi_test_in_dir
         / f"residual_fm_jac_{step_number}_{iteration}.pkl",
         suppress_noisy_output=False,
-        vlidort_cli=vlidort_cli,
     )
 
 
@@ -130,7 +126,6 @@ def test_capture_tropomi_refractor_fm(
     iteration,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     tropomi_test_in_dir,
 ):
     rstep = load_muses_retrieval_step(
@@ -140,7 +135,6 @@ def test_capture_tropomi_refractor_fm(
         rstep,
         iteration,
         tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl",
-        vlidort_cli=vlidort_cli,
     )
 
 
@@ -159,7 +153,6 @@ def test_capture_joint_tropomi_refractor_fm(
     osp_dir,
     gmao_dir,
     joint_tropomi_test_in_dir,
-    vlidort_cli,
 ):
     # Note this is the TROPOMI part only, we save stuff after CrIS has been run
     rstep = load_muses_retrieval_step(
@@ -172,7 +165,6 @@ def test_capture_joint_tropomi_refractor_fm(
         rstep,
         iteration,
         joint_tropomi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl",
-        vlidort_cli=vlidort_cli,
     )
 
 
@@ -190,7 +182,6 @@ def test_capture_omi_refractor_fm(
     iteration,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     omi_test_in_dir,
 ):
     rstep = load_muses_retrieval_step(
@@ -200,7 +191,6 @@ def test_capture_omi_refractor_fm(
         rstep,
         iteration,
         omi_test_in_dir / f"refractor_fm_{step_number}_{iteration}.pkl",
-        vlidort_cli=vlidort_cli,
     )
 
 
@@ -217,7 +207,6 @@ def test_capture_initial_tropomi(
     do_uip,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     tropomi_test_in_dir,
 ):
     capoutdir = tropomi_test_in_dir
@@ -230,7 +219,6 @@ def test_capture_initial_tropomi(
             capture_directory=True,
             save_pickle_file=capoutdir / f"uip_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
     else:
         MusesRetrievalStep.create_from_table(
@@ -239,7 +227,6 @@ def test_capture_initial_tropomi(
             capture_directory=True,
             save_pickle_file=capoutdir / f"run_retrieval_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
 
 
@@ -251,7 +238,12 @@ def test_capture_initial_tropomi(
 @pytest.mark.parametrize("do_uip", [True, False])
 @pytest.mark.capture_initial_test
 def test_capture_initial_omi(
-    isolated_dir, step_number, do_uip, osp_dir, gmao_dir, omi_test_in_dir, vlidort_cli
+    isolated_dir,
+    step_number,
+    do_uip,
+    osp_dir,
+    gmao_dir,
+    omi_test_in_dir,
 ):
     capoutdir = omi_test_in_dir
     r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
@@ -263,7 +255,6 @@ def test_capture_initial_omi(
             capture_directory=True,
             save_pickle_file=capoutdir / f"uip_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
     else:
         MusesRetrievalStep.create_from_table(
@@ -272,7 +263,6 @@ def test_capture_initial_omi(
             capture_directory=True,
             save_pickle_file=capoutdir / f"run_retrieval_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
 
 
@@ -294,7 +284,6 @@ def test_capture_initial_joint_omi(
     do_uip,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     joint_omi_test_in_dir,
 ):
     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
@@ -308,7 +297,6 @@ def test_capture_initial_joint_omi(
             capture_directory=True,
             save_pickle_file=capoutdir / f"uip_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
     else:
         MusesRetrievalStep.create_from_table(
@@ -317,7 +305,6 @@ def test_capture_initial_joint_omi(
             capture_directory=True,
             save_pickle_file=capoutdir / f"run_retrieval_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
 
 
@@ -340,7 +327,6 @@ def test_capture_initial_joint_tropomi(
     do_uip,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
 ):
     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
     capoutdir = joint_tropomi_test_in_dir
@@ -353,7 +339,6 @@ def test_capture_initial_joint_tropomi(
             capture_directory=True,
             save_pickle_file=capoutdir / f"uip_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
     else:
         MusesRetrievalStep.create_from_table(
@@ -362,7 +347,6 @@ def test_capture_initial_joint_tropomi(
             capture_directory=True,
             save_pickle_file=capoutdir / f"run_retrieval_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
 
 
@@ -379,7 +363,6 @@ def test_capture_initial_tropomi_band7(
     do_uip,
     osp_dir,
     gmao_dir,
-    vlidort_cli,
     tropomi_band7_test_in_dir,
 ):
     capoutdir = tropomi_band7_test_in_dir
@@ -392,7 +375,6 @@ def test_capture_initial_tropomi_band7(
             capture_directory=True,
             save_pickle_file=capoutdir / f"uip_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )
     else:
         MusesRetrievalStep.create_from_table(
@@ -401,5 +383,4 @@ def test_capture_initial_tropomi_band7(
             capture_directory=True,
             save_pickle_file=capoutdir / f"run_retrieval_step_{step_number}.pkl",
             suppress_noisy_output=False,
-            vlidort_cli=vlidort_cli,
         )

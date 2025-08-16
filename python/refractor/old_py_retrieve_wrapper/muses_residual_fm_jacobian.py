@@ -65,12 +65,9 @@ class MusesResidualFmJacobian:
     def residual_fm_jacobian(
         self,
         vlidort_nstokes=2,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
     ):
         """Run the retrieval step with the saved parameters"""
-        with muses_py_call(
-            self.run_dir, vlidort_cli=vlidort_cli, vlidort_nstokes=vlidort_nstokes
-        ):
+        with muses_py_call(self.run_dir, vlidort_nstokes=vlidort_nstokes):
             with osswrapper(self.params["uip"]):
                 return mpy.residual_fm_jacobian(**self.params)
 
@@ -81,7 +78,6 @@ class MusesResidualFmJacobian:
         iteration=1,
         capture_directory=False,
         save_pickle_file=None,
-        vlidort_cli="~/muses/muses-vlidort/build/release/vlidort_cli",
         suppress_noisy_output=True,
     ):
         """This grabs the arguments passed to residual_fm_jacobian and stores
@@ -94,9 +90,9 @@ class MusesResidualFmJacobian:
                 # this if needed, but I think this is a good idea
                 if suppress_noisy_output:
                     with _all_output_disabled():
-                        rstep.run_retrieval(vlidort_cli=vlidort_cli)
+                        rstep.run_retrieval()
                 else:
-                    rstep.run_retrieval(vlidort_cli=vlidort_cli)
+                    rstep.run_retrieval()
         except _FakeParamsExecption as e:
             res = cls(params=e.params)
         if capture_directory:
