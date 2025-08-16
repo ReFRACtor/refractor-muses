@@ -312,7 +312,7 @@ class StateElementOspFile(StateElementWithCreate):
         (if different, can be None if we don't have a separate constraint_vector_fm value),
         any key word arguments that should be passed to the object constructor, and if
         we need to modify it the StateElementIdentifier (useful for example for a single
-        StateElementIdentifier which we then don't need to pass to the create function"
+        StateElementIdentifier which we then don't need to pass to the create function)"
 
         If for some reason we can't actually construct this cls, return None
         """

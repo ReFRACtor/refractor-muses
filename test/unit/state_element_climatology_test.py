@@ -72,6 +72,10 @@ def test_state_element_from_climatology(airs_omi_old_shandle, sid):
     # we match stuff
     assert s.spectral_domain is None
     assert not s.cov_is_constraint
-    assert s.poltype is None
+    if(sid == "CH3OH"):
+        assert s.poltype == "LAND_ENH"
+        assert s.metadata == {"poltype" : "LAND_ENH"}
+    else:
+        assert s.poltype is None
+        assert s.metadata == {}
     assert s.poltype_used_constraint
-    assert s.metadata == {}

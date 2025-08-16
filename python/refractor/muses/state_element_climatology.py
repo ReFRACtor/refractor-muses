@@ -80,14 +80,19 @@ class StateElementFromClimatology(StateElementOspFile):
         clim_dir = Path(
             retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         )
-        value_fm, _ = cls.read_climatology_2022(
+        value_fm, poltype = cls.read_climatology_2022(
             sid, pressure_list_fm, False, clim_dir, sounding_metadata
         )
         constraint_vector_fm, _ = cls.read_climatology_2022(
             sid, pressure_list_fm, True, clim_dir, sounding_metadata
         )
+        create_kwargs = {}
+        if poltype is not None:
+            create_kwargs["poltype"] = poltype
         return OspSetupReturn(
-            value_fm=value_fm, constraint_vector_fm=constraint_vector_fm
+            value_fm=value_fm,
+            constraint_vector_fm=constraint_vector_fm,
+            create_kwargs=create_kwargs,
         )
 
     @classmethod
@@ -153,9 +158,13 @@ class StateElementFromClimatology(StateElementOspFile):
                     f"Didn't find year {sounding_metadata.year} in file {filename}"
                 )
             if ind[0] >= f["yearly_multiplier"].shape[0]:
-                logger.warning(f"{sid}: yearly_multiplier not available for {sounding_metadata.year}.")
+                logger.warning(
+                    f"{sid}: yearly_multiplier not available for {sounding_metadata.year}."
+                )
                 ind[0] = f["yearly_multiplier"].shape[0] - 1
-                logger.warning(f"{sid}: using yearly_multiplier for {f['year'][ind[0]]} instead")
+                logger.warning(
+                    f"{sid}: using yearly_multiplier for {f['year'][ind[0]]} instead"
+                )
             yearly_multiplier = f["yearly_multiplier"][ind[0]]
             if yearly_multiplier < 0:
                 raise RuntimeError(
@@ -179,7 +188,7 @@ for sid in [
     "CO2",
     "HNO3",
     "CFC12",
-    # "CH3OH",
+    "CH3OH",
     "CCL4",
     "CFC22",
     "N2O",
