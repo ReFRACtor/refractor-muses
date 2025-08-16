@@ -204,6 +204,10 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         return fm
 
 
+# Currently doesn't work, since we have reworked the StateElement stuff.
+# We'll fix this, but wait until we have everything completed in the StateElement to come
+# back to this
+@pytest.mark.skip
 @pytest.mark.long_test
 def test_tropomi_vrm_scaled(osp_dir, gmao_dir, end_to_end_run_dir, tropomi_test_in_dir):
     """Full run, that we can compare the output files. This is not

@@ -391,6 +391,14 @@ class StateElementOldWrapper(StateElement):
         if self.is_first:
             self._current_state_old.notify_step_solution(xsol)
 
+    def need_retrieval_initial_fm_from_cycle(self) -> bool:
+        # We handle the cycle through the strategy table at a lower
+        # level for the old state elements, and it fact because not
+        # all the needed files are present we actually fail if we try
+        # doing this in MusesStrategy. So just skip this step for
+        # the old state elements.
+        return False
+
 
 # Right now, only fall back to old py-retrieve code
 class StateElementOldWrapperHandle(StateElementHandle):

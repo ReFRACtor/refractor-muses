@@ -509,7 +509,11 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                     retrieval_config,
                     skip_initial_guess_update=True,
                 )
-                if False and selem.retrieved_this_step:
+                # For state element that are retrieved, replace value_fm
+                # with value_fmprime. Don't do this for the state elements
+                # with a spectral_domain - they handle this themselves as
+                # a special case.
+                if True and selem.retrieved_this_step and not selem.spectral_domain:
                     value_fm = selem.value_fm.to_fmprime(
                         selem.state_mapping_retrieval_to_fm, selem.state_mapping
                     ).view(FullGridMappedArray)

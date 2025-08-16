@@ -26,7 +26,7 @@ class CrossStateElement:
     currently have exactly one example of an "interesting" cross term
     - the H2O-HDO cross term. It is a bit hard to determine if we have
     the right interfaces/abstractions with just one example. But this
-    is at least our current best case at how to organize this, and is
+    is at least our current best guess at how to organize this, and is
     hopefully a good base for tweaking if we get more examples.
 
     There are 3 primary things we need to be able to do:

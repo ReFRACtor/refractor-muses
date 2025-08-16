@@ -1,7 +1,6 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .state_element_osp import StateElementOspFile, OspSetupReturn
-from .tes_file import TesFile
 from .identifier import StateElementIdentifier
 from .state_element import (
     StateElementWithCreateHandle,
@@ -153,6 +152,10 @@ class StateElementFromClimatology(StateElementOspFile):
                 raise RuntimeError(
                     f"Didn't find year {sounding_metadata.year} in file {filename}"
                 )
+            if ind[0] >= f["yearly_multiplier"].shape[0]:
+                logger.warning(f"{sid}: yearly_multiplier not available for {sounding_metadata.year}.")
+                ind[0] = f["yearly_multiplier"].shape[0] - 1
+                logger.warning(f"{sid}: using yearly_multiplier for {f['year'][ind[0]]} instead")
             yearly_multiplier = f["yearly_multiplier"][ind[0]]
             if yearly_multiplier < 0:
                 raise RuntimeError(
@@ -171,5 +174,32 @@ class StateElementFromClimatology(StateElementOspFile):
             vmr = np.exp(np.matmul(my_map, np.log(vmr)))
         return vmr.view(FullGridMappedArray), type_name
 
+
+for sid in [
+    "CO2",
+    "HNO3",
+    "CFC12",
+    # "CH3OH",
+    "CCL4",
+    "CFC22",
+    "N2O",
+    "O3",
+    "CH4",
+    # "CO",
+    # "HDO",
+    "SF6",
+    "C2H4",
+    # "PAN",
+    "HCN",
+    "CFC11",
+]:
+    StateElementHandleSet.add_default_handle(
+        StateElementWithCreateHandle(
+            StateElementIdentifier(sid),
+            StateElementFromClimatology,
+            include_old_state_info=True,
+        ),
+        priority_order=0,
+    )
 
 __all__ = ["StateElementFromClimatology"]

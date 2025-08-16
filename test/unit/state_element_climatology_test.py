@@ -30,8 +30,6 @@ def test_read_climatology_2022(airs_omi_old_shandle):
     npt.assert_allclose(panvmr.constraint_vector_fm, vmr_prior)
 
 
-# Doesn't currently work. Comment out so we can check in, we'll get this working in a bit
-@pytest.mark.skip
 @pytest.mark.parametrize(
     "sid",
     [
@@ -70,7 +68,7 @@ def test_state_element_from_climatology(airs_omi_old_shandle, sid):
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
     npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
     npt.assert_allclose(s.value_fm, sold_value_fm)
-    # Check an number of things we set in StateElementOsp, just to make sure
+    # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
     assert not s.cov_is_constraint
