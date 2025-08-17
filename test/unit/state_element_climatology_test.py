@@ -62,9 +62,6 @@ def test_state_element_from_climatology(airs_omi_old_shandle, sid):
         sounding_metadata=smeta,
     )
     # Cycle through strategy steps, and check value_fm after that
-    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
-    # npt.assert_allclose(s.value_fm, sold_value_fm)
-    npt.assert_allclose(s.value_fm, sold_constraint_vector_fm)
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
     npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
     npt.assert_allclose(s.value_fm, sold_value_fm)

@@ -25,6 +25,13 @@ if typing.TYPE_CHECKING:
 class StateElementFromClimatology(StateElementOspFile):
     """State element listed in Species_List_From_Climatology in L2_Setup_Control_Initial.asc
     control file"""
+    def retrieval_initial_fm_from_cycle_update_constraint(self) -> bool:
+        # For some state elements, the constraint vector is also
+        # updated
+        if self.state_element_id in (StateElementIdentifier("CO"), 
+                                     StateElementIdentifier("HDO")):
+           return True
+        return False
 
     @classmethod
     def create(
@@ -83,6 +90,10 @@ class StateElementFromClimatology(StateElementOspFile):
         value_fm, poltype = cls.read_climatology_2022(
             sid, pressure_list_fm, False, clim_dir, sounding_metadata
         )
+        # Note although there are types for PAN, it isn't actually used
+        # in the state element. So set this to none
+        if sid == StateElementIdentifier("PAN"):
+            poltype = None
         constraint_vector_fm, _ = cls.read_climatology_2022(
             sid, pressure_list_fm, True, clim_dir, sounding_metadata
         )
@@ -194,11 +205,11 @@ for sid in [
     "N2O",
     "O3",
     "CH4",
-    # "CO",
+    "CO",
     # "HDO",
     "SF6",
     "C2H4",
-    # "PAN",
+    #"PAN",
     "HCN",
     "CFC11",
 ]:

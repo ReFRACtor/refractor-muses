@@ -521,7 +521,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 selem.update_state_element(next_step_initial_fm=selem.value_fm)
                 self.next_step(None)
             self.set_step(cstepnum, None)
-            # Note, rightly or wrongly we don't update constraint_vector.
+            # Note, rightly or wrongly we don't always update constraint_vector.
             # This is to match what muses-py does
             # TODO Determine if this is the correct behavior
             selem.update_state_element(
@@ -529,6 +529,10 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 step_initial_fm=selem.value_fm.copy(),
                 next_step_initial_fm=None,
             )
+            # However, some state element *do* update constraint_vector
+            if(selem.retrieval_initial_fm_from_cycle_update_constraint()):
+                selem.update_state_element(constraint_vector_fm = selem.value_fm.copy())
+                
             # StateElementWithCreate has a notify_done_retrieval_initial_fm_from_cycle. Call
             # if the StateElement has this attribute - no error if it doesn't. Just marks so
             # we know this has already been run
