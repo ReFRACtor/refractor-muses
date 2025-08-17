@@ -220,6 +220,7 @@ class StateInfo(UserDict):
             strategy,
             observation_handle_set,
             self._sounding_metadata,
+            self,
         )
         self._cross_state_info.notify_update_target(
             measurement_id,

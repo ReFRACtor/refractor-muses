@@ -262,18 +262,18 @@ class StateElementOspFile(StateElementWithCreate):
         return self._state_mapping_retrieval_to_fm
 
     def need_retrieval_initial_fm_from_cycle(self) -> bool:
-        if self._need_retrieval_initial_fm_from_cyle is None:
+        if self._need_retrieval_initial_fm_from_cycle is None:
             # muses-py is bad about not having OSP files for elements that it doesn't actuall
             # retrieve. We assume if this happens that we don't retrieve the element, and don't
             # need to cycle.
             try:
-                self._need_retrieval_initial_fm_from_cyle = (
+                self._need_retrieval_initial_fm_from_cycle = (
                     self.pressure_list_fm is not None
                     or self.spectral_domain is not None
                 )
             except (FileNotFoundError, RuntimeError):
-                self._need_retrieval_initial_fm_from_cyle = False
-        return self._need_retrieval_initial_fm_from_cyle
+                self._need_retrieval_initial_fm_from_cycle = False
+        return self._need_retrieval_initial_fm_from_cycle
 
     @property
     def pressure_list_fm(self) -> FullGridMappedArray | None:

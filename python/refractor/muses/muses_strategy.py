@@ -25,7 +25,7 @@ if typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import CurrentState
     from .retrieval_strategy import RetrievalStrategy
-    from .state_element import StateElement
+    from .state_element import StateElementWithCreate
     from .retrieval_configuration import RetrievalConfiguration
 
 
@@ -455,7 +455,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def retrieval_initial_fm_from_cycle(
-        self, selem: StateElement, retrieval_config: RetrievalConfiguration
+        self, selem: StateElementWithCreate, retrieval_config: RetrievalConfiguration
     ) -> None:
         """This cycles a state element through all the strategy steps, and uses the
         final value_fm to set the retrieval_initial_fm.
@@ -530,9 +530,9 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 next_step_initial_fm=None,
             )
             # However, some state element *do* update constraint_vector
-            if(selem.retrieval_initial_fm_from_cycle_update_constraint()):
-                selem.update_state_element(constraint_vector_fm = selem.value_fm.copy())
-                
+            if selem.retrieval_initial_fm_from_cycle_update_constraint():
+                selem.update_state_element(constraint_vector_fm=selem.value_fm.copy())
+
             # StateElementWithCreate has a notify_done_retrieval_initial_fm_from_cycle. Call
             # if the StateElement has this attribute - no error if it doesn't. Just marks so
             # we know this has already been run

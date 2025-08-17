@@ -25,13 +25,6 @@ if typing.TYPE_CHECKING:
 class StateElementFromClimatology(StateElementOspFile):
     """State element listed in Species_List_From_Climatology in L2_Setup_Control_Initial.asc
     control file"""
-    def retrieval_initial_fm_from_cycle_update_constraint(self) -> bool:
-        # For some state elements, the constraint vector is also
-        # updated
-        if self.state_element_id in (StateElementIdentifier("CO"), 
-                                     StateElementIdentifier("HDO")):
-           return True
-        return False
 
     @classmethod
     def create(
@@ -87,23 +80,15 @@ class StateElementFromClimatology(StateElementOspFile):
         clim_dir = Path(
             retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         )
-        value_fm, poltype = cls.read_climatology_2022(
+        value_fm, _ = cls.read_climatology_2022(
             sid, pressure_list_fm, False, clim_dir, sounding_metadata
         )
-        # Note although there are types for PAN, it isn't actually used
-        # in the state element. So set this to none
-        if sid == StateElementIdentifier("PAN"):
-            poltype = None
         constraint_vector_fm, _ = cls.read_climatology_2022(
             sid, pressure_list_fm, True, clim_dir, sounding_metadata
         )
-        create_kwargs = {}
-        if poltype is not None:
-            create_kwargs["poltype"] = poltype
         return OspSetupReturn(
             value_fm=value_fm,
             constraint_vector_fm=constraint_vector_fm,
-            create_kwargs=create_kwargs,
         )
 
     @classmethod
@@ -114,6 +99,7 @@ class StateElementFromClimatology(StateElementOspFile):
         is_constraint: bool,
         climate_dir: Path,
         sounding_metadata: SoundingMetadata,
+        linear_interp: bool = True,
     ) -> tuple[FullGridMappedArray, str | None]:
         """This is a copy of mpy.read_climatology_2022, modified a bit"""
         logger.debug(f"Reading climatology for: {sid}")
@@ -183,33 +169,116 @@ class StateElementFromClimatology(StateElementOspFile):
                 )
             vmr = vmr * yearly_multiplier
 
-        if sid in (
-            StateElementIdentifier("CH3OH"),
-            StateElementIdentifier("NH3"),
-            StateElementIdentifier("HCOOH"),
-        ):
-            vmr = mpy.supplier_shift_profile(vmr, pressure, pressure_list_fm)
-        else:
+        if linear_interp:
             my_map = mpy.make_interpolation_matrix_susan(pressure, pressure_list_fm)
             vmr = np.exp(np.matmul(my_map, np.log(vmr)))
+        else:
+            vmr = mpy.supplier_shift_profile(vmr, pressure, pressure_list_fm)
         return vmr.view(FullGridMappedArray), type_name
+
+
+class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
+    """Specialization for CH3OH"""
+
+    @classmethod
+    # type: ignore[override]
+    def _setup_create(
+        cls,
+        pressure_list_fm: FullGridMappedArray,
+        sid: StateElementIdentifier,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        **kwargs: Any,
+    ) -> OspSetupReturn | None:
+        clim_dir = Path(
+            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
+        )
+        value_fm, poltype = cls.read_climatology_2022(
+            sid,
+            pressure_list_fm,
+            False,
+            clim_dir,
+            sounding_metadata,
+            linear_interp=False,
+        )
+        constraint_vector_fm, _ = cls.read_climatology_2022(
+            sid,
+            pressure_list_fm,
+            True,
+            clim_dir,
+            sounding_metadata,
+            linear_interp=False,
+        )
+        create_kwargs = {}
+        if poltype is not None:
+            create_kwargs["poltype"] = poltype
+        return OspSetupReturn(
+            value_fm=value_fm,
+            constraint_vector_fm=constraint_vector_fm,
+            create_kwargs=create_kwargs,
+        )
+
+
+class StateElementFromClimatologyCo(StateElementFromClimatology):
+    """Specialization for CO"""
+
+    def retrieval_initial_fm_from_cycle_update_constraint(self) -> bool:
+        # For some state elements, the constraint vector is also
+        # updated
+        return True
+
+
+class StateElementFromClimatologyHdo(StateElementFromClimatology):
+    """Specialization for HDO. It is fraction of H2O rather than independent value."""
+
+    @classmethod
+    # type: ignore[override]
+    def _setup_create(
+        cls,
+        pressure_list_fm: FullGridMappedArray,
+        sid: StateElementIdentifier,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        state_info: StateInfo,
+        **kwargs: Any,
+    ) -> OspSetupReturn | None:
+        clim_dir = Path(
+            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
+        )
+        value_fm, _ = cls.read_climatology_2022(
+            sid, pressure_list_fm, False, clim_dir, sounding_metadata
+        )
+        constraint_vector_fm, _ = cls.read_climatology_2022(
+            sid, pressure_list_fm, True, clim_dir, sounding_metadata
+        )
+        value_fm = (
+            value_fm.view(np.ndarray)
+            * state_info[StateElementIdentifier("H2O")].value_fm.view(np.ndarray)
+        ).view(FullGridMappedArray)
+        constraint_vector_fm = (
+            constraint_vector_fm.view(np.ndarray)
+            * state_info[StateElementIdentifier("H2O")].constraint_vector_fm.view(
+                np.ndarray
+            )
+        ).view(FullGridMappedArray)
+        return OspSetupReturn(
+            value_fm=value_fm,
+            constraint_vector_fm=constraint_vector_fm,
+        )
 
 
 for sid in [
     "CO2",
     "HNO3",
     "CFC12",
-    "CH3OH",
     "CCL4",
     "CFC22",
     "N2O",
     "O3",
     "CH4",
-    "CO",
-    # "HDO",
     "SF6",
     "C2H4",
-    #"PAN",
+    # "PAN",
     "HCN",
     "CFC11",
 ]:
@@ -222,4 +291,36 @@ for sid in [
         priority_order=0,
     )
 
-__all__ = ["StateElementFromClimatology"]
+StateElementHandleSet.add_default_handle(
+    StateElementWithCreateHandle(
+        StateElementIdentifier("HDO"),
+        StateElementFromClimatologyHdo,
+        include_old_state_info=True,
+    ),
+    priority_order=0,
+)
+
+StateElementHandleSet.add_default_handle(
+    StateElementWithCreateHandle(
+        StateElementIdentifier("CO"),
+        StateElementFromClimatologyCo,
+        include_old_state_info=True,
+    ),
+    priority_order=0,
+)
+
+StateElementHandleSet.add_default_handle(
+    StateElementWithCreateHandle(
+        StateElementIdentifier("CH3OH"),
+        StateElementFromClimatologyCh3oh,
+        include_old_state_info=True,
+    ),
+    priority_order=0,
+)
+
+__all__ = [
+    "StateElementFromClimatology",
+    "StateElementFromClimatologyHdo",
+    "StateElementFromClimatologyCo",
+    "StateElementFromClimatologyCh3oh",
+]

@@ -439,7 +439,7 @@ class StateElementHandle(CreatorHandle):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
-        state_info: StateInfo | None = None,
+        state_info: StateInfo | None,
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # Default is to do nothing
@@ -473,7 +473,7 @@ class StateElementHandleSet(CreatorHandleSet):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
-        state_info: StateInfo | None = None,
+        state_info: StateInfo | None,
     ) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         for p in sorted(self.handle_set.keys(), reverse=True):
@@ -1083,7 +1083,7 @@ class StateElementWithCreate(StateElementImplementation):
             spectral_domain,
             selem_wrapper,
         )
-        self._need_retrieval_initial_fm_from_cyle: bool | None = None
+        self._need_retrieval_initial_fm_from_cycle: bool | None = None
 
     @classmethod
     def create(
@@ -1103,18 +1103,17 @@ class StateElementWithCreate(StateElementImplementation):
     def need_retrieval_initial_fm_from_cycle(self) -> bool:
         """Return True if we need to have retrieval_initial_fm_from_cycle run for
         this StateElement."""
-        if self._need_retrieval_initial_fm_from_cyle is None:
-            self._need_retrieval_initial_fm_from_cyle = (
+        if self._need_retrieval_initial_fm_from_cycle is None:
+            self._need_retrieval_initial_fm_from_cycle = (
                 self.pressure_list_fm is not None or self.spectral_domain is not None
             )
-        return self._need_retrieval_initial_fm_from_cyle
+        return self._need_retrieval_initial_fm_from_cycle
 
     def retrieval_initial_fm_from_cycle_update_constraint(self) -> bool:
-        '''Some elements update the constraint_vector when doing the full cycle,
+        """Some elements update the constraint_vector when doing the full cycle,
         others don't. If this is True, then retrieval_initial_fm_from_cycle will
-        also update constraint_vector_fm'''
+        also update constraint_vector_fm"""
         return False
-    
 
     def notify_done_retrieval_initial_fm_from_cycle(self) -> None:
         """Called when we have run
@@ -1122,7 +1121,7 @@ class StateElementWithCreate(StateElementImplementation):
         this as done. This automatically gets called by
         MusesStrategy.retrieval_initial_fm_from_cycle.
         """
-        self._need_retrieval_initial_fm_from_cyle = False
+        self._need_retrieval_initial_fm_from_cycle = False
 
 
 class StateElementWithCreateHandle(StateElementHandle):
@@ -1177,7 +1176,7 @@ class StateElementWithCreateHandle(StateElementHandle):
         strategy: MusesStrategy,
         observation_handle_set: ObservationHandleSet,
         sounding_metadata: SoundingMetadata,
-        state_info: StateInfo | None = None,
+        state_info: StateInfo | None,
     ) -> None:
         self.measurement_id = measurement_id
         self.retrieval_config = retrieval_config

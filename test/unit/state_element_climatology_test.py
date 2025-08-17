@@ -2,6 +2,10 @@ from __future__ import annotations
 from refractor.muses import (
     StateElementIdentifier,
     StateElementFromClimatology,
+    StateElementFromClimatologyHdo,
+    StateElementFromClimatologyCo,
+    StateElementFromClimatologyCh3oh,
+    StateInfo,
 )
 import numpy.testing as npt
 from pathlib import Path
@@ -36,14 +40,11 @@ def test_read_climatology_2022(airs_omi_old_shandle):
         "CO2",
         "HNO3",
         "CFC12",
-        "CH3OH",
         "CCL4",
         "CFC22",
         "N2O",
         "O3",
         "CH4",
-        "CO",
-        "HDO",
         "SF6",
         "C2H4",
         "PAN",
@@ -69,10 +70,81 @@ def test_state_element_from_climatology(airs_omi_old_shandle, sid):
     # we match stuff
     assert s.spectral_domain is None
     assert not s.cov_is_constraint
-    if(sid == "CH3OH"):
-        assert s.poltype == "LAND_ENH"
-        assert s.metadata == {"poltype" : "LAND_ENH"}
-    else:
-        assert s.poltype is None
-        assert s.metadata == {}
+    assert s.poltype is None
+    assert s.metadata == {}
+    assert s.poltype_used_constraint
+
+
+def test_state_element_from_climatology_hdo(airs_omi_old_shandle):
+    h_old, measurement_id, rconfig, strat, obs_hset, smeta = airs_omi_old_shandle
+    state_info = StateInfo()
+    state_info.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    sid = "HDO"
+    sold = h_old.state_element(StateElementIdentifier(sid))
+    sold_value_fm = sold.value_fm
+    sold_constraint_vector_fm = sold.constraint_vector_fm
+    s = StateElementFromClimatologyHdo.create(
+        sid=StateElementIdentifier(sid),
+        retrieval_config=rconfig,
+        sounding_metadata=smeta,
+        state_info=state_info,
+    )
+    # Cycle through strategy steps, and check value_fm after that
+    strat.retrieval_initial_fm_from_cycle(s, rconfig)
+    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
+    npt.assert_allclose(s.value_fm, sold_value_fm)
+    # Check a number of things we set in StateElementOsp, just to make sure
+    # we match stuff
+    assert s.spectral_domain is None
+    assert not s.cov_is_constraint
+    assert s.poltype is None
+    assert s.metadata == {}
+    assert s.poltype_used_constraint
+
+
+def test_state_element_from_climatology_co(airs_omi_old_shandle):
+    h_old, _, rconfig, strat, _, smeta = airs_omi_old_shandle
+    sid = "CO"
+    sold = h_old.state_element(StateElementIdentifier(sid))
+    sold_value_fm = sold.value_fm
+    sold_constraint_vector_fm = sold.constraint_vector_fm
+    s = StateElementFromClimatologyCo.create(
+        sid=StateElementIdentifier(sid),
+        retrieval_config=rconfig,
+        sounding_metadata=smeta,
+    )
+    # Cycle through strategy steps, and check value_fm after that
+    strat.retrieval_initial_fm_from_cycle(s, rconfig)
+    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
+    npt.assert_allclose(s.value_fm, sold_value_fm)
+    # Check a number of things we set in StateElementOsp, just to make sure
+    # we match stuff
+    assert s.spectral_domain is None
+    assert not s.cov_is_constraint
+    assert s.poltype is None
+    assert s.metadata == {}
+    assert s.poltype_used_constraint
+
+
+def test_state_element_from_climatology_ch3oh(airs_omi_old_shandle):
+    h_old, _, rconfig, strat, _, smeta = airs_omi_old_shandle
+    sid = "CH3OH"
+    sold = h_old.state_element(StateElementIdentifier(sid))
+    sold_value_fm = sold.value_fm
+    sold_constraint_vector_fm = sold.constraint_vector_fm
+    s = StateElementFromClimatologyCh3oh.create(
+        sid=StateElementIdentifier(sid),
+        retrieval_config=rconfig,
+        sounding_metadata=smeta,
+    )
+    # Cycle through strategy steps, and check value_fm after that
+    strat.retrieval_initial_fm_from_cycle(s, rconfig)
+    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
+    npt.assert_allclose(s.value_fm, sold_value_fm)
+    # Check a number of things we set in StateElementOsp, just to make sure
+    # we match stuff
+    assert s.spectral_domain is None
+    assert not s.cov_is_constraint
+    assert s.poltype == "LAND_ENH"
+    assert s.metadata == {"poltype": "LAND_ENH"}
     assert s.poltype_used_constraint
