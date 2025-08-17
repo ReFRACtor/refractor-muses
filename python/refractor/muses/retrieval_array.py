@@ -121,10 +121,18 @@ class FullGridMappedArray(np.ndarray):
         self,
         state_mapping_retrieval_to_fm: rf.StateMapping,
         state_mapping: rf.StateMapping,
+        should_fix_negative: bool = False,
     ) -> FullGridMappedArrayFromRetGrid:
-        return self.to_ret(state_mapping_retrieval_to_fm, state_mapping).to_fmprime(
-            state_mapping_retrieval_to_fm, state_mapping
-        )
+        """Convert to fmprime. Note muses-py has handling for negative values if
+        the state mapping is linear. If the flag "should_fix_negative" is True,
+        we include that handling. One place to get this is from StateElement
+        should_fix_negative property, it has logic to figure out if we should
+        do this for a StateElement"""
+        v = self.to_ret(state_mapping_retrieval_to_fm, state_mapping).copy()
+        if should_fix_negative and v.min() < 0 and v.max() > 0:
+            v[v < 0] = v[v > 0].min()
+        return v.to_fmprime(state_mapping_retrieval_to_fm, state_mapping)
+        return v
 
 
 def _from_x_subset(

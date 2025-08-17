@@ -219,15 +219,6 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
         )
 
 
-class StateElementFromClimatologyCo(StateElementFromClimatology):
-    """Specialization for CO"""
-
-    def retrieval_initial_fm_from_cycle_update_constraint(self) -> bool:
-        # For some state elements, the constraint vector is also
-        # updated
-        return True
-
-
 class StateElementFromClimatologyHdo(StateElementFromClimatology):
     """Specialization for HDO. It is fraction of H2O rather than independent value."""
 
@@ -268,6 +259,7 @@ class StateElementFromClimatologyHdo(StateElementFromClimatology):
 
 
 for sid in [
+    "CO",
     "CO2",
     "HNO3",
     "CFC12",
@@ -278,7 +270,7 @@ for sid in [
     "CH4",
     "SF6",
     "C2H4",
-    # "PAN",
+    "PAN",
     "HCN",
     "CFC11",
 ]:
@@ -302,15 +294,6 @@ StateElementHandleSet.add_default_handle(
 
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
-        StateElementIdentifier("CO"),
-        StateElementFromClimatologyCo,
-        include_old_state_info=True,
-    ),
-    priority_order=0,
-)
-
-StateElementHandleSet.add_default_handle(
-    StateElementWithCreateHandle(
         StateElementIdentifier("CH3OH"),
         StateElementFromClimatologyCh3oh,
         include_old_state_info=True,
@@ -321,6 +304,5 @@ StateElementHandleSet.add_default_handle(
 __all__ = [
     "StateElementFromClimatology",
     "StateElementFromClimatologyHdo",
-    "StateElementFromClimatologyCo",
     "StateElementFromClimatologyCh3oh",
 ]

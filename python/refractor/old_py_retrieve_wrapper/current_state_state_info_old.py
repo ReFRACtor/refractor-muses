@@ -548,7 +548,8 @@ class CurrentStateStateInfoOld(CurrentState):
                     # We've need this debugging enough time that just keep the code
                     # here. If we haven't used this in a while, we can delete this block
                     print(strategy.current_strategy_step().strategy_step.step_number)
-                    print(self.state_value(StateElementIdentifier("N2O"))[45])
+                    # print(self.state_value(StateElementIdentifier("PAN"))[-10])
+                    print(self.state_constraint_vector(StateElementIdentifier("O3"))[0])
                 strategy.next_step(self)
             self.state_info.copy_current_initialInitial()
             self.state_info.copy_current_initial()

@@ -1109,12 +1109,6 @@ class StateElementWithCreate(StateElementImplementation):
             )
         return self._need_retrieval_initial_fm_from_cycle
 
-    def retrieval_initial_fm_from_cycle_update_constraint(self) -> bool:
-        """Some elements update the constraint_vector when doing the full cycle,
-        others don't. If this is True, then retrieval_initial_fm_from_cycle will
-        also update constraint_vector_fm"""
-        return False
-
     def notify_done_retrieval_initial_fm_from_cycle(self) -> None:
         """Called when we have run
         MusesStrategy.retrieval_initial_fm_from_cycle, just to mark

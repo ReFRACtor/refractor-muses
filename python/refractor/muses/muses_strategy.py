@@ -513,12 +513,19 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 # with value_fmprime. Don't do this for the state elements
                 # with a spectral_domain - they handle this themselves as
                 # a special case.
-                if True and selem.retrieved_this_step and not selem.spectral_domain:
+                if selem.retrieved_this_step and not selem.spectral_domain:
                     value_fm = selem.value_fm.to_fmprime(
-                        selem.state_mapping_retrieval_to_fm, selem.state_mapping
+                        selem.state_mapping_retrieval_to_fm,
+                        selem.state_mapping,
+                        selem.should_fix_negative,
                     ).view(FullGridMappedArray)
                     selem.update_state_element(value_fm=value_fm)
                 selem.update_state_element(next_step_initial_fm=selem.value_fm)
+                if False:
+                    # We've need this debugging enough time that just keep the code
+                    # here. If we haven't used this in a while, we can delete this block
+                    print(cstep.strategy_step.step_number)
+                    print(selem.value_fm[-10])
                 self.next_step(None)
             self.set_step(cstepnum, None)
             # Note, rightly or wrongly we don't always update constraint_vector.
@@ -529,9 +536,6 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
                 step_initial_fm=selem.value_fm.copy(),
                 next_step_initial_fm=None,
             )
-            # However, some state element *do* update constraint_vector
-            if selem.retrieval_initial_fm_from_cycle_update_constraint():
-                selem.update_state_element(constraint_vector_fm=selem.value_fm.copy())
 
             # StateElementWithCreate has a notify_done_retrieval_initial_fm_from_cycle. Call
             # if the StateElement has this attribute - no error if it doesn't. Just marks so
