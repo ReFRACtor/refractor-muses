@@ -8,13 +8,14 @@ import numpy.testing as npt
 
 
 def test_omi_cloud_fraction_state_element(airs_omi_old_shandle):
-    _, _, rconfig, strat, obs_hset, smeta = airs_omi_old_shandle
+    _, _, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
     selem = StateElementOmiCloudFraction.create(
         StateElementIdentifier("OMICLOUDFRACTION"),
         retrieval_config=rconfig,
         strategy=strat,
         observation_handle_set=obs_hset,
         sounding_metadata=smeta,
+        state_info=sinfo,
     )
     vexpect = np.array([0.32976987957954407])
     npt.assert_allclose(selem.value_fm, vexpect)
@@ -23,13 +24,14 @@ def test_omi_cloud_fraction_state_element(airs_omi_old_shandle):
 
 
 def test_omi_surface_albedo_state_element(airs_omi_old_shandle):
-    _, _, rconfig, strat, obs_hset, smeta = airs_omi_old_shandle
+    _, _, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
     selem = StateElementOmiSurfaceAlbedo.create(
         StateElementIdentifier("OMISURFACEALBEDOUV1"),
         retrieval_config=rconfig,
         strategy=strat,
         observation_handle_set=obs_hset,
         sounding_metadata=smeta,
+        state_info=sinfo,
     )
     vexpect = np.array([0.052])
     npt.assert_allclose(selem.value_fm, vexpect)

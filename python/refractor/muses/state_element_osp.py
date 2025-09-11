@@ -333,13 +333,18 @@ class StateElementOspFile(StateElementWithCreate):
     ) -> Self | None:
         if retrieval_config is None or sounding_metadata is None:
             raise RuntimeError("Need retrieval_config and sounding_metadata")
-        # Determining pressure is spread across a number of muses-py functions. We'll need
-        # to track all this down, but short term just get this from the old data
-        from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
+        # Get pressure from StateInfo, creating if needed. This is probably
+        # StateElementFromGmaoPressure (the current default), but could
+        # conceivably be something else. Note that the pressure needs to create
+        # itself without needing this create function, so we don't get an infinite recursion
 
-        p = state_element_old_wrapper_handle.state_element(
-            StateElementIdentifier("pressure")
-        )
+        if sid is not None and sid == StateElementIdentifier("pressure"):
+            # Avoid infinite recursion, if we are called for "pressure" we
+            # can't handle that in this creator.
+            return None
+        if state_info is None:
+            return None
+        p = state_info[StateElementIdentifier("pressure")]
         pressure_list_fm = p.value_fm.copy()
         sret = cls._setup_create(
             pressure_list_fm=pressure_list_fm,

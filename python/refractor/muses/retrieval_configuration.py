@@ -44,6 +44,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         self,
         base_dir: str | os.PathLike[str] = ".",
         osp_dir: str | os.PathLike[str] | None = None,
+        gmao_dir: str | os.PathLike[str] | None = None,
     ) -> None:
         self._data: dict[str, Any] = {}
         # These can be updated after the object is created, e.g. after
@@ -51,6 +52,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # data get converted based on these values.
         self.base_dir = Path(base_dir)
         self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
+        self.gmao_dir: Path | None = Path(gmao_dir) if gmao_dir is not None else None
 
     def __getitem__(self, key: str) -> Any:
         return self.abs_dir(self._data[key])
@@ -72,12 +74,16 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         cls,
         fname: str | os.PathLike[str],
         osp_dir: str | os.PathLike[str] | None = None,
+        gmao_dir: str | os.PathLike[str] | None = None,
     ) -> Self:
         strategy_table_fname = Path(fname).absolute()
         strategy_table_dir = strategy_table_fname.parent
-        res = cls(base_dir=strategy_table_dir, osp_dir=osp_dir)
+        res = cls(base_dir=strategy_table_dir, osp_dir=osp_dir, gmao_dir=gmao_dir)
         f = TesFile.create(strategy_table_fname)
         res._data = dict(f)
+        # Replace GMAO_Directory if one was passed in
+        if res.gmao_dir is not None:
+            res["GMAO_Directory"] = str(res.gmao_dir)
 
         # Start with default values, and then add anything we find in
         # the table Make sure to use os.path.join or pathlib.Path's /

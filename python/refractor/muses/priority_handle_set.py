@@ -8,6 +8,10 @@ def _empty_set() -> set:
     return set()
 
 
+class NoHandleFound(RuntimeError):
+    pass
+
+
 class PriorityHandleSet(collections.abc.Set):
     """This class was originally designed for a separate library
     (pynitf). Take a look at
@@ -137,7 +141,7 @@ class PriorityHandleSet(collections.abc.Set):
                     res = r
             if could_handle:
                 return res
-        raise RuntimeError(
+        raise NoHandleFound(
             "No handle was found. args=%s, keywords=%s" % (args, keywords)
         )
 
@@ -145,6 +149,4 @@ class PriorityHandleSet(collections.abc.Set):
         raise NotImplementedError
 
 
-__all__ = [
-    "PriorityHandleSet",
-]
+__all__ = ["PriorityHandleSet", "NoHandleFound"]

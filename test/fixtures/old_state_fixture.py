@@ -16,6 +16,7 @@ from refractor.muses import (
     SoundingMetadata,
     MusesStrategyStepList,
     RetrievalConfiguration,
+    StateInfo,
 )
 from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
 from loguru import logger
@@ -39,7 +40,7 @@ def cris_tropomi_old_shandle(
     os.chdir(r.run_dir)
     tfilename = r.run_dir / "Table.asc"
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, osp_dir=osp_dir
+        tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(tfilename, osp_dir=osp_dir)
@@ -67,6 +68,8 @@ def cris_tropomi_old_shandle(
     state_element_old_wrapper_handle.notify_update_target(
         measurement_id, rconfig, strat, obs_hset, smeta
     )
+    sinfo = StateInfo()
+    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
     logger.add(sys.stderr, level="DEBUG")
     return (
         state_element_old_wrapper_handle,
@@ -75,6 +78,7 @@ def cris_tropomi_old_shandle(
         strat,
         obs_hset,
         smeta,
+        sinfo,
     )
 
 
@@ -95,7 +99,7 @@ def tropomi_swir_old_shandle(
     os.chdir(r.run_dir)
     tfilename = r.run_dir / "Table.asc"
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, osp_dir=josh_osp_dir
+        tfilename, osp_dir=josh_osp_dir, gmao_dir=gmao_dir
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(
@@ -118,7 +122,8 @@ def tropomi_swir_old_shandle(
     state_element_old_wrapper_handle.notify_update_target(
         measurement_id, rconfig, strat, obs_hset, smeta
     )
-
+    sinfo = StateInfo()
+    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
     logger.add(sys.stderr, level="DEBUG")
     return (
         state_element_old_wrapper_handle,
@@ -127,6 +132,7 @@ def tropomi_swir_old_shandle(
         strat,
         obs_hset,
         smeta,
+        sinfo,
     )
 
 
@@ -145,7 +151,7 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
     os.chdir(r.run_dir)
     tfilename = r.run_dir / "Table.asc"
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        tfilename, osp_dir=osp_dir
+        tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(tfilename, osp_dir=osp_dir)
@@ -173,6 +179,8 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
     state_element_old_wrapper_handle.notify_update_target(
         measurement_id, rconfig, strat, obs_hset, smeta
     )
+    sinfo = StateInfo()
+    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
     logger.add(sys.stderr, level="DEBUG")
     return (
         state_element_old_wrapper_handle,
@@ -181,4 +189,5 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
         strat,
         obs_hset,
         smeta,
+        sinfo,
     )

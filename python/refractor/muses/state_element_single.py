@@ -100,6 +100,7 @@ class StateElementFromSingle(StateElementOspFile):
 
 class StateElementFromCalibration(StateElementFromSingle):
     """State element read from calibration file"""
+
     @classmethod
     # type: ignore[override]
     def _setup_create(
@@ -112,7 +113,11 @@ class StateElementFromCalibration(StateElementFromSingle):
                 float(fcal["CalibrationScale"]),
             ]
         ).view(FullGridMappedArray)
-        spectral_domain = rf.SpectralDomain(fcal.table["Frequency"], rf.Unit("nm"))
+        if fcal.table is None:
+            return None
+        spectral_domain = rf.SpectralDomain(
+            np.array(fcal.table["Frequency"]), rf.Unit("nm")
+        )
         # There are a handful of state element that muses-py just "knows" get
         # the apriori covariance from a different diagonal uncertainty file
         # (see get_prior_covariance.py in muses-py, about line 100)
@@ -124,7 +129,8 @@ class StateElementFromCalibration(StateElementFromSingle):
             sid=StateElementIdentifier("calibrationScale"),
             create_kwargs=create_kwargs,
         )
-    
+
+
 class StateElementPcloud(StateElementFromSingle):
     """State element for PCLOUD."""
 
@@ -174,37 +180,66 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("calibrationScale"),
         StateElementOspFileFixedValue,
-        initial_value = np.array([0.0,] * 25).astype(FullGridMappedArray),
-        create_kwargs={'spectral_domain' : rf.SpectralDomain(np.array([0.0,] * 25), rf.Unit("nm"))},
+        initial_value=np.array(
+            [
+                0.0,
+            ]
+            * 25
+        ).astype(FullGridMappedArray),
+        create_kwargs={
+            "spectral_domain": rf.SpectralDomain(
+                np.array(
+                    [
+                        0.0,
+                    ]
+                    * 25
+                ),
+                rf.Unit("nm"),
+            )
+        },
         include_old_state_info=True,
-        )
+    )
 )
 
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("calibrationOffset"),
         StateElementOspFileFixedValue,
-        initial_value = np.array([0.0,] * 300).astype(FullGridMappedArray),
+        initial_value=np.array(
+            [
+                0.0,
+            ]
+            * 300
+        ).astype(FullGridMappedArray),
         include_old_state_info=True,
-        )
+    )
 )
 
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("residualScale"),
         StateElementOspFileFixedValue,
-        initial_value = np.array([0.0,] * 40).astype(FullGridMappedArray),
+        initial_value=np.array(
+            [
+                0.0,
+            ]
+            * 40
+        ).astype(FullGridMappedArray),
         include_old_state_info=True,
-        )
+    )
 )
 
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("scalePressure"),
         StateElementOspFileFixedValue,
-        initial_value = np.array([0.1,]).astype(FullGridMappedArray),
+        initial_value=np.array(
+            [
+                0.1,
+            ]
+        ).astype(FullGridMappedArray),
         include_old_state_info=True,
-        )
+    )
 )
 
 
@@ -262,4 +297,8 @@ StateElementHandleSet.add_default_handle(
 )
 
 
-__all__ = ["StateElementPcloud", "StateElementFromSingle", "StateElementFromCalibration"]
+__all__ = [
+    "StateElementPcloud",
+    "StateElementFromSingle",
+    "StateElementFromCalibration",
+]

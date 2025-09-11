@@ -21,7 +21,7 @@ def test_cloud_result_summary(joint_tropomi_step_12_output):
         print(csum.num_deviations_QA)
         print(csum.DeviationBad_QA)
     assert csum.cloudODAve == approx(0.5293713016490321)
-    assert csum.cloudODVar == approx(0.9701717070530204)
+    assert csum.cloudODVar == approx(0.9108204594574267)
     assert csum.cloudODAveError == approx(0.0)
     assert csum.emisDev == approx(0.0012050562926669839)
     assert csum.emissionLayer == approx(-6.991899122362554)

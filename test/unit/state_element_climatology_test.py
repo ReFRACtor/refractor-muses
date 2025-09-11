@@ -4,7 +4,6 @@ from refractor.muses import (
     StateElementFromClimatology,
     StateElementFromClimatologyHdo,
     StateElementFromClimatologyCh3oh,
-    StateInfo,
 )
 import numpy.testing as npt
 from pathlib import Path
@@ -12,7 +11,7 @@ import pytest
 
 
 def test_read_climatology_2022(airs_omi_old_shandle):
-    h_old, _, rconfig, strat, _, smeta = airs_omi_old_shandle
+    h_old, _, rconfig, strat, _, smeta, _ = airs_omi_old_shandle
     p = h_old.state_element(StateElementIdentifier("pressure"))
     panvmr = h_old.state_element(StateElementIdentifier("PAN"))
     vmr, type_name = StateElementFromClimatology.read_climatology_2022(
@@ -53,7 +52,7 @@ def test_read_climatology_2022(airs_omi_old_shandle):
     ],
 )
 def test_state_element_from_climatology(airs_omi_old_shandle, sid):
-    h_old, _, rconfig, strat, _, smeta = airs_omi_old_shandle
+    h_old, _, rconfig, strat, _, smeta, sinfo = airs_omi_old_shandle
     sold = h_old.state_element(StateElementIdentifier(sid))
     sold_value_fm = sold.value_fm
     # sold.constraint_vector_fm isn't always the fm contraint vector, sometime is
@@ -68,6 +67,7 @@ def test_state_element_from_climatology(airs_omi_old_shandle, sid):
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
         sounding_metadata=smeta,
+        state_info=sinfo,
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
@@ -104,7 +104,7 @@ def test_state_element_from_climatology(airs_omi_old_shandle, sid):
     ],
 )
 def test_state_element_from_climatology2(cris_tropomi_old_shandle, sid):
-    h_old, _, rconfig, strat, _, smeta = cris_tropomi_old_shandle
+    h_old, _, rconfig, strat, _, smeta, sinfo = cris_tropomi_old_shandle
     sold = h_old.state_element(StateElementIdentifier(sid))
     sold_value_fm = sold.value_fm
     # sold.constraint_vector_fm isn't always the fm contraint vector, sometime is
@@ -119,6 +119,7 @@ def test_state_element_from_climatology2(cris_tropomi_old_shandle, sid):
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
         sounding_metadata=smeta,
+        state_info=sinfo,
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
@@ -134,9 +135,7 @@ def test_state_element_from_climatology2(cris_tropomi_old_shandle, sid):
 
 
 def test_state_element_from_climatology_hdo(airs_omi_old_shandle):
-    h_old, measurement_id, rconfig, strat, obs_hset, smeta = airs_omi_old_shandle
-    state_info = StateInfo()
-    state_info.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    h_old, measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
     sid = "HDO"
     sold = h_old.state_element(StateElementIdentifier(sid))
     sold_value_fm = sold.value_fm
@@ -145,7 +144,7 @@ def test_state_element_from_climatology_hdo(airs_omi_old_shandle):
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
         sounding_metadata=smeta,
-        state_info=state_info,
+        state_info=sinfo,
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
@@ -161,7 +160,7 @@ def test_state_element_from_climatology_hdo(airs_omi_old_shandle):
 
 
 def test_state_element_from_climatology_ch3oh(airs_omi_old_shandle):
-    h_old, _, rconfig, strat, _, smeta = airs_omi_old_shandle
+    h_old, _, rconfig, strat, _, smeta, sinfo = airs_omi_old_shandle
     sid = "CH3OH"
     sold = h_old.state_element(StateElementIdentifier(sid))
     sold_value_fm = sold.value_fm
@@ -170,6 +169,7 @@ def test_state_element_from_climatology_ch3oh(airs_omi_old_shandle):
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
         sounding_metadata=smeta,
+        state_info=sinfo,
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)

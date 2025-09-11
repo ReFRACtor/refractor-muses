@@ -8,13 +8,15 @@ import numpy.testing as npt
 
 
 def test_state_element_emis(cris_tropomi_old_shandle):
-    h_old, _, rconfig, strat, _, smeta = cris_tropomi_old_shandle
+    h_old, _, rconfig, strat, _, smeta, sinfo = cris_tropomi_old_shandle
     sold = h_old.state_element(StateElementIdentifier("EMIS"))
     sold_value_fm = sold.value_fm
     # This is value_fm before we have cycled through all the strategy
     # steps
     sold_constraint_vector_fm = sold.constraint_vector_fm
-    s = StateElementEmis.create(retrieval_config=rconfig, sounding_metadata=smeta)
+    s = StateElementEmis.create(
+        retrieval_config=rconfig, sounding_metadata=smeta, state_info=sinfo
+    )
     # Check that we match before cycling through the strategy steps
     npt.assert_allclose(s.value_fm, sold_constraint_vector_fm)
     # Cycle through strategy steps, and check value_fm after that
@@ -27,13 +29,15 @@ def test_state_element_emis(cris_tropomi_old_shandle):
 
 
 def test_state_element_cloudext(airs_omi_old_shandle):
-    h_old, _, rconfig, strat, _, smeta = airs_omi_old_shandle
+    h_old, _, rconfig, strat, _, smeta, sinfo = airs_omi_old_shandle
     sold = h_old.state_element(StateElementIdentifier("CLOUDEXT"))
     sold_value_fm = sold.value_fm[0, :]
     # This is value_fm before we have cycled through all the strategy
     # steps
     sold_constraint_vector_fm = sold.constraint_vector_fm
-    s = StateElementCloudExt.create(retrieval_config=rconfig, sounding_metadata=smeta)
+    s = StateElementCloudExt.create(
+        retrieval_config=rconfig, sounding_metadata=smeta, state_info=sinfo
+    )
     # Check that we match before cycling through the strategy steps
     npt.assert_allclose(s.value_fm, sold_constraint_vector_fm)
     # Cycle through strategy steps, and check value_fm after that

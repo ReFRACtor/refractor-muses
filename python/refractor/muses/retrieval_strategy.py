@@ -108,6 +108,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         writeOutput: bool = False,
         writePlots: bool = False,
         osp_dir: str | os.PathLike[str] | None = None,
+        gmao_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> None:
         logger.info(f"Strategy table filename {filename}")
@@ -126,6 +127,10 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self.osp_dir = osp_dir
         if self.osp_dir is None:
             self.osp_dir = os.environ.get("MUSES_OSP_PATH", None)
+
+        self.gmao_dir = gmao_dir
+        if self.gmao_dir is None:
+            self.gmao_dir = os.environ.get("MUSES_GMAO_PATH", None)
 
         self._strategy_executor = MusesStrategyExecutorMusesStrategy(self)
         self._retrieval_strategy_step_set = (
@@ -197,7 +202,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         self._filename = filename.absolute()
         self._capture_directory.rundir = filename.absolute().parent
         self._retrieval_config = RetrievalConfiguration.create_from_strategy_file(
-            self.strategy_table_filename, osp_dir=self.osp_dir
+            self.strategy_table_filename, osp_dir=self.osp_dir, gmao_dir=self.gmao_dir
         )
         self._measurement_id = MeasurementIdFile(
             self.run_dir / "Measurement_ID.asc",
@@ -456,6 +461,7 @@ class RetrievalStrategy(mpy.ReplaceFunctionObject):
         res._filename = res.run_dir / res.strategy_table_filename.name
         res._strategy_executor.strategy_table_filename = res._filename
         res._retrieval_config.osp_dir = osp_dir
+        res._retrieval_config.gmao_dir = gmao_dir
         res._retrieval_config.base_dir = res.run_dir
         res._capture_directory.extract_directory(
             path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir

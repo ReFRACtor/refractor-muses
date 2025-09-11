@@ -25,7 +25,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
         print(repr(csum.columnPressureMin))
         print(repr(csum.columnSpecies))
     assert csum.H2O_H2OQuality == approx(0.0)
-    assert csum.O3_columnErrorDU == approx(3.621294286750664)
+    assert csum.O3_columnErrorDU == approx(3.625342526515213)
     assert csum.O3_tropo_consistency == approx(0.004409025162657398)
     npt.assert_allclose(
         csum.columnDOFS,
@@ -266,8 +266,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
         csum.columnError,
         [
             [
-                9.34126403e21,
-                9.74128163e16,
+                9.52250723e21,
+                9.75217140e16,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -280,8 +280,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                9.33931943e21,
-                1.08610214e17,
+                9.52065853e21,
+                1.09081388e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -294,8 +294,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                9.30658679e21,
-                1.05954723e17,
+                9.45768762e21,
+                1.06400521e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -308,8 +308,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                9.23466346e21,
-                1.02014390e17,
+                9.41865813e21,
+                1.02287558e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -322,8 +322,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                9.34036631e21,
-                1.01842996e17,
+                9.52167322e21,
+                1.01915521e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -341,8 +341,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
         csum.columnPrior,
         [
             [
-                8.15583316e22,
-                8.07227284e18,
+                8.15470969e22,
+                8.07227268e18,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -355,8 +355,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                8.14138936e22,
-                9.44109296e17,
+                8.14015531e22,
+                9.44109038e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -369,8 +369,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                6.78930845e21,
-                4.53209386e17,
+                6.80742548e21,
+                4.53209755e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -383,8 +383,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                7.46251825e22,
-                4.90902153e17,
+                7.45944759e22,
+                4.90901585e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -397,8 +397,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.44447498e20,
-                7.12816256e18,
+                1.45553714e20,
+                7.12816263e18,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
