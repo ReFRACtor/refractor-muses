@@ -129,7 +129,9 @@ def test_current_state(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
     assert cstate.state_value(StateElementIdentifier("PCLOUD"))[0] == pytest.approx(
         500.0
     )
-    assert cstate.state_value(StateElementIdentifier("PSUR"))[0] == pytest.approx(0.0)
+    assert cstate.state_value(StateElementIdentifier("PSUR"))[0] == pytest.approx(
+        1006.01015625
+    )
     assert cstate.sounding_metadata.local_hour == pytest.approx(11.40252685546875)
     assert cstate.height().value[0] == 0.16982704162597656
     assert cstate.state_value(StateElementIdentifier("TATM"))[0] == pytest.approx(

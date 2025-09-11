@@ -208,6 +208,56 @@ class StateElementEmis(StateElementFreqShared):
         return res
 
 
+class StateElementNativeEmis(StateElementFreqShared):
+    @classmethod
+    # type: ignore[override]
+    def _setup_create(
+        cls,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
+        **kwargs: Any,
+    ) -> OspSetupReturn | None:
+        f = TesFile(
+            Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc"
+        )
+        if f.table is None:
+            raise RuntimeError("Trouble reading file")
+        # Despite the name frequency, this is actually wavelength. Also, we don't actually
+        # read the Emissivity column. I'm guessing this was an older way to get the
+        # initial guess that got replaced
+        spectral_domain_in = rf.SpectralDomain(f.table["Frequency"], rf.Unit("nm"))
+        # Despite the name frequency, this is actually wavelength. Also, we don't actually
+        # read the Emissivity column. I'm guessing this was an older way to get the
+        # initial guess that got replaced
+        # Use get_emis_uwis to get the emissivity. This matches what
+        # script_retrieval_setup_ms does.
+        emis_type = retrieval_config["TIR_EMIS_Source"]
+        uwis_data = mpy.get_emis_uwis.get_emis_dispatcher(
+            emis_type,
+            sounding_metadata.latitude.value,
+            sounding_metadata.longitude.value,
+            sounding_metadata.surface_altitude.value,
+            1 if sounding_metadata.is_ocean else 0,
+            sounding_metadata.year,
+            sounding_metadata.month,
+            spectral_domain_in.data,
+            retrieval_config.get("CAMEL_Coef_Directory"),
+            retrieval_config.get("CAMEL_Lab_Directory"),
+        )
+        spectral_domain = rf.SpectralDomain(
+            uwis_data["native_wavenumber"], rf.Unit("nm")
+        )
+        value_fm = uwis_data["native_emis"].view(FullGridMappedArray)
+        create_kwargs = {
+            "spectral_domain": spectral_domain,
+        }
+        return OspSetupReturn(
+            value_fm=value_fm,
+            sid=StateElementIdentifier("native_emissivity"),
+            create_kwargs=create_kwargs,
+        )
+
+
 class StateElementCloudExt(StateElementFreqShared):
     @classmethod
     # type: ignore[override]
@@ -365,6 +415,12 @@ StateElementHandleSet.add_default_handle(
 )
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
+        StateElementIdentifier("native_emissivity"), StateElementNativeEmis
+    ),
+    priority_order=0,
+)
+StateElementHandleSet.add_default_handle(
+    StateElementWithCreateHandle(
         StateElementIdentifier("CLOUDEXT"), StateElementCloudExt
     ),
     priority_order=0,
@@ -372,5 +428,6 @@ StateElementHandleSet.add_default_handle(
 
 __all__ = [
     "StateElementEmis",
+    "StateElementNativeEmis",
     "StateElementCloudExt",
 ]
