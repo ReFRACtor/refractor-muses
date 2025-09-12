@@ -4,6 +4,8 @@ from refractor.muses import (
     StateElementFromClimatology,
     StateElementFromClimatologyHdo,
     StateElementFromClimatologyCh3oh,
+    StateElementFromClimatologyNh3,
+    StateElementFromClimatologyHcooh,
 )
 import numpy.testing as npt
 from pathlib import Path
@@ -182,3 +184,57 @@ def test_state_element_from_climatology_ch3oh(airs_omi_old_shandle):
     assert s.poltype == "LAND_ENH"
     assert s.metadata == {"poltype": "LAND_ENH"}
     assert s.poltype_used_constraint
+
+
+def test_state_element_from_climatology_nh3(airs_omi_old_shandle):
+    h_old, _, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
+    sid = "NH3"
+    sold = h_old.state_element(StateElementIdentifier(sid))
+    sold_value_fm = sold.value_fm
+    sold_constraint_vector_fm = sold.constraint_vector_fm
+    s = StateElementFromClimatologyNh3.create(
+        sid=StateElementIdentifier(sid),
+        retrieval_config=rconfig,
+        sounding_metadata=smeta,
+        strategy=strat,
+        observation_handle_set=obs_hset,
+        state_info=sinfo,
+    )
+    # Cycle through strategy steps, and check value_fm after that
+    strat.retrieval_initial_fm_from_cycle(s, rconfig)
+    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
+    npt.assert_allclose(s.value_fm, sold_value_fm)
+    # Check a number of things we set in StateElementOsp, just to make sure
+    # we match stuff
+    assert s.spectral_domain is None
+    assert not s.cov_is_constraint
+    assert s.poltype == "CLN"
+    assert s.metadata == {"poltype": "CLN"}
+    assert s.poltype_used_constraint
+
+def test_state_element_from_climatology_hcooh(tes_old_shandle):
+    h_old, _, rconfig, strat, obs_hset, smeta, sinfo = tes_old_shandle
+    sid = "HCOOH"
+    sold = h_old.state_element(StateElementIdentifier(sid))
+    sold_value_fm = sold.value_fm
+    sold_constraint_vector_fm = sold.constraint_vector_fm
+    s = StateElementFromClimatologyHcooh.create(
+        sid=StateElementIdentifier(sid),
+        retrieval_config=rconfig,
+        sounding_metadata=smeta,
+        strategy=strat,
+        observation_handle_set=obs_hset,
+        state_info=sinfo
+    )
+    # Cycle through strategy steps, and check value_fm after that
+    strat.retrieval_initial_fm_from_cycle(s, rconfig)
+    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
+    npt.assert_allclose(s.value_fm, sold_value_fm)
+    # Check a number of things we set in StateElementOsp, just to make sure
+    # we match stuff
+    assert s.spectral_domain is None
+    assert not s.cov_is_constraint
+    assert s.poltype == "CLN"
+    assert s.metadata == {"poltype": "CLN"}
+    assert not s.poltype_used_constraint
+    

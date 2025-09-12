@@ -2,11 +2,12 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .tes_file import TesFile
-from .identifier import StateElementIdentifier
+from .identifier import StateElementIdentifier, InstrumentIdentifier
 from .state_element import (
     StateElementWithCreateHandle,
     StateElementHandleSet,
 )
+from .priority_handle_set import NoHandleFound
 from .state_element_osp import StateElementOspFileFixedValue
 from .retrieval_array import FullGridMappedArray
 from pathlib import Path
@@ -157,6 +158,37 @@ class StateElementPcloud(StateElementFromSingle):
         )
 
 
+class StateElementPtgAng(StateElementOspFile):
+    """State element for PTGANG."""
+
+    @classmethod
+    # type: ignore[override]
+    def _setup_create(
+        cls,
+        measurement_id: MeasurementId,
+        observation_handle_set: ObservationHandleSet,
+        **kwargs: Any,
+    ) -> OspSetupReturn | None:
+        # Only tes retrievals have a nonzero ptgang
+        value_fm = np.array([0.0]).view(FullGridMappedArray)
+        if InstrumentIdentifier("TES") in measurement_id.filter_list_dict:
+            try:
+                otes = observation_handle_set.observation(
+                    InstrumentIdentifier("TES"), None, None, None
+                )
+                value_fm = np.array(
+                    [
+                        otes.boresight_angle.value,
+                    ]
+                ).view(FullGridMappedArray)
+            except NoHandleFound:
+                # Just use default value, even though TES was found in the filter list
+                pass
+        return OspSetupReturn(
+            value_fm=value_fm,
+        )
+
+
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("PCLOUD"),
@@ -242,6 +274,14 @@ StateElementHandleSet.add_default_handle(
     )
 )
 
+StateElementHandleSet.add_default_handle(
+    StateElementWithCreateHandle(
+        StateElementIdentifier("PTGANG"),
+        StateElementPtgAng,
+        include_old_state_info=True,
+    )
+)
+
 
 # Note, although NH3 and HCOOH are listed in Species_List_From_Single, there is
 # separate logic in states_initial_update.py that overrides these in some cases.
@@ -262,10 +302,10 @@ StateElementHandleSet.add_default_handle(
         StateElementFromSingle,
         include_old_state_info=True,
     ),
-    # Temp, until we get second handle in place
-    # priority_order=0,
-    priority_order=-100,
+    priority_order=0,
 )
+
+# See state_element_climatology for NH3 that may override
 
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
@@ -282,10 +322,10 @@ StateElementHandleSet.add_default_handle(
         StateElementFromSingle,
         include_old_state_info=True,
     ),
-    # Temp, until we get second handle in place
-    # priority_order=0,
-    priority_order=-100,
+    priority_order=0,
 )
+
+# See state_element_climatology for HCOOH that may override
 
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(

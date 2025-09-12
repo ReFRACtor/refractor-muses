@@ -55,6 +55,7 @@ class StateElementOldInitialValue(StateElementOspFile):
             if poltype is None:
                 poltype = "mod"
             poltype_used_constraint = True
+            breakpoint()
         elif sid == StateElementIdentifier("CH3OH"):
             poltype = sold._current_state_old.state_value_str("ch3ohtype")
             if poltype is None:
