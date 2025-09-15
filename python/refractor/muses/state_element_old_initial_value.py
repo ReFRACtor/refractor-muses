@@ -88,10 +88,11 @@ class StateElementOldInitialValue(StateElementOspFile):
 # This was used when developing the various StateElement. We don't normally use this,
 # but leave around since it might be useful if we run into some kind of an issue where
 # we need to go back to the old muses-py initial guess stuff to diagnose
-#StateElementHandleSet.add_default_handle(
-#    StateElementWithCreateHandle(None, StateElementOldInitialValue),
-#    priority_order=-1,
-#)
+if False:
+    StateElementHandleSet.add_default_handle(
+        StateElementWithCreateHandle(None, StateElementOldInitialValue),
+        priority_order=-1,
+    )
 
 __all__ = [
     "StateElementOldInitialValue",

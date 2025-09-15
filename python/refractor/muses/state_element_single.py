@@ -95,7 +95,11 @@ class StateElementFromSingle(StateElementOspFile):
             return None
         value_fm = np.array(fatm.table[str(sid)]).view(FullGridMappedArray)
         pressure = fatm.table["Pressure"]
-        value_fm = np.exp(mpy.my_interpolate(np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)))
+        value_fm = np.exp(
+            mpy.my_interpolate(
+                np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)
+            )
+        )
         value_fm = value_fm[(value_fm.shape[0] - pressure_list_fm.shape[0]) :].view(
             FullGridMappedArray
         )

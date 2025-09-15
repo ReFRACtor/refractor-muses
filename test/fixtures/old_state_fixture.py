@@ -193,6 +193,7 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
         sinfo,
     )
 
+
 @pytest.fixture(scope="function")
 def tes_old_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
     """Set up the old state info, and return a handle"""
@@ -241,5 +242,5 @@ def tes_old_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
         strat,
         obs_hset,
         smeta,
-        sinfo
+        sinfo,
     )

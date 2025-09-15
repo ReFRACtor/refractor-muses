@@ -212,6 +212,7 @@ def test_state_element_from_climatology_nh3(airs_omi_old_shandle):
     assert s.metadata == {"poltype": "CLN"}
     assert s.poltype_used_constraint
 
+
 def test_state_element_from_climatology_hcooh(tes_old_shandle):
     h_old, _, rconfig, strat, obs_hset, smeta, sinfo = tes_old_shandle
     sid = "HCOOH"
@@ -224,7 +225,7 @@ def test_state_element_from_climatology_hcooh(tes_old_shandle):
         sounding_metadata=smeta,
         strategy=strat,
         observation_handle_set=obs_hset,
-        state_info=sinfo
+        state_info=sinfo,
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
@@ -237,4 +238,3 @@ def test_state_element_from_climatology_hcooh(tes_old_shandle):
     assert s.poltype == "CLN"
     assert s.metadata == {"poltype": "CLN"}
     assert not s.poltype_used_constraint
-    

@@ -113,7 +113,7 @@ class StateInfo(UserDict):
         self,
         state_element_handle_set: StateElementHandleSet | None = None,
         cross_state_element_handle_set: CrossStateElementHandleSet | None = None,
-        include_old_state_info: bool = True,
+        include_old_state_info: bool = False,
     ) -> None:
         super().__init__()
         if state_element_handle_set is not None:

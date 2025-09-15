@@ -63,8 +63,11 @@ class StateElementFromClimatology(StateElementOspFile):
                 for i in retrieval_config["Species_List_From_Climatology"].split(",")
             ]
             and sid
-            not in (StateElementIdentifier("NH3"), StateElementIdentifier("HCOOH"),
-                    StateElementIdentifier("CH3OH"))
+            not in (
+                StateElementIdentifier("NH3"),
+                StateElementIdentifier("HCOOH"),
+                StateElementIdentifier("CH3OH"),
+            )
         ):
             return None
         return super(StateElementFromClimatology, cls).create(
@@ -168,7 +171,9 @@ class StateElementFromClimatology(StateElementOspFile):
                 )
             type_name = ind_type
             if type_name is None:
-                raise RuntimeError(f"Need to supply type name to index to for file {filename}")
+                raise RuntimeError(
+                    f"Need to supply type name to index to for file {filename}"
+                )
             try:
                 tindex = type_name_list.index(type_name)
             except ValueError:
@@ -247,18 +252,23 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
         # In some cases, the CH3OH isn't read from the climatology, although we still
         # use that for determining the polytype. We instead get CH3OH from the
         # State_AtmProfiles.asc file
-        if (StateElementIdentifier("CH3OH") not in [
-                StateElementIdentifier(i)
-                for i in retrieval_config["Species_List_From_Climatology"].split(",")
-            ]):
+        if StateElementIdentifier("CH3OH") not in [
+            StateElementIdentifier(i)
+            for i in retrieval_config["Species_List_From_Climatology"].split(",")
+        ]:
             fatm = TesFile(
-                Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc"
+                Path(retrieval_config["Single_State_Directory"])
+                / "State_AtmProfiles.asc"
             )
             if fatm.table is None:
                 return None
             value_fm = np.array(fatm.table["CH3OH"]).view(FullGridMappedArray)
             pressure = fatm.table["Pressure"]
-            value_fm = np.exp(mpy.my_interpolate(np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)))
+            value_fm = np.exp(
+                mpy.my_interpolate(
+                    np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)
+                )
+            )
             value_fm = value_fm[(value_fm.shape[0] - pressure_list_fm.shape[0]) :].view(
                 FullGridMappedArray
             )
@@ -447,7 +457,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
         hcoohtype: str | None = None
         for ins in [
             InstrumentIdentifier("CRIS"),
-            InstrumentIdentifier("TES"), 
+            InstrumentIdentifier("TES"),
             InstrumentIdentifier("AIRS"),
         ]:
             if ins in strategy.instrument_name:
@@ -486,7 +496,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
             ind_type=hcoohtype,
             linear_interp=False,
         )
-        create_kwargs = {}
+        create_kwargs : dict[str, Any] = {}
         if poltype is not None:
             create_kwargs["poltype"] = poltype
         # Muses-py just "knows" that we don't use the poltype in the constraint file name
@@ -499,6 +509,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
             constraint_vector_fm=constraint_vector_fm,
             create_kwargs=create_kwargs,
         )
+
 
 for sid in [
     "CO",
@@ -540,7 +551,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("CH3OH"),
         StateElementFromClimatologyCh3oh,
-        include_old_state_info=True,
+        #include_old_state_info=True,
     ),
     priority_order=0,
 )
