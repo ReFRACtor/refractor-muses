@@ -273,7 +273,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("pressure"),
         StateElementFromGmaoPressure,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )

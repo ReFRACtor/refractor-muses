@@ -55,7 +55,6 @@ class StateElementOldInitialValue(StateElementOspFile):
             if poltype is None:
                 poltype = "mod"
             poltype_used_constraint = True
-            breakpoint()
         elif sid == StateElementIdentifier("CH3OH"):
             poltype = sold._current_state_old.state_value_str("ch3ohtype")
             if poltype is None:
@@ -86,12 +85,13 @@ class StateElementOldInitialValue(StateElementOspFile):
         )
 
 
-# We want to replace this, but fall back to this for now until everything is in
-# place
-StateElementHandleSet.add_default_handle(
-    StateElementWithCreateHandle(None, StateElementOldInitialValue),
-    priority_order=-1,
-)
+# This was used when developing the various StateElement. We don't normally use this,
+# but leave around since it might be useful if we run into some kind of an issue where
+# we need to go back to the old muses-py initial guess stuff to diagnose
+#StateElementHandleSet.add_default_handle(
+#    StateElementWithCreateHandle(None, StateElementOldInitialValue),
+#    priority_order=-1,
+#)
 
 __all__ = [
     "StateElementOldInitialValue",

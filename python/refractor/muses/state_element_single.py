@@ -1,4 +1,5 @@
 from __future__ import annotations
+import refractor.muses.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .tes_file import TesFile
@@ -93,6 +94,8 @@ class StateElementFromSingle(StateElementOspFile):
         if fatm.table is None:
             return None
         value_fm = np.array(fatm.table[str(sid)]).view(FullGridMappedArray)
+        pressure = fatm.table["Pressure"]
+        value_fm = np.exp(mpy.my_interpolate(np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)))
         value_fm = value_fm[(value_fm.shape[0] - pressure_list_fm.shape[0]) :].view(
             FullGridMappedArray
         )
@@ -193,7 +196,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("PCLOUD"),
         StateElementPcloud,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )
@@ -202,7 +205,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("calibrationScale"),
         StateElementFromCalibration,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=-10,
 )
@@ -229,7 +232,7 @@ StateElementHandleSet.add_default_handle(
                 rf.Unit("nm"),
             )
         },
-        include_old_state_info=True,
+        include_old_state_info=False,
     )
 )
 
@@ -243,7 +246,7 @@ StateElementHandleSet.add_default_handle(
             ]
             * 300
         ).astype(FullGridMappedArray),
-        include_old_state_info=True,
+        include_old_state_info=False,
     )
 )
 
@@ -257,7 +260,7 @@ StateElementHandleSet.add_default_handle(
             ]
             * 40
         ).astype(FullGridMappedArray),
-        include_old_state_info=True,
+        include_old_state_info=False,
     )
 )
 
@@ -270,7 +273,7 @@ StateElementHandleSet.add_default_handle(
                 0.1,
             ]
         ).astype(FullGridMappedArray),
-        include_old_state_info=True,
+        include_old_state_info=False,
     )
 )
 
@@ -278,7 +281,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("PTGANG"),
         StateElementPtgAng,
-        include_old_state_info=True,
+        include_old_state_info=False,
     )
 )
 
@@ -291,7 +294,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("SO2"),
         StateElementFromSingle,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )
@@ -300,7 +303,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("NH3"),
         StateElementFromSingle,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )
@@ -311,7 +314,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("OCS"),
         StateElementFromSingle,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )
@@ -320,7 +323,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("HCOOH"),
         StateElementFromSingle,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )
@@ -331,7 +334,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("N2"),
         StateElementFromSingle,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )

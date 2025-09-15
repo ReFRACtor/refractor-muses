@@ -8,6 +8,7 @@ from .state_element import (
     StateElementHandleSet,
 )
 from .retrieval_array import FullGridMappedArray
+from .tes_file import TesFile
 from pathlib import Path
 import numpy as np
 import h5py  # type: ignore
@@ -62,7 +63,8 @@ class StateElementFromClimatology(StateElementOspFile):
                 for i in retrieval_config["Species_List_From_Climatology"].split(",")
             ]
             and sid
-            not in (StateElementIdentifier("NH3"), StateElementIdentifier("HCOOH"))
+            not in (StateElementIdentifier("NH3"), StateElementIdentifier("HCOOH"),
+                    StateElementIdentifier("CH3OH"))
         ):
             return None
         return super(StateElementFromClimatology, cls).create(
@@ -198,6 +200,14 @@ class StateElementFromClimatology(StateElementOspFile):
             my_map = mpy.make_interpolation_matrix_susan(pressure, pressure_list_fm)
             vmr = np.exp(np.matmul(my_map, np.log(vmr)))
         else:
+            # For types HCOOH, NH3 and CH3OH shifting the vmr rather
+            # than cutting off the lower part of profile. Not sure
+            # exactly how this was determined, this is just what
+            # muses-py does in read_climatology_2022.py. I assume
+            # somebody did an analysis to determine we want to do
+            # that. We have the logic for this in the various
+            # StateElements, so we just do what "linear_interp" tells
+            # us to do here.
             vmr = mpy.supplier_shift_profile(vmr, pressure, pressure_list_fm)
         return vmr.view(FullGridMappedArray), type_name
 
@@ -234,6 +244,25 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             sounding_metadata,
             linear_interp=False,
         )
+        # In some cases, the CH3OH isn't read from the climatology, although we still
+        # use that for determining the polytype. We instead get CH3OH from the
+        # State_AtmProfiles.asc file
+        if (StateElementIdentifier("CH3OH") not in [
+                StateElementIdentifier(i)
+                for i in retrieval_config["Species_List_From_Climatology"].split(",")
+            ]):
+            fatm = TesFile(
+                Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc"
+            )
+            if fatm.table is None:
+                return None
+            value_fm = np.array(fatm.table["CH3OH"]).view(FullGridMappedArray)
+            pressure = fatm.table["Pressure"]
+            value_fm = np.exp(mpy.my_interpolate(np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)))
+            value_fm = value_fm[(value_fm.shape[0] - pressure_list_fm.shape[0]) :].view(
+                FullGridMappedArray
+            )
+            constraint_vector_fm = value_fm
         create_kwargs = {}
         if poltype is not None:
             create_kwargs["poltype"] = poltype
@@ -307,11 +336,13 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
             return None
         if strategy is None:
             return None
-        # We only use this if NH3 is in the error analysis interferents. Not sure
-        # of the exact reason for this, but this is the logic used in muses-py
-        # in states_initial_update.py and we duplicate this here.
-        # TODO Is the actually the right logic? Why should the initial guess
-        # depend on it being an interferent or in the retrieval?
+        # We only use this if NH3 is in the error analysis
+        # interferents or retrieval elements. Not sure of the exact
+        # reason for this, but this is the logic used in muses-py in
+        # states_initial_update.py and we duplicate this here.
+        #
+        # TODO Is the actually the right logic? Why should the initial
+        # guess depend on it being an interferent or in the retrieval?
         if (
             StateElementIdentifier("NH3") not in strategy.error_analysis_interferents
             and StateElementIdentifier("NH3") not in strategy.retrieval_elements
@@ -341,7 +372,7 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
                 nh3type = sfunc(rad, tsur, tatm0, surface_type)
                 break
         if nh3type is None:
-            nh3type = "mod"
+            nh3type = "MOD"
         clim_dir = Path(
             retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         )
@@ -386,27 +417,88 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
     # type: ignore[override]
     def _setup_create(
         cls,
+        pressure_list_fm: FullGridMappedArray,
+        sid: StateElementIdentifier,
+        retrieval_config: RetrievalConfiguration,
+        sounding_metadata: SoundingMetadata,
         strategy: MusesStrategy,
+        observation_handle_set: ObservationHandleSet,
         **kwargs: Any,
     ) -> OspSetupReturn | None:
-        # We only use this if HCOOH is in the error analysis interferents. Not sure
-        # of the exact reason for this, but this is the logic used in muses-py
-        # in states_initial_update.py and we duplicate this here.
-        # TODO Is the actually the right logic? Why should the initial guess
-        # depend on it being an interferent in the retrieval?
+        # We only use this if HCOOH is in the error analysis
+        # interferents or retrieval elements. Not sure of the exact
+        # reason for this, but this is the logic used in muses-py in
+        # states_initial_update.py and we duplicate this here.
+        #
+        # TODO Is the actually the right logic? Why should the initial
+        # guess depend on it being an interferent or in the retrieval?
         if (
             StateElementIdentifier("HCOOH") not in strategy.error_analysis_interferents
             and StateElementIdentifier("HCOOH") not in strategy.retrieval_elements
         ):
             return None
+        # Only have handling for CRIS, TES and AIRS.
+        if (
+            InstrumentIdentifier("CRIS") not in strategy.instrument_name
+            and InstrumentIdentifier("TES") not in strategy.instrument_name
+            and InstrumentIdentifier("AIRS") not in strategy.instrument_name
+        ):
+            return None
+        hcoohtype: str | None = None
+        for ins in [
+            InstrumentIdentifier("CRIS"),
+            InstrumentIdentifier("TES"), 
+            InstrumentIdentifier("AIRS"),
+        ]:
+            if ins in strategy.instrument_name:
+                olist = [
+                    observation_handle_set.observation(ins, None, None, None),
+                ]
+                rad = mpy_radiance_from_observation_list(olist, full_band=True)
+                hcoohtype = mpy.supplier_hcooh_type(rad)
+                break
+        if hcoohtype is None:
+            hcoohtype = "MOD"
+        clim_dir = Path(
+            retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
+        )
+        # TODO Check if this is actually correct
+        # Oddly the initial value comes from the prior file (so is_constraint is
+        # True). Not sure if this is what was intended, but it is what muses_py
+        # does in states_initial_update.py. We duplicate that here, but should
+        # determine at some point if this is actually correct. Why even have the
+        # non prior climatology if we aren't using it?
+        value_fm, poltype = cls.read_climatology_2022(
+            sid,
+            pressure_list_fm,
+            True,
+            clim_dir,
+            sounding_metadata,
+            ind_type=hcoohtype,
+            linear_interp=False,
+        )
+        constraint_vector_fm, _ = cls.read_climatology_2022(
+            sid,
+            pressure_list_fm,
+            True,
+            clim_dir,
+            sounding_metadata,
+            ind_type=hcoohtype,
+            linear_interp=False,
+        )
+        create_kwargs = {}
+        if poltype is not None:
+            create_kwargs["poltype"] = poltype
         # Muses-py just "knows" that we don't use the poltype in the constraint file name
         # for HCOOH. Probably something historic, this seems to only be used for TES,
         # and is probably the oldest code, perhaps before the poltype was used to change
         # the constraint
-        poltype_used_constraint = False
-
-        breakpoint()
-
+        create_kwargs["poltype_used_constraint"] = False
+        return OspSetupReturn(
+            value_fm=value_fm,
+            constraint_vector_fm=constraint_vector_fm,
+            create_kwargs=create_kwargs,
+        )
 
 for sid in [
     "CO",
@@ -415,6 +507,7 @@ for sid in [
     "CFC12",
     "CCL4",
     "CFC22",
+    "NO2",
     "N2O",
     "O3",
     "CH4",
@@ -428,7 +521,7 @@ for sid in [
         StateElementWithCreateHandle(
             StateElementIdentifier(sid),
             StateElementFromClimatology,
-            include_old_state_info=True,
+            include_old_state_info=False,
         ),
         priority_order=0,
     )
@@ -437,11 +530,12 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("HDO"),
         StateElementFromClimatologyHdo,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )
 
+# Not working for TES, leave check in place until we get this fixed.
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("CH3OH"),
@@ -455,7 +549,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("NH3"),
         StateElementFromClimatologyNh3,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=1,
 )
@@ -466,7 +560,7 @@ StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("HCOOH"),
         StateElementFromClimatologyHcooh,
-        include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=1,
 )
