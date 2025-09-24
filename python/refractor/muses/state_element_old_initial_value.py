@@ -78,11 +78,12 @@ class StateElementOldInitialValue(StateElementOspFile):
             "poltype_used_constraint": poltype_used_constraint,
             "diag_cov": diag_cov,
         }
-        return OspSetupReturn(
+        r = OspSetupReturn(
             value_fm=value_fm,
             constraint_vector_fm=constraint_vector_fm,
             create_kwargs=create_kwarg,
         )
+        return r
 
 
 # This was used when developing the various StateElement. We don't normally use this,

@@ -233,7 +233,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
         clim_dir = Path(
             retrieval_config.abs_dir("../OSP/Climatology/Climatology_files")
         )
-        value_fm, poltype = cls.read_climatology_2022(
+        value_fm, _ = cls.read_climatology_2022(
             sid,
             pressure_list_fm,
             False,
@@ -241,7 +241,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             sounding_metadata,
             linear_interp=False,
         )
-        constraint_vector_fm, _ = cls.read_climatology_2022(
+        constraint_vector_fm, poltype = cls.read_climatology_2022(
             sid,
             pressure_list_fm,
             True,
@@ -252,6 +252,10 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
         # In some cases, the CH3OH isn't read from the climatology, although we still
         # use that for determining the polytype. We instead get CH3OH from the
         # State_AtmProfiles.asc file
+        # This seems to only be used in the TES retrieval
+        # TODO - Is this actually intended? Or was it just some accident? Not clear why
+        # we would use the climatology for the constraint_vector, but the State_AtmProfiles.asc
+        # for the initial value. But this is what py-retrieve is doing.
         if StateElementIdentifier("CH3OH") not in [
             StateElementIdentifier(i)
             for i in retrieval_config["Species_List_From_Climatology"].split(",")
@@ -272,15 +276,21 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             value_fm = value_fm[(value_fm.shape[0] - pressure_list_fm.shape[0]) :].view(
                 FullGridMappedArray
             )
-            constraint_vector_fm = value_fm
+            # TODO - Is this actually intended?
+            # Even if we get the value_fm from the fatm file, we still get the
+            # constraint_vector_fm from the climatology. Not sure if this was actually
+            # intended, but this is what happens. This seems to only apply to the TES
+            # retrieval, so this might not be overly important to sort out.
+            # constraint_vector_fm = value_fm
         create_kwargs = {}
         if poltype is not None:
             create_kwargs["poltype"] = poltype
-        return OspSetupReturn(
+        r = OspSetupReturn(
             value_fm=value_fm,
             constraint_vector_fm=constraint_vector_fm,
             create_kwargs=create_kwargs,
         )
+        return r
 
 
 class StateElementFromClimatologyHdo(StateElementFromClimatology):
@@ -496,7 +506,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
             ind_type=hcoohtype,
             linear_interp=False,
         )
-        create_kwargs : dict[str, Any] = {}
+        create_kwargs: dict[str, Any] = {}
         if poltype is not None:
             create_kwargs["poltype"] = poltype
         # Muses-py just "knows" that we don't use the poltype in the constraint file name
@@ -546,12 +556,11 @@ StateElementHandleSet.add_default_handle(
     priority_order=0,
 )
 
-# Not working for TES, leave check in place until we get this fixed.
 StateElementHandleSet.add_default_handle(
     StateElementWithCreateHandle(
         StateElementIdentifier("CH3OH"),
         StateElementFromClimatologyCh3oh,
-        #include_old_state_info=True,
+        include_old_state_info=False,
     ),
     priority_order=0,
 )
