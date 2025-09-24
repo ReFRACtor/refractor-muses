@@ -161,6 +161,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     # Short term, turn off checking for unit tests
     check_old_state_element_value = True
+    #check_old_state_element_value = False
 
     def __init__(self) -> None:
         # Cache these values, they don't normally change.

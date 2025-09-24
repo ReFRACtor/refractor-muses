@@ -5,6 +5,7 @@ from .osp_reader import OspSpeciesReader
 from .retrieval_array import FullGridMappedArray, RetrievalGrid2dArray
 from pathlib import Path
 from loguru import logger
+import numpy as np
 import abc
 import typing
 
@@ -298,6 +299,11 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
             self._state_element_2.basis_matrix.shape[0],
             sid2=self.state_element_id_2,
         ).view(RetrievalGrid2dArray)
+        # TODO Change this
+        # To match the old py-retrieve code, we convert to and from float32
+        cm1 = cm1.astype(np.float32).astype(float)
+        cm2 = cm2.astype(np.float32).astype(float)
+        cm3 = cm3.astype(np.float32).astype(float)
         return (cm1, cm2, cm3)
 
     def notify_start_step(

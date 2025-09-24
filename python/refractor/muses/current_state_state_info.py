@@ -49,8 +49,9 @@ class CurrentStateStateInfo(CurrentState):
         )
         self.do_systematic = False
         self._step_directory: None | Path = None
-        # Temp, while we are using the old state info stuff as a scaffold
-        # for making the new
+        # When doing initial development, we matched against old state info stuff
+        # This is normally not used, but have in place in case we need to diagnose
+        # some problem
         self._current_state_old = self._state_info._current_state_old
         # Temp, while until we move previous_aposteriori_cov_fm to StateElements
         self._covariance_state_element_name: list[StateElementIdentifier] = []
@@ -108,9 +109,6 @@ class CurrentStateStateInfo(CurrentState):
             and self._current_state_old is not None
         ):
             res2 = self._current_state_old.initial_guess
-            # Short term, see if this is only difference
-            # return res2.view(RetrievalGridArray)
-            # Need to fix
             npt.assert_allclose(res, res2, 1e-12)
         return res.view(RetrievalGridArray)
 
@@ -139,9 +137,6 @@ class CurrentStateStateInfo(CurrentState):
             and self._current_state_old is not None
         ):
             res2 = self._current_state_old.initial_guess_full
-            # Short term, see if this is only difference
-            # return res2.view(FullGridArray)
-            # Need to fix
             npt.assert_allclose(res, res2, 1e-12)
         return res.view(FullGridArray)
 
@@ -158,7 +153,7 @@ class CurrentStateStateInfo(CurrentState):
             self._state_info[sid].constraint_matrix
             for sid in self.retrieval_state_element_id
         ]
-        res = scipy.linalg.block_diag(*blist)
+        res = scipy.linalg.block_diag(*blist) 
         # Handle cross terms, and any updates because of cross terms (e.g., H2OxH2O)
         for i, selem1_sid in enumerate(self.retrieval_state_element_id):
             for selem2_sid in self.retrieval_state_element_id[i + 1 :]:
@@ -174,16 +169,12 @@ class CurrentStateStateInfo(CurrentState):
                     res[r2, r1] = m_s1xs2.transpose()
                 if m_s2xs2 is not None:
                     res[r2, r2] = m_s2xs2
-        # TODO Remove current_state_old
         if (
             CurrentState.check_old_state_element_value
             and self._current_state_old is not None
         ):
             res2 = self._current_state_old.constraint_matrix
-            # Short term, see if this is only difference
-            return res2.view(RetrievalGrid2dArray)
-            # Need to fix
-            npt.assert_allclose(res, res2, 1e-12)
+            npt.assert_allclose(res, res2, atol=1e-12)
         return res.view(RetrievalGrid2dArray)
 
     @property
