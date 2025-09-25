@@ -448,7 +448,10 @@ class FakeStateInfo:
             "SPACECRAFTALTITUDE": 0.0 - 999,
         }
         # Need cloud fraction even if other part isn't filled in
-        tropomi["cloud_fraction"] = self.state_value("TROPOMICLOUDFRACTION")
+        if self.state_element_exists("TROPOMICLOUDFRACTION"):
+            tropomi["cloud_fraction"] = self.state_value("TROPOMICLOUDFRACTION")
+        else:
+            tropomi["cloud_fraction"] = 0.0
         return tropomi
 
     def default_airs(self) -> dict[str, Any]:
