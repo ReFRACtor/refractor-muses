@@ -159,7 +159,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
     """
 
-    # Short term, turn off checking for unit tests
+    # Can check against old state element stuff, if the StateInfo has this.
+    # True means check if StateInfo has a old current state, False skips this
+    # check evne if the old current state is available.
     check_old_state_element_value = True
     #check_old_state_element_value = False
 

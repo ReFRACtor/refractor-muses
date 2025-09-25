@@ -121,7 +121,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
     typical structured program like IDL). Things external to this class don't tell it
     how to maintain its state, instead we just tell it when things happen and the
     classes decide what to do with that information. So we have "notify_step_solution" rather
-    that "update _value_fm to this value".
+    than "update _value_fm to this value".
     """
 
     def __init__(self, state_element_id: StateElementIdentifier):
@@ -302,7 +302,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def constraint_matrix(self) -> RetrievalGrid2dArray:
-        """Constraint matrix, generally the inverse of apriori_cov, although see the
+        """Constraint matrix, generally the same as apriori_cov, although see the
         discussion in StateElement class about how this might be different.
 
         Note that this should be the constraint matrix without considering any cross
@@ -575,6 +575,7 @@ class StateElementImplementation(StateElement):
         # Skip if we aren't actually retrieving. This fits with the hokey way that
         # muses-py handles the BT and systematic jacobian steps. We should clean this
         # up an some point, this is all unnecessarily obscure
+        # TODO - Fix this logic
         if not self._retrieved_this_step:
             return
         # if self._value_fm is not None and self.value.shape[0] != param_subset.shape[0]:
