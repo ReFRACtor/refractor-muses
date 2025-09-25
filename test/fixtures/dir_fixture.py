@@ -140,6 +140,11 @@ def joint_omi_test_expected_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def joint_omi_eof_test_in_dir(test_base_path):
+    return test_base_path / "airs_omi/in/sounding_2_eof"
+
+
+@pytest.fixture(scope="session")
 def joint_omi_test_refractor_expected_dir(test_base_path):
     return test_base_path / "airs_omi/expected/sounding_1_refractor"
 

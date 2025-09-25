@@ -11,7 +11,6 @@ from refractor.muses import (
 import subprocess
 import pytest
 from loguru import logger
-from pathlib import Path
 
 
 @pytest.mark.long_test
@@ -81,9 +80,10 @@ def test_eof_omi(osp_dir, gmao_dir, omi_test_in_dir, end_to_end_run_dir):
         )
 
 
-@pytest.mark.skip
+# Still failing, issue with microwindows. We'll continue working on this in a bit        
+@pytest.mark.skip        
 @pytest.mark.long_test
-def test_eof_airs_omi(osp_dir, gmao_dir, end_to_end_run_dir):
+def test_eof_airs_omi(osp_dir, gmao_dir, end_to_end_run_dir, joint_omi_eof_test_in_dir):
     """Full run of AIRS/OMI that we can compare the output files. This is not
     really a unit test, but for convenience we have it here. We don't
     actually do anything with the data, other than make it available.
@@ -95,19 +95,12 @@ def test_eof_airs_omi(osp_dir, gmao_dir, end_to_end_run_dir):
     just use hard coded paths"""
     dir = end_to_end_run_dir / "airs_omi_eof"
     subprocess.run(["rm", "-r", str(dir)])
-    # Requires test data on tb1, skip if not available
-    if not Path(
-        "/tb/sandbox17/sval/muses_output_eof_application_single/airs_omi/2022-11-01/setup-targets/Global_Survey_Grid_4.0/20221101_028_009_22"
-    ).exists():
-        raise pytest.skip("Required test data not found, skipping test")
     r = MusesRunDir(
-        "/tb/sandbox17/sval/muses_output_eof_application_single/airs_omi/2022-11-01/setup-targets/Global_Survey_Grid_4.0/20221101_028_009_22",
+        joint_omi_eof_test_in_dir,
         osp_dir,
         gmao_dir,
         path_prefix=dir,
     )
-    # r = MusesRunDir('./eof_stuff/20221101_028_009_22',
-    #                osp_dir, gmao_dir, path_prefix="airs_omi_eof")
     rs = RetrievalStrategy(
         None,
     )
@@ -142,7 +135,7 @@ def test_eof_airs_omi(osp_dir, gmao_dir, end_to_end_run_dir):
         use_lrad=False,
         lrad_second_order=False,
         use_eof=True,
-        eof_dir="/tb/sandbox21/lkuai/muses/output_py/airs_omi/plot/no_softCal_EOF/EOFout",
+        eof_dir=joint_omi_eof_test_in_dir / "eof_dir",
     )
     # eof_dir = "./eof_stuff/EOFout")
     rs.forward_model_handle_set.add_handle(ihandle, priority_order=100)

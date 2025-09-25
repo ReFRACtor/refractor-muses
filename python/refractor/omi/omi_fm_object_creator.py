@@ -12,6 +12,7 @@ from refractor.muses import (
 from refractor.muses import muses_py as mpy
 import refractor.framework as rf  # type: ignore
 import os
+from pathlib import Path
 from loguru import logger
 import numpy as np
 import h5py  # type: ignore
@@ -68,7 +69,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             **kwargs,
         )
         self.use_eof = use_eof
-        self.eof_dir = eof_dir
+        self.eof_dir = Path(eof_dir) if eof_dir is not None else None
 
     def ils_params_preconv(self, sensor_index: int) -> dict[str, Any]:
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
@@ -186,8 +187,8 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
             if self.eof_dir is not None:
                 uv1_index, uv2_index = self.observation.across_track
                 uv_basename = "EOF_xtrack_{0}-{1:02d}_window_{0}.nc"
-                uv1_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv1', uv1_index))}"
-                uv2_fname = f"{os.path.join(self.eof_dir, uv_basename.format('uv2', uv2_index))}"
+                uv1_fname = self.eof_dir / uv_basename.format("uv1", uv1_index)
+                uv2_fname = self.eof_dir / uv_basename.format("uv2", uv2_index)
 
                 if filter_name == FilterIdentifier("UV1"):
                     eof_fname = uv1_fname
