@@ -376,7 +376,10 @@ class FakeStateInfo:
             "SPACECRAFTALTITUDE": 0.0 - 999,
         }
         # Need cloud fraction even if other part isn't filled in
-        omi["cloud_fraction"] = self.state_value("OMICLOUDFRACTION")
+        if self.state_element_exists("OMICLOUDFRACTION"):
+            omi["cloud_fraction"] = self.state_value("OMICLOUDFRACTION")
+        else:
+            omi["cloud_fraction"] = 0.0
         return omi
 
     def default_tropomi(self) -> dict[str, Any]:
@@ -523,6 +526,10 @@ class FakeStateInfo:
             "wind": -999.00,
         }
         return nir
+
+    def state_element_exists(self, state_name: str) -> float:
+        """Check if state element ID is in current state"""
+        return self.current_state.state_element_exists(StateElementIdentifier(state_name))
 
     def state_value(self, state_name: str) -> float:
         """Get the state value for the given state name"""
