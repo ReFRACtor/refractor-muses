@@ -900,7 +900,9 @@ class MusesStrategyModifyHandle(MusesStrategyHandle):
         )
         s.current_strategy_list[
             self.step_number
-        ].retrieval_elements = self.retrieval_elements
+        ].retrieval_elements = StateElementIdentifier.sort_identifier(
+            self.retrieval_elements
+        )
         if self.max_iter is not None:
             s.current_strategy_list[self.step_number].retrieval_step_parameters[
                 "max_iter"

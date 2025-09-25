@@ -163,7 +163,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     # True means check if StateInfo has a old current state, False skips this
     # check evne if the old current state is available.
     check_old_state_element_value = True
-    #check_old_state_element_value = False
+    # check_old_state_element_value = False
 
     def __init__(self) -> None:
         # Cache these values, they don't normally change.

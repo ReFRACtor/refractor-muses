@@ -153,7 +153,7 @@ class CurrentStateStateInfo(CurrentState):
             self._state_info[sid].constraint_matrix
             for sid in self.retrieval_state_element_id
         ]
-        res = scipy.linalg.block_diag(*blist) 
+        res = scipy.linalg.block_diag(*blist)
         # Handle cross terms, and any updates because of cross terms (e.g., H2OxH2O)
         for i, selem1_sid in enumerate(self.retrieval_state_element_id):
             for selem2_sid in self.retrieval_state_element_id[i + 1 :]:

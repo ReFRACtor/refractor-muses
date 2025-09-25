@@ -242,7 +242,14 @@ class RetrievalResult:
             if d is not None:
                 pdata.append(d)
             else:
-                pdata.append(np.array([-2.0]))
+                pdata.append(
+                    np.array(
+                        [
+                            -2.0,
+                        ]
+                        * self.current_state.state_value(sid).shape[0]
+                    )
+                )
         return np.concatenate(pdata)
 
     @property

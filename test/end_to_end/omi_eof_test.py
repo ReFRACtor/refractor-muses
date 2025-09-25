@@ -14,7 +14,6 @@ from loguru import logger
 from pathlib import Path
 
 
-@pytest.mark.skip
 @pytest.mark.long_test
 def test_eof_omi(osp_dir, gmao_dir, omi_test_in_dir, end_to_end_run_dir):
     """Full run, that we can compare the output files. This is not
@@ -96,7 +95,7 @@ def test_eof_airs_omi(osp_dir, gmao_dir, end_to_end_run_dir):
     just use hard coded paths"""
     dir = end_to_end_run_dir / "airs_omi_eof"
     subprocess.run(["rm", "-r", str(dir)])
-    # Requires test data on tb1, slightly skip if not available
+    # Requires test data on tb1, skip if not available
     if not Path(
         "/tb/sandbox17/sval/muses_output_eof_application_single/airs_omi/2022-11-01/setup-targets/Global_Survey_Grid_4.0/20221101_028_009_22"
     ).exists():

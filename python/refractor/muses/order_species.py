@@ -34,6 +34,10 @@ def order_species(species_list: list[str]) -> list[str]:
 
 def compare_species(s1: str, s2: str) -> int:
     """Return -1, 0 or 1 for s1 < s2, s1 == s2, s1 > s2"""
+    if s1 in _ordered_species_list and s2 not in _ordered_species_list:
+        return -1
+    if s1 not in _ordered_species_list and s2 in _ordered_species_list:
+        return 1
     t1 = (
         s1 in _ordered_species_list,
         _ordered_species_list.index(s1) if s1 in _ordered_species_list else s1,

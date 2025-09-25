@@ -301,9 +301,9 @@ class H2OCrossStateElementOsp(CrossStateElementImplementation):
         ).view(RetrievalGrid2dArray)
         # TODO Change this
         # To match the old py-retrieve code, we convert to and from float32
-        cm1 = cm1.astype(np.float32).astype(float)
-        cm2 = cm2.astype(np.float32).astype(float)
-        cm3 = cm3.astype(np.float32).astype(float)
+        cm1 = cm1.astype(np.float32).astype(float).view(RetrievalGrid2dArray)
+        cm2 = cm2.astype(np.float32).astype(float).view(RetrievalGrid2dArray)
+        cm3 = cm3.astype(np.float32).astype(float).view(RetrievalGrid2dArray)
         return (cm1, cm2, cm3)
 
     def notify_start_step(
