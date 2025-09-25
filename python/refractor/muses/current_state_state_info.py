@@ -454,6 +454,17 @@ class CurrentStateStateInfo(CurrentState):
     def sounding_metadata(self) -> SoundingMetadata:
         return self._state_info.sounding_metadata
 
+    def state_element_exists(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> bool:
+        self.match_old()
+        sid = (
+            StateElementIdentifier(state_element_id)
+            if isinstance(state_element_id, str)
+            else state_element_id
+        )
+        return sid in self._state_info
+
     def state_element(
         self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
