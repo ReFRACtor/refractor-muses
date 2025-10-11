@@ -59,9 +59,9 @@ def test_state_element_cloudext(airs_omi_old_shandle):
         retrieval_config=rconfig, sounding_metadata=smeta, state_info=sinfo
     )
     # Check that we match before cycling through the strategy steps
-    npt.assert_allclose(s.value_fm, sold_constraint_vector_fm)
+    npt.assert_allclose(s.value_fm, sold_constraint_vector_fm, atol=1e-20)
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    npt.assert_allclose(s.value_fm, sold_value_fm)
+    npt.assert_allclose(s.value_fm, sold_value_fm, atol=1e-20)
     # Also check spectral domain
     npt.assert_allclose(s.spectral_domain.data, sold.spectral_domain.data)

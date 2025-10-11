@@ -2026,16 +2026,12 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
 
             # for jointly retrieved... don't populate
             # constraint check H2O-HDO, if so, get off diagonal also
-            locs = [
-                (np.where(np.asarray(species_list) == "H2O"))[0],
-                (np.where(np.asarray(species_list) == "HDO"))[0],
-            ]
             num_retrievalPressures = len(retrievalParameters)
 
             # AT_LINE 702 Get_Species_Information.pro
             if (
-                locs[0] >= 0
-                and locs[1] >= 0
+                'H2O' in species_list
+                and 'HDO' in species_list
                 and (species_name == "H2O" or species_name == "HDO")
             ):
                 constraintMatrix = np.zeros(

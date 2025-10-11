@@ -21,12 +21,16 @@ class DocOptSimple(object):
         self,
         doc: str,
         argv: list[str] | None = None,
-        help: bool = True,
+        default_help: bool = True,
         version: None | str = None,
         options_first: bool = False,
     ) -> None:
         self.args = docopt(
-            doc, argv=argv, help=help, version=version, options_first=options_first
+            doc,
+            argv=argv,
+            default_help=default_help,
+            version=version,
+            options_first=options_first,
         )
 
     def __getstate__(self) -> dict:
@@ -69,7 +73,7 @@ class DocOptSimple(object):
 def docopt_simple(
     doc: str,
     argv: list[str] | None = None,
-    help: bool = True,
+    default_help: bool = True,
     version: None | str = None,
     options_first: bool = False,
 ) -> DocOptSimple:
@@ -80,7 +84,7 @@ def docopt_simple(
     on the interface.
     """
     return DocOptSimple(
-        doc, argv=argv, help=help, version=version, options_first=options_first
+        doc, argv=argv, default_help=default_help, version=version, options_first=options_first
     )
 
 

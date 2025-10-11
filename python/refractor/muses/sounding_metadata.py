@@ -103,13 +103,13 @@ class SoundingMetadata:
             )
         res = cls()
         res._latitude = rf.DoubleWithUnit(
-            state_info.state_info_dict[step]["latitude"], "deg"
+            float(state_info.state_info_dict[step]["latitude"]), "deg"
         )
         res._longitude = rf.DoubleWithUnit(
-            state_info.state_info_dict[step]["longitude"], "deg"
+            float(state_info.state_info_dict[step]["longitude"]), "deg"
         )
         res._surface_altitude = rf.DoubleWithUnit(
-            state_info.state_info_dict[step]["tsa"]["surfaceAltitudeKm"], "km"
+            float(state_info.state_info_dict[step]["tsa"]["surfaceAltitudeKm"]), "km"
         )
         res._day_flag = bool(state_info.state_info_dict[step]["tsa"]["dayFlag"])
         res._surface_type = state_info.state_info_dict[step]["surfaceType"].upper()

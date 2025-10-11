@@ -68,6 +68,7 @@ def omi_test_expected_results_dir(test_base_path):
 def tropomi_test_in_dir(test_base_path):
     return test_base_path / "tropomi/in/sounding_1"
 
+
 @pytest.fixture(scope="session")
 def cris_test_in_dir(test_base_path):
     return test_base_path / "cris/in/sounding_1"

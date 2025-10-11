@@ -80,8 +80,8 @@ def test_eof_omi(osp_dir, gmao_dir, omi_test_in_dir, end_to_end_run_dir):
         )
 
 
-# Still failing, issue with microwindows. We'll continue working on this in a bit        
-@pytest.mark.skip        
+# Still failing, issue with microwindows. We'll continue working on this in a bit
+@pytest.mark.skip
 @pytest.mark.long_test
 def test_eof_airs_omi(osp_dir, gmao_dir, end_to_end_run_dir, joint_omi_eof_test_in_dir):
     """Full run of AIRS/OMI that we can compare the output files. This is not
