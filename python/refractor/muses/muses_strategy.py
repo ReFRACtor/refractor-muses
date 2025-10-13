@@ -790,7 +790,11 @@ class MusesStrategyStepList(MusesStrategyImp):
             else:
                 found = True
                 cstate.is_skipped = False
-        if not found:
+        # Note species_igr of "-" is a special value that mean we
+        # should skip all the BT_IG_Refine steps. So in that case, not
+        # finding the step matching species_igr isn't actually an
+        # error - we just mark at the bt_ig_refine as skipped
+        if not found and species_igr != "-":
             raise RuntimeError(
                 "Specified IG refinement not found (MUST be retrievalType BT_IG_Refine AND species listed in correct order)"
             )
