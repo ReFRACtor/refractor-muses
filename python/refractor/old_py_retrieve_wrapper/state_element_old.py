@@ -2030,8 +2030,8 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
 
             # AT_LINE 702 Get_Species_Information.pro
             if (
-                'H2O' in species_list
-                and 'HDO' in species_list
+                "H2O" in species_list
+                and "HDO" in species_list
                 and (species_name == "H2O" or species_name == "HDO")
             ):
                 constraintMatrix = np.zeros(

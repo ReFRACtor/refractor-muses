@@ -82,6 +82,7 @@ def test_retrieval_strategy_cris_tropomi(
     diff_is_error = True
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
 
+
 # Don't normally run, we test cris in the cris_tropomi test above. But useful
 # to run to diagnose problems - we've run into issue before with cris only
 # retrievals that don't show up in cris_tropomi

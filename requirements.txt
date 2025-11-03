@@ -14,3 +14,12 @@ pytest-xdist
 
 # Also depends on py_retrieve.app, but that isn't a normal pip
 # package so don't list here
+
+# Franks ML depends in these
+scipy
+matplotlib
+cartopy
+tensorflow
+netcdf4
+juypterlab
+scikit-learn

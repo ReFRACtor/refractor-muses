@@ -84,7 +84,11 @@ def docopt_simple(
     on the interface.
     """
     return DocOptSimple(
-        doc, argv=argv, default_help=default_help, version=version, options_first=options_first
+        doc,
+        argv=argv,
+        default_help=default_help,
+        version=version,
+        options_first=options_first,
     )
 
 

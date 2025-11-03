@@ -36,7 +36,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
             [1.57924642, 0.29641264, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             [0.29159857, 2.68485774, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         ],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
         csum.columnPriorError,
@@ -112,7 +112,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
         ],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
         csum.columnInitial,
@@ -188,7 +188,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
         ],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
         csum.columnInitialInitial,
@@ -264,7 +264,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
         ],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
         csum.columnError,
@@ -340,7 +340,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
         ],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
         csum.columnPrior,
@@ -416,7 +416,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
         ],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
         csum.column,
@@ -492,12 +492,12 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
         ],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
         csum.columnAir,
         [2.09837940e25, 1.58890350e25, 5.53351594e24, 1.03556044e25, 5.09477800e24],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
         csum.columnTrue,
@@ -573,14 +573,16 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -999.0,
             ],
         ],
-        rtol = 1e-6,
+        rtol=1e-6,
     )
     npt.assert_allclose(
-        csum.columnPressureMax, [986.3847, 986.3847, 500.0, 986.3847, 239.46081543],
-        rtol = 1e-6,
+        csum.columnPressureMax,
+        [986.3847, 986.3847, 500.0, 986.3847, 239.46081543],
+        rtol=1e-6,
     )
     npt.assert_allclose(
-        csum.columnPressureMin, [0.0, 239.46081543, 239.46081543, 500.0, 0.0],
-        rtol = 1e-6,
+        csum.columnPressureMin,
+        [0.0, 239.46081543, 239.46081543, 500.0, 0.0],
+        rtol=1e-6,
     )
     assert csum.columnSpecies == ["H2O", "O3"]

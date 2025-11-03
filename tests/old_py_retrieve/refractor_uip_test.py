@@ -12,7 +12,6 @@ from refractor.muses import (
 )
 from refractor.old_py_retrieve_wrapper import StateInfoOld, CurrentStateStateInfoOld
 import refractor.muses.muses_py as mpy
-import subprocess
 import pprint
 import pytest
 import os

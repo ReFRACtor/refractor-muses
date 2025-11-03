@@ -23,7 +23,7 @@ class RingInputFile(object):
 class RingOutputFile(object):
     def __init__(self, filename):
         conv = {1: lambda v: float(v.replace("D", "E"))}
-        rd = np.loadtxt(filename, skiprows=1, converters=conv, encoding='utf-8')
+        rd = np.loadtxt(filename, skiprows=1, converters=conv, encoding="utf-8")
         self.grid = rd[:, 0]
         self.spec = rd[:, 1]
 
