@@ -2,6 +2,7 @@ from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
+from .refractor_uip import AttrDictAdapter
 import numpy as np
 import math
 from loguru import logger
@@ -46,7 +47,7 @@ class ErrorAnalysis:
 
     def error_analysis_wrapper(
         self,
-        radiance: mpy.ObjectView,
+        radiance: AttrDictAdapter,
         retrieval: FakeRetrievalInfo,
         stateInfo: FakeStateInfo,
         retrieval_result: RetrievalResult,
@@ -58,7 +59,7 @@ class ErrorAnalysis:
         cstate = retrieval_result.current_state
         if cstate.map_to_parameter_matrix is None or cstate.basis_matrix is None:
             raise RuntimeError("Missing basis matrix")
-        my_map = mpy.ObjectView(
+        my_map = AttrDictAdapter(
             {
                 "toPars": np.copy(cstate.map_to_parameter_matrix),
                 "toState": np.copy(cstate.basis_matrix),
@@ -177,7 +178,7 @@ class ErrorAnalysis:
 
     def error_analysis(
         self,
-        my_map: mpy.ObjectView,
+        my_map: AttrDictAdapter,
         jacobian: np.ndarray,
         jacobianFM: np.ndarray,
         Sa: np.ndarray,
@@ -190,7 +191,7 @@ class ErrorAnalysis:
         actualDataResidual: np.ndarray,
         retrieval_result: RetrievalResult,
         retrieval: FakeRetrievalInfo,
-        errorCurrentValues: mpy.ObjectView,
+        errorCurrentValues: np.ndarray,
     ) -> np.ndarray | None:
         o_offDiagonalSys = None
 

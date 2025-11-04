@@ -87,7 +87,7 @@ if _typing.TYPE_CHECKING:
         StrategyStepIdentifier,
     )
     from .filter_metadata import FileFilterMetadata, DictFilterMetadata
-    from .refractor_uip import RefractorUip
+    from .refractor_uip import RefractorUip, AttrDictAdapter
     from .replace_function_helper import (
         suppress_replacement,
         register_replacement_function_in_block,

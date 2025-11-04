@@ -16,20 +16,21 @@ from collections.abc import MutableMapping
 import copy
 from pathlib import Path
 import math
-from typing import Any, Generator, Self, Iterator
+from typing import Any, Generator, Self, Iterator, cast
 import typing
 
 if typing.TYPE_CHECKING:
     from .fake_state_info import FakeStateInfo
+    from .fake_retrieval_info import FakeRetrievalInfo
 
 if mpy.have_muses_py:
 
     class _FakeUipExecption(Exception):
         def __init__(
             self,
-            uip: mpy.ObjectView,
-            ret_info: mpy.ObjectView,
-            retrieval_vec: mpy.ObjectView,
+            uip: AttrDictAdapter,
+            ret_info: AttrDictAdapter,
+            retrieval_vec: AttrDictAdapter,
         ) -> None:
             self.uip = uip
             self.ret_info = ret_info
@@ -87,30 +88,44 @@ class AttrDictAdapter(MutableMapping):
     by the muses-py uip."""
 
     def __init__(self, data: dict[str, Any]) -> None:
-        self._data = data
+        self.__dict__ = data
+
+    # ObjectView has these two functions, supply since lower level routines may look
+    # for these.
+    @classmethod
+    def as_dict(cls, obj: AttrDictAdapter | dict[str, Any]) -> dict[str, Any]:
+        if isinstance(obj, dict):
+            return obj
+        return obj.__dict__
+
+    @classmethod
+    def as_object(cls, obj: AttrDictAdapter | dict[str, Any]) -> AttrDictAdapter:
+        if isinstance(obj, dict):
+            return AttrDictAdapter(obj)
+        return obj
 
     def __getitem__(self, key: str) -> Any:
-        return self._data[key]
+        return self.__dict__[key]
 
     def __setitem__(self, key: str, value: Any) -> None:
-        self._data[key] = value
+        self.__dict__[key] = value
 
     def __delitem__(self, key: str) -> None:
-        del self._data[key]
+        del self.__dict__[key]
 
     def __iter__(self) -> Iterator[Any]:
-        return iter(self._data)
+        return iter(self.__dict__)
 
     def __len__(self) -> int:
-        return len(self._data)
+        return len(self.__dict__)
 
     def __getattr__(self, name: str) -> Any:
-        if name in self._data:
-            return self._data[name]
+        # Just defined to make mypy happy. We shouldn't actually call this
         raise AttributeError(f"{name} not found")
 
     def __setattr__(self, name: str, v: Any) -> None:
-        self[name] = v
+        # Just defined to make mypy happy. We don't actually do anything special
+        super().__setattr__(name, v)
 
 
 class RefractorCache(UserDict):
@@ -189,9 +204,9 @@ class RefractorUip:
 
     def __init__(
         self,
-        uip: dict[str, Any] | mpy.ObjectView = None,
+        uip: dict[str, Any] | AttrDictAdapter,
         basis_matrix: np.ndarray | None = None,
-        state_info: dict[str, Any] | mpy.ObjectView | None = None,
+        state_info: dict[str, Any] | AttrDictAdapter | FakeStateInfo | None = None,
     ) -> None:
         """Constructor. This takes the uip structure (the muses-py dictionary)
         and a basis_matrix if available
@@ -517,25 +532,25 @@ class RefractorUip:
     @property
     def uip_omi(self) -> dict[str, Any]:
         """Short cut to uip_OMI"""
-        return self.uip.get("uip_OMI")
+        return cast(dict[str, Any], self.uip.get("uip_OMI"))
 
     @property
     def omi_params(self) -> dict[str, Any]:
         """Short cut for omiPars"""
-        return self.uip.get("omiPars")
+        return cast(dict[str, Any], self.uip.get("omiPars"))
 
     @property
     def uip_tropomi(self) -> dict[str, Any]:
         """Short cut to uip_TROPOMI"""
-        return self.uip.get("uip_TROPOMI")
+        return cast(dict[str, Any], self.uip.get("uip_TROPOMI"))
 
     @property
     def tropomi_params(self) -> dict[str, Any]:
         """Short cut for tropomiPars"""
-        return self.uip.get("tropomiPars")
+        return cast(dict[str, Any], self.uip.get("tropomiPars"))
 
     def frequency_list(self, instrument_name: InstrumentIdentifier | str) -> np.ndarray:
-        return self.uip[f"uip_{instrument_name}"]["frequencyList"]
+        return cast(np.ndarray, self.uip[f"uip_{instrument_name}"]["frequencyList"])
 
     @property
     def instrument_list(self) -> list[InstrumentIdentifier]:
@@ -671,7 +686,7 @@ class RefractorUip:
         if set_cloud_extinction_one:
             uall["cloud"]["extinction"][:] = 1.0
         return mpy.raylayer_nadir(
-            mpy.ObjectView(uall), mpy.ObjectView(mpy.atmosphere_level(uall))
+            AttrDictAdapter(uall), AttrDictAdapter(mpy.atmosphere_level(uall))
         )
 
     @property
@@ -1152,14 +1167,14 @@ class RefractorUip:
         """
         # Fake the ret_info structure. update_uip only uses the basis
         # matrix
-        ret_info = mpy.ObjectView({"basis_matrix": self.basis_matrix})
+        ret_info = AttrDictAdapter({"basis_matrix": self.basis_matrix})
 
         # This is a copy of mpy.update_uip, modified slightly to ignore retrieval
         # elements we don't recognize.
         # Note I'd like to get away from the UIP, it is really just a shuffling
         # of our StateInfo. But at least for now, we need to call old muses-py code.
 
-        o_uip = mpy.ObjectView(self.uip)
+        o_uip = AttrDictAdapter(self.uip)
 
         o_retrieval_vec = copy.deepcopy(
             i_retrieval_vec
@@ -1593,15 +1608,15 @@ class RefractorUip:
         o_uip.currentGuessList = o_retrieval_vec
         o_uip.currentGuessListFM = fm_vec
 
-        self.uip = o_uip.__dict__
+        self.uip = o_uip.as_dict(o_uip)
 
     @classmethod
     def create_uip(
         cls,
-        i_stateInfo: dict[str, Any] | mpy.ObjectView | FakeStateInfo,
+        i_stateInfo: dict[str, Any] | AttrDictAdapter | FakeStateInfo,
         i_strategy_table: dict[str, Any],
         i_windows: list[Any],
-        i_retrievalInfo: dict[str, Any],
+        i_retrievalInfo: dict[str, Any] | AttrDictAdapter | FakeRetrievalInfo,
         i_airs: dict[str, Any] | None,
         i_tes: dict[str, Any] | None,
         i_cris: dict[str, Any] | None,
@@ -1653,14 +1668,14 @@ class RefractorUip:
         else:
             retrieval_info = copy.deepcopy(i_retrievalInfo)
             if isinstance(retrieval_info, dict):
-                retrieval_info = mpy.ObjectView(retrieval_info)
+                retrieval_info = AttrDictAdapter(retrieval_info)
         # Temp, and also with i_stateInfo
         if hasattr(i_stateInfo, "state_info_obj"):
             i_state = copy.deepcopy(i_stateInfo.state_info_obj)
         else:
             i_state = copy.deepcopy(i_stateInfo)
             if isinstance(i_state, dict):
-                i_state = mpy.ObjectView(i_state)
+                i_state = AttrDictAdapter(i_state)
         # Temp, and also with i_table
         if hasattr(i_strategy_table, "strategy_table_dict"):
             i_table = copy.deepcopy(i_strategy_table.strategy_table_dict)

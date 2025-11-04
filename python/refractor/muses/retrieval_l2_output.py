@@ -6,6 +6,7 @@ import os
 import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes, extra_l2_output
 from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
+from .refractor_uip import AttrDictAdapter
 
 from pathlib import Path
 import numpy as np
@@ -59,9 +60,9 @@ class RetrievalL2Output(RetrievalOutput):
     """Observer of RetrievalStrategy, outputs the Products_L2 files."""
 
     def __init__(self) -> None:
-        self.dataTATM = None
-        self.dataH2O = None
-        self.dataN2O = None
+        self.dataTATM: dict[str, Any] | None = None
+        self.dataH2O: dict[str, Any] | None = None
+        self.dataN2O: dict[str, Any] | None = None
         self.file_number_dict: dict[Path, FileNumberHandle] = {}
         self._species_list: list[str] | None = None
 
@@ -171,7 +172,8 @@ class RetrievalL2Output(RetrievalOutput):
                 data2["AVERAGINGKERNEL"].fill(0.0)
                 data2["OBSERVATIONERRORCOVARIANCE"].fill(0.0)
         elif self.spcname == "HDO":
-            data2 = self.dataH2O
+            if self.dataH2O is not None:
+                data2 = self.dataH2O
 
         state_element_out = []
         for sid in self.current_state.full_state_element_id:
@@ -228,7 +230,7 @@ class RetrievalL2Output(RetrievalOutput):
             "SOUNDINGID": None,
         }
 
-        geo_data = mpy.ObjectView(geo_datad)
+        geo_data = AttrDictAdapter(geo_datad)
         smeta = self.sounding_metadata
         geo_data.TIME = np.int32(smeta.wrong_tai_time)
         geo_data.LATITUDE = smeta.latitude.convert("deg").value
@@ -262,14 +264,14 @@ class RetrievalL2Output(RetrievalOutput):
             if species_data["OMI_SZA_UV2"] < 85:
                 geo_data.DAYNIGHTFLAG = np.int16(1)
 
-        geo_data = geo_data.__dict__
+        geo_data2 = geo_data.as_dict(geo_data)
 
-        for k, v in geo_data.items():
+        for k, v in geo_data2.items():
             if isinstance(v, list):
-                geo_data[k] = np.asarray(v)
-        return geo_data
+                geo_data2[k] = np.asarray(v)
+        return geo_data2
 
-    def write_l2(self) -> mpy.ObjectView:
+    def write_l2(self) -> dict[str, Any]:
         """Create L2 product file"""
         runtime_attributes: dict[str, Any] = dict()
 
@@ -422,7 +424,7 @@ class RetrievalL2Output(RetrievalOutput):
             del species_datad["EMISSIVITY"]
             del species_datad["EMISSIVITY_WAVENUMBER"]
 
-        species_data = mpy.ObjectView(species_datad)
+        species_data = AttrDictAdapter(species_datad)
 
         species_data.TROPOPAUSEPRESSURE = self.results.tropopause_pressure
 
@@ -453,7 +455,7 @@ class RetrievalL2Output(RetrievalOutput):
             i_pge=True,
         )
 
-        altitudeResult = mpy.ObjectView(altitudeResult)
+        altitudeResult = AttrDictAdapter(altitudeResult)
         species_data.AIRDENSITY[pslice] = (altitudeResult.airDensity * 1e6)[
             :
         ]  # convert molec/cm3 -> molec/m3
@@ -1097,10 +1099,10 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.TATM_DEVIATION = maxx  # maximum deviation from prior
         # end if species_name == 'CH4'
 
-        species_data = species_data.__dict__
-        for k, v in species_data.items():
+        species_data2 = species_data.as_dict(species_data)
+        for k, v in species_data2.items():
             if isinstance(v, list):
-                species_data[k] = np.asarray(v)
+                species_data2[k] = np.asarray(v)
 
         state_element_out = []
         for sid in self.current_state.full_state_element_id:
@@ -1110,8 +1112,8 @@ class RetrievalL2Output(RetrievalOutput):
         #######
         # write with lite format using cdf_write_tes
 
-        o_data = species_data
-        o_data.update(self.generate_geo_data(species_data))
+        o_data = species_data2
+        o_data.update(self.generate_geo_data(species_data2))
         t2 = CdfWriteTes()
         t2.write(
             o_data,

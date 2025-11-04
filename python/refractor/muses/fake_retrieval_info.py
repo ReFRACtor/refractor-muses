@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import muses_py as mpy  # type: ignore
+from .refractor_uip import AttrDictAdapter
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing
@@ -34,13 +34,13 @@ class FakeRetrievalInfo:
         self.use_state_mapping = use_state_mapping
 
     @property
-    def retrieval_info_systematic(self) -> mpy.ObjectView:
+    def retrieval_info_systematic(self) -> AttrDictAdapter:
         """Version of retrieval info to use for a creating a systematic UIP. Note that all
         this information is actually available in just the current FakeRetrievalInfo, but
         this reformats things so the systematic forward model looks just like the
         forward model. Could do the same thing with some flag handling in the UIP code, but
         this is the way py-retrieve currently has things set up."""
-        return mpy.ObjectView(
+        return AttrDictAdapter(
             {
                 "parameterStartFM": self.parameterStartSys,
                 "parameterEndFM": self.parameterEndSys,

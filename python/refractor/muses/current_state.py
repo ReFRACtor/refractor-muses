@@ -7,6 +7,7 @@ from pathlib import Path
 from copy import copy, deepcopy
 import typing
 from .identifier import StateElementIdentifier
+from .refractor_uip import AttrDictAdapter
 from scipy.linalg import block_diag  # type: ignore
 from .retrieval_array import (
     RetrievalGridArray,
@@ -1068,7 +1069,7 @@ class CurrentStateUip(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:
         # We've extracted this logic out from update_uip
-        o_uip = mpy.ObjectView(self.rf_uip.uip)
+        o_uip = AttrDictAdapter(self.rf_uip.uip)
         res = None
         if str(state_element_id) == "TSUR":
             res = np.array(

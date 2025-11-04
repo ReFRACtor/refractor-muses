@@ -11,7 +11,7 @@ from .muses_strategy import (
     CurrentStrategyStep,
 )
 from .observation_handle import ObservationHandleSet
-from .refractor_uip import RefractorUip
+from .refractor_uip import RefractorUip, AttrDictAdapter
 from .identifier import StateElementIdentifier, ProcessLocation
 from .muses_strategy import MusesStrategyHandleSet
 from .spectral_window_handle import SpectralWindowHandleSet
@@ -302,7 +302,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         # fake_retrieval_info = FakeRetrievalInfo(self.current_state, use_state_mapping=True)
         fake_retrieval_info = FakeRetrievalInfo(self.current_state)
         if do_systematic:
-            rinfo = fake_retrieval_info.retrieval_info_systematic
+            rinfo: AttrDictAdapter | FakeRetrievalInfo = (
+                fake_retrieval_info.retrieval_info_systematic
+            )
         else:
             rinfo = fake_retrieval_info
 

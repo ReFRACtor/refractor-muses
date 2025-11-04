@@ -19,6 +19,7 @@ from .state_info_old import (
 import numpy as np
 import numbers
 import refractor.framework as rf  # type: ignore
+from refractor.muses import AttrDictAdapter
 import copy
 import os
 import glob
@@ -321,7 +322,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             #              Using the species_name, 'TROPOMICLOUDFRACTION', we look for 'cloud_fraction' in the keys of self.state_info.state_info_obj.current['tropomi'].
             #              So, given TROPOMICLOUDFRACTION, we return the actual_tropomi_key as 'cloud_fraction'.
             species_name = str(self.name)
-            tropomiInfo = mpy.ObjectView(
+            tropomiInfo = AttrDictAdapter(
                 self.state_info.state_info_obj.current["tropomi"]
             )
 
@@ -543,7 +544,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
         # logger.debug(f"Reading file {speciesInformationFilename}")
         # AT_LINE 156 Get_Species_Information.pro
         (_, fileID) = mpy.read_all_tes_cache(speciesInformationFilename)
-        return mpy.ObjectView(fileID["preferences"])
+        return AttrDictAdapter(fileID["preferences"])
 
     def update_initial_guess(self, current_strategy_step: CurrentStrategyStep):
         species_list = [str(i) for i in current_strategy_step.retrieval_elements]
@@ -554,8 +555,8 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
         if nfm_levels < len(pressure):
             pressure = pressure[:nfm_levels]
 
-        stateInfo = mpy.ObjectView(self.state_info.state_info_dict)
-        current = mpy.ObjectView(stateInfo.current)
+        stateInfo = AttrDictAdapter(self.state_info.state_info_dict)
+        current = AttrDictAdapter(stateInfo.current)
 
         speciesInformationFile = self.species_information_file(
             current_strategy_step.retrieval_type
@@ -572,7 +573,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
             # This section is necessary for TROPOMI since we are using similar fitting parameters,
             # and structures to OMI.
 
-            tropomiInfo = mpy.ObjectView(current.tropomi)
+            tropomiInfo = AttrDictAdapter(current.tropomi)
 
             actual_tropomi_key = mpy.get_tropomi_key(tropomiInfo, species_name)
 
@@ -1354,7 +1355,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                 maps = mpy.make_maps(
                     stateInfo.cloudPars["frequency"][0:nn], ind, linearFlag, averageFlag
                 )
-                maps = mpy.ObjectView(maps)
+                maps = AttrDictAdapter(maps)
                 mapToState = maps.toState
                 mapToParameters = maps.toPars
 
@@ -1941,7 +1942,7 @@ class MusesPyStateElementOld(RetrievableStateElementOld):
                 altitudeListFM = stateInfo.current["heightKm"]
 
                 maps = mpy.make_maps(stateInfo.current["pressure"], retrievalParameters)
-                maps = mpy.ObjectView(maps)
+                maps = AttrDictAdapter(maps)
                 mapToParameters = maps.toPars
                 mapToState = maps.toState
             else:
@@ -2334,7 +2335,7 @@ class MusesPyOmiStateElementOld(MusesPyStateElementOld):
         self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
     ):
         super().__init__(state_info, name, step)
-        omiInfo = mpy.ObjectView(self.state_info.state_info_obj.current["omi"])
+        omiInfo = AttrDictAdapter(self.state_info.state_info_obj.current["omi"])
         self.omi_key = mpy.get_omi_key(omiInfo, str(self.name))
 
     @property
@@ -2485,7 +2486,7 @@ class MusesPyTropomiStateElementOld(MusesPyStateElementOld):
         self, state_info: StateInfoOld, name: StateElementIdentifier, step: str
     ):
         super().__init__(state_info, name, step)
-        tropomiInfo = mpy.ObjectView(self.state_info.state_info_obj.current["tropomi"])
+        tropomiInfo = AttrDictAdapter(self.state_info.state_info_obj.current["tropomi"])
         self.tropomi_key = mpy.get_tropomi_key(tropomiInfo, str(self.name))
 
     @property

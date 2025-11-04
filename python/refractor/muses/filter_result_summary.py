@@ -1,6 +1,6 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
 from .identifier import FilterIdentifier
+from .refractor_uip import AttrDictAdapter
 
 
 class FilterResultSummary:
@@ -12,7 +12,7 @@ class FilterResultSummary:
     more directly get this. But we need this for generating data in our output
     files."""
 
-    def __init__(self, rstep: mpy.ObjectView) -> None:
+    def __init__(self, rstep: AttrDictAdapter) -> None:
         """rstep should be the output of mpy_radiance_from_observation_list"""
         # Calculate the various summary pieces
         self._filter_index = [

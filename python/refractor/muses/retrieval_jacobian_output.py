@@ -5,6 +5,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
+from .refractor_uip import AttrDictAdapter
 from pathlib import Path
 import numpy as np
 import typing
@@ -115,7 +116,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
             "surfaceTemperature": None,
         }
 
-        my_data = mpy.ObjectView(my_datad)
+        my_data = AttrDictAdapter(my_datad)
 
         my_data.frequency = self.results.frequency.astype(np.float32)
 
@@ -136,14 +137,14 @@ class RetrievalJacobianOutput(RetrievalOutput):
         my_data.surfaceTemperature = np.float32(self.state_value("TSUR"))
 
         # Write out, use units as dummy: "()"
-        my_data = my_data.__dict__
+        my_data2 = my_data.as_dict(my_data)
         mpy.cdf_write(
-            my_data,
+            my_data2,
             str(self.out_fname),
             [
                 {"UNITS": "()"},
             ]
-            * len(my_data),
+            * len(my_data2),
         )
 
 

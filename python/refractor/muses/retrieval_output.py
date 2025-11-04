@@ -7,6 +7,7 @@ from .identifier import (
     StateElementIdentifier,
     InstrumentIdentifier,
 )
+from .refractor_uip import AttrDictAdapter
 from pathlib import Path
 import os
 import copy
@@ -236,7 +237,7 @@ class RetrievalOutput:
         return self.results.obs_list
 
     @property
-    def radiance_step(self) -> mpy.ObjectView:
+    def radiance_step(self) -> AttrDictAdapter:
         return self.results.rstep
 
     @property

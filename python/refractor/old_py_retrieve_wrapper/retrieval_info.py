@@ -1,7 +1,12 @@
 from __future__ import annotations
 import refractor.muses.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
-from refractor.muses import StateElementIdentifier, CurrentStrategyStep, RetrievalResult
+from refractor.muses import (
+    StateElementIdentifier,
+    CurrentStrategyStep,
+    RetrievalResult,
+    AttrDictAdapter,
+)
 import numpy as np
 from scipy.linalg import block_diag  # type: ignore
 from pathlib import Path
@@ -29,7 +34,6 @@ class RetrievalInfo:
         self.retrieval_dict = self.init_data(
             species_dir, current_strategy_step, current_state
         )
-        self.retrieval_dict = self.retrieval_dict.__dict__
         self._map_type_systematic = [
             self._map_type(current_state, i) for i in self.species_list_sys
         ]
@@ -67,8 +71,8 @@ class RetrievalInfo:
         return self.retrieval_dict["mapToParameters"][0:nnn, 0:mmm]
 
     @property
-    def retrieval_info_obj(self) -> mpy.ObjectView:
-        return mpy.ObjectView(self.retrieval_dict)
+    def retrieval_info_obj(self) -> AttrDictAdapter:
+        return AttrDictAdapter(self.retrieval_dict)
 
     @property
     def initial_guess_list(self) -> np.ndarray:
@@ -179,9 +183,9 @@ class RetrievalInfo:
     def map_type_systematic(self) -> list[str]:
         return list(self._map_type_systematic)
 
-    def retrieval_info_systematic(self) -> mpy.ObjectView:
+    def retrieval_info_systematic(self) -> AttrDictAdapter:
         """Version of retrieval info to use for a creating a systematic UIP"""
-        return mpy.ObjectView(
+        return AttrDictAdapter(
             {
                 "parameterStartFM": self.retrieval_info_obj.parameterStartSys,
                 "parameterEndFM": self.retrieval_info_obj.parameterEndSys,
@@ -268,7 +272,7 @@ class RetrievalInfo:
         self,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentStateStateInfoOld,
-        o_retrievalInfo: mpy.ObjectView,
+        o_retrievalInfo: AttrDictAdapter,
     ) -> None:
         """Update the various "Sys" stuff in o_retrievalInfo to add in
         the error analysis interferents"""
@@ -292,7 +296,7 @@ class RetrievalInfo:
         species_name: str,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentStateStateInfoOld,
-        o_retrievalInfo: mpy.ObjectView,
+        o_retrievalInfo: AttrDictAdapter,
     ) -> None:
         selem = current_state.state_element_old(
             StateElementIdentifier(species_name), other_name=False
@@ -337,7 +341,7 @@ class RetrievalInfo:
 
     def init_joint(
         self,
-        o_retrievalInfo: mpy.ObjectView,
+        o_retrievalInfo: AttrDictAdapter,
         species_dir: Path,
         current_state: CurrentStateStateInfoOld,
     ) -> None:
@@ -447,7 +451,7 @@ class RetrievalInfo:
         species_dir: Path,
         current_strategy_step: CurrentStrategyStep,
         current_state: CurrentStateStateInfoOld,
-    ) -> mpy.ObjectView:
+    ) -> dict[str, Any]:
         # This is a reworking of get_species_information in muses-py
 
         # errors propagated from step to step - possibly used as covariances
@@ -510,7 +514,7 @@ class RetrievalInfo:
         # AT_LINE 83 Get_Species_Information.pro
         o_retrievalInfod["type"] = str(current_strategy_step.retrieval_type)
 
-        o_retrievalInfo = mpy.ObjectView(
+        o_retrievalInfo = AttrDictAdapter(
             o_retrievalInfod
         )  # Convert to object so we can use '.' to access member variables.
 
@@ -635,7 +639,7 @@ class RetrievalInfo:
                 f"NaN's in constraint matrix!! Constraint matrix is: {o_retrievalInfo.Constraint}. Check species {o_retrievalInfo.speciesList}"
             )
 
-        return o_retrievalInfo
+        return o_retrievalInfo.as_dict(o_retrievalInfo)
 
 
 __all__ = [

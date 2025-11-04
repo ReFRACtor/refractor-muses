@@ -4,6 +4,7 @@ import refractor.muses.muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation, InstrumentIdentifier, StateElementIdentifier
+from .refractor_uip import AttrDictAdapter
 import numpy as np
 import math
 import typing
@@ -118,7 +119,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             "omi_vza_uv2": np.zeros(shape=(nobs), dtype=np.float32),
             "omi_sca_uv2": np.zeros(shape=(nobs), dtype=np.float32),
         }
-        irk_data = mpy.ObjectView(irk_datad)
+        irk_data = AttrDictAdapter(irk_datad)
 
         nn = num_points - len(self.results_irk.H2O["vmr"])
         irk_data.fmBandFlux[:] = self.results_irk.flux

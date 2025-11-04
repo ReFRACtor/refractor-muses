@@ -92,12 +92,15 @@ class osswrapper:
         mpy.register_observer_function("fm_oss_delete", WatchOssDelete())
 
     def __enter__(self) -> Self:
+        from .refractor_uip import AttrDictAdapter
+
         uip_all = None
         if not osswrapper.have_oss:
             for inst in ("CRIS", "AIRS", "TES"):
                 if f"uip_{inst}" in self.uip:
                     # Suppress warning message print out, it clutters output
-                    with suppress_stdout():
+                    # with suppress_stdout():
+                    if True:
                         os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
                         # Delete frequencyList if found. I don't think we
                         # run into that in actual muses-py runs, but we do
@@ -109,13 +112,13 @@ class osswrapper:
                         # around what is a bug or "feature" of the OSS code
                         if osswrapper.first_oss_initialize:
                             with suppress_replacement("fm_oss_init"):
-                                (uip_all, frequencyListFullOSS, jacobianList) = (
-                                    mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                                (_, frequencyListFullOSS, jacobianList) = (
+                                    mpy.fm_oss_init(AttrDictAdapter(uip_all), inst)
                                 )
                             # This can potentially change oss_frequencyList.
                             # Neither py-retrieve or refractor is set up to handle
                             # that.
-                            mpy.fm_oss_windows(mpy.ObjectView(uip_all))
+                            mpy.fm_oss_windows(AttrDictAdapter(uip_all))
                             flen = len(uip_all["frequencyList"])
                             flen2 = len(uip_all["oss_frequencyList"])
                             if flen != flen2:
@@ -126,14 +129,14 @@ class osswrapper:
                                 mpy.fm_oss_delete()
                             osswrapper.first_oss_initialize = False
                         with suppress_replacement("fm_oss_init"):
-                            (uip_all, frequencyListFullOSS, jacobianList) = (
-                                mpy.fm_oss_init(mpy.ObjectView(uip_all), inst)
+                            (_, frequencyListFullOSS, jacobianList) = mpy.fm_oss_init(
+                                AttrDictAdapter(uip_all), inst
                             )
                             self.uip["oss_jacobianList"] = jacobianList
                         # This can potentially change oss_frequencyList.
                         # Neither py-retrieve or refractor is set up to handle
                         # that.
-                        mpy.fm_oss_windows(mpy.ObjectView(uip_all))
+                        mpy.fm_oss_windows(AttrDictAdapter(uip_all))
                         flen = len(uip_all["frequencyList"])
                         flen2 = len(uip_all["oss_frequencyList"])
                         if flen != flen2:
