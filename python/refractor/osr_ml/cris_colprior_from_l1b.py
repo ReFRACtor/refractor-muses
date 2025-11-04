@@ -1,3 +1,4 @@
+# type: ignore
 """
 Title	: cris_colprior_from_l1b.py
 To Run	: from cris_colprior_from_l1b import cris_colprior_from_l1b

@@ -291,8 +291,7 @@ class StateElementOspFile(StateElementWithCreate):
         return res
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         **kwargs: Any,  # Mark as kwarg only, to make mypy happy when down stream
         # classes ignore arguments
@@ -416,8 +415,7 @@ class StateElementOspFileFixedValue(StateElementOspFile):
     This class support that."""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         initial_value: FullGridMappedArray,
         create_kwargs: dict[str, Any] | None = None,

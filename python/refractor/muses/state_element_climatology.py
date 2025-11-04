@@ -83,8 +83,7 @@ class StateElementFromClimatology(StateElementOspFile):
         )
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier,
@@ -221,8 +220,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
     """Specialization for CH3OH"""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier,
@@ -297,8 +295,7 @@ class StateElementFromClimatologyHdo(StateElementFromClimatology):
     """Specialization for HDO. It is fraction of H2O rather than independent value."""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier,
@@ -336,8 +333,7 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
     """NH3 initial guess."""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier,
@@ -434,8 +430,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
     """HCOOH initial guess."""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         pressure_list_fm: FullGridMappedArray,
         sid: StateElementIdentifier,

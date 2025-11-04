@@ -45,7 +45,7 @@ def test_cris_co_ml(cris_test_in_dir, cris_ml_dir, isolated_dir, osp_dir, gmao_d
         path=cris_ml_dir,
         prefix=instrument + "_" + species + "_ret_col",
         # Until we get weights sorted out
-        #suffix="keras-ANN",
+        # suffix="keras-ANN",
         suffix="keras-ANN_new",
         features=features,
         batch_size_in=8192 * 2,

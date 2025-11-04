@@ -89,8 +89,7 @@ class StateElementFromGmao(StateElementOspFile):
         )
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         gmao_data: GmaoReader,
         **kwargs: Any,
@@ -100,8 +99,7 @@ class StateElementFromGmao(StateElementOspFile):
 
 class StateElementFromGmaoTropopausePressure(StateElementFromGmao):
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         gmao_data: GmaoReader,
         **kwargs: Any,
@@ -117,8 +115,7 @@ class StateElementFromGmaoTropopausePressure(StateElementFromGmao):
 
 class StateElementFromGmaoTatm(StateElementFromGmao):
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         gmao_data: GmaoReader,
         **kwargs: Any,
@@ -128,8 +125,7 @@ class StateElementFromGmaoTatm(StateElementFromGmao):
 
 class StateElementFromGmaoH2O(StateElementFromGmao):
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         gmao_data: GmaoReader,
         **kwargs: Any,
@@ -139,8 +135,7 @@ class StateElementFromGmaoH2O(StateElementFromGmao):
 
 class StateElementFromGmaoTsur(StateElementFromGmao):
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         gmao_data: GmaoReader,
         **kwargs: Any,

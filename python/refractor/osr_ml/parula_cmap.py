@@ -12,7 +12,7 @@ import numpy as np
 from matplotlib import colors
 
 
-def parula_cmap(flip=False):
+def parula_cmap(flip: bool = False) -> colors.Colormap:
     ##############
     # Defines Matlab's Parula colormap
     #
@@ -285,7 +285,7 @@ def parula_cmap(flip=False):
     ]
 
     if flip is True:
-        cm_data = np.flip(cm_data, axis=0)
+        cm_data = list(np.flip(cm_data, axis=0))
 
     parula_map = colors.LinearSegmentedColormap.from_list("parula", cm_data)
 

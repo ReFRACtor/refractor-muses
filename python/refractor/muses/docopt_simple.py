@@ -1,6 +1,6 @@
 from __future__ import annotations
 from builtins import object
-from docopt import docopt  # type: ignore
+from docopt import docopt, ParsedOptions  # type: ignore
 import re
 from typing import Any
 
@@ -25,7 +25,7 @@ class DocOptSimple(object):
         version: None | str = None,
         options_first: bool = False,
     ) -> None:
-        self.args = docopt(
+        self.args: dict[str, Any] | ParsedOptions = docopt(
             doc,
             argv=argv,
             default_help=default_help,

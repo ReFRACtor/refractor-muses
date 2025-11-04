@@ -12,10 +12,11 @@ import logging
 import numpy as np
 import pickle
 from collections import UserDict, defaultdict
+from collections.abc import MutableMapping
 import copy
 from pathlib import Path
 import math
-from typing import Any, Generator, Self
+from typing import Any, Generator, Self, Iterator
 import typing
 
 if typing.TYPE_CHECKING:
@@ -76,6 +77,40 @@ def _all_output_disabled() -> Generator[None, None, None]:
                 yield
     finally:
         logging.disable(previous_level)
+
+
+class AttrDictAdapter(MutableMapping):
+    """muses-py often uses ObjectView, which makes dictionary object access the
+    values using attributes. This is just syntactic sugar, but it is used in a lot
+    of places. This is essentially like the old attrdict library - but this has been
+    deprecated. This is a simple adapter to do the same thing. This is used for example
+    by the muses-py uip."""
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        self._data = data
+
+    def __getitem__(self, key: str) -> Any:
+        return self._data[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._data[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self._data[key]
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self._data:
+            return self._data[name]
+        raise AttributeError(f"{name} not found")
+
+    def __setattr__(self, name: str, v: Any) -> None:
+        self[name] = v
 
 
 class RefractorCache(UserDict):
@@ -1921,4 +1956,4 @@ class RefractorUip:
         return rf_uip
 
 
-__all__ = ["RefractorUip"]
+__all__ = ["RefractorUip", "AttrDictAdapter"]

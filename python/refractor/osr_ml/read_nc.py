@@ -10,6 +10,7 @@ Modf	: 20241205: added global_attrs to read_nc() and _ReadNcObject ()
 
 # Import netCDF4
 from netCDF4 import Dataset
+import os
 
 
 class _ReadNcObject:
@@ -24,14 +25,18 @@ class _ReadNcObject:
     # -------
     # None
     ##############
-    def __init__(self, global_attrs, datasets, values, attributes):
+    def __init__(
+        self, global_attrs: dict, datasets: list, values: dict, attributes: dict
+    ) -> None:
         self.global_attrs = global_attrs
         self.datasets = datasets
         self.values = values
         self.attributes = attributes
 
 
-def read_nc(file_name="", data_sets=None):
+def read_nc(
+    file_name: str | os.PathLike[str] = "", data_sets: list[str] | None = None
+) -> _ReadNcObject:
     # ========================================================
     # A generic NetCDF reader
     #

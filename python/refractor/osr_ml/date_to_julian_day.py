@@ -8,7 +8,7 @@ Modf	: 20240503
 """
 
 
-def date_to_julian_day(date_year, date_month, date_day):
+def date_to_julian_day(date_year: int, date_month: int, date_day: int) -> int:
     ##############
     # For a year, month and day find the Julian day
     #

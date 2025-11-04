@@ -446,8 +446,8 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
             # the levels, so there may be edge cases where the MusesRayInfo
             # and ReFRACtor count are off by 1.
             play = (pgrid_v[:-1] + pgrid_v[1:]) / 2
-            ncloud_lay = np.count_nonzero(
-                play <= self.cloud_pressure.convert(pgrid.units).value
+            ncloud_lay = int(
+                np.count_nonzero(play <= self.cloud_pressure.convert(pgrid.units).value)
             )
         if ncloud_lay + 1 < pgrid_v.shape[0]:
             cloud_pressure_level = (pgrid_v[ncloud_lay] + pgrid_v[ncloud_lay + 1]) / 2

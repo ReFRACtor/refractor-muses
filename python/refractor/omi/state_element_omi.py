@@ -63,8 +63,7 @@ class StateElementOmiCloudFraction(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
@@ -90,8 +89,7 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
     """Variation that gets the apriori/initial guess from the observation file"""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         sid: StateElementIdentifier,
         retrieval_config: RetrievalConfiguration,

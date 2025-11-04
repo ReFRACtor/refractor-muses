@@ -1,3 +1,4 @@
+# type: ignore
 """
 Title        :  maps.py
 What is it   :  Routines to plot cartopy maps
@@ -25,9 +26,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 
-import cartopy.crs as ccrs
-from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-import cartopy.feature as cfeature
+import cartopy.crs as ccrs  # type: ignore
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER  # type: ignore
+import cartopy.feature as cfeature  # type: ignore
 
 from .parula_cmap import parula_cmap
 

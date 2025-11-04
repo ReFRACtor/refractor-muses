@@ -96,7 +96,7 @@ class MusesRayInfo:
 
     def number_cloud_layer(self, cloud_pressure: float) -> int:
         """Return the number of cloud layers. This is used in RefractorFmObjectCreator"""
-        return np.count_nonzero(self._ray_info()["pbar"] <= cloud_pressure)
+        return int(np.count_nonzero(self._ray_info()["pbar"] <= cloud_pressure))
 
     def dry_air_density(self) -> np.ndarray:
         """Return dry air density. This gets used in MusesOpticalDepthFile."""

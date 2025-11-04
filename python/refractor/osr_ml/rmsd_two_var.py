@@ -11,7 +11,7 @@ Modf	: n/a
 import numpy as np
 
 
-def rmsd_two_var(dataset_1, dataset_2):
+def rmsd_two_var(dataset_1: np.ndarray, dataset_2: np.ndarray) -> np.ndarray:
     # ========================================================
     # Root mean square deviation between two data sets
     #

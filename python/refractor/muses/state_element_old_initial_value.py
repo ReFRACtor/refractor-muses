@@ -21,8 +21,7 @@ class StateElementOldInitialValue(StateElementOspFile):
     developing our new StateElement."""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         sid: StateElementIdentifier,
         **kwarg: Any,

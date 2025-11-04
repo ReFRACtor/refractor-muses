@@ -83,8 +83,7 @@ class StateElementFromSingle(StateElementOspFile):
         )
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         sid: StateElementIdentifier,
         pressure_list_fm: FullGridMappedArray,
@@ -110,8 +109,7 @@ class StateElementFromCalibration(StateElementFromSingle):
     """State element read from calibration file"""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         fcal: TesFile,
         **kwargs: Any,
@@ -143,8 +141,7 @@ class StateElementPcloud(StateElementFromSingle):
     """State element for PCLOUD."""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         fcloud: TesFile,
         **kwargs: Any,
@@ -169,8 +166,7 @@ class StateElementPtgAng(StateElementOspFile):
     """State element for PTGANG."""
 
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         measurement_id: MeasurementId,
         observation_handle_set: ObservationHandleSet,

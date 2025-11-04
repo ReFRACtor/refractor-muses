@@ -704,7 +704,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
         function."""
         alb = pd.read_csv(
             f"{self.in_dir(do_cloud)}/Surfalb_MW001.asc",
-            sep="\s+",
+            sep=r"\s+",
             skiprows=1,
             header=None,
             names=["wavelength", "albedo"],
@@ -735,7 +735,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
 
         atm = pd.read_csv(
             f"{self.in_dir(do_cloud)}/Atm_level.asc",
-            sep="\s+",
+            sep=r"\s+",
             skiprows=2,
             header=None,
             names=["Pres(mb)", "T(K)", "Altitude(m)"],
@@ -750,7 +750,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
 
         atm = pd.read_csv(
             f"{self.in_dir(do_cloud)}/Atm_level.asc",
-            sep="\s+",
+            sep=r"\s+",
             skiprows=2,
             header=None,
             names=["Pres(mb)", "T(K)", "Altitude(m)"],
@@ -772,7 +772,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
 
         atm = pd.read_csv(
             f"{self.in_dir(do_cloud)}/Atm_level.asc",
-            sep="\s+",
+            sep=r"\s+",
             skiprows=2,
             header=None,
             names=["Pres(mb)", "T(K)", "Altitude(m)"],
@@ -787,7 +787,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
 
         atm = pd.read_csv(
             f"{self.in_dir(do_cloud)}/Atm_layer.asc",
-            sep="\s+",
+            sep=r"\s+",
             skiprows=2,
             header=None,
             names=["Pressure layer(mb)", "Temperature layer (K)", "Gas Density"],
@@ -801,7 +801,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
         function."""
 
         t = pd.read_csv(
-            f"{self.out_dir(do_cloud)}/taur.asc", sep="\s+", header=None
+            f"{self.out_dir(do_cloud)}/taur.asc", sep=r"\s+", header=None
         ).to_numpy()
         mw = self.rf_uip.micro_windows(0).value[0, :]
         slc = (t[:, 0] >= mw[0]) & (t[:, 0] <= mw[1])
@@ -815,7 +815,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
         function."""
 
         t = pd.read_csv(
-            f"{self.out_dir(do_cloud)}/taug.asc", sep="\s+", header=None
+            f"{self.out_dir(do_cloud)}/taug.asc", sep=r"\s+", header=None
         ).to_numpy()
         mw = self.rf_uip.micro_windows(0).value[0, :]
         slc = (t[:, 0] >= mw[0]) & (t[:, 0] <= mw[1])
@@ -829,7 +829,7 @@ class RefractorTropOrOmiFmMusesPy(RefractorTropOrOmiFmBase):
         function."""
 
         t = pd.read_csv(
-            f"{self.out_dir(do_cloud)}/taut.asc", sep="\s+", header=None
+            f"{self.out_dir(do_cloud)}/taut.asc", sep=r"\s+", header=None
         ).to_numpy()
         mw = self.rf_uip.micro_windows(0).value[0, :]
         slc = (t[:, 0] >= mw[0]) & (t[:, 0] <= mw[1])

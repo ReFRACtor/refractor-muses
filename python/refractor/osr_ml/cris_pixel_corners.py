@@ -9,14 +9,18 @@ Modf	: 20250219 - added cris_pixel_corners()
 
 # Import modules
 # =======================================
+from __future__ import annotations
 import numpy as np
+import typing
 
+if typing.TYPE_CHECKING:
+    from .cris_io import _ReadL1b
 
 # Functions and classes
 # =======================================
 
 
-def cris_pixel_corners(l1b=None):
+def cris_pixel_corners(l1b: _ReadL1b) -> tuple[np.ndarray, np.ndarray]:
     ##############
     # For a CrIS L1B object find the pixel corners based on each middle FOV.
     #

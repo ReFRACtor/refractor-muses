@@ -68,8 +68,7 @@ class StateElementFreqShared(StateElementOspFile):
 
 class StateElementEmis(StateElementFreqShared):
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
@@ -210,8 +209,7 @@ class StateElementEmis(StateElementFreqShared):
 
 class StateElementNativeEmis(StateElementFreqShared):
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         retrieval_config: RetrievalConfiguration,
         sounding_metadata: SoundingMetadata,
@@ -260,8 +258,7 @@ class StateElementNativeEmis(StateElementFreqShared):
 
 class StateElementCloudExt(StateElementFreqShared):
     @classmethod
-    # type: ignore[override]
-    def _setup_create(
+    def _setup_create(  # type: ignore[override]
         cls,
         retrieval_config: RetrievalConfiguration,
         **kwargs: Any,

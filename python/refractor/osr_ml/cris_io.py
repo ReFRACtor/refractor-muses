@@ -38,7 +38,7 @@ class _ReadL1b:
     # -------
     # self : an object/class; an object with the CrIS L1B data
     ##############
-    def __init__(
+    def __init__(  # type: ignore
         self,
         date,
         granule,
@@ -57,7 +57,7 @@ class _ReadL1b:
         surf_alt,
         view_ang,
         doy,
-    ):
+    ) -> None:
         self.date = date
         self.granule = granule
         self.fov = fov
@@ -77,14 +77,16 @@ class _ReadL1b:
 
         if pixel_corners is True:
             dummy = cris_pixel_corners(l1b=self)
-            self.latitude_pixels = dummy[0]
-            self.longitude_pixels = dummy[1]
+            self.latitude_pixels: np.ndarray | None = dummy[0]
+            self.longitude_pixels: np.ndarray | None = dummy[1]
         else:
             self.latitude_pixels = None
             self.longitude_pixels = None
 
 
-def read_l1b(files=None, pixel_corners=False, verbose=0):
+def read_l1b(
+    files: list[str], pixel_corners: bool = False, verbose: int = 0
+) -> _ReadL1b:
     ##############
     # This reads CrIS L1B files.
     #
@@ -243,7 +245,7 @@ class _ReadL2Muses:
     # -------
     # self : an empty object/class; an object with the MUSES L2_Products
     ##############
-    def __init__(
+    def __init__(  # type: ignore
         self,
         date,
         granule,
@@ -299,7 +301,7 @@ class _ReadL2Muses:
         self.species = species
 
 
-def read_l2muses(files=None, verbose=0):
+def read_l2muses(files: list[str], verbose: int = 0) -> _ReadL2Muses:
     ##############
     # Read (multiple) MUSES L2 Products file(s).
     #
@@ -510,7 +512,7 @@ class _ReadL2Lite:
     # -------
     # self : an empty object/class; an object with the MUSES L2_Products_Lite
     ##############
-    def __init__(self, date, akdiag, surf_alt, surf_temp, trop_press, species):
+    def __init__(self, date, akdiag, surf_alt, surf_temp, trop_press, species):  # type: ignore
         self.date = date
         self.akdiag = akdiag
         self.surf_alt = surf_alt
@@ -520,7 +522,7 @@ class _ReadL2Lite:
         self.species = species
 
 
-def read_l2lite(files=None, verbose=0):
+def read_l2lite(files: list[str], verbose: int = 0) -> _ReadL2Lite:
     ##############
     # Read (multiple) MUSES L2_Products_Lite file(s).
     #
@@ -630,7 +632,7 @@ class _ReadL2Rad:
     # -------
     # self : an empty object/class; an object with the MUSES L2_Radiance
     ##############
-    def __init__(self, date, rad, freq, rad_full, freq_full, latitude, longitude):
+    def __init__(self, date, rad, freq, rad_full, freq_full, latitude, longitude):  # type: ignore
         self.date = date
         self.rad = rad
         self.freq = freq
@@ -640,7 +642,7 @@ class _ReadL2Rad:
         self.longitude = longitude
 
 
-def read_l2rad(files=None, verbose=0):
+def read_l2rad(files: list[str], verbose: int = 0) -> _ReadL2Rad:
     ##############
     # Read (multiple) MUSES L2 Radiance file(s).
     #
