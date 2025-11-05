@@ -2,7 +2,8 @@
 # library for this so we can work through pieces one at a time to fix dependency of
 # muses-py, just import fake_muses_py instead of muses_py.
 try:
-    raise ImportError
+    # For checking we handle no muses-py
+    #raise ImportError
     import py_retrieve.app  # type: ignore
 
     have_muses_py = True
