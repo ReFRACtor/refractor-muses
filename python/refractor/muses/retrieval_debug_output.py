@@ -44,10 +44,10 @@ class RetrievalInputOutput(RetrievalOutput):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.input_directory, exist_ok=True)
         # May need to extend this logic here
-        #detectorsUse = [1]
-        #fstate_info = FakeStateInfo(self.current_state)
+        # detectorsUse = [1]
+        # fstate_info = FakeStateInfo(self.current_state)
         fretrieval_info = FakeRetrievalInfo(self.current_state)
-        #mpy.write_retrieval_inputs(
+        # mpy.write_retrieval_inputs(
         #    self.retrieval_strategy.rstrategy_table.strategy_table_dict,
         #    fstate_info,
         #    self.windows,
@@ -55,7 +55,7 @@ class RetrievalInputOutput(RetrievalOutput):
         #    self.step_number,
         #    self.error_current.__dict__,
         #    detectorsUse,
-        #)
+        # )
         mpy.cdf_write_dict(
             fretrieval_info.__dict__,
             str(self.input_directory / "retrieval.nc"),

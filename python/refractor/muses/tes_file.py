@@ -47,6 +47,7 @@ class TesFile(collections.abc.Mapping):
             logger.debug(f"Reading file {self.file_name}")
         if use_mpy:
             from . import muses_py as mpy  # type: ignore
+
             _, d = mpy.read_all_tes(str(fname))
             self.mpy_d = d
             self._d = d["preferences"]

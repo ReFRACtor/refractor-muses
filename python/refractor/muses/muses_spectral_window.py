@@ -4,15 +4,19 @@ from .filter_metadata import FilterMetadata, DictFilterMetadata
 import refractor.framework as rf  # type: ignore
 import copy
 import numpy as np
-from . import fake_muses_py as mpy  # type: ignore
 import os
+from pathlib import Path
 from typing import Any, Self
 import typing
-from .identifier import InstrumentIdentifier, FilterIdentifier
+from .identifier import (
+    InstrumentIdentifier,
+    FilterIdentifier,
+    StateElementIdentifier,
+    RetrievalType,
+)
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
-    from .identifier import StateElementIdentifier, RetrievalType
 
 
 class MusesSpectralWindow(rf.SpectralWindow):
@@ -476,6 +480,71 @@ class MusesSpectralWindow(rf.SpectralWindow):
         return res
 
     @classmethod
+    def muses_microwindows_fname(
+        cls,
+        viewing_mode: str,
+        spectral_window_directory: str | os.PathLike[str],
+        retrieval_elements: list[StateElementIdentifier],
+        step_name: str,
+        retrieval_type: RetrievalType,
+        spec_file: str | os.PathLike[str] | None = None,
+    ) -> Path:
+        """Return the muses microwindows filename. Not clear that this belongs in
+        MusesSpectralWindow, but this is at least a reasonable place for this. We may
+        move this.
+
+        The intent is that this returns the same thing as
+        muses_microwindows_fname_from_muses_py, without using muses-py"""
+
+        relem = StateElementIdentifier.sort_identifier(retrieval_elements)
+
+        vmode = viewing_mode
+        if vmode.lower() in ("nadir", "limb"):
+            vmode = vmode.capitalize()
+
+        filename = Path(spectral_window_directory) / f"Windows_{vmode}"
+
+        # skip all the logic if spec_file is specified
+        if spec_file is not None:
+            return Path(f"{filename}_{spec_file}.asc")
+
+        if retrieval_type in (RetrievalType("bt"), RetrievalType("forwardmodel")):
+            filename = Path(f"{filename}_{step_name}")
+        else:
+            # Make species part of filename of elements that are atmospheric_species
+            retpart = "_".join(str(t) for t in relem if t.is_atmospheric_species)
+            # If no 'line' species found, make name from all species.
+            if retpart == "":
+                retpart = "_".join(str(t) for t in relem)
+            filename = Path(f"{filename}_{retpart}")
+
+        if retrieval_type in (RetrievalType("default"), RetrievalType("-")):
+            pass
+        elif retrieval_type == RetrievalType("fullfilter"):
+            filename = Path(spectral_window_directory) / f"Windows_{vmode}_{step_name}"
+        elif retrieval_type == RetrievalType("bt_ig_refine"):
+            retpart = "_".join(str(t) for t in relem)
+            filename = (
+                Path(spectral_window_directory)
+                / f"Windows_{vmode}_{retpart}_BT_IG_Refine"
+            )
+        elif retrieval_type == RetrievalType("joint") and "TROPOMI" in step_name:
+            if "wide" in step_name:
+                filename = Path(f"{filename}wide_{retrieval_type}")
+            elif "Band_1_2_short" in step_name:
+                filename = Path(f"{filename}Band_1_2_short_{retrieval_type}")
+            elif "Band_1_2" in step_name:
+                filename = Path(f"{filename}Band_1_2_{retrieval_type}")
+            elif "Band_2" in step_name:
+                filename = Path(f"{filename}Band_2_{retrieval_type}")
+            else:
+                filename = Path(f"{filename}_{retrieval_type}")
+        else:
+            filename = Path(f"{filename}_{retrieval_type}")
+
+        return Path(f"{filename}.asc")
+
+    @classmethod
     def muses_microwindows_fname_from_muses_py(
         cls,
         viewing_mode: str,
@@ -489,6 +558,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         determine the microwindow file name use. This can be used to verify that
         we are finding the right name. This shouldn't be used for real code,
         instead use the SpectralWindowHandleSet."""
+        from . import muses_py as mpy  # type: ignore
         # creates a dummy strategy_table dict with the values it expects to find
         stable: dict[str, Any] = {}
         stable["preferences"] = {
@@ -528,6 +598,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         """For testing purposes, this calls the old mpy.table_new_mw_from_step. This can
         be used to verify that the microwindows we generate are correct. This shouldn't
         be used for real code, instead use the SpectralWindowHandleSet."""
+        from . import muses_py as mpy  # type: ignore
         # Wrap arguments into format expected by table_new_mw_from_step. This
         # creates a dummy strategy_table dict with the values it expects to find
         stable: dict[str, Any] = {}
@@ -597,6 +668,7 @@ class TesSpectralWindow(MusesSpectralWindow):
         # or include_bad_sample. So just return results otherwise
         if self._spec_win is None or self.full_band or self.do_raman_ext:
             return super().grid_indexes(grid, spec_index)
+        from . import muses_py as mpy  # type: ignore
         # Determine the list of grid_indexes from py-retrieve. Note that
         # this includes bad_samples.
         muses_gindex = mpy.radiance_get_indices(

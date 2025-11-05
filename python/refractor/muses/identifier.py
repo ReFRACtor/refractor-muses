@@ -1,6 +1,6 @@
 from __future__ import annotations
 import abc
-from .order_species import order_species, compare_species
+from .order_species import order_species, compare_species, is_atmospheric_species
 
 
 class Identifier(object, metaclass=abc.ABCMeta):
@@ -92,6 +92,16 @@ class StateElementIdentifier(IdentifierStr):
     # unhashable type: 'StateElementIdentifier' if not defined
     def __hash__(self) -> int:
         return super().__hash__()
+
+    @property
+    def is_atmospheric_species(self) -> bool:
+        """Some species are marked as "atmospheric_species". This is used in the
+        determination of the microwindows file name, this wants to filter out things
+        like O3_EMIS, O3_TSUR, and just have O3 pass. I don't think this gets used
+        anywhere else.
+
+        This indicates if this StateElementIdentifier is an atmospheric species"""
+        return is_atmospheric_species(str(self))
 
     @classmethod
     def sort_identifier(cls, lst: list) -> list:

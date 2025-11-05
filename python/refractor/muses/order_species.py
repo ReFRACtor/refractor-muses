@@ -3,6 +3,7 @@ from . import muses_py as mpy  # type: ignore
 
 if mpy.have_muses_py:
     _ordered_species_list = mpy.ordered_species_list()
+    _atmospheric_species_list = mpy.atmospheric_species_list()
 else:
     # Hardcoded, just so we don't depend on muses_py being available. This should be
     # same list
@@ -152,6 +153,67 @@ else:
         "TROPOMITEMPSHIFTBAND7",
         "TROPOMICLOUDSURFACEALBEDO",
     ]
+    _atmospheric_species_list = [
+        "TATM",
+        "H2O",
+        "CO2",
+        "O3",
+        "N2O",
+        "CO",
+        "CH4",
+        "O2",
+        "NO",
+        "SO2",
+        "NO2",
+        "NH3",
+        "HNO3",
+        "OH",
+        "HF",
+        "HCL",
+        "HBR",
+        "HI",
+        "CLO",
+        "OCS",
+        "HCOH",
+        "HOCL",
+        "N2",
+        "HCN",
+        "CH3CL",
+        "H2O2",
+        "C2H2",
+        "C2H6",
+        "PH3",
+        "COF2",
+        "SF6",
+        "H2S",
+        "HCOOH",
+        "HO2",
+        "O",
+        "CLONO2",
+        "NOPLUS",
+        "HOBR",
+        "CCL4",
+        "CFC11",
+        "CFC12",
+        "CFC22",
+        "HDO",
+        "H2O17",
+        "H2O18",
+        "CH3OH",
+        "C2H4",
+        "PAN",
+        "ACET",
+        "ISOP",
+        "CFC14",
+    ]
+
+
+def is_atmospheric_species(species_name: str) -> bool:
+    """Some species are marked as "atmospheric_species". This is used in the
+    determination of the microwindows file name, this wants to filter out things
+    like O3_EMIS, O3_TSUR, and just have O3 pass. I don't think this gets used
+    anywhere else."""
+    return species_name.upper() in _atmospheric_species_list
 
 
 def order_species(species_list: list[str]) -> list[str]:
@@ -204,6 +266,7 @@ def compare_species(s1: str, s2: str) -> int:
 
 
 __all__ = [
+    "is_atmospheric_species",
     "order_species",
     "compare_species",
 ]

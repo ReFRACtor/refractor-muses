@@ -2,7 +2,7 @@ from refractor.muses import (
     mpy_radiance_from_observation_list,
     FilterIdentifier,
     FilterResultSummary,
-    AttrDictAdapter
+    AttrDictAdapter,
 )
 
 

@@ -4,10 +4,14 @@ from refractor.muses import (
     FileFilterMetadata,
     InstrumentIdentifier,
     FilterIdentifier,
+    RetrievalType,
+    StateElementIdentifier,
 )
+from fixtures.require_check import require_muses_py
 from refractor.old_py_retrieve_wrapper import StrategyTable
 import numpy as np
 import numpy.testing as npt
+from pathlib import Path
 
 
 def struct_compare(s1, s2):
@@ -32,6 +36,9 @@ def mw_compare(mw1, mw2):
         struct_compare(t1, t2)
 
 
+# We use the old StrategyTable here (since we don't want to use our higher order
+# MusesStrategy, we want to test MusesSpectralWindow without that).
+@require_muses_py
 def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
     # This is an observation that has some bad samples in it.
     xtrack_uv1 = 10
@@ -90,6 +97,7 @@ def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 4
 
 
+@require_muses_py
 def test_muses_spectral_window_microwindows(osp_dir):
     """Test creating a spectral window dictionary and then creating the
     microwindows struct. Compare to using the old muses-py code."""
@@ -101,21 +109,21 @@ def test_muses_spectral_window_microwindows(osp_dir):
     viewing_mode = "nadir"
     spectral_dir = osp_dir / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
     retrieval_elements = [
-        "H2O",
-        "O3",
-        "CLOUDEXT",
-        "PCLOUD",
-        "TSUR",
-        "EMIS",
-        "TROPOMIRINGSFBAND3",
-        "TROPOMISOLARSHIFTBAND3",
-        "TROPOMIRADIANCESHIFTBAND3",
-        "TROPOMISURFACEALBEDOBAND3",
-        "TROPOMISURFACEALBEDOSLOPEBAND3",
-        "TROPOMISURFACEALBEDOSLOPEORDER2BAND3",
+        StateElementIdentifier("H2O"),
+        StateElementIdentifier("O3"),
+        StateElementIdentifier("CLOUDEXT"),
+        StateElementIdentifier("PCLOUD"),
+        StateElementIdentifier("TSUR"),
+        StateElementIdentifier("EMIS"),
+        StateElementIdentifier("TROPOMIRINGSFBAND3"),
+        StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+        StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEORDER2BAND3"),
     ]
     step_name = "H2O,O3,EMIS_TROPOMI"
-    retrieval_type = "joint"
+    retrieval_type = RetrievalType("joint")
     # This is the file muses-py ends up with. We need to get that functionality in place,
     # but at a higher level. At this level, we just read "a given file"
     spec_fname = (
@@ -132,9 +140,7 @@ def test_muses_spectral_window_microwindows(osp_dir):
     swin_dict = MusesSpectralWindow.create_dict_from_file(
         spec_fname, filter_metadata=fmeta
     )
-    assert str(
-        spec_fname
-    ) == MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+    assert spec_fname == MusesSpectralWindow.muses_microwindows_fname(
         viewing_mode,
         spectral_dir,
         retrieval_elements,
@@ -157,3 +163,358 @@ def test_muses_spectral_window_microwindows(osp_dir):
     mono_list, mono_filter_list, mono_list_length = swin.muses_monochromatic()
     assert len(mono_list) == (337 - 323) * 100
     assert len(mono_filter_list) == (337 - 323) * 100
+
+
+@require_muses_py
+def test_microwindows_fname(osp_dir):
+    """Compare our name against the old mpy code."""
+    viewing_mode = "nadir"
+    spectral_dir = osp_dir / "Strategy_Tables/ops/OSP-CrIS-TROPOMI-v7/MWDefinitions"
+    retrieval_elements = [
+        StateElementIdentifier("H2O"),
+        StateElementIdentifier("O3"),
+        StateElementIdentifier("CLOUDEXT"),
+        StateElementIdentifier("PCLOUD"),
+        StateElementIdentifier("TSUR"),
+        StateElementIdentifier("EMIS"),
+        StateElementIdentifier("TROPOMIRINGSFBAND3"),
+        StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+        StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEORDER2BAND3"),
+    ]
+    step_name = "H2O,O3,EMIS_TROPOMI"
+    retrieval_type = RetrievalType("joint")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    viewing_mode = "limb"
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    viewing_mode = "nadir"
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file="foo",
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file="foo",
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    retrieval_type = RetrievalType("bt")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    retrieval_type = RetrievalType("forwardmodel")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    retrieval_elements = [
+        StateElementIdentifier("CLOUDEXT"),
+        StateElementIdentifier("PCLOUD"),
+        StateElementIdentifier("TSUR"),
+        StateElementIdentifier("TROPOMIRINGSFBAND3"),
+        StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+        StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEORDER2BAND3"),
+    ]
+    retrieval_type = RetrievalType("joint")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    retrieval_elements = [
+        StateElementIdentifier("H2O"),
+        StateElementIdentifier("O3"),
+        StateElementIdentifier("CLOUDEXT"),
+        StateElementIdentifier("PCLOUD"),
+        StateElementIdentifier("TSUR"),
+        StateElementIdentifier("EMIS"),
+        StateElementIdentifier("TROPOMIRINGSFBAND3"),
+        StateElementIdentifier("TROPOMISOLARSHIFTBAND3"),
+        StateElementIdentifier("TROPOMIRADIANCESHIFTBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEBAND3"),
+        StateElementIdentifier("TROPOMISURFACEALBEDOSLOPEORDER2BAND3"),
+    ]
+    step_name = "H2O,O3,EMIS_TROPOMI"
+    retrieval_type = RetrievalType("default")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    step_name = "H2O,O3,EMIS_TROPOMI"
+    retrieval_type = RetrievalType("-")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    step_name = "H2O,O3,EMIS_TROPOMI"
+    retrieval_type = RetrievalType("fullfilter")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    step_name = "H2O,O3,EMIS_TROPOMI"
+    retrieval_type = RetrievalType("bt_ig_refine")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    step_name = "TROPOMIwide"
+    retrieval_type = RetrievalType("joint")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    step_name = "TROPOMIBand_1_2_short"
+    retrieval_type = RetrievalType("joint")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    step_name = "TROPOMIBand_1_2"
+    retrieval_type = RetrievalType("joint")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    step_name = "TROPOMIBand_2"
+    retrieval_type = RetrievalType("joint")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2
+
+    step_name = "TROPOMIBand_1_2_short"
+    retrieval_type = RetrievalType("foo")
+    spec_fname = MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    spec_fname2 = MusesSpectralWindow.muses_microwindows_fname(
+        viewing_mode,
+        spectral_dir,
+        retrieval_elements,
+        step_name,
+        retrieval_type,
+        spec_file=None,
+    )
+    print(spec_fname)
+    assert Path(spec_fname) == spec_fname2

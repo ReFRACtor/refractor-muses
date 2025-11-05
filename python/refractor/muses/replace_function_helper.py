@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from . import muses_py as mpy  # type: ignore
 from typing import Generator
 
+
 @contextmanager
 def register_replacement_function_in_block(
     func_name: str, obj: object

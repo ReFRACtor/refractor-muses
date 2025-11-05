@@ -23,7 +23,7 @@ def osp_dir():
     """Location of OSP directory."""
     osp_path = os.environ.get("MUSES_OSP_PATH", None)
     if osp_path is None or not os.path.exists(osp_path):
-        raise pytest.skip(
+        pytest.skip(
             "test requires OSP directory set by through the MUSES_OSP_PATH environment variable"
         )
     return Path(osp_path)
@@ -37,7 +37,7 @@ def josh_osp_dir():
         "MUSES_JOSH_OSP_PATH", "/tb/sandbox17/laughner/OSP-mine/OSP"
     )
     if osp_path is None or not os.path.exists(osp_path):
-        raise pytest.skip(
+        pytest.skip(
             "test requires Josh's OSP directory set by through the MUSES_JOSH_OSP_PATH environment variable"
         )
     return Path(osp_path)
@@ -48,7 +48,7 @@ def gmao_dir():
     """Location of GAMO directory."""
     gmao_path = os.environ.get("MUSES_GMAO_PATH", None)
     if gmao_path is None or not os.path.exists(gmao_path):
-        raise pytest.skip(
+        pytest.skip(
             "test requires GMAO directory set by through the MUSES_GMAO_PATH environment variable"
         )
     return Path(gmao_path)

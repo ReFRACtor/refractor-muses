@@ -33,7 +33,7 @@ class WatchOssInit:
     """Helper object to update osswrapper.have_oss when py-retrieve calls
     fm_oss_init."""
 
-    def should_replace_function(self, func_name : str, parms: dict[str, Any]) -> bool:
+    def should_replace_function(self, func_name: str, parms: dict[str, Any]) -> bool:
         self.notify_function_call(func_name, parms)
         return False
 
@@ -49,7 +49,7 @@ class WatchOssDelete:
     """Helper object to update osswrapper.have_oss when py-retrieve calls
     fm_oss_delete."""
 
-    def should_replace_function(self, func_name : str, parms: dict[str, Any]) -> bool:
+    def should_replace_function(self, func_name: str, parms: dict[str, Any]) -> bool:
         self.notify_function_call(func_name, parms)
         return False
 
