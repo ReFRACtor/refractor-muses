@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .identifier import StateElementIdentifier
 from .gmao_reader import GmaoReader

@@ -1,6 +1,6 @@
 # This contains various support routines for reading OSP data.
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .tes_file import TesFile
 import collections.abc
 import numpy as np

@@ -30,7 +30,10 @@ import sys
 # ============================================================================
 
 
-class RefractorMusesIntegration(mpy.ReplaceFunctionObject):
+# This implements mpy.ReplaceFunctionObject, but we don't actually derive from
+# that so we don't depend on mpy being available.
+# class RefractorMusesIntegration(mpy.ReplaceFunctionObject):
+class RefractorMusesIntegration:
     """This handles the Refractor/Muses integration.
 
     Note that this should be largely replaced with RetrievalStrategy, which

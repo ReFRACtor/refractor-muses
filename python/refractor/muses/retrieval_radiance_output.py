@@ -1,7 +1,7 @@
 from __future__ import annotations
 from glob import glob
 from loguru import logger
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import InstrumentIdentifier, ProcessLocation

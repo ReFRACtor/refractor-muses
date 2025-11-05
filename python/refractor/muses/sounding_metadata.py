@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 import typing
 from typing import Self

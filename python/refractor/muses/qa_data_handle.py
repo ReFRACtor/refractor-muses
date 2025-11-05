@@ -2,7 +2,7 @@ from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .tes_file import TesFile
 from .fake_state_info import FakeStateInfo
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from loguru import logger
 import abc
 import os

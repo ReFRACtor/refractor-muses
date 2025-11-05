@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
 from .tes_file import TesFile
 from .identifier import RetrievalType, StateElementIdentifier

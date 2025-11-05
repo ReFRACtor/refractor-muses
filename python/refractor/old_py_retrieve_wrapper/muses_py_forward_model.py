@@ -41,7 +41,10 @@ from weakref import WeakSet
 # ============================================================================
 
 
-class WatchUipUpdate(mpy.ObserveFunctionObject):
+# This implements mpy.ObserveFunctionObject, but we don't actually derive from
+# that so we don't depend on mpy being available.
+# class WatchUipUpdate(mpy.ObserveFunctionObject):
+class WatchUipUpdate:
     """We  unfortunately can't just use the uip passed to tropomi_fm or
     omi_fm because we also need the basis_matrix to
     get the state vector update. So we watch calls to update_uip.
@@ -58,6 +61,10 @@ class WatchUipUpdate(mpy.ObserveFunctionObject):
             cls.instance = super().__new__(cls)
             cls.instance.notify_set = WeakSet()
         return cls.instance
+
+    def should_replace_function(self, func_name, parms):
+        self.notify_function_call(func_name, parms)
+        return False
 
     def add_notify_object(self, obj):
         self.notify_set.add(obj)
@@ -221,7 +228,10 @@ if mpy.have_muses_py:
             self.retrieval_vec = parms["i_retrieval_vec"]
 
 
-class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
+# This implements mpy.ReplaceFunctionObject, but we don't actually derive from
+# that so we don't depend on mpy being available.
+# class RefractorTropOrOmiFmBase(mpy.ReplaceFunctionObject):
+class RefractorTropOrOmiFmBase:
     """
     NOTE - this is deprecated
 

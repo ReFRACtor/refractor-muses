@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .refractor_uip import AttrDictAdapter

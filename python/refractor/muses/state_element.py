@@ -1,7 +1,7 @@
 # Might end up breaking this file up, for now have all the stuff here
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .identifier import StateElementIdentifier, StrategyStepIdentifier
 from .retrieval_array import (

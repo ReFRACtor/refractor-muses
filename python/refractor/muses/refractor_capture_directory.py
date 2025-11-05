@@ -3,7 +3,7 @@ import os
 import io
 import tarfile
 from contextlib import contextmanager
-from . import muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from pathlib import Path
 from typing import Generator
 import shutil

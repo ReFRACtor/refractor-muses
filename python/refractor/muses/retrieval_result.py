@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
 from .identifier import StateElementIdentifier
 from .filter_result_summary import FilterResultSummary

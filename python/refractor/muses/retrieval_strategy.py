@@ -22,7 +22,7 @@ from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation, StateElementIdentifier
 from loguru import logger
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 import os
 import pickle
 from pathlib import Path
@@ -43,7 +43,10 @@ if typing.TYPE_CHECKING:
 
 # We could make this an rf.Observable, but no real reason to push this to a C++
 # level. So we just have a simple observation set here
-class RetrievalStrategy(mpy.ReplaceFunctionObject):
+# This implements mpy.ReplaceFunctionObject, but we don't actually derive from
+# that so we don't depend on mpy being available.
+# class RetrievalStrategy(mpy.ReplaceFunctionObject):
+class RetrievalStrategy:
     """This is a replacement for script_retrieval_ms, that tries to do
     a few things:
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from loguru import logger
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 import os
 import copy

@@ -1,12 +1,8 @@
-# Not sure what all we want to import here. Potentially everything in
-# py-retrieve, but that seems kinds of noisy. So at least for now we just
-# include things we know we want. We can extend this in the future if needed,
-# or come up with a more intelligent way of doing this. Ideally, py-retrieve
-# would get a serious reorganization.
-
+# Version of muses_py where we purposely can't get py_retrieve. We have a separate
+# library for this so we can work through pieces one at a time to fix dependency of
+# muses-py, just import fake_muses_py instead of muses_py.
 try:
-    # For checking we handle no muses-py
-    #raise ImportError
+    raise ImportError
     import py_retrieve.app  # type: ignore
 
     have_muses_py = True

@@ -1,5 +1,4 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
 import collections.abc
 import re
 import pandas as pd
@@ -8,7 +7,7 @@ import io
 import os
 from functools import lru_cache
 import typing
-from typing import Iterator
+from typing import Iterator, Any
 from loguru import logger
 
 
@@ -47,6 +46,7 @@ class TesFile(collections.abc.Mapping):
         if False:
             logger.debug(f"Reading file {self.file_name}")
         if use_mpy:
+            from . import muses_py as mpy  # type: ignore
             _, d = mpy.read_all_tes(str(fname))
             self.mpy_d = d
             self._d = d["preferences"]
@@ -129,6 +129,16 @@ class TesFile(collections.abc.Mapping):
 
     def __iter__(self) -> Iterator[tuple[str, str]]:
         return self._d.__iter__()
+
+    @classmethod
+    def write(cls, d: dict[str, Any], fout: str | os.PathLike[str]) -> None:
+        with open(fout, "w") as fh:
+            for k, v in d.items():
+                print(f"{k} = {v}", file=fh)
+            print(
+                "End_of_Header  ****  End_of_Header  ****  End_of_Header  ****  End_of_Header",
+                file=fh,
+            )
 
     # _lru_cache_wrapper is not correctly typed, we get a spurious
     # error message (see

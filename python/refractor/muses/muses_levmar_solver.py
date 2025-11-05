@@ -2,7 +2,7 @@ from __future__ import annotations
 from .cost_function import CostFunction
 import numpy as np
 from .replace_function_helper import register_replacement_function_in_block
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 import os
 from pathlib import Path
 from typing import Any

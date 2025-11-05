@@ -9,7 +9,7 @@ from refractor.muses import (
     FilterIdentifier,
     StateElementIdentifier,
 )
-from refractor.muses import muses_py as mpy
+from refractor.muses import fake_muses_py as mpy
 import refractor.framework as rf  # type: ignore
 import os
 from pathlib import Path

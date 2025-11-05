@@ -4,7 +4,7 @@ from .filter_metadata import FilterMetadata, DictFilterMetadata
 import refractor.framework as rf  # type: ignore
 import copy
 import numpy as np
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 import os
 from typing import Any, Self
 import typing

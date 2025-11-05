@@ -1,6 +1,5 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-import refractor.muses.muses_py as mpy  # type: ignore
 import numpy as np
 from loguru import logger
 import typing
@@ -11,7 +10,10 @@ if typing.TYPE_CHECKING:
     from .retrieval_array import RetrievalGridArray
 
 
-class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
+# This implements mpy.ReplaceFunctionObject, but we don't actually derive from
+# that so we don't depend on mpy being available.
+# class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
+class CostFunction(rf.NLLSMaxAPosteriori):
     """This is the cost function we use to interface between ReFRACtor
     and muses-py. This is just a standard rf.NLLSMaxAPosteriori with
     some extra convenience functions.
@@ -208,6 +210,8 @@ class CostFunction(rf.NLLSMaxAPosteriori, mpy.ReplaceFunctionObject):
         replacement for mpy.fm_wrapper but possibly using ReFRACtor objects
         and 2) make a more direct comparison between ReFRACtor and muses-py
         (e.g., for testing)"""
+        from . import muses_py as mpy  # type: ignore
+
         if hasattr(i_uip, "currentGuessList"):
             p = i_uip.currentGuessListFM
         else:

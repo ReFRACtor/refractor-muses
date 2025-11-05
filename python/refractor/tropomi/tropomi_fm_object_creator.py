@@ -10,7 +10,7 @@ from refractor.muses import (
     InstrumentIdentifier,
     StateElementIdentifier,
 )
-from refractor.muses import muses_py as mpy
+from refractor.muses import fake_muses_py as mpy
 import refractor.framework as rf  # type: ignore
 from loguru import logger
 import numpy as np

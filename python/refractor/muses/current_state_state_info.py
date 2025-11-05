@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .current_state import CurrentState
 from .retrieval_array import (
     RetrievalGridArray,

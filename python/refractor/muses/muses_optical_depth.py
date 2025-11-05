@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import math
 import refractor.framework as rf  # type: ignore
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .identifier import InstrumentIdentifier
 import os
 from typing import Any

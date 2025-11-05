@@ -5,7 +5,7 @@ from .muses_spectral_window import MusesSpectralWindow, TesSpectralWindow
 from .retrieval_configuration import RetrievalConfiguration
 from .tes_file import TesFile
 from contextlib import contextmanager
-import refractor.muses.muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 import os
 from pathlib import Path
 import numpy as np

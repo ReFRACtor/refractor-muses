@@ -3,10 +3,6 @@ from contextlib import contextmanager
 from . import muses_py as mpy  # type: ignore
 from typing import Generator
 
-# Some helper functions for managing the mpy.replace_function. We may migrate
-# some of this into muses-py, but for now we'll collect stuff here.
-
-
 @contextmanager
 def register_replacement_function_in_block(
     func_name: str, obj: object

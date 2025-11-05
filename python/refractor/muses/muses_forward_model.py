@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import muses_py as mpy  # type: ignore
+from . import fake_muses_py as mpy  # type: ignore
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call

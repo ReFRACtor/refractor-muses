@@ -1,5 +1,4 @@
 from __future__ import annotations
-from . import muses_py as mpy  # type: ignore
 from .refractor_capture_directory import muses_py_call
 from .tes_file import TesFile
 import shutil
@@ -51,7 +50,8 @@ class MusesRunDir:
                 shutil.copy(
                     refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc"
                 )
-        _, d = mpy.read_all_tes(str(refractor_sounding_dir / "Measurement_ID.asc"))
+        d = TesFile(refractor_sounding_dir / "Measurement_ID.asc")
+        dout = dict(d)
         for k in (
             "AIRS_filename",
             "OMI_filename",
@@ -68,8 +68,8 @@ class MusesRunDir:
             "TROPOMI_IRR_SIR_filename",
             "TROPOMI_Cloud_filename",
         ):
-            if k in d["preferences"]:
-                f2 = Path(d["preferences"][k])
+            if k in d:
+                f2 = Path(d[k])
                 # If this starts with a ".", assume we want a file in the sounding director.
                 # otherwise we want the one in the input directory.
                 if f2.parent == Path("."):
@@ -88,8 +88,8 @@ class MusesRunDir:
                 # we manually added a symbolic link with this name.
                 if k == "CRIS_filename":
                     freplace = refractor_sounding_dir.parent / f"nasa_fsr_{f2.name}"
-                d["preferences"][k] = str(freplace)
-        mpy.write_all_tes(d, str(self.run_dir / "Measurement_ID.asc"))
+                dout[k] = str(freplace)
+        TesFile.write(dout, str(self.run_dir / "Measurement_ID.asc"))
 
     def run_retrieval(
         self,

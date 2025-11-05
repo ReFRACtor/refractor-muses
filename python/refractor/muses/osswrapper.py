@@ -26,18 +26,32 @@ def suppress_stdout() -> Generator[None, None, None]:
             dest_file.close()
 
 
-class WatchOssInit(mpy.ObserveFunctionObject):
+# This implements mpy.ObserveFunctionObject, but we don't actually derive from
+# that so we don't depend on mpy being available.
+# class WatchOssInit(mpy.ObserveFunctionObject):
+class WatchOssInit:
     """Helper object to update osswrapper.have_oss when py-retrieve calls
     fm_oss_init."""
+
+    def should_replace_function(self, func_name : str, parms: dict[str, Any]) -> bool:
+        self.notify_function_call(func_name, parms)
+        return False
 
     def notify_function_call(self, func_name: str, parms: dict[str, Any]) -> None:
         osswrapper.have_oss = True
         osswrapper.first_oss_initialize = False
 
 
-class WatchOssDelete(mpy.ObserveFunctionObject):
+# This implements mpy.ObserveFunctionObject, but we don't actually derive from
+# that so we don't depend on mpy being available.
+# class WatchOssDelete(mpy.ObserveFunctionObject):
+class WatchOssDelete:
     """Helper object to update osswrapper.have_oss when py-retrieve calls
     fm_oss_delete."""
+
+    def should_replace_function(self, func_name : str, parms: dict[str, Any]) -> bool:
+        self.notify_function_call(func_name, parms)
+        return False
 
     def notify_function_call(self, func_name: str, parms: dict[str, Any]) -> None:
         osswrapper.have_oss = False

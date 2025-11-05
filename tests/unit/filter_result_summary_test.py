@@ -1,8 +1,8 @@
-import refractor.muses.muses_py as mpy  # type: ignore
 from refractor.muses import (
     mpy_radiance_from_observation_list,
     FilterIdentifier,
     FilterResultSummary,
+    AttrDictAdapter
 )
 
 
@@ -14,7 +14,7 @@ def test_filter_result_summary(joint_tropomi_step_12):
         for iname in [FilterIdentifier("CRIS"), FilterIdentifier("TROPOMI")]
     ]
     rad = mpy_radiance_from_observation_list(olist, full_band=True)
-    fsummary = FilterResultSummary(mpy.ObjectView(rad))
+    fsummary = FilterResultSummary(AttrDictAdapter(rad))
     assert fsummary.filter_index == [0, 11, 13, 14, 4]
     assert fsummary.filter_list == ["ALL", "TIR1", "TIR3", "TIR4", "UVIS"]
     assert fsummary.filter_start == [0, 0, 717, 1586, 2223]
