@@ -1,5 +1,4 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import abc
@@ -9,7 +8,7 @@ import typing
 from .muses_altitude_pge import MusesAltitudePge
 from .identifier import StateElementIdentifier
 from .refractor_uip import AttrDictAdapter
-from scipy.linalg import block_diag  # type: ignore
+from scipy.linalg import block_diag, svd  # type: ignore
 from .retrieval_array import (
     RetrievalGridArray,
     FullGridArray,
@@ -290,7 +289,16 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
         """Sqrt matrix from covariance"""
-        return (mpy.sqrt_matrix(self.constraint_matrix)).transpose()
+        return (
+            (self.sqrt_matrix(self.constraint_matrix))
+            .transpose()
+            .view(RetrievalGridArray)
+        )
+
+    def sqrt_matrix(self, d: np.ndarray) -> np.ndarray:
+        # We can possibly replace this with scipy.sqrtm
+        (wmatrix, svmatrix, vmatrix) = svd(d, lapack_driver="gesvd")
+        return np.diag(np.sqrt(svmatrix)) @ vmatrix
 
     def constraint_vector(self, fix_negative: bool = True) -> RetrievalGridArray:
         """Apriori value"""

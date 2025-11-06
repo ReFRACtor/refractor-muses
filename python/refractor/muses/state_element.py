@@ -1,7 +1,6 @@
 # Might end up breaking this file up, for now have all the stuff here
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from . import fake_muses_py as mpy  # type: ignore
 from .creator_handle import CreatorHandle, CreatorHandleSet
 from .identifier import StateElementIdentifier, StrategyStepIdentifier
 from .retrieval_array import (
@@ -888,9 +887,37 @@ class StateElementImplementation(StateElement):
         """
         if self.pressure_list_fm is None:
             raise RuntimeError("Need pressure_list_fm")
-        res = mpy.supplier_retrieval_levels_tes(
-            retrieval_levels, pressure_input, self.pressure_list_fm
+        # Select levels with pressure less than the surface pressure
+        res = retrieval_levels[
+            pressure_input[retrieval_levels - 1] <= self.pressure_list_fm[0]
+        ]
+        cutLevelsIndex = np.where(retrieval_levels < res[0])[0]
+        index = (
+            np.amax(
+                np.where(np.absolute(pressure_input - self.pressure_list_fm[1]) < 0.1)[
+                    0
+                ]
+            )
+            - 1
         )
+        res = res - index
+
+        # if levels[0] = 1 then our retrieval levels are OK.  Either add a level,
+        # or if we are close just replace the bottom level.
+
+        if (res[0] != 1) and (res[0] > 0):
+            # check:  surface pressure / 1st retrieval level above
+            t1 = 1.05 * self.pressure_list_fm[0] / self.pressure_list_fm[res[0] - 1]
+            t2 = (
+                pressure_input[retrieval_levels[np.amax(cutLevelsIndex)] - 1]
+                / self.pressure_list_fm[0]
+            )
+            if t1 > t2:
+                res = np.insert(res, 0, 1)
+            else:
+                res[0] = 1
+        if res[-1] != self.pressure_list_fm.size:
+            res = np.append(res, self.pressure_list_fm.size)
         # Filter out any levels out of range, and convert to 0 based
         res = np.array([i - 1 for i in res if i <= self.pressure_list_fm.shape[0]])
         return res

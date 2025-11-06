@@ -1,10 +1,11 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
 from .tes_file import TesFile
 from .identifier import RetrievalType, StateElementIdentifier
 import numpy as np
 from loguru import logger
+import math
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -73,17 +74,16 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
                 for fm in self.cfunc.max_a_posteriori.forward_model
             ]
         )
-        radiance_bt_obs = mpy.bt(
+        radiance_bt_obs = self.bt(
             np.mean(frequency), np.mean(self.cfunc.max_a_posteriori.measurement)
         )
-        radiance_bt_fit = mpy.bt(
+        radiance_bt_fit = self.bt(
             np.mean(frequency), np.mean(self.cfunc.max_a_posteriori.model)
         )
-
-        btdata = {}
-        btdata["diff"] = radiance_bt_fit[0] - radiance_bt_obs[0]
-        btdata["obs"] = radiance_bt_obs[0]
-        btdata["fit"] = radiance_bt_fit[0]
+        btdata: dict[str, Any] = {}
+        btdata["diff"] = radiance_bt_fit - radiance_bt_obs
+        btdata["obs"] = radiance_bt_obs
+        btdata["fit"] = radiance_bt_fit
         btdata["species_igr"] = None
 
         bt_diff = btdata["diff"]
@@ -144,9 +144,17 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             )
         cstate.set_brightness_temperature_data(step, btdata)
 
+    def bt(self, frequency: float, rad: float) -> float:
+        """converts from radiance (W/cm2/cm-1/sr) to BT (erg/sec/cm2/cm-1/sr)"""
+        planck = 6.626176e-27
+        clight = 2.99792458e10
+        boltz = 1.380662e-16
+        radcn1 = 2.0 * planck * clight * clight * 1.0e-07
+        radcn2 = planck * clight / boltz
+        return radcn2 * frequency / math.log(1 + (radcn1 * frequency**3 / rad))
+
 
 RetrievalStrategyStepSet.add_default_handle(RetrievalStrategyStepBT())
-
 __all__ = [
     "RetrievalStrategyStepBT",
 ]

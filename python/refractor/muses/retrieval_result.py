@@ -1,5 +1,4 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
 from .observation_handle import mpy_radiance_from_observation_list
 from .identifier import StateElementIdentifier
 from .filter_result_summary import FilterResultSummary
@@ -7,6 +6,7 @@ from .radiance_result_summary import RadianceResultSummary
 from .cloud_result_summary import CloudResultSummary
 from .column_result_summary import ColumnResultSummary
 from .error_analysis import ErrorAnalysis
+from .refractor_uip import AttrDictAdapter
 import math
 import numpy as np
 import typing
@@ -44,7 +44,7 @@ class RetrievalResult:
         jacobian_sys: np.ndarray | None = None,
     ):
         """ret_res is what we get returned from MusesLevmarSolver"""
-        self.rstep = mpy.ObjectView(
+        self.rstep = AttrDictAdapter(
             mpy_radiance_from_observation_list(obs_list, include_bad_sample=True)
         )
         self.radiance_full = radiance_full

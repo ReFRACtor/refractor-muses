@@ -1,5 +1,4 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
 from .current_state import CurrentState
 from .retrieval_array import (
     RetrievalGridArray,
@@ -183,7 +182,7 @@ class CurrentStateStateInfo(CurrentState):
             return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
         else:
             return (
-                (mpy.sqrt_matrix(self.constraint_matrix))
+                (self.sqrt_matrix(self.constraint_matrix))
                 .transpose()
                 .view(RetrievalGridArray)
             )

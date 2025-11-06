@@ -22,7 +22,6 @@ from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation, StateElementIdentifier
 from loguru import logger
-from . import fake_muses_py as mpy  # type: ignore
 import os
 import pickle
 from pathlib import Path
@@ -174,6 +173,8 @@ class RetrievalStrategy:
 
     def register_with_muses_py(self) -> None:
         """Register run_ms as a replacement for script_retrieval_ms"""
+        from . import muses_py as mpy  # type: ignore
+
         mpy.register_replacement_function("script_retrieval_ms", self)
 
     def should_replace_function(self, func_name: str, parms: list[Any]) -> bool:
@@ -195,12 +196,6 @@ class RetrievalStrategy:
         changes in case they need to clear out any caching.
 
         """
-        if False:
-            # Clear any caching of files muses-py did.  Don't exactly
-            # understand these caches, but this causes an error with
-            # threading. So just skip, I don't think we actually need
-            # this
-            mpy.clear_cache()
         filename = Path(filename)
         self._filename = filename.absolute()
         self._capture_directory.rundir = filename.absolute().parent
