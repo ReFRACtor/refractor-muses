@@ -3,7 +3,6 @@ import os
 import io
 import tarfile
 from contextlib import contextmanager
-from . import fake_muses_py as mpy  # type: ignore
 from pathlib import Path
 from typing import Generator
 import shutil
@@ -45,19 +44,22 @@ def muses_py_call(
     tropomi. I don't think it actually changes anything else, as far as I can tell
     only this get changed by the flags. The per iteration stuff is needed for some
     of the diagnostics (e.g., RefractorTropOmiFmMusesPy.surface_albedo)."""
+    from . import muses_py as mpy  # type: ignore
+
     curdir = os.getcwd()
     old_run_dir = os.environ.get("MUSES_DEFAULT_RUN_DIR")
-    if vlidort_cli is None:
+    if vlidort_cli is None and mpy.have_muses_py:
         vlidort_cli = vlidort_cli_from_path()
     # Temporary, make sure libgfortran.so.4 is in path. See
     # https://jpl.slack.com/archives/CVBUUE5T5/p1664476320620079.
     # Note that currently omi uses muses-vlidort repository build, which
     # doesn't have this problem any longer. But tropomi does still
-    old_ld_library_path = None
-    old_vlidort_cli = mpy.cli_options.get("vlidort_cli")
-    old_debug = mpy.cli_options.get("debug")
-    old_vlidort_nstokes = mpy.cli_options.vlidort.get("nstokes")
-    old_vlidort_nstreams = mpy.cli_options.vlidort.get("nstreams")
+    if mpy.have_muses_py:
+        old_ld_library_path = None
+        old_vlidort_cli = mpy.cli_options.get("vlidort_cli")
+        old_debug = mpy.cli_options.get("debug")
+        old_vlidort_nstokes = mpy.cli_options.vlidort.get("nstokes")
+        old_vlidort_nstreams = mpy.cli_options.vlidort.get("nstreams")
     if "CONDA_PREFIX" in os.environ:
         old_ld_library_path = os.environ.get("LD_LIBRARY_PATH")
         if old_ld_library_path:
@@ -68,20 +70,23 @@ def muses_py_call(
             os.environ["LD_LIBRARY_PATH"] = f"{os.environ['CONDA_PREFIX']}/lib"
     try:
         os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(str(rundir))
-        os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
+        if mpy.have_muses_py:
+            os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
         os.chdir(rundir)
-        if vlidort_cli is not None:
-            mpy.cli_options.vlidort_cli = str(vlidort_cli)
-        mpy.cli_options.debug = debug
-        mpy.cli_options.vlidort.nstokes = vlidort_nstokes
-        mpy.cli_options.vlidort.nstreams = vlidort_nstreams
+        if mpy.have_muses_py:
+            if vlidort_cli is not None:
+                mpy.cli_options.vlidort_cli = str(vlidort_cli)
+            mpy.cli_options.debug = debug
+            mpy.cli_options.vlidort.nstokes = vlidort_nstokes
+            mpy.cli_options.vlidort.nstreams = vlidort_nstreams
         yield
     finally:
         os.chdir(curdir)
-        mpy.cli_options.vlidort_cli = old_vlidort_cli
-        mpy.cli_options.debug = old_debug
-        mpy.cli_options.vlidort.nstokes = old_vlidort_nstokes
-        mpy.cli_options.vlidort.nstreams = old_vlidort_nstreams
+        if mpy.have_muses_py:
+            mpy.cli_options.vlidort_cli = old_vlidort_cli
+            mpy.cli_options.debug = old_debug
+            mpy.cli_options.vlidort.nstokes = old_vlidort_nstokes
+            mpy.cli_options.vlidort.nstreams = old_vlidort_nstreams
         if old_run_dir:
             os.environ["MUSES_DEFAULT_RUN_DIR"] = old_run_dir
         else:

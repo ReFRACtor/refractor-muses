@@ -1,10 +1,11 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 import typing
+import re
 from typing import Self
 from .identifier import InstrumentIdentifier
 from .tes_file import TesFile
+from datetime import datetime
 
 if typing.TYPE_CHECKING:
     from refractor.old_py_retrieve_wrapper import (  # type: ignore
@@ -79,17 +80,7 @@ class SoundingMetadata:
         f = TesFile(measurement_id["run_dir"] / "DateTime.asc")
         res._tai_time = float(f["TAI_Time_of_ZPD"])
         res._utc_time = f["UTC_Time"]
-
-        date_struct = mpy.utc_from_string(res._utc_time)
-        i_date_struct = {}
-        i_date_struct["dateStruct"] = date_struct
-        i_date_struct["year"] = date_struct["utctime"].year
-        i_date_struct["month"] = date_struct["utctime"].month
-        i_date_struct["day"] = date_struct["utctime"].day
-        i_date_struct["hour"] = date_struct["utctime"].hour
-        i_date_struct["minute"] = date_struct["utctime"].minute
-        i_date_struct["second"] = date_struct["utctime"].second
-        res._day_flag = bool(mpy.daytime(i_date_struct, res._longitude.value))
+        res._day_flag = res.local_hour >= 8 and res.local_hour <= 22
         res._surface_altitude = obs.surface_altitude
         return res
 
@@ -139,39 +130,42 @@ class SoundingMetadata:
         return self._utc_time
 
     @property
+    def dtime(self) -> datetime:
+        # Some if the utc times have microseconds. strptime doesn't
+        # want to parse that, because it doesn't have a place to put
+        # microseconds (only milliseconds). We don't actually use
+        # anything past seconds anyways, so just pull that out so
+        # parsing works
+        t = re.sub(r"\.\d+", "", self._utc_time)
+        return datetime.strptime(t, "%Y-%m-%dT%H:%M:%SZ")
+
+    @property
     def year(self) -> int:
-        date_struct = mpy.utc_from_string(self.utc_time)
-        return date_struct["utctime"].year
+        return self.dtime.year
 
     @property
     def month(self) -> int:
-        date_struct = mpy.utc_from_string(self.utc_time)
-        return date_struct["utctime"].month
+        return self.dtime.month
 
     @property
     def day(self) -> int:
-        date_struct = mpy.utc_from_string(self.utc_time)
-        return date_struct["utctime"].day
+        return self.dtime.day
 
     @property
     def hour(self) -> int:
-        date_struct = mpy.utc_from_string(self.utc_time)
-        return date_struct["utctime"].hour
+        return self.dtime.hour
 
     @property
     def minute(self) -> int:
-        date_struct = mpy.utc_from_string(self.utc_time)
-        return date_struct["utctime"].minute
+        return self.dtime.minute
 
     @property
     def second(self) -> int:
-        date_struct = mpy.utc_from_string(self.utc_time)
-        return date_struct["utctime"].second
+        return self.dtime.second
 
     @property
     def local_hour(self) -> int:
-        timestruct = mpy.utc(self.utc_time)
-        hour = timestruct["hour"] + self.longitude.convert("deg").value / 180.0 * 12
+        hour = self.dtime.hour + self.longitude.convert("deg").value / 180.0 * 12
         if hour < 0:
             hour += 24
         if hour > 24:
@@ -183,14 +177,14 @@ class SoundingMetadata:
         """The muses-py function mpy.tai uses the wrong number of leapseconds, it
         doesn't include anything since 2006. To match old data, return the incorrect
         value so we can match the file. This should get fixed actually."""
-        timestruct = mpy.utc(self.utc_time)
-        if timestruct["yearfloat"] >= 2017.0:
+        dtm = self.dtime
+        if dtm >= datetime(2017, 1, 1):
             extraleapscond = 4
-        elif timestruct["yearfloat"] >= 2015.5:
+        elif dtm >= datetime(2015, 7, 1):
             extraleapscond = 3
-        elif timestruct["yearfloat"] >= 2012.5:
+        elif dtm >= datetime(2012, 7, 1):
             extraleapscond = 2
-        elif timestruct["yearfloat"] >= 2009.0:
+        elif dtm >= datetime(2009, 1, 1):
             extraleapscond = 1
         else:
             extraleapscond = 0

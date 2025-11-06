@@ -6,6 +6,7 @@ import abc
 from pathlib import Path
 from copy import copy, deepcopy
 import typing
+from .muses_altitude_pge import MusesAltitudePge
 from .identifier import StateElementIdentifier
 from .refractor_uip import AttrDictAdapter
 from scipy.linalg import block_diag  # type: ignore
@@ -199,16 +200,15 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         value gets written out as metadata in a few places. Calculate this the
         same way. We can possibly remove this in the future, but for now do this.
         """
-        (results, _) = mpy.compute_altitude_pge(
+        alt = MusesAltitudePge(
             self.state_value("pressure"),
             self.state_value("TATM"),
             self.state_value("H2O"),
             self.sounding_metadata.surface_altitude.convert("m").value,
             self.sounding_metadata.latitude.value,
-            None,
-            True,
+            tes_pge=True,
         )
-        return rf.ArrayWithUnit_double_1(results["altitude"] / 1000.0, "km")
+        return rf.ArrayWithUnit_double_1(alt.altitude / 1000.0, "km")
 
     @property
     def propagated_qa(self) -> PropagatedQA:

@@ -7,6 +7,8 @@ from refractor.muses import (
     InstrumentIdentifier,
     FilterIdentifier,
     StrategyStepIdentifier,
+    RetrievalType,
+    StateElementIdentifier,
 )
 
 
@@ -33,23 +35,23 @@ def test_muses_py_spectral_window_handle(
     current_strategy_step = CurrentStrategyStepDict(
         {
             "retrieval_elements": [
-                "H2O",
-                "O3",
-                "TSUR",
-                "CLOUDEXT",
-                "PCLOUD",
-                "OMICLOUDFRACTION",
-                "OMISURFACEALBEDOUV1",
-                "OMISURFACEALBEDOUV2",
-                "OMISURFACEALBEDOSLOPEUV2",
-                "OMINRADWAVUV1",
-                "OMINRADWAVUV2",
-                "OMIODWAVUV1",
-                "OMIODWAVUV2",
+                StateElementIdentifier("H2O"),
+                StateElementIdentifier("O3"),
+                StateElementIdentifier("TSUR"),
+                StateElementIdentifier("CLOUDEXT"),
+                StateElementIdentifier("PCLOUD"),
+                StateElementIdentifier("OMICLOUDFRACTION"),
+                StateElementIdentifier("OMISURFACEALBEDOUV1"),
+                StateElementIdentifier("OMISURFACEALBEDOUV2"),
+                StateElementIdentifier("OMISURFACEALBEDOSLOPEUV2"),
+                StateElementIdentifier("OMINRADWAVUV1"),
+                StateElementIdentifier("OMINRADWAVUV2"),
+                StateElementIdentifier("OMIODWAVUV1"),
+                StateElementIdentifier("OMIODWAVUV2"),
             ],
             "strategy_step": StrategyStepIdentifier(8, "H2O,O3_OMI"),
             "max_num_iterations": "15",
-            "retrieval_type": "joint",
+            "retrieval_type": RetrievalType("joint"),
         },
         mid,
     )
@@ -82,10 +84,10 @@ def test_muses_py_spectral_window_handle_empty_band(
     # For step 3
     current_strategy_step = CurrentStrategyStepDict(
         {
-            "retrieval_elements": ["OMICLOUDFRACTION"],
+            "retrieval_elements": [StateElementIdentifier("OMICLOUDFRACTION")],
             "strategy_step": StrategyStepIdentifier(3, "OMICLOUDFRACTION"),
             "max_num_iterations": "10",
-            "retrieval_type": "OMICLOUD_IG_Refine",
+            "retrieval_type": RetrievalType("OMICLOUD_IG_Refine"),
         },
         mid,
     )

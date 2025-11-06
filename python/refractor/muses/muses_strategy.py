@@ -17,6 +17,7 @@ import os
 import abc
 import typing
 import copy
+from pathlib import Path
 from collections import defaultdict
 from typing import Any, cast
 
@@ -69,14 +70,11 @@ class CurrentStrategyStep(object, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def muses_microwindows_fname(self) -> str:
+    def muses_microwindows_fname(self) -> Path:
         """This is very specific, but there is some complicated code
         used to generate the microwindows file name. This is used to
         create the MusesSpectralWindow (by one of the handlers). Also
-        the QA data file name depends on this. It would be nice to
-        remove this dependency, but for now we can at least isolate
-        this and make it clear where we depend on this.
-
+        the QA data file name depends on this.
         """
         raise NotImplementedError()
 
@@ -174,15 +172,13 @@ class CurrentStrategyStepDict(CurrentStrategyStep):
                 selem_id, next_constraint_vector_fm=v
             )
 
-    def muses_microwindows_fname(self) -> str:
+    def muses_microwindows_fname(self) -> Path:
         """This is very specific, but there is some complicated code used to generate the
         microwindows file name. This is used to create the MusesSpectralWindow (by
-        one of the handlers). Also the QA data file name depends on this. It would be nice to
-        remove this dependency, but for now we can at least isolate this and make it clear where
-        we depend on this."""
+        one of the handlers). Also the QA data file name depends on this."""
         if self.measurement_id is None:
             raise RuntimeError("Call notify_update_target before this function")
-        return MusesSpectralWindow.muses_microwindows_fname_from_muses_py(
+        return MusesSpectralWindow.muses_microwindows_fname(
             self.measurement_id["viewingMode"],
             self.measurement_id["spectralWindowDirectory"],
             self.retrieval_elements,

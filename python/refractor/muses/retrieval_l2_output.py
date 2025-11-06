@@ -7,6 +7,7 @@ import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes, extra_l2_output
 from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
 from .refractor_uip import AttrDictAdapter
+from .muses_altitude_pge import MusesAltitudePge
 
 from pathlib import Path
 import numpy as np
@@ -445,22 +446,20 @@ class RetrievalL2Output(RetrievalOutput):
         # And get the range of data we use to fill in our fields
         pslice = slice(num_pressures - num_actual_pressures, num_pressures)
         # get column / altitude / air density / trop column stuff
-        altitudeResult, _ = mpy.compute_altitude_pge(
+        alt_res = MusesAltitudePge(
             self.state_value_vec("pressure"),
             self.state_value_vec("TATM"),
             self.state_value_vec("H2O"),
             smeta.surface_altitude.convert("m").value,
             smeta.latitude.convert("deg").value,
-            i_waterType=None,
-            i_pge=True,
+            tes_pge=True,
         )
 
-        altitudeResult = AttrDictAdapter(altitudeResult)
-        species_data.AIRDENSITY[pslice] = (altitudeResult.airDensity * 1e6)[
+        species_data.AIRDENSITY[pslice] = (alt_res.air_density * 1e6)[
             :
         ]  # convert molec/cm3 -> molec/m3
 
-        species_data.ALTITUDE[pslice] = altitudeResult.altitude[:]
+        species_data.ALTITUDE[pslice] = alt_res.altitude[:]
 
         # AT_LINE 169 write_products_one.pro
         if self.spcname == "O3":

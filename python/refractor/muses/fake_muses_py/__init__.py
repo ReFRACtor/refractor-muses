@@ -3,7 +3,7 @@
 # muses-py, just import fake_muses_py instead of muses_py.
 try:
     # For checking we handle no muses-py
-    #raise ImportError
+    # raise ImportError
     import py_retrieve.app  # type: ignore
 
     have_muses_py = True

@@ -1,7 +1,9 @@
 from refractor.muses import MusesStrategyStepList
 from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
+from fixtures.require_check import require_muses_py
 
 
+@require_muses_py
 def test_muses_strategy_file(joint_omi_step_8):
     rs, rsetp, kwargs = joint_omi_step_8
     # Comare with old py-retrieve code

@@ -6,7 +6,7 @@
 
 try:
     # For checking we handle no muses-py
-    #raise ImportError
+    # raise ImportError
     import py_retrieve.app  # type: ignore
 
     have_muses_py = True

@@ -559,6 +559,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         we are finding the right name. This shouldn't be used for real code,
         instead use the SpectralWindowHandleSet."""
         from . import muses_py as mpy  # type: ignore
+
         # creates a dummy strategy_table dict with the values it expects to find
         stable: dict[str, Any] = {}
         stable["preferences"] = {
@@ -599,6 +600,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         be used to verify that the microwindows we generate are correct. This shouldn't
         be used for real code, instead use the SpectralWindowHandleSet."""
         from . import muses_py as mpy  # type: ignore
+
         # Wrap arguments into format expected by table_new_mw_from_step. This
         # creates a dummy strategy_table dict with the values it expects to find
         stable: dict[str, Any] = {}
@@ -669,6 +671,7 @@ class TesSpectralWindow(MusesSpectralWindow):
         if self._spec_win is None or self.full_band or self.do_raman_ext:
             return super().grid_indexes(grid, spec_index)
         from . import muses_py as mpy  # type: ignore
+
         # Determine the list of grid_indexes from py-retrieve. Note that
         # this includes bad_samples.
         muses_gindex = mpy.radiance_get_indices(
