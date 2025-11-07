@@ -148,7 +148,7 @@ class MusesLevmarSolver:
         # py-retrieve expects the directory to already be there, so create if
         # needed.
         from . import muses_py as mpy  # type: ignore
-        
+
         if self.log_file is not None:
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
         with register_replacement_function_in_block("update_uip", self.cfunc):

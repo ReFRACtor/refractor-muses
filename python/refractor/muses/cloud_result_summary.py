@@ -1,5 +1,11 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import (
+    mpy_WhereEqualIndices,
+    mpy_get_one_map,
+    mpy_ccurve_jessica,
+    mpy_quality_deviation,
+    mpy_compute_cloud_factor,
+)
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
@@ -21,7 +27,6 @@ class CloudResultSummary:
         error_analysis: ErrorAnalysis,
     ) -> None:
         self.current_state = current_state
-        utilList = mpy.UtilList()
         stateInfo = FakeStateInfo(self.current_state)
         retrievalInfo = FakeRetrievalInfo(self.current_state)
 
@@ -41,7 +46,7 @@ class CloudResultSummary:
         indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == "CLOUDEXT")[0]
 
         # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
-        my_map = mpy.get_one_map(retrievalInfo, "CLOUDEXT")
+        my_map = mpy_get_one_map(retrievalInfo, "CLOUDEXT")
 
         # AT_LINE 77 Write_Retrieval_Summary.pro
         if len(ind) > 0:
@@ -95,7 +100,7 @@ class CloudResultSummary:
         indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == "CLOUDEXT")[0]
 
         # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
-        my_map = mpy.get_one_map(retrievalInfo, "CLOUDEXT")
+        my_map = mpy_get_one_map(retrievalInfo, "CLOUDEXT")
 
         if len(ind) > 0:
             errlog = error_analysis.errorFM[indFM] @ my_map["toPars"]
@@ -121,7 +126,7 @@ class CloudResultSummary:
 
         ind10 = np.asarray([])  # Start with an empty list so we have the variable set.
         if "O3" in retrievalInfo.speciesListFM:
-            ind10 = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, "O3")
+            ind10 = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, "O3")
 
         # AT_LINE 162 Write_Retrieval_Summary.pro
         if len(ind10) > 0:
@@ -145,7 +150,7 @@ class CloudResultSummary:
 
         self._ozoneCcurve = 1
         self._ozone_slope_QA = 1
-        ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, "O3")
+        ind = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, "O3")
         if len(ind) > 0:
             pressure = stateInfo.current["pressure"]
             o3 = stateInfo.current["values"][stateInfo.species.index("O3"), :]
@@ -161,7 +166,7 @@ class CloudResultSummary:
 
                 # pull out mapToState and mapToPars
                 # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
-                my_map = mpy.get_one_map(retrievalInfo, "O3")
+                my_map = mpy_get_one_map(retrievalInfo, "O3")
 
                 AK = error_analysis.A[ind, :][:, ind]
                 AKzz = np.matmul(np.matmul(my_map["toState"], AK), my_map["toPars"])
@@ -187,7 +192,7 @@ class CloudResultSummary:
             altitude = stateInfo.current["heightKm"][indp]
             o3 = o3[indp]
 
-            slope = mpy.ccurve_jessica(altitude, o3)
+            slope = mpy_ccurve_jessica(altitude, o3)
             self._ozone_slope_QA = slope
         # end if len(ind) > 0:
 
@@ -217,14 +222,14 @@ class CloudResultSummary:
                 profile = stateInfo.current["values"][loc, :]
                 constraint = stateInfo.constraint["values"][loc, :]
 
-            ind = utilList.WhereEqualIndices(retrievalInfo.speciesListFM, species_name)
+            ind = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, species_name)
 
             ak_diag = error_analysis.A[ind, ind]
 
             # Also note that the value of profile is only set above if loc is not -1 above.
             if loc != -1:
                 # AT_LINE 279 Write_Retrieval_Summary.pro
-                result_quality = mpy.quality_deviation(
+                result_quality = mpy_quality_deviation(
                     pressure, profile, constraint, ak_diag, species_name
                 )
                 self._deviation_QA[ispecie] = result_quality.deviation_QA
@@ -293,7 +298,7 @@ class CloudResultSummary:
         scale_pressure = self.state_value("scalePressure")
         if scale_pressure == 0:
             scale_pressure = 0.1
-        res = mpy.compute_cloud_factor(
+        res = mpy_compute_cloud_factor(
             self.state_value_vec("pressure"),
             self.state_value_vec("TATM"),
             self.state_value_vec("H2O"),
