@@ -5,7 +5,18 @@ from .muses_spectral_window import MusesSpectralWindow, TesSpectralWindow
 from .retrieval_configuration import RetrievalConfiguration
 from .tes_file import TesFile
 from contextlib import contextmanager
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import (
+    mpy_read_airs,
+    mpy_read_tes_l1b,
+    mpy_radiance_apodize,
+    mpy_cdf_read_tes_frequency,
+    mpy_read_noaa_cris_fsr,
+    mpy_read_nasa_cris_fsr,
+    mpy_read_tropomi,
+    mpy_read_tropomi_surface_altitude,
+    mpy_read_omi,
+    mpy_radiance_data,
+)
 import os
 from pathlib import Path
 import numpy as np
@@ -18,6 +29,7 @@ import subprocess
 import itertools
 import collections.abc
 import re
+from datetime import datetime
 from typing import Iterator, Any, Generator, Self, TypeVar
 import typing
 from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIdentifier
@@ -943,7 +955,7 @@ class MusesAirsObservation(MusesObservationImp):
         for cname in filter_list:
             i_window.append({"filter": cname})
         with osp_setup(osp_dir):
-            o_airs = mpy.read_airs(i_fileid, i_window)
+            o_airs = mpy_read_airs(i_fileid, i_window)
         sdesc = {
             "AIRS_GRANULE": np.int16(granule),
             "AIRS_ATRACK_INDEX": np.int16(atrack),
@@ -1131,7 +1143,7 @@ class MusesTesObservation(MusesObservationImp):
         for cname in filter_list:
             i_window.append({"filter": cname})
         with osp_setup(osp_dir):
-            o_tes = mpy.read_tes_l1b(i_fileid, i_window)
+            o_tes = mpy_read_tes_l1b(i_fileid, i_window)
         bangle = rf.DoubleWithUnit(o_tes["boresightNadirRadians"], "rad")
         sdesc = {
             "TES_RUN": np.int16(run),
@@ -1155,7 +1167,7 @@ class MusesTesObservation(MusesObservationImp):
         updated in place"""
         if func != "NORTON_BEER":
             raise RuntimeError(f"Don't know how to apply apodization function {func}")
-        rstruct = mpy.radiance_apodize(
+        rstruct = mpy_radiance_apodize(
             o_tes["radianceStruct"], strength, flt, maxopd, spacing
         )
         o_tes["radianceStruct"] = rstruct
@@ -1189,7 +1201,7 @@ class MusesTesObservation(MusesObservationImp):
         logger.info(
             f"Reading {tes_frequency_fname} to get frequencies for IRK calculation"
         )
-        my_file = mpy.cdf_read_tes_frequency(tes_frequency_fname)
+        my_file = mpy_cdf_read_tes_frequency(tes_frequency_fname)
 
         my_file = cls._make_case_right(my_file)
         my_file = cls._transpose_2d_arrays(my_file)
@@ -1511,9 +1523,9 @@ class MusesCrisObservation(MusesObservationImp):
         filename = os.path.abspath(str(filename))
         with osp_setup(osp_dir):
             if cls.l1b_type_from_filename(filename) in ("snpp_fsr", "noaa_fsr"):
-                o_cris = mpy.read_noaa_cris_fsr(i_fileid)
+                o_cris = mpy_read_noaa_cris_fsr(i_fileid)
             else:
-                o_cris = mpy.read_nasa_cris_fsr(i_fileid)
+                o_cris = mpy_read_nasa_cris_fsr(i_fileid)
 
         # Add in RADIANCESTRUCT. Not sure if this is used, but easy enough to put in
         radiance = o_cris["RADIANCE"]
@@ -1522,7 +1534,7 @@ class MusesCrisObservation(MusesObservationImp):
         filters = np.full((len(nesr),), "CrIS-fsr-lw")
         filters[frequency > 1200] = "CrIS-fsr-mw"
         filters[frequency > 2145] = "CrIS-fsr-sw"
-        o_cris["RADIANCESTRUCT"] = mpy.radiance_data(
+        o_cris["RADIANCESTRUCT"] = mpy_radiance_data(
             radiance, nesr, [0], frequency, filters, "CRIS"
         )
         # We can perhaps clean this up, but for now there is some metadata  written
@@ -2118,7 +2130,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             {"instrument": "TROPOMI", "filter": str(flt)} for flt in filter_list
         ]
         with osp_setup(osp_dir):
-            o_tropomi = mpy.read_tropomi(
+            o_tropomi = mpy_read_tropomi(
                 {k: str(v) for (k, v) in filename_dict.items()},
                 xtrack_dict,
                 atrack_dict,
@@ -2130,7 +2142,7 @@ class MusesTropomiObservation(MusesObservationReflectance):
             for i in range(
                 len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])
             ):
-                surfaceAltitude = mpy.read_tropomi_surface_altitude(
+                surfaceAltitude = mpy_read_tropomi_surface_altitude(
                     o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
                     o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
                 )
@@ -2412,7 +2424,7 @@ class MusesOmiObservation(MusesObservationReflectance):
         osp_dir: str | os.PathLike[str] | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         with osp_setup(osp_dir):
-            o_omi = mpy.read_omi(
+            o_omi = mpy_read_omi(
                 str(filename),
                 xtrack_uv2,
                 atrack,
@@ -2432,11 +2444,12 @@ class MusesOmiObservation(MusesObservationReflectance):
                 )
             ),
         }
-        dstruct = mpy.utc_from_string(utc_time)
+        t = re.sub(r"\.\d+", "", utc_time)
+        dtime = datetime.strptime(t, "%Y-%m-%dT%H:%M:%SZ")
         # We double the NESR for OMI from 2010 onward. Not sure of the
         # history of this, but this is in the muses-py code so we
         # duplicate this here.
-        if dstruct["utctime"].year >= 2010:
+        if dtime.year >= 2010:
             o_omi["Earth_Radiance"]["EarthRadianceNESR"][
                 o_omi["Earth_Radiance"]["EarthRadianceNESR"] > 0
             ] *= 2

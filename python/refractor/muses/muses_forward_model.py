@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import mpy_my_total, mpy_fm_oss_stack, mpy_tropomi_fm, mpy_omi_fm
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
@@ -108,7 +108,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
         with osswrapper(self.rf_uip.uip):
-            rad, jac = mpy.fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
+            rad, jac = mpy_fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
         # This is for the full set of frequences that fm_oss_stack works with
         # (which of course includes bad samples)
         gmask = self.bad_sample_mask(sensor_index) != True
@@ -434,7 +434,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             & (frequency <= self.irk_average_freq_range[1])
         )[0]
 
-        irk_array = 1e4 * np.pi * mpy.my_total(jacWeighted[:, indf], 1)
+        irk_array = 1e4 * np.pi * mpy_my_total(jacWeighted[:, indf], 1)
 
         minn, maxx = self.flux_freq_range
 
@@ -449,7 +449,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             if (
                 len(ind) > 1
             ):  # We only calculate irk_segs and freq_segs if there are more than 1 values in ind vector.
-                irk_segs[:, ii] = 1e4 * np.pi * mpy.my_total(jacWeighted[:, ind], 1)
+                irk_segs[:, ii] = 1e4 * np.pi * mpy_my_total(jacWeighted[:, ind], 1)
                 freq_segs[ii] = np.mean(frequency[ind])
         # end for ii in range(nf):
 
@@ -618,11 +618,11 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
             vlidort_nstreams=self.vlidort_nstreams,
         ):
             if self.instrument_name == InstrumentIdentifier("TROPOMI"):
-                jac, rad, _, success_flag = mpy.tropomi_fm(
+                jac, rad, _, success_flag = mpy_tropomi_fm(
                     self.rf_uip.uip_all(self.instrument_name)
                 )
             elif self.instrument_name == InstrumentIdentifier("OMI"):
-                jac, rad, _, success_flag = mpy.omi_fm(
+                jac, rad, _, success_flag = mpy_omi_fm(
                     self.rf_uip.uip_all(self.instrument_name)
                 )
             else:

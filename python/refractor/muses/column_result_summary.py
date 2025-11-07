@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import mpy_WhereEqualIndices, mpy_column, mpy_get_diagonal
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
@@ -17,7 +17,6 @@ class ColumnResultSummary:
         self, current_state: CurrentState, error_analysis: ErrorAnalysis
     ) -> None:
         self.current_state = current_state
-        utilList = mpy.UtilList()
         stateInfo = FakeStateInfo(current_state)
         retrievalInfo = FakeRetrievalInfo(current_state)
 
@@ -135,11 +134,11 @@ class ColumnResultSummary:
                         linear = 1
 
                     indSpecie = loc
-                    indH2O = utilList.WhereEqualIndices(stateInfo.species, "H2O")[0]
-                    indTATM = utilList.WhereEqualIndices(stateInfo.species, "TATM")[0]
+                    indH2O = mpy_WhereEqualIndices(stateInfo.species, "H2O")[0]
+                    indTATM = mpy_WhereEqualIndices(stateInfo.species, "TATM")[0]
 
                     # AT_LINE 357 Write_Retrieval_Summary.pro
-                    x = mpy.column(
+                    x = mpy_column(
                         stateInfo.constraint["values"][indSpecie, :],
                         stateInfo.constraint["pressure"],
                         stateInfo.constraint["values"][indTATM, :],
@@ -155,7 +154,7 @@ class ColumnResultSummary:
                     self._columnPrior[ij, indcol] = x["column"]
 
                     # AT_LINE 368 Write_Retrieval_Summary.pro
-                    x = mpy.column(
+                    x = mpy_column(
                         stateInfo.initial["values"][indSpecie, :],
                         stateInfo.initial["pressure"],
                         stateInfo.initial["values"][indTATM, :],
@@ -171,7 +170,7 @@ class ColumnResultSummary:
                     self._columnInitial[ij, indcol] = x["column"]
 
                     # AT_LINE 379 Write_Retrieval_Summary.pro
-                    x = mpy.column(
+                    x = mpy_column(
                         stateInfo.initialInitial["values"][indSpecie, :],
                         stateInfo.initialInitial["pressure"],
                         stateInfo.initialInitial["values"][indTATM, :],
@@ -187,7 +186,7 @@ class ColumnResultSummary:
                     self._columnInitialInitial[ij, indcol] = x["column"]
 
                     # AT_LINE 390 Write_Retrieval_Summary.pro
-                    x = mpy.column(
+                    x = mpy_column(
                         stateInfo.current["values"][indSpecie, :],
                         stateInfo.current["pressure"],
                         stateInfo.current["values"][indTATM, :],
@@ -204,7 +203,7 @@ class ColumnResultSummary:
 
                     # AT_LINE 400 Write_Retrieval_Summary.pro
                     # air column
-                    x = mpy.column(
+                    x = mpy_column(
                         stateInfo.current["values"][indSpecie, :] * 0 + 1,
                         stateInfo.current["pressure"],
                         stateInfo.current["values"][indTATM, :],
@@ -232,7 +231,7 @@ class ColumnResultSummary:
                     # true values
                     # only for synthetic data
                     if have_true:
-                        x = mpy.column(
+                        x = mpy_column(
                             stateInfo.true["values"][indSpecie, :],
                             stateInfo.true["pressure"],
                             stateInfo.true["values"][indTATM, :],
@@ -300,12 +299,8 @@ class ColumnResultSummary:
                     # end if species_name == 'O3' and my_type == 'Column':
 
                     if my_type == "Column" and species_name == "H2O":
-                        ind4 = utilList.WhereEqualIndices(
-                            retrievalInfo.speciesListFM, "H2O"
-                        )
-                        ind5 = utilList.WhereEqualIndices(
-                            retrievalInfo.speciesListFM, "HDO"
-                        )
+                        ind4 = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, "H2O")
+                        ind5 = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, "HDO")
 
                         if len(ind4) > 0 and len(ind5) > 0:
                             # in H2O/HDO step, check H2O column - H2O column from O3 step / error
@@ -325,12 +320,12 @@ class ColumnResultSummary:
                     # was a level at 100 hPa, only half of the AK at 100 hPa would be
                     # included because only half of the above described layer is inclu
 
-                    ispecie = utilList.WhereEqualIndices(
+                    ispecie = mpy_WhereEqualIndices(
                         retrievalInfo.species, species_name
                     )[0]
                     ind1FM = retrievalInfo.parameterStartFM[ispecie]
                     ind2FM = retrievalInfo.parameterEndFM[ispecie]
-                    ak = mpy.get_diagonal(error_analysis.A)
+                    ak = mpy_get_diagonal(error_analysis.A)
                     ak = ak[ind1FM : ind2FM + 1]
                     na = len(ak)
 

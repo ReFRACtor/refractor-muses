@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .mpy import mpy_levmar_nllsq_elanor
 from .cost_function import CostFunction
 import numpy as np
 from .replace_function_helper import register_replacement_function_in_block
@@ -147,8 +148,6 @@ class MusesLevmarSolver:
     def solve(self) -> None:
         # py-retrieve expects the directory to already be there, so create if
         # needed.
-        from . import muses_py as mpy  # type: ignore
-
         if self.log_file is not None:
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
         with register_replacement_function_in_block("update_uip", self.cfunc):
@@ -169,7 +168,7 @@ class MusesLevmarSolver:
                     self.iter_num,
                     self.stop_code,
                     self.success_flag,
-                ) = mpy.levmar_nllsq_elanor(
+                ) = mpy_levmar_nllsq_elanor(
                     self.cfunc.parameters,
                     None,
                     None,

@@ -1,5 +1,10 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import (
+    mpy_get_vector,
+    mpy_my_total,
+    mpy_GetUniqueValues,
+    mpy_WhereEqualIndices,
+)
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .refractor_uip import AttrDictAdapter
@@ -122,7 +127,7 @@ class ErrorAnalysis:
             ind1FM = retrieval.parameterStartFM[ispecie]
             ind2FM = retrieval.parameterEndFM[ispecie]
 
-            ret_vector[ind1FM : ind2FM + 1] = mpy.get_vector(
+            ret_vector[ind1FM : ind2FM + 1] = mpy_get_vector(
                 retrieval_result.resultsList,
                 retrieval,
                 species_name,
@@ -131,7 +136,7 @@ class ErrorAnalysis:
                 TRUE_Flag,
                 CONSTRAINT_Flag,
             )
-            con_vector[ind1FM : ind2FM + 1] = mpy.get_vector(
+            con_vector[ind1FM : ind2FM + 1] = mpy_get_vector(
                 retrieval.constraintVector,
                 retrieval,
                 species_name,
@@ -262,7 +267,7 @@ class ErrorAnalysis:
             indMe0 = np.where(species_list_fs == species)[0]
 
             if len(indMe0) > 1:
-                ss = mpy.my_total(abs(Sa[indMe0, :]), 0)
+                ss = mpy_my_total(abs(Sa[indMe0, :]), 0)
                 indMe = np.where(ss > 0)[0]
                 indYou = np.where(ss == 0)[0]
             else:
@@ -448,8 +453,7 @@ class ErrorAnalysis:
             self._KDotDL_species.append(retrieval.speciesList[m1])
             self._KDotDL_byspecies[ii] = np.amax(np.abs(self._KDotDL_list[m1 : m2 + 1]))
 
-        utilList = mpy.UtilList()
-        unique_filters = utilList.GetUniqueValues(retrieval_result.filter_list)
+        unique_filters = mpy_GetUniqueValues(retrieval_result.filter_list)
         self._LDotDL_byfilter = np.zeros((len(unique_filters),))
         for ii in range(len(unique_filters)):
             start = retrieval_result.filterStart[ii]
@@ -537,7 +541,7 @@ class ErrorAnalysis:
             for jj in range(len(actualDataResidual)):
                 GdL[jj, :] = G_matrix[jj, :] * actualDataResidual[jj]
         self._GdL = GdL
-        ind = utilList.WhereEqualIndices(retrieval.speciesListFM, "CH4")
+        ind = mpy_WhereEqualIndices(retrieval.speciesListFM, "CH4")
 
         # Eventhough we are not doing special processing, we will still need to calculate the self._ch4_evs field.
         # Also, only calculate the self._ch4_evs field. if 'CH4' is in retrieval.speciesListFM.
