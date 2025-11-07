@@ -1,8 +1,10 @@
 from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
+from fixtures.require_check import require_muses_py
 import pytest
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_muses_strategy_old(joint_omi_step_8):
     rs, rsetp, kwargs = joint_omi_step_8
     stable = MusesStrategyOldStrategyTable(

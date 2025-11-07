@@ -12,6 +12,7 @@ from refractor.muses import (
 )
 from refractor.old_py_retrieve_wrapper import StateInfoOld, CurrentStateStateInfoOld
 import refractor.muses.muses_py as mpy
+from fixtures.require_check import require_muses_py
 import pprint
 import pytest
 import os
@@ -19,6 +20,7 @@ import numpy.testing as npt
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_refractor_omi_uip(omi_uip_step_2):
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
@@ -40,6 +42,7 @@ def test_refractor_omi_uip(omi_uip_step_2):
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_refractor_tropomi_uip(tropomi_uip_step_2):
     # We just want to make sure we can access everything, so just call
     # each of the functions and print the results out
@@ -63,6 +66,7 @@ def test_refractor_tropomi_uip(tropomi_uip_step_2):
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_species_basis(tropomi_uip_step_2):
     npt.assert_allclose(
         tropomi_uip_step_2.species_basis_matrix("O3"),
@@ -71,6 +75,7 @@ def test_species_basis(tropomi_uip_step_2):
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_refractor_joint_tropomi_create_uip(
     joint_tropomi_muses_retrieval_step_12, joint_tropomi_uip_step_12, osp_dir
 ):
@@ -141,6 +146,7 @@ def test_refractor_joint_tropomi_create_uip(
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_refractor_tropomi_create_uip(
     tropomi_muses_retrieval_step_2, tropomi_uip_step_2, osp_dir
 ):
@@ -208,6 +214,7 @@ def test_refractor_tropomi_create_uip(
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_refractor_joint_omi_create_uip(
     joint_omi_muses_retrieval_step_8, joint_omi_uip_step_8, osp_dir
 ):
@@ -278,6 +285,7 @@ def test_refractor_joint_omi_create_uip(
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_refractor_omi_create_uip(omi_muses_retrieval_step_2, omi_uip_step_2, osp_dir):
     rstep = omi_muses_retrieval_step_2
     os.chdir(rstep.run_retrieval_path)

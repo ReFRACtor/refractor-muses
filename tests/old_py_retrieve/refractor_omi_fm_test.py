@@ -7,6 +7,7 @@ from refractor.old_py_retrieve_wrapper import (
     RefractorOmiFm,
     RefractorTropOrOmiFmPyRetrieve,
 )
+from fixtures.require_check import require_muses_py
 import pytest
 
 # ============================================================================
@@ -23,6 +24,7 @@ import pytest
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_muses_py(
     isolated_dir, step_number, osp_dir, gmao_dir, omi_test_in_dir
@@ -77,6 +79,7 @@ def test_refractor_fm_muses_py(
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_refractor(
     isolated_dir,
@@ -138,6 +141,7 @@ def test_refractor_fm_refractor(
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_refractor_detailed_fm_refractor(
     isolated_dir, osp_dir, gmao_dir, omi_obs_step_2, omi_test_in_dir
 ):

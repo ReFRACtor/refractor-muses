@@ -20,11 +20,13 @@ from fixtures.residual_fm import (
     joint_omi_residual_fm_jac,
     joint_tropomi_residual_fm_jac,
 )
+from fixtures.require_check import require_muses_py
 import pytest
 import numpy as np
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
     """This compares MusesAirsObservation against the old py-retrieve code.
     We don't actually use the old py-retrieve code anymore.
@@ -86,6 +88,7 @@ def test_muses_airs_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_muses_tropomi_observation(
     isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir
 ):
@@ -191,6 +194,7 @@ def test_muses_tropomi_observation(
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_muses_omi_observation(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
     """This compares MusesOmiObservation against the old py-retrieve code.
     We don't actually use the old py-retrieve code anymore.

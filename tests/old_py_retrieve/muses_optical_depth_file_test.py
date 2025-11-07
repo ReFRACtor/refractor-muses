@@ -3,6 +3,7 @@ import numpy.testing as npt
 from refractor.muses import MusesOpticalDepth
 from refractor.old_py_retrieve_wrapper import MusesOpticalDepthFile
 import refractor.framework as rf
+from fixtures.require_check import require_muses_py
 import pytest
 
 
@@ -33,6 +34,7 @@ class AbsorberVmrToUip(rf.CacheInvalidatedObserver):
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1, osp_dir):
     obj_creator = tropomi_fm_object_creator_step_1
     # Don't look at temperature jacobian right now, it doesn't actually

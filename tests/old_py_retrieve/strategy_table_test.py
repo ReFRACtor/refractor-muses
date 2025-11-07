@@ -11,6 +11,7 @@ from refractor.old_py_retrieve_wrapper import (
 )
 import subprocess
 import numpy as np
+from fixtures.require_check import require_muses_py
 import pytest
 
 # Add a extra state element, just so we can make sure our StrategyTable functions
@@ -142,6 +143,7 @@ class EofStateElement(RetrievableStateElementOld):
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_strategy_table(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
     r = MusesRunDir(omi_test_in_dir, osp_dir, gmao_dir)
     # Modify the Table.asc to add a EOF element. This is just a short cut,

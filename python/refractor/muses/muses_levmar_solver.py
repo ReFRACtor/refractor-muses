@@ -2,7 +2,6 @@ from __future__ import annotations
 from .cost_function import CostFunction
 import numpy as np
 from .replace_function_helper import register_replacement_function_in_block
-from . import fake_muses_py as mpy  # type: ignore
 import os
 from pathlib import Path
 from typing import Any
@@ -148,6 +147,8 @@ class MusesLevmarSolver:
     def solve(self) -> None:
         # py-retrieve expects the directory to already be there, so create if
         # needed.
+        from . import muses_py as mpy  # type: ignore
+        
         if self.log_file is not None:
             self.log_file.parent.mkdir(parents=True, exist_ok=True)
         with register_replacement_function_in_block("update_uip", self.cfunc):

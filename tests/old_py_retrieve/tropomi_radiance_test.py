@@ -8,10 +8,12 @@ import refractor.framework as rf
 import pandas as pd
 import pickle
 import pytest
+from fixtures.require_check import require_muses_py
 from pathlib import Path
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_tropomi_radiance(tropomi_uip_step_2):
     # The initial shift for everything is 0. Change to something so we can test that
     # this actually gets used.
@@ -82,6 +84,7 @@ def test_tropomi_radiance(tropomi_uip_step_2):
 
 
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_bad_sample_tropomi_radiance(tropomi_uip_step_2):
     """Test bad sample handling in TropomiRadiance."""
     # Add some fake bad data

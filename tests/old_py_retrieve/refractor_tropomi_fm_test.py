@@ -8,6 +8,7 @@ from refractor.old_py_retrieve_wrapper import (
     RefractorTropOrOmiFmPyRetrieve,
 )
 from refractor.tropomi import TropomiFmObjectCreator
+from fixtures.require_check import require_muses_py
 import pytest
 
 
@@ -25,6 +26,7 @@ import pytest
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_muses_py(
     isolated_dir, step_number, osp_dir, gmao_dir, tropomi_test_in_dir
@@ -79,6 +81,7 @@ def test_refractor_fm_muses_py(
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 @pytest.mark.parametrize(
     "step_number",
     [
@@ -148,6 +151,7 @@ def test_refractor_joint_fm_muses_py(
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 @pytest.mark.parametrize("step_number", [1, 2])
 def test_refractor_fm_refractor(
     isolated_dir,
@@ -215,6 +219,7 @@ def test_refractor_fm_refractor(
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 @pytest.mark.parametrize(
     "step_number",
     [
@@ -324,6 +329,7 @@ def test_refractor_joint_fm_refractor(
 
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 def test_refractor_detailed_fm_refractor(
     isolated_dir,
     osp_dir,
@@ -517,6 +523,7 @@ def test_refractor_detailed_fm_refractor(
 # doesn't change a lot.
 @pytest.mark.skip
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 @pytest.mark.parametrize("index", list(range(34)))
 @pytest.mark.parametrize("do_refractor", [True, False])
 def test_jac_fd(
@@ -646,6 +653,7 @@ def test_jac_fd(
 # so just skip for now
 @pytest.mark.skip
 @pytest.mark.old_py_retrieve_test
+@require_muses_py
 @pytest.mark.parametrize("index", list(range(32)))
 @pytest.mark.parametrize("do_refractor", [True, False])
 def test_jac_joint_fd(
