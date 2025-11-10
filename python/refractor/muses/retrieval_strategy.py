@@ -21,6 +21,7 @@ from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
 from .identifier import ProcessLocation, StateElementIdentifier
+from .mpy import mpy_register_replacement_function
 from loguru import logger
 import os
 import pickle
@@ -173,9 +174,7 @@ class RetrievalStrategy:
 
     def register_with_muses_py(self) -> None:
         """Register run_ms as a replacement for script_retrieval_ms"""
-        from . import muses_py as mpy  # type: ignore
-
-        mpy.register_replacement_function("script_retrieval_ms", self)
+        mpy_register_replacement_function("script_retrieval_ms", self)
 
     def should_replace_function(self, func_name: str, parms: list[Any]) -> bool:
         return True

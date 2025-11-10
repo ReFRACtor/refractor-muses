@@ -1,6 +1,16 @@
 from __future__ import annotations
 from loguru import logger
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import (
+    mpy_tai,
+    mpy_cdf_var_add_strings,
+    mpy_cdf_var_attributes,
+    mpy_cdf_var_names,
+    mpy_GetUniqueValues,
+    mpy_GetColumnFromList,
+    mpy_cdf_var_map,
+    mpy_cdf_write,
+    mpy_make_one_lite,
+)
 from .identifier import (
     RetrievalType,
     ProcessLocation,
@@ -709,7 +719,7 @@ class CdfWriteTes:
         dataOut["GRID_PRESSURE_FM"] = grid_pressure_FM
 
         # form new time called YYYYMMDD.fractionofday
-        ymd = mpy.tai(dataOut["TIME"])
+        ymd = mpy_tai(dataOut["TIME"])
         yyear = ymd["year"]
         ymonth = ymd["month"]
         yday = ymd["day"]
@@ -725,7 +735,7 @@ class CdfWriteTes:
             dims["size2"] = 2
             dims["size3"] = 3
 
-        (dataNew, dims) = mpy.cdf_var_add_strings(dataOut, dims)
+        (dataNew, dims) = mpy_cdf_var_add_strings(dataOut, dims)
         dataOut = dataNew
 
         # ===============================
@@ -763,7 +773,7 @@ class CdfWriteTes:
             "MisingValue": -999.00,
         }
 
-        mpy.cdf_var_attributes["SPECIES_attr"] = SPECIES_attr
+        mpy_cdf_var_attributes["SPECIES_attr"] = SPECIES_attr
 
         SPECIES_FM_attr = {
             "Longname": tracer_species + " volume mixing ratio",
@@ -772,7 +782,7 @@ class CdfWriteTes:
             "MisingValue": -999.00,
         }
 
-        mpy.cdf_var_attributes["SPECIES_FM_attr"] = SPECIES_FM_attr
+        mpy_cdf_var_attributes["SPECIES_FM_attr"] = SPECIES_FM_attr
 
         # ===============================
         # Link attributes to their respective variables
@@ -783,20 +793,19 @@ class CdfWriteTes:
         # AT_LINE 758 TOOLS/cdf_write_tes.pro
         dict_of_variables_and_their_attributes = {}
 
-        groupvarnames = mpy.cdf_var_names()
+        groupvarnames = mpy_cdf_var_names()
 
-        utilList = mpy.UtilList()
-        names = utilList.GetColumnFromList(groupvarnames, 1)
-        names = utilList.GetUniqueValues(names)
+        names = mpy_GetColumnFromList(groupvarnames, 1)
+        names = mpy_GetUniqueValues(names)
         names = [x.upper() for x in names]
 
         for ii in range(0, len(names)):
             tag_name = names[ii]
             if tag_name in dataOut:
                 attr_name = names[ii] + "_attr"
-                if attr_name in mpy.cdf_var_attributes:
+                if attr_name in mpy_cdf_var_attributes:
                     dict_of_variables_and_their_attributes[tag_name] = (
-                        mpy.cdf_var_attributes[attr_name]
+                        mpy_cdf_var_attributes[attr_name]
                     )
                 else:
                     logger.info("Using generic attribute spec for " + attr_name + ".")
@@ -861,7 +870,7 @@ class CdfWriteTes:
         # PYTHON_NOTE: We create a dictionary of each possible variables in their exact cases for when they are written to NetCDF file.
         # The variable name will have an uppercase and lowercase mixed.
         # If a name is not found in exact_cased_variable_names, it will be written as is.
-        exact_cased_variable_names = mpy.cdf_var_map()
+        exact_cased_variable_names = mpy_cdf_var_map()
 
         for ii in range(len(structKeys)):
             tag_name = structKeys[ii]
@@ -899,7 +908,7 @@ class CdfWriteTes:
         # Note that for this call to cdf_write:
         #   1.  We pass in dims which is a list containing all dimension names and their sizes.
         #   2.  We also pass in a dictionary containing the exact variable names.
-        mpy.cdf_write(
+        mpy_cdf_write(
             structIn,
             filenameOut,
             structUnits,
@@ -942,11 +951,11 @@ class CdfWriteTes:
             1040.0,
         ]
 
-        starttai = mpy.tai(
+        starttai = mpy_tai(
             {"year": 2003, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},
             True,
         )
-        endtai = mpy.tai(
+        endtai = mpy_tai(
             {"year": 2103, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},
             True,
         )
@@ -974,7 +983,7 @@ class CdfWriteTes:
         useData = True
         dataAnc = copy.deepcopy(data1)
         qualityFilename = None  # Passed down in py-retrieve, but not actually used
-        (data, data2, pressuresMax) = mpy.make_one_lite(
+        (data, data2, pressuresMax) = mpy_make_one_lite(
             species_name,
             runs,
             starttai,

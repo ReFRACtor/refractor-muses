@@ -1,5 +1,26 @@
 from __future__ import annotations
-from . import muses_py as mpy  # type: ignore
+from .mpy import (
+    have_muses_py,
+    mpy_update_uip,
+    mpy_script_retrieval_ms,
+    mpy_get_omi_radiance,
+    mpy_get_tropomi_radiance,
+    mpy_atmosphere_level,
+    mpy_raylayer_nadir,
+    mpy_pressure_sigma,
+    mpy_oco2_get_wavelength,
+    mpy_nir_match_wavelength_edges,
+    mpy_make_uip_master,
+    mpy_make_uip_airs,
+    mpy_make_uip_cris,
+    mpy_make_uip_tes,
+    mpy_make_uip_omi,
+    mpy_make_uip_tropomi,
+    mpy_make_uip_oco2,
+    mpy_make_maps,
+    mpy_struct_combine,
+)
+
 from .replace_function_helper import register_replacement_function_in_block
 from .refractor_capture_directory import RefractorCaptureDirectory, muses_py_call
 from .osswrapper import osswrapper
@@ -23,7 +44,7 @@ if typing.TYPE_CHECKING:
     from .fake_state_info import FakeStateInfo
     from .fake_retrieval_info import FakeRetrievalInfo
 
-if mpy.have_muses_py:
+if have_muses_py:
 
     class _FakeUipExecption(Exception):
         def __init__(
@@ -36,7 +57,7 @@ if mpy.have_muses_py:
             self.ret_info = ret_info
             self.retrieval_vec = retrieval_vec
 
-    class _CaptureUip(mpy.ReplaceFunctionObject):
+    class _CaptureUip:
         """Note a complication. For CrIS-TROPOMI we have some steps that
         don't actually call levmar_nllsq_elanor. So we get the registered
         twice, once to run_retrieval and once to levmar_nllsq_elanor. We then
@@ -63,7 +84,7 @@ if mpy.have_muses_py:
             o_x_vector = parms["xInit"]
             uip = parms["uip"]
             ret_info = parms["ret_info"]
-            (uip, o_x_vector) = mpy.update_uip(uip, ret_info, o_x_vector)
+            (uip, o_x_vector) = mpy_update_uip(uip, ret_info, o_x_vector)
             raise _FakeUipExecption(uip, ret_info, o_x_vector)
 
 
@@ -258,7 +279,7 @@ class RefractorUip:
         # uip_all
         if "jacobians" in self.uip:
             return self.uip
-        return mpy.struct_combine(self.uip, self.uip[f"uip_{instrument_name}"])
+        return mpy_struct_combine(self.uip, self.uip[f"uip_{instrument_name}"])
 
     @property
     def run_dir(self) -> Path:
@@ -345,11 +366,11 @@ class RefractorUip:
                         # this if needed, but I think this is a good idea
                         if suppress_noisy_output:
                             with _all_output_disabled():
-                                mpy.script_retrieval_ms(
+                                mpy_script_retrieval_ms(
                                     os.path.basename(strategy_table)
                                 )
                         else:
-                            mpy.script_retrieval_ms(os.path.basename(strategy_table))
+                            mpy_script_retrieval_ms(os.path.basename(strategy_table))
             except _FakeUipExecption as e:
                 res = cls(uip=e.uip, basis_matrix=e.ret_info["basis_matrix"])
         if capture_directory:
@@ -495,7 +516,7 @@ class RefractorUip:
         plev = self.atmosphere_column("pressure")
         # +1 here is because make_maps is expecting 1 based levels rather
         # the 0 based we return from species_retrieval_level_subset.
-        return mpy.make_maps(
+        return mpy_make_maps(
             plev, self.species_retrieval_level_subset(species_name) + 1
         )["toState"]
 
@@ -619,9 +640,9 @@ class RefractorUip:
         sensor index.
         """
         if str(instrument_name) == "OMI":
-            rad = mpy.get_omi_radiance(self.omi_params)
+            rad = mpy_get_omi_radiance(self.omi_params)
         elif str(instrument_name) == "TROPOMI":
-            rad = mpy.get_tropomi_radiance(self.tropomi_params)
+            rad = mpy_get_tropomi_radiance(self.tropomi_params)
         else:
             raise RuntimeError(f"Invalid instrument_name {instrument_name}")
         if not full_freq:
@@ -669,7 +690,7 @@ class RefractorUip:
         # is a copy of uip, so no need to set this back.
         if set_pointing_angle_zero:
             uall["obs_table"]["pointing_angle"] = 0.0
-        return mpy.atmosphere_level(uall)
+        return mpy_atmosphere_level(uall)
 
     def ray_info(
         self,
@@ -685,8 +706,8 @@ class RefractorUip:
             uall["obs_table"]["pointing_angle"] = 0.0
         if set_cloud_extinction_one:
             uall["cloud"]["extinction"][:] = 1.0
-        return mpy.raylayer_nadir(
-            AttrDictAdapter(uall), AttrDictAdapter(mpy.atmosphere_level(uall))
+        return mpy_raylayer_nadir(
+            AttrDictAdapter(uall), AttrDictAdapter(mpy_atmosphere_level(uall))
         )
 
     @property
@@ -1215,7 +1236,7 @@ class RefractorUip:
             elif "PSUR" == specie:
                 #  Susan Kulawik, 12/2021
                 o_uip.atmosphere[0, 0] = fm_vec[ind_fm]
-                o_uip.atmosphere[0, :] = mpy.pressure_sigma(
+                o_uip.atmosphere[0, :] = mpy_pressure_sigma(
                     o_uip.atmosphere[0, 0], len(o_uip.atmosphere[0, :]), "surface"
                 )
             elif "EMIS" == specie:
@@ -1483,7 +1504,7 @@ class RefractorUip:
 
                 # dispersion applies to OBSERVED wavelength
                 # therefore update OBSERVED wavelength in UIP
-                ff = mpy.oco2_get_wavelength(
+                ff = mpy_oco2_get_wavelength(
                     o_uip.nirPars["disp"], o_uip.uip_OCO2["sample_indexes"]
                 )
                 o_uip.uip_OCO2["wavelength"] = ff
@@ -1495,7 +1516,7 @@ class RefractorUip:
                 # ENDIF
 
                 # match wavelength edges
-                o_uip.nirPars["albplwave"] = mpy.nir_match_wavelength_edges(
+                o_uip.nirPars["albplwave"] = mpy_nir_match_wavelength_edges(
                     o_uip.uip_OCO2["wavelength"], o_uip.nirPars["albplwave"]
                 )
 
@@ -1723,7 +1744,7 @@ class RefractorUip:
             ).value
             # TODO Not sure what the OCO-2 equivalent is here, we'll leave that off
 
-        uip = mpy.make_uip_master(
+        uip = mpy_make_uip_master(
             i_state,
             i_state.current,
             i_table,
@@ -1807,7 +1828,7 @@ class RefractorUip:
             if i_airs is None:
                 raise RuntimeError("Need to supply i_airs")
             if jacobian_speciesIn is None:
-                uip["uip_AIRS"] = mpy.make_uip_airs(
+                uip["uip_AIRS"] = mpy_make_uip_airs(
                     i_state,
                     i_state.current,
                     i_table,
@@ -1819,7 +1840,7 @@ class RefractorUip:
                     i_modifyCloudFreq=True,
                 )
             else:
-                uip["uip_AIRS"] = mpy.make_uip_airs(
+                uip["uip_AIRS"] = mpy_make_uip_airs(
                     i_state,
                     i_state.current,
                     i_table,
@@ -1841,7 +1862,7 @@ class RefractorUip:
             if i_cris is None:
                 raise RuntimeError("Need to supply i_cris")
             if jacobian_speciesIn is None:
-                uip["uip_CRIS"] = mpy.make_uip_cris(
+                uip["uip_CRIS"] = mpy_make_uip_cris(
                     i_state,
                     i_state.current,
                     i_table,
@@ -1852,7 +1873,7 @@ class RefractorUip:
                     i_modifyCloudFreq=True,
                 )
             else:
-                uip["uip_CRIS"] = mpy.make_uip_cris(
+                uip["uip_CRIS"] = mpy_make_uip_cris(
                     i_state,
                     i_state.current,
                     i_table,
@@ -1866,7 +1887,7 @@ class RefractorUip:
         if "TES" in inst_to_window:
             if i_tes is None:
                 raise RuntimeError("Need to supply i_tes")
-            uip["uip_TES"] = mpy.make_uip_tes(
+            uip["uip_TES"] = mpy_make_uip_tes(
                 i_state,
                 i_state.current,
                 i_table,
@@ -1876,7 +1897,7 @@ class RefractorUip:
                 uip["jacobians_all"],
             )
         if "OMI" in inst_to_window:
-            uip["uip_OMI"] = mpy.make_uip_omi(
+            uip["uip_OMI"] = mpy_make_uip_omi(
                 i_state,
                 i_state.current,
                 i_table,
@@ -1886,7 +1907,7 @@ class RefractorUip:
                 i_omi,
             )
         if "TROPOMI" in inst_to_window:
-            uip["uip_TROPOMI"] = mpy.make_uip_tropomi(
+            uip["uip_TROPOMI"] = mpy_make_uip_tropomi(
                 i_state,
                 i_state.current,
                 i_table,
@@ -1901,7 +1922,7 @@ class RefractorUip:
                 raise RuntimeError(
                     "Don't currently support setting the pointing_angle for OCO-2, we just need to update the code to do that if needed."
                 )
-            uip["uip_OCO2"] = mpy.make_uip_oco2(
+            uip["uip_OCO2"] = mpy_make_uip_oco2(
                 i_state,
                 i_state.current,
                 i_table,

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import mpy_make_maps
 import refractor.framework as rf  # type: ignore
 import numpy as np
 
@@ -150,7 +150,7 @@ def _from_x_subset(
     You can select x interpolation by passing log_interp as False."""
     # Temp
     lv = ind + 1
-    t = mpy.make_maps(x, lv, i_linearFlag=(not log_interp))
+    t = mpy_make_maps(x, lv, i_linearFlag=(not log_interp))
     return rf.StateMappingBasisMatrix(t["toState"].transpose(), t["toPars"].transpose())
 
 
@@ -169,7 +169,7 @@ def _from_x_subset_exclude_gap(
     far from where we are actually retrieving we are better just leaving the
     data as is rather than interpolating through where we are far from the points"""
     lv = ind + 1
-    t = mpy.make_maps(x, lv, i_linearFlag=(not log_interp))
+    t = mpy_make_maps(x, lv, i_linearFlag=(not log_interp))
     x_ret = x[ind]
     m = t["toState"]
     ind = np.searchsorted(x_ret, x)

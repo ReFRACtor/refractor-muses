@@ -1,6 +1,11 @@
 from __future__ import annotations
 from loguru import logger
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import (
+    mpy_get_diagonal,
+    mpy_GetUniqueValues,
+    mpy_WhereEqualIndices,
+    mpy_compute_cloud_factor,
+)
 import refractor.framework as rf  # type: ignore
 import os
 import copy
@@ -673,8 +678,7 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.PRESSURE[pslice] = self.state_value_vec("pressure")
         species_data.CLOUDTOPPRESSURE = self.state_value("PCLOUD")
 
-        utilList = mpy.UtilList()
-        indx = utilList.WhereEqualIndices(self.species_list_fm, "PCLOUD")
+        indx = mpy_WhereEqualIndices(self.species_list_fm, "PCLOUD")
         if len(indx) > 0:
             indx = indx[0]
             species_data.CLOUDTOPPRESSUREDOF = np.float32(self.results.A[indx, indx])
@@ -699,9 +703,9 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 300 write_products_one.pro
         species_data.SURFACETEMPERATURE = self.state_value("TSUR")
-        unique_speciesListFM = utilList.GetUniqueValues(self.species_list_fm)
+        unique_speciesListFM = mpy_GetUniqueValues(self.species_list_fm)
 
-        indx = utilList.WhereEqualIndices(unique_speciesListFM, "TSUR")
+        indx = mpy_WhereEqualIndices(unique_speciesListFM, "TSUR")
         if len(indx) > 0:
             indx = indx[0]
 
@@ -741,10 +745,10 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 342 write_products_one.pro
         species_data.DOFS = np.float32(
-            np.sum(mpy.get_diagonal(self.results.A[ind1FM:ind2FM, ind1FM:ind2FM]))
+            np.sum(mpy_get_diagonal(self.results.A[ind1FM:ind2FM, ind1FM:ind2FM]))
         )
         species_data.PRECISION[pslice] = np.sqrt(
-            mpy.get_diagonal(self.results.Sx_rand[ind1FM:ind2FM, ind1FM:ind2FM])
+            mpy_get_diagonal(self.results.Sx_rand[ind1FM:ind2FM, ind1FM:ind2FM])
         )
 
         # Build a 3D array so we can use it to access the below assignments.
@@ -784,11 +788,11 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.PRIORCOVARIANCE[pslice, pslice] = self.results.Sa[
             ind1FM:ind2FM, ind1FM:ind2FM
         ]
-        species_data.AVERAGINGKERNELDIAGONAL[pslice] = mpy.get_diagonal(
+        species_data.AVERAGINGKERNELDIAGONAL[pslice] = mpy_get_diagonal(
             self.results.A[ind1FM:ind2FM, ind1FM:ind2FM]
         )  ## utilGeneral.ManualArraySets(species_data.AVERAGINGKERNELDIAGONAL, get_diagonal(self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]), indConv, rhs_start_index=0)
         species_data.TOTALERROR[pslice] = np.sqrt(
-            mpy.get_diagonal(self.results.Sx[ind1FM:ind2FM, ind1FM:ind2FM])
+            mpy_get_diagonal(self.results.Sx[ind1FM:ind2FM, ind1FM:ind2FM])
         )
 
         # AT_LINE 355 write_products_one.pro
@@ -825,7 +829,7 @@ class RetrievalL2Output(RetrievalOutput):
             ]
 
             # AT_LINE 365 src_ms-2018-12-10/write_products_one.pro
-            factor = mpy.compute_cloud_factor(
+            factor = mpy_compute_cloud_factor(
                 self.state_value_vec("pressure"),
                 self.state_value_vec("TATM"),
                 self.state_value_vec("H2O"),
@@ -845,7 +849,7 @@ class RetrievalL2Output(RetrievalOutput):
                 self.state_value_vec("CLOUDEXT")[:] * convertToOD
             )
 
-            indf = utilList.WhereEqualIndices(self.species_list_fm, "CLOUDEXT")
+            indf = mpy_WhereEqualIndices(self.species_list_fm, "CLOUDEXT")
             if len(indf) > 0:
                 species_data.CLOUDEFFECTIVEOPTICALDEPTHERROR = (
                     self.results.errorFM[indf] * convertToOD
@@ -855,8 +859,8 @@ class RetrievalL2Output(RetrievalOutput):
         # add special fields for HDO
         # AT_LINE 383 src_ms-2018-12-10/write_products_one.pro
         if self.spcname == "HDO":
-            indfh = utilList.WhereEqualIndices(self.species_list_fm, "H2O")
-            indfd = utilList.WhereEqualIndices(self.species_list_fm, "HDO")
+            indfh = mpy_WhereEqualIndices(self.species_list_fm, "H2O")
+            indfd = mpy_WhereEqualIndices(self.species_list_fm, "HDO")
 
             indp = np.where(species_data.SPECIES > 0)[0]
 
@@ -951,12 +955,12 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.H2O_INITIAL[indp] = self.state_value_vec("H2O")
         # end if self.spcname == 'HDO':
 
-        ind = utilList.WhereEqualIndices(self.species_list_fm, "EMIS")
+        ind = mpy_WhereEqualIndices(self.species_list_fm, "EMIS")
         if len(ind) > 0:
             # Create an array of indices so we can access i_results.Sx matrix.
             array_2d_indices = np.ix_(ind, ind)  # (64, 64)
             species_data.EMISSIVITY_ERROR = np.sqrt(
-                mpy.get_diagonal(self.results.Sx[array_2d_indices])
+                mpy_get_diagonal(self.results.Sx[array_2d_indices])
             )
 
         if self.state_sd_wavelength("EMIS").shape[0] > 0:
@@ -1020,7 +1024,7 @@ class RetrievalL2Output(RetrievalOutput):
                 species_data.N2O_DOFS = 0.0
                 species_data.N2O_DOFS = np.float32(
                     np.sum(
-                        mpy.get_diagonal(
+                        mpy_get_diagonal(
                             self.results.A[ind1FMN2O:ind2FMN2O, ind1FMN2O:ind2FMN2O]
                         )
                     )

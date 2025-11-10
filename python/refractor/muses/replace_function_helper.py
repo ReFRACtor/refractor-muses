@@ -1,6 +1,6 @@
 from __future__ import annotations
 from contextlib import contextmanager
-from . import muses_py as mpy  # type: ignore
+from .mpy import mpy_register_replacement_function
 from typing import Generator
 
 
@@ -14,11 +14,11 @@ def register_replacement_function_in_block(
     there wasn't something already defined.
 
     """
-    old_f = mpy.register_replacement_function(func_name, obj)
+    old_f = mpy_register_replacement_function(func_name, obj)
     try:
         yield
     finally:
-        mpy.register_replacement_function(func_name, old_f)
+        mpy_register_replacement_function(func_name, old_f)
 
 
 @contextmanager
@@ -27,11 +27,11 @@ def suppress_replacement(func_name: str) -> Generator[None, None, None]:
     which just makes the intent clearer
 
     """
-    old_f = mpy.register_replacement_function(func_name, None)
+    old_f = mpy_register_replacement_function(func_name, None)
     try:
         yield
     finally:
-        mpy.register_replacement_function(func_name, old_f)
+        mpy_register_replacement_function(func_name, old_f)
 
 
 __all__ = ["register_replacement_function_in_block", "suppress_replacement"]

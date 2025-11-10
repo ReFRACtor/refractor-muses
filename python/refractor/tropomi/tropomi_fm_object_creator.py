@@ -9,8 +9,9 @@ from refractor.muses import (
     SurfaceAlbedo,
     InstrumentIdentifier,
     StateElementIdentifier,
+    mpy_get_tropomi_ils,
+    mpy_get_tropomi_ils_fastconv,
 )
-from refractor.muses import fake_muses_py as mpy
 import refractor.framework as rf  # type: ignore
 from loguru import logger
 import numpy as np
@@ -75,7 +76,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
         num_fwhm_srf = 4.0
         wn, sindex = self.observation.wn_and_sindex(sensor_index)
-        return mpy.get_tropomi_ils(
+        return mpy_get_tropomi_ils(
             str(self.osp_dir),
             self.observation.frequency_full(sensor_index),
             sindex,
@@ -105,7 +106,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
         startmw_fm = len(wn) + sum(mono_list_length[:sensor_index])
 
         sindex = np.arange(0, mono_list_length[sensor_index]) + startmw_fm
-        return mpy.get_tropomi_ils(
+        return mpy_get_tropomi_ils(
             str(self.osp_dir),
             wn_list,
             sindex,
@@ -138,7 +139,7 @@ class TropomiFmObjectCreator(RefractorFmObjectCreator):
 
         sindex2 = np.arange(0, mono_list_length[sensor_index]) + startmw_fm
 
-        return mpy.get_tropomi_ils_fastconv.get_tropomi_ils_fastconv(
+        return mpy_get_tropomi_ils_fastconv(
             str(self.osp_dir),
             wn_list,
             sindex,

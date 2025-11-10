@@ -1,6 +1,6 @@
 from __future__ import annotations
 from loguru import logger
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import mpy_ManualArraySetsWithLHSRHSIndices, mpy_cdf_write
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation, InstrumentIdentifier, StateElementIdentifier
@@ -134,7 +134,7 @@ class RetrievalIrkOutput(RetrievalOutput):
         rhs_second_indices = list(range(self.results_irk.O3["irfk_segs"].shape[1]))
         # Use slow method to set o3IRKSegs field because the fast method does
         # not work.
-        irk_data.o3IRKSegs = mpy.UtilGeneral().ManualArraySetsWithLHSRHSIndices(
+        irk_data.o3IRKSegs = mpy_ManualArraySetsWithLHSRHSIndices(
             irk_data.o3IRKSegs,
             self.results_irk.O3["irfk_segs"],
             lhs_first_indices,
@@ -233,7 +233,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             {"UNITS": "()"},
         ] * len(irk_data.__dict__)
         logger.info(f"Writing: {self.out_fname}")
-        mpy.cdf_write(irk_data.__dict__, self.out_fname, struct_units)
+        mpy_cdf_write(irk_data.__dict__, self.out_fname, struct_units)
 
 
 __all__ = [

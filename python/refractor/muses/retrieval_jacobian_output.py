@@ -1,7 +1,7 @@
 from __future__ import annotations
 from glob import glob
 from loguru import logger
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import mpy_specie_type, mpy_cdf_write
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
@@ -72,7 +72,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
         for spc in species:
             ind = [s == spc for s in self.species_list_fm]
             nn = np.count_nonzero(ind)
-            species_type = mpy.specie_type(spc)
+            species_type = mpy_specie_type(spc)
 
             nlevel = 65
             if species_type == "ATMOSPHERIC":
@@ -138,7 +138,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
 
         # Write out, use units as dummy: "()"
         my_data2 = my_data.as_dict(my_data)
-        mpy.cdf_write(
+        mpy_cdf_write(
             my_data2,
             str(self.out_fname),
             [

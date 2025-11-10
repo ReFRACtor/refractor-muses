@@ -1,10 +1,11 @@
 from __future__ import annotations
 from glob import glob
 from loguru import logger
-from . import fake_muses_py as mpy  # type: ignore
 import os
+from .mpy import mpy_cdf_write
 from .retrieval_output import RetrievalOutput
 from .identifier import InstrumentIdentifier, ProcessLocation
+from .refractor_uip import AttrDictAdapter
 from pathlib import Path
 import numpy as np
 import typing
@@ -139,7 +140,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
             ]
         )
 
-        my_data = mpy.ObjectView(my_datad)
+        my_data = AttrDictAdapter(my_datad)
 
         my_data.radianceFullBand = fullRadiance
         my_data.frequencyFullBand = num_trueFreq
@@ -179,9 +180,8 @@ class RetrievalRadianceOutput(RetrievalOutput):
         my_data.cloudOpticalDepth = np.float32(self.results.cloudODAve)
         my_data.surfaceTemperature = np.float32(self.state_value("TSUR"))
         # Write out, use units as dummy: "()"
-        my_data = my_data.__dict__
-        mpy.cdf_write(
-            my_data,
+        mpy_cdf_write(
+            my_data.as_dict(my_data),
             str(self.out_fname),
             [
                 {"UNITS": "()"},

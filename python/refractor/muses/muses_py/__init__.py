@@ -5,8 +5,6 @@
 # would get a serious reorganization.
 
 try:
-    # For checking we handle no muses-py
-    # raise ImportError
     import py_retrieve.app  # type: ignore
 
     have_muses_py = True
@@ -57,6 +55,7 @@ if have_muses_py:
     from py_retrieve.app.tools.strategy_table_file import *  # type: ignore
     from py_retrieve.app.tools.radiance_file import *  # type: ignore
     from py_retrieve.app.tools.order_species import *  # type: ignore
+    from py_retrieve.app.tropomi.get_tropomi_ils_fastconv import *  # type: ignore
 
 del _broken
 del _i

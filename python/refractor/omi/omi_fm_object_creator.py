@@ -8,8 +8,9 @@ from refractor.muses import (
     InstrumentIdentifier,
     FilterIdentifier,
     StateElementIdentifier,
+    mpy_get_omi_ils,
+    mpy_get_omi_ils_fastconv,
 )
-from refractor.muses import fake_muses_py as mpy
 import refractor.framework as rf  # type: ignore
 import os
 from pathlib import Path
@@ -75,7 +76,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
         # This is hardcoded in make_uip_tropomi, so we duplicate that here
         num_fwhm_srf = 4.0
         wn, sindex = self.observation.wn_and_sindex(sensor_index)
-        return mpy.get_omi_ils(
+        return mpy_get_omi_ils(
             str(self.osp_dir),
             wn,
             sindex,
@@ -107,7 +108,7 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
 
         sindex2 = np.arange(0, mono_list_length[sensor_index]) + startmw_fm
 
-        return mpy.get_omi_ils_fastconv(
+        return mpy_get_omi_ils_fastconv(
             str(self.osp_dir),
             wn_list,
             sindex,

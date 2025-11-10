@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import mpy_cdf_write_dict, mpy_plot_results, mpy_plot_radiance
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
 from .fake_state_info import FakeStateInfo
@@ -56,7 +56,7 @@ class RetrievalInputOutput(RetrievalOutput):
         #    self.error_current.__dict__,
         #    detectorsUse,
         # )
-        mpy.cdf_write_dict(
+        mpy_cdf_write_dict(
             fretrieval_info.__dict__,
             str(self.input_directory / "retrieval.nc"),
         )
@@ -96,7 +96,7 @@ class RetrievalPlotResult(RetrievalOutput):
         os.makedirs(self.step_directory, exist_ok=True)
         fstate_info = FakeStateInfo(self.current_state)
         fretrieval_info = FakeRetrievalInfo(self.current_state)
-        mpy.plot_results(
+        mpy_plot_results(
             str(self.step_directory) + "/",
             self.results,
             fretrieval_info,
@@ -118,7 +118,7 @@ class RetrievalPlotRadiance(RetrievalOutput):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.analysis_directory, exist_ok=True)
-        mpy.plot_radiance(
+        mpy_plot_radiance(
             str(self.analysis_directory) + "/",
             self.results,
             self.radiance_step.__dict__,

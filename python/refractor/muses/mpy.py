@@ -121,6 +121,9 @@ mpy_fm_oss_windows = partial(muses_py_wrapper_keep, "fm_oss_windows")
 mpy_fm_oss_delete = partial(muses_py_wrapper_keep, "fm_oss_delete")
 mpy_struct_combine = partial(muses_py_wrapper, "struct_combine")
 
+# qa_data_handle, should replace
+mpy_write_quality_flags = partial(muses_py_wrapper, "write_quality_flags")
+
 # used in state_element_climatology
 mpy_make_interpolation_matrix_susan = partial(
     muses_py_wrapper, "make_interpolation_matrix_susan"
@@ -130,6 +133,64 @@ mpy_supplier_nh3_type_cris = partial(muses_py_wrapper, "supplier_nh3_type_cris")
 mpy_supplier_nh3_type_tes = partial(muses_py_wrapper, "supplier_nh3_type_tes")
 mpy_supplier_nh3_type_airs = partial(muses_py_wrapper, "supplier_nh3_type_airs")
 mpy_supplier_hcooh_type = partial(muses_py_wrapper, "supplier_hcooh_type")
+
+# refractor_capture_directory, have handling for no muses_py so we can keep
+mpy_cli_options = muses_py.cli_options if have_muses_py else None
+
+# refractor_uip. We can keep all this, only use UIP for old muses-py forward models.
+mpy_update_uip = partial(muses_py_wrapper_keep, "update_uip")
+mpy_script_retrieval_ms = partial(muses_py_wrapper_keep, "script_retrieval_ms")
+mpy_get_omi_radiance = partial(muses_py_wrapper_keep, "get_omi_radiance")
+mpy_get_tropomi_radiance = partial(muses_py_wrapper_keep, "get_tropomi_radiance")
+mpy_atmosphere_level = partial(muses_py_wrapper_keep, "atmosphere_level")
+mpy_raylayer_nadir = partial(muses_py_wrapper_keep, "raylayer_nadir")
+mpy_pressure_sigma = partial(muses_py_wrapper_keep, "pressure_sigma")
+mpy_oco2_get_wavelength = partial(muses_py_wrapper_keep, "oco2_get_wavelength")
+mpy_nir_match_wavelength_edges = partial(
+    muses_py_wrapper_keep, "nir_match_wavelength_edges"
+)
+mpy_make_uip_master = partial(muses_py_wrapper_keep, "make_uip_master")
+mpy_make_uip_airs = partial(muses_py_wrapper_keep, "make_uip_airs")
+mpy_make_uip_cris = partial(muses_py_wrapper_keep, "make_uip_cris")
+mpy_make_uip_tes = partial(muses_py_wrapper_keep, "make_uip_tes")
+mpy_make_uip_omi = partial(muses_py_wrapper_keep, "make_uip_omi")
+mpy_make_uip_tropomi = partial(muses_py_wrapper_keep, "make_uip_tropomi")
+mpy_make_uip_oco2 = partial(muses_py_wrapper_keep, "make_uip_oco2")
+
+# retrieval_array, should replace
+mpy_make_maps = partial(muses_py_wrapper, "make_maps")
+
+# retrieval_strategy - can keep as we only call with have_muses_py
+mpy_register_replacement_function = partial(
+    muses_py_wrapper_keep, "register_replacement_function"
+)
+
+# Used by the various output classes. There should all get replaced, but
+# the code is a bit involved.
+mpy_cdf_write_dict = partial(muses_py_wrapper, "cdf_write_dict")
+mpy_plot_results = partial(muses_py_wrapper, "plot_results")
+mpy_plot_radiance = partial(muses_py_wrapper, "plot_radiance")
+mpy_cdf_write = partial(muses_py_wrapper, "cdf_write")
+mpy_tai = partial(muses_py_wrapper, "tai")
+mpy_cdf_var_add_strings = partial(muses_py_wrapper, "cdf_var_add_strings")
+mpy_cdf_var_attributes = muses_py.cdf_var_attributes if have_muses_py else {}
+mpy_cdf_var_names = partial(muses_py_wrapper, "cdf_var_names")
+mpy_GetColumnFromList = partial(muses_py_util_wrapper, "GetColumnFromList")
+mpy_cdf_var_map = partial(muses_py_wrapper, "cdf_var_map")
+mpy_make_one_lite = partial(muses_py_wrapper, "make_one_lite")
+
+
+def mpy_ManualArraySetsWithLHSRHSIndices(*args: Any, **kwargs: Any) -> Any:
+    funcname = "ManualArraySetsWithLHSRHSIndices"
+    if not have_muses_py:
+        raise NameError(
+            f"muses_py is not available, so we can't call the function {funcname}"
+        )
+    return muses_py.UtilGeneral().ManualArraySetsWithLHSRHSIndices(*args, **kwargs)
+
+
+mpy_specie_type = partial(muses_py_wrapper, "specie_type")
+mpy_get_diagonal = partial(muses_py_wrapper, "get_diagonal")
 
 
 # used in state_element_freq, should get replaced
@@ -165,6 +226,12 @@ mpy_my_interpolate = partial(muses_py_wrapper, "my_interpolate")
 # test our handling of the  tes files
 
 mpy_read_all_tes = partial(muses_py_wrapper_keep, "read_all_tes")
+
+# omi_fm_object_creator. Should replace, but is a bit of a long function.
+mpy_get_omi_ils = partial(muses_py_wrapper, "get_omi_ils")
+mpy_get_tropomi_ils = partial(muses_py_wrapper, "get_tropomi_ils")
+mpy_get_omi_ils_fastconv = partial(muses_py_wrapper, "get_omi_ils_fastconv")
+mpy_get_tropomi_ils_fastconv = partial(muses_py_wrapper, "get_tropomi_ils_fastconv")
 
 __all__ = [
     "mpy_WhereEqualIndices",
@@ -219,4 +286,42 @@ __all__ = [
     "mpy_fm_oss_windows",
     "mpy_fm_oss_delete",
     "mpy_struct_combine",
+    "mpy_write_quality_flags",
+    "mpy_cli_options",
+    "mpy_register_replacement_function",
+    "mpy_make_maps",
+    "mpy_update_uip",
+    "mpy_script_retrieval_ms",
+    "mpy_get_omi_radiance",
+    "mpy_get_tropomi_radiance",
+    "mpy_atmosphere_level",
+    "mpy_raylayer_nadir",
+    "mpy_pressure_sigma",
+    "mpy_oco2_get_wavelength",
+    "mpy_nir_match_wavelength_edges",
+    "mpy_make_uip_master",
+    "mpy_make_uip_airs",
+    "mpy_make_uip_cris",
+    "mpy_make_uip_tes",
+    "mpy_make_uip_omi",
+    "mpy_make_uip_tropomi",
+    "mpy_make_uip_oco2",
+    "mpy_cdf_write_dict",
+    "mpy_plot_results",
+    "mpy_plot_radiance",
+    "mpy_ManualArraySetsWithLHSRHSIndices",
+    "mpy_cdf_write",
+    "mpy_specie_type",
+    "mpy_get_diagonal",
+    "mpy_get_omi_ils",
+    "mpy_get_tropomi_ils",
+    "mpy_get_omi_ils_fastconv",
+    "mpy_get_tropomi_ils_fastconv",
+    "mpy_tai",
+    "mpy_cdf_var_add_strings",
+    "mpy_cdf_var_attributes",
+    "mpy_cdf_var_names",
+    "mpy_GetColumnFromList",
+    "mpy_cdf_var_map",
+    "mpy_make_one_lite",
 ]

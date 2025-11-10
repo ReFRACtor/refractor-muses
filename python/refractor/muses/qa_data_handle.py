@@ -1,8 +1,8 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .tes_file import TesFile
+from .mpy import mpy_write_quality_flags
 from .fake_state_info import FakeStateInfo
-from . import fake_muses_py as mpy  # type: ignore
 from loguru import logger
 import abc
 import os
@@ -189,7 +189,7 @@ class MusesPyQaDataHandle(QaDataHandle):
             "QualityFlags.asc",
         )
         fstate_info = FakeStateInfo(retrieval_result.current_state)
-        master = mpy.write_quality_flags(
+        master = mpy_write_quality_flags(
             qa_outname,
             str(self.quality_flag_file_name(current_strategy_step)),
             retrieval_result,
