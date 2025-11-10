@@ -1,9 +1,9 @@
 from __future__ import annotations
-from . import muses_py as mpy  # type: ignore
+from .mpy import have_muses_py, mpy_ordered_species_list, mpy_atmospheric_species_list
 
-if mpy.have_muses_py:
-    _ordered_species_list = mpy.ordered_species_list()
-    _atmospheric_species_list = mpy.atmospheric_species_list()
+if have_muses_py:
+    _ordered_species_list = mpy_ordered_species_list()
+    _atmospheric_species_list = mpy_atmospheric_species_list()
 else:
     # Hardcoded, just so we don't depend on muses_py being available. This should be
     # same list

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import mpy_supplier_surface_pressure, mpy_supplier_fm_pressures
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .identifier import StateElementIdentifier
 from .gmao_reader import GmaoReader
@@ -184,14 +184,14 @@ class StateElementFromGmaoPressure(StateElementOspFile):
         if sounding_metadata is None:
             return None
         gmao = GmaoReader(sounding_metadata, gmao_dir)
-        surface_pressure = mpy.supplier_surface_pressure(
+        surface_pressure = mpy_supplier_surface_pressure(
             sounding_metadata.surface_altitude.value,
             gmao.tatm,
             gmao.h2o,
             gmao.pressure,
             sounding_metadata.latitude.value,
         )
-        pressure = mpy.supplier_fm_pressures(pressure0, surface_pressure)
+        pressure = mpy_supplier_fm_pressures(pressure0, surface_pressure)
         return cls(
             StateElementIdentifier("pressure"),
             pressure,

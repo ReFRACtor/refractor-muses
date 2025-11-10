@@ -1,6 +1,6 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
+from .mpy import mpy_my_interpolate
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .tes_file import TesFile
 from .identifier import StateElementIdentifier, InstrumentIdentifier
@@ -95,7 +95,7 @@ class StateElementFromSingle(StateElementOspFile):
         value_fm = np.array(fatm.table[str(sid)]).view(FullGridMappedArray)
         pressure = fatm.table["Pressure"]
         value_fm = np.exp(
-            mpy.my_interpolate(
+            mpy_my_interpolate(
                 np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)
             )
         )

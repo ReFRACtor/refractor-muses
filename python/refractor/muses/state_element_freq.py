@@ -1,6 +1,11 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import (
+    mpy_get_emis_dispatcher,
+    mpy_emis_source_citation,
+    mpy_mw_frequency_needed,
+    mpy_idl_interpol_1d,
+)
 from .state_element import (
     StateElementWithCreateHandle,
     StateElementHandleSet,
@@ -86,7 +91,7 @@ class StateElementEmis(StateElementFreqShared):
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
         emis_type = retrieval_config["TIR_EMIS_Source"]
-        uwis_data = mpy.get_emis_uwis.get_emis_dispatcher(
+        uwis_data = mpy_get_emis_dispatcher(
             emis_type,
             sounding_metadata.latitude.value,
             sounding_metadata.longitude.value,
@@ -103,9 +108,7 @@ class StateElementEmis(StateElementFreqShared):
         # native_emis = uwis_data['native_emis']
         # native_emis_wavenumber = uwis_data['native_wavenumber']
         camel_distance = uwis_data["dist_to_tgt"]
-        prior_source = mpy.get_emis_uwis.UwisCamelOptions.emis_source_citation(
-            emis_type
-        )
+        prior_source = mpy_emis_source_citation(emis_type)
         create_kwargs = {
             "spectral_domain": spectral_domain,
             "metadata": {
@@ -125,7 +128,7 @@ class StateElementEmis(StateElementFreqShared):
         self._fill_in_state_mapping()
         assert self.spectral_domain is not None
         # TODO See about doing this directly
-        wflag = mpy.mw_frequency_needed(
+        wflag = mpy_mw_frequency_needed(
             self.microwindows,
             self.spectral_domain.data,
         )
@@ -230,7 +233,7 @@ class StateElementNativeEmis(StateElementFreqShared):
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
         emis_type = retrieval_config["TIR_EMIS_Source"]
-        uwis_data = mpy.get_emis_uwis.get_emis_dispatcher(
+        uwis_data = mpy_get_emis_dispatcher(
             emis_type,
             sounding_metadata.latitude.value,
             sounding_metadata.longitude.value,
@@ -283,7 +286,7 @@ class StateElementCloudExt(StateElementFreqShared):
             return
         self._fill_in_state_mapping()
         assert self.spectral_domain is not None
-        wflag = mpy.mw_frequency_needed(
+        wflag = mpy_mw_frequency_needed(
             self.microwindows,
             self.spectral_domain.data,
             self.retrieval_type,
@@ -372,7 +375,7 @@ class StateElementCloudExt(StateElementFreqShared):
                 if ind.size > 0:
                     varr[self.fm_update_flag] = res[self.fm_update_flag]
                     varr[ind.min(), ind.max() + 1] = np.exp(
-                        mpy.idl_interpol_1d(
+                        mpy_idl_interpol_1d(
                             np.log(res[self.fm_update_flag]),
                             self.spectral_domain.data[self.fm_update_flag],
                             self.spectral_domain.data[ind.min(), ind.max() + 1],
@@ -393,7 +396,7 @@ class StateElementCloudExt(StateElementFreqShared):
             return super().updated_fm_flag
         # bt_ig_refine is handled differently
         assert self.spectral_domain is not None
-        wflag = mpy.mw_frequency_needed(
+        wflag = mpy_mw_frequency_needed(
             self.microwindows,
             self.spectral_domain.data,
             self.retrieval_type,

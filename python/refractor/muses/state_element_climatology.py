@@ -1,5 +1,13 @@
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import (
+    mpy_make_interpolation_matrix_susan,
+    mpy_supplier_shift_profile,
+    mpy_supplier_nh3_type_cris,
+    mpy_supplier_nh3_type_tes,
+    mpy_supplier_nh3_type_airs,
+    mpy_supplier_hcooh_type,
+    mpy_my_interpolate,
+)
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .identifier import StateElementIdentifier, InstrumentIdentifier
 from .observation_handle import mpy_radiance_from_observation_list
@@ -201,7 +209,7 @@ class StateElementFromClimatology(StateElementOspFile):
             vmr = vmr * yearly_multiplier
 
         if linear_interp:
-            my_map = mpy.make_interpolation_matrix_susan(pressure, pressure_list_fm)
+            my_map = mpy_make_interpolation_matrix_susan(pressure, pressure_list_fm)
             vmr = np.exp(np.matmul(my_map, np.log(vmr)))
         else:
             # For types HCOOH, NH3 and CH3OH shifting the vmr rather
@@ -212,7 +220,7 @@ class StateElementFromClimatology(StateElementOspFile):
             # that. We have the logic for this in the various
             # StateElements, so we just do what "linear_interp" tells
             # us to do here.
-            vmr = mpy.supplier_shift_profile(vmr, pressure, pressure_list_fm)
+            vmr = mpy_supplier_shift_profile(vmr, pressure, pressure_list_fm)
         return vmr.view(FullGridMappedArray), type_name
 
 
@@ -267,7 +275,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             value_fm = np.array(fatm.table["CH3OH"]).view(FullGridMappedArray)
             pressure = fatm.table["Pressure"]
             value_fm = np.exp(
-                mpy.my_interpolate(
+                mpy_my_interpolate(
                     np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)
                 )
             )
@@ -376,9 +384,9 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
         tatm0 = state_info[StateElementIdentifier("TATM")].constraint_vector_fm[0]
         nh3type: str | None = None
         for ins, sfunc in [
-            (InstrumentIdentifier("CRIS"), mpy.supplier_nh3_type_cris),
-            (InstrumentIdentifier("TES"), mpy.supplier_nh3_type_tes),
-            (InstrumentIdentifier("AIRS"), mpy.supplier_nh3_type_airs),
+            (InstrumentIdentifier("CRIS"), mpy_supplier_nh3_type_cris),
+            (InstrumentIdentifier("TES"), mpy_supplier_nh3_type_tes),
+            (InstrumentIdentifier("AIRS"), mpy_supplier_nh3_type_airs),
         ]:
             if ins in strategy.instrument_name:
                 olist = [
@@ -470,7 +478,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
                     observation_handle_set.observation(ins, None, None, None),
                 ]
                 rad = mpy_radiance_from_observation_list(olist, full_band=True)
-                hcoohtype = mpy.supplier_hcooh_type(rad)
+                hcoohtype = mpy_supplier_hcooh_type(rad)
                 break
         if hcoohtype is None:
             hcoohtype = "MOD"

@@ -27,6 +27,10 @@ def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
     return getattr(muses_py, funcname)(*args, **kwargs)
 
 
+# Synonym, just to make it clear where we have dependencies we intend to keep
+muses_py_wrapper_keep = muses_py_wrapper
+
+
 def muses_py_util_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
     if not have_muses_py:
         raise NameError(
@@ -56,17 +60,17 @@ mpy_GetUniqueValues = partial(muses_py_util_wrapper, "GetUniqueValues")
 
 # Used in cost_function. Note that this is only used in old_py_retrieve_wrapper, so we
 # don't actually need to replace this. Fine that we depend on muses_py here.
-mpy_radiance_data = partial(muses_py_wrapper, "radiance_data")
+mpy_radiance_data = partial(muses_py_wrapper_keep, "radiance_data")
 
 # Used in muses_forward_model. We don't want to replace these, the dependency is ok.
-mpy_fm_oss_stack = partial(muses_py_wrapper, "fm_oss_stack")
-mpy_tropomi_fm = partial(muses_py_wrapper, "tropomi_fm")
-mpy_omi_fm = partial(muses_py_wrapper, "omi_fm")
+mpy_fm_oss_stack = partial(muses_py_wrapper_keep, "fm_oss_stack")
+mpy_tropomi_fm = partial(muses_py_wrapper_keep, "tropomi_fm")
+mpy_omi_fm = partial(muses_py_wrapper_keep, "omi_fm")
 
 # This is used in muses_levmar_solver. I'm not sure, it would be nice to have this
 # in refractor so we don't require muses-py to solve. But at the same time, this is
 # a pretty central function in muses-py. For now, we import this.
-mpy_levmar_nllsq_elanor = partial(muses_py_wrapper, "levmar_nllsq_elanor")
+mpy_levmar_nllsq_elanor = partial(muses_py_wrapper_keep, "levmar_nllsq_elanor")
 
 # Uses in muses_observation. It would be good to bring this over, but the input
 # code is fairly lengthy. We'll want to look at this at some point.
@@ -81,6 +85,86 @@ mpy_read_tropomi_surface_altitude = partial(
     muses_py_wrapper, "read_tropomi_surface_altitude"
 )
 mpy_read_omi = partial(muses_py_wrapper, "read_omi")
+
+# muses_optical_depth
+mpy_get_tropomi_o3xsec = partial(muses_py_wrapper, "get_tropomi_o3xsec")
+mpy_get_omi_o3xsec = partial(muses_py_wrapper, "get_omi_o3xsec")
+
+# muses_spectral_window - these are used for comparison code and can stay
+mpy_table_get_spectral_filename = partial(
+    muses_py_wrapper_keep, "table_get_spectral_filename"
+)
+mpy_table_new_mw_from_step = partial(muses_py_wrapper_keep, "table_new_mw_from_step")
+mpy_radiance_get_indices = partial(muses_py_wrapper_keep, "radiance_get_indices")
+
+# order_species, we can keep this as we have a work around for muses_py not being available
+mpy_ordered_species_list = partial(muses_py_wrapper_keep, "ordered_species_list")
+mpy_atmospheric_species_list = partial(
+    muses_py_wrapper_keep, "atmospheric_species_list"
+)
+
+# osp_reader, should replace
+mpy_make_interpolation_matrix_susan = partial(
+    muses_py_wrapper, "make_interpolation_matrix_susan"
+)
+mpy_supplier_constraint_matrix_ssuba = partial(
+    muses_py_wrapper, "supplier_constraint_matrix_ssuba"
+)
+
+# osswrapper, can keep
+mpy_register_observer_function = partial(
+    muses_py_wrapper_keep, "register_observer_function"
+)
+mpy_pyoss_dir = muses_py.pyoss_dir if have_muses_py else ""
+mpy_fm_oss_init = partial(muses_py_wrapper_keep, "fm_oss_init")
+mpy_fm_oss_windows = partial(muses_py_wrapper_keep, "fm_oss_windows")
+mpy_fm_oss_delete = partial(muses_py_wrapper_keep, "fm_oss_delete")
+mpy_struct_combine = partial(muses_py_wrapper, "struct_combine")
+
+# used in state_element_climatology
+mpy_make_interpolation_matrix_susan = partial(
+    muses_py_wrapper, "make_interpolation_matrix_susan"
+)
+mpy_supplier_shift_profile = partial(muses_py_wrapper, "supplier_shift_profile")
+mpy_supplier_nh3_type_cris = partial(muses_py_wrapper, "supplier_nh3_type_cris")
+mpy_supplier_nh3_type_tes = partial(muses_py_wrapper, "supplier_nh3_type_tes")
+mpy_supplier_nh3_type_airs = partial(muses_py_wrapper, "supplier_nh3_type_airs")
+mpy_supplier_hcooh_type = partial(muses_py_wrapper, "supplier_hcooh_type")
+
+
+# used in state_element_freq, should get replaced
+def mpy_get_emis_dispatcher(*args: Any, **kwargs: Any) -> Any:
+    funcname = "get_emis_dispatcher"
+    if not have_muses_py:
+        raise NameError(
+            f"muses_py is not available, so we can't call the function {funcname}"
+        )
+    return muses_py.get_emis_uwis.get_emis_dispatcher(*args, **kwargs)
+
+
+def mpy_emis_source_citation(*args: Any, **kwargs: Any) -> Any:
+    funcname = "emis_source_citation"
+    if not have_muses_py:
+        raise NameError(
+            f"muses_py is not available, so we can't call the function {funcname}"
+        )
+    return muses_py.get_emis_uwis.UwisCamelOptions.emis_source_citation(*args, **kwargs)
+
+
+mpy_mw_frequency_needed = partial(muses_py_wrapper, "mw_frequency_needed")
+mpy_idl_interpol_1d = partial(muses_py_wrapper, "mpy_idl_interpol_1d")
+
+# used in state_element_gmao, should get replaced
+mpy_supplier_surface_pressure = partial(muses_py_wrapper, "supplier_surface_pressure")
+mpy_supplier_fm_pressures = partial(muses_py_wrapper, "supplier_fm_pressures")
+
+# Used in state_element_single, should get replaced
+mpy_my_interpolate = partial(muses_py_wrapper, "my_interpolate")
+
+# Uses in tes file. We can keep this, it is optional reading using muses_py as a way to
+# test our handling of the  tes files
+
+mpy_read_all_tes = partial(muses_py_wrapper_keep, "read_all_tes")
 
 __all__ = [
     "mpy_WhereEqualIndices",
@@ -106,4 +190,33 @@ __all__ = [
     "mpy_read_tropomi",
     "mpy_read_tropomi_surface_altitude",
     "mpy_read_omi",
+    "mpy_read_all_tes",
+    "mpy_my_interpolate",
+    "mpy_supplier_surface_pressure",
+    "mpy_supplier_fm_pressures",
+    "mpy_get_emis_dispatcher",
+    "mpy_emis_source_citation",
+    "mpy_mw_frequency_needed",
+    "mpy_idl_interpol_1d",
+    "mpy_make_interpolation_matrix_susan",
+    "mpy_supplier_shift_profile",
+    "mpy_supplier_nh3_type_cris",
+    "mpy_supplier_nh3_type_tes",
+    "mpy_supplier_nh3_type_airs",
+    "mpy_supplier_hcooh_type",
+    "mpy_get_omi_o3xsec",
+    "mpy_get_tropomi_o3xsec",
+    "mpy_table_get_spectral_filename",
+    "mpy_table_new_mw_from_step",
+    "mpy_radiance_get_indices",
+    "mpy_ordered_species_list",
+    "mpy_atmospheric_species_list",
+    "mpy_make_interpolation_matrix_susan",
+    "mpy_supplier_constraint_matrix_ssuba",
+    "mpy_register_observer_function",
+    "mpy_pyoss_dir",
+    "mpy_fm_oss_init",
+    "mpy_fm_oss_windows",
+    "mpy_fm_oss_delete",
+    "mpy_struct_combine",
 ]

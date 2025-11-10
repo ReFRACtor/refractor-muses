@@ -14,6 +14,11 @@ from .identifier import (
     StateElementIdentifier,
     RetrievalType,
 )
+from .mpy import (
+    mpy_table_get_spectral_filename,
+    mpy_table_new_mw_from_step,
+    mpy_radiance_get_indices,
+)
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation
@@ -558,8 +563,6 @@ class MusesSpectralWindow(rf.SpectralWindow):
         determine the microwindow file name use. This can be used to verify that
         we are finding the right name. This shouldn't be used for real code,
         instead use the SpectralWindowHandleSet."""
-        from . import muses_py as mpy  # type: ignore
-
         # creates a dummy strategy_table dict with the values it expects to find
         stable: dict[str, Any] = {}
         stable["preferences"] = {
@@ -583,7 +586,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         stable["labels1"] = " ".join(t2)
         stable["numRows"] = 1
         stable["numColumns"] = len(t2)
-        return mpy.table_get_spectral_filename(stable, 0)
+        return mpy_table_get_spectral_filename(stable, 0)
 
     @classmethod
     def muses_microwindows_from_muses_py(
@@ -599,8 +602,6 @@ class MusesSpectralWindow(rf.SpectralWindow):
         """For testing purposes, this calls the old mpy.table_new_mw_from_step. This can
         be used to verify that the microwindows we generate are correct. This shouldn't
         be used for real code, instead use the SpectralWindowHandleSet."""
-        from . import muses_py as mpy  # type: ignore
-
         # Wrap arguments into format expected by table_new_mw_from_step. This
         # creates a dummy strategy_table dict with the values it expects to find
         stable: dict[str, Any] = {}
@@ -624,7 +625,7 @@ class MusesSpectralWindow(rf.SpectralWindow):
         stable["labels1"] = " ".join(t2)
         stable["numRows"] = 1
         stable["numColumns"] = len(t2)
-        return mpy.table_new_mw_from_step(stable, 0)
+        return mpy_table_new_mw_from_step(stable, 0)
 
 
 class TesSpectralWindow(MusesSpectralWindow):
@@ -670,11 +671,9 @@ class TesSpectralWindow(MusesSpectralWindow):
         # or include_bad_sample. So just return results otherwise
         if self._spec_win is None or self.full_band or self.do_raman_ext:
             return super().grid_indexes(grid, spec_index)
-        from . import muses_py as mpy  # type: ignore
-
         # Determine the list of grid_indexes from py-retrieve. Note that
         # this includes bad_samples.
-        muses_gindex = mpy.radiance_get_indices(
+        muses_gindex = mpy_radiance_get_indices(
             self._obs.muses_py_dict["radianceStruct"], self.muses_microwindows()
         )
         if self.include_bad_sample:

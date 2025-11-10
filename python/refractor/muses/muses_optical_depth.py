@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 import math
 import refractor.framework as rf  # type: ignore
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import mpy_get_tropomi_o3xsec, mpy_get_omi_o3xsec
 from .identifier import InstrumentIdentifier
 import os
 from typing import Any
@@ -76,7 +76,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         # pressure) So we flip this
         o3_col = gas_col[::-1, 0]
         wn, sindex = self.obs.wn_and_sindex(sensor_index)
-        o3_xsec = mpy.get_tropomi_o3xsec(
+        o3_xsec = mpy_get_tropomi_o3xsec(
             str(self.osp_dir),
             self.ils_params_list[sensor_index],
             tatm,
@@ -101,7 +101,7 @@ class MusesOpticalDepth(rf.AbsorberXSec):
         # pressure) So we flip this
         o3_col = gas_col[::-1, 0]
         wn, sindex = self.obs.wn_and_sindex(sensor_index)
-        o3_xsec = mpy.get_omi_o3xsec(
+        o3_xsec = mpy_get_omi_o3xsec(
             str(self.osp_dir),
             self.ils_params_list[sensor_index],
             tatm,

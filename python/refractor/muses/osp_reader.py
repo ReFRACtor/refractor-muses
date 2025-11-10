@@ -1,6 +1,9 @@
 # This contains various support routines for reading OSP data.
 from __future__ import annotations
-from . import fake_muses_py as mpy  # type: ignore
+from .mpy import (
+    mpy_make_interpolation_matrix_susan,
+    mpy_supplier_constraint_matrix_ssuba,
+)
 from .tes_file import TesFile
 import collections.abc
 import numpy as np
@@ -68,7 +71,7 @@ class CovarianceMatrix:
         # TODO - short term convert to float32, just so we can directly compare
         # with muses-py. We'll change this to float64, but good to do that as a single
         # step so we don't mix in other changes
-        m = mpy.make_interpolation_matrix_susan(
+        m = mpy_make_interpolation_matrix_susan(
             np.log(p.astype(np.float32)), np.log(pressure_level)
         )
         return np.matmul(
@@ -369,7 +372,7 @@ class OspSpeciesReader(OspFileHandle):
                     StateElementIdentifier("CALSCALE"),
                     StateElementIdentifier("CALOFFSET"),
                 ):
-                    cov = mpy.supplier_constraint_matrix_ssuba(
+                    cov = mpy_supplier_constraint_matrix_ssuba(
                         np.zeros((0,)),
                         "",
                         None,
