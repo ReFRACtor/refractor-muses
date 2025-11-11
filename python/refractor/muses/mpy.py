@@ -51,7 +51,6 @@ mpy_compute_cloud_factor = partial(muses_py_wrapper, "compute_cloud_factor")
 
 # Used in column_result_summary
 mpy_column = partial(muses_py_wrapper, "column")
-mpy_get_diagonal = partial(muses_py_wrapper, "get_diagonal")
 
 # Used in error_analysis, should replace
 mpy_get_vector = partial(muses_py_wrapper, "get_vector")
@@ -167,9 +166,8 @@ mpy_register_replacement_function = partial(
 
 # Used by the various output classes. There should all get replaced, but
 # the code is a bit involved.
-mpy_cdf_write_dict = partial(muses_py_wrapper, "cdf_write_dict")
-mpy_plot_results = partial(muses_py_wrapper, "plot_results")
-mpy_plot_radiance = partial(muses_py_wrapper, "plot_radiance")
+mpy_plot_results = partial(muses_py_wrapper_keep, "plot_results")
+mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
 mpy_cdf_write = partial(muses_py_wrapper, "cdf_write")
 mpy_tai = partial(muses_py_wrapper, "tai")
 mpy_cdf_var_add_strings = partial(muses_py_wrapper, "cdf_var_add_strings")
@@ -190,7 +188,6 @@ def mpy_ManualArraySetsWithLHSRHSIndices(*args: Any, **kwargs: Any) -> Any:
 
 
 mpy_specie_type = partial(muses_py_wrapper, "specie_type")
-mpy_get_diagonal = partial(muses_py_wrapper, "get_diagonal")
 
 
 # used in state_element_freq, should get replaced
@@ -240,7 +237,6 @@ __all__ = [
     "mpy_quality_deviation",
     "mpy_compute_cloud_factor",
     "mpy_column",
-    "mpy_get_diagonal",
     "mpy_get_vector",
     "mpy_my_total",
     "mpy_GetUniqueValues",
@@ -306,13 +302,11 @@ __all__ = [
     "mpy_make_uip_omi",
     "mpy_make_uip_tropomi",
     "mpy_make_uip_oco2",
-    "mpy_cdf_write_dict",
     "mpy_plot_results",
     "mpy_plot_radiance",
     "mpy_ManualArraySetsWithLHSRHSIndices",
     "mpy_cdf_write",
     "mpy_specie_type",
-    "mpy_get_diagonal",
     "mpy_get_omi_ils",
     "mpy_get_tropomi_ils",
     "mpy_get_omi_ils_fastconv",

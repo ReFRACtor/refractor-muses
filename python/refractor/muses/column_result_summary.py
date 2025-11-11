@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .mpy import mpy_WhereEqualIndices, mpy_column, mpy_get_diagonal
+from .mpy import mpy_WhereEqualIndices, mpy_column
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
@@ -325,7 +325,7 @@ class ColumnResultSummary:
                     )[0]
                     ind1FM = retrievalInfo.parameterStartFM[ispecie]
                     ind2FM = retrievalInfo.parameterEndFM[ispecie]
-                    ak = mpy_get_diagonal(error_analysis.A)
+                    ak = np.diagonal(error_analysis.A)
                     ak = ak[ind1FM : ind2FM + 1]
                     na = len(ak)
 

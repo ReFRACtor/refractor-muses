@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .mpy import mpy_cdf_write_dict, mpy_plot_results, mpy_plot_radiance
+from .mpy import have_muses_py, mpy_plot_results, mpy_plot_radiance
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
 from .fake_state_info import FakeStateInfo
@@ -46,7 +46,7 @@ class RetrievalInputOutput(RetrievalOutput):
         # May need to extend this logic here
         # detectorsUse = [1]
         # fstate_info = FakeStateInfo(self.current_state)
-        fretrieval_info = FakeRetrievalInfo(self.current_state)
+        # fretrieval_info = FakeRetrievalInfo(self.current_state)
         # mpy.write_retrieval_inputs(
         #    self.retrieval_strategy.rstrategy_table.strategy_table_dict,
         #    fstate_info,
@@ -56,10 +56,10 @@ class RetrievalInputOutput(RetrievalOutput):
         #    self.error_current.__dict__,
         #    detectorsUse,
         # )
-        mpy_cdf_write_dict(
-            fretrieval_info.__dict__,
-            str(self.input_directory / "retrieval.nc"),
-        )
+        # mpy.cdf_write_dict(
+        #    fretrieval_info.__dict__,
+        #    str(self.input_directory / "retrieval.nc"),
+        # )
 
 
 class RetrievalPickleResult(RetrievalOutput):
@@ -96,12 +96,16 @@ class RetrievalPlotResult(RetrievalOutput):
         os.makedirs(self.step_directory, exist_ok=True)
         fstate_info = FakeStateInfo(self.current_state)
         fretrieval_info = FakeRetrievalInfo(self.current_state)
-        mpy_plot_results(
-            str(self.step_directory) + "/",
-            self.results,
-            fretrieval_info,
-            fstate_info,
-        )
+        # Just skip if we don't have muses_py. This is a pretty involved function, and
+        # I'm not even sure these plots are used anymore. In any case, this is debug output
+        # and skipping if we don't have muses-py is pretty reasonable
+        if have_muses_py:
+            mpy_plot_results(
+                str(self.step_directory) + "/",
+                self.results,
+                fretrieval_info,
+                fstate_info,
+            )
 
 
 class RetrievalPlotRadiance(RetrievalOutput):
@@ -118,12 +122,16 @@ class RetrievalPlotRadiance(RetrievalOutput):
             return
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         os.makedirs(self.analysis_directory, exist_ok=True)
-        mpy_plot_radiance(
-            str(self.analysis_directory) + "/",
-            self.results,
-            self.radiance_step.__dict__,
-            None,
-        )
+        # Just skip if we don't have muses_py. This is a pretty involved function, and
+        # I'm not even sure these plots are used anymore. In any case, this is debug output
+        # and skipping if we don't have muses-py is pretty reasonable
+        if have_muses_py:
+            mpy_plot_radiance(
+                str(self.analysis_directory) + "/",
+                self.results,
+                self.radiance_step.__dict__,
+                None,
+            )
 
 
 __all__ = [

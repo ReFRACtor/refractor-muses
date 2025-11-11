@@ -1,7 +1,6 @@
 from __future__ import annotations
 from loguru import logger
 from .mpy import (
-    mpy_get_diagonal,
     mpy_GetUniqueValues,
     mpy_WhereEqualIndices,
     mpy_compute_cloud_factor,
@@ -745,10 +744,10 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 342 write_products_one.pro
         species_data.DOFS = np.float32(
-            np.sum(mpy_get_diagonal(self.results.A[ind1FM:ind2FM, ind1FM:ind2FM]))
+            np.sum(np.diagonal(self.results.A[ind1FM:ind2FM, ind1FM:ind2FM]))
         )
         species_data.PRECISION[pslice] = np.sqrt(
-            mpy_get_diagonal(self.results.Sx_rand[ind1FM:ind2FM, ind1FM:ind2FM])
+            np.diagonal(self.results.Sx_rand[ind1FM:ind2FM, ind1FM:ind2FM])
         )
 
         # Build a 3D array so we can use it to access the below assignments.
@@ -788,11 +787,11 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.PRIORCOVARIANCE[pslice, pslice] = self.results.Sa[
             ind1FM:ind2FM, ind1FM:ind2FM
         ]
-        species_data.AVERAGINGKERNELDIAGONAL[pslice] = mpy_get_diagonal(
+        species_data.AVERAGINGKERNELDIAGONAL[pslice] = np.diagonal(
             self.results.A[ind1FM:ind2FM, ind1FM:ind2FM]
         )  ## utilGeneral.ManualArraySets(species_data.AVERAGINGKERNELDIAGONAL, get_diagonal(self.results.A[ind1FM:ind2FM+1, ind1FM:ind2FM+1]), indConv, rhs_start_index=0)
         species_data.TOTALERROR[pslice] = np.sqrt(
-            mpy_get_diagonal(self.results.Sx[ind1FM:ind2FM, ind1FM:ind2FM])
+            np.diagonal(self.results.Sx[ind1FM:ind2FM, ind1FM:ind2FM])
         )
 
         # AT_LINE 355 write_products_one.pro
@@ -960,7 +959,7 @@ class RetrievalL2Output(RetrievalOutput):
             # Create an array of indices so we can access i_results.Sx matrix.
             array_2d_indices = np.ix_(ind, ind)  # (64, 64)
             species_data.EMISSIVITY_ERROR = np.sqrt(
-                mpy_get_diagonal(self.results.Sx[array_2d_indices])
+                np.diagonal(self.results.Sx[array_2d_indices])
             )
 
         if self.state_sd_wavelength("EMIS").shape[0] > 0:
@@ -1024,7 +1023,7 @@ class RetrievalL2Output(RetrievalOutput):
                 species_data.N2O_DOFS = 0.0
                 species_data.N2O_DOFS = np.float32(
                     np.sum(
-                        mpy_get_diagonal(
+                        np.diagonal(
                             self.results.A[ind1FMN2O:ind2FMN2O, ind1FMN2O:ind2FMN2O]
                         )
                     )
