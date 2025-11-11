@@ -3,11 +3,8 @@ from loguru import logger
 from .mpy import (
     mpy_tai,
     mpy_cdf_var_add_strings,
-    mpy_cdf_var_attributes,
-    mpy_cdf_var_names,
     mpy_GetUniqueValues,
     mpy_GetColumnFromList,
-    mpy_cdf_var_map,
     mpy_cdf_write_struct,
     mpy_make_one_lite,
 )
@@ -17,6 +14,7 @@ from .identifier import (
     StateElementIdentifier,
     InstrumentIdentifier,
 )
+from .order_species import cdf_var_attributes, cdf_var_names, cdf_var_map
 from .refractor_uip import AttrDictAdapter
 from netCDF4 import Dataset
 from pathlib import Path
@@ -65,7 +63,9 @@ class ExtraL2Output:
         """Variable name in netcdf file."""
         return str(sid)
 
-    def net_cdf_struct_units(self, sid: StateElementIdentifier) -> dict[str, str]:
+    def net_cdf_struct_units(
+        self, sid: StateElementIdentifier
+    ) -> dict[str, str | float]:
         """Returns the attributes attached to a netCDF write out of this
         StateElement."""
         return {
@@ -271,7 +271,7 @@ class RetrievalOutput:
         self,
         struct_in: dict[str, Any],
         filename: str | os.PathLike[str],
-        struct_units: list[dict[str, str]],
+        struct_units: list[dict[str, str | float]],
     ) -> None:
         t = CdfWriteTes()
         t.cdf_write(struct_in, filename, struct_units)
@@ -773,26 +773,28 @@ class CdfWriteTes:
         global_attr["fileversion"] = 2
         global_attr["history"] = history_entry
 
+        my_cdf_var_attributes = copy.deepcopy(cdf_var_attributes)
+
         # PYTHON_NOTE: Below are an exhaustive definition of attributes of every possible variable.  Because this is Python,
         # we make sure the part before the _attr is uppercase because later on, we will use it to access the attributes defined
         # here.
-        SPECIES_attr = {
+        SPECIES_attr: dict[str, str | float] = {
             "Longname": tracer_species + " volume mixing ratio",
             "Units": "volume mixing ratio relative to dry air",
             "FillValue": -999.00,
             "MisingValue": -999.00,
         }
 
-        mpy_cdf_var_attributes["SPECIES_attr"] = SPECIES_attr
+        my_cdf_var_attributes["SPECIES_attr"] = SPECIES_attr
 
-        SPECIES_FM_attr = {
+        SPECIES_FM_attr: dict[str, str | float] = {
             "Longname": tracer_species + " volume mixing ratio",
             "Units": "volume mixing ratio relative to dry air on fm grid",
             "FillValue": -999.00,
             "MisingValue": -999.00,
         }
 
-        mpy_cdf_var_attributes["SPECIES_FM_attr"] = SPECIES_FM_attr
+        my_cdf_var_attributes["SPECIES_FM_attr"] = SPECIES_FM_attr
 
         # ===============================
         # Link attributes to their respective variables
@@ -803,7 +805,7 @@ class CdfWriteTes:
         # AT_LINE 758 TOOLS/cdf_write_tes.pro
         dict_of_variables_and_their_attributes = {}
 
-        groupvarnames = mpy_cdf_var_names()
+        groupvarnames = copy.deepcopy(cdf_var_names)
 
         names = mpy_GetColumnFromList(groupvarnames, 1)
         names = mpy_GetUniqueValues(names)
@@ -813,16 +815,16 @@ class CdfWriteTes:
             tag_name = names[ii]
             if tag_name in dataOut:
                 attr_name = names[ii] + "_attr"
-                if attr_name in mpy_cdf_var_attributes:
+                if attr_name in my_cdf_var_attributes:
                     dict_of_variables_and_their_attributes[tag_name] = (
-                        mpy_cdf_var_attributes[attr_name]
+                        my_cdf_var_attributes[attr_name]
                     )
                 else:
                     logger.info("Using generic attribute spec for " + attr_name + ".")
                     # Create a generic_attr depend on name of the variable.
                     # A string variable has 'GRID_STRING' or 'Grid_String' in it.
                     if "STRING" in attr_name or "String" in attr_name:
-                        generic_attr = {
+                        generic_attr: dict[str, str | float] = {
                             "Longname": "string",
                             "Units": "",
                             "FillValue": -999,
@@ -880,7 +882,7 @@ class CdfWriteTes:
         # PYTHON_NOTE: We create a dictionary of each possible variables in their exact cases for when they are written to NetCDF file.
         # The variable name will have an uppercase and lowercase mixed.
         # If a name is not found in exact_cased_variable_names, it will be written as is.
-        exact_cased_variable_names = mpy_cdf_var_map()
+        exact_cased_variable_names = copy.deepcopy(cdf_var_map)
 
         for ii in range(len(structKeys)):
             tag_name = structKeys[ii]
@@ -1032,22 +1034,15 @@ class CdfWriteTes:
         self,
         struct_in: dict[str, Any],
         filename: str | os.PathLike[str],
-        struct_units: list[dict[str, str]],
+        struct_units: list[dict[str, str | float]],
         dims: dict[str, int] | None = None,
         lowercase: bool = False,
         exact_cased_variable_names: dict[str, str] | None = None,
         groupvarnames: list[Any] | None = None,
         global_attr: dict[str, Any] | None = None,
     ) -> None:
-        # What is expected:
-        #    structIn is a dictionary of fields to write and can also be dictionaries..
-        #    structUnits a dictionary of variable attributes.
-        # AT_LINE 456 TOOLS/cdf_write.pro cdf_write
         nco = Dataset(filename, "w")
         nco.set_auto_maskandscale(False)
-
-        # After the above function, an empty NetCDF file has been created and the output_file_handle can be used to update the file.
-        # If the dimension names and their sizes of all possible variables are passed in, we create them here so they will be available when the variable is being written.
         if dims is not None:
             for dim_key, dim_value in dims.items():
                 nco.createDimension(dim_key, dim_value)
@@ -1079,12 +1074,8 @@ class CdfWriteTes:
                 datetime.datetime.now(tz=pytz.utc).strftime("%Y%m%dT%H%M%SZ"),
             )
 
-        # For now, we will attempt to write global attributes.
         if global_attr is not None:
             nco.setncatts(global_attr)
-
-        # Close the file handle otherwise we will run out of file handles.
-        # AT_LINE 486 TOOLS/cdf_write.pro cdf_write
         nco.close()
 
 

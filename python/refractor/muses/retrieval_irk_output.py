@@ -229,7 +229,7 @@ class RetrievalIrkOutput(RetrievalOutput):
         if smeta.local_hour <= 5 or smeta.local_hour >= 22:  # night
             irk_data.daynightFlag[0] = 0
 
-        struct_units = [
+        struct_units: list[dict[str, str | float]] = [
             {"UNITS": "()"},
         ] * len(irk_data.__dict__)
         logger.info(f"Writing: {self.out_fname}")

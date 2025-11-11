@@ -101,6 +101,8 @@ mpy_ordered_species_list = partial(muses_py_wrapper_keep, "ordered_species_list"
 mpy_atmospheric_species_list = partial(
     muses_py_wrapper_keep, "atmospheric_species_list"
 )
+mpy_cdf_var_attributes = muses_py.cdf_var_attributes if have_muses_py else {}
+mpy_cdf_var_names = partial(muses_py_wrapper_keep, "cdf_var_names")
 
 # osp_reader, should replace
 mpy_make_interpolation_matrix_susan = partial(
@@ -171,8 +173,6 @@ mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
 mpy_cdf_write_struct = partial(muses_py_wrapper, "cdf_write_struct")
 mpy_tai = partial(muses_py_wrapper, "tai")
 mpy_cdf_var_add_strings = partial(muses_py_wrapper, "cdf_var_add_strings")
-mpy_cdf_var_attributes = muses_py.cdf_var_attributes if have_muses_py else {}
-mpy_cdf_var_names = partial(muses_py_wrapper, "cdf_var_names")
 mpy_GetColumnFromList = partial(muses_py_util_wrapper, "GetColumnFromList")
 mpy_cdf_var_map = partial(muses_py_wrapper, "cdf_var_map")
 mpy_make_one_lite = partial(muses_py_wrapper, "make_one_lite")
