@@ -7,6 +7,10 @@ from .mpy import (
     mpy_GetColumnFromList,
     mpy_cdf_write_struct,
     mpy_make_one_lite,
+    have_muses_py,
+    mpy_cdf_var_attributes,
+    mpy_cdf_var_names,
+    mpy_cdf_var_map,
 )
 from .identifier import (
     RetrievalType,
@@ -14,10 +18,11 @@ from .identifier import (
     StateElementIdentifier,
     InstrumentIdentifier,
 )
-from .order_species import cdf_var_attributes, cdf_var_names, cdf_var_map
 from .refractor_uip import AttrDictAdapter
 from netCDF4 import Dataset
 from pathlib import Path
+import importlib
+import json
 import os
 import copy
 import numpy as np
@@ -287,7 +292,44 @@ class CdfWriteTes:
     """
 
     def __init__(self) -> None:
-        pass
+        # muses-py has a lot of hard coded things related to the
+        # species names and netcdf output.  It would be good a some
+        # point to just replace this all with a better thought out
+        # output format. But for now, we need to support the existing
+        # output format.  TODO - Replace with better thought out
+        # output format
+
+        # So we don't depend on muses_py, we save the variable to a json file.
+        # Only need muses_py to generate this or update it. We just create this file
+        # if not available, so you can manually delete this to force it to be recreated.
+        if not importlib.resources.is_resource(
+            "refractor.muses", "retrieval_output.json"
+        ):
+            if not have_muses_py:
+                raise RuntimeError(
+                    "Require muses-py to create the file retrieval_output.json"
+                )
+            d = {
+                "cdf_var_attributes": mpy_cdf_var_attributes,
+                "groupvarnames": mpy_cdf_var_names(),
+                "exact_cased_variable_names": mpy_cdf_var_map(),
+            }
+            with importlib.resources.path(
+                "refractor.muses", "retrieval_output.json"
+            ) as fspath:
+                logger.info(f"Creating the file {fspath}")
+                with open(fspath, "w") as fh:
+                    json.dump(d, fh, indent=4)
+        d = json.loads(
+            importlib.resources.read_text("refractor.muses", "retrieval_output.json")
+        )
+        self.cdf_var_attributes: dict[str, dict[str, str | float]] = d[
+            "cdf_var_attributes"
+        ]
+        self.groupvarnames: list[list[str]] = d["groupvarnames"]
+        self.exact_cased_variable_names: dict[str, str] = d[
+            "exact_cased_variable_names"
+        ]
 
     def write(
         self,
@@ -773,8 +815,6 @@ class CdfWriteTes:
         global_attr["fileversion"] = 2
         global_attr["history"] = history_entry
 
-        my_cdf_var_attributes = copy.deepcopy(cdf_var_attributes)
-
         # PYTHON_NOTE: Below are an exhaustive definition of attributes of every possible variable.  Because this is Python,
         # we make sure the part before the _attr is uppercase because later on, we will use it to access the attributes defined
         # here.
@@ -785,7 +825,7 @@ class CdfWriteTes:
             "MisingValue": -999.00,
         }
 
-        my_cdf_var_attributes["SPECIES_attr"] = SPECIES_attr
+        self.cdf_var_attributes["SPECIES_attr"] = SPECIES_attr
 
         SPECIES_FM_attr: dict[str, str | float] = {
             "Longname": tracer_species + " volume mixing ratio",
@@ -794,7 +834,7 @@ class CdfWriteTes:
             "MisingValue": -999.00,
         }
 
-        my_cdf_var_attributes["SPECIES_FM_attr"] = SPECIES_FM_attr
+        self.cdf_var_attributes["SPECIES_FM_attr"] = SPECIES_FM_attr
 
         # ===============================
         # Link attributes to their respective variables
@@ -805,9 +845,7 @@ class CdfWriteTes:
         # AT_LINE 758 TOOLS/cdf_write_tes.pro
         dict_of_variables_and_their_attributes = {}
 
-        groupvarnames = copy.deepcopy(cdf_var_names)
-
-        names = mpy_GetColumnFromList(groupvarnames, 1)
+        names = mpy_GetColumnFromList(self.groupvarnames, 1)
         names = mpy_GetUniqueValues(names)
         names = [x.upper() for x in names]
 
@@ -815,9 +853,9 @@ class CdfWriteTes:
             tag_name = names[ii]
             if tag_name in dataOut:
                 attr_name = names[ii] + "_attr"
-                if attr_name in my_cdf_var_attributes:
+                if attr_name in self.cdf_var_attributes:
                     dict_of_variables_and_their_attributes[tag_name] = (
-                        my_cdf_var_attributes[attr_name]
+                        self.cdf_var_attributes[attr_name]
                     )
                 else:
                     logger.info("Using generic attribute spec for " + attr_name + ".")
@@ -879,11 +917,6 @@ class CdfWriteTes:
             else:
                 structUnits.append(copy.deepcopy(generic_attr))
 
-        # PYTHON_NOTE: We create a dictionary of each possible variables in their exact cases for when they are written to NetCDF file.
-        # The variable name will have an uppercase and lowercase mixed.
-        # If a name is not found in exact_cased_variable_names, it will be written as is.
-        exact_cased_variable_names = copy.deepcopy(cdf_var_map)
-
         for ii in range(len(structKeys)):
             tag_name = structKeys[ii]
             variable_data = structIn[tag_name]
@@ -903,10 +936,10 @@ class CdfWriteTes:
             else:
                 structIn[str(sid)] = v
             structUnits.append(extra_l2_output.net_cdf_struct_units(sid))
-            exact_cased_variable_names[str(sid)] = (
+            self.exact_cased_variable_names[str(sid)] = (
                 extra_l2_output.net_cdf_variable_name(sid)
             )
-            groupvarnames.append(
+            self.groupvarnames.append(
                 [
                     extra_l2_output.net_cdf_group_name(sid),
                     extra_l2_output.net_cdf_variable_name(sid),
@@ -926,8 +959,8 @@ class CdfWriteTes:
             structUnits,
             dims=dims,
             lowercase=False,
-            exact_cased_variable_names=exact_cased_variable_names,
-            groupvarnames=groupvarnames,
+            exact_cased_variable_names=self.exact_cased_variable_names,
+            groupvarnames=self.groupvarnames,
             global_attr=global_attr,
         )
 

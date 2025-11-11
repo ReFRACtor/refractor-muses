@@ -1,0 +1,5284 @@
+{
+    "cdf_var_attributes": {
+        "TROPOSPHERICCOLUMN_attr": {
+            "Longname": "Tropospheric column amount computed from the retrieved profile.",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "TROPOSPHERICCOLUMNERROR_attr": {
+            "Longname": "Tropospheric column error estimate.",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "TROPOSPHERICCOLUMNINITIAL_attr": {
+            "Longname": "Initial tropospheric column.",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "O3TROPOSPHERICCOLUMN_attr": {
+            "Longname": "Tropospheric column amount computed from the retrieved profile.",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "O3TROPOSPHERICCOLUMNERROR_attr": {
+            "Longname": "Tropospheric column error estimate.",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "O3TROPOSPHERICCOLUMNINITIAL_attr": {
+            "Longname": "Initial tropospheric column.",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "ALTITUDE_attr": {
+            "Longname": "altitude at each target",
+            "Units": "meters",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACEALTITUDE_attr": {
+            "Longname": "surface altitude at each target",
+            "Units": "meters",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ALTITUDE_FM_attr": {
+            "Longname": "altitude at each target on FM grid",
+            "Units": "meters",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "AIRDENSITY_attr": {
+            "LongName": "density of air",
+            "Units": "molecules/m^3",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "AVERAGE_800_TROPOPAUSE_attr": {
+            "Longname": "average between 800 hPa and Tropopause",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "AVERAGE_800_TROPOPAUSEPRIOR_attr": {
+            "Longname": "average between 800 hPa and Tropopause for the prior",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN800_attr": {
+            "Longname": "average between 800 hPa and Tropopause in PPT",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN800_PRIOR_attr": {
+            "Longname": "prior average between 800 hPa and Tropopause in PPT",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN_attr": {
+            "Longname": "column average in PPT",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN_PRIOR_attr": {
+            "Longname": "prior column average in PPT",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN800_ERROROBS_attr": {
+            "Longname": "obs error for xpan800 in PPT",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN800_AK_attr": {
+            "Longname": "column AK for xpan800 in PPT",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN800_ERRORSMOOTHING_attr": {
+            "Longname": "smoothing error for xpan800 in PPT",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN_ERROROBS_attr": {
+            "Longname": "obs error for xpan",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN_ERRORSMOOTHING_attr": {
+            "Longname": "smoothing error for xpan in PPT",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "XPAN_AK_attr": {
+            "Longname": "column AK for xpan",
+            "Units": "VMR (PPT)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "AVERAGE_900_200_attr": {
+            "Longname": "average between 900 and 200 hPa",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCEMAXIMUMSNR_attr": {
+            "Longname": "Maximum signal to noise ratio (used in some quality flags)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CITY_attr": {
+            "Longname": "city name",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "CITYINDEX_attr": {
+            "Longname": "city index:  [Los Angeles, Houston, New York City, Mexico City, Sao Paulo, Buenos Aires, Paris, Istanbul, Lagos, Beijing, SW China, Shenzhen, Tokyo, Bangkok, Dhaka, Delhi, Mumbai, Kolkata, Karachi]",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "POINTINGANGLE_AIRS_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "POINTINGANGLE_TES_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "POINTINGANGLE_CRIS_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CRIS_GRANULE_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CRIS_ATRACK_INDEX_attr": {
+            "Longname": "The CrIS instrument scans from west to east direction, contains 30 FORs, forming a scan line in the across track direction",
+            "Units": "",
+            "fillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "CRIS_XTRACK_INDEX_attr": {
+            "Longname": "field of regard (0,1,2,...), ",
+            "Units": "",
+            "fillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "CRIS_PIXEL_INDEX_attr": {
+            "Longname": "Values can be 0-8",
+            "Units": "",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "CRIS_L1B_TYPE_attr": {
+            "Longname": "Values can be 0-6. 0=suomi_nasa_nsr (nominal spectral resolution), 1=suomi_nasa_fsr (full spectral resolution), 2=suomi_nasa_nomw, 3=jpss1_nasa_fsr, 4=suomi_cspp_fsr, 5=jpss1_cspp_fsr, 6=jpss2_cspp_fsr",
+            "Units": "",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "FILENAME_attr": {
+            "Longname": "filename",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "UPPERTROPOSPHERICCOLUMN_attr": {
+            "Longname": "UPPERTROPOSPHERICCOLUMN",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "UPPERTROPOSPHERICCOLUMNERROR_attr": {
+            "Longname": "UPPERTROPOSPHERICCOLUMNERROR",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "UPPERTROPOSPHERICCOLUMNINITIAL_attr": {
+            "Longname": "UPPERTROPOSPHERICCOLUMNINITIAL",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "LOWERTROPOSPHERICCOLUMN_attr": {
+            "Longname": "LOWERTROPOSPHERICCOLUMN",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "LOWERTROPOSPHERICCOLUMNERROR_attr": {
+            "Longname": "LOWERTROPOSPHERICCOLUMNERROR",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "LOWERTROPOSPHERICCOLUMNINITIAL_attr": {
+            "Longname": "LOWERTROPOSPHERICCOLUMNINITIAL",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "DOFSTROPOSPHERE_attr": {
+            "Longname": "DOFSTROPOSPHERE",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "DOFSUPPERTROPOSPHERE_attr": {
+            "Longname": "DOFSUPPERTROPOSPHERE",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "DOFSLOWERTROPOSPHERE_attr": {
+            "Longname": "DOFSLOWERTROPOSPHERE",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_SZA_UV1_attr": {
+            "Longname": "omi_sza_uv1",
+            "Units": "degrees",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_RAZ_UV1_attr": {
+            "Longname": "omi_raz_uv1",
+            "Units": "degrees",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_VZA_UV1_attr": {
+            "Longname": "omi_vza_uv1",
+            "Units": "degrees",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_SCA_UV1_attr": {
+            "Longname": "omi_sca_uv1",
+            "Units": "degrees",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_SZA_UV2_attr": {
+            "Longname": "omi_sza_uv2",
+            "Units": "degrees",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_RAZ_UV2_attr": {
+            "Longname": "omi_raz_uv2",
+            "Units": "degrees",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_VZA_UV2_attr": {
+            "Longname": "omi_vza_uv2",
+            "Units": "degrees",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_SCA_UV2_attr": {
+            "Longname": "omi_sca_uv2",
+            "Units": "degrees",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TROPOMI_SZA_BAND1_attr": {
+            "Longname": "tropomi_sza_band1",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_RAZ_BAND1_attr": {
+            "Longname": "tropomi_raz_band1",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_VZA_BAND1_attr": {
+            "Longname": "tropomi_vza_band1",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_SCA_BAND1_attr": {
+            "Longname": "tropomi_sca_band1",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_SZA_BAND2_attr": {
+            "Longname": "tropomi_sza_band2",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_RAZ_BAND2_attr": {
+            "Longname": "tropomi_raz_band2",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_VZA_BAND2_attr": {
+            "Longname": "tropomi_vza_band2",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_SCA_BAND2_attr": {
+            "Longname": "tropomi_sca_band2",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_SZA_BAND3_attr": {
+            "Longname": "tropomi_sza_band3",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_RAZ_BAND3_attr": {
+            "Longname": "tropomi_raz_band3",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_VZA_BAND3_attr": {
+            "Longname": "tropomi_vza_band3",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_SCA_BAND3_attr": {
+            "Longname": "tropomi_sca_band3",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_SZA_BAND7_attr": {
+            "Longname": "tropomi_sza_band7",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_RAZ_BAND7_attr": {
+            "Longname": "tropomi_raz_band7",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_VZA_BAND7_attr": {
+            "Longname": "tropomi_vza_band7",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "TROPOMI_SCA_BAND7_attr": {
+            "Longname": "tropomi_sca_band7",
+            "Units": "degrees",
+            "FillValue": -999.0,
+            "MisingValue": ""
+        },
+        "AIRS_GRANULE_attr": {
+            "Longname": "airs_granule",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "AIRS_ATRACK_INDEX_attr": {
+            "Longname": "airs_atrack_index",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "AIRS_XTRACK_INDEX_attr": {
+            "Longname": "airs_xtrack_index",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TES_RUN_attr": {
+            "Longname": "tes_run",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TES_SEQUENCE_attr": {
+            "Longname": "tes_sequence",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TES_SCAN_attr": {
+            "Longname": "tes_scan",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OCO2_CO2_RATIO_IDP_attr": {
+            "Longname": "Contains the ratio of the retrieved CO2 column from the weak Co2 band relative to that from the strong CO2 band. This ratio should be near unity.",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OCO2_H2O_RATIO_IDP_attr": {
+            "Longname": "Contains the ratio of the retrieved H2O column from the weak CO2 band relative to that from the strong CO2 band. This ratio should be near unity.",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OCO2_DP_ABP_attr": {
+            "Longname": "OCO-2 preprocessing result for change in surface pressure",
+            "Units": "hPa",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OCO2_ALTITUDE_STDDEV_attr": {
+            "Longname": "The standard deviation of the surface elevation in the target field of view, in meters.",
+            "Units": "m",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OCO2_MAX_DECLOCKING_FACTOR_WCO2_attr": {
+            "Longname": "An estimate of the absolute value of the clocking error in the weak CO2 band (used in the clocking correction algorithm that attempts to correct the L1b radiances for clocking errors). Expressed in percent. Typical values range from 0 to 10%.",
+            "Units": "%",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OCO2_MAX_DECLOCKING_FACTOR_SCO2_attr": {
+            "Longname": "An estimate of the absolute value of the clocking error in the strong CO2 band (used in the clocking correction algorithm that attempts to correct the L1b radiances for clocking errors). Expressed in percent. Typical values range from 0 to 10%.",
+            "Units": "%",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_ATRACK_INDEX_attr": {
+            "Longname": "omi_atrack_index",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_XTRACK_INDEX_UV1_attr": {
+            "Longname": "omi_xtrack_index for uv1",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "OMI_XTRACK_INDEX_UV2_attr": {
+            "Longname": "omi_xtrack_index for uv2",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TROPOMI_ATRACK_INDEX_attr": {
+            "Longname": "tropomi_atrack_index",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TROPOMI_XTRACK_INDEX_BAND1_attr": {
+            "Longname": "tropomi_xtrack_index for band1",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TROPOMI_XTRACK_INDEX_BAND2_attr": {
+            "Longname": "tropomi_xtrack_index for band2",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TROPOMI_XTRACK_INDEX_BAND3_attr": {
+            "Longname": "tropomi_xtrack_index for band3",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "TROPOMI_XTRACK_INDEX_BAND7_attr": {
+            "Longname": "tropomi_xtrack_index for band7",
+            "Units": "",
+            "FillValue": "",
+            "MisingValue": ""
+        },
+        "H2O_QA_attr": {
+            "Longname": "H2O quality",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "O3_QA_attr": {
+            "Longname": "O3 quality",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TATM_QA_attr": {
+            "Longname": "TATM quality",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "COLUMN750_attr": {
+            "Longname": "COLUMN750, column above 750 hPa",
+            "Units": "VMR (ppb)",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "COLUMN750_ERROR_attr": {
+            "Longname": "COLUMN750 error",
+            "Units": "VMR (ppb)",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "COLUMN750_OBSERVATIONERROR_attr": {
+            "Longname": "COLUMN750 observation error",
+            "Units": "VMR (ppb)",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "COLUMN750_CONSTRAINTVECTOR_attr": {
+            "Longname": "COLUMN750 prior",
+            "Units": "VMR (ppb)",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "COLUMN750_INITIAL_attr": {
+            "Longname": "COLUMN750 initial",
+            "Units": "VMR (ppb)",
+            "FillValue": -999,
+            "Missingalue": ""
+        },
+        "COLUMN750_AVERAGINGKERNEL_attr": {
+            "Longname": "COLUMN750 averaging kernel",
+            "Units": "()",
+            "FillValue": -999,
+            "Missingalue": ""
+        },
+        "COLUMN750_PWF_attr": {
+            "Longname": "COLUMN750 pressure weighting function",
+            "Units": "()",
+            "FillValue": -999,
+            "Missingalue": ""
+        },
+        "SURFACEPRESSURE_attr": {
+            "Longname": "surface pressure",
+            "Units": "VMR",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "AVERAGECLOUDEFFOPTICALDEPTH_attr": {
+            "Longname": "average cloud effective optical depth",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "AVERAGECLOUDEFFOPTICALDEPTHERROR_attr": {
+            "Longname": "average cloud effective optical depth error",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CLOUDEFFECTIVEOPTICALDEPTH1000_attr": {
+            "Longname": "average cloud effective optical depth at 1000 cm-1",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CLOUDEFFECTIVEOPTICALDEPTHERROR1000_attr": {
+            "Longname": "average cloud effective optical depth error and 1000 cm-1",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CLOUDEFFECTIVEOPTICALDEPTH_attr": {
+            "Longname": "average cloud effective optical depth",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CLOUDEFFECTIVEOPTICALDEPTHERROR_attr": {
+            "Longname": "average cloud effective optical depth error",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "AVERAGINGKERNEL_attr": {
+            "Longname": "The averaging kernel is the sensitivity of the estimated state to variations in the atmospheric state. The rows of the averaging kernel represent the sensitivity of the estimated state at a specific pressure level to variations in the atmospheric state at all levels. The columns of averaging kernel represent the sensitivity of the estimated state at all levels to variations in the atmospheric state at specific pressure level.  For atmospheric species this is the sensitivity of retrieved ln(vmr) to the true ln(vmr).",
+            "FullDescription": "see http://tes.jpl.nasa.gov/uploadedfiles/TES_DPS_V11.8.pdf",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "H2O_HDOMEASUREMENTERRORCOVARIANCE_attr": {
+            "Longname": "Measurement error for H2O/HDO ratio",
+            "FullDescription": "see http://tes.jpl.nasa.gov/uploadedfiles/TES_DPS_V11.8.pdf",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "H2O_HDOTOTALERRORCOVARIANCE_attr": {
+            "Longname": "Total error for H2O/HDO ratio",
+            "FullDescription": "see http://tes.jpl.nasa.gov/uploadedfiles/TES_DPS_V11.8.pdf",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "H2O_HDOOBSERVATIONERRORCOVARIANCE_attr": {
+            "Longname": "Total error for H2O/HDO ratio",
+            "FullDescription": "see http://tes.jpl.nasa.gov/uploadedfiles/TES_DPS_V11.8.pdf",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "AVERAGINGKERNELDIAGONAL_attr": {
+            "Longname": "averaging kernel diagonal",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "AVERAGINGKERNELDIAGONAL_FM_attr": {
+            "Longname": "averaging kernel diagonal on fm grid",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CLOUDTOPPRESSURE_attr": {
+            "Longname": "Pressure of inferred cloud top (species independent)",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CLOUDTOPPRESSUREERROR_attr": {
+            "Longname": "Cloud top pressure error",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "THERMALCONTRAST_attr": {
+            "Longname": "Thermal contrast=surface temperature - lowest atmospheric temperature for retrieved TES values ",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "THERMALCONTRASTINITIAL_attr": {
+            "Longname": "Thermal contrast=surface temperature - lowest atmospheric temperature for inital TES values (from GMAO)",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CLOUDVARIABILITY_QA_attr": {
+            "Longname": "Quality value calculated from cloud variability",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "O3_CCURVE_QA_attr": {
+            "Longname": "Flag for if O3 ccurve found.  1=no ccurve found.  0=ccurve found.",
+            "Units": "",
+            "FillValue": 157,
+            "MisingValue": 157
+        },
+        "O3_SLOPE_QA_attr": {
+            "Longname": "o3 mean absolute slope (ppb/m)",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": -999
+        },
+        "O3_COLUMNERRORDU_attr": {
+            "Longname": "o3 column error in DU",
+            "Units": "DU",
+            "FillValue": -999,
+            "MisingValue": -999
+        },
+        "O3_TROPO_CONSISTENCY_qa_attr": {
+            "Longname": "o3 tropospheric column divided by the initial guess for this step - 1",
+            "Units": "fraction",
+            "FillValue": -999,
+            "MisingValue": -999
+        },
+        "TROPOMI_CLOUDFRACTION_attr": {
+            "Longname": "tropomi cloud fraction",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": -999
+        },
+        "OZONEIRK_attr": {
+            "Longname": "Ozone IRK",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": -999
+        },
+        "CH4_STRATOSPHERE_QA_attr": {
+            "Longname": "fraction of the averaging kernel above the tropopause for pressure level 562 hPa.  Lower values are better.",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CH4_DOFTROP_attr": {
+            "Longname": "degrees of freedom below the tropopause",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CH4_DOFSTRAT_attr": {
+            "Longname": "degrees of freedom above the tropopause",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CONSTRAINTVECTOR_FM_attr": {
+            "Longname": "tes apriori volume mixing ratio on fm grid",
+            "Units": "mole/mole",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CONSTRAINTVECTOR_attr": {
+            "Longname": "tes apriori volume mixing ratio",
+            "Units": "mole/mole",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DEGREESOFFREEDOMFORSIGNAL_attr": {
+            "Longname": "number of independent parameters for the profile",
+            "Othername": "trace of the averaging kernel",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DEVIATIONVSRETRIEVALCOVARIANCE_attr": {
+            "Longname": "Deviations vs. retrieval covariance",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DEVIATION_QA_attr": {
+            "Longname": "O3 deviation",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DEVIATIONBAD_QA_attr": {
+            "Longname": "Too many deviations from prior",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NUM_DEVIATIONS_QA_attr": {
+            "Longname": "O3 deviation",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "MAXNUMITERATIONS_attr": {
+            "Longname": "Maximum number of iterations allowed for convergence",
+            "Units": "",
+            "FillValue": -99,
+            "MisingValue": -99
+        },
+        "MEASUREMENTERRORCOVARIANCE_attr": {
+            "Longname": "Propagated measured radiance noise",
+            "Units": "ln(vmr)^2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NUMBERITERPERFORMED_attr": {
+            "Longname": "Actual number of iterations performed",
+            "Units": "",
+            "FillValue": -99,
+            "MisingValue": -99
+        },
+        "PRECISION_attr": {
+            "Longname": "square root of diagonal elements of the measurement error covariance",
+            "Units": "ln(vmr)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "PRECISION_FM_attr": {
+            "Longname": "square root of diagonal elements of the measurement error covariance on fm grid",
+            "Units": "ln(vmr)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_CLOUDFRACTION_attr": {
+            "Longname": "fraction of scene obscured by cloud",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_CLOUDFRACTIONCONSTRAINTVECTOR_attr": {
+            "Longname": "fraction of scene obscured by cloud prior",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_CLOUDTOPPRESSURE_attr": {
+            "Longname": "",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_SURFACEALBEDOUV1_attr": {
+            "Longname": "single value for band",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_SURFACEALBEDOUV1CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_SURFACEALBEDOUV2_attr": {
+            "Longname": "linear fit",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_SURFACEALBEDOUV2CONSTRAINTVECTOR_attr": {
+            "Longname": "prior",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_SURFACEALBEDOSLOPEUV2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_SURFACEALBEDOSLOPEUV2CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_NRADWAVUV1_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_NRADWAVUV2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_ODWAVUV1_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_ODWAVUV2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_RINGSFUV1_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_RINGSFUV2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_SZA_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OMI_RAZ_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "OBSERVATIONERRORCOVARIANCE_attr": {
+            "Longname": "Measurement + systematic + cross-state errors.  The utility of the observation error is for comparisons with other measurements and for assimilation.  The smoothing error is accounted for when one applies the averaging kernel, so the observation error accounts for everything else. See comment for TotalErrorCovariance.",
+            "FullDescription": "see http://tes.jpl.nasa.gov/uploadedfiles/TES_DPS_V11.8.pdf",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "PRESSURE_attr": {
+            "Longname": "Atmospheric pressure grid used for retrieval",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "PRESSURE_FM_attr": {
+            "Longname": "Full pressure grid used in forward model calculation.  Actual pressure grid varies depending on surface pressure.",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMAX_attr": {
+            "Longname": "Maximum absolute difference between model and data",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RETRIEVEINLOG_attr": {
+            "Longname": "Set to 1 if log(VMR, etc) is retrieved, 0 if VMR, etc is retrieved",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LMRESULTS_COSTTHRESH_attr": {
+            "Longname": "LM retrieval parameter",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LMRESULTS_RESNORM_attr": {
+            "Longname": "LM retrieval parameter",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LMRESULTS_RESNORMNEXT_attr": {
+            "Longname": "LM retrieval parameter",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LMRESULTS_DELTA_attr": {
+            "Longname": "LM retrieval parameter",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LMRESULTS_JACRESNORM_attr": {
+            "Longname": "LM retrieval parameter",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LMRESULTS_JACRESNORMNEXT_attr": {
+            "Longname": "LM retrieval parameter",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LMRESULTS_PNORM_attr": {
+            "Longname": "LM retrieval parameter",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LMRESULTS_ITERLIST_attr": {
+            "Longname": "LM retrieval iteration values for retrieval vector",
+            "Units": "same as species",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "PROPAGATED_H2O_QA_attr": {
+            "Longname": "H2O quality",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "PROPAGATED_O3_QA_attr": {
+            "Longname": "O3 quality",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "PROPAGATED_TATM_QA_attr": {
+            "Longname": "TATM quality",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RESIDUALNORMFINAL_attr": {
+            "Longname": "residual between model and data",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RESIDUALNORMINITIAL_attr": {
+            "Longname": "initial residual between model and data",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_attr": {
+            "Longname": "Mean of the data minus model radiance",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_attr": {
+            "Longname": "Standard deviation of model and data difference",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCE_RESIDUAL_STDEV_CHANGE_attr": {
+            "Longname": "Initial minus final radiance residual standard deviation",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "FILTER_INDEX_attr": {
+            "Longname": "index of filters used in retrieval, where list is:  0=UV1,1=UV2, VIS,UVIS,NIR1,NIR2,SWIR1,SWIR2,SWIR3,SWIR4,TIR1,TIR2,TIR3,TIR4",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_FILTER_attr": {
+            "Longname": "Mean of the data minus model radiance in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMSRELATIVECONTINUUM_FILTER_attr": {
+            "Longname": "Stdev of model and data difference divided by the 5% highest fit radiances in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCE_CONTINUUM_FILTER_attr": {
+            "Longname": "Mean of the 5% highest fit radiances in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_FILTER_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALSLOPE_FILTER_attr": {
+            "Longname": "Slope of:  [radiance / continuum (top 5% radiance) , (observed minus model radiance) divided by NESR], in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALQUADRATIC_FILTER_attr": {
+            "Longname": "2nd order term of:  [radiance / continuum (top 5% radiance) , (observed minus model radiance) divided by NESR], in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_ALL_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_UV1_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_UV2_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_VIS_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_UVIS_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_NIR1_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_NIR2_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_SWIR1_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_SWIR2_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_SWIR3_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_SWIR4_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_TIR1_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_TIR2_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_TIR3_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_TIR4_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_ALL_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_UV1_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_UV2_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_VIS_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_UVIS_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_NIR1_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_NIR2_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_SWIR1_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_SWIR2_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_SWIR3_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_SWIR4_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_TIR1_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_TIR2_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_TIR3_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_TIR4_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_2B1_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_1B2_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_2A1_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALMEAN_1A1_attr": {
+            "Longname": "Mean of the model and data radiance difference (per species) in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_2B1_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_1B2_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_2A1_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RADIANCERESIDUALRMS_1A1_attr": {
+            "Longname": "RMS of model and data difference in different filters",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SPECIESRETRIEVALCONVERGED_attr": {
+            "Longname": "Indicates whether the non-linear least squares solver converged to a minimum.True=1, False=0",
+            "Units": "",
+            "FillValue": -99,
+            "MisingValue": -99
+        },
+        "DESERT_EMISS_QA_attr": {
+            "Longname": "Quality value comparing the retrieved emissivity at 1020 to look for silicate feature",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "PAN_DESERT_QA_attr": {
+            "Longname": "Quality value looking at the linearity of UWIS EMIS between 1040 to 1080 within 2 degrees of current location",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "H2O_RETRIEVAL_QA_attr": {
+            "Longname": "Quality flag propagated from H2O (may not be used in master quality)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "H2O_PROPAGATED_QA_attr": {
+            "Longname": "Quality flag propagated from H2O (may not be used in master quality)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "O3_RETRIEVAL_QA_attr": {
+            "Longname": "Quality flag propagated from O3 (may not be used in master quality)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "O3_PROPAGATED_QA_attr": {
+            "Longname": "Quality flag propagated from O3 (may not be used in master quality)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TATM_RETRIEVAL_QA_attr": {
+            "Longname": "Quality flag propagated from atmospheric temperature",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TATM_PROPAGATED_QA_attr": {
+            "Longname": "Quality flag propagated from atmospheric temperature",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "T700_attr": {
+            "Longname": "NCEP temperature at 700 hPa",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACEEMISSMEAN_QA_attr": {
+            "Longname": "Quality value comparing the retrieved emissivity to the initial emissivity. Fill forocean and limb scenes. This will be fill forthe species HDO and H2O",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACEEMISSIONLAYER_QA_attr": {
+            "Longname": "Quality value comparing the atmospheric temperature to the surface temperature when ozone near the surface is elevated.This field will be fill for CO, CH4,HDO and most H2O",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPCONSTRAINT_attr": {
+            "Longname": "Surface temperature value used to constrain the retrieval (species independent)",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "FMOZONEBANDFLUX_attr": {
+            "Longname": "Ozone band flux calculated from TES",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "L1BOZONEBANDFLUX_attr": {
+            "Longname": "Ozone band flux from radiances",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPDEGREESOFFREEDOM_attr": {
+            "Longname": "Surface temperature degrees of freedom",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPERROR_attr": {
+            "Longname": "Error in the retrieved Surface temperature",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPINITIAL_attr": {
+            "Longname": "Initial surface temperature at the start of the retrieval process, currently taken from GMAO",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPOBSERVATIONERROR_attr": {
+            "Longname": "Measurement + systematic + cross-state errors. The utility of the observation error is for comparisons with other measurements and for assimilation. The smoothing erroris accounted for when one applies the averaging kernel, so the observation error accounts for everything else.",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPPRECISION_attr": {
+            "Longname": "Square-root of diagonal element of the measurement error covariance",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPVSAPRIORI_QA_attr": {
+            "Longname": "Quality value comparing the surface temperature to a priori value",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPERATURE_attr": {
+            "Longname": "surface temperature",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TOTALCOLUMNDENSITY_attr": {
+            "Longname": "Total column amount computed from the retrieved profile. For the Atmospheric Temperature, this will be a fill value",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TOTALCOLUMNDENSITYERROR_attr": {
+            "Longname": "Error in total column amount computed from total error covarianceFor the Atmospheric Temperature Product this will be a fill value",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TOTALCOLUMNDENSITYINITIAL_attr": {
+            "Longname": "Total column amount computed from the initial profile. For the Atmospheric Temperature Product this will be a fill value",
+            "Units": "molecules/m2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR_attr": {
+            "Longname": "fraction of scene obscured by cloud prior",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_CLOUDTOPPRESSURE_attr": {
+            "Longname": "",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOBAND1_attr": {
+            "Longname": "single value for band 1",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOBAND1CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOBAND2_attr": {
+            "Longname": "linear fit",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOBAND2CONSTRAINTVECTOR_attr": {
+            "Longname": "prior",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOBAND3_attr": {
+            "Longname": "linear fit",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOBAND7_attr": {
+            "Longname": "linear fit",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOBAND3CONSTRAINTVECTOR_attr": {
+            "Longname": "prior",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOBAND7CONSTRAINTVECTOR_attr": {
+            "Longname": "prior",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEBAND2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEBAND2CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEBAND3_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEBAND7_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEBAND3CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEBAND7CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEBAND2ORDER2CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEORDER2BAND7_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SURFACEALBEDOSLOPEORDER2BAND7CONSTRAINTVECTOR_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SOLARSHIFTBAND1_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SOLARSHIFTBAND2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SOLARSHIFTBAND3_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_SOLARSHIFTBAND7_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RADIANCESHIFTBAND1_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RADIANCESHIFTBAND2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RADIANCESHIFTBAND3_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RADIANCESHIFTBAND7_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RADSQUEEZEBAND1_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RADSQUEEZEBAND2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RADSQUEEZEBAND3_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RADSQUEEZEBAND7_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RINGSFBAND1_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RINGSFBAND2_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RINGSFBAND3_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_RINGSFBAND7_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_TEMPSHIFTBAND3_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOMI_TEMPSHIFTBAND7_attr": {
+            "Longname": "",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_attr": {
+            "Longname": "Column amounts computed from the retrieved profile. See columnPressureMin, columnPressureMax for pressure ranges",
+            "Units": "molecules/cm2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_AIR_attr": {
+            "Longname": "Column amounts computed from air. See columnPressureMin, columnPressureMax for pressure ranges",
+            "Units": "molecules/cm2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_DOFS_attr": {
+            "Longname": "DOFS for Column amounts for partial/full columns. See columnPressureMin, columnPressureMax for pressure ranges",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_ERROR_attr": {
+            "Longname": "Errors for column amounts. See columnPressureMin, columnPressureMax for pressure ranges",
+            "Units": "molecules/cm2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_INITIAL_attr": {
+            "Longname": "Column amounts computed for Initial. See columnPressureMin, columnPressureMax for pressure ranges",
+            "Units": "molecules/cm2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_PRESSUREMAX_attr": {
+            "Longname": "Bounding pressure for column values",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_PRESSUREMIN_attr": {
+            "Longname": "Bounding pressure for column values",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_PRIOR_attr": {
+            "Longname": "Column amounts computed for prior. See columnPressureMin, columnPressureMax for pressure ranges",
+            "Units": "molecules/cm2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_TRUE_attr": {
+            "Longname": "Column amounts computed for true (if real data usually set to initial guess). See columnPressureMin, columnPressureMax for pressure ranges",
+            "Units": "molecules/cm2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "COLUMN_UNITS_attr": {
+            "Longname": "multiplier on column values, e.g. *1e-9",
+            "Units": "molecules/cm2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "MICROWINDOW_attr": {
+            "Longname": "Microwindow start, end frequency",
+            "Units": "cm-1",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "MICROWINDOW_INSTRUMENT_attr": {
+            "Longname": "Microwindow instrument",
+            "Units": "",
+            "FillValue": "-",
+            "MisingValue": "-"
+        },
+        "MICROWINDOW_SPECIES_attr": {
+            "Longname": "Microwindow species",
+            "Units": "",
+            "FillValue": "-",
+            "MisingValue": "-"
+        },
+        "TOTALERROR_attr": {
+            "Longname": "Square-root of diagonal elements of output total error covariance (i.e. smoothing, systematic, and measurement error). For atmospheric temperature, it represents the error in (K). For Atmospheric Species, positive error bar=exp(ln(vmr)+err)-vmr, negative error bar=vmr-exp(ln(vmr)-error)",
+            "Units": "ln(vmr)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TOTALERROR_FM_attr": {
+            "Longname": "Square-root of diagonal elements of output total error covariance (i.e. smoothing, systematic, and measurement error). For atmospheric temperature, it represents the error in (K). For Atmospheric Species, positive error bar=exp(ln(vmr)+err)-vmr, negative error bar=vmr-exp(ln(vmr)-error).  On fm grid.",
+            "Units": "ln(vmr)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TOTALERRORCOVARIANCE_attr": {
+            "Longname": "Sum of smoothing, systematic, and measurement error. For atmospheric temperature, it represents the covariance of the error of temperature. For Atmospheric Species, it is the covariance of the error of ln(vmr)",
+            "Units": "ln(vmr)^2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "YYYYMMDD_attr": {
+            "Longname": "Human readable UTC time at location",
+            "Units": "time as YYYYMMDD",
+            "Example": "20060805",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "UT_HOUR_attr": {
+            "Longname": "UTC hour at location.  fraction corresponds to minutes, seconds",
+            "Units": "hours",
+            "Example": "19.44000",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RUN_attr": {
+            "Longname": "Associated TES original RUNID"
+        },
+        "DAYNIGHTFLAG_attr": {
+            "Longname": "day and night flag (1=day, 0=night)",
+            "Units": "",
+            "FillValue": -99,
+            "MisingValue": -99
+        },
+        "DOMINANTSURFACETYPE_attr": {
+            "Longname": "Dominant surface type",
+            "FullDescription": "see http://tes.jpl.nasa.gov/uploadedfiles/TES_DPS_V11.8.pdf",
+            "Units": "",
+            "FillValue": -99,
+            "MisingValue": -99
+        },
+        "LATITUDE_attr": {
+            "Longname": "latitude",
+            "Units": "degrees_north",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LATITUDE_FOOTPRINT_1_attr": {
+            "Longname": "latitude for footprint bounding point 1",
+            "Units": "degrees_north",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LATITUDE_FOOTPRINT_2_attr": {
+            "Longname": "latitude for footprint bounding point 2",
+            "Units": "degrees_north",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LATITUDE_FOOTPRINT_3_attr": {
+            "Longname": "latitude for footprint bounding point 3",
+            "Units": "degrees_north",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LATITUDE_FOOTPRINT_4_attr": {
+            "Longname": "latitude for footprint bounding point 4",
+            "Units": "degrees_north",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LOCALSOLARTIME_attr": {
+            "Longname": "local solar time at location",
+            "Units": "hours_of_day.fraction_of_hours_of_day",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LONGITUDE_attr": {
+            "Longname": "longitude",
+            "Units": "degrees_east",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LONGITUDE_FOOTPRINT_1_attr": {
+            "Longname": "longitude for footprint bounding point 1",
+            "Units": "degrees_east",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LONGITUDE_FOOTPRINT_2_attr": {
+            "Longname": "llongitude for footprint bounding point 2",
+            "Units": "degrees_east",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LONGITUDE_FOOTPRINT_3_attr": {
+            "Longname": "llongitude for footprint bounding point 3",
+            "Units": "degrees_east",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LONGITUDE_FOOTPRINT_4_attr": {
+            "Longname": "longitude for footprint bounding point 4",
+            "Units": "degrees_east",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SCAN_attr": {
+            "Longname": "scan number within a sequence",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": -999
+        },
+        "SEQUENCE_attr": {
+            "Longname": "sequence number within a run",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": -999
+        },
+        "SOLARZENITHANGLE_attr": {
+            "Longname": "Solar zenith relative to the local zenith at the spacecraft",
+            "Units": "decimal degrees",
+            "Calendar": "julian",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACEELEVSTANDARDDEVIATION_attr": {
+            "Longname": "standard deviation of average elevation over footprint",
+            "Units": "meters",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETYPEFOOTPRINT_attr": {
+            "Longname": "surface type footprint",
+            "FullDescription": "1=freshwater,2=saltwater,3=land,4=mixed",
+            "Units": "",
+            "FillValue": -99,
+            "MisingValue": -99
+        },
+        "TIME_attr": {
+            "Longname": "Julian date",
+            "Units": "seconds since some reference (1993-01-01 00':00':00)",
+            "Calendar": "julian",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "O3_CCURVE_TESOMI_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_CLOUDFRACTION_INITIAL_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_NRADWAV_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_NRADWAVCONSTRAINTVECTOR_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_NRADWAV_INITIAL_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_RADIANCERESIDUALMEAN_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_RADIANCERESIDUALMEAN_QA_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_RADIANCERESIDUALRMS_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_RADIANCERESIDUALRMS_QA_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_RINGSF_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_RINGSFCONSTRAINTVECTOR_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_RINGSF_INITIAL_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SURFALB_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SURFALBCONSTRAINTVECTOR_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SURFALBSLOPE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SURFALBSLOPECONSTRAINTVECTOR_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SURFALBSLOPE_INITIAL_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SURFALB_INITIAL_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SURFALB_QA_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_SCANAVERAGEDCOUNT_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_SURFACETEMPINITIAL_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_CLOUD_PRESSURE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_EARTHSUNDISTANCE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_LAT_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_LINE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_LON_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_ORBIT_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_ORBITPHASE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_PIXEL_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_PIXEL_CLOUD_FRACTION_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SOLARAZIMUTHANGLE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_SOLARZENITHANGLE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_TAI_TIME_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_UTC_TIME_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_UV2_TERRAINHEIGHT_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_VIEWINGAZIMUTHANGLE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_VIEWINGZENITHANGLE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "OMI_XTRACKQUALITYFLAGS_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_DOMINANTSURFACETYPE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_LATITUDE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_LONGITUDE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_OMI_DISTANCE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_OMI_MATCHED_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_OMI_TIME_DIFFERENCE_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_SURFACETYPEFOOTPRINT_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_TAI_TIME_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "TES_UTC_TIME_attr": {
+            "Longname": "field for TES/OMI",
+            "Units": "",
+            "FillValue": -999,
+            "MisingValue": ""
+        },
+        "GRID_PRESSURE_FM_attr": {
+            "Longname": "full pressure grid used in forward model calculation.  Actual pressure grid varies depending on surface pressure.",
+            "Units": "hPa"
+        },
+        "EMISSIVITY_attr": {
+            "Longname": "surface emissivity",
+            "Units": ""
+        },
+        "EMISSIVITY_INITIAL_attr": {
+            "Longname": "surface emissivity initial guess",
+            "Units": ""
+        },
+        "EMISSIVITY_CONSTRAINT_attr": {
+            "Longname": "surface emissivity constraint",
+            "Units": ""
+        },
+        "EMISSIVITY_WAVENUMBER_attr": {
+            "Longname": "surface emissivity wavenumber",
+            "Units": "cm-1"
+        },
+        "EMISSIVITY_ERROR_attr": {
+            "Longname": "surface emissivity error",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "EMISSIVITY_OFFSET_DISTANCE_attr": {
+            "Longname": "surface emissivity offset distance",
+            "Units": "km",
+            "FullDescription": "The distance between the measurement center and the selected grid cell in the surface emissivity database."
+        },
+        "NATIVE_HSR_EMIS_WAVENUMBER_attr": {
+            "Longname": "surface emissivity wavenumber at native resolution",
+            "Units": "cm-1",
+            "Comment": "Right-padded with fill values as needed to ensure all soundings using the same emissivity source have the same native dimension length"
+        },
+        "NATIVE_HSR_EMISSIVITY_INITIAL_attr": {
+            "Longname": "surface emissivity initial guess at native resolution",
+            "Units": "",
+            "Comment": "Right-padded with fill values as needed to ensure all soundings using the same emissivity source have the same native dimension length"
+        },
+        "CT_CO2_attr": {
+            "Longname": "CarbonTracker CO2 layer value",
+            "Units": "ppm"
+        },
+        "CT_CO2_AK_attr": {
+            "Longname": "CarbonTracker CO2 value with AK applied",
+            "Units": "ppm"
+        },
+        "CT_PRESSURE_attr": {
+            "Longname": "CarbonTracker Pressure level value",
+            "Units": "hPa"
+        },
+        "CT_LATITUDE_attr": {
+            "Longname": "CarbonTracker latitude.",
+            "Units": "degrees"
+        },
+        "CT_LONGITUDE_attr": {
+            "Longname": "CarbonTracker longitude.",
+            "Units": "degrees"
+        },
+        "CT_YEARFLOAT_attr": {
+            "Longname": "CarbonTracker yearfloat",
+            "Units": "year"
+        },
+        "SONDE_attr": {
+            "Longname": "sonde match, if exists",
+            "Units": ""
+        },
+        "SONDEAK_attr": {
+            "Longname": "sonde match, if exists, with AK applied",
+            "Units": ""
+        },
+        "NCEP_PRESSURE_attr": {
+            "Longname": "NCEP pressure",
+            "Units": "ppm"
+        },
+        "NCEP_TEMPERATURE_attr": {
+            "Longname": "NCEP temperature",
+            "Units": "K"
+        },
+        "NCEP_TEMPERATURESURFACE_attr": {
+            "Longname": "NCEP temperature at surface",
+            "Units": "K"
+        },
+        "CH4_EVS_attr": {
+            "Longname": "Size of first 10 eVs for CH4",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CH4_EVRATIO_attr": {
+            "Longname": "ratio of 0th over first 10 eVs for CH4",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "H2O_H2O_CORR_QA_attr": {
+            "Longname": "Water consistency quality assurance",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "H2O_HDO_CORR_QA_attr": {
+            "Longname": "Water consistency quality assurance",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "KDOTDL_QA_attr": {
+            "Longname": "Jacobian dotted into the radiance residual quality assurance",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LDOTDL_QA_attr": {
+            "Longname": "Radiance dotted into the radiance residual quality assurance",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LDOTDNCEP_TEMPERATURE_attr": {
+            "Longname": "CarbonTracker CO2 value with AK applied",
+            "Units": "ppm"
+        },
+        "L_QA_attr": {
+            "Longname": "Radiance dotted into the radiance residual quality assurance",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SURFACETEMPVSATMTEMP_QA_attr": {
+            "Longname": "Quality value equal to the surface temperature minus the atmospheric temperature closest to the surface",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "QUALITY_attr": {
+            "Longname": "Retrieval quality set from lite update, 1=good, 0=bad",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "QUALITYAGGREGATE_attr": {
+            "Longname": "Retrieval quality for monthly average centered around this point, 1=good",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_QUALITY_attr": {
+            "Longname": "Retrieval quality, 1=good.  If present, this is the quality in the L2 HDF products, and the quality was updated for the lite products.",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TROPOPAUSEPRESSURE_attr": {
+            "Longname": "Pressure between the troposphere and stratosphere used to calculate the tropospheric column, from GMAO",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "BORESIGHTAZIMUTH_attr": {
+            "Longname": "boresight (LOS) azimuth angle relative to the local north at SC",
+            "Units": "Decimal degrees",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "BORESIGHTNADIRANGLE_attr": {
+            "Longname": "boresight (LOS) nadir angle relative to local nadir at SC",
+            "Units": "Decimal degrees",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "pointingangle_airs_attr": {
+            "Longname": "AIRS boresight (LOS) nadir angle relative to local nadir at SC",
+            "Units": "Decimal degrees",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "pointingangle_omi_attr": {
+            "Longname": "OMI boresight (LOS) nadir angle relative to local nadir at SC",
+            "Units": "Decimal degrees",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "pointingangle_tes_attr": {
+            "Longname": "TES boresight (LOS) nadir angle relative to local nadir at SC",
+            "Units": "Decimal degrees",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "pointingangle_tropomi_attr": {
+            "Longname": "TROPOMI boresight (LOS) nadir angle relative to local nadir at SC",
+            "Units": "Decimal degrees",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TGT_SPACECRAFTAZIMUTH_attr": {
+            "Longname": "boresight (LOS) azimuth angle relative to the local north at the target geolocation.",
+            "Units": "Decimal degrees (east of north)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TGT_SPACECRAFTZENITH_attr": {
+            "Longname": "boresight (LOS) zenith angle relative to the local zenith at the target geolocation.",
+            "Units": "Decimal degrees",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "YEARFLOAT_attr": {
+            "Longname": "year plus fraction of the year",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_SPECIES_attr": {
+            "Longname": "Uncorrected retrieved values",
+            "Units": "(K) for atmospheric temperature, volume mixing ratio (dry) for atmospheric species",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_SPECIES_HDO_attr": {
+            "Longname": "Uncorrected retrieved values for HDO",
+            "Units": "volume mixing ratio (dry)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_SPECIES_N2O_attr": {
+            "Longname": "Uncorrected retrieved values for N2O",
+            "Units": "volume mixing ratio (dry)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_CONSTRAINTVECTOR_N2O_attr": {
+            "Longname": "N2O constraint vector used in retrieval",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_COLUMN750_attr": {
+            "Longname": "Column above 750 mb for original CH4",
+            "Units": "VMR (ppb)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_SPECIES_FM_attr": {
+            "Longname": "Uncorrected retrieved values, fm grid",
+            "Units": "(K) for atmospheric temperature, volume mixing ratio (dry) for atmospheric species",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_SPECIES_FM_HDO_attr": {
+            "Longname": "Uncorrected retrieved values for HDO, fm grid",
+            "Units": "volume mixing ratio (dry)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_SPECIES_N2O_FM_attr": {
+            "Longname": "Uncorrected retrieved values for N2O, fm grid",
+            "Units": "volume mixing ratio (dry)",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "ORIGINAL_CONSTRAINTVECTOR_N2O_FM_attr": {
+            "Longname": "N2O constraint vector used in retrieval, fm grid",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "INITIAL_attr": {
+            "Longname": "Initial vmr data or temperature data (for retrieved temperature) used in the retrieval",
+            "Units": "VMR or K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TATM_SPECIES_attr": {
+            "Longname": "TATM profile result",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TATM_attr": {
+            "Longname": "TATM profile result",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TATM_DEVIATION_attr": {
+            "Longname": "TATM result maximum deviation from .constraint vector",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TATM_CONSTRAINTVECTOR_attr": {
+            "Longname": "TATM profile constraint vector",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "H2O_SPECIES_attr": {
+            "Longname": "H2O profile result",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "H2O_CONSTRAINTVECTOR_attr": {
+            "Longname": "H2O profile constraint vector",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "H2O_attr": {
+            "Longname": "H2O profile result",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "HDO_attr": {
+            "Longname": "HDO profile result",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "HDO_H2O_attr": {
+            "Longname": "HDO_H2O profile result.  HDO starts at index 0 and H2O starts at index 17",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "INITIAL_FM_attr": {
+            "Longname": "Initial vmr data or temperature data (for retrieved temperature) used in the retrieval on fm grid",
+            "Units": "VMR or K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "TRUE_attr": {
+            "Longname": "true profile",
+            "Units": "VMR or K",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "TRUE_AK_attr": {
+            "Longname": "true profile with averaging kernel applied, e.g. xa + A@(xt-xa)",
+            "Units": "VMR or K",
+            "FillValue": -999.0,
+            "MissingValue": -999.0
+        },
+        "N2O_SPECIES_attr": {
+            "Longname": "retrieved N2O",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "N2O_SPECIES_FM_attr": {
+            "Longname": "retrieved N2O",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "N2O_CONSTRAINTVECTOR_attr": {
+            "Longname": "N2O constraint vector",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "N2O_CONSTRAINTVECTOR_FM_attr": {
+            "Longname": "N2O constraint vector, fm grid",
+            "Units": "VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "N2O_DOFS_attr": {
+            "Longname": "degrees of freedom for N2O",
+            "Units": "()",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "N2O_AVERAGINGKERNEL_attr": {
+            "Longname": "N2O Averaging Kernel",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "N2O_OBSERVATIONERRORCOVARIANCE_attr": {
+            "Longname": "N2O Observation Error Covariance",
+            "Units": "ln(vmr)^2 or K^2",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SPECIES_N2OCORRECTED_attr": {
+            "Longname": "CH4 corrected by N2O, using log(CH4_corr)=log(CH4) + log(N2O_constraintvector) - log(N2O)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SPECIES_N2OCORRECTED_FM_attr": {
+            "Longname": "CH4 corrected by N2O, using log(CH4_corr)=log(CH4) + log(N2O_constraintvector) - log(N2O), fm grid",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DELTA_P_attr": {
+            "Longname": "Surface pressure difference from prior",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CO2_GRAD_DEL_attr": {
+            "Longname": "Change (between the retrieved profile and the prior profile) of the co2 dry air mole fraction difference from the surface (level 0) minus that at level 7 (0.631579 Psurf)",
+            "Units": "ppm",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DELTA_T_attr": {
+            "Longname": "Atmospheric temperature difference from prior near 750 hPa",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_WINDSPEED_attr": {
+            "Longname": "NIR windspeed, usually only used over water",
+            "Units": "m/s",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_AEROD_attr": {
+            "Longname": "Aerosol optical depth for types: total, ice_cloud, wc, DU, SO, strat, oc, SS, BC",
+            "Units": "optical depth",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_AERP_attr": {
+            "Longname": "Aerosol pressure/psurf for types: total, ice_cloud, wc, DU, SO, strat, oc, SS, BC",
+            "Units": "P/Psurf",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_ALBEDO_attr": {
+            "Longname": "NIR piecewise linear albedo, converted to Lambertian if retrieved in BRDF (by multiply by 0.07)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_ALBEDO_POLY2_attr": {
+            "Longname": "NIR 2nd order polynomial albedo, converted to Lambertian if retrieved in BRDF, by band, with all terms for band1 listed first, etc.",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_FLUOR_REL_attr": {
+            "Longname": "NIR fluorescence divided by O2A top 5% radiance average in fitted radiance.",
+            "Units": "N/A",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_CLOUD3D_SLOPE_attr": {
+            "Longname": "NIR 3d-cloud slope by band.",
+            "Units": "N/A",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_CLOUD3D_OFFSET_attr": {
+            "Longname": "NIR 3d-cloud offset by band.",
+            "Units": "N/A",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DELTA_P_TRUE_attr": {
+            "Longname": "True surface pressure difference from prior",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CO2_GRAD_DEL_TRUE_attr": {
+            "Longname": "Change (between the retrieved profile and the prior profile) of the co2 dry air mole fraction difference from the surface (level 0) minus that at level 7 (0.631579 Psurf)",
+            "Units": "ppm",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DELTA_T_TRUE_attr": {
+            "Longname": "True atmospheric temperature difference from prior near 750 hPa",
+            "Units": "K",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_WINDSPEED_TRUE_attr": {
+            "Longname": "True NIR windspeed, usually only used over water",
+            "Units": "m/s",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_AEROD_TRUE_attr": {
+            "Longname": "True aerosol optical depth for types: total, ice_cloud, wc, DU, SO, strat, oc, SS, BC",
+            "Units": "optical depth",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_AERP_TRUE_attr": {
+            "Longname": "True aerosol pressure/psurf for types: total, ice_cloud, wc, DU, SO, strat, oc, SS, BC",
+            "Units": "P/Psurf",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_ALBEDO_TRUE_attr": {
+            "Longname": "True NIR piecewise linear albedo, converted to Lambertian if retrieved in BRDF (by multiply by 0.07)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_ALBEDO_POLY2_TRUE_attr": {
+            "Longname": "True NIR 2nd order polynomial albedo, converted to Lambertian if retrieved in BRDF, by band, with all terms for band1 listed first, etc.",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_ALBEDO_POLY2_ERROR_TRUE_attr": {
+            "Longname": "True NIR converted to and back to a 2nd order polynomial albedo minus true (converted to Lambertian if needed)",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_FLUOR_REL_TRUE_attr": {
+            "Longname": "True NIR fluorescence divided by O2A top 5% radiance average.",
+            "Units": "N/A",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_CLOUD3D_SLOPE_TRUE_attr": {
+            "Longname": "True NIR 3d-cloud slope by band.",
+            "Units": "N/A",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "NIR_CLOUD3D_OFFSET_TRUE_attr": {
+            "Longname": "True NIR 3d-cloud offset by band.",
+            "Units": "N/A",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "GLOBALSURVEYFLAG_attr": {
+            "Longname": "If run is a global survey ==1, otherwise ==0",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "LANDFLAG_attr": {
+            "Longname": "If observation is over land ==1, otherwise ==0",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DOFS_attr": {
+            "Longname": "Same as degreesOfFreedomForSignal; trace of averaging kernel",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "SOUNDINGID_attr": {
+            "Longname": "Unique value for each sounding, in order of measurement, e.g. run_sequence_scan",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "VARIABILITYCH4_QA_attr": {
+            "Longname": "Q/A for methane, the standard deviation/mean below 200 mb for ch4",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "VARIABILITYN2O_QA_attr": {
+            "Longname": "Q/A for methane, the standard deviation/mean below 350 mb for n2o",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "BTOBS_attr": {
+            "Longname": "observed brightness temperature",
+            "Units": "Kelvin",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "BTFIT_attr": {
+            "Longname": "brightness temperature of initial guess",
+            "Units": "Kelvin",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "DBT_attr": {
+            "Longname": "brightness temperature difference between observed and initial guess",
+            "Units": "Kelvin",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "KDOTDLSYS_QA_attr": {
+            "Longname": "same as KdotDL except for interferent species",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "CLOUDTOPPRESSUREDOF_attr": {
+            "Longname": "DOF for the cloud top pressure",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "PRIORCOVARIANCE_attr": {
+            "Longname": "A priori covariance",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_attr": {
+            "Longname": "Representative Tropospheric VMR",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_PRESSURE_attr": {
+            "Longname": "Representative Tropospheric VMR pressure",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_PRESSUREBOUNDUPPER_attr": {
+            "Longname": "Pressure at which the AK is half maximum",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_PRESSUREBOUNDLOWER_attr": {
+            "Longname": "Pressure at which the AK is half maximum",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_MAP_attr": {
+            "Longname": "Map from 4-5 level RTVMR to retrieval grid [RTVMR, Ret grid]",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_MAPPRESSURE_attr": {
+            "Longname": "4-5 pressure levels used for RTVMR",
+            "Units": "hPa",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_ERRORMEASUREMENT_attr": {
+            "Longname": "Measurement error",
+            "Units": "Fraction VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_ERROROBSERVATION_attr": {
+            "Longname": "Observation error",
+            "Units": "Fraction VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "RTVMR_ERROTOTAL_attr": {
+            "Longname": "Total error",
+            "Units": "Fraction VMR",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "UTCTIME_attr": {
+            "Longname": "UTC time of observation",
+            "Units": "N/A",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "BIAS2010_attr": {
+            "Longname": "CO2 bias in ppm applied after 2010",
+            "Units": "ppm",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "BIASTIMEDEPENDENT_attr": {
+            "Longname": "Time dependent bias in ppm",
+            "Units": "ppm",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "BIASSPATIAL_attr": {
+            "Longname": "Spatial bias in ppm (apply with caution as improvements are not conclusive)",
+            "Units": "ppm",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        },
+        "MAP_attr": {
+            "Longname": "Map from retrieval grid to FM grid [Ret grid, FM grid]",
+            "Units": "",
+            "FillValue": -999.0,
+            "MisingValue": -999.0
+        }
+    },
+    "groupvarnames": [
+        [
+            "",
+            "Altitude"
+        ],
+        [
+            "",
+            "AveragingKernel"
+        ],
+        [
+            "",
+            "Column750"
+        ],
+        [
+            "",
+            "Column750_Averagingkernel"
+        ],
+        [
+            "",
+            "Column750_constraintvector"
+        ],
+        [
+            "",
+            "Column750_Initial"
+        ],
+        [
+            "",
+            "Column750_ObservationError"
+        ],
+        [
+            "",
+            "Column750_PWF"
+        ],
+        [
+            "",
+            "ConstraintVector"
+        ],
+        [
+            "",
+            "DOFs"
+        ],
+        [
+            "",
+            "DayNightFlag"
+        ],
+        [
+            "",
+            "GlobalSurveyFlag"
+        ],
+        [
+            "",
+            "LandFlag"
+        ],
+        [
+            "",
+            "Latitude"
+        ],
+        [
+            "",
+            "Longitude"
+        ],
+        [
+            "",
+            "O3_Ccurve_QA"
+        ],
+        [
+            "",
+            "ObservationErrorCovariance"
+        ],
+        [
+            "",
+            "Pressure"
+        ],
+        [
+            "",
+            "Grid_Pressure_FM"
+        ],
+        [
+            "",
+            "Quality"
+        ],
+        [
+            "",
+            "Run"
+        ],
+        [
+            "",
+            "Scan"
+        ],
+        [
+            "",
+            "Sequence"
+        ],
+        [
+            "",
+            "RTVMR"
+        ],
+        [
+            "",
+            "RTVMR_Pressure"
+        ],
+        [
+            "",
+            "RTVMR_ErrorObservation"
+        ],
+        [
+            "",
+            "Species"
+        ],
+        [
+            "",
+            "true"
+        ],
+        [
+            "",
+            "true_ak"
+        ],
+        [
+            "",
+            "SurfaceAltitude"
+        ],
+        [
+            "",
+            "Time"
+        ],
+        [
+            "",
+            "UT_Hour"
+        ],
+        [
+            "",
+            "UTCTime"
+        ],
+        [
+            "",
+            "YearFloat"
+        ],
+        [
+            "",
+            "YYYYMMDD"
+        ],
+        [
+            "",
+            "SoundingID"
+        ],
+        [
+            "Retrieval",
+            "AirDensity"
+        ],
+        [
+            "Retrieval",
+            "Average_800_Tropopause"
+        ],
+        [
+            "Retrieval",
+            "Average_800_TropopausePrior"
+        ],
+        [
+            "Retrieval",
+            "Average_900_200"
+        ],
+        [
+            "Retrieval",
+            "AverageCloudEffOpticalDepth"
+        ],
+        [
+            "Retrieval",
+            "City"
+        ],
+        [
+            "Retrieval",
+            "CityIndex"
+        ],
+        [
+            "Retrieval",
+            "CloudTopPressure"
+        ],
+        [
+            "Retrieval",
+            "Column"
+        ],
+        [
+            "Retrieval",
+            "Column_Air"
+        ],
+        [
+            "Retrieval",
+            "Column_Prior"
+        ],
+        [
+            "Retrieval",
+            "FmOzoneBandFlux"
+        ],
+        [
+            "Retrieval",
+            "LowerTroposphericColumn"
+        ],
+        [
+            "Retrieval",
+            "H2O_ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "H2O_Species"
+        ],
+        [
+            "Retrieval",
+            "H2O"
+        ],
+        [
+            "Retrieval",
+            "HDO"
+        ],
+        [
+            "Retrieval",
+            "HDO_H2O"
+        ],
+        [
+            "Retrieval",
+            "L1BOzoneBandFlux"
+        ],
+        [
+            "Retrieval",
+            "N2O_DOFS"
+        ],
+        [
+            "Retrieval",
+            "N2O_ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "N2O_Species"
+        ],
+        [
+            "Retrieval",
+            "Original_Species_N2O"
+        ],
+        [
+            "Retrieval",
+            "Original_Species_HDO"
+        ],
+        [
+            "Retrieval",
+            "Original_Column750"
+        ],
+        [
+            "Retrieval",
+            "Original_Species"
+        ],
+        [
+            "Retrieval",
+            "O3TroposphericColumn"
+        ],
+        [
+            "Retrieval",
+            "O3TroposphericColumnError"
+        ],
+        [
+            "Retrieval",
+            "OzoneIRK"
+        ],
+        [
+            "Retrieval",
+            "SurfaceTemperature"
+        ],
+        [
+            "Retrieval",
+            "TATM_ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TATM_Deviation"
+        ],
+        [
+            "Retrieval",
+            "TATM_Species"
+        ],
+        [
+            "Retrieval",
+            "TATM"
+        ],
+        [
+            "Retrieval",
+            "TroposphericColumn"
+        ],
+        [
+            "Retrieval",
+            "TotalColumnDensity"
+        ],
+        [
+            "Retrieval",
+            "XPAN800"
+        ],
+        [
+            "Retrieval",
+            "XPAN800_Prior"
+        ],
+        [
+            "Retrieval",
+            "XPAN"
+        ],
+        [
+            "Retrieval",
+            "XPAN_Prior"
+        ],
+        [
+            "Retrieval",
+            "Omi_CloudTopPressure"
+        ],
+        [
+            "Retrieval",
+            "OMI_NRadWav"
+        ],
+        [
+            "Retrieval",
+            "OMI_NRadWavConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "OMI_RingSF"
+        ],
+        [
+            "Retrieval",
+            "OMI_RingSFConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "OMI_SurfAlb"
+        ],
+        [
+            "Retrieval",
+            "OMI_SurfAlbConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "OMI_SurfAlbSlope"
+        ],
+        [
+            "Retrieval",
+            "OMI_SurfAlbSlopeConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "Omi_CloudFraction"
+        ],
+        [
+            "Retrieval",
+            "Omi_RingSFUV1"
+        ],
+        [
+            "Retrieval",
+            "Omi_RingSFUV2"
+        ],
+        [
+            "Retrieval",
+            "Omi_SurfaceAlbedoUV1"
+        ],
+        [
+            "Retrieval",
+            "Omi_SurfaceAlbedoUV1ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "Omi_SurfaceAlbedoUV2"
+        ],
+        [
+            "Retrieval",
+            "Omi_SurfaceAlbedoUV2ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "Omi_SurfaceAlbedoSlopeUV2"
+        ],
+        [
+            "Retrieval",
+            "Omi_SurfaceAlbedoSlopeUV2ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_RingSFBAND1"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_RingSFBAND2"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_RingSFBAND3"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_RingSFBAND7"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_CloudFraction"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoBAND1"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoBAND1ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoBAND2"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoBAND2ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoBAND3"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoBAND3ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoBAND7"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoBAND7ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeBAND2"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeBAND2ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeBAND3"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeBAND3ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeBAND7"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeBAND7ConstraintVector"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeORDER2BAND2"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeORDER2BAND3"
+        ],
+        [
+            "Retrieval",
+            "TROPOMI_SurfaceAlbedoSlopeORDER2BAND7"
+        ],
+        [
+            "Retrieval",
+            "microwindow"
+        ],
+        [
+            "Retrieval",
+            "microwindow_instrument"
+        ],
+        [
+            "Retrieval",
+            "microwindow_species"
+        ],
+        [
+            "Characterization",
+            "Altitude_FM"
+        ],
+        [
+            "Characterization",
+            "AverageCloudEffOpticalDepthError"
+        ],
+        [
+            "Characterization",
+            "AveragingKernelDiagonal"
+        ],
+        [
+            "Characterization",
+            "Bias2010"
+        ],
+        [
+            "Characterization",
+            "BiasSpatial"
+        ],
+        [
+            "Characterization",
+            "BiasTimeDependent"
+        ],
+        [
+            "Characterization",
+            "BTFIT"
+        ],
+        [
+            "Characterization",
+            "BTOBS"
+        ],
+        [
+            "Characterization",
+            "CalFreq"
+        ],
+        [
+            "Characterization",
+            "CalOffset"
+        ],
+        [
+            "Characterization",
+            "CalScale"
+        ],
+        [
+            "Characterization",
+            "CH4_Stratosphere_QA"
+        ],
+        [
+            "Characterization",
+            "CH4_DOFStrat"
+        ],
+        [
+            "Characterization",
+            "CH4_DOFTrop"
+        ],
+        [
+            "Characterization",
+            "CH4_EVs"
+        ],
+        [
+            "Characterization",
+            "CH4_EVRatio"
+        ],
+        [
+            "Characterization",
+            "CloudEffectiveOpticalDepth"
+        ],
+        [
+            "Characterization",
+            "CloudEffectiveOpticalDepth1000"
+        ],
+        [
+            "Characterization",
+            "CloudEffectiveOpticalDepthError"
+        ],
+        [
+            "Characterization",
+            "CloudEffectiveOpticalDepthError1000"
+        ],
+        [
+            "Characterization",
+            "CloudTopPressureDOF"
+        ],
+        [
+            "Characterization",
+            "CloudTopPressureError"
+        ],
+        [
+            "Characterization",
+            "CloudVariability_QA"
+        ],
+        [
+            "Characterization",
+            "Column_DOFS"
+        ],
+        [
+            "Characterization",
+            "Column_Error"
+        ],
+        [
+            "Characterization",
+            "Column_Initial"
+        ],
+        [
+            "Characterization",
+            "Column_PressureMax"
+        ],
+        [
+            "Characterization",
+            "Column_PressureMin"
+        ],
+        [
+            "Characterization",
+            "Column_True"
+        ],
+        [
+            "Characterization",
+            "Column_Units"
+        ],
+        [
+            "Characterization",
+            "Column750_Error"
+        ],
+        [
+            "Characterization",
+            "DBT"
+        ],
+        [
+            "Characterization",
+            "DegreesOfFreedomForSignal"
+        ],
+        [
+            "Characterization",
+            "Desert_Emiss_QA"
+        ],
+        [
+            "Characterization",
+            "Deviation_QA"
+        ],
+        [
+            "Characterization",
+            "DeviationBad_QA"
+        ],
+        [
+            "Characterization",
+            "DOFSLowerTroposphere"
+        ],
+        [
+            "Characterization",
+            "DOFSTroposphere"
+        ],
+        [
+            "Characterization",
+            "DOFSUpperTroposphere"
+        ],
+        [
+            "Characterization",
+            "Emissivity"
+        ],
+        [
+            "Characterization",
+            "Emissivity_Constraint"
+        ],
+        [
+            "Characterization",
+            "Emissivity_Error"
+        ],
+        [
+            "Characterization",
+            "Emissivity_Initial"
+        ],
+        [
+            "Characterization",
+            "Emissivity_Wavenumber"
+        ],
+        [
+            "Characterization",
+            "Emissivity_Offset_Distance"
+        ],
+        [
+            "Characterization",
+            "filter_index"
+        ],
+        [
+            "Characterization",
+            "Native_HSR_Emissivity_Initial"
+        ],
+        [
+            "Characterization",
+            "Native_HSR_Emis_Wavenumber"
+        ],
+        [
+            "Characterization",
+            "Filename"
+        ],
+        [
+            "Characterization",
+            "H2O_H2O_Corr_QA"
+        ],
+        [
+            "Characterization",
+            "H2O_HDO_Corr_QA"
+        ],
+        [
+            "Characterization",
+            "H2O_HDOMeasurementErrorCovariance"
+        ],
+        [
+            "Characterization",
+            "H2O_HDOObservationErrorCovariance"
+        ],
+        [
+            "Characterization",
+            "H2O_HDOTotalErrorCovariance"
+        ],
+        [
+            "Characterization",
+            "H2O_Propagated_QA"
+        ],
+        [
+            "Characterization",
+            "H2O_QA"
+        ],
+        [
+            "Characterization",
+            "H2O_Retrieval_QA"
+        ],
+        [
+            "Characterization",
+            "Initial"
+        ],
+        [
+            "Characterization",
+            "KDotDL_QA"
+        ],
+        [
+            "Characterization",
+            "KDotDLSys_QA"
+        ],
+        [
+            "Characterization",
+            "LDotDL_QA"
+        ],
+        [
+            "Characterization",
+            "LMResults_CostThresh"
+        ],
+        [
+            "Characterization",
+            "LMResults_IterList"
+        ],
+        [
+            "Characterization",
+            "LMResults_JacresNorm"
+        ],
+        [
+            "Characterization",
+            "LMResults_JacResNormNext"
+        ],
+        [
+            "Characterization",
+            "LMResults_PNorm"
+        ],
+        [
+            "Characterization",
+            "LMResults_ResNorm"
+        ],
+        [
+            "Characterization",
+            "LMResults_ResNormNext"
+        ],
+        [
+            "Characterization",
+            "LMResults_delta"
+        ],
+        [
+            "Characterization",
+            "LowerTroposphericColumnError"
+        ],
+        [
+            "Characterization",
+            "LowerTroposphericColumnInitial"
+        ],
+        [
+            "Characterization",
+            "Map"
+        ],
+        [
+            "Characterization",
+            "MeasurementErrorCovariance"
+        ],
+        [
+            "Characterization",
+            "N2O_AveragingKernel"
+        ],
+        [
+            "Characterization",
+            "N2O_ObservationErrorCovariance"
+        ],
+        [
+            "Characterization",
+            "nir_albedo"
+        ],
+        [
+            "Characterization",
+            "nir_albedo_poly2"
+        ],
+        [
+            "Characterization",
+            "co2_grad_del"
+        ],
+        [
+            "Characterization",
+            "delta_p"
+        ],
+        [
+            "Characterization",
+            "delta_t"
+        ],
+        [
+            "Characterization",
+            "nir_windspeed"
+        ],
+        [
+            "Characterization",
+            "nir_aerod"
+        ],
+        [
+            "Characterization",
+            "nir_aerp"
+        ],
+        [
+            "Characterization",
+            "nir_fluor_rel"
+        ],
+        [
+            "Characterization",
+            "nir_cloud3d_slope"
+        ],
+        [
+            "Characterization",
+            "nir_cloud3d_offset"
+        ],
+        [
+            "Characterization",
+            "nir_albedo_true"
+        ],
+        [
+            "Characterization",
+            "nir_albedo_poly2_error_true"
+        ],
+        [
+            "Characterization",
+            "nir_albedo_poly2_true"
+        ],
+        [
+            "Characterization",
+            "co2_grad_del_true"
+        ],
+        [
+            "Characterization",
+            "delta_p_true"
+        ],
+        [
+            "Characterization",
+            "delta_t_true"
+        ],
+        [
+            "Characterization",
+            "nir_windspeed_true"
+        ],
+        [
+            "Characterization",
+            "nir_aerod_true"
+        ],
+        [
+            "Characterization",
+            "nir_aerp_true"
+        ],
+        [
+            "Characterization",
+            "nir_fluor_rel_true"
+        ],
+        [
+            "Characterization",
+            "nir_cloud3d_slope_true"
+        ],
+        [
+            "Characterization",
+            "nir_cloud3d_offset_true"
+        ],
+        [
+            "Characterization",
+            "Num_Deviations_QA"
+        ],
+        [
+            "Characterization",
+            "O3_CCurve_TESOMI"
+        ],
+        [
+            "Characterization",
+            "O3_ColumnErrorDU"
+        ],
+        [
+            "Characterization",
+            "O3_Propagated_QA"
+        ],
+        [
+            "Characterization",
+            "O3_QA"
+        ],
+        [
+            "Characterization",
+            "O3_Retrieval_QA"
+        ],
+        [
+            "Characterization",
+            "O3_Slope_QA"
+        ],
+        [
+            "Characterization",
+            "O3_Tropo_Consistency_qa"
+        ],
+        [
+            "Characterization",
+            "Original_ConstraintVector_N2O"
+        ],
+        [
+            "Characterization",
+            "Original_Quality"
+        ],
+        [
+            "Characterization",
+            "pan_desert_qa"
+        ],
+        [
+            "Characterization",
+            "Precision"
+        ],
+        [
+            "Characterization",
+            "Pressure_FM"
+        ],
+        [
+            "Characterization",
+            "PriorCovariance"
+        ],
+        [
+            "Characterization",
+            "Propagated_H2O_QA"
+        ],
+        [
+            "Characterization",
+            "Propagated_O3_QA"
+        ],
+        [
+            "Characterization",
+            "Propagated_TATM_QA"
+        ],
+        [
+            "Characterization",
+            "QualityAggregate"
+        ],
+        [
+            "Characterization",
+            "RadianceMaximumSNR"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_UV1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_UV2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_VIS"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_UVIS"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_NIR1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_NIR2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_SWIR1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_SWIR2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_SWIR3"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_SWIR4"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_TIR1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_TIR2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_TIR3"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_TIR4"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_UV1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_UV2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_VIS"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_UVIS"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_SWIR1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_SWIR2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_SWIR3"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_SWIR4"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_TIR1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_TIR2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_TIR3"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_TIR4"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_1A1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_1B2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_2A1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_2B1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_1A1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_1B2"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_2A1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_2B1"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualMean_Filter"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualRMS_Filter"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualQuadratic_Filter"
+        ],
+        [
+            "Characterization",
+            "RadianceResidualSlope_Filter"
+        ],
+        [
+            "Characterization",
+            "radiance_continuum_filter"
+        ],
+        [
+            "Characterization",
+            "radianceResidualRMSRelativeContinuum_filter"
+        ],
+        [
+            "Characterization",
+            "radiance_residual_stdev_change"
+        ],
+        [
+            "Characterization",
+            "ResidualNormFinal"
+        ],
+        [
+            "Characterization",
+            "ResidualNormInitial"
+        ],
+        [
+            "Characterization",
+            "RetrieveInLog"
+        ],
+        [
+            "Characterization",
+            "RTVMR_ErrorMeasurement"
+        ],
+        [
+            "Characterization",
+            "RTVMR_ErrorTotal"
+        ],
+        [
+            "Characterization",
+            "RTVMR_Map"
+        ],
+        [
+            "Characterization",
+            "RTVMR_MapPressure"
+        ],
+        [
+            "Characterization",
+            "RTVMR_PressureBoundLower"
+        ],
+        [
+            "Characterization",
+            "RTVMR_PressureBoundUpper"
+        ],
+        [
+            "Characterization",
+            "Quality"
+        ],
+        [
+            "Characterization",
+            "SurfaceEmissMean_QA"
+        ],
+        [
+            "Characterization",
+            "SurfacePressure"
+        ],
+        [
+            "Characterization",
+            "SurfaceTempConstraint"
+        ],
+        [
+            "Characterization",
+            "SurfaceTempDegreesOfFreedom"
+        ],
+        [
+            "Characterization",
+            "SurfaceTempError"
+        ],
+        [
+            "Characterization",
+            "SurfaceTempInitial"
+        ],
+        [
+            "Characterization",
+            "SurfaceTempObservationError"
+        ],
+        [
+            "Characterization",
+            "SurfaceTempPrecision"
+        ],
+        [
+            "Characterization",
+            "SurfaceTempVsApriori_QA"
+        ],
+        [
+            "Characterization",
+            "SurfaceTempVsAtmTemp_QA"
+        ],
+        [
+            "Characterization",
+            "SurfaceTypeFootprint"
+        ],
+        [
+            "Characterization",
+            "T700"
+        ],
+        [
+            "Characterization",
+            "TATM_Propagated_QA"
+        ],
+        [
+            "Characterization",
+            "TATM_QA"
+        ],
+        [
+            "Characterization",
+            "TATM_Retrieval_QA"
+        ],
+        [
+            "Characterization",
+            "ThermalContrast"
+        ],
+        [
+            "Characterization",
+            "ThermalContrastInitial"
+        ],
+        [
+            "Characterization",
+            "TotalColumnDensityError"
+        ],
+        [
+            "Characterization",
+            "TotalColumnDensityInitial"
+        ],
+        [
+            "Characterization",
+            "TotalError"
+        ],
+        [
+            "Characterization",
+            "TotalErrorCovariance"
+        ],
+        [
+            "Characterization",
+            "TropopausePressure"
+        ],
+        [
+            "Characterization",
+            "TroposphericColumnError"
+        ],
+        [
+            "Characterization",
+            "TroposphericColumnInitial"
+        ],
+        [
+            "Characterization",
+            "UpperTroposphericColumn"
+        ],
+        [
+            "Characterization",
+            "UpperTroposphericColumnError"
+        ],
+        [
+            "Characterization",
+            "UpperTroposphericColumnInitial"
+        ],
+        [
+            "Characterization",
+            "VariabilityCH4_QA"
+        ],
+        [
+            "Characterization",
+            "VariabilityN2O_QA"
+        ],
+        [
+            "Characterization",
+            "XPAN_AK"
+        ],
+        [
+            "Characterization",
+            "XPAN_ErrorObs"
+        ],
+        [
+            "Characterization",
+            "XPAN_ErrorSmoothing"
+        ],
+        [
+            "Characterization",
+            "XPAN800_AK"
+        ],
+        [
+            "Characterization",
+            "XPAN800_ErrorObs"
+        ],
+        [
+            "Characterization",
+            "XPAN800_ErrorSmoothing"
+        ],
+        [
+            "Characterization",
+            "oco2_co2_ratio_idp"
+        ],
+        [
+            "Characterization",
+            "oco2_h2o_ratio_idp"
+        ],
+        [
+            "Characterization",
+            "oco2_dp_abp"
+        ],
+        [
+            "Characterization",
+            "oco2_altitude_stddev"
+        ],
+        [
+            "Characterization",
+            "oco2_max_declocking_factor_wco2"
+        ],
+        [
+            "Characterization",
+            "oco2_max_declocking_factor_sco2"
+        ],
+        [
+            "Characterization",
+            "OMI_CloudFraction_Initial"
+        ],
+        [
+            "Characterization",
+            "OMI_CloudFractionConstraintVector"
+        ],
+        [
+            "Characterization",
+            "OMI_NRadWav_Initial"
+        ],
+        [
+            "Characterization",
+            "Omi_NRADWavUV1"
+        ],
+        [
+            "Characterization",
+            "Omi_NRADWavUV2"
+        ],
+        [
+            "Characterization",
+            "Omi_ODWavUV1"
+        ],
+        [
+            "Characterization",
+            "Omi_OdWavUV2"
+        ],
+        [
+            "Characterization",
+            "OMI_RadianceResidualMean"
+        ],
+        [
+            "Characterization",
+            "OMI_RadianceResidualMean_QA"
+        ],
+        [
+            "Characterization",
+            "OMI_RadianceResidualRMS"
+        ],
+        [
+            "Characterization",
+            "OMI_RadianceResidualRMS_QA"
+        ],
+        [
+            "Characterization",
+            "OMI_RingSF_Initial"
+        ],
+        [
+            "Characterization",
+            "OMI_SurfAlb_Initial"
+        ],
+        [
+            "Characterization",
+            "OMI_SurfAlb_QA"
+        ],
+        [
+            "Characterization",
+            "OMI_SurfAlbSlope_Initial"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_CloudFractionConstraintVector"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_SOLARSHIFTBAND1"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_SOLARSHIFTBAND2"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_SOLARSHIFTBAND3"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_SOLARSHIFTBAND7"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_RADIANCESHIFTBAND1"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_RADIANCESHIFTBAND2"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_RADIANCESHIFTBAND3"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_RADIANCESHIFTBAND7"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_RADSQUEEZEBAND1"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_RADSQUEEZEBAND2"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_RADSQUEEZEBAND3"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_RADSQUEEZEBAND7"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_TEMPSHIFTBAND3"
+        ],
+        [
+            "Characterization",
+            "TROPOMI_TEMPSHIFTBAND7"
+        ],
+        [
+            "Characterization",
+            "CT_CO2"
+        ],
+        [
+            "Characterization",
+            "CT_CO2_AK"
+        ],
+        [
+            "Characterization",
+            "CT_Pressure"
+        ],
+        [
+            "Characterization",
+            "CT_Latitude"
+        ],
+        [
+            "Characterization",
+            "CT_Longitude"
+        ],
+        [
+            "Characterization",
+            "CT_YearFloat"
+        ],
+        [
+            "Characterization",
+            "NCEP_Temperature"
+        ],
+        [
+            "Characterization",
+            "NCEP_TemperatureSurface"
+        ],
+        [
+            "Characterization",
+            "Sonde"
+        ],
+        [
+            "Characterization",
+            "SondeAK"
+        ],
+        [
+            "Geolocation",
+            "Airs_ATrack_Index"
+        ],
+        [
+            "Geolocation",
+            "Airs_Granule"
+        ],
+        [
+            "Geolocation",
+            "Airs_XTrack_Index"
+        ],
+        [
+            "Geolocation",
+            "BoresightAzimuth"
+        ],
+        [
+            "Geolocation",
+            "BoresightNadirAngle"
+        ],
+        [
+            "Geolocation",
+            "CrIS_Granule"
+        ],
+        [
+            "Geolocation",
+            "CrIS_Atrack_Index"
+        ],
+        [
+            "Geolocation",
+            "CrIS_Xtrack_Index"
+        ],
+        [
+            "Geolocation",
+            "CrIS_Pixel_Index"
+        ],
+        [
+            "Geolocation",
+            "CrIS_L1b_Type"
+        ],
+        [
+            "Geolocation",
+            "OMI_ATrack_Index"
+        ],
+        [
+            "Geolocation",
+            "OMI_XTrack_Index_uv1"
+        ],
+        [
+            "Geolocation",
+            "OMI_XTrack_Index_uv2"
+        ],
+        [
+            "Geolocation",
+            "OMI_XTrackQualityFlags"
+        ],
+        [
+            "Geolocation",
+            "OMI_SZA_UV1"
+        ],
+        [
+            "Geolocation",
+            "OMI_RAZ_UV1"
+        ],
+        [
+            "Geolocation",
+            "OMI_VZA_UV1"
+        ],
+        [
+            "Geolocation",
+            "OMI_SCA_UV1"
+        ],
+        [
+            "Geolocation",
+            "OMI_SZA_UV2"
+        ],
+        [
+            "Geolocation",
+            "OMI_RAZ_UV2"
+        ],
+        [
+            "Geolocation",
+            "OMI_VZA_UV2"
+        ],
+        [
+            "Geolocation",
+            "OMI_SCA_UV2"
+        ],
+        [
+            "Geolocation",
+            "OMI_Cloud_Pressure"
+        ],
+        [
+            "Geolocation",
+            "OMI_EarthSunDistance"
+        ],
+        [
+            "Geolocation",
+            "OMI_Lat"
+        ],
+        [
+            "Geolocation",
+            "OMI_Lon"
+        ],
+        [
+            "Geolocation",
+            "OMI_Line"
+        ],
+        [
+            "Geolocation",
+            "OMI_Orbit"
+        ],
+        [
+            "Geolocation",
+            "OMI_OrbitPhase"
+        ],
+        [
+            "Geolocation",
+            "OMI_Pixel"
+        ],
+        [
+            "Geolocation",
+            "OMI_Pixel_Cloud_Fraction"
+        ],
+        [
+            "Geolocation",
+            "Omi_SZA"
+        ],
+        [
+            "Geolocation",
+            "Omi_RAZ"
+        ],
+        [
+            "Geolocation",
+            "OMI_SolarAzimuthAngle"
+        ],
+        [
+            "Geolocation",
+            "OMI_SolarZenithAngle"
+        ],
+        [
+            "Geolocation",
+            "OMI_TAI_Time"
+        ],
+        [
+            "Geolocation",
+            "OMI_UTC_Time"
+        ],
+        [
+            "Geolocation",
+            "OMI_UV2_TerrainHeight"
+        ],
+        [
+            "Geolocation",
+            "OMI_ViewingAzimuthAngle"
+        ],
+        [
+            "Geolocation",
+            "OMI_ViewingZenithAngle"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_ATrack_Index"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_XTrack_Index_BAND1"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_XTrack_Index_BAND2"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_XTrack_Index_BAND3"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_XTrack_Index_BAND7"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_SZA_BAND1"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_RAZ_BAND1"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_VZA_BAND1"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_SCA_BAND1"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_SZA_BAND2"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_RAZ_BAND2"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_VZA_BAND2"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_SCA_BAND2"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_SZA_BAND3"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_RAZ_BAND3"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_VZA_BAND3"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_SCA_BAND3"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_SZA_BAND7"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_RAZ_BAND7"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_VZA_BAND7"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_SCA_BAND7"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_Cloud_Pressure"
+        ],
+        [
+            "Geolocation",
+            "TROPOMI_EarthSunDistance"
+        ],
+        [
+            "Geolocation",
+            "TES_ScanAveragedCount"
+        ],
+        [
+            "Geolocation",
+            "TES_SurfaceTempInitial"
+        ],
+        [
+            "Geolocation",
+            "TES_DominantSurfaceType"
+        ],
+        [
+            "Geolocation",
+            "TES_Latitude"
+        ],
+        [
+            "Geolocation",
+            "TES_Longitude"
+        ],
+        [
+            "Geolocation",
+            "TES_OMI_Distance"
+        ],
+        [
+            "Geolocation",
+            "TES_OMI_Matched"
+        ],
+        [
+            "Geolocation",
+            "TES_OMI_Time_Difference"
+        ],
+        [
+            "Geolocation",
+            "TES_SurfaceTypeFootprint"
+        ],
+        [
+            "Geolocation",
+            "TES_TAI_Time"
+        ],
+        [
+            "Geolocation",
+            "TES_UTC_Time"
+        ],
+        [
+            "Geolocation",
+            "TES_Run"
+        ],
+        [
+            "Geolocation",
+            "TES_Scan"
+        ],
+        [
+            "Geolocation",
+            "TES_Sequence"
+        ],
+        [
+            "Geolocation",
+            "PointingAngle_AIRS"
+        ],
+        [
+            "Geolocation",
+            "PointingAngle_CrIS"
+        ],
+        [
+            "Geolocation",
+            "PointingAngle_OMI"
+        ],
+        [
+            "Geolocation",
+            "PointingAngle_TROPOMI"
+        ],
+        [
+            "Geolocation",
+            "PointingAngle_TES"
+        ],
+        [
+            "Geolocation",
+            "DominantSurfaceType"
+        ],
+        [
+            "Geolocation",
+            "Latitude_Footprint_1"
+        ],
+        [
+            "Geolocation",
+            "Latitude_Footprint_2"
+        ],
+        [
+            "Geolocation",
+            "Latitude_Footprint_3"
+        ],
+        [
+            "Geolocation",
+            "Latitude_Footprint_4"
+        ],
+        [
+            "Geolocation",
+            "LocalSolarTime"
+        ],
+        [
+            "Geolocation",
+            "Longitude_Footprint_1"
+        ],
+        [
+            "Geolocation",
+            "Longitude_Footprint_2"
+        ],
+        [
+            "Geolocation",
+            "Longitude_Footprint_3"
+        ],
+        [
+            "Geolocation",
+            "Longitude_Footprint_4"
+        ],
+        [
+            "Geolocation",
+            "SolarZenithAngle"
+        ],
+        [
+            "Geolocation",
+            "SurfaceElevStandardDeviation"
+        ],
+        [
+            "Geolocation",
+            "Tgt_SpacecraftAzimuth"
+        ],
+        [
+            "Geolocation",
+            "Tgt_SpacecraftZenith"
+        ]
+    ],
+    "exact_cased_variable_names": {
+        "AIRDENSITY": "AirDensity",
+        "AIRS_ATRACK_INDEX": "Airs_ATrack_Index",
+        "AIRS_GRANULE": "Airs_Granule",
+        "AIRS_XTRACK_INDEX": "Airs_XTrack_Index",
+        "ALTITUDE": "Altitude",
+        "ALTITUDE_FM": "Altitude_FM",
+        "AVERAGE_800_TROPOPAUSE": "Average_800_Tropause",
+        "AVERAGE_800_TROPOPAUSEPRIOR": "Average_800_TropopausePrior",
+        "AVERAGE_900_200": "Average_900_200",
+        "AVERAGECLOUDEFFOPTICALDEPTH": "AverageCloudEffOpticalDepth",
+        "AVERAGECLOUDEFFOPTICALDEPTHERROR": "AverageCloudEffOpticalDepthError",
+        "AVERAGINGKERNEL": "AveragingKernel",
+        "AVERAGINGKERNELDIAGONAL": "AveragingKernelDiagonal",
+        "AVERAGINGKERNELDIAGONAL_FM": "AveragingKernelDiagonal_FM",
+        "BIAS2010": "Bias2010",
+        "BIASSPATIAL": "BiasSpatial",
+        "BIASTIMEDEPENDENT": "BiasTimeDependent",
+        "BORESIGHTAZIMUTH": "BoreSightAzimuth",
+        "BORESIGHTNADIRANGLE": "BoresightNadirAngle",
+        "BTFIT": "BTFIT",
+        "BTOBS": "BTOBS",
+        "CH4_DOFSTRAT": "CH4_DOFStrat",
+        "CH4_DOFTROP": "CH4_DOFTrop",
+        "CH4_EVRATIO": "CH4_EVRatio",
+        "CH4_EVS": "CH4_EVs",
+        "CH4_STRATOSPHERE_QA": "CH4_Stratosphere_QA",
+        "CITY": "City",
+        "CITYINDEX": "CityIndex",
+        "CLOUDEFFECTIVEOPTICALDEPTH1000": "CloudEffectiveOpticalDepth1000",
+        "CLOUDEFFECTIVEOPTICALDEPTH": "CloudEffectiveOpticalDepth",
+        "CLOUDEFFECTIVEOPTICALDEPTHERROR1000": "CloudEffectiveOpticalDepthError1000",
+        "CLOUDEFFECTIVEOPTICALDEPTHERROR": "CloudEffectiveOpticalDepthError",
+        "CLOUDTOPPRESSURE": "CloudTopPressure",
+        "CLOUDTOPPRESSUREDOF": "CloudTopPressureDOF",
+        "CLOUDTOPPRESSUREERROR": "CloudTopPressureError",
+        "CLOUDVARIABILITY_QA": "CloudVariability_QA",
+        "COLUMN750": "Column750",
+        "COLUMN750_AVERAGINGKERNEL": "Column750_AveragingKernel",
+        "COLUMN750_CONSTRAINTVECTOR": "Column750_ConstraintVector",
+        "COLUMN750_ERROR": "Column750_Error",
+        "COLUMN750_INITIAL": "Column750_Initial",
+        "COLUMN750_OBSERVATIONERROR": "Column750_ObservationError",
+        "COLUMN750_PWF": "Column750_PWF",
+        "COLUMN_AIR": "Column_Air",
+        "COLUMN": "Column",
+        "COLUMN_DOFS": "Column_DOFS",
+        "COLUMN_ERROR": "Column_Error",
+        "COLUMN_INITIAL": "Column_Initial",
+        "COLUMN_PRESSUREMAX": "Column_PressureMax",
+        "COLUMN_PRESSUREMIN": "Column_PressureMin",
+        "COLUMN_PRIOR": "Column_Prior",
+        "COLUMN_TRUE": "Column_True",
+        "COLUMN_UNITS": "Column_Units",
+        "MICROWINDOW": "microwindow",
+        "MICROWINDOW_INSTRUMENT": "microwindow_instrument",
+        "MICROWINDOW_SPECIES": "microwindow_species",
+        "CONSTRAINTVECTOR": "ConstraintVector",
+        "CONSTRAINTVECTOR_FM": "ConstraintVector_FM",
+        "CRIS_ATRACK_INDEX": "CrIS_Atrack_Index",
+        "CRIS_FIELDOFREGARD": "CrIS_FieldOfRegard",
+        "CRIS_GRANULE": "CrIS_Granule",
+        "CRIS_PIXEL": "CrIS_Pixel",
+        "CRIS_PIXEL_INDEX": "CrIS_Pixel_Index",
+        "CRIS_SCANLINE": "CrIS_Scanline",
+        "CRIS_XTRACK_INDEX": "CrIS_Xtrack_Index",
+        "CRIS_L1B_TYPE": "CrIS_L1b_Type",
+        "CT_CO2_AK": "CT_CO2_AK",
+        "CT_CO2": "CT_CO2",
+        "CT_LATITUDE": "CT_Latitude",
+        "CT_LONGITUDE": "CT_Longitude",
+        "CT_PRESSURE": "CT_Pressure",
+        "CT_YEARFLOAT": "CT_YearFloat",
+        "DAYNIGHTFLAG": "DayNightFlag",
+        "DBT": "DTB",
+        "DEGREESOFFREEDOMFORSIGNAL": "DegreesOfFreedomForSignal",
+        "DESERT_EMISS_QA": "Desert_Emiss_QA",
+        "DEVIATIONBAD_QA": "DeviationBad_QA",
+        "DEVIATION_QA": "Deviation_QA",
+        "DEVIATIONVSRETRIEVALCOVARIANCE": "DeviationVsRetrievalCovariance",
+        "DOFS": "DOFs",
+        "DOFSLOWERTROPOSPHERE": "DOFsLowerTroposphere",
+        "DOFSTROPOSPHERE": "DOFsTroposphere",
+        "DOFSUPPERTROPOSPHERE": "DOFsUpperTroposphere",
+        "DOMINANTSURFACETYPE": "DominantSurfaceType",
+        "EMISSIVITY": "Emissivity",
+        "EMISSIVITY_CONSTRAINT": "Emissivity_Constraint",
+        "EMISSIVITY_ERROR": "Emissivity_Error",
+        "EMISSIVITY_INITIAL": "Emissivity_Initial",
+        "EMISSIVITY_WAVENUMBER": "Emissivity_Wavenumber",
+        "EMISSIVITY_OFFSET_DISTANCE": "Emissivity_Offset_Distance",
+        "FILTER_INDEX": "filter_index",
+        "NATIVE_HSR_EMISSIVITY_INITIAL": "Native_HSR_Emissivity_Initial",
+        "NATIVE_HSR_EMIS_WAVENUMBER": "Native_HSR_Emis_Wavenumber",
+        "FMOZONEBANDFLUX": "FMOzoneBandFlux",
+        "GLOBALSURVEYFLAG": "GlobalSurveyFlag",
+        "GRID_2": "Grid_2",
+        "GRID_3": "Grid_3",
+        "GRID_CLOUD": "Grid_Cloud",
+        "GRID_COLUMN": "Grid_Column",
+        "GRID_CT_LAYER": "Grid_CT_Layer",
+        "GRID_CT_LEVEL": "Grid_CT_Level",
+        "GRID_EMISSIVITY": "Grid_Emissivity",
+        "GRID_FILTER": "Grid_Filter",
+        "GRID_ITERLIST": "Grid_IterList",
+        "GRID_ITERS": "Grid_Iters",
+        "GRID_NCEP": "Grid_NCEP",
+        "GRID_PRESSURE": "Grid_Pressure",
+        "GRID_PRESSURE_COMPOSITE": "Grid_Pressure_Composite",
+        "GRID_PRESSURE_FM": "Grid_Pressure_FM",
+        "GRID_RTVMR_LEVELS": "Grid_RTVMR_Levels",
+        "GRID_RTVMR_MAP": "Grid_RTVMR_Map",
+        "GRID_TARGETS": "Grid_Targets",
+        "H2O": "H2O",
+        "H2O_CONSTRAINTVECTOR": "H2O_ConstraintVector",
+        "H2O_H2O_CORR_QA": "H2O_H2O_Corr_QA",
+        "H2O_HDOMEASUREMENTERRORCOVARIANCE": "H2O_HDOMeasurementErrorCovariance",
+        "H2O_HDOOBSERVATIONERRORCOVARIANCE": "H2O_HDOObservationErrorCovariance",
+        "H2O_HDOTOTALERRORCOVARIANCE": "H2O_HDOTotalErrorCovariance",
+        "H2O_PROPAGATED_QA": "H2O_Propogated_QA",
+        "H2O_QA": "H2O_QA",
+        "H2O_RETRIEVAL_QA": "H2O_Retrieval_QA",
+        "H2O_SPECIES": "H2O_Species",
+        "HDO": "H2O",
+        "HDO_H2O": "HDO_H2O",
+        "INITIAL": "Initial",
+        "INITIAL_FM": "Initial_FM",
+        "KDOTDL_QA": "KDotDL_QA",
+        "KDOTDLSYS_QA": "KDotDLSys_QA",
+        "L1BOZONEBANDFLUX": "L1BOzoneBandFlux",
+        "LANDFLAG": "LandFlag",
+        "LATITUDE": "Latitude",
+        "LATITUDE_FOOTPRINT_1": "Latitude_Footprint_1",
+        "LATITUDE_FOOTPRINT_2": "Latitude_Footprint_2",
+        "LATITUDE_FOOTPRINT_3": "Latitude_Footprint_3",
+        "LATITUDE_FOOTPRINT_4": "Latitude_Footprint_4",
+        "LDOTDL_QA": "LDotDL_QA",
+        "LDOTDNCEP_TEMPERATURE": "LDotDNCEP_Temperature",
+        "LMRESULTS_COSTTHRESH": "LmResults_CostThresh",
+        "LMRESULTS_ITERLIST": "LmResults_IterList",
+        "LMRESULTS_JACRESNORM": "LmResults_JacResNorm",
+        "LMRESULTS_JACRESNORMNEXT": "LmResults_JacResNormNext",
+        "LMRESULTS_PNORM": "LmResults_PNorm",
+        "LMRESULTS_RESNORM": "LmResults_ResNorm",
+        "LMRESULTS_RESNORMNEXT": "LmResults_ResNormNext",
+        "LMRESULTS_DELTA": "LmResults_delta",
+        "LOCALSOLARTIME": "LocalSolarTime",
+        "LONGITUDE": "Longitude",
+        "LONGITUDE_FOOTPRINT_1": "Longitude_Footprint_1",
+        "LONGITUDE_FOOTPRINT_2": "Longitude_Footprint_2",
+        "LONGITUDE_FOOTPRINT_3": "Longitude_Footprint_3",
+        "LONGITUDE_FOOTPRINT_4": "Longitude_Footprint_4",
+        "LOWERTROPOSPHERICCOLUMN": "LowerTroposphericColumn",
+        "LOWERTROPOSPHERICCOLUMNERROR": "LowerTroposphericColumnError",
+        "LOWERTROPOSPHERICCOLUMNINITIAL": "LowerTroposphericColumnInitial",
+        "L_QA": "L_QA",
+        "MAP": "Map",
+        "MAXNUMITERATIONS": "MaxNumIterations",
+        "MEASUREMENTERRORCOVARIANCE": "MeasurementErrorCovariance",
+        "N2O_AVERAGINGKERNEL": "N2O_AveragingKernel",
+        "N2O_CONSTRAINTVECTOR": "N2O_ConstraintVector",
+        "N2O_CONSTRAINTVECTOR_FM": "N2O_ConstraintVector_FM",
+        "N2O_DOFS": "N2O_DOFs",
+        "N2O_OBSERVATIONERRORCOVARIANCE": "N2O_ObservationErrorCovariance",
+        "N2O_SPECIES": "N2O_Species",
+        "N2O_SPECIES_FM": "N2O_Species_FM",
+        "DELTA_P": "delta_p",
+        "CO2_GRAD_DEL": "co2_grad_del",
+        "DELTA_T": "delta_t",
+        "NIR_WINDSPEED": "nir_windspeed",
+        "NIR_AEROD": "nir_aerod",
+        "NIR_AERP": "nir_aerp",
+        "NIR_ALBEDO": "nir_albedo",
+        "NIR_ALBEDO_POLY2": "nir_albedo_poly2",
+        "NIR_FLUOR_REL": "nir_fluor_rel",
+        "NIR_CLOUD3D_SLOPE": "nir_cloud3d_slope",
+        "NIR_CLOUD3D_OFFSET": "nir_cloud3d_offset",
+        "DELTA_P_TRUE": "delta_p_true",
+        "CO2_GRAD_DEL_TRUE": "co2_grad_del_true",
+        "DELTA_T_TRUE": "delta_t_true",
+        "NIR_WINDSPEED_TRUE": "nir_windspeed_true",
+        "NIR_AEROD_TRUE": "nir_aerod_true",
+        "NIR_AERP_TRUE": "nir_aerp_true",
+        "NIR_ALBEDO_POLY2_TRUE": "nir_albedo_poly2_true",
+        "NIR_ALBEDO_TRUE": "nir_albedo_true",
+        "NIR_ALBEDO_POLY2_ERROR_TRUE": "nir_albedo_poly2_error_true",
+        "NIR_FLUOR_REL_TRUE": "nir_fluor_rel_true",
+        "NIR_CLOUD3D_SLOPE_TRUE": "nir_cloud3d_slope_true",
+        "NIR_CLOUD3D_OFFSET_TRUE": "nir_cloud3d_offset_true",
+        "NCEP_PRESSURE": "NCEP_Pressure",
+        "NCEP_TEMPERATURE": "NCEP_Pressure",
+        "NCEP_TEMPERATURESURFACE": "NCEP_Temperature",
+        "NUMBERITERPERFORMED": "NumerIterPerformed",
+        "NUM_DEVIATIONS_QA": "Num_Deviations_QA",
+        "O3_CCURVE_QA": "O3_Ccurve_QA",
+        "O3_CCURVE_TESOMI": "O3_CCurve_TESOMI",
+        "O3_COLUMNERRORDU": "O3_ColumnErrorDU",
+        "O3_PROPAGATED_QA": "O3_Propagated_QA",
+        "O3_QA": "O3_QA",
+        "O3_RETRIEVAL_QA": "O3_Retrieval_QA",
+        "O3_SLOPE_QA": "O3_Slope_QA",
+        "O3_TROPO_CONSISTENCY_QA": "O3_Tropo_Consistency_QA",
+        "O3TROPOSPHERICCOLUMN": "O3TroposphericColumn",
+        "O3TROPOSPHERICCOLUMNERROR": "O3TroposphericColumnError",
+        "O3TROPOSPHERICCOLUMNINITIAL": "O3TroposphericColumnInitial",
+        "OBSERVATIONERRORCOVARIANCE": "ObservationErrorCovariance",
+        "OCO2_CO2_RATIO_IDP": "oco2_co2_ratio_idp",
+        "OCO2_H2O_RATIO_IDP": "oco2_h2o_ratio_idp",
+        "OCO2_DP_ABP": "oco2_dp_abp",
+        "OCO2_ALTITUDE_STDDEV": "oco2_altitude_stddev",
+        "OCO2_MAX_DECLOCKING_FACTOR_WCO2": "oco2_max_declocking_factor_wco2",
+        "OCO2_MAX_DECLOCKING_FACTOR_SCO2": "oco2_max_declocking_factor_sco2",
+        "OMI_ATRACK_INDEX": "OMI_ATrack_Index",
+        "OMI_XTRACK_INDEX_UV1": "OMI_XTrack_Index_uv1",
+        "OMI_XTRACK_INDEX_UV2": "OMI_XTrack_Index_uv2",
+        "OMI_XTRACKQUALITYFLAGS": "OMI_XTrackQualityFlags",
+        "OMI_CLOUDFRACTION": "OMI_CloudFraction",
+        "OMI_CLOUDFRACTIONCONSTRAINTVECTOR": "OMI_CloudFractionConstraintVector",
+        "OMI_CLOUDFRACTION_INITIAL": "OMI_CloudFraction_Initial",
+        "OMI_CLOUD_PRESSURE": "OMI_Cloud_Pressure",
+        "OMI_CLOUDTOPPRESSURE": "OMI_CloudTopPressure",
+        "OMI_EARTHSUNDISTANCE": "OMI_EarthSunDistance",
+        "OMI_LAT": "OMI_Lat",
+        "OMI_LON": "OMI_Lon",
+        "OMI_LINE": "OMI_Line",
+        "OMI_NRADWAV": "OMI_NRadWav",
+        "OMI_NRADWAVCONSTRAINTVECTOR": "OMI_NRadWavConstraintVector",
+        "OMI_NRADWAV_INITIAL": "OMI_NRadWav_Initial",
+        "OMI_NRADWAVUV1": "OMI_NRadWavUV1",
+        "OMI_NRADWAVUV2": "OMI_NRadWavUV2",
+        "OMI_ODWAVUV1": "OMI_ODWavUV1",
+        "OMI_ODWAVUV2": "OMI_ODWavUV2",
+        "OMI_ORBIT": "OMI_Orbit",
+        "OMI_ORBITPHASE": "OMI_OrbitPhase",
+        "OMI_PIXEL": "OMI_Pixel",
+        "OMI_PIXEL_CLOUD_FRACTION": "OMI_Pixel_Cloud_Fraction",
+        "OMI_RADIANCERESIDUALMEAN": "OMI_RadianceResidualMean",
+        "OMI_RADIANCERESIDUALMEAN_QA": "OMI_RadianceResidualMean_QA",
+        "OMI_RADIANCERESIDUALRMS": "OMI_RadianceResidualRMS",
+        "OMI_RADIANCERESIDUALRMS_QA": "OMI_RadianceResidualRMS_QA",
+        "OMI_RAZ": "OMI_RAZ",
+        "OMI_RAZ_UV1": "OMI_RAZ_UV1",
+        "OMI_RAZ_UV2": "OMI_RAZ_UV2",
+        "OMI_RINGSF": "OMI_RingSF",
+        "OMI_RINGSFCONSTRAINTVECTOR": "OMI_OMI_RingSFConstraintVector",
+        "OMI_RINGSF_INITIAL": "OMI_RingSF_Initial",
+        "OMI_RINGSFUV1": "OMI_RingSFUV1",
+        "OMI_RINGSFUV2": "OMI_RingSFUV2",
+        "OMI_SCA_UV1": "OMI_SCA_UV1",
+        "OMI_SCA_UV2": "OMI_SCA_UV2",
+        "OMI_SOLARAZIMUTHANGLE": "OMI_SolarAzimuthAngle",
+        "OMI_SOLARZENITHANGLE": "OMI_SolarZenithAngle",
+        "OMI_SURFACEALBEDOSLOPEUV2": "OMI_SurfaceAlbedoSlopeUV2",
+        "OMI_SURFACEALBEDOSLOPEUV2CONSTRAINTVECTOR": "OMI_SurfaceAlbedoSlopeUV2ConstraintVector",
+        "OMI_SURFACEALBEDOUV1": "OMI_SurfaceAlbedoUV1",
+        "OMI_SURFACEALBEDOUV1CONSTRAINTVECTOR": "OMI_SurfaceAlbedoUV1ConstraintVector",
+        "OMI_SURFACEALBEDOUV2": "OMI_SurfaceAlbedoUV2",
+        "OMI_SURFACEALBEDOUV2CONSTRAINTVECTOR": "OMI_SurfaceAlbedoUV2ConstraintVector",
+        "OMI_SURFALB": "OMI_SurfAlb",
+        "OMI_SURFALBCONSTRAINTVECTOR": "OMI_SurfAlbConstraintVector",
+        "OMI_SURFALB_INITIAL": "OMI_SurfAlb_Initial",
+        "OMI_SURFALB_QA": "OMI_SurfAlb_QA",
+        "OMI_SURFALBSLOPE": "OMI_SurfAlbSlope",
+        "OMI_SURFALBSLOPECONSTRAINTVECTOR": "OMI_SurfAlbSlopeConstraintVector",
+        "OMI_SURFALBSLOPE_INITIAL": "OMI_SurfAlbSlope_Initial",
+        "OMI_SZA": "OMI_SZA",
+        "OMI_SZA_UV1": "OMI_SZA_UV1",
+        "OMI_SZA_UV2": "OMI_SZA_UV2",
+        "OMI_TAI_TIME": "OMI_TAI_Time",
+        "OMI_UTC_TIME": "OMI_UTC_Time",
+        "OMI_UV2_TERRAINHEIGHT": "OMI_UV2_TerrainHeight",
+        "OMI_VIEWINGAZIMUTHANGLE": "OMI_ViewingAzimuthAngle",
+        "OMI_VIEWINGZENITHANGLE": "OMI_ViewingZenithAngle",
+        "OMI_VZA_UV1": "OMI_VZA_UV1",
+        "OMI_VZA_UV2": "OMI_VZA_UV2",
+        "TROPOMI_ATRACK_INDEX": "TROPOMI_ATrack_Index",
+        "TROPOMI_XTRACK_INDEX_BAND1": "TROPOMI_XTrack_Index_BAND1",
+        "TROPOMI_XTRACK_INDEX_BAND2": "TROPOMI_XTrack_Index_BAND2",
+        "TROPOMI_XTRACK_INDEX_BAND3": "TROPOMI_XTrack_Index_BAND3",
+        "TROPOMI_SZA_BAND1": "TROPOMI_SZA_BAND1",
+        "TROPOMI_RAZ_BAND1": "TROPOMI_RAZ_BAND1",
+        "TROPOMI_VZA_BAND1": "TROPOMI_VZA_BAND1",
+        "TROPOMI_SCA_BAND1": "TROPOMI_SCA_BAND1",
+        "TROPOMI_SZA_BAND2": "TROPOMI_SZA_BAND2",
+        "TROPOMI_RAZ_BAND2": "TROPOMI_RAZ_BAND2",
+        "TROPOMI_VZA_BAND2": "TROPOMI_VZA_BAND2",
+        "TROPOMI_SCA_BAND2": "TROPOMI_SCA_BAND2",
+        "TROPOMI_SZA_BAND3": "TROPOMI_SZA_BAND3",
+        "TROPOMI_RAZ_BAND3": "TROPOMI_RAZ_BAND3",
+        "TROPOMI_VZA_BAND3": "TROPOMI_VZA_BAND3",
+        "TROPOMI_SCA_BAND3": "TROPOMI_SCA_BAND3",
+        "TROPOMI_EARTHSUNDISTANCE": "TROPOMI_EarthSunDistance",
+        "TROPOMI_CLOUDFRACTION": "TROPOMI_CloudFraction",
+        "TROPOMI_CLOUDTOPPRESSURE": "TROPOMI_CloudTopPressure",
+        "TROPOMI_RINGSFBAND1": "TROPOMI_RingSFBAND1",
+        "TROPOMI_RINGSFBAND2": "TROPOMI_RingSFBAND2",
+        "TROPOMI_RINGSFBAND3": "TROPOMI_RingSFBAND3",
+        "TROPOMI_SURFACEALBEDOBAND1": "TROPOMI_SurfaceAlbedoBAND1",
+        "TROPOMI_SURFACEALBEDOBAND1CONSTRAINTVECTOR": "TROPOMI_SurfaceAlbedoBAND1ConstraintVector",
+        "TROPOMI_SURFACEALBEDOBAND2": "TROPOMI_SurfaceAlbedoBAND2",
+        "TROPOMI_SURFACEALBEDOBAND2CONSTRAINTVECTOR": "TROPOMI_SurfaceAlbedoBAND2ConstraintVector",
+        "TROPOMI_SURFACEALBEDOBAND3": "TROPOMI_SurfaceAlbedoBAND3",
+        "TROPOMI_SURFACEALBEDOBAND3CONSTRAINTVECTOR": "TROPOMI_SurfaceAlbedoBAND3ConstraintVector",
+        "TROPOMI_SURFACEALBEDOSLOPEBAND2": "TROPOMI_SurfaceAlbedoSlopeBAND2",
+        "TROPOMI_SURFACEALBEDOSLOPEBAND2CONSTRAINTVECTOR": "TROPOMI_SurfaceAlbedoSlopeBAND2ConstraintVector",
+        "TROPOMI_SURFACEALBEDOSLOPEBAND3": "TROPOMI_SurfaceAlbedoSlopeBAND3",
+        "TROPOMI_SURFACEALBEDOSLOPEBAND3CONSTRAINTVECTOR": "TROPOMI_SurfaceAlbedoSlopeBAND3ConstraintVector",
+        "TROPOMI_SURFACEALBEDOSLOPEORDER2BAND2": "TROPOMI_SurfaceAlbedoSlopeORDER2BAND2",
+        "TROPOMI_SURFACEALBEDOSLOPEORDER2BAND3": "TROPOMI_SurfaceAlbedoSlopeORDER2BAND3",
+        "TROPOMI_CLOUDFRACTIONCONSTRAINTVECTOR": "TROPOMI_CloudFractionConstraintVector",
+        "TROPOMI_SOLARSHIFTBAND1": "TROPOMI_SOLARSHIFTBAND1",
+        "TROPOMI_SOLARSHIFTBAND2": "TROPOMI_SOLARSHIFTBAND2",
+        "TROPOMI_SOLARSHIFTBAND3": "TROPOMI_SOLARSHIFTBAND3",
+        "TROPOMI_RADIANCESHIFTBAND1": "TROPOMI_RADIANCESHIFTBAND1",
+        "TROPOMI_RADIANCESHIFTBAND2": "TROPOMI_RADIANCESHIFTBAND2",
+        "TROPOMI_RADIANCESHIFTBAND3": "TROPOMI_RADIANCESHIFTBAND3",
+        "TROPOMI_RADSQUEEZEBAND1": "TROPOMI_RADSQUEEZEBAND1",
+        "TROPOMI_RADSQUEEZEBAND2": "TROPOMI_RADSQUEEZEBAND2",
+        "TROPOMI_RADSQUEEZEBAND3": "TROPOMI_RADSQUEEZEBAND3",
+        "TROPOMI_TEMPSHIFTBAND3": "TROPOMI_TEMPSHIFTBAND3",
+        "ORIGINAL_COLUMN750": "Original_Column750",
+        "ORIGINAL_CONSTRAINTVECTOR_N2O": "Original_ConstraintVector_N2O",
+        "ORIGINAL_CONSTRAINTVECTOR_N2O_FM": "Original_ConstraintVector_N2O_FM",
+        "ORIGINAL_SPECIES": "Original_Species",
+        "ORIGINAL_SPECIES_FM": "Original_Species_FM",
+        "ORIGINAL_SPECIES_FM_HDO": "Original_Species_FM_HDO",
+        "ORIGINAL_SPECIES_HDO": "Original_Species_HDO",
+        "ORIGINAL_SPECIES_N2O": "Original_Species_N2O",
+        "ORIGINAL_SPECIES_N2O_FM": "Original_Species_N2O_FM",
+        "ORIGINAL_QUALITY": "Original_Quality",
+        "OZONEIRK": "OzoneIRK",
+        "PAN_DESERT_QA": "Pan_Desert_QA",
+        "POINTINGANGLE_AIRS": "PointingAngle_AIRS",
+        "POINTINGANGLE_CRIS": "PointingAngle_CrIS",
+        "POINTINGANGLE_OMI": "PointingAngle_OMI",
+        "POINTINGANGLE_TES": "PointingAngle_TES",
+        "PRECISION": "Precision",
+        "PRECISION_FM": "Precision_FM",
+        "PRESSURE": "Pressure",
+        "PRESSURE_FM": "Pressure_FM",
+        "PRIORCOVARIANCE": "PriorCovariance",
+        "PROPAGATED_H2O_QA": "Propagated_H2O_QA",
+        "PROPAGATED_O3_QA": "Propagated_O3_QA",
+        "PROPAGATED_TATM_QA": "Propagated_TATM_QA",
+        "QUALITYAGGREGATE": "QualityAggregate",
+        "QUALITY": "Quality",
+        "RADIANCEMAXIMUMSNR": "RadianceMaximumSNR",
+        "RADIANCERESIDUALMAX": "RadianceResidualMax",
+        "RADIANCERESIDUALMEAN": "RadianceResidualMean",
+        "RADIANCERESIDUALRMS": "RadianceResidualRMS",
+        "RADIANCERESIDUALMEAN_UV1": "RadianceResidualMean_UV1",
+        "RADIANCERESIDUALMEAN_UV2": "RadianceResidualMean_UV2",
+        "RADIANCERESIDUALMEAN_VIS": "RadianceResidualMean_VIS",
+        "RADIANCERESIDUALMEAN_UVIS": "RadianceResidualMean_UVIS",
+        "RADIANCERESIDUALMEAN_NIR1": "RadianceResidualMean_NIR1",
+        "RADIANCERESIDUALMEAN_NIR2": "RadianceResidualMean_NIR2",
+        "RADIANCERESIDUALMEAN_SWIR1": "RadianceResidualMean_SWIR1",
+        "RADIANCERESIDUALMEAN_SWIR2": "RadianceResidualMean_SWIR2",
+        "RADIANCERESIDUALMEAN_SWIR3": "RadianceResidualMean_SWIR3",
+        "RADIANCERESIDUALMEAN_SWIR4": "RadianceResidualMean_SWIR4",
+        "RADIANCERESIDUALMEAN_TIR1": "RadianceResidualMean_TIR1",
+        "RADIANCERESIDUALMEAN_TIR2": "RadianceResidualMean_TIR2",
+        "RADIANCERESIDUALMEAN_TIR3": "RadianceResidualMean_TIR3",
+        "RADIANCERESIDUALMEAN_TIR4": "RadianceResidualMean_TIR4",
+        "RADIANCERESIDUALRMS_UV1": "RadianceResidualRMS_UV1",
+        "RADIANCERESIDUALRMS_UV2": "RadianceResidualRMS_UV2",
+        "RADIANCERESIDUALRMS_VIS": "RadianceResidualRMS_VIS",
+        "RADIANCERESIDUALRMS_UVIS": "RadianceResidualRMS_UVIS",
+        "RADIANCERESIDUALRMS_NIR1": "RadianceResidualRMS_NIR1",
+        "RADIANCERESIDUALRMS_NIR2": "RadianceResidualRMS_NIR2",
+        "RADIANCERESIDUALRMS_SWIR1": "RadianceResidualRMS_SWIR1",
+        "RADIANCERESIDUALRMS_SWIR2": "RadianceResidualRMS_SWIR2",
+        "RADIANCERESIDUALRMS_SWIR3": "RadianceResidualRMS_SWIR3",
+        "RADIANCERESIDUALRMS_SWIR4": "RadianceResidualRMS_SWIR4",
+        "RADIANCERESIDUALRMS_TIR1": "RadianceResidualRMS_TIR1",
+        "RADIANCERESIDUALRMS_TIR2": "RadianceResidualRMS_TIR2",
+        "RADIANCERESIDUALRMS_TIR3": "RadianceResidualRMS_TIR3",
+        "RADIANCERESIDUALRMS_TIR4": "RadianceResidualRMS_TIR4",
+        "RADIANCERESIDUALMEAN_1A1": "RadianceResidualMean_1A1",
+        "RADIANCERESIDUALMEAN_1B2": "RadianceResidualMean_1B2",
+        "RADIANCERESIDUALMEAN_2A1": "RadianceResidualMean_2A1",
+        "RADIANCERESIDUALMEAN_2B1": "RadianceResidualMean_2B1",
+        "RADIANCERESIDUALRMS_1A1": "RadianceResidualRMS_1A1",
+        "RADIANCERESIDUALRMS_1B2": "RadianceResidualRMS_1B2",
+        "RADIANCERESIDUALRMS_2A1": "RadianceResidualRMS_2A1",
+        "RADIANCERESIDUALRMS_2B1": "RadianceResidualRMS_2B1",
+        "RADIANCERESIDUALMEAN_FILTER": "RadianceResidualMean_Filter",
+        "RADIANCERESIDUALRMS_FILTER": "RadianceResidualRMS_Filter",
+        "RADIANCERESIDUALSLOPE_FILTER": "RadianceResidualSlope_Filter",
+        "RADIANCERESIDUALQUADRATIC_FILTER": "RadianceResidualQuadratic_Filter",
+        "RADIANCE_RESIDUAL_STDEV_CHANGE": "radiance_residual_stdev_change",
+        "RADIANCERESIDUALRMSRELATIVECONTINUUM_FILTER": "radianceResidualRMSRelativeContinuum_filter",
+        "RADIANCE_CONTINUUM_FILTER": "radiance_continuum_filter",
+        "RESIDUALNORMFINAL": "ResidualNormFinal",
+        "RESIDUALNORMINITIAL": "ResidualNormInitial",
+        "RETRIEVEINLOG": "RetrieveInLog",
+        "RTVMR": "RTVMR",
+        "RTVMR_ERRORMEASUREMENT": "RTVMR_ErrorMeasurement",
+        "RTVMR_ERROROBSERVATION": "RTVMR_ErrorObservation",
+        "RTVMR_ERRORTOTAL": "RTVMR_ErrorTotal",
+        "RTVMR_MAP": "RTVMR_Map",
+        "RTVMR_MAPPRESSURE": "RTVMR_MapPressure",
+        "RTVMR_PRESSURE": "RTVMR_Pressure",
+        "RTVMR_PRESSUREBOUNDLOWER": "RTVMR_PressureBoundLower",
+        "RTVMR_PRESSUREBOUNDUPPER": "RTVMR_PressureBoundUpper",
+        "RUN": "Run",
+        "SCAN": "Scan",
+        "SEQUENCE": "Sequence",
+        "SOLARZENITHANGLE": "SolarZenithAngle",
+        "SONDEAK": "SondeAK",
+        "SONDE": "Sonde",
+        "SOUNDINGID": "SoundingID",
+        "SPECIES": "Species",
+        "TRUE": "true",
+        "TRUE_AK": "true_ak",
+        "SPECIES_FM": "Species_FM",
+        "SPECIES_N2OCORRECTED": "Species_N2OCorrected",
+        "SPECIES_N2OCORRECTED_FM": "Species_N2OCorrected_FM",
+        "SPECIESRETRIEVALCONVERGED": "SpeciesRetrievalConverged",
+        "SURFACEALTITUDE": "SurfaceAltitude",
+        "SURFACEELEVSTANDARDDEVIATION": "SurfaceEvStandardDeviation",
+        "SURFACEEMISSIONLAYER_QA": "SurfaceEmissionLayer_QA",
+        "SURFACEEMISSMEAN_QA": "SurfaceEmissMean_QA",
+        "SURFACEPRESSURE": "SurfacePressure",
+        "SURFACETEMPCONSTRAINT": "SurfaceTempConstraint",
+        "SURFACETEMPDEGREESOFFREEDOM": "SurfaceTempDegreesOfFreedom",
+        "SURFACETEMPERATURE": "SurfaceTemperature",
+        "SURFACETEMPERROR": "SurfaceTempError",
+        "SURFACETEMPINITIAL": "SurfaceTempInitial",
+        "SURFACETEMPOBSERVATIONERROR": "SurfaceTempObservationError",
+        "SURFACETEMPPRECISION": "SurfaceTempPrecision",
+        "SURFACETEMPVSAPRIORI_QA": "SurfaceTempVsApriori_QA",
+        "SURFACETEMPVSATMTEMP_QA": "SurfaceTempVsAtmTemp_QA",
+        "SURFACETYPEFOOTPRINT": "SurfaceTypeFootprint",
+        "T700": "T7000",
+        "TATM": "TATM",
+        "TATM_CONSTRAINTVECTOR": "TATM_ConstraintVector",
+        "TATM_DEVIATION": "TATM_Deviation",
+        "TATM_PROPAGATED_QA": "TATM_Propagated_QA",
+        "TATM_QA": "TATM_QA",
+        "TATM_RETRIEVAL_QA": "TATM_Retrieval_QA",
+        "TATM_SPECIES": "TATM_Species",
+        "TES_DOMINANTSURFACETYPE": "TES_DominantSurfaceType",
+        "TES_LATITUDE": "TES_Latitude",
+        "TES_LONGITUDE": "TES_Longitude",
+        "TES_OMI_DISTANCE": "TES_OMI_Distance",
+        "TES_OMI_MATCHED": "TES_OMI_Matched",
+        "TES_OMI_TIME_DIFFERENCE": "TES_OMI_Time_Difference",
+        "TES_RUN": "TES_Run",
+        "TES_SCAN": "TES_Scan",
+        "TES_SCANAVERAGEDCOUNT": "TES_ScanAveragedCount",
+        "TES_SEQUENCE": "TES_Sequence",
+        "TES_SURFACETEMPINITIAL": "TES_SurfaceTempInitial",
+        "TES_SURFACETYPEFOOTPRINT": "TES_SurfaceTypeFootprint",
+        "TES_TAI_TIME": "TES_TAI_Time",
+        "TES_UTC_TIME": "TES_UTC_Time",
+        "TGT_SPACECRAFTAZIMUTH": "Tgt_SpacecraftAzimuth",
+        "TGT_SPACECRAFTZENITH": "Tgt_SpacecraftZenith",
+        "THERMALCONTRAST": "ThermalConstrast",
+        "THERMALCONTRASTINITIAL": "ThermalConstrastInitial",
+        "TIME": "Time",
+        "TOTALCOLUMNDENSITY": "TotalColumnDensity",
+        "TOTALCOLUMNDENSITYERROR": "TotalColumnDensityError",
+        "TOTALCOLUMNDENSITYINITIAL": "TotalColumnDensityInitial",
+        "TOTALERROR": "TotalError",
+        "TOTALERRORCOVARIANCE": "TotalErrorCovariance",
+        "TOTALERROR_FM": "TotalError_FM",
+        "TROPOPAUSEPRESSURE": "TropopausePressure",
+        "TROPOSPHERICCOLUMN": "TroposphericColumn",
+        "TROPOSPHERICCOLUMNERROR": "TroposphericColumnError",
+        "TROPOSPHERICCOLUMNINITIAL": "TroposphericColumnInitial",
+        "UPPERTROPOSPHERICCOLUMN": "UpperTroposphericColumn",
+        "UPPERTROPOSPHERICCOLUMNERROR": "UpperTroposphericColumnError",
+        "UPPERTROPOSPHERICCOLUMNINITIAL": "UpperTroposphericColumnInitial",
+        "UTCTIME": "UTCTime",
+        "UT_HOUR": "UT_Hour",
+        "VARIABILITYCH4_QA": "VariabilityCH4_QA",
+        "VARIABILITYN2O_QA": "VariabilityN2O_QA",
+        "XPAN800_AK": "XPAN800_AK",
+        "XPAN800": "XPAN800",
+        "XPAN800_ERROROBS": "XPAN800_ErrorObs",
+        "XPAN800_ERRORSMOOTHING": "XPAN800_ErrorSmoothing",
+        "XPAN800_PRIOR": "XPAN800_Prior",
+        "XPAN_AK": "XPAN_AK",
+        "XPAN": "XPAN",
+        "XPAN_ERROROBS": "XPAN_ErrorObs",
+        "XPAN_ERRORSMOOTHING": "XPAN_ErrorSmoothing",
+        "XPAN_PRIOR": "XPANPrior",
+        "YEARFLOAT": "YearFloat",
+        "YYYYMMDD": "YYYYMMDD"
+    }
+}

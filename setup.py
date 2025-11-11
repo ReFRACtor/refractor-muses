@@ -15,7 +15,7 @@ setup(
     packages=find_namespace_packages(include=["refractor.*"],
                                      where="python"),
     package_dir={"": "python"},
-    package_data={"*" : ["py.typed", "*.pyi"]},
+    package_data={"*" : ["py.typed", "*.pyi"], "refractor.muses": ["retrieval_output.json"]},
     install_requires=[
         'numpy', 'refractor-framework', 
     ],
