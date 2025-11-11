@@ -1,6 +1,6 @@
 from __future__ import annotations
 from loguru import logger
-from .mpy import mpy_ManualArraySetsWithLHSRHSIndices, mpy_cdf_write
+from .mpy import mpy_ManualArraySetsWithLHSRHSIndices
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation, InstrumentIdentifier, StateElementIdentifier
@@ -233,7 +233,7 @@ class RetrievalIrkOutput(RetrievalOutput):
             {"UNITS": "()"},
         ] * len(irk_data.__dict__)
         logger.info(f"Writing: {self.out_fname}")
-        mpy_cdf_write(irk_data.__dict__, self.out_fname, struct_units)
+        self.cdf_write(irk_data.__dict__, self.out_fname, struct_units)
 
 
 __all__ = [

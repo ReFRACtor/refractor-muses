@@ -8,7 +8,7 @@ from .mpy import (
     mpy_GetUniqueValues,
     mpy_GetColumnFromList,
     mpy_cdf_var_map,
-    mpy_cdf_write,
+    mpy_cdf_write_struct,
     mpy_make_one_lite,
 )
 from .identifier import (
@@ -18,6 +18,7 @@ from .identifier import (
     InstrumentIdentifier,
 )
 from .refractor_uip import AttrDictAdapter
+from netCDF4 import Dataset
 from pathlib import Path
 import os
 import copy
@@ -265,6 +266,15 @@ class RetrievalOutput:
     @property
     def sounding_metadata(self) -> SoundingMetadata:
         return self.results.sounding_metadata
+
+    def cdf_write(
+        self,
+        struct_in: dict[str, Any],
+        filename: str | os.PathLike[str],
+        struct_units: list[dict[str, str]],
+    ) -> None:
+        t = CdfWriteTes()
+        t.cdf_write(struct_in, filename, struct_units)
 
 
 class CdfWriteTes:
@@ -908,7 +918,7 @@ class CdfWriteTes:
         # Note that for this call to cdf_write:
         #   1.  We pass in dims which is a list containing all dimension names and their sizes.
         #   2.  We also pass in a dictionary containing the exact variable names.
-        mpy_cdf_write(
+        self.cdf_write(
             structIn,
             filenameOut,
             structUnits,
@@ -1017,6 +1027,65 @@ class CdfWriteTes:
             state_element_out=state_element_out,
         )
         return data2
+
+    def cdf_write(
+        self,
+        struct_in: dict[str, Any],
+        filename: str | os.PathLike[str],
+        struct_units: list[dict[str, str]],
+        dims: dict[str, int] | None = None,
+        lowercase: bool = False,
+        exact_cased_variable_names: dict[str, str] | None = None,
+        groupvarnames: list[Any] | None = None,
+        global_attr: dict[str, Any] | None = None,
+    ) -> None:
+        # What is expected:
+        #    structIn is a dictionary of fields to write and can also be dictionaries..
+        #    structUnits a dictionary of variable attributes.
+        # AT_LINE 456 TOOLS/cdf_write.pro cdf_write
+        nco = Dataset(filename, "w")
+        nco.set_auto_maskandscale(False)
+
+        # After the above function, an empty NetCDF file has been created and the output_file_handle can be used to update the file.
+        # If the dimension names and their sizes of all possible variables are passed in, we create them here so they will be available when the variable is being written.
+        if dims is not None:
+            for dim_key, dim_value in dims.items():
+                nco.createDimension(dim_key, dim_value)
+
+        # Loop over struct and write variable.
+        # AT_LINE 483 TOOLS/cdf_write.pro cdf_write
+        mpy_cdf_write_struct(
+            nco,
+            struct_in,
+            filename,
+            struct_units,
+            dims,
+            lowercase,
+            exact_cased_variable_names,
+            groupvarnames,
+        )
+
+        # update creation date
+        # It is convenient in testing to have a fixed creation_date, just so we can
+        # compare files created at different times with h5diff and have them compare as
+        # identical
+        if "MUSES_FAKE_CREATION_DATE" in os.environ:
+            # In test environment, used the supplied date
+            nco.setncattr("creation_date", os.environ["MUSES_FAKE_CREATION_DATE"])
+        else:
+            # Otherwise use the real date
+            nco.setncattr(
+                "creation_date",
+                datetime.datetime.now(tz=pytz.utc).strftime("%Y%m%dT%H%M%SZ"),
+            )
+
+        # For now, we will attempt to write global attributes.
+        if global_attr is not None:
+            nco.setncatts(global_attr)
+
+        # Close the file handle otherwise we will run out of file handles.
+        # AT_LINE 486 TOOLS/cdf_write.pro cdf_write
+        nco.close()
 
 
 __all__ = ["RetrievalOutput", "CdfWriteTes", "extra_l2_output"]

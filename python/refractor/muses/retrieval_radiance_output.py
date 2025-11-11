@@ -2,7 +2,6 @@ from __future__ import annotations
 from glob import glob
 from loguru import logger
 import os
-from .mpy import mpy_cdf_write
 from .retrieval_output import RetrievalOutput
 from .identifier import InstrumentIdentifier, ProcessLocation
 from .refractor_uip import AttrDictAdapter
@@ -180,7 +179,7 @@ class RetrievalRadianceOutput(RetrievalOutput):
         my_data.cloudOpticalDepth = np.float32(self.results.cloudODAve)
         my_data.surfaceTemperature = np.float32(self.state_value("TSUR"))
         # Write out, use units as dummy: "()"
-        mpy_cdf_write(
+        self.cdf_write(
             my_data.as_dict(my_data),
             str(self.out_fname),
             [

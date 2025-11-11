@@ -52,6 +52,7 @@ if have_muses_py:
     from py_retrieve.app.tools.cdf_var_attributes import *  # type: ignore
     from py_retrieve.app.tools.cdf_var_names import *  # type: ignore
     from py_retrieve.app.tools.cdf_var_map import *  # type: ignore
+    from py_retrieve.app.tools.cdf_write_struct import *  # type: ignore
     from py_retrieve.app.tools.strategy_table_file import *  # type: ignore
     from py_retrieve.app.tools.radiance_file import *  # type: ignore
     from py_retrieve.app.tools.order_species import *  # type: ignore

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from glob import glob
 from loguru import logger
-from .mpy import mpy_specie_type, mpy_cdf_write
+from .mpy import mpy_specie_type
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
@@ -138,7 +138,7 @@ class RetrievalJacobianOutput(RetrievalOutput):
 
         # Write out, use units as dummy: "()"
         my_data2 = my_data.as_dict(my_data)
-        mpy_cdf_write(
+        self.cdf_write(
             my_data2,
             str(self.out_fname),
             [

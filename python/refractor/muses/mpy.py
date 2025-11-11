@@ -168,7 +168,7 @@ mpy_register_replacement_function = partial(
 # the code is a bit involved.
 mpy_plot_results = partial(muses_py_wrapper_keep, "plot_results")
 mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
-mpy_cdf_write = partial(muses_py_wrapper, "cdf_write")
+mpy_cdf_write_struct = partial(muses_py_wrapper, "cdf_write_struct")
 mpy_tai = partial(muses_py_wrapper, "tai")
 mpy_cdf_var_add_strings = partial(muses_py_wrapper, "cdf_var_add_strings")
 mpy_cdf_var_attributes = muses_py.cdf_var_attributes if have_muses_py else {}
@@ -305,7 +305,7 @@ __all__ = [
     "mpy_plot_results",
     "mpy_plot_radiance",
     "mpy_ManualArraySetsWithLHSRHSIndices",
-    "mpy_cdf_write",
+    "mpy_cdf_write_struct",
     "mpy_specie_type",
     "mpy_get_omi_ils",
     "mpy_get_tropomi_ils",
