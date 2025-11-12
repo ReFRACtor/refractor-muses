@@ -1,8 +1,6 @@
 from __future__ import annotations
 from loguru import logger
 from .mpy import (
-    mpy_GetUniqueValues,
-    mpy_WhereEqualIndices,
     mpy_compute_cloud_factor,
 )
 import refractor.framework as rf  # type: ignore
@@ -685,9 +683,8 @@ class RetrievalL2Output(RetrievalOutput):
         species_data.PRESSURE[pslice] = self.state_value_vec("pressure")
         species_data.CLOUDTOPPRESSURE = self.state_value("PCLOUD")
 
-        indx = mpy_WhereEqualIndices(self.species_list_fm, "PCLOUD")
-        if len(indx) > 0:
-            indx = indx[0]
+        if "PCLOUD" in self.species_list_fm:
+            indx = self.species_list_fm.index("PCLOUD")
             species_data.CLOUDTOPPRESSUREDOF = np.float32(self.results.A[indx, indx])
             species_data.CLOUDTOPPRESSUREERROR = self.results.errorFM[indx]
 
@@ -710,11 +707,11 @@ class RetrievalL2Output(RetrievalOutput):
 
         # AT_LINE 300 write_products_one.pro
         species_data.SURFACETEMPERATURE = self.state_value("TSUR")
-        unique_speciesListFM = mpy_GetUniqueValues(self.species_list_fm)
+        # dict preserves order
+        unique_speciesListFM = list(dict.fromkeys(self.species_list_fm))
 
-        indx = mpy_WhereEqualIndices(unique_speciesListFM, "TSUR")
-        if len(indx) > 0:
-            indx = indx[0]
+        if "TSUR" in unique_speciesListFM:
+            indx = unique_speciesListFM.index("TSUR")
 
             species_data.SURFACETEMPCONSTRAINT = self.state_constraint("TSUR")
 
@@ -856,18 +853,26 @@ class RetrievalL2Output(RetrievalOutput):
                 self.state_value_vec("CLOUDEXT")[:] * convertToOD
             )
 
-            indf = mpy_WhereEqualIndices(self.species_list_fm, "CLOUDEXT")
-            if len(indf) > 0:
+            if "CLOUDEXT" in self.species_list_fm:
+                ind = [
+                    idx
+                    for idx, value in enumerate(self.species_list_fm)
+                    if value == "CLOUDEXT"
+                ]
                 species_data.CLOUDEFFECTIVEOPTICALDEPTHERROR = (
-                    self.results.errorFM[indf] * convertToOD
+                    self.results.errorFM[ind] * convertToOD
                 )
         # end if self.state_info.state_info_obj.cloudPars['num_frequencies'] > 0:
 
         # add special fields for HDO
         # AT_LINE 383 src_ms-2018-12-10/write_products_one.pro
         if self.spcname == "HDO":
-            indfh = mpy_WhereEqualIndices(self.species_list_fm, "H2O")
-            indfd = mpy_WhereEqualIndices(self.species_list_fm, "HDO")
+            indfh = [
+                idx for idx, value in enumerate(self.species_list_fm) if value == "H2O"
+            ]
+            indfd = [
+                idx for idx, value in enumerate(self.species_list_fm) if value == "HDO"
+            ]
 
             indp = np.where(species_data.SPECIES > 0)[0]
 
@@ -962,7 +967,7 @@ class RetrievalL2Output(RetrievalOutput):
             species_data.H2O_INITIAL[indp] = self.state_value_vec("H2O")
         # end if self.spcname == 'HDO':
 
-        ind = mpy_WhereEqualIndices(self.species_list_fm, "EMIS")
+        ind = [idx for idx, value in enumerate(self.species_list_fm) if value == "EMIS"]
         if len(ind) > 0:
             # Create an array of indices so we can access i_results.Sx matrix.
             array_2d_indices = np.ix_(ind, ind)  # (64, 64)

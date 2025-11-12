@@ -2,8 +2,6 @@ from __future__ import annotations
 from .mpy import (
     mpy_get_vector,
     mpy_my_total,
-    mpy_GetUniqueValues,
-    mpy_WhereEqualIndices,
 )
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
@@ -247,12 +245,12 @@ class ErrorAnalysis:
         # In that case, keep errors when they are not moved.  If this
         # is the case, set the error to the previous error, and all
         # error components to zero.
-        ind = np.where(dontUpdateFM == 1)[0]
+        indw = np.where(dontUpdateFM == 1)[0]
 
-        if len(ind) > 0:
-            self._Sx[ind, ind] = errorCurrentValues[ind, ind]
-            self._Sx_rand[ind, ind] = 0
-            self._Sx_sys[ind, ind] = 0
+        if len(indw) > 0:
+            self._Sx[indw, indw] = errorCurrentValues[indw, indw]
+            self._Sx_rand[indw, indw] = 0
+            self._Sx_sys[indw, indw] = 0
 
         my_id = np.identity(S_inv.shape[1], dtype=np.float64)
         self._Sx_smooth = (my_id - kappaFM @ S_inv).T @ Sa @ (my_id - kappaFM @ S_inv)
@@ -453,7 +451,8 @@ class ErrorAnalysis:
             self._KDotDL_species.append(retrieval.speciesList[m1])
             self._KDotDL_byspecies[ii] = np.amax(np.abs(self._KDotDL_list[m1 : m2 + 1]))
 
-        unique_filters = mpy_GetUniqueValues(retrieval_result.filter_list)
+        # dict preserves order
+        unique_filters = list(dict.fromkeys(retrieval_result.filter_list))
         self._LDotDL_byfilter = np.zeros((len(unique_filters),))
         for ii in range(len(unique_filters)):
             start = retrieval_result.filterStart[ii]
@@ -541,7 +540,9 @@ class ErrorAnalysis:
             for jj in range(len(actualDataResidual)):
                 GdL[jj, :] = G_matrix[jj, :] * actualDataResidual[jj]
         self._GdL = GdL
-        ind = mpy_WhereEqualIndices(retrieval.speciesListFM, "CH4")
+        ind = [
+            idx for idx, value in enumerate(retrieval.speciesListFM) if value == "CH4"
+        ]
 
         # Eventhough we are not doing special processing, we will still need to calculate the self._ch4_evs field.
         # Also, only calculate the self._ch4_evs field. if 'CH4' is in retrieval.speciesListFM.

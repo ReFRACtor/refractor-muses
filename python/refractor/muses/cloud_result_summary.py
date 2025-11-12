@@ -1,6 +1,5 @@
 from __future__ import annotations
 from .mpy import (
-    mpy_WhereEqualIndices,
     mpy_get_one_map,
     mpy_ccurve_jessica,
     mpy_quality_deviation,
@@ -42,18 +41,18 @@ class CloudResultSummary:
         # stepName = TATM,H2O,HDO,N2O,CH4,TSUR,CLOUDEXT,EMIS
         # product name Products_Jacobian-TATM,H2O,HDO,N2O,CH4,TSUR,CLOUDEXT-bar_land.nc
 
-        ind = np.where(np.asarray(retrievalInfo.speciesList) == "CLOUDEXT")[0]
+        indw = np.where(np.asarray(retrievalInfo.speciesList) == "CLOUDEXT")[0]
         indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == "CLOUDEXT")[0]
 
         # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
         my_map = mpy_get_one_map(retrievalInfo, "CLOUDEXT")
 
         # AT_LINE 77 Write_Retrieval_Summary.pro
-        if len(ind) > 0:
+        if len(indw) > 0:
             # map error to ret
             errlog = error_analysis.errorFM[indFM] @ my_map["toPars"]
 
-            cloudod = np.exp(result_list[ind]) * factor
+            cloudod = np.exp(result_list[indw]) * factor
             err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
             myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
 
@@ -96,61 +95,67 @@ class CloudResultSummary:
         # end else part of if (len(ind) > 0):
 
         # AT_LINE 107 Write_Retrieval_Summary.pro
-        ind = np.where(np.asarray(retrievalInfo.speciesList) == "CLOUDEXT")[0]
+        indw = np.where(np.asarray(retrievalInfo.speciesList) == "CLOUDEXT")[0]
         indFM = np.where(np.asarray(retrievalInfo.speciesListFM) == "CLOUDEXT")[0]
 
         # NOTE: mpy.get_one_map will return maps that have columns and rows switched compared to the IDL implementation
         my_map = mpy_get_one_map(retrievalInfo, "CLOUDEXT")
 
-        if len(ind) > 0:
+        if len(indw) > 0:
             errlog = error_analysis.errorFM[indFM] @ my_map["toPars"]
 
-            cloudod = np.exp(result_list[ind]) * factor
+            cloudod = np.exp(result_list[indw]) * factor
             err = (np.exp(np.log(cloudod) + errlog) - cloudod) * factor
             myMean = np.sum(cloudod / err / err) / np.sum(1 / err / err)
 
             x = np.var((cloudod - myMean) / err, ddof=1)
             self._cloudODVar = math.sqrt(x)
 
-        ind = np.where(
+        indw = np.where(
             (stateInfo.emisPars["frequency"] >= 975)
             & (stateInfo.emisPars["frequency"] <= 1200)
         )[0]
 
         self._emissionLayer = 0
         self._emisDev = -999.0
-        if len(ind) > 0:
-            self._emisDev = np.mean(stateInfo.current["emissivity"][ind]) - np.mean(
-                stateInfo.constraint["emissivity"][ind]
+        if len(indw) > 0:
+            self._emisDev = np.mean(stateInfo.current["emissivity"][indw]) - np.mean(
+                stateInfo.constraint["emissivity"][indw]
             )
 
-        ind10 = np.asarray([])  # Start with an empty list so we have the variable set.
         if "O3" in retrievalInfo.speciesListFM:
-            ind10 = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, "O3")
+            ind10 = [
+                idx
+                for idx, value in enumerate(retrievalInfo.speciesListFM)
+                if value == "O3"
+            ]
 
-        # AT_LINE 162 Write_Retrieval_Summary.pro
-        if len(ind10) > 0:
-            indt = np.where(np.array(stateInfo.species) == "TATM")[0][0]
-            TATM = stateInfo.current["values"][indt, :]
-            TSUR = stateInfo.current["TSUR"]
+            if len(ind10) > 0:
+                indt = np.where(np.array(stateInfo.species) == "TATM")[0][0]
+                TATM = stateInfo.current["values"][indt, :]
+                TSUR = stateInfo.current["TSUR"]
 
-            indo3 = np.where(np.array(stateInfo.species) == "O3")[0][0]
-            o3 = stateInfo.current["values"][indo3, :]
-            o3ig = stateInfo.constraint["values"][indo3, :]
+                indo3 = np.where(np.array(stateInfo.species) == "O3")[0][0]
+                o3 = stateInfo.current["values"][indo3, :]
+                o3ig = stateInfo.constraint["values"][indo3, :]
 
-            aveTATM = 0.0
-            my_sum = 0.0
-            for ii in range(0, 3):
-                my_sum = my_sum + o3[ii] - o3ig[ii]
-                aveTATM = aveTATM + TATM[ii]
+                aveTATM = 0.0
+                my_sum = 0.0
+                for ii in range(0, 3):
+                    my_sum = my_sum + o3[ii] - o3ig[ii]
+                    aveTATM = aveTATM + TATM[ii]
 
-            aveTATM = aveTATM / 3
-            if my_sum / 3 >= 1.5e-9:
-                self._emissionLayer = aveTATM - TSUR
+                aveTATM = aveTATM / 3
+                if my_sum / 3 >= 1.5e-9:
+                    self._emissionLayer = aveTATM - TSUR
 
         self._ozoneCcurve = 1
         self._ozone_slope_QA = 1
-        ind = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, "O3")
+        ind = [
+            idx
+            for idx, value in enumerate(retrievalInfo.speciesListFM)
+            if value == "O3"
+        ]
         if len(ind) > 0:
             pressure = stateInfo.current["pressure"]
             o3 = stateInfo.current["values"][stateInfo.species.index("O3"), :]
@@ -222,7 +227,11 @@ class CloudResultSummary:
                 profile = stateInfo.current["values"][loc, :]
                 constraint = stateInfo.constraint["values"][loc, :]
 
-            ind = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, species_name)
+            ind = [
+                idx
+                for idx, value in enumerate(retrievalInfo.speciesListFM)
+                if value == species_name
+            ]
 
             ak_diag = error_analysis.A[ind, ind]
 

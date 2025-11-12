@@ -40,9 +40,6 @@ def muses_py_util_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
     return getattr(t, funcname)(*args, **kwargs)
 
 
-# Minor function, we need to replace this
-mpy_WhereEqualIndices = partial(muses_py_util_wrapper, "WhereEqualIndices")
-
 # Used in cloud_result_summary, we need to replace
 mpy_get_one_map = partial(muses_py_wrapper, "get_one_map")
 mpy_ccurve_jessica = partial(muses_py_wrapper, "ccurve_jessica")
@@ -55,7 +52,6 @@ mpy_column = partial(muses_py_wrapper, "column")
 # Used in error_analysis, should replace
 mpy_get_vector = partial(muses_py_wrapper, "get_vector")
 mpy_my_total = partial(muses_py_wrapper, "my_total")
-mpy_GetUniqueValues = partial(muses_py_util_wrapper, "GetUniqueValues")
 
 # Used in cost_function. Note that this is only used in old_py_retrieve_wrapper, so we
 # don't actually need to replace this. Fine that we depend on muses_py here.
@@ -277,9 +273,7 @@ __all__ = [
 __all__.extend(
     [
         "mpy_GetColumnFromList",
-        "mpy_GetUniqueValues",
         "mpy_ManualArraySetsWithLHSRHSIndices",
-        "mpy_WhereEqualIndices",
         "mpy_ccurve_jessica",
         "mpy_cdf_read_tes_frequency",
         "mpy_cdf_write_struct",

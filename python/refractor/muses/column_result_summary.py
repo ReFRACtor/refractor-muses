@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .mpy import mpy_WhereEqualIndices, mpy_column
+from .mpy import mpy_column
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
@@ -134,8 +134,8 @@ class ColumnResultSummary:
                         linear = 1
 
                     indSpecie = loc
-                    indH2O = mpy_WhereEqualIndices(stateInfo.species, "H2O")[0]
-                    indTATM = mpy_WhereEqualIndices(stateInfo.species, "TATM")[0]
+                    indH2O = stateInfo.species.index("H2O")
+                    indTATM = stateInfo.species.index("TATM")
 
                     # AT_LINE 357 Write_Retrieval_Summary.pro
                     x = mpy_column(
@@ -299,10 +299,10 @@ class ColumnResultSummary:
                     # end if species_name == 'O3' and my_type == 'Column':
 
                     if my_type == "Column" and species_name == "H2O":
-                        ind4 = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, "H2O")
-                        ind5 = mpy_WhereEqualIndices(retrievalInfo.speciesListFM, "HDO")
-
-                        if len(ind4) > 0 and len(ind5) > 0:
+                        if (
+                            "H2O" in retrievalInfo.speciesListFM
+                            and "HDO" in retrievalInfo.speciesListFM
+                        ):
                             # in H2O/HDO step, check H2O column - H2O column from O3 step / error
                             self._H2O_H2OQuality = (
                                 self._column[ij, indcol]
@@ -320,9 +320,7 @@ class ColumnResultSummary:
                     # was a level at 100 hPa, only half of the AK at 100 hPa would be
                     # included because only half of the above described layer is inclu
 
-                    ispecie = mpy_WhereEqualIndices(
-                        retrievalInfo.species, species_name
-                    )[0]
+                    ispecie = retrievalInfo.species.index(species_name)
                     ind1FM = retrievalInfo.parameterStartFM[ispecie]
                     ind2FM = retrievalInfo.parameterEndFM[ispecie]
                     ak = np.diagonal(error_analysis.A)

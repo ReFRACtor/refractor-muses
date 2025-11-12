@@ -2,7 +2,6 @@ from __future__ import annotations
 from loguru import logger
 from .mpy import (
     mpy_tai,
-    mpy_GetUniqueValues,
     mpy_GetColumnFromList,
     mpy_cdf_write_struct,
     mpy_make_one_lite,
@@ -844,7 +843,8 @@ class CdfWriteTes:
         dict_of_variables_and_their_attributes = {}
 
         names = mpy_GetColumnFromList(self.groupvarnames, 1)
-        names = mpy_GetUniqueValues(names)
+        # dict preserves order
+        names = list(dict.fromkeys(names))
         names = [x.upper() for x in names]
 
         for ii in range(0, len(names)):
