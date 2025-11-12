@@ -1,7 +1,11 @@
 from __future__ import annotations
 from loguru import logger
 from .mpy import (
-    mpy_cdf_write_struct,
+    mpy_cdf_write_variable,
+    mpy_modify_variable_name_if_duplicate,
+    mpy_get_dimension_tuple,
+    mpy_get_group_name_from_variable_name,
+    mpy_build_group_struct,
     mpy_make_one_lite,
     have_muses_py,
     mpy_cdf_var_attributes,
@@ -1094,7 +1098,7 @@ class CdfWriteTes:
 
         # Loop over struct and write variable.
         # AT_LINE 483 TOOLS/cdf_write.pro cdf_write
-        mpy_cdf_write_struct(
+        self.cdf_write_struct(
             nco,
             struct_in,
             filename,
@@ -1322,6 +1326,391 @@ class CdfWriteTes:
                 o_ss.append(dataOut[key_name].size)
 
         return o_ss
+
+    def cdf_write_struct(
+        self,
+        nco: Dataset,
+        struct: dict[str, Any],
+        filename: str | os.PathLike[str],
+        structUnits: list[dict[str, str | float]],
+        dims: dict[str, int] | None = None,
+        lowercase: bool = False,
+        exact_cased_variable_names: dict[str, str] | None = None,
+        groupvarnames: list[Any] | None = None,
+    ) -> None:
+        tagnamesStruct = list(struct.keys())
+
+        # Special handling not found in IDL: Check to see if the variable_name belongs to a group.  If it is, we create the group first
+        # then save each id of the group in dict_of_group_ids_for_writing so we can retrieve it later.
+        # Note that in Python, when you call createGroup(), if the group exist, you get the group id back.
+        group_struct = {}
+        dict_of_group_ids_for_writing = {}
+        if groupvarnames is not None:
+            group_struct = mpy_build_group_struct(groupvarnames)
+            for jj in range(0, len(struct)):
+                variable_name = tagnamesStruct[jj]
+                if lowercase:
+                    variable_name = tagnamesStruct[jj].lower()
+                else:
+                    variable_name = variable_name.upper()  # To be consistent with the output from IDL, we change the variable to upper case.
+                    if (
+                        exact_cased_variable_names is not None
+                        and variable_name in exact_cased_variable_names
+                    ):
+                        variable_name = exact_cased_variable_names[
+                            variable_name
+                        ]  # Get the exact case of the variable name.
+
+                belonged_to_group = mpy_get_group_name_from_variable_name(
+                    variable_name, group_struct
+                )
+                if belonged_to_group != "":
+                    # Only create the group if we had not created it before.
+                    if belonged_to_group not in dict_of_group_ids_for_writing:
+                        fileID2 = nco.createGroup(belonged_to_group)
+                        dict_of_group_ids_for_writing[belonged_to_group] = (
+                            fileID2  # Save the group id associated with the variable.
+                        )
+
+        # AT_LINE 152 TOOLS/cdf_write.pro cdf_write_struct program
+        # loop over all elements in the struct
+        tagnamesStruct = list(struct.keys())
+
+        list_of_dimension_names = []  # Will hold the list of dimension names used in createDimension().
+        list_of_dimension_sizes = []  # Will hold the list of dimension sizes used in createDimension().
+        tuples_of_dimension_names: list[
+            tuple
+        ] = []  # Will hold the list of tuple of dimension names for every variable.
+        list_of_inner_units = []
+
+        # write dimensions
+        for jj in range(0, len(struct)):
+            variable_name = tagnamesStruct[jj]
+
+            # AT_LINE 157 TOOLS/cdf_write.pro cdf_write_struct program
+            # figure out which dimension(s) it matches
+            shape_array = [1]  # Scalar have a shape of [1]
+            val = struct[
+                variable_name
+            ]  # Note that we use the exact value of tagnamesStruct[jj] as key to access the dictionary.
+            if isinstance(val, list):
+                shape_array = [
+                    len(val)
+                ]  # If a list, create a list of one element containing the length of the list.
+            elif isinstance(val, str):
+                shape_array = [
+                    len(val)
+                ]  # If a string, create a list of one element containing the length of the string.
+            elif not isinstance(val, dict):
+                if isinstance(val, bytes):
+                    shape_array = [len(val)]  # If an array of bytes
+                elif isinstance(val, np.ndarray):
+                    shape_array = val.shape
+                else:
+                    shape_array = [1]
+
+            # AT_LINE 166 TOOLS/cdf_write.pro
+            if isinstance(val, dict):
+                # Eventhough this entry in the dictionary is another dictionary, we must also append a dummy name to tuples_of_dimension_names.
+                # So when a tuple of dimensions is retrieved, it is retrieved for the correct key in the dictionary.
+                tuples_of_dimension_names.append(("DUMMY_DIMENSION_NAME_FOR_DICT",))
+            else:
+                # AT_LINE 174 TOOLS/cdf_write.pro
+                # Take care of strings
+                # convert then continue
+                if isinstance(val, str):
+                    shape_array = [len(val)]
+                # AT_LINE 182 TOOLS/cdf_write.pro
+
+                # AT_LINE 200 TOOLS/cdf_write.pro
+                units: dict[str, str | float] = {}
+                if structUnits is not None:
+                    if len(structUnits) > 0:
+                        # In order to get to the jj element in structUnits dictionary, we make a loop first.
+                        unit_index = 0
+                        for ii in range(0, len(structUnits)):
+                            # If structUnits is a list, we know that it would contain a list of dictionaries.
+                            if isinstance(structUnits, dict):
+                                inner_keys = list(
+                                    structUnits.keys()
+                                )  # We are only expecting one key.
+                                one_dict_element = structUnits[
+                                    inner_keys[0]
+                                ]  # Use the exact key to get to the first element
+                            else:
+                                one_dict_element = structUnits[ii]
+
+                            if isinstance(one_dict_element, list):
+                                # Since one_dict_element is a list, we know that it contains a list of dictionaries, we can loop through it.
+                                inner_keys = []
+                                for mm in range(0, len(one_dict_element)):
+                                    inner_keys.append(
+                                        list(one_dict_element[mm].keys())[0]
+                                    )  # Add just one key since each element in the list is one key.
+
+                                unit_index = 0
+                                for mm in range(0, len(inner_keys)):
+                                    key = inner_keys[mm]
+                                    elem = one_dict_element[mm][key]
+                                    if jj == mm:
+                                        units[key] = (
+                                            elem  # If we found a matching index, we have found our unit.
+                                        )
+                                        list_of_inner_units.append(units)
+                                    unit_index += 1
+                            else:
+                                unit_index = 0
+                                if jj == ii:
+                                    # If we found a matching index, we have found our unit.
+                                    list_of_inner_units.append(units)
+                                unit_index += 1
+                        # end for ii in range(0,len(structUnits)):
+                    # end if len(structUnits) > 0:
+                # end if structUnits is not None:
+
+                # Don't forget to handle scalar.
+                if len(shape_array) == 0:
+                    dimension_name_1 = "one"
+                    tuples_of_dimension_names.append((dimension_name_1,))
+
+                # vector
+                # AT_LINE 209 TOOLS/cdf_write.pro
+                # Here, we collect all possible names of dimensions so we can create them after the file is created.
+                if len(shape_array) == 1:
+                    if shape_array[0] == 1:
+                        dimension_name = "one"
+                    else:
+                        dimension_name = "grid_" + str(shape_array[0])
+
+                    if dimension_name not in list_of_dimension_names:
+                        list_of_dimension_names.append(dimension_name)
+                        list_of_dimension_sizes.append(shape_array[0])
+
+                    tuples_of_dimension_names.append(
+                        (dimension_name,)
+                    )  # Note that for a tuple of 1, we have to make sure to add a comma.
+
+                if len(shape_array) == 2:
+                    # The name of the dimensions are 'grid_' + str(s[0]
+                    # Special case: if the dimension is 1, we use one
+                    if shape_array[0] == 1:
+                        dimension_name = "one"
+                        dimension_name_1 = "one"
+                    else:
+                        dimension_name = "grid_" + str(shape_array[0])
+                        dimension_name_1 = "grid_" + str(shape_array[0])
+
+                    if (
+                        dimension_name not in list_of_dimension_names
+                        and shape_array[0] != 1
+                    ):
+                        list_of_dimension_names.append(dimension_name)
+                        list_of_dimension_sizes.append(shape_array[0])
+
+                    if shape_array[1] == 1:
+                        dimension_name = "one"
+                        dimension_name_2 = "one"
+                    else:
+                        dimension_name = "grid_" + str(shape_array[1])
+                        dimension_name_2 = "grid_" + str(shape_array[1])
+
+                    if (
+                        dimension_name not in list_of_dimension_names
+                        and shape_array[1] != 1
+                    ):
+                        list_of_dimension_names.append(dimension_name)
+                        list_of_dimension_sizes.append(shape_array[1])
+
+                    tuples_of_dimension_names.append(
+                        (dimension_name_1, dimension_name_2)
+                    )
+
+                if len(shape_array) == 3:
+                    if shape_array[0] == 1:
+                        dimension_name = "one"
+                        dimension_name_1 = "one"
+                    else:
+                        dimension_name = "grid_" + str(shape_array[0])
+                        dimension_name_1 = "grid_" + str(shape_array[0])
+
+                    if (
+                        dimension_name not in list_of_dimension_names
+                        and shape_array[0] != 1
+                    ):
+                        list_of_dimension_names.append(dimension_name)
+                        list_of_dimension_sizes.append(shape_array[0])
+
+                    if shape_array[1] == 1:
+                        dimension_name = "one"
+                        dimension_name_2 = "one"
+                    else:
+                        dimension_name = "grid_" + str(shape_array[1])
+                        dimension_name_2 = "grid_" + str(shape_array[1])
+
+                    if (
+                        dimension_name not in list_of_dimension_names
+                        and shape_array[1] != 1
+                    ):
+                        list_of_dimension_names.append(dimension_name)
+                        list_of_dimension_sizes.append(shape_array[1])
+
+                    if shape_array[2] == 1:
+                        dimension_name = "one"
+                        dimension_name_3 = "one"
+                    else:
+                        dimension_name = "grid_" + str(shape_array[2])
+                        dimension_name_3 = "grid_" + str(shape_array[2])
+
+                    if (
+                        dimension_name not in list_of_dimension_names
+                        and shape_array[2] != 1
+                    ):
+                        list_of_dimension_names.append(dimension_name)
+                        list_of_dimension_sizes.append(shape_array[2])
+                    tuples_of_dimension_names.append(
+                        (dimension_name_1, dimension_name_2, dimension_name_3)
+                    )
+                # AT_LINE 277 TOOLS/cdf_write.pro
+        # end for jj in range(0,len(struct)):
+
+        # Now that we have the dimension names and their sizes, we can
+        # write them to the NetCDF file.  Note that inorder to write a
+        # variable to a netCDF file, the dimension must have been
+        # created already so we are doing this before writing any
+        # variables.  Also note that we only create the dimension here
+        # if dims is not passed in, which means we had to create the
+        # dimension names ourselves with 'grid_' plus the size of the
+        # array.
+
+        if dims is None:
+            for ii in range(0, len(list_of_dimension_names)):
+                nco.createDimension(
+                    list_of_dimension_names[ii], list_of_dimension_sizes[ii]
+                )
+            nco.createDimension("str_dim", 1)
+
+        # Now that all the dimensions of the root has been created, we get a list of them.
+        list_of_root_dimensions = []
+        for key, _ in nco.dimensions.items():
+            list_of_root_dimensions.append(key)
+
+        # AT_LINE 323 TOOLS/cdf_write.pro
+
+        # write data
+        for jj in range(0, len(struct)):
+            # AT_LINE 157 TOOLS/cdf_write.pro
+            # figure out which dimension(s) it matches
+            val = struct[tagnamesStruct[jj]]
+            variable_name = tagnamesStruct[jj]
+            if lowercase:
+                variable_name = tagnamesStruct[jj].lower()
+            else:
+                variable_name = variable_name.upper()  # To be consistent with the output from IDL, we change the variable to upper case.
+                if (
+                    exact_cased_variable_names is not None
+                    and variable_name in exact_cased_variable_names
+                ):
+                    variable_name = exact_cased_variable_names[
+                        variable_name
+                    ]  # Get the exact case of the variable name.
+
+            shape_array = [1]  # Scalar have a shape of [1]
+            if isinstance(val, list):
+                shape_array = [
+                    len(val)
+                ]  # If a list, create a list of one element containing the length of the list.
+            elif isinstance(val, str):
+                shape_array = [
+                    len(val)
+                ]  # If a string, create a list of one element containing the length of the string.
+            elif not isinstance(val, dict):
+                if isinstance(val, bytes):
+                    shape_array = [len(val)]  # If an array of bytes
+                elif isinstance(val, np.ndarray):
+                    shape_array = val.shape
+                else:
+                    shape_array = [1]
+
+            if isinstance(val, dict):
+                fileID2 = nco.createGroup(variable_name)
+                structUnits2 = None
+                if structUnits is not None:
+                    # For group variable, we use the array list_of_inner_units which should now contain the list of units for the group variable.
+                    structUnits2 = list_of_inner_units
+
+                # Make a recursive call with structUnits2 as the list of units for the group variable.
+                self.cdf_write_struct(
+                    fileID2,
+                    val,
+                    str(filename),
+                    structUnits2,
+                    dims,
+                    lowercase,
+                    exact_cased_variable_names,
+                )
+            else:
+                variable_index = 0  # Since there is only 1 time index in NetCDF file, the index starts at 0.
+                variable_data = val  # This is the variable we wish to write.
+
+                variable_attributes_dict = {}
+                if structUnits is not None:
+                    variable_attributes_dict = structUnits[jj]
+
+                actual_file_id_to_write = nco  # This is the default root id
+                variable_belong_to_group_flag = False
+
+                # Special handling: Check to see if the variable_name belongs to a group.  If it is, we get the group id from above.
+                if groupvarnames is not None:
+                    belonged_to_group = mpy_get_group_name_from_variable_name(
+                        variable_name, group_struct
+                    )
+                    if belonged_to_group != "":
+                        # Retrieve the group id from dict_of_group_ids_for_writing when we created the groups above.
+                        # Then use group id in call to cdf_write_variable().  Note that we do not overwrite fileID because
+                        # it is for writing root variables.
+                        groupID = dict_of_group_ids_for_writing[belonged_to_group]
+                        actual_file_id_to_write = (
+                            groupID  # Update the file id to write to the group.
+                        )
+                        variable_belong_to_group_flag = True
+
+                # If dims is passed in, we will attempt to get the dimension names from the variable_data.
+                if dims is not None:
+                    variable_dimension_tuple = mpy_get_dimension_tuple(
+                        variable_data, dims
+                    )
+
+                    # For Lite products, if there are more than 1 dimensions, we also transpose the dimensions to match the IDL output.
+                    if len(variable_dimension_tuple) >= 2:
+                        # This is really just noise in the log file, so comment this out
+                        # logger.debug(f'Transposing variable: {variable_name}, {filename}')
+                        variable_dimension_tuple = tuple(
+                            reversed(variable_dimension_tuple)
+                        )
+
+                    # For Lite products, we merely transpose the variable to match the IDL output.
+                    if not np.isscalar(variable_data) and len(variable_data.shape) > 1:
+                        variable_data = variable_data.T
+                else:
+                    variable_dimension_tuple = tuples_of_dimension_names[jj]
+                    # It is possible to receive a scalar for the type of variable_data.
+                    # To make life easier, we convert it to an array of 1 element from this point so we don't have to constantly check for scalar.
+                    if np.isscalar(variable_data):
+                        variable_data = np.asarray(variable_data)
+
+                # Do a sanity check on the variable name if it contains extranous tokens such as "_DUPLICATE_KEY_" or "_duplicate_key_".
+                variable_name = mpy_modify_variable_name_if_duplicate(variable_name)
+
+                mpy_cdf_write_variable(
+                    actual_file_id_to_write,
+                    variable_name,
+                    variable_index,
+                    variable_data,
+                    variable_attributes_dict,
+                    variable_dimension_tuple,
+                    variable_belong_to_group_flag,
+                    list_of_root_dimensions,
+                )
 
 
 __all__ = ["RetrievalOutput", "CdfWriteTes", "extra_l2_output"]

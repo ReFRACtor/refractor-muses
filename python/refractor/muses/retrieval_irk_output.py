@@ -127,7 +127,9 @@ class RetrievalIrkOutput(RetrievalOutput):
         irk_data.fmFluxSegsCenterFreq[:, 0] = self.results_irk.freqSegments[:]
         irk_data.l1BFluxSegs[:, 0] = self.results_irk.fluxSegments_l1b[:]
         irk_data.o3LIRK[nn:, 0] = self.results_irk.O3["lirfk"][:]
-        irk_data.o3IRKSegs[nn:,:self.results_irk.O3["irfk_segs"].shape[1],0] = self.results_irk.O3["irfk_segs"]
+        irk_data.o3IRKSegs[nn:, : self.results_irk.O3["irfk_segs"].shape[1], 0] = (
+            self.results_irk.O3["irfk_segs"]
+        )
         irk_data.IRKSegsCenterFreq[:, 0] = self.results_irk.freqSegments_irk[:]
         irk_data.h2oLIRK[nn:, 0] = self.results_irk.H2O["lirfk"][:]
         irk_data.tatmIRK[nn:, 0] = self.results_irk.TATM["irfk"][:]

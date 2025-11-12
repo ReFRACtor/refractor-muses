@@ -158,8 +158,17 @@ mpy_register_replacement_function = partial(
 # the code is a bit involved.
 mpy_plot_results = partial(muses_py_wrapper_keep, "plot_results")
 mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
-mpy_cdf_write_struct = partial(muses_py_wrapper, "cdf_write_struct")
+mpy_cdf_write_variable = partial(muses_py_wrapper, "cdf_write_variable")
+mpy_modify_variable_name_if_duplicate = partial(
+    muses_py_wrapper, "modify_variable_name_if_duplicate"
+)
+mpy_get_dimension_tuple = partial(muses_py_wrapper, "get_dimension_tuple")
+mpy_get_group_name_from_variable_name = partial(
+    muses_py_wrapper, "get_group_name_from_variable_name"
+)
+mpy_build_group_struct = partial(muses_py_wrapper, "build_group_struct")
 mpy_make_one_lite = partial(muses_py_wrapper, "make_one_lite")
+
 
 # used in state_element_freq, should get replaced
 def mpy_get_emis_dispatcher(*args: Any, **kwargs: Any) -> Any:
@@ -246,9 +255,13 @@ __all__ = [
 # Ones we want to replace
 __all__.extend(
     [
+        "mpy_cdf_write_variable",
+        "mpy_modify_variable_name_if_duplicate",
+        "mpy_get_dimension_tuple",
+        "mpy_get_group_name_from_variable_name",
+        "mpy_build_group_struct",
         "mpy_ccurve_jessica",
         "mpy_cdf_read_tes_frequency",
-        "mpy_cdf_write_struct",
         "mpy_column",
         "mpy_emis_source_citation",
         "mpy_get_emis_dispatcher",
