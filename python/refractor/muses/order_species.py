@@ -225,6 +225,17 @@ def is_atmospheric_species(species_name: str) -> bool:
     return species_name.upper() in _atmospheric_species_list
 
 
+def species_type(species_name: str) -> str:
+    """Return the type of species this is"""
+    if is_atmospheric_species(species_name):
+        return "ATMOSPHERIC"
+    if species_name.upper() in ["CLOUDOD", "CLOUDEXT", "CALSCALE", "CALOFFSET", "EMIS"]:
+        return "SPECTRAL"
+    if species_name.upper() in ["PCLOUD", "TSUR"]:
+        return "SINGLE"
+    return "unknown"
+
+
 def order_species(species_list: list[str]) -> list[str]:
     """This provides an order to the given species list. This is used to
     make sure various matrixes etc. have the state elements all ordered the
@@ -278,4 +289,5 @@ __all__ = [
     "is_atmospheric_species",
     "order_species",
     "compare_species",
+    "species_type",
 ]

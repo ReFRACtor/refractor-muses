@@ -1,10 +1,10 @@
 from __future__ import annotations
 from glob import glob
 from loguru import logger
-from .mpy import mpy_specie_type
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
+from .order_species import is_atmospheric_species
 from .refractor_uip import AttrDictAdapter
 from pathlib import Path
 import numpy as np
@@ -72,10 +72,9 @@ class RetrievalJacobianOutput(RetrievalOutput):
         for spc in species:
             ind = [s == spc for s in self.species_list_fm]
             nn = np.count_nonzero(ind)
-            species_type = mpy_specie_type(spc)
 
             nlevel = 65
-            if species_type == "ATMOSPHERIC":
+            if is_atmospheric_species(spc):
                 my_list = [
                     "none",
                 ] * nlevel

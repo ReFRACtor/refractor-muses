@@ -1,6 +1,5 @@
 from __future__ import annotations
 from loguru import logger
-from .mpy import mpy_ManualArraySetsWithLHSRHSIndices
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation, InstrumentIdentifier, StateElementIdentifier
@@ -128,20 +127,7 @@ class RetrievalIrkOutput(RetrievalOutput):
         irk_data.fmFluxSegsCenterFreq[:, 0] = self.results_irk.freqSegments[:]
         irk_data.l1BFluxSegs[:, 0] = self.results_irk.fluxSegments_l1b[:]
         irk_data.o3LIRK[nn:, 0] = self.results_irk.O3["lirfk"][:]
-        lhs_first_indices = list(range(nn, num_points))
-        lhs_second_indices = list(range(self.results_irk.O3["irfk_segs"].shape[1]))
-        rhs_first_indices = list(range(self.results_irk.O3["irfk_segs"].shape[0]))
-        rhs_second_indices = list(range(self.results_irk.O3["irfk_segs"].shape[1]))
-        # Use slow method to set o3IRKSegs field because the fast method does
-        # not work.
-        irk_data.o3IRKSegs = mpy_ManualArraySetsWithLHSRHSIndices(
-            irk_data.o3IRKSegs,
-            self.results_irk.O3["irfk_segs"],
-            lhs_first_indices,
-            lhs_second_indices,
-            rhs_first_indices,
-            rhs_second_indices,
-        )
+        irk_data.o3IRKSegs[nn:,:self.results_irk.O3["irfk_segs"].shape[1],0] = self.results_irk.O3["irfk_segs"]
         irk_data.IRKSegsCenterFreq[:, 0] = self.results_irk.freqSegments_irk[:]
         irk_data.h2oLIRK[nn:, 0] = self.results_irk.H2O["lirfk"][:]
         irk_data.tatmIRK[nn:, 0] = self.results_irk.TATM["irfk"][:]

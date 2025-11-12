@@ -1,8 +1,5 @@
 from __future__ import annotations
 from loguru import logger
-from .mpy import (
-    mpy_compute_cloud_factor,
-)
 import refractor.framework as rf  # type: ignore
 import os
 import copy
@@ -832,19 +829,9 @@ class RetrievalL2Output(RetrievalOutput):
                 2250,
             ]
 
-            # AT_LINE 365 src_ms-2018-12-10/write_products_one.pro
-            factor = mpy_compute_cloud_factor(
-                self.state_value_vec("pressure"),
-                self.state_value_vec("TATM"),
-                self.state_value_vec("H2O"),
-                self.state_value("PCLOUD"),
-                self.state_value("scalePressure"),
-                self.current_state.sounding_metadata.surface_altitude.convert(
-                    "m"
-                ).value,
-                self.current_state.sounding_metadata.latitude.value,
+            factor = alt_res.cloud_factor(
+                self.state_value("PCLOUD"), self.state_value("scalePressure")
             )
-
             convertToOD = factor
 
             # AT_LINE 363 write_products_one.pro

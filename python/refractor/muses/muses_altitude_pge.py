@@ -39,6 +39,7 @@ class MusesAltitudePge:
         kb = 1.380622e-23
 
         self.air_density = pressure * 1e-4 / (kb * tatm)
+        self.pressure = pressure
 
         # h2o_type = 0    h2o is fractional mixing ratio (nh2o/airDensity) relative to total air
         # h2o_type = 1    h2o is fractional mixing ratio relative to dry air
@@ -168,6 +169,37 @@ class MusesAltitudePge:
         self.air_density_dry = (
             self.air_density_dry / 1000000.0
         )  # convert to molecules/cm3
+
+    def cloud_factor(self, pcloud: float, scale_pressure: float) -> float:
+        """This is compute_cloud_factor from muses_py"""
+        z = self.altitude / 1000
+        cloud_ext_level = np.array(
+            [
+                1
+                * math.exp(
+                    -(
+                        ((math.log(pcloud / self.pressure[i])) / abs(scale_pressure))
+                        ** 2
+                    )
+                )
+                for i in range(self.pressure.shape[0])
+            ]
+        )
+
+        cloud_od_layer = np.zeros(cloud_ext_level.shape[0])
+        cloud_ext_layer = np.zeros(cloud_ext_level.shape[0])
+        for jj in range(1, cloud_ext_level.shape[0]):
+            c1 = cloud_ext_level[jj - 1]
+            c2 = cloud_ext_level[jj]
+            p1 = math.log(self.pressure[jj - 1])
+            p2 = math.log(self.pressure[jj])
+            p = math.log(self.layer_pressure[jj - 1])
+
+            cloud_ext_layer[jj - 1] = c1 + (p - p1) / (p2 - p1) * (c2 - c1)
+            cloud_od_layer[jj - 1] = cloud_ext_layer[jj - 1] * (z[jj] - z[jj - 1])
+            if cloud_od_layer[jj - 1] < 1e-7:
+                cloud_od_layer[jj - 1] = 0
+        return np.sum(cloud_od_layer)
 
     def gravity(self, latitude: float, altitude: float, tes_pge: bool = False) -> float:
         rad_earth = self.earth_radius(latitude, tes_pge)

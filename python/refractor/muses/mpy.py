@@ -30,21 +30,10 @@ def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
 # Synonym, just to make it clear where we have dependencies we intend to keep
 muses_py_wrapper_keep = muses_py_wrapper
 
-
-def muses_py_util_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:
-    if not have_muses_py:
-        raise NameError(
-            f"muses_py is not available, so we can't call the function {funcname}"
-        )
-    t = muses_py.UtilList()
-    return getattr(t, funcname)(*args, **kwargs)
-
-
 # Used in cloud_result_summary, we need to replace
 mpy_get_one_map = partial(muses_py_wrapper, "get_one_map")
 mpy_ccurve_jessica = partial(muses_py_wrapper, "ccurve_jessica")
 mpy_quality_deviation = partial(muses_py_wrapper, "quality_deviation")
-mpy_compute_cloud_factor = partial(muses_py_wrapper, "compute_cloud_factor")
 
 # Used in column_result_summary
 mpy_column = partial(muses_py_wrapper, "column")
@@ -170,22 +159,7 @@ mpy_register_replacement_function = partial(
 mpy_plot_results = partial(muses_py_wrapper_keep, "plot_results")
 mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
 mpy_cdf_write_struct = partial(muses_py_wrapper, "cdf_write_struct")
-mpy_tai = partial(muses_py_wrapper, "tai")
-mpy_GetColumnFromList = partial(muses_py_util_wrapper, "GetColumnFromList")
 mpy_make_one_lite = partial(muses_py_wrapper, "make_one_lite")
-
-
-def mpy_ManualArraySetsWithLHSRHSIndices(*args: Any, **kwargs: Any) -> Any:
-    funcname = "ManualArraySetsWithLHSRHSIndices"
-    if not have_muses_py:
-        raise NameError(
-            f"muses_py is not available, so we can't call the function {funcname}"
-        )
-    return muses_py.UtilGeneral().ManualArraySetsWithLHSRHSIndices(*args, **kwargs)
-
-
-mpy_specie_type = partial(muses_py_wrapper, "specie_type")
-
 
 # used in state_element_freq, should get replaced
 def mpy_get_emis_dispatcher(*args: Any, **kwargs: Any) -> Any:
@@ -272,13 +246,10 @@ __all__ = [
 # Ones we want to replace
 __all__.extend(
     [
-        "mpy_GetColumnFromList",
-        "mpy_ManualArraySetsWithLHSRHSIndices",
         "mpy_ccurve_jessica",
         "mpy_cdf_read_tes_frequency",
         "mpy_cdf_write_struct",
         "mpy_column",
-        "mpy_compute_cloud_factor",
         "mpy_emis_source_citation",
         "mpy_get_emis_dispatcher",
         "mpy_get_omi_ils",
@@ -306,7 +277,6 @@ __all__.extend(
         "mpy_read_tes_l1b",
         "mpy_read_tropomi",
         "mpy_read_tropomi_surface_altitude",
-        "mpy_specie_type",
         "mpy_struct_combine",
         "mpy_supplier_constraint_matrix_ssuba",
         "mpy_supplier_fm_pressures",
@@ -316,7 +286,6 @@ __all__.extend(
         "mpy_supplier_nh3_type_tes",
         "mpy_supplier_shift_profile",
         "mpy_supplier_surface_pressure",
-        "mpy_tai",
         "mpy_write_quality_flags",
     ]
 )

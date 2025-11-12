@@ -3,11 +3,11 @@ from .mpy import (
     mpy_get_one_map,
     mpy_ccurve_jessica,
     mpy_quality_deviation,
-    mpy_compute_cloud_factor,
 )
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
+from .muses_altitude_pge import MusesAltitudePge
 import numpy as np
 import math
 import typing
@@ -307,20 +307,20 @@ class CloudResultSummary:
         scale_pressure = self.state_value("scalePressure")
         if scale_pressure == 0:
             scale_pressure = 0.1
-        res = mpy_compute_cloud_factor(
+        alt = MusesAltitudePge(
             self.state_value_vec("pressure"),
             self.state_value_vec("TATM"),
             self.state_value_vec("H2O"),
-            self.state_value("PCLOUD"),
-            scale_pressure,
             self.current_state.sounding_metadata.surface_altitude.convert("m").value,
             self.current_state.sounding_metadata.latitude.value,
+            tes_pge=True,
         )
-        # TODO Rounding currently done. I', not sure this makes a lot of sense,
+        factor = alt.cloud_factor(self.state_value("PCLOUD"), scale_pressure)
+        # TODO Rounding currently done. I'm, not sure this makes a lot of sense,
         # this was to match the old IDL code. I don't know that we actually want
         # to do that, but for now have this in place.
-        res = round(res, 7)
-        return res
+        factor = round(factor, 7)
+        return factor
 
 
 __all__ = ["CloudResultSummary"]

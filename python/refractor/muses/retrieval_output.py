@@ -1,8 +1,6 @@
 from __future__ import annotations
 from loguru import logger
 from .mpy import (
-    mpy_tai,
-    mpy_GetColumnFromList,
     mpy_cdf_write_struct,
     mpy_make_one_lite,
     have_muses_py,
@@ -769,15 +767,25 @@ class CdfWriteTes:
         dataOut["GRID_PRESSURE_FM"] = grid_pressure_FM
 
         # form new time called YYYYMMDD.fractionofday
-        ymd = mpy_tai(dataOut["TIME"])
-        yyear = ymd["year"]
-        ymonth = ymd["month"]
-        yday = ymd["day"]
+        # TAI seconds from 1993
+        ymd = datetime.datetime(1993, 1, 1) + datetime.timedelta(
+            seconds=int(dataOut["TIME"])
+        )
+        # Account for leapseconds. Note that this is *wrong*, it corresponds to the
+        # wrong_tai in SoundingMetadata. This only accounts for leapseconds up to 2008.
+        # But do the same wrong calculation here so we match the expected output.
+        if ymd.year <= 2005:
+            ymd -= datetime.timedelta(seconds=5)
+        if ymd.year >= 2006:
+            ymd -= datetime.timedelta(seconds=6)
+        yyear = ymd.year
+        ymonth = ymd.month
+        yday = ymd.day
         yyyymmdd = np.float64(yyear * 10000.0 + ymonth * 100.0 + yday * 1.0)
 
         dataOut["YYYYMMDD"] = yyyymmdd
 
-        ut_hour = ymd["digitalHour"]
+        ut_hour = round(ymd.hour + (ymd.minute + ymd.second / 60.0) / 60.0, 4)
 
         dataOut["UT_HOUR"] = ut_hour
 
@@ -842,7 +850,7 @@ class CdfWriteTes:
         # AT_LINE 758 TOOLS/cdf_write_tes.pro
         dict_of_variables_and_their_attributes = {}
 
-        names = mpy_GetColumnFromList(self.groupvarnames, 1)
+        names = [t[1] for t in self.groupvarnames]
         # dict preserves order
         names = list(dict.fromkeys(names))
         names = [x.upper() for x in names]
@@ -995,14 +1003,18 @@ class CdfWriteTes:
             1040.0,
         ]
 
-        starttai = mpy_tai(
-            {"year": 2003, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},
-            True,
-        )
-        endtai = mpy_tai(
-            {"year": 2103, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},
-            True,
-        )
+        # These are hardcode values. So we don't depend on muses-py, just set the
+        # value here that will get returned
+        # starttai = mpy_tai(
+        #    {"year": 2003, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},
+        #    True,
+        # )
+        # endtai = mpy_tai(
+        #    {"year": 2103, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},
+        #    True,
+        # )
+        starttai = 315532805
+        endtai = 3471206406
 
         if not filenameIn.endswith(".nc"):
             filename = os.path.basename(filenameIn)
