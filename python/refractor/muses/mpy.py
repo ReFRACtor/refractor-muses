@@ -175,7 +175,6 @@ mpy_plot_results = partial(muses_py_wrapper_keep, "plot_results")
 mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
 mpy_cdf_write_struct = partial(muses_py_wrapper, "cdf_write_struct")
 mpy_tai = partial(muses_py_wrapper, "tai")
-mpy_cdf_var_add_strings = partial(muses_py_wrapper, "cdf_var_add_strings")
 mpy_GetColumnFromList = partial(muses_py_util_wrapper, "GetColumnFromList")
 mpy_make_one_lite = partial(muses_py_wrapper, "make_one_lite")
 
@@ -283,7 +282,6 @@ __all__.extend(
         "mpy_WhereEqualIndices",
         "mpy_ccurve_jessica",
         "mpy_cdf_read_tes_frequency",
-        "mpy_cdf_var_add_strings",
         "mpy_cdf_write_struct",
         "mpy_column",
         "mpy_compute_cloud_factor",

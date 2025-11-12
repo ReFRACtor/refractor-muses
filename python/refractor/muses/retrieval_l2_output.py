@@ -160,6 +160,12 @@ class RetrievalL2Output(RetrievalOutput):
 
     def lite_file(self, dataInfo: dict) -> None:
         """Create lite file."""
+        runtime_attributes: dict[str, Any] = dict()
+        selem = self.current_state.state_element(StateElementIdentifier("EMIS"))
+        runtime_attributes.setdefault("EMISSIVITY_INITIAL", dict())
+        runtime_attributes["EMISSIVITY_INITIAL"]["database"] = selem.metadata[
+            "prior_source"
+        ]
         data2: None | dict = None
         if self.spcname == "CH4":
             if self.dataN2O is not None:
@@ -200,6 +206,7 @@ class RetrievalL2Output(RetrievalOutput):
                     dataInfo,
                     self.dataTATM,
                     "RH",
+                    runtimeAttributes=runtime_attributes,
                     state_element_out=state_element_out,
                 )
 
@@ -217,6 +224,7 @@ class RetrievalL2Output(RetrievalOutput):
                 dataInfo,
                 data2,
                 self.spcname,
+                runtimeAttributes=runtime_attributes,
                 state_element_out=state_element_out,
             )
 

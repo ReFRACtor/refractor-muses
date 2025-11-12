@@ -2,7 +2,6 @@ from __future__ import annotations
 from loguru import logger
 from .mpy import (
     mpy_tai,
-    mpy_cdf_var_add_strings,
     mpy_GetUniqueValues,
     mpy_GetColumnFromList,
     mpy_cdf_write_struct,
@@ -787,8 +786,7 @@ class CdfWriteTes:
             dims["size2"] = 2
             dims["size3"] = 3
 
-        (dataNew, dims) = mpy_cdf_var_add_strings(dataOut, dims)
-        dataOut = dataNew
+        dataOut = self.cdf_var_add_strings(dataOut, dims)
 
         # ===============================
         # netcdf file global variable
@@ -888,14 +886,14 @@ class CdfWriteTes:
         # Link data to their respective variables
         # ===============================
         # use tagnames to put data into newdata
-        dataNew_keys = list(dataNew.keys())
+        dataNew_keys = list(dataOut.keys())
         newdata = {}
         for ii in range(0, len(names)):
             tag_name = names[ii]
             if tag_name in dataOut:
                 if tag_name not in dataNew_keys:
                     raise RuntimeError("tag_name not in dataNew_keys")
-                newdata[tag_name] = dataNew[tag_name]
+                newdata[tag_name] = dataOut[tag_name]
 
         structIn = newdata
 
@@ -974,6 +972,7 @@ class CdfWriteTes:
         data1In: dict,
         data2: dict | None = None,
         species_name: str = "",
+        runtimeAttributes: dict | None = None,
         state_element_out: list[StateElementIdentifier] | None = None,
     ) -> dict | None:
         """This is a lightly edited version of make_lite_casper_script_retrieval,
@@ -1059,6 +1058,7 @@ class CdfWriteTes:
             write_met,
             version,
             liteVersion,
+            runtimeAttributes=runtimeAttributes,
             state_element_out=state_element_out,
         )
         return data2
@@ -1110,6 +1110,206 @@ class CdfWriteTes:
         if global_attr is not None:
             nco.setncatts(global_attr)
         nco.close()
+
+    def cdf_var_add_strings(
+        self, dataOut: dict[str, Any], dims: dict[str, int]
+    ) -> dict[str, Any]:
+        """add in string lengths and modify strings to be the same length by
+        adding spaces at the end"""
+        count = 0
+        tt = list(dataOut.keys())
+        dataNew = copy.deepcopy(dataOut)
+        for jj in range(0, len(tt)):
+            key_name = tt[jj]
+            ss = self.idl_size(dataOut, key_name)
+
+            # Handle byte data type.
+            # AT_LINE 783 TOOLS/cdf_write_tes.pro
+            if ss[len(ss) - 2] == 1 and ss[0] == 2:
+                strlength = ss[1]
+                dims["string" + str(strlength)] = strlength
+
+            # AT_LINE 806 TOOLS/cdf_write_tes.pro
+            # Handle string data type.
+            if ss[len(ss) - 2] == 7:  # string data type
+                # get string array
+                # Check to see if the type of dataOut[key_name] is just a plain old string.
+                if ss[0] == 0:
+                    nn = 1  # There is only 1 string.
+                    strarr = []
+                    strarr.append(
+                        dataOut[key_name]
+                    )  # An array of element, which is the string.
+                    ll = np.asarray(
+                        [len(dataOut[key_name])]
+                    )  # Save the length of the one string.
+                else:
+                    # get maximum string length
+                    strarr = dataOut[key_name]
+                    nn = len(strarr)
+                    ll = np.zeros(shape=(nn), dtype=np.int32)
+                    for kk in range(0, nn):
+                        ll[kk] = len(strarr[kk])
+                    # end for kk in range(0,nn):
+
+                strlength = np.amax(ll)  # maximum string length.
+                if strlength < 2:
+                    strlength = 2
+
+                # make all strings the same length
+                if nn > 1:  # If there are more than 1 string.
+                    space = "                                                                        "
+                    for kk in range(0, nn):
+                        strarr[kk] = strarr[kk] + space[0 : strlength - len(strarr[kk])]
+
+                dims["string" + str(strlength)] = strlength
+
+                # AT_LINE 806 TOOLS/cdf_write_tes.pro
+                # now add to structure in format of a bytearr
+                if strlength == 0:
+                    strlength = 1
+
+                if nn > 1:  # If there are more than 1 string.
+                    result = np.zeros(shape=(strlength, nn), dtype=np.dtype("b"))
+                else:
+                    result = np.zeros(shape=(strlength,), dtype=np.dtype("b"))
+
+                # transfer information
+                if nn > 1:  # If there are more than 1 string.
+                    for kk in range(0, nn):
+                        # convert to byte array
+                        result[:, kk] = bytearray(strarr[kk], "utf8")
+
+                        # remove trailing spaces
+                        il = strlength - 1
+                        test = result[il, kk]
+                        while test == 32 and il > -1:
+                            result[il, kk] = 0
+                            il = il - 1
+                            if il >= 0:
+                                test = result[il, kk]
+                        # end while test EQ 32 and il > -1:
+                    # for kk in range(0,nn):
+                else:
+                    result[...] = bytearray(strarr[0], "utf8")
+
+                dataNew[key_name] = result
+                count = count + 1
+            # end if ss[len(ss)-2] == 7:  # string data type
+        # end FOR jj = 0, N_ELEMENTS(tt)-1 DO BEGIN
+        # AT_LINE 871 TOOLS/cdf_write_tes.pro
+
+        return dataNew
+
+    def idl_size(self, dataOut: dict[str, Any], key_name: str) -> list[int]:
+        o_ss = None  # The returned array from SIZE() function.
+
+        # Getting the dimension is tricky.  We have to check to see if the type of the variable
+        # is scalar or otherwise.
+        if np.ndim(dataOut[key_name]) == 0:  # CHECK_FOR SCALAR
+            if not np.isscalar(dataOut[key_name]):
+                # 0D arrays can have their sole value converted to a non-array scalar like so
+                value = dataOut[key_name].item()
+            else:
+                value = dataOut[key_name]
+
+            o_ss = [
+                0
+            ]  # Scalar does not have dimension so we set the value of 0 as first element.
+            if isinstance(value, float) or isinstance(value, np.float32):
+                o_ss.append(4)  # Using IDL convention of assigning 4 to Float
+                o_ss.append(
+                    1
+                )  # Add the last element which is the number of element for scalar.
+            elif isinstance(value, int) or isinstance(value, np.int32):
+                o_ss.append(2)  # Using IDL convention of assigning 2 to Int
+                o_ss.append(
+                    1
+                )  # Add the last element which is the number of element for scalar.
+            elif isinstance(value, np.int16):
+                o_ss.append(2)  # Using IDL convention of assigning 2 to Int
+                o_ss.append(
+                    1
+                )  # Add the last element which is the number of element for scalar.
+            elif isinstance(value, np.int32):
+                o_ss.append(2)  # Using IDL convention of assigning 2 to Int
+                o_ss.append(
+                    1
+                )  # Add the last element which is the number of element for scalar.
+            elif isinstance(value, np.int64):
+                o_ss.append(2)  # Using IDL convention of assigning 2 to Int
+                o_ss.append(
+                    1
+                )  # Add the last element which is the number of element for scalar.
+            elif isinstance(value, str):
+                o_ss.append(7)  # Using IDL convention of assigning 7 to String
+                o_ss.append(
+                    1
+                )  # Add the last element which is the number of element for scalar.
+            else:
+                raise RuntimeError("Do not know your type yet")
+        elif isinstance(dataOut[key_name], list):  # CHECK_FOR LIST
+            o_ss = [1]  # The dimension of list is 1.
+            o_ss.append(len(dataOut[key_name]))
+            if isinstance(dataOut[key_name][0], str):
+                o_ss.append(7)  # Using IDL convention of assigning 7 to String
+                o_ss.append(len(dataOut[key_name]))
+            elif isinstance(dataOut[key_name][0], int):
+                o_ss.append(2)  # Using IDL convention of assigning 2 to Int
+                o_ss.append(len(dataOut[key_name]))
+            elif isinstance(dataOut[key_name][0], list) and isinstance(
+                dataOut[key_name][0][0], float
+            ):
+                # Not sure if this correct.
+                o_ss.append(4)  # Using IDL convention of assigning 4 to Float
+                o_ss.append(len(dataOut[key_name][0]))  # Add the length of the list.
+            elif isinstance(dataOut[key_name][0], list) and isinstance(
+                dataOut[key_name][0][0], int
+            ):
+                # Not sure if this correct.
+                o_ss.append(2)  # Using IDL convention of assigning 2 to Int
+                o_ss.append(len(dataOut[key_name][0]))  # Add the length of the list.
+            else:
+                raise RuntimeError("Do not know your type yet")
+        else:  # CHECK_FOR OTHER
+            o_ss = [len(dataOut[key_name].shape)]
+            if len(dataOut[key_name].shape) == 1:
+                o_ss.append(dataOut[key_name].shape[0])  # One dimension is first.
+            elif len(dataOut[key_name].shape) == 2:
+                o_ss.append(
+                    dataOut[key_name].shape[0]
+                )  # First dimension is [0] element.
+                o_ss.append(
+                    dataOut[key_name].shape[1]
+                )  # Second dimension is [1] element.
+            else:
+                raise RuntimeError("Do not know your type yet")
+
+            if (dataOut[key_name].dtype is np.int32) or str(
+                dataOut[key_name].dtype
+            ) == "int32":
+                o_ss.append(4)  # Using IDL convention of assigning 2 to Int
+                o_ss.append(dataOut[key_name].size)
+
+            if (dataOut[key_name].dtype is np.int64) or str(
+                dataOut[key_name].dtype
+            ) == "int64":
+                o_ss.append(14)  # Using IDL convention of assigning 14 to Long64
+                o_ss.append(dataOut[key_name].size)
+
+            if (dataOut[key_name].dtype is np.float32) or str(
+                dataOut[key_name].dtype
+            ) == "float32":
+                o_ss.append(4)  # Using IDL convention of assigning 4 to Float
+                o_ss.append(dataOut[key_name].size)
+
+            if (dataOut[key_name].dtype is np.float64) or str(
+                dataOut[key_name].dtype
+            ) == "float64":
+                o_ss.append(5)  # Using IDL convention of assigning 5 to Double
+                o_ss.append(dataOut[key_name].size)
+
+        return o_ss
 
 
 __all__ = ["RetrievalOutput", "CdfWriteTes", "extra_l2_output"]
