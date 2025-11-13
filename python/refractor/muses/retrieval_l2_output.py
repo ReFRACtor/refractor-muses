@@ -210,7 +210,7 @@ class RetrievalL2Output(RetrievalOutput):
         ).current_file_name()
         if InstrumentIdentifier("OCO2") not in self.instruments:
             t2 = CdfWriteTes()
-            data2 = t2.write_lite(
+            t2.write_lite(
                 self.step_number,
                 str(self.out_fname),
                 self.current_state,

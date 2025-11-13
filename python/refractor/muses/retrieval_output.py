@@ -1,7 +1,6 @@
 from __future__ import annotations
 from loguru import logger
 from .mpy import (
-    mpy_make_one_lite,
     have_muses_py,
     mpy_cdf_var_attributes,
     mpy_cdf_var_names,
@@ -14,6 +13,7 @@ from .identifier import (
     InstrumentIdentifier,
 )
 from .refractor_uip import AttrDictAdapter
+from .retrieval_lite_output import CdfWriteLiteTes
 from netCDF4 import Dataset
 from pathlib import Path
 import importlib
@@ -982,7 +982,7 @@ class CdfWriteTes:
         species_name: str = "",
         runtimeAttributes: dict | None = None,
         state_element_out: list[StateElementIdentifier] | None = None,
-    ) -> dict | None:
+    ) -> None:
         """This is a lightly edited version of make_lite_casper_script_retrieval,
         mainly we want this to call our cdf_write_tes so we can add new species in.
 
@@ -1035,23 +1035,17 @@ class CdfWriteTes:
             filenameOut = filenameIn
 
         runs = filenameIn
-        directory = None
-        useData = True
         dataAnc = copy.deepcopy(data1)
-        qualityFilename = None  # Passed down in py-retrieve, but not actually used
-        (data, data2, pressuresMax) = mpy_make_one_lite(
+        data, pressuresMax = CdfWriteLiteTes().make_one_lite(
             species_name,
             runs,
             starttai,
             endtai,
             [str(i) for i in instrument],
-            directory,
             pressuresMax,
-            qualityFilename,
             liteDirectory,
             version,
             versionLite,
-            useData,
             data1,
             data2,
             dataAnc,
@@ -1073,7 +1067,6 @@ class CdfWriteTes:
             runtimeAttributes=runtimeAttributes,
             state_element_out=state_element_out,
         )
-        return data2
 
     def cdf_write(
         self,

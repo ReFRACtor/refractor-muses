@@ -56,7 +56,14 @@ if have_muses_py:
     from py_retrieve.app.tools.strategy_table_file import *  # type: ignore
     from py_retrieve.app.tools.radiance_file import *  # type: ignore
     from py_retrieve.app.tools.order_species import *  # type: ignore
+    from py_retrieve.app.tools.products_map_pressures import *  # type: ignore
     from py_retrieve.app.tropomi.get_tropomi_ils_fastconv import *  # type: ignore
+    from py_retrieve.app.lite.products_add_fields import *  # type: ignore
+    from py_retrieve.app.lite.products_add_rtvmr import *  # type: ignore
+    from py_retrieve.app.lite.products_combine_hdo import *  # type: ignore
+    from py_retrieve.app.lite.products_cleanup import *  # type: ignore
+    from py_retrieve.app.lite.products_get_maptype import *  # type: ignore
+    from py_retrieve.app.lite.products_set_quality import *  # type: ignore
 
 del _broken
 del _i
