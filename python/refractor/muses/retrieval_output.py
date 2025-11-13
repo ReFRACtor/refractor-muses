@@ -2,10 +2,6 @@ from __future__ import annotations
 from loguru import logger
 from .mpy import (
     mpy_cdf_write_variable,
-    mpy_modify_variable_name_if_duplicate,
-    mpy_get_dimension_tuple,
-    mpy_get_group_name_from_variable_name,
-    mpy_build_group_struct,
     mpy_make_one_lite,
     have_muses_py,
     mpy_cdf_var_attributes,
@@ -28,6 +24,7 @@ import copy
 import numpy as np
 import datetime
 import pytz
+import re
 import typing
 from typing import Any
 
@@ -1343,10 +1340,19 @@ class CdfWriteTes:
         # Special handling not found in IDL: Check to see if the variable_name belongs to a group.  If it is, we create the group first
         # then save each id of the group in dict_of_group_ids_for_writing so we can retrieve it later.
         # Note that in Python, when you call createGroup(), if the group exist, you get the group id back.
+        size_to_dim: dict[int, str] = {}
+        if dims is not None:
+            for k, v in dims.items():
+                if v not in size_to_dim:
+                    size_to_dim[v] = k
         group_struct = {}
         dict_of_group_ids_for_writing = {}
         if groupvarnames is not None:
-            group_struct = mpy_build_group_struct(groupvarnames)
+            group_struct: dict[str, list[str]] = {}
+            for gname, vname in groupvarnames:
+                if gname not in group_struct:
+                    group_struct[gname] = []
+                group_struct[gname].append(vname)
             for jj in range(0, len(struct)):
                 variable_name = tagnamesStruct[jj]
                 if lowercase:
@@ -1361,9 +1367,12 @@ class CdfWriteTes:
                             variable_name
                         ]  # Get the exact case of the variable name.
 
-                belonged_to_group = mpy_get_group_name_from_variable_name(
-                    variable_name, group_struct
-                )
+                t = re.sub(r"(_DUPLICATE_KEY_|_duplicate_key_).*", "", variable_name)
+                belonged_to_group = ""
+                for k, v in group_struct.items():
+                    if t in v:
+                        belonged_to_group = k
+                        break
                 if belonged_to_group != "":
                     # Only create the group if we had not created it before.
                     if belonged_to_group not in dict_of_group_ids_for_writing:
@@ -1661,9 +1670,14 @@ class CdfWriteTes:
 
                 # Special handling: Check to see if the variable_name belongs to a group.  If it is, we get the group id from above.
                 if groupvarnames is not None:
-                    belonged_to_group = mpy_get_group_name_from_variable_name(
-                        variable_name, group_struct
+                    t = re.sub(
+                        r"(_DUPLICATE_KEY_|_duplicate_key_).*", "", variable_name
                     )
+                    belonged_to_group = ""
+                    for k, v in group_struct.items():
+                        if t in v:
+                            belonged_to_group = k
+                            break
                     if belonged_to_group != "":
                         # Retrieve the group id from dict_of_group_ids_for_writing when we created the groups above.
                         # Then use group id in call to cdf_write_variable().  Note that we do not overwrite fileID because
@@ -1676,9 +1690,15 @@ class CdfWriteTes:
 
                 # If dims is passed in, we will attempt to get the dimension names from the variable_data.
                 if dims is not None:
-                    variable_dimension_tuple = mpy_get_dimension_tuple(
-                        variable_data, dims
-                    )
+                    if np.isscalar(variable_data):
+                        variable_dimension_tuple = ()
+                    else:
+                        try:
+                            variable_dimension_tuple = tuple(
+                                [size_to_dim[i] for i in variable_data.shape]
+                            )
+                        except KeyError:
+                            variable_dimension_tuple = ()
 
                     # For Lite products, if there are more than 1 dimensions, we also transpose the dimensions to match the IDL output.
                     if len(variable_dimension_tuple) >= 2:
@@ -1699,7 +1719,9 @@ class CdfWriteTes:
                         variable_data = np.asarray(variable_data)
 
                 # Do a sanity check on the variable name if it contains extranous tokens such as "_DUPLICATE_KEY_" or "_duplicate_key_".
-                variable_name = mpy_modify_variable_name_if_duplicate(variable_name)
+                variable_name = re.sub(
+                    r"(_DUPLICATE_KEY_|_duplicate_key_).*", "", variable_name
+                )
 
                 mpy_cdf_write_variable(
                     actual_file_id_to_write,
