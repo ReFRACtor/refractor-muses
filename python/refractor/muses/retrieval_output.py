@@ -1,7 +1,6 @@
 from __future__ import annotations
 from loguru import logger
 from .mpy import (
-    mpy_cdf_write_variable,
     mpy_make_one_lite,
     have_muses_py,
     mpy_cdf_var_attributes,
@@ -1345,10 +1344,9 @@ class CdfWriteTes:
             for k, v in dims.items():
                 if v not in size_to_dim:
                     size_to_dim[v] = k
-        group_struct = {}
+        group_struct: dict[str, list[str]] = {}
         dict_of_group_ids_for_writing = {}
         if groupvarnames is not None:
-            group_struct: dict[str, list[str]] = {}
             for gname, vname in groupvarnames:
                 if gname not in group_struct:
                     group_struct[gname] = []
@@ -1369,8 +1367,8 @@ class CdfWriteTes:
 
                 t = re.sub(r"(_DUPLICATE_KEY_|_duplicate_key_).*", "", variable_name)
                 belonged_to_group = ""
-                for k, v in group_struct.items():
-                    if t in v:
+                for k, v2 in group_struct.items():
+                    if t in v2:
                         belonged_to_group = k
                         break
                 if belonged_to_group != "":
@@ -1674,8 +1672,8 @@ class CdfWriteTes:
                         r"(_DUPLICATE_KEY_|_duplicate_key_).*", "", variable_name
                     )
                     belonged_to_group = ""
-                    for k, v in group_struct.items():
-                        if t in v:
+                    for k, v2 in group_struct.items():
+                        if t in v2:
                             belonged_to_group = k
                             break
                     if belonged_to_group != "":
@@ -1691,7 +1689,7 @@ class CdfWriteTes:
                 # If dims is passed in, we will attempt to get the dimension names from the variable_data.
                 if dims is not None:
                     if np.isscalar(variable_data):
-                        variable_dimension_tuple = ()
+                        variable_dimension_tuple: tuple[str, ...] = ()
                     else:
                         try:
                             variable_dimension_tuple = tuple(
@@ -1723,7 +1721,7 @@ class CdfWriteTes:
                     r"(_DUPLICATE_KEY_|_duplicate_key_).*", "", variable_name
                 )
 
-                mpy_cdf_write_variable(
+                self.cdf_write_variable(
                     actual_file_id_to_write,
                     variable_name,
                     variable_index,
@@ -1733,6 +1731,304 @@ class CdfWriteTes:
                     variable_belong_to_group_flag,
                     list_of_root_dimensions,
                 )
+
+    def cdf_write_variable(
+        self,
+        i_output_file_handle: Dataset,
+        i_variable_name: str,
+        i_variable_index: int,
+        i_variable_data: np.ndarray,
+        i_variable_attributes_dict: dict[str, str | float],
+        i_tuples_of_dimension_names: tuple[str, ...],
+        i_variable_belong_to_group_flag: bool,
+        i_list_of_root_dimensions: list[str],
+    ) -> None:
+        if len(i_tuples_of_dimension_names) == 0:
+            if np.isscalar(i_variable_data) or len(i_variable_data.shape) == 0:
+                pass
+            elif len(i_variable_data.shape) == 1:
+                i_tuples_of_dimension_names = ("grid_" + str(i_variable_data.shape[0]),)
+            elif len(i_variable_data.shape) == 2:
+                i_tuples_of_dimension_names = (
+                    "grid_" + str(i_variable_data.shape[0]),
+                    "grid_" + str(i_variable_data.shape[1]),
+                )
+            else:
+                raise RuntimeError(
+                    f"Not yet supporting these dimensions: {i_variable_data.shape}"
+                )
+
+        # PYTHON_NOTE: It is also possible that the number of tokens in i_tuples_of_dimension_names
+        # is different than the shape of the variable, we need to correct the dimension.
+        # Ignore scalar variables which has no shape.
+        # Also note that for scalar, the name of the only dimension is 'one' so we check that ei_tuples_of_dimension_names[0] is not 'one'
+        if (
+            len(i_tuples_of_dimension_names) > 0 and not np.isscalar(i_variable_data)
+        ) and i_tuples_of_dimension_names[0] != "one":
+            if len(i_tuples_of_dimension_names) != len(i_variable_data.shape):
+                if len(i_variable_data.shape) == 0:
+                    pass
+                    # i_variable_name utctime, i_tuples_of_dimension_names ('GRID29',)
+                    # Some variables has no shape (for example utctime), so we keep the i_tuples_of_dimension_names as is.
+                elif len(i_variable_data.shape) == 1:
+                    i_tuples_of_dimension_names = (
+                        "grid_" + str(i_variable_data.shape[0]),
+                    )
+                elif len(i_variable_data.shape) == 2:
+                    i_tuples_of_dimension_names = (
+                        "grid_" + str(i_variable_data.shape[0]),
+                        "grid_" + str(i_variable_data.shape[1]),
+                    )
+                else:
+                    raise RuntimeError(
+                        f"Not yet supporting these dimensions: {i_variable_data.shape}"
+                    )
+
+        encountered_object_flag = False
+
+        # Special note: When a string type variable is passed in, it has no shape.  We need to make a special note
+        # so when the variable is created with createVariable() function, we can either pass in a dimension array or not.
+        variable_has_no_shape_flag = False
+
+        # The shape function cannot be used with scalar so we must check to see that it is not a scalar before checking for shape
+        # to avoid error such as: AttributeError: 'int' object has no attribute 'shape'
+        if not np.isscalar(i_variable_data) and len(i_variable_data.shape) == 0:
+            variable_has_no_shape_flag = True
+
+        # If the dimension does not yet, exist, we create it.
+        # Becareful if creating dimension for square matrix where both dimensions are the same.
+        if (
+            i_output_file_handle.dimensions is not None
+        ) and i_tuples_of_dimension_names is not None:
+            exist_nc_dims = [
+                dim for dim in i_output_file_handle.dimensions
+            ]  # List of existing nc dimensions.
+
+            # Becareful if creating dimension for square matrices where both dimensions are the same.
+            # To prevent from creating dimensions of a square matrix, we keep a list of already created dimensions.
+            already_created_dimensions = []
+            for _, one_dimension in enumerate(i_tuples_of_dimension_names):
+                if (
+                    one_dimension not in exist_nc_dims
+                    and one_dimension not in already_created_dimensions
+                ):
+                    if "grid" in one_dimension:
+                        str_split = one_dimension.split("_")
+                    else:
+                        # Split 'GRID36' to get to '36'
+                        str_split = one_dimension.split("GRID")
+                    if len(str_split) > 1:
+                        new_dimension_size = int(str_split[1])
+                        if (
+                            i_list_of_root_dimensions is not None
+                            and one_dimension not in i_list_of_root_dimensions
+                        ):
+                            i_output_file_handle.createDimension(
+                                one_dimension, new_dimension_size
+                            )
+                already_created_dimensions.append(
+                    one_dimension
+                )  # Keep track of what had already been created.
+
+        if i_variable_name == "lat":
+            dimensions_list: tuple[str, ...] = ("lat",)
+        elif i_variable_name == "lon":
+            dimensions_list = ("lon",)
+        elif i_variable_name == "start_time":
+            dimensions_list = ("time", "time_string_len")
+        else:
+            dimensions_list = i_tuples_of_dimension_names
+
+        ncdf4_data_type: str | type = ""
+
+        if type(i_variable_data) is str:
+            ncdf4_data_type = "S1"  # The start_time variable is a single-character string type: char start_time(time, time_string_len)
+        elif np.isscalar(i_variable_data):
+            # This is probably not correct.
+            if isinstance(i_variable_data, np.float64) or isinstance(
+                i_variable_data, float
+            ):
+                ncdf4_data_type = "f8"
+            elif isinstance(i_variable_data, np.float32) or isinstance(
+                i_variable_data, float
+            ):
+                ncdf4_data_type = "f4"
+            elif isinstance(i_variable_data, np.int64) or isinstance(
+                i_variable_data, int
+            ):  # i_variable_data.dtype == "int64":
+                ncdf4_data_type = "i8"
+            elif isinstance(i_variable_data, np.int32) or isinstance(
+                i_variable_data, int
+            ):  # i_variable_data.dtype == "int32":
+                ncdf4_data_type = "i4"
+            elif isinstance(i_variable_data, np.int16) or isinstance(
+                i_variable_data, int
+            ):  # i_variable_data.dtype == "int16":
+                ncdf4_data_type = "i2"
+            elif isinstance(i_variable_data, np.int8) or isinstance(
+                i_variable_data, int
+            ):  # i_variable_data.dtype == "int8":
+                ncdf4_data_type = "i1"
+            elif isinstance(i_variable_data, np.uint8) or isinstance(
+                i_variable_data, int
+            ):  # i_variable_data.dtype == "uint8":
+                ncdf4_data_type = "uint8"
+        else:
+            if i_variable_data.dtype == "float64":
+                ncdf4_data_type = "f8"
+            elif i_variable_data.dtype == "float32":
+                ncdf4_data_type = "f4"
+            elif i_variable_data.dtype == "int64":
+                ncdf4_data_type = "i8"
+            elif i_variable_data.dtype == "int32":
+                ncdf4_data_type = "i4"
+            elif i_variable_data.dtype == "int16":
+                ncdf4_data_type = "i2"
+            elif i_variable_data.dtype == "int8":
+                ncdf4_data_type = "i1"
+            elif i_variable_data.dtype == "uint8":
+                ncdf4_data_type = "uint8"
+            elif "S" in str(i_variable_data.dtype) or "U" in str(i_variable_data.dtype):
+                # For 'S' or 'U', we assume it is of type 'S' for writing.
+                if "S" in str(i_variable_data.dtype):
+                    ncdf4_data_type = "S"
+                if "U" in str(i_variable_data.dtype):
+                    ncdf4_data_type = "U"
+            elif str(i_variable_data.dtype) == "object":
+                if "microwindow" in i_variable_name.lower():
+                    ncdf4_data_type = str
+                else:
+                    # If we don't know the type, we treat it as byte with 'i1' type.
+                    # We also need to change the dimension of the variable.
+                    max_length = 0
+                    for ii in range(0, len(i_variable_data)):
+                        # EM Insertion - Added for CRIS TROPOMI combination, got a strange object which wouldn't be read, so inserted some protection
+                        try:
+                            max_length = max(max_length, len(i_variable_data[ii]))
+                        except TypeError:
+                            max_length = 0
+                            return
+
+                    dimensions_list = (dimensions_list[0], "grid_" + str(max_length))
+                    ncdf4_data_type = "i1"
+                    encountered_object_flag = True
+
+                    # Get a list of dimensions so we can check.
+                    existed_dimensions = []
+                    for key, _ in i_output_file_handle.dimensions.items():
+                        existed_dimensions.append(key)
+
+                    # If the 2nd dimension probably not has been created yet, we do it here.
+                    if dimensions_list[1] not in existed_dimensions:
+                        i_output_file_handle.createDimension(
+                            dimensions_list[1], max_length
+                        )
+                # end: if 'microwindow' in i_variable_name:
+            else:
+                ncdf4_data_type = "BAD_DATA_TYPE"
+                raise RuntimeError("BAD_DATA_TYPE")
+
+            # end: if i_variable_data.dtype == "float64":
+        # end: if type(i_variable_data) == str:
+
+        # Create the variable is it does not already exist, else, just retrieve it from the file.
+        # This is often the case for the multi dimension variable with the (time,) as the first dimension.
+        # Note: NetCDF does not allow the creation of a variable if it already exist.
+        # By checking to see if the variable is in the list of variables
+        # we can avoid the error of attempting to create a variable that exist.
+
+        if i_variable_name in i_output_file_handle.variables:
+            variable_to_write = i_output_file_handle.variables[i_variable_name]
+        else:
+            if np.isscalar(i_variable_data) or variable_has_no_shape_flag:
+                # A scalar has no dimension.  We do not send the dimension_list at all to createVariable() function.
+                variable_to_write = i_output_file_handle.createVariable(
+                    i_variable_name, ncdf4_data_type, fill_value=False
+                )
+            else:
+                variable_to_write = i_output_file_handle.createVariable(
+                    i_variable_name, ncdf4_data_type, dimensions_list, fill_value=False
+                )
+
+            # Turn off auto application of the scale and offset otherwise the variable written will be wrong.
+            variable_to_write.set_auto_maskandscale(False)
+        # end: if i_variable_name in i_output_file_handle.variables:
+
+        # For every attribute name, get the value and write it back out.  It is possible for a variable to have no attribute.
+        attributes_written = 0
+
+        # If a varible has multiple dimension, we need to check to see if the attribute has been written in previous write.
+        for (
+            variable_attribute_name,
+            variable_attribute_value,
+        ) in i_variable_attributes_dict.items():
+            attribute_type = type(variable_attribute_value)
+
+            if variable_attribute_name in variable_to_write.ncattrs():
+                continue
+
+            # Depend on if the type is of type number or text, we write it accordingly.
+            # Note that we also include the normal Python data types that are numbers.
+            if (
+                attribute_type is np.ndarray
+                or attribute_type is np.int64
+                or attribute_type is np.int32
+                or attribute_type is np.int16
+                or attribute_type is np.int8
+                or attribute_type is int
+                or attribute_type is int
+                or attribute_type is np.float64
+                or attribute_type is np.float32
+                or attribute_type is float
+                or attribute_type is float
+            ):
+                variable_to_write.setncattr(
+                    variable_attribute_name, variable_attribute_value
+                )
+            elif attribute_type is str:
+                variable_to_write.setncattr(
+                    variable_attribute_name, str(variable_attribute_value)
+                )
+            else:
+                # This shouldn't happen.  Perhaps should exit program so the program can inspect.
+                variable_to_write.setncattr(
+                    variable_attribute_name, str(variable_attribute_value)
+                )
+
+            attributes_written += 1
+        # end: for variable_attribute_name, variable_attribute_value in i_variable_attributes_dict.items():
+
+        if (i_variable_name == "start_time") or (isinstance(i_variable_data, str)):
+            # For every character in i_variable_data, set it to i_output_file_handle.variables[i_variable_name][0,character_index:character_index+1]
+            # Basically, set one character at a time: ["2" "0" "1" "5" "0" "3" "0" "3" "T" "0" "0" "0" "0" "0" "0" "Z" ""]
+            character_index = 0
+            for one_character in i_variable_data:
+                i_output_file_handle.variables[i_variable_name][
+                    i_variable_index, character_index : character_index + 1
+                ] = one_character
+                character_index += 1
+        else:
+            num_dimensions = len(i_tuples_of_dimension_names)
+            if num_dimensions == 1 or num_dimensions == 0:
+                if encountered_object_flag:
+                    for ii in range(0, len(i_variable_data)):
+                        i_output_file_handle.variables[i_variable_name][ii, :] = ord(
+                            " "
+                        )  # Fill the entire row with blank spaces first.
+                        i_output_file_handle.variables[i_variable_name][
+                            ii, 0 : len(i_variable_data[ii])
+                        ] = i_variable_data[ii]
+                else:
+                    i_output_file_handle.variables[i_variable_name][:] = i_variable_data
+            else:
+                i_output_file_handle.variables[i_variable_name][:] = i_variable_data
+
+        if i_variable_name == "start_time":
+            if i_output_file_handle.dimensions["time"].size == 1:
+                i_output_file_handle.setncattr("first_start_time", i_variable_data)
+                i_output_file_handle.setncattr("last_start_time", i_variable_data)
+            else:
+                i_output_file_handle.setncattr("last_start_time", i_variable_data)
 
 
 __all__ = ["RetrievalOutput", "CdfWriteTes", "extra_l2_output"]

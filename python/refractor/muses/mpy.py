@@ -158,7 +158,6 @@ mpy_register_replacement_function = partial(
 # the code is a bit involved.
 mpy_plot_results = partial(muses_py_wrapper_keep, "plot_results")
 mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
-mpy_cdf_write_variable = partial(muses_py_wrapper, "cdf_write_variable")
 mpy_make_one_lite = partial(muses_py_wrapper, "make_one_lite")
 
 
@@ -247,7 +246,6 @@ __all__ = [
 # Ones we want to replace
 __all__.extend(
     [
-        "mpy_cdf_write_variable",
         "mpy_ccurve_jessica",
         "mpy_cdf_read_tes_frequency",
         "mpy_column",
@@ -262,7 +260,6 @@ __all__.extend(
         "mpy_get_tropomi_o3xsec",
         "mpy_get_vector",
         "mpy_idl_interpol_1d",
-        "mpy_make_interpolation_matrix_susan",
         "mpy_make_interpolation_matrix_susan",
         "mpy_make_maps",
         "mpy_make_one_lite",
