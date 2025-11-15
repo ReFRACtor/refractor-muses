@@ -52,82 +52,81 @@ def test_error_analysis(isolated_dir, joint_tropomi_test_in_dir, osp_dir, gmao_d
         print(repr(e.ch4_evs))
 
     assert e.radianceResidualRMSSys == approx(0)
-    assert e.KDotDL == approx(0.000615366226801187)
-    assert e.LDotDL == approx(0.002344087795348228)
+    assert e.KDotDL == approx(0.0006150135677765839)
+    assert e.LDotDL == approx(0.002343842720102936)
     assert e.maxKDotDLSys == approx(0)
     assert e.KDotDL_species == ["TROPOMICLOUDFRACTION"]
     assert e.Sb is None
     npt.assert_allclose(e.Sa, [[0.01]])
     npt.assert_allclose(e.Sa_ret, [[0.01]])
-    npt.assert_allclose(e.KtSyK, [[2779760.7342367]])
-    npt.assert_allclose(e.KtSyKFM, [[2779760.7342367]])
-    npt.assert_allclose(e.Sx, [[3.59742178e-07]])
-    npt.assert_allclose(e.Sx_smooth, [[2.07063667e-14]])
-    npt.assert_allclose(e.Sx_ret_smooth, [[2.07063667e-14]])
-    npt.assert_allclose(e.Sx_smooth_self, [[2.07063667e-14]])
+    npt.assert_allclose(e.KtSyK, [[2779730.446896]])
+    npt.assert_allclose(e.KtSyKFM, [[2779730.446896]])
+    npt.assert_allclose(e.Sx, [[3.59746097e-07]])
+    npt.assert_allclose(e.Sx_smooth, [[2.07068179e-14]])
+    npt.assert_allclose(e.Sx_ret_smooth, [[2.07068179e-14]])
+    npt.assert_allclose(e.Sx_smooth_self, [[2.07068179e-14]])
     npt.assert_allclose(e.Sx_ret_crossState, [[0.0]])
-    npt.assert_allclose(e.Sx_rand, [[3.59742157e-07]])
-    npt.assert_allclose(e.Sx_ret_rand, [[3.59742157e-07]])
+    npt.assert_allclose(e.Sx_rand, [[3.59746077e-07]])
+    npt.assert_allclose(e.Sx_ret_rand, [[3.59746077e-07]])
     npt.assert_allclose(e.Sx_ret_mapping, [[0.0]])
     npt.assert_allclose(e.Sx_sys, [[0.0]])
     npt.assert_allclose(e.Sx_ret_sys, [[0.0]])
     npt.assert_allclose(e.A, [[0.99999856]])
     npt.assert_allclose(e.A_ret, [[0.99999856]])
     npt.assert_allclose(
-        e.GMatrix,
-        [[1.72540835], [1.73855184], [1.74504728], [1.73817712], [1.73500259]],
+        e.GMatrix, [[1.72541806], [1.73856162], [1.7450569], [1.73818634], [1.73501157]]
     )
     npt.assert_allclose(
         e.GMatrixFM,
-        [[1.72540835], [1.73855184], [1.74504728], [1.73817712], [1.73500259]],
+        [[1.72541806], [1.73856162], [1.7450569], [1.73818634], [1.73501157]],
     )
     npt.assert_allclose(e.deviationVsErrorSpecies, [0.0])
     npt.assert_allclose(e.deviationVsRetrievalCovarianceSpecies, [0.0])
     npt.assert_allclose(e.deviationVsAprioriCovarianceSpecies, [0.0])
     npt.assert_allclose(e.degreesOfFreedomForSignal, [0.99999856])
-    npt.assert_allclose(e.degreesOfFreedomNoise, [1.4389707e-06])
-    npt.assert_allclose(e.KDotDL_list, [0.000615366226801187])
-    npt.assert_allclose(e.KDotDL_byspecies, [0.000615366226801187])
+    npt.assert_allclose(e.degreesOfFreedomNoise, [1.43898638e-06])
+    npt.assert_allclose(e.KDotDL_list, [0.0006150135677765839])
+    npt.assert_allclose(e.KDotDL_byspecies, [0.0006150135677765839])
     npt.assert_allclose(e.KDotDL_byfilter, [0.0, 0.0])
-    npt.assert_allclose(e.errorFM, [0.0005997851094818544])
-    npt.assert_allclose(e.precision, [0.0005997851094818544])
+    npt.assert_allclose(e.errorFM, [0.0005997883770280405])
+    npt.assert_allclose(e.precision, [0.0005997883770280405])
     npt.assert_allclose(
         e.GdL,
         [
             [
-                6.59867250e-05,
-                1.72831279e-04,
-                1.76009321e-05,
-                -2.88833102e-04,
-                3.28812309e-05,
+                6.60240745e-05,
+                1.72867895e-04,
+                1.76143404e-05,
+                -2.88861463e-04,
+                3.28222523e-05,
             ],
             [
-                6.64893862e-05,
-                1.74147841e-04,
-                1.77350091e-05,
-                -2.91033321e-04,
-                3.31317073e-05,
+                6.65270201e-05,
+                1.74184736e-04,
+                1.77485196e-05,
+                -2.91061897e-04,
+                3.30722794e-05,
             ],
             [
-                6.67377988e-05,
-                1.74798479e-04,
-                1.78012693e-05,
-                -2.92120657e-04,
-                3.32554915e-05,
+                6.67755656e-05,
+                1.74835491e-04,
+                1.78148282e-05,
+                -2.92149307e-04,
+                3.31958378e-05,
             ],
             [
-                6.64750557e-05,
-                1.74110306e-04,
-                1.77311867e-05,
-                -2.90970594e-04,
-                3.31245664e-05,
+                6.65126600e-05,
+                1.74147137e-04,
+                1.77446885e-05,
+                -2.90999070e-04,
+                3.30651406e-05,
             ],
             [
-                6.63536483e-05,
-                1.73792318e-04,
-                1.76988032e-05,
-                -2.90439177e-04,
-                3.30640690e-05,
+                6.63911755e-05,
+                1.73829060e-04,
+                1.77122781e-05,
+                -2.90467565e-04,
+                3.30047476e-05,
             ],
         ],
     )

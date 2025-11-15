@@ -205,7 +205,6 @@ mpy_get_tropomi_ils = partial(muses_py_wrapper, "get_tropomi_ils")
 mpy_get_omi_ils_fastconv = partial(muses_py_wrapper, "get_omi_ils_fastconv")
 mpy_get_tropomi_ils_fastconv = partial(muses_py_wrapper, "get_tropomi_ils_fastconv")
 
-mpy_products_get_maptype = partial(muses_py_wrapper, "products_get_maptype")
 mpy_products_cleanup = partial(muses_py_wrapper, "products_cleanup")
 mpy_products_add_fields = partial(muses_py_wrapper, "products_add_fields")
 mpy_products_map_pressures = partial(muses_py_wrapper, "products_map_pressures")

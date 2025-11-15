@@ -59,11 +59,14 @@ if _typing.TYPE_CHECKING:
     from .muses_observation import (
         MeasurementId,
         MusesObservation,
+    )
+    from .muses_airs_observation import MusesAirsObservation
+    from .muses_cris_observation import MusesCrisObservation
+    from .muses_reflectance_observation import (
         MusesOmiObservation,
         MusesTropomiObservation,
-        MusesCrisObservation,
-        MusesAirsObservation,
     )
+    from .muses_tes_observation import MusesTesObservation
     from .muses_strategy import (
         CurrentStrategyStep,
         CurrentStrategyStepDict,

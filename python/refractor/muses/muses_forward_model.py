@@ -3,7 +3,7 @@ from .mpy import mpy_my_total, mpy_fm_oss_stack, mpy_tropomi_fm, mpy_omi_fm
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
-from .muses_observation import MusesTesObservation
+from .muses_tes_observation import MusesTesObservation
 from .identifier import InstrumentIdentifier
 import refractor.framework as rf  # type: ignore
 from functools import cached_property
@@ -15,8 +15,8 @@ import typing
 from typing import Callable, Any, TypeVar
 
 if typing.TYPE_CHECKING:
+    from .muses_observation import MeasurementId, MusesObservation
     from .refractor_uip import RefractorUip
-    from .muses_observation import MusesObservation, MeasurementId
     from .current_state import CurrentState
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor

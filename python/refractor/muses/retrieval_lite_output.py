@@ -1,7 +1,6 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 from .mpy import (
-    mpy_products_get_maptype,
-    mpy_products_cleanup,
     mpy_products_add_fields,
     mpy_products_map_pressures,
     mpy_products_combine_hdo,
@@ -10,7 +9,12 @@ from .mpy import (
     mpy_read_all_tes_cache,
     mpy_tes_file_get_struct,
 )
+from .identifier import StateElementIdentifier
 import numpy as np
+import typing
+
+if typing.TYPE_CHECKING:
+    from .current_state import CurrentState
 
 
 class CdfWriteLiteTes:
@@ -27,6 +31,7 @@ class CdfWriteLiteTes:
     def make_one_lite(
         self,
         species_name: str,
+        current_state: CurrentState,
         filenameIn: str,
         starttai: float,
         endtai: float,
@@ -40,11 +45,13 @@ class CdfWriteLiteTes:
         dataAnc: dict,
         step: int = 0,
     ) -> tuple[dict, list[float]]:
-        mapType = mpy_products_get_maptype(data1, species_name)
-        linear = 0
-        if mapType == "Linear":
+        if species_name == "RH":
+            # Special case, relative humidity isn't something we retrieve
             linear = 1
-        data1 = mpy_products_cleanup(data1, species_name)
+        else:
+            smap = current_state.state_mapping(StateElementIdentifier(species_name))
+            linear = 1 if isinstance(smap, rf.StateMappingLinear) else 0
+        self.product_cleanup(data1, species_name)
         (data1, data2) = mpy_products_add_fields(
             data1,
             species_name,
@@ -58,7 +65,7 @@ class CdfWriteLiteTes:
         )
         levelFilename = (
             liteDirectory
-            + f"RetrievalLevels/Retrieval_Levels_Nadir_{mapType}_{species_name.upper()}"
+            + f"RetrievalLevels/Retrieval_Levels_Nadir_{'Linear' if linear else 'Log'}_{species_name.upper()}"
         )
         (read_status, fileID) = mpy_read_all_tes_cache(levelFilename)
         infoFile = mpy_tes_file_get_struct(fileID)
@@ -146,6 +153,72 @@ class CdfWriteLiteTes:
         )
 
         return (dataNew, pressuresMax)
+
+    def product_cleanup(self, dataInOut: dict, species_name: str) -> None:
+        for v in (
+            "CALIBRATION_QA",
+            "MAXNUMITERATIONSNUMBERITERPERFORMED",
+            "RADIANCERESIDUALMAX",
+            "SCAN_AVERAGED_COUNT",
+            "SPECIESRETRIEVALCONVERGED",
+            "SURFACEEMISSIONLAYER_QA",
+            "DEVIATIONVSRETRIEVALCOVARIANCE",
+            "BORESIGHTNADIRANGLEUNC",
+            "VERTICALRESOLUTION",
+        ):
+            if v in dataInOut:
+                del dataInOut[v]
+
+        if species_name != "O3":
+            if "FMOZONEBANDFLUX" in dataInOut:
+                del dataInOut["FMOZONEBANDFLUX"]
+
+            if "O3_CCURVE_QA" in dataInOut:
+                del dataInOut["O3_CCURVE_QA"]
+
+            if "OZONETROPOSPHERICCOLUMN" in dataInOut:
+                if "ONETROPOSPHERICCOLUMN" in dataInOut:
+                    del dataInOut["ONETROPOSPHERICCOLUMN"]
+
+                if "ONETROPOSPHERICCOLUMNERROR" in dataInOut:
+                    del dataInOut["ONETROPOSPHERICCOLUMNERROR"]
+
+                if "ONETROPOSPHERICCOLUMNINITIAL" in dataInOut:
+                    del dataInOut["ONETROPOSPHERICCOLUMNINITIAL"]
+
+            if "O3TROPOSPHERICCOLUMN" in dataInOut:
+                if "TROPOSPHERICCOLUMN" in dataInOut:
+                    del dataInOut["TROPOSPHERICCOLUMN"]
+
+                if "TROPOSPHERICCOLUMNERROR" in dataInOut:
+                    del dataInOut["TROPOSPHERICCOLUMNERROR"]
+
+                if "TROPOSPHERICCOLUMNINITIAL" in dataInOut:
+                    del dataInOut["TROPOSPHERICCOLUMNINITIAL"]
+
+            if "OZONEIRK" in dataInOut:
+                if "ONEIRK" in dataInOut:
+                    del dataInOut["ONEIRK"]
+
+            if "OZONEIRFK" in dataInOut:
+                if "ONEIRFK" in dataInOut:
+                    del dataInOut["ONEIRFK"]
+
+            if "L1BOZONEBANDATAFLUX" in dataInOut:
+                if "BOZONEBANDFLUX" in dataInOut:
+                    del dataInOut["BOZONEBANDFLUX"]
+
+        if species_name != "TATM":
+            if "SURFACETEMPVSATMTEMP_QA" in dataInOut:
+                del dataInOut["SURFACETEMPVSATMTEMP_QA"]
+        else:
+            if "TEMPERATURE" in dataInOut:
+                del dataInOut["TEMPERATURE"]
+            if "TEMPERATUREPRECISION" in dataInOut:
+                del dataInOut["TEMPERATUREPRECISION"]
+
+        if dataInOut["averagingkernel".upper()][20, 20] < -990:
+            dataInOut["species".upper()][:] = -999
 
 
 __all__ = ["CdfWriteLiteTes"]

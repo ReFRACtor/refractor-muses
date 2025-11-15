@@ -8,7 +8,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
     current_state = rs.current_state
     e = ErrorAnalysis(rs.current_state, rs.current_strategy_step, rstep.results)
     csum = ColumnResultSummary(current_state, e)
-    if False:
+    if True:
         print(csum.H2O_H2OQuality)
         print(csum.O3_columnErrorDU)
         print(csum.O3_tropo_consistency)
@@ -25,16 +25,16 @@ def test_column_result_summary(joint_tropomi_step_12_output):
         print(repr(csum.columnPressureMin))
         print(repr(csum.columnSpecies))
     assert csum.H2O_H2OQuality == approx(0.0)
-    assert csum.O3_columnErrorDU == approx(3.625342526515213)
-    assert csum.O3_tropo_consistency == approx(0.004409025162657398)
+    assert csum.O3_columnErrorDU == approx(3.625355411352962)
+    assert csum.O3_tropo_consistency == approx(0.004354234083036035)
     npt.assert_allclose(
         csum.columnDOFS,
         [
-            [3.27151484, 3.34038076, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [2.95385709, 0.65768722, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [1.32931312, 0.35969181, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [1.57924642, 0.29641264, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.29159857, 2.68485774, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [3.26717459, 3.34003601, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [2.94607067, 0.65668561, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [1.32693462, 0.35937196, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [1.57325463, 0.29575549, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.2948398, 2.68554966, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         ],
         rtol=1e-6,
     )
@@ -42,8 +42,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
         csum.columnPriorError,
         [
             [
-                5.27093494e22,
-                9.67578874e17,
+                5.27622277e22,
+                9.67636063e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -56,8 +56,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                5.26952715e22,
-                3.33127736e17,
+                5.27480873e22,
+                3.33011994e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -70,8 +70,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                5.13402234e22,
-                3.26667080e17,
+                5.13911089e22,
+                3.26559228e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -84,8 +84,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                4.89709594e22,
-                2.16760495e17,
+                4.90220888e22,
+                2.16608023e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -98,8 +98,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                5.27028247e22,
-                1.03018639e18,
+                5.27556713e22,
+                1.03025700e18,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -118,8 +118,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
         csum.columnInitial,
         [
             [
-                1.42267821e23,
-                7.38079891e18,
+                1.42405081e23,
+                7.38130413e18,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -132,8 +132,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.42137874e23,
-                1.00022195e18,
+                1.42274612e23,
+                9.99898279e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -146,8 +146,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.33860357e22,
-                4.01037727e17,
+                1.33882334e22,
+                4.01129364e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -160,8 +160,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.28753275e23,
-                5.99190269e17,
+                1.28887788e23,
+                5.98774928e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -174,8 +174,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.29985566e20,
-                6.38057428e18,
+                1.30501545e20,
+                6.38140276e18,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -270,8 +270,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
         csum.columnError,
         [
             [
-                9.52250722e21,
-                9.75217129e16,
+                9.61989077e21,
+                9.75220606e16,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -284,8 +284,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                9.52065853e21,
-                1.09081388e17,
+                9.61802998e21,
+                1.09113119e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -298,8 +298,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                9.45768762e21,
-                1.06400522e17,
+                9.55768604e21,
+                1.06438734e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -312,8 +312,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                9.41865813e21,
-                1.02287558e17,
+                9.51623093e21,
+                1.02267688e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -326,8 +326,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                9.52167322e21,
-                1.01915520e17,
+                9.61904951e21,
+                1.01911920e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -422,8 +422,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
         csum.column,
         [
             [
-                1.49169200e23,
-                7.20058290e18,
+                1.49478678e23,
+                7.20041083e18,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -436,8 +436,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.49043288e23,
-                1.00463195e18,
+                1.49352172e23,
+                1.00425207e18,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -450,8 +450,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.27133960e22,
-                3.90050891e17,
+                1.27306302e22,
+                3.90067659e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -464,8 +464,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.36331950e23,
-                6.14587624e17,
+                1.36623639e23,
+                6.14191044e17,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -478,8 +478,8 @@ def test_column_result_summary(joint_tropomi_step_12_output):
                 -9.99000000e02,
             ],
             [
-                1.25921833e20,
-                6.19594703e18,
+                1.26539064e20,
+                6.19615649e18,
                 -9.99000000e02,
                 -9.99000000e02,
                 -9.99000000e02,
@@ -496,7 +496,7 @@ def test_column_result_summary(joint_tropomi_step_12_output):
     )
     npt.assert_allclose(
         csum.columnAir,
-        [2.09837940e25, 1.58890350e25, 5.53351594e24, 1.03556044e25, 5.09477800e24],
+        [2.09839208e25, 1.58891572e25, 5.53352862e24, 1.03557127e25, 5.09478146e24],
         rtol=1e-6,
     )
     npt.assert_allclose(

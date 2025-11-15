@@ -25,7 +25,8 @@ from typing import Any, Self
 import typing
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import ObservationHandleSet, MeasurementId
+    from .observation_handle import ObservationHandleSet
+    from .muses_observation import MeasurementId
     from .muses_strategy import MusesStrategy
     from .retrieval_configuration import RetrievalConfiguration
     from .sounding_metadata import SoundingMetadata

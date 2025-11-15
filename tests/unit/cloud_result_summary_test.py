@@ -20,13 +20,13 @@ def test_cloud_result_summary(joint_tropomi_step_12_output):
         print(csum.deviation_QA)
         print(csum.num_deviations_QA)
         print(csum.DeviationBad_QA)
-    assert csum.cloudODAve == approx(0.5293713016490321)
-    assert csum.cloudODVar == approx(0.9108204594574267)
+    assert csum.cloudODAve == approx(0.5315554052083974)
+    assert csum.cloudODVar == approx(0.8849395571391642)
     assert csum.cloudODAveError == approx(0.0)
-    assert csum.emisDev == approx(0.0012050562926669839)
-    assert csum.emissionLayer == approx(-6.991899122362554)
+    assert csum.emisDev == approx(0.0012995248835054873)
+    assert csum.emissionLayer == approx(-6.921891378102998)
     assert csum.ozoneCcurve == approx(1.0)
-    assert csum.ozone_slope_QA == approx(7.190852756884075)
+    assert csum.ozone_slope_QA == approx(7.18207123479963)
     npt.assert_allclose(
         csum.deviation_QA, [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
     )

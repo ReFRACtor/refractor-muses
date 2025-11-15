@@ -1038,6 +1038,7 @@ class CdfWriteTes:
         dataAnc = copy.deepcopy(data1)
         data, pressuresMax = CdfWriteLiteTes().make_one_lite(
             species_name,
+            current_state,
             runs,
             starttai,
             endtai,

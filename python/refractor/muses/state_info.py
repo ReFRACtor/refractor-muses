@@ -9,7 +9,8 @@ import copy
 from collections import UserDict
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import MeasurementId, ObservationHandleSet
+    from .observation_handle import ObservationHandleSet
+    from .muses_observation import MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
     from .current_state import CurrentState
