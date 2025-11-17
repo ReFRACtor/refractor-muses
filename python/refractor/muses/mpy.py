@@ -123,7 +123,7 @@ mpy_my_total = partial(muses_py_wrapper, "my_total")
 
 # Uses in muses_observation. It would be good to bring this over, but the input
 # code is fairly lengthy. We'll want to look at this at some point.
-mpy_read_airs = partial(muses_py_wrapper, "read_airs")
+mpy_read_airs_l1b = partial(muses_py_wrapper, "read_airs_l1b")
 mpy_read_tes_l1b = partial(muses_py_wrapper, "read_tes_l1b")
 mpy_radiance_apodize = partial(muses_py_wrapper, "radiance_apodize")
 mpy_cdf_read_tes_frequency = partial(muses_py_wrapper, "cdf_read_tes_frequency")
@@ -281,7 +281,7 @@ __all__.extend(
         "mpy_my_total",
         "mpy_quality_deviation",
         "mpy_radiance_apodize",
-        "mpy_read_airs",
+        "mpy_read_airs_l1b",
         "mpy_read_nasa_cris_fsr",
         "mpy_read_noaa_cris_fsr",
         "mpy_read_omi",

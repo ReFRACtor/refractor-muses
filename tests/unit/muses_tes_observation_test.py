@@ -7,8 +7,11 @@ from refractor.muses import (
     MusesSpectralWindow,
     InstrumentIdentifier,
     FilterIdentifier,
+    osp_setup,
 )
 import pytest
+from fixtures.require_check import require_muses_py
+from fixtures.compare_run import compare_muses_py_dict
 
 
 def test_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
@@ -86,3 +89,34 @@ def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
     print(obs.surface_altitude)
+
+
+@require_muses_py
+def test_tes_steps(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
+    import refractor.muses.muses_py as mpy
+
+    filename = (
+        tes_test_in_dir.parent / "TES-Aura_L1B-Nadir_FP2B_r0000002147-o00978_F04_07.h5"
+    )
+    l1b_index = [54, 54, 54, 54]
+    l1b_avgflag = 0
+    windows = [
+        {"filter": "2B1"},
+        {"filter": "1B2"},
+        {"filter": "2A1"},
+        {"filter": "1A1"},
+    ]
+
+    i_fileid = {}
+    i_fileid["preferences"] = {
+        "TES_filename_L1B": str(filename),
+        "TES_filename_L1B_Index": l1b_index,
+        "TES_L1B_Average_Flag": l1b_avgflag,
+    }
+    with osp_setup(osp_dir):
+        o_tes = mpy.read_tes_l1b(i_fileid, windows)
+    o_tes2 = MusesTesObservation.read_tes(
+        filename, l1b_index, l1b_avgflag, windows, osp_dir
+    )
+
+    compare_muses_py_dict(o_tes2, o_tes, "read_tes")

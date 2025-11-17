@@ -6,7 +6,10 @@ from refractor.muses import (
     MusesSpectralWindow,
     InstrumentIdentifier,
     FilterIdentifier,
+    osp_setup,
 )
+from fixtures.require_check import require_muses_py
+from fixtures.compare_run import compare_muses_py_dict
 
 
 def test_create_muses_airs_observation(
@@ -51,3 +54,32 @@ def test_create_muses_airs_observation(
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
     print(obs.surface_altitude)
+
+
+@require_muses_py
+def test_airs_steps(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
+    import refractor.muses.muses_py as mpy
+
+    filename = (
+        joint_omi_test_in_dir.parent
+        / "AIRS.2016.04.01.231.L1B.AIRS_Rad.v5.0.23.0.G16093121520.hdf"
+    )
+    xtrack = 29
+    atrack = 49
+    windows = [
+        {"filter": "2B1"},
+        {"filter": "1B2"},
+        {"filter": "2A1"},
+        {"filter": "1A1"},
+    ]
+
+    i_fileid = {}
+    i_fileid["preferences"] = {
+        "AIRS_filename": str(filename),
+        "AIRS_XTrack_Index": xtrack,
+        "AIRS_ATrack_Index": atrack,
+    }
+    with osp_setup(osp_dir):
+        o_airs = mpy.read_airs(i_fileid, windows)
+    o_airs2 = MusesAirsObservation.read_airs(filename, xtrack, atrack, osp_dir)
+    compare_muses_py_dict(o_airs2, o_airs, "read_airs")

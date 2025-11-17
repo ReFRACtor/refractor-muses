@@ -8,8 +8,11 @@ from refractor.muses import (
     MusesSpectralWindow,
     InstrumentIdentifier,
     FilterIdentifier,
+    osp_setup,
 )
 import refractor.framework as rf
+from fixtures.require_check import require_muses_py
+from fixtures.compare_run import compare_muses_py_dict
 
 
 def test_create_muses_tropomi_observation(
@@ -166,3 +169,89 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
     print(obs.spectral_domain(1).sample_index)
     # Check handling of data with bad samples. Should get set to -999
     print(obs.radiance(1).spectral_range.data)
+
+
+@require_muses_py
+def test_tropomi_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
+    import refractor.muses.muses_py as mpy
+
+    filename_dict = {
+        "CLOUD": str(
+            joint_tropomi_test_in_dir.parent
+            / "S5P_OFFL_L2__CLOUD__20190807T052359_20190807T070529_09404_01_010107_20190813T045051.nc"
+        ),
+        "BAND3": str(
+            joint_tropomi_test_in_dir.parent
+            / "S5P_OFFL_L1B_RA_BD3_20190807T052359_20190807T070529_09404_01_010000_20190807T084854.nc"
+        ),
+        "IRR_BAND_1to6": str(
+            joint_tropomi_test_in_dir.parent
+            / "S5P_OFFL_L1B_IR_UVN_20190807T034230_20190807T052359_09403_01_010000_20190807T070824.nc"
+        ),
+    }
+    xtrack_dict = {"CLOUD": "226", "BAND3": "226", "IRR_BAND_1to6": "226"}
+    atrack_dict = {"CLOUD": "2995", "BAND3": "2995"}
+    windows = [{"instrument": "TROPOMI", "filter": "BAND3"}]
+    utc_time = "2019-08-07T06:24:33.584090Z"
+    erad = mpy.combine_tropomi_erad(filename_dict, xtrack_dict, atrack_dict, windows)
+    erad2 = MusesTropomiObservation.combine_tropomi_erad(
+        filename_dict, xtrack_dict, atrack_dict, windows
+    )
+    compare_muses_py_dict(erad2, erad, "erad")
+
+    with osp_setup(osp_dir):
+        o_tropomi = mpy.read_tropomi(
+            filename_dict, xtrack_dict, atrack_dict, utc_time, windows
+        )
+        for i in range(len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])):
+            surfaceAltitude = mpy.read_tropomi_surface_altitude(
+                o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
+                o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
+            )
+            o_tropomi["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][i] = (
+                surfaceAltitude
+            )
+
+    o_tropomi2 = MusesTropomiObservation.read_tropomi(
+        filename_dict, xtrack_dict, atrack_dict, utc_time, windows, osp_dir=osp_dir
+    )
+    compare_muses_py_dict(o_tropomi2, o_tropomi, "read_tropomi")
+
+
+@require_muses_py
+def test_omi_steps(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
+    import refractor.muses.muses_py as mpy
+
+    filename = (
+        joint_omi_test_in_dir.parent
+        / "OMI-Aura_L1-OML1BRUG_2016m0401t2215-o62308_v003-2016m0402t041806.he4"
+    )
+    cld_filename = (
+        joint_omi_test_in_dir.parent
+        / "OMI-Aura_L2-OMCLDO2_2016m0401t2215-o62308_v003-2016m0402t044340.he5"
+    )
+    xtrack_uv2 = 20
+    atrack = 1139
+    utc_time = "2016-04-01T23:07:33.676106Z"
+    calibration_filename = osp_dir / "OMI/OMI_Rad_Cal/JPL_OMI_RadCaL_2006.h5"
+
+    with osp_setup(osp_dir):
+        o_omi = mpy.read_omi(
+            str(filename),
+            xtrack_uv2,
+            atrack,
+            utc_time,
+            str(calibration_filename),
+            cldFilename=str(cld_filename),
+        )
+    o_omi2 = MusesOmiObservation.read_omi(
+        filename,
+        xtrack_uv2,
+        atrack,
+        utc_time,
+        calibration_filename,
+        cld_filename,
+        osp_dir,
+    )
+
+    compare_muses_py_dict(o_omi2, o_omi, "read_omi")

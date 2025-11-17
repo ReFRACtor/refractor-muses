@@ -59,7 +59,7 @@ class MusesTesObservation(MusesObservationImp):
     def _read_data(
         cls,
         filename: str | os.PathLike[str],
-        l1b_index: int,
+        l1b_index: list[int],
         l1b_avgflag: int,
         run: int,
         sequence: int,
@@ -67,17 +67,10 @@ class MusesTesObservation(MusesObservationImp):
         filter_list: list[str],
         osp_dir: str | os.PathLike[str] | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        i_fileid = {}
-        i_fileid["preferences"] = {
-            "TES_filename_L1B": os.path.abspath(str(filename)),
-            "TES_filename_L1B_Index": l1b_index,
-            "TES_L1B_Average_Flag": l1b_avgflag,
-        }
-        i_window = []
+        windows = []
         for cname in filter_list:
-            i_window.append({"filter": cname})
-        with osp_setup(osp_dir):
-            o_tes = mpy_read_tes_l1b(i_fileid, i_window)
+            windows.append({"filter": cname})
+        o_tes = cls.read_tes(filename, l1b_index, l1b_avgflag, windows, osp_dir)
         bangle = rf.DoubleWithUnit(o_tes["boresightNadirRadians"], "rad")
         sdesc = {
             "TES_RUN": np.int16(run),
@@ -86,6 +79,25 @@ class MusesTesObservation(MusesObservationImp):
             "POINTINGANGLE_TES": abs(bangle.convert("deg").value),
         }
         return (o_tes, sdesc)
+
+    @classmethod
+    def read_tes(
+        cls,
+        filename: str | os.PathLike[str],
+        l1b_index: list[int],
+        l1b_avgflag: int,
+        windows: list[dict[str, Any]],
+        osp_dir: str | os.PathLike[str] | None = None,
+    ) -> dict[str, Any]:
+        i_fileid = {}
+        i_fileid["preferences"] = {
+            "TES_filename_L1B": os.path.abspath(str(filename)),
+            "TES_filename_L1B_Index": l1b_index,
+            "TES_L1B_Average_Flag": l1b_avgflag,
+        }
+        with osp_setup(osp_dir):
+            o_tes = mpy_read_tes_l1b(i_fileid, windows)
+        return o_tes
 
     @classmethod
     def _apodization(
@@ -269,7 +281,7 @@ class MusesTesObservation(MusesObservationImp):
     def create_from_filename(
         cls,
         filename: str | os.PathLike[str],
-        l1b_index: int,
+        l1b_index: list[int],
         l1b_avgflag: int,
         run: int,
         sequence: int,

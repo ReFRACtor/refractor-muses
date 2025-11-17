@@ -8,7 +8,8 @@ from .muses_observation import (
 )
 from .muses_spectral_window import MusesSpectralWindow
 from .mpy import (
-    mpy_read_airs,
+    mpy_read_airs_l1b,
+    mpy_radiance_data,
 )
 import os
 import numpy as np
@@ -60,17 +61,10 @@ class MusesAirsObservation(MusesObservationImp):
         filter_list: list[str],
         osp_dir: str | os.PathLike[str] | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        i_fileid = {}
-        i_fileid["preferences"] = {
-            "AIRS_filename": os.path.abspath(str(filename)),
-            "AIRS_XTrack_Index": xtrack,
-            "AIRS_ATrack_Index": atrack,
-        }
         i_window = []
         for cname in filter_list:
             i_window.append({"filter": cname})
-        with osp_setup(osp_dir):
-            o_airs = mpy_read_airs(i_fileid, i_window)
+        o_airs = cls.read_airs(filename, xtrack, atrack, osp_dir)
         sdesc = {
             "AIRS_GRANULE": np.int16(granule),
             "AIRS_ATRACK_INDEX": np.int16(atrack),
@@ -78,6 +72,46 @@ class MusesAirsObservation(MusesObservationImp):
             "POINTINGANGLE_AIRS": abs(o_airs["scanAng"]),
         }
         return (o_airs, sdesc)
+
+    @classmethod
+    def read_airs(
+        cls,
+        filename: str | os.PathLike[str],
+        xtrack: int,
+        atrack: int,
+        osp_dir: str | os.PathLike[str] | None = None,
+    ) -> dict[str, Any]:
+        """This is probably a bit over complicated, we don't really need the full
+        o_airs structure. But for now, just duplicate the old muses-py code so we
+        have a starting point for possibly cleaning up."""
+        with osp_setup(osp_dir):
+            o_airs = mpy_read_airs_l1b(os.path.abspath(str(filename)), xtrack, atrack)
+        radiance = o_airs["radiance"]
+        frequency = o_airs["frequency"]
+        nesr = o_airs["NESR"]
+        ss = np.argsort(frequency)
+        radiance = radiance[ss]
+        frequency = frequency[ss]
+        nesr = nesr[ss]
+        filters = [
+            "2B1",
+        ] * len(frequency)
+        for i, f in enumerate(frequency):
+            if f > 950.0:
+                filters[i] = "1B2"
+            if f > 1119.8:
+                filters[i] = "2A1"
+            if f > 1444.0:
+                filters[i] = "2A3"
+            if f > 1890.8:
+                filters[i] = "1A1"
+        instrument_array = [
+            "AIRS",
+        ] * len(frequency)
+        o_airs["radiance"] = mpy_radiance_data(
+            radiance, nesr, [0], frequency, filters, instrument_array
+        )
+        return o_airs
 
     def desc(self) -> str:
         return "MusesAirsObservation"

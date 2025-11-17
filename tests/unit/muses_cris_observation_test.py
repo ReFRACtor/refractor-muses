@@ -6,7 +6,10 @@ from refractor.muses import (
     MusesSpectralWindow,
     InstrumentIdentifier,
     FilterIdentifier,
+    osp_setup,
 )
+from fixtures.require_check import require_muses_py
+from fixtures.compare_run import compare_muses_py_dict
 
 
 def test_create_muses_cris_observation(
@@ -52,3 +55,29 @@ def test_create_muses_cris_observation(
     print(obs.radiance(0).spectral_range.data)
     print(obs.filter_data)
     print(obs.surface_altitude)
+
+
+@require_muses_py
+def test_cris_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
+    import refractor.muses.muses_py as mpy
+
+    filename = (
+        joint_tropomi_test_in_dir.parent
+        / "nasa_fsr_SNDR.SNPP.CRIS.20190807T0624.m06.g065.L1B.std.v02_22.G.190905161252.nc"
+    )
+    xtrack = 8
+    atrack = 4
+    pixel_index = 5
+
+    i_fileid = {
+        "CRIS_filename": str(filename),
+        "CRIS_XTrack_Index": xtrack,
+        "CRIS_ATrack_Index": atrack,
+        "CRIS_Pixel_Index": pixel_index,
+    }
+    with osp_setup(osp_dir):
+        o_cris = mpy.read_nasa_cris_fsr(i_fileid)
+    o_cris2 = MusesCrisObservation.read_cris(
+        filename, xtrack, atrack, pixel_index, osp_dir
+    )
+    compare_muses_py_dict(o_cris2, o_cris, "read_cris")

@@ -13,6 +13,7 @@ from .mpy import (
     mpy_read_tropomi_surface_altitude,
     mpy_read_omi,
 )
+from .refractor_uip import AttrDictAdapter
 import os
 import numpy as np
 import refractor.framework as rf  # type: ignore
@@ -23,7 +24,9 @@ import re
 from datetime import datetime
 from typing import Any, Self
 import typing
+import math
 from .identifier import InstrumentIdentifier, StateElementIdentifier, FilterIdentifier
+import netCDF4
 
 if typing.TYPE_CHECKING:
     from .current_state import CurrentState
@@ -454,26 +457,9 @@ class MusesTropomiObservation(MusesReflectanceObservation):
         i_windows = [
             {"instrument": "TROPOMI", "filter": str(flt)} for flt in filter_list
         ]
-        with osp_setup(osp_dir):
-            o_tropomi = mpy_read_tropomi(
-                {k: str(v) for (k, v) in filename_dict.items()},
-                xtrack_dict,
-                atrack_dict,
-                utc_time,
-                i_windows,
-            )
-            # Reading of the surface height is done separately. In muses-py this
-            # was a side effect of setting up the StateInfo.
-            for i in range(
-                len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])
-            ):
-                surfaceAltitude = mpy_read_tropomi_surface_altitude(
-                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
-                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
-                )
-                o_tropomi["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][i] = (
-                    surfaceAltitude
-                )
+        o_tropomi = cls.read_tropomi(
+            filename_dict, xtrack_dict, atrack_dict, utc_time, i_windows, osp_dir
+        )
         sdesc = {
             "TROPOMI_ATRACK_INDEX_BAND1": np.int16(-999),
             "TROPOMI_XTRACK_INDEX_BAND1": np.int16(-999),
@@ -509,6 +495,286 @@ class MusesTropomiObservation(MusesReflectanceObservation):
                 "ObservationTable"
             ]["ViewingZenithAngle"][i]
         return (o_tropomi, sdesc)
+
+    @classmethod
+    def read_tropomi(
+        cls,
+        filename_dict: dict[str, str | os.PathLike[str]],
+        xtrack_dict: dict[str, int],
+        atrack_dict: dict[str, int],
+        utc_time: str,
+        i_windows: list[dict[str, str]],
+        osp_dir: str | os.PathLike[str] | None = None,
+    ) -> dict[str, Any]:
+        with osp_setup(osp_dir):
+            o_tropomi = mpy_read_tropomi(
+                {k: str(v) for (k, v) in filename_dict.items()},
+                xtrack_dict,
+                atrack_dict,
+                utc_time,
+                i_windows,
+            )
+            # Reading of the surface height is done separately. In muses-py this
+            # was a side effect of setting up the StateInfo.
+            for i in range(
+                len(o_tropomi["Earth_Radiance"]["ObservationTable"]["ATRACK"])
+            ):
+                surfaceAltitude = mpy_read_tropomi_surface_altitude(
+                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Latitude"][i],
+                    o_tropomi["Earth_Radiance"]["ObservationTable"]["Longitude"][i],
+                )
+                o_tropomi["Earth_Radiance"]["ObservationTable"]["TerrainHeight"][i] = (
+                    surfaceAltitude
+                )
+        return o_tropomi
+
+    @classmethod
+    def combine_tropomi_erad(
+        cls,
+        tropomi_fns: dict[str, str],
+        iXTracks: dict[str, str],
+        iATracks: dict[str, str],
+        windows: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        o_ObservationTable: dict[str, Any] = {
+            "ATRACK": [],
+            "XTRACK": [],
+            "Latitude": [],
+            "Longitude": [],
+            "Time": [],
+            "SpacecraftLatitude": [],
+            "SpacecraftLongitude": [],
+            "SpacecraftAltitude": [],
+            "TerrainHeight": [],
+            "SolarAzimuthAngle": [],
+            "SolarZenithAngle": [],
+            "ViewingAzimuthAngle": [],
+            "ViewingZenithAngle": [],
+            "RelativeAzimuthAngle": [],
+            "ScatteringAngle": [],
+            "EarthSunDistance": [],
+            "Filter_Band_Name": [],
+        }
+
+        radiance_total = []
+        radiance_NSER_total = []
+        wavelength_total = []
+        EarthWavelength_Filter_total = []
+        current_band = ""
+        ##### EM - PLACE HOLDER FOR CO-ADDING PIXELS AND SPECTRAL PIXEL SAMPLING
+        bandnames = []
+        band_filenames = []
+        for ii, bands in enumerate(windows):
+            bandnames.append(bands["filter"])
+        if "BAND1" and "BAND2" in bandnames:
+            logger.info("Under construction")
+        else:
+            logger.info("No band resampling")
+
+        for i, band in enumerate(windows):
+            if band["instrument"] == "TROPOMI":
+                if current_band != band["filter"]:
+                    current_band = band["filter"]
+                    band_filenames.append(tropomi_fns[current_band])
+                    fh = netCDF4.Dataset(tropomi_fns[current_band])
+                    try:
+                        # Without this, various returned things are masked_array. We
+                        # handle masking separately, so we want to skip this.
+                        fh.set_auto_maskandscale(False)
+                        eradd = cls.read_tropomi_erad(
+                            fh,
+                            int(float(iXTracks[current_band])),
+                            int(iATracks[current_band]),
+                            band["filter"],
+                        )
+                    finally:
+                        fh.close()
+                    if eradd is None:
+                        raise RuntimeError("Trouble reading erad")
+                    else:
+                        erad = AttrDictAdapter(eradd)
+
+                    EarthWavelength_Filter = np.asarray(
+                        ["UUUUU" for ii in range(0, erad.PixelQualityFlags.shape[0])]
+                    )
+                    EarthWavelength_Filter[:] = band["filter"]
+                    EarthWavelength_Filter_total.append(EarthWavelength_Filter)
+                    wavelength_total.append(erad.Wavelength)
+                    radiance_total.append(erad.Radiance)
+                    radiance_NSER_total.append(erad.NESR)
+                    # Viewing Angle Definition
+                    raz = np.abs(erad.ViewingAzimuthAngle - erad.SolarAzimuthAngle)
+                    if raz > 180.0:
+                        raz = np.float64(360.0) - raz
+                    raz = np.float64(180.0) - raz
+
+                    # Compute scattering
+                    sca = cls.compute_tropomi_sca(
+                        erad.ViewingZenithAngle, erad.SolarZenithAngle, raz
+                    )
+
+                    # append data to output dictionaries
+                    o_ObservationTable["ATRACK"].append(erad.iTrack)
+                    o_ObservationTable["XTRACK"].append(erad.iXTrack)
+                    o_ObservationTable["Latitude"].append(erad.Latitude)
+                    o_ObservationTable["Longitude"].append(erad.Longitude)
+                    o_ObservationTable["Time"].append(erad.Time)
+                    o_ObservationTable["SpacecraftLatitude"].append(
+                        erad.SpacecraftLatitude
+                    )
+                    o_ObservationTable["SpacecraftLongitude"].append(
+                        erad.SpacecraftLongitude
+                    )
+                    o_ObservationTable["SpacecraftAltitude"].append(
+                        erad.SpacecraftAltitude
+                    )
+                    o_ObservationTable["TerrainHeight"].append(erad.TerrainHeight)
+                    o_ObservationTable["SolarAzimuthAngle"].append(
+                        erad.SolarAzimuthAngle
+                    )
+                    o_ObservationTable["SolarZenithAngle"].append(erad.SolarZenithAngle)
+                    o_ObservationTable["ViewingZenithAngle"].append(
+                        erad.ViewingZenithAngle
+                    )
+                    o_ObservationTable["RelativeAzimuthAngle"].append(raz)
+                    o_ObservationTable["ScatteringAngle"].append(sca)
+                    o_ObservationTable["EarthSunDistance"].append(erad.EarthSunDistance)
+                    o_ObservationTable["Filter_Band_Name"].append(band["filter"])
+
+                else:
+                    current_band = band["filter"]
+                    logger.info(f"Repeat band skipping {current_band}")
+
+            else:
+                pass
+
+        o_combined_erad_bands = {
+            "omi_earth_rad_fn": band_filenames,
+            "Wavelength": np.concatenate([i for i in wavelength_total], axis=0),
+            "EarthRadiance": np.concatenate([i for i in radiance_total], axis=0),
+            "EarthRadianceNESR": np.concatenate(
+                [i for i in radiance_NSER_total], axis=0
+            ),
+            "EarthWavelength_Filter": np.concatenate(
+                [i for i in EarthWavelength_Filter_total], axis=0
+            ),
+            "ObservationTable": o_ObservationTable,
+        }
+
+        return o_combined_erad_bands
+
+    @classmethod
+    def compute_tropomi_sca(cls, vza: float, sza: float, raz: float) -> float:
+        temp1 = (
+            -1
+            * math.cos(math.pi * vza / np.float64(180.0))
+            * math.cos(math.pi * sza / np.float64(180.0))
+        )
+        temp2 = math.sqrt(
+            1
+            - math.cos(math.pi * vza / np.float64(180.0))
+            * math.cos(math.pi * vza / np.float64(180.0))
+        )
+        temp3 = math.sqrt(
+            1
+            - math.cos(math.pi * sza / np.float64(180.0))
+            * math.cos(math.pi * sza / np.float64(180.0))
+        )
+        temp4 = math.cos(math.pi * (raz / np.float64(180.0)))
+        o_sca = temp1 + (temp2 * temp3 * temp4)
+        o_sca = np.float64(180.0) - math.acos(o_sca) * np.float64(180.0) / math.pi
+        return o_sca
+
+    @classmethod
+    def read_tropomi_erad(
+        cls, fh: netCDF4.Dataset, iXTrack: int, iTrack: int, iBand: str
+    ) -> dict[str, Any]:
+        geo_data_grp = f"{iBand}_RADIANCE/STANDARD_MODE/GEODATA"
+        observations_data_grp = f"{iBand}_RADIANCE/STANDARD_MODE/OBSERVATIONS"
+        instrument_data_grp = f"{iBand}_RADIANCE/STANDARD_MODE/INSTRUMENT"
+        SpacecraftLatitude = fh[f"{geo_data_grp}/satellite_latitude"][0, iTrack]
+        SpacecraftLongitude = fh[f"{geo_data_grp}/satellite_longitude"][0, iTrack]
+        SpacecraftAltitude = fh[f"{geo_data_grp}/satellite_altitude"][0, iTrack]
+        SolarAzimuthAngle = fh[f"{geo_data_grp}/solar_azimuth_angle"][
+            0, iTrack, iXTrack
+        ]
+        SolarZenithAngle = fh[f"{geo_data_grp}/solar_zenith_angle"][0, iTrack, iXTrack]
+        ViewingAzimuthAngle = fh[f"{geo_data_grp}/viewing_azimuth_angle"][
+            0, iTrack, iXTrack
+        ]
+        ViewingZenithAngle = fh[f"{geo_data_grp}/viewing_zenith_angle"][
+            0, iTrack, iXTrack
+        ]
+        Latitude = fh[f"{geo_data_grp}/latitude"][0, iTrack, iXTrack]
+        Longitude = fh[f"{geo_data_grp}/longitude"][0, iTrack, iXTrack]
+        Time = fh[f"{observations_data_grp}/time"]
+        d_time = fh[f"{observations_data_grp}/delta_time"]
+        # 536479200.0 is 17 years in seconds TROPOMI reference is Tropomi data is timed from 2010-01-01 00:00:00,
+        # so must add constant to be constant with OMI, will revist.
+        # JLL: d_time now seems to be in milliseconds, not seconds.
+        Time = Time[:] + d_time[0, iTrack] / 1000 + 536479200.0
+        # Terrain height is not included in TROPOMI products, leaving here as a place holder.
+        TerrainHeight = 0
+        EarthSunDistance = fh[f"{geo_data_grp}/earth_sun_distance"][0]
+        GroundPixelQualityFlags = fh[f"{observations_data_grp}/ground_pixel_quality"][
+            0, iTrack, iXTrack
+        ]
+        if GroundPixelQualityFlags != 0:
+            raise RuntimeError(
+                f"GroundPixelQualityFlag: {GroundPixelQualityFlags} is set to non-zero, {fh.filepath()}"
+            )
+        PixelQualityFlags = fh[f"{observations_data_grp}/spectral_channel_quality"][
+            0, iTrack, iXTrack, :
+        ]
+        MeasurementQualityFlags = fh[f"{observations_data_grp}/measurement_quality"][
+            :, iTrack
+        ]
+        if MeasurementQualityFlags != 0 and MeasurementQualityFlags != 16:
+            raise RuntimeError(
+                f"MeasurementQualityFlags: {MeasurementQualityFlags} is set to non-zero, {fh.filepath()}"
+            )
+        Radiance = fh[f"{observations_data_grp}/radiance"][0, iTrack, iXTrack, :]
+        Radiance = Radiance.astype(np.float64)
+        RadiancePrecision = fh[f"{observations_data_grp}/radiance_noise"][
+            0, iTrack, iXTrack, :
+        ]
+        RadiancePrecision = RadiancePrecision.astype(np.float64)
+        Wavelength = fh[f"{instrument_data_grp}/nominal_wavelength"][0, iXTrack, :]
+        # TROPOMI stores noise in dB, must convert
+        radiance_noise = Radiance / (10 ** (RadiancePrecision / 10))
+
+        # compute the nesr
+        # Radiance_err = np.sqrt(radiance_noise**2 + radiance_sys**2)
+        Radiance_err = np.abs(radiance_noise)
+
+        snr = np.mean(Radiance / Radiance_err)
+        unit = "mol m-2 nm-1 s-1 sr-1"
+        o_tropomi_rad = {
+            "tropomi_file": fh.filepath(),
+            "iTrack": iTrack,
+            "iXTrack": iXTrack,
+            "Latitude": Latitude,
+            "Longitude": Longitude,
+            "Time": Time,
+            "SpacecraftLatitude": SpacecraftLatitude,
+            "SpacecraftLongitude": SpacecraftLongitude,
+            "SpacecraftAltitude": SpacecraftAltitude,
+            "Wavelength": Wavelength,
+            "Radiance": Radiance,
+            "NESR": Radiance_err,
+            "SNR": snr,
+            "Unit": unit,
+            "TerrainHeight": TerrainHeight,
+            "SolarAzimuthAngle": SolarAzimuthAngle,
+            "SolarZenithAngle": SolarZenithAngle,
+            "ViewingAzimuthAngle": ViewingAzimuthAngle,
+            "ViewingZenithAngle": ViewingZenithAngle,
+            "EarthSunDistance": EarthSunDistance,
+            "GroundPixelQualityFlags": GroundPixelQualityFlags,
+            "PixelQualityFlags": PixelQualityFlags,
+            "MeasurementQualityFlags": MeasurementQualityFlags,
+        }
+        return o_tropomi_rad
 
     def desc(self) -> str:
         return "MusesTropomiObservation"
@@ -744,19 +1010,19 @@ class MusesOmiObservation(MusesReflectanceObservation):
         xtrack_uv2: int,
         atrack: int,
         utc_time: str,
-        calibration_filename: str,
-        cld_filename: str | None = None,
+        calibration_filename: str | os.PathLike[str],
+        cld_filename: str | os.PathLike[str] | None = None,
         osp_dir: str | os.PathLike[str] | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        with osp_setup(osp_dir):
-            o_omi = mpy_read_omi(
-                str(filename),
-                xtrack_uv2,
-                atrack,
-                utc_time,
-                calibration_filename,
-                cldFilename=cld_filename,
-            )
+        o_omi = cls.read_omi(
+            filename,
+            xtrack_uv2,
+            atrack,
+            utc_time,
+            calibration_filename,
+            cld_filename,
+            osp_dir,
+        )
         sdesc = {
             "OMI_ATRACK_INDEX": np.int16(atrack),
             "OMI_XTRACK_INDEX_UV1": np.int16(xtrack_uv1),
@@ -779,6 +1045,28 @@ class MusesOmiObservation(MusesReflectanceObservation):
                 o_omi["Earth_Radiance"]["EarthRadianceNESR"] > 0
             ] *= 2
         return (o_omi, sdesc)
+
+    @classmethod
+    def read_omi(
+        cls,
+        filename: str | os.PathLike[str],
+        xtrack_uv2: int,
+        atrack: int,
+        utc_time: str,
+        calibration_filename: str | os.PathLike[str],
+        cld_filename: str | os.PathLike[str] | None = None,
+        osp_dir: str | os.PathLike[str] | None = None,
+    ) -> dict[str, Any]:
+        with osp_setup(osp_dir):
+            o_omi = mpy_read_omi(
+                str(filename),
+                xtrack_uv2,
+                atrack,
+                utc_time,
+                str(calibration_filename),
+                cldFilename=str(cld_filename) if cld_filename is not None else None,
+            )
+        return o_omi
 
     def desc(self) -> str:
         return "MusesOmiObservation"

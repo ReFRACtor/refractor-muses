@@ -59,19 +59,7 @@ class MusesCrisObservation(MusesObservationImp):
         pixel_index: int,
         osp_dir: str | os.PathLike[str] | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        i_fileid = {
-            "CRIS_filename": os.path.abspath(str(filename)),
-            "CRIS_XTrack_Index": xtrack,
-            "CRIS_ATrack_Index": atrack,
-            "CRIS_Pixel_Index": pixel_index,
-        }
-        filename = os.path.abspath(str(filename))
-        with osp_setup(osp_dir):
-            if cls.l1b_type_from_filename(filename) in ("snpp_fsr", "noaa_fsr"):
-                o_cris = mpy_read_noaa_cris_fsr(i_fileid)
-            else:
-                o_cris = mpy_read_nasa_cris_fsr(i_fileid)
-
+        o_cris = cls.read_cris(filename, xtrack, atrack, pixel_index, osp_dir)
         # Add in RADIANCESTRUCT. Not sure if this is used, but easy enough to put in
         radiance = o_cris["RADIANCE"]
         frequency = o_cris["FREQUENCY"]
@@ -97,7 +85,30 @@ class MusesCrisObservation(MusesObservationImp):
         return (o_cris, sdesc)
 
     @classmethod
-    def l1b_type_int_from_filename(cls, filename: str) -> int:
+    def read_cris(
+        cls,
+        filename: str | os.PathLike[str],
+        xtrack: int,
+        atrack: int,
+        pixel_index: int,
+        osp_dir: str | os.PathLike[str] | None = None,
+    ) -> dict[str, Any]:
+        i_fileid = {
+            "CRIS_filename": os.path.abspath(str(filename)),
+            "CRIS_XTrack_Index": xtrack,
+            "CRIS_ATrack_Index": atrack,
+            "CRIS_Pixel_Index": pixel_index,
+        }
+        filename = os.path.abspath(str(filename))
+        with osp_setup(osp_dir):
+            if cls.l1b_type_from_filename(filename) in ("snpp_fsr", "noaa_fsr"):
+                o_cris = mpy_read_noaa_cris_fsr(i_fileid)
+            else:
+                o_cris = mpy_read_nasa_cris_fsr(i_fileid)
+        return o_cris
+
+    @classmethod
+    def l1b_type_int_from_filename(cls, filename: str | os.PathLike[str]) -> int:
         """Enumeration used in output metadata for the l1b_type"""
         return [
             "suomi_nasa_nsr",
@@ -110,7 +121,7 @@ class MusesCrisObservation(MusesObservationImp):
         ].index(cls.l1b_type_from_filename(filename))
 
     @classmethod
-    def l1b_type_from_filename(cls, filename: str) -> str:
+    def l1b_type_from_filename(cls, filename: str | os.PathLike[str]) -> str:
         """There are a number of sources for the CRIS data, and two
         different file format types. This determines the l1b_type by
         looking at the path/filename. This isn't particularly robust,
@@ -121,15 +132,15 @@ class MusesCrisObservation(MusesObservationImp):
         from.
 
         """
-        if "nasa_nsr" in filename:
+        if "nasa_nsr" in str(filename):
             return "suomi_nasa_nsr"
-        elif "nasa_fsr" in filename:
+        elif "nasa_fsr" in str(filename):
             return "suomi_nasa_fsr"
-        elif "jpss_1_fsr" in filename:
+        elif "jpss_1_fsr" in str(filename):
             return "jpss1_nasa_fsr"
-        elif "snpp_fsr" in filename:
+        elif "snpp_fsr" in str(filename):
             return "suomi_cspp_fsr"
-        elif "noaa_fsr" in filename:
+        elif "noaa_fsr" in str(filename):
             return "suomi_noaa_fsr"
         else:
             raise RuntimeError(

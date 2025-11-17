@@ -64,6 +64,9 @@ if have_muses_py:
     from py_retrieve.app.lite.products_cleanup import *  # type: ignore
     from py_retrieve.app.lite.products_get_maptype import *  # type: ignore
     from py_retrieve.app.lite.products_set_quality import *  # type: ignore
+    from py_retrieve.app.airs_setup.read_airs_l1b import *  # type: ignore
+    from py_retrieve.app.airs_setup.read_airs_l1b import *  # type: ignore
+    from py_retrieve.app.tropomi_setup import *  # type: ignore
 
 del _broken
 del _i
