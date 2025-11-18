@@ -162,8 +162,6 @@ mpy_supplier_hcooh_type = partial(muses_py_wrapper, "supplier_hcooh_type")
 # retrieval_array, should replace
 mpy_make_maps = partial(muses_py_wrapper, "make_maps")
 
-mpy_make_one_lite = partial(muses_py_wrapper, "make_one_lite")
-
 
 # used in state_element_freq, should get replaced
 def mpy_get_emis_dispatcher(*args: Any, **kwargs: Any) -> Any:
@@ -199,10 +197,6 @@ mpy_get_omi_ils = partial(muses_py_wrapper, "get_omi_ils")
 mpy_get_tropomi_ils = partial(muses_py_wrapper, "get_tropomi_ils")
 mpy_get_omi_ils_fastconv = partial(muses_py_wrapper, "get_omi_ils_fastconv")
 mpy_get_tropomi_ils_fastconv = partial(muses_py_wrapper, "get_tropomi_ils_fastconv")
-
-mpy_products_add_fields = partial(muses_py_wrapper, "products_add_fields")
-mpy_products_map_pressures = partial(muses_py_wrapper, "products_map_pressures")
-mpy_products_add_rtvmr = partial(muses_py_wrapper, "products_add_rtvmr")
 
 # Functions we can keep
 __all__ = [
@@ -263,7 +257,6 @@ __all__.extend(
         "mpy_idl_interpol_1d",
         "mpy_make_interpolation_matrix_susan",
         "mpy_make_maps",
-        "mpy_make_one_lite",
         "mpy_mw_frequency_needed",
         "mpy_my_interpolate",
         "mpy_my_total",

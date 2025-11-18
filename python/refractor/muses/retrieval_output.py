@@ -332,6 +332,7 @@ class CdfWriteTes:
         dataOut: dict,
         filenameOut: str,
         current_state: CurrentState,
+        include_year_float: bool,
         tracer_species: str = "species",
         retrieval_pressures: list[float] | None = None,
         write_met: bool = False,
@@ -788,6 +789,21 @@ class CdfWriteTes:
         ut_hour = round(ymd.hour + (ymd.minute + ymd.second / 60.0) / 60.0, 4)
 
         dataOut["UT_HOUR"] = ut_hour
+        n_day_year = (
+            datetime.date(ymd.year + 1, 1, 1) - datetime.date(ymd.year, 1, 1)
+        ).days
+        day_of_year = ymd.timetuple().tm_yday
+        yearfloat = (
+            ymd.year
+            + (
+                (day_of_year - 1)
+                + (ymd.hour + (ymd.minute + ymd.second / 60.0) / 60.0) / 24.0
+            )
+            / n_day_year
+        )
+        yearfloat = round(yearfloat, 4)
+        if include_year_float:
+            dataOut["YEARFLOAT"] = yearfloat
 
         if "OMI_NRADWAV" in dataOut:
             dims["size2"] = 2
@@ -995,27 +1011,6 @@ class CdfWriteTes:
         """
         data1 = copy.deepcopy(data1In)
 
-        version = "v006"
-        version = "CASPER"
-
-        versionLite = "v08"
-        pressuresMax = [
-            1040.0,
-        ]
-
-        # These are hardcode values. So we don't depend on muses-py, just set the
-        # value here that will get returned
-        # starttai = mpy_tai(
-        #    {"year": 2003, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},
-        #    True,
-        # )
-        # endtai = mpy_tai(
-        #    {"year": 2103, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0},
-        #    True,
-        # )
-        starttai = 315532805
-        endtai = 3471206406
-
         if not filenameIn.endswith(".nc"):
             filename = os.path.basename(filenameIn)
             nc_pos = filename.index(".")
@@ -1034,37 +1029,28 @@ class CdfWriteTes:
         else:
             filenameOut = filenameIn
 
-        runs = filenameIn
         dataAnc = copy.deepcopy(data1)
         data, pressuresMax = CdfWriteLiteTes().make_one_lite(
             species_name,
             current_state,
-            runs,
-            starttai,
-            endtai,
             [str(i) for i in instrument],
-            pressuresMax,
             lite_directory,
-            version,
-            versionLite,
             data1,
             data2,
             dataAnc,
         )
         tracer = species_name
         retrieval_pressures = pressuresMax
-        version = version
-        liteVersion = versionLite
         write_met = False
+        include_year_float = True
         self.write(
             data,
             filenameOut,
             current_state,
+            include_year_float,
             tracer,
             retrieval_pressures,
             write_met,
-            version,
-            liteVersion,
             runtimeAttributes=runtimeAttributes,
             state_element_out=state_element_out,
         )

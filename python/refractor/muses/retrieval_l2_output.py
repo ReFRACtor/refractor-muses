@@ -1117,10 +1117,12 @@ class RetrievalL2Output(RetrievalOutput):
         o_data = species_data2
         o_data.update(self.generate_geo_data(species_data2))
         t2 = CdfWriteTes()
+        include_year_float = False
         t2.write(
             o_data,
             str(self.out_fname),
             self.current_state,
+            include_year_float,
             runtimeAttributes=runtime_attributes,
             state_element_out=state_element_out,
         )

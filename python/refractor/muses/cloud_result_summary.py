@@ -480,6 +480,8 @@ class CloudResultSummary:
 
         nnn = i_retrieval.parameterStart[indSpecie]
         mmm = i_retrieval.parameterStartFM[indSpecie]
+        assert i_retrieval.mapToState is not None
+        assert i_retrieval.mapToParameters is not None
         my_map = i_retrieval.mapToState[nnn : nnn + nn, mmm : mmm + mm]
         mapStar = i_retrieval.mapToParameters[mmm : mmm + mm, nnn : nnn + nn]
         return {"toState": my_map, "toPars": mapStar}
