@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import copy
 import math
+import sys
 from typing import Any
 import typing
 
@@ -100,7 +101,7 @@ class CdfWriteLiteTes:
 
     def products_add_rtvmr(self, dataInOut: dict[str, Any], species_name: str) -> None:
         # Temp
-        from .muses_py import make_maps, get_indices, get_rtvmr_grid
+        from .muses_py import make_maps
 
         dof_thr = 0.0
         if species_name == "CH4":
@@ -186,7 +187,8 @@ class CdfWriteLiteTes:
                         pndex[0] :, pndex[0] :
                     ]
 
-                    my_index = get_indices(press, cgrid)
+                    my_index = np.array([np.argmin(np.abs(press - cv)) for cv in cgrid])
+
                     my_map = make_maps(press, my_index + 1)
 
                     new_prof = np.exp(
@@ -953,16 +955,6 @@ class CdfWriteLiteTes:
         instrument: list[str],
         lite_directory: Path,
     ) -> dict[str, Any]:
-        # Temp
-        from .muses_py import (
-            products_bias_correct,
-            column_integrate,
-            add_column,
-            products_add_pan_fields,
-        )
-
-        function_name = "products_add_fields: "
-
         len_dataIn = 1
 
         if "EMISSIVITY" not in dataIn and dataAnc is not None:
@@ -985,7 +977,7 @@ class CdfWriteLiteTes:
         # digging into the RTVMR.  Literally a vmr average
 
         if species_name == "PAN":
-            dataIn = products_add_pan_fields(str(lite_directory) + "/", dataIn)
+            dataIn = products_add_pan_fields(lite_directory, dataIn)
 
         if "AIRS" in instrument and species_name == "CH4":
             # no n2o correction
@@ -1173,23 +1165,14 @@ class CdfWriteLiteTes:
                 )
             # end if np.amax(dataIn['column750'.upper()]) < 1:
 
-            # AT_LINE 507 Lite/products_add_fields.pro
             if "CTINTERP_CH4".upper() in dataIn:
                 dataIn["column750_CTINTERP_CH4".upper()] = (
                     np.zeros(shape=(len_dataIn), dtype=np.float32) - 999
                 )  # FLTARR(N_ELEMENTS(data))-999)
-                print(
-                    function_name,
-                    "TRUE:'CTINTERP_CH4'.upper() in dataIn",
-                    ("CTINTERP_CH4".upper() in dataIn),
-                )
-                print(function_name, "len_dataIn", len_dataIn)
                 indp = np.where(
                     (dataIn["CTINTERP_PRESSURE".upper()] > 0)
                     & (dataIn["CTINTERP_CH4".upper()] > 0)
                 )[0]
-                print(function_name, "indp, len(indp)", indp, len(indp))
-
                 if len(indp) > 0:
                     VMR = dataIn["CTINTERP_CH4".upper()][indp] * 1e-9
                     pressure = dataIn["CTINTERP_PRESSURE".upper()][indp]
@@ -1600,6 +1583,1170 @@ class CdfWriteLiteTes:
             # end if 'SURFACETYPEFOOTPRINT' in dataIn:
         # end if 'landflag' not in dataIn:
         return dataIn
+
+
+def products_bias_correct(dataIn, biasIn, hdoFlag=False):
+    # IDL_LEGACY_NOTE: This function products_bias_correct is the same as products_bias_correct function in TOOLS/products_bias_correct.pro file.
+    from .muses_py import UtilGeneral
+
+    function_name = "products_bias_correct: "
+
+    utilGeneral = UtilGeneral()
+
+    # PYTHON_NOTE: Because the 'species' field in dataIn sometimes has shape [x,1], we reshape it to [x] to make life easier down the road.
+    if (
+        len((dataIn["species".upper()]).shape) == 2
+        and dataIn["species".upper()].shape[1] == 1
+    ):
+        dataIn["species".upper()] = np.reshape(
+            dataIn["species".upper()], (dataIn["species".upper()].shape[0])
+        )
+
+    # PYTHON_NOTE: Because the 'pressure' field in dataIn sometimes has shape [x,1], we reshape it to [x] to make life easier down the road.
+    if (
+        len((dataIn["pressure".upper()]).shape) == 2
+        and dataIn["pressure".upper()].shape[1] == 1
+    ):
+        dataIn["pressure".upper()] = np.reshape(
+            dataIn["pressure".upper()], (dataIn["pressure".upper()].shape[0])
+        )
+
+    # Note: If the shape of biasIn is [x,1], we resize it to [x] to make life easier when we do matrix addition and multiplication.
+    if len(biasIn.shape) == 2 and biasIn.shape[1] == 1:
+        biasIn = np.reshape(biasIn, (biasIn.shape[0]))
+
+    o_dataCorr = None
+
+    if not isinstance(dataIn, dict):
+        print(
+            function_name,
+            "ERROR: This function only support type of dataIn as dict.  type(dataIn)",
+            type(dataIn),
+        )
+        assert False
+
+    # AT_LINE 54 TOOLS/products_bias_correct.pro
+    indp = np.asarray([])
+
+    if hdoFlag:
+        o_dataCorr = copy.deepcopy(dataIn)
+        indp = np.where(
+            (dataIn["pressure".upper()] >= 0) & (dataIn["species".upper()] >= 0)
+        )[0]
+        if len(indp) > 0:
+            trueFlag = dataIn["species".upper()][indp]
+            delta_value = biasIn[indp]
+
+            # The next line is not correct.  Have to use UtilGeneral's function to set the values manually.
+            # ak = dataIn['averagingkernel'.upper()][indp, indp, 0]
+            ak = utilGeneral.ManualArrayGetWithRHSIndices(
+                dataIn["averagingkernel".upper()], indp, indp
+            )
+            o_dataCorr["species".upper()][indp] = np.exp(
+                np.log(trueFlag) - np.matmul(delta_value, ak)
+            )
+    else:
+        # correcting bias INDIVIDUALLY.
+        # Other option is to use a monthly average averaging kernel, which corrects for sensitivity issues
+        # varying by final VMR
+        o_dataCorr = copy.deepcopy(dataIn)
+        indp = np.where(
+            (dataIn["pressure".upper()] >= 0) & (dataIn["species".upper()] >= 0)
+        )[0]
+        if len(indp) > 0:
+            # the equation for this should be xest = xest' + A'(1 - alpha) ## xtrue
+            # where A' = A / alpha
+            #
+            # problem 1: we don't have xtrue, therefore we substitute in xest'
+            # up until now I've been doing a scalar multiplication which gets
+            # the same answer
+
+            # Note this is a bias correction in log, with taylor expansion.
+            trueFlag = dataIn["species".upper()][indp]
+            ak = utilGeneral.ManualArrayGetWithRHSIndices(
+                dataIn["averagingkernel".upper()], indp, indp
+            )
+
+            bias = np.copy(biasIn)
+            if len(bias) > 1:
+                bias = biasIn[indp]  # bias will be a smaller vector than biasIn.
+
+            # equation: biasIn should either be a vector the size
+            # of xtrue or a constant.  That is why true*0 is added to biasIn
+            # Note that we have to use bias instead of biasIn because bias is a smaller vector to have the same shape as trueFlag, ak.
+            # IDL is more forgiving.  Python is not.
+            delta_value = np.matmul((trueFlag * 0 + bias), ak)
+            o_dataCorr["species".upper()][indp] = trueFlag + (delta_value * trueFlag)
+
+            if max(o_dataCorr["species".upper()]) > 2000:
+                print(function_name, "max(o_dataCorr['species'.upper()]) > 2000")
+                assert False, "max(o_dataCorr['species'.upper()]) > 2000"
+        # end if len(indp) > 0:
+    # end if hdoFlag:
+
+    return o_dataCorr
+
+
+def column_integrate(
+    VMRIn,
+    airDensityIn,
+    altitudeIn,
+    minIndex=0,
+    maxIndex=0,
+    linearFlag=False,
+    pressure=np.empty([0]),
+    minPressure=np.empty([0]),
+    maxPressure=np.empty([0]),
+):
+    from .muses_py import idl_interpol_1d
+
+    # IDL_LEGACY_NOTE: This function column_integrate is the same as column_integrate function in  TOOLS/atmosphere.pro file.
+    function_name = "column_integrate: "
+
+    # Because some of the arrays coming in are of shape [x,1], we reshape it to [x]
+    if VMRIn.shape == 2 and VMRIn.shape[1] == 1:
+        VMRIn = np.reshape(VMRIn, (VMRIn.shape[0]))
+
+    if airDensityIn.shape == 2 and airDensityIn.shape[1] == 1:
+        airDensityIn = np.reshape(airDensityIn, (airDensityIn.shape[0]))
+
+    if altitudeIn.shape == 2 and altitudeIn.shape[1] == 1:
+        altitudeIn = np.reshape(altitudeIn, (altitudeIn.shape[0]))
+
+    # AT_LINE 371 TOOLS/atmosphere.pro column_integrate
+    airDensity = airDensityIn
+
+    if np.amax(airDensity) > 1e25:
+        # units passed in as molec/m3... should be passed in as molecules/cm3
+        airDensity = airDensity / 1e6
+
+    VMR = copy.deepcopy(VMRIn)
+    altitude = altitudeIn * 100  # centimeters!
+
+    # screen by pressure.  For this we interpolate to the exact
+    # pressures and then use indices to select
+    # AT_LINE 387 TOOLS/atmosphere.pro column_integrate
+
+    if len(minPressure) > 0 or len(maxPressure) > 0:
+        altitudeNew = altitude
+        if len(maxPressure) > 0:
+            altitudeNew0 = idl_interpol_1d(
+                altitude, np.log(pressure), np.log(maxPressure)
+            )
+            if np.amin(np.abs(altitudeNew0 - altitudeNew)) > 0.1:
+                altitudeNew = np.concatenate((altitudeNew0, altitudeNew), axis=0)
+                altitudeNew = np.sort(altitudeNew)
+
+        if len(minPressure) > 0:
+            altitudeNew0 = idl_interpol_1d(
+                altitude, np.log(pressure), np.log(minPressure)
+            )
+            if np.amin(np.abs(altitudeNew0 - altitudeNew)) > 0.1:
+                altitudeNew = np.concatenate((altitudeNew0, altitudeNew), axis=0)
+                altitudeNew = np.sort(altitudeNew)
+
+        if len(altitudeNew) != len(altitude):
+            airDensityNew = idl_interpol_1d(airDensity, altitude, altitudeNew)
+
+            if linearFlag:
+                vmrNew = idl_interpol_1d(VMR, altitude, altitudeNew)
+            else:
+                vmrNew = np.exp(idl_interpol_1d(np.log(VMR), altitude, altitudeNew))
+
+            VMR = vmrNew
+            airDensity = airDensityNew
+            altitude = altitudeNew
+
+    # end if len(minPressure) > 0 or len(maxPressure) > 0:
+    # AT_LINE 431 TOOLS/atmosphere.pro column_integrate
+
+    if maxIndex == 0:
+        maxIndex = len(altitudeIn) - 1
+
+    if maxIndex > len(altitudeIn) - 1:
+        print(function_name, "ERROR: maxIndex must be less than # altitude elements")
+        assert False
+
+    columnAirTotal = 0
+    columnTotal = 0
+    columnLayer = np.zeros(shape=(len(altitudeIn) - 1), dtype=np.float32)
+    columnAirLayer = np.zeros(shape=(len(altitudeIn) - 1), dtype=np.float32)
+    vmrLayer = np.zeros(shape=(len(altitudeIn) - 1), dtype=np.float32)
+
+    # AT_LINE 445 TOOLS/atmosphere.pro column_integrate
+    for jj in range(minIndex + 1, maxIndex + 1):
+        x1 = airDensity[jj - 1] * np.float64(VMR[jj - 1])
+        x2 = airDensity[jj] * np.float64(VMR[jj])
+        dz = altitude[jj] - altitude[jj - 1]
+        if x1 == x2:
+            x1 = x2 * 1.0001
+
+        # column for species
+        columnLayer[jj - 1] = dz / np.log(np.abs(x1 / x2)) * (x1 - x2)
+
+        # column for air
+        x1d = airDensity[jj - 1]
+        x2d = airDensity[jj]
+        columnAirLayer[jj - 1] = dz / np.log(np.abs(x1d / x2d)) * (x1d - x2d)
+
+        if linearFlag:
+            HV = (VMR[jj] - VMR[jj - 1]) / dz
+            HP = (np.log(x2d, dtype=np.float64) - np.log(x1d, dtype=np.float64)) / dz
+
+            # sometimes HP will be very small, i.e. practically 0.0 and that trips the calculation below
+            if HP == 0.0:
+                HP = sys.float_info.min
+
+            # override log calculations
+            columnLayer[jj - 1] = (x2 - x1) / HP - HV * (x2d - x1d) / HP / HP
+        # end: if linearFlag:
+
+        columnAirTotal = columnAirTotal + columnAirLayer[jj - 1]
+        columnTotal = columnTotal + columnLayer[jj - 1]
+        vmrLayer[jj - 1] = columnLayer[jj - 1] / columnAirLayer[jj - 1]
+
+        # AT_LINE 475 TOOLS/atmosphere.pro column_integrate
+        if not np.isfinite(columnLayer[jj - 1]):
+            print(function_name, "Error... NaN")
+            assert False
+    # end for jj in range(minIndex+1, maxIndex+1):
+    # AT_LINE 483 TOOLS/atmosphere.pro column_integrate
+
+    # AT_LINE 486 TOOLS/atmosphere.pro column_integrate
+    # DERIVATIVE of column total vs. VMR.  This will be used in error analysis
+    # air density in molec / cm3
+    # altitude in cm
+
+    n = len(VMR)
+    derivative = np.zeros(shape=(n), dtype=np.float64)  # derivative of dcolumn/dVMR
+    level_to_layer = np.zeros(
+        shape=(n, n - 1), dtype=np.float64
+    )  # map from levels to layers
+
+    # AT_LINE 495 TOOLS/atmosphere.pro column_integrate
+    for jj in range(1, n):
+        x1 = airDensity[jj - 1] * VMR[jj - 1]
+        x2 = airDensity[jj] * VMR[jj]
+        dz = altitude[jj] - altitude[jj - 1]
+
+        term1 = np.log(np.abs(x1 / x2))
+        term2 = x1 - x2
+        derivative[jj] = (
+            derivative[jj]
+            - dz / term1 * airDensity[jj]
+            + dz / term1 / term1 * term2 / VMR[jj]
+        )
+        derivative[jj - 1] = (
+            derivative[jj - 1]
+            + dz / term1 * airDensity[jj - 1]
+            - dz / term1 / term1 * term2 / VMR[jj - 1]
+        )
+
+        # since above is d(column gas)/dVMR, change to
+        # d(layer # VMR) / d(levelVMR) by dividing by the air density for this layer.
+        # air density for this layer: take above column measurements where VMR = 1.
+        # The dz cancels
+        x1d = airDensity[jj - 1]
+        x2d = airDensity[jj]
+        factor = np.log(np.abs(x1d / x2d)) / (x1d - x2d)
+
+        level_to_layer[jj, jj - 1] = (
+            level_to_layer[jj, jj - 1]
+            + (1 / term1 / term1 * term2 / VMR[jj] - 1 / term1 * airDensity[jj])
+            * factor
+        )
+        level_to_layer[jj - 1, jj - 1] = (
+            level_to_layer[jj - 1, jj - 1]
+            + (1 / term1 * airDensity[jj - 1] - 1 / term1 / term1 * term2 / VMR[jj - 1])
+            * factor
+        )
+    # end for jj in range(1,n)
+
+    # this is dcolumn/dlayerVMR.  This is for the GEO-FTS project which
+    # does analysis on layers
+    derivativeLayer = np.matmul(derivative, level_to_layer)
+
+    result = {
+        "columnLayer": columnLayer,
+        "column": columnTotal,
+        "derivative": derivative,
+        "level_to_layer": level_to_layer,
+        "derivativeLayer": derivativeLayer,
+        "columnAirLayer": columnAirLayer,
+        "columnAir": columnAirTotal,
+    }
+
+    result = AttrDictAdapter(result)
+    return result
+
+
+def add_column(
+    dataIn,
+    i_name,
+    i_pressureMax,
+    i_pressureMin,
+    i_nameList=[],
+    i_pressureList=[],
+    linearFlag=False,
+    i_pwflevel=[],
+):
+    # Temp
+    from .muses_py import calculate_xco2, UtilGeneral
+
+    # IDL_LEGACY_NOTE: This function add_column is the same as add_column function in TOOLS/add_column.pro file.
+    function_name = "add_column: "
+
+    utilGeneral = UtilGeneral()
+
+    # PYTHON_NOTE: dataIn is a structure, and there is only one structure.
+    nn = 1
+
+    # AT_LINE 15 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+    if i_pressureMin > 0:
+        print(
+            function_name,
+            "Error need to update code so that calculate_xco2 works for pressureMin <>0",
+        )
+        assert False
+
+    # add name+'_pwf'
+    PWF_TOKEN = "_pwf".upper()
+
+    for kk in range(0, len(i_nameList)):
+        myname = i_name + "_" + i_nameList[kk]
+        if i_nameList[kk].lower() == "species":
+            myname = i_name
+
+        ind = -1
+        if i_pressureList[kk] in dataIn:
+            ind = list(dataIn.keys()).index(i_pressureList[kk])
+
+        num_points = len(dataIn[i_pressureList[kk].upper()])
+
+        if myname not in dataIn:
+            dataIn[myname] = np.zeros(shape=(nn), dtype=np.float32)
+
+        if myname + PWF_TOKEN not in dataIn:
+            dataIn[myname + PWF_TOKEN] = np.zeros(shape=(num_points), dtype=np.float32)
+
+        if myname + "_averagingkernel".upper() not in dataIn:
+            dataIn[myname + "_averagingkernel".upper()] = np.zeros(
+                shape=(num_points), dtype=np.float32
+            )
+
+        if myname + "_constraintvector".upper() not in dataIn:
+            dataIn[myname + "_constraintvector".upper()] = np.zeros(
+                shape=(num_points), dtype=np.float32
+            )
+
+        if myname + "_initial".upper() not in dataIn:
+            dataIn[myname + "_initial".upper()] = np.zeros(shape=(nn), dtype=np.float32)
+    # end for kk in range(0,len(speciesList)):
+
+    if "OBSERVATIONERRORCOVARIANCE" in dataIn:
+        if i_name + "_ObservationError".upper() not in dataIn:
+            dataIn[i_name + "_ObservationError".upper()] = np.zeros(
+                shape=(nn), dtype=np.float32
+            )
+
+        if i_name + "_Error".upper() not in dataIn:
+            dataIn[i_name + "_Error".upper()] = np.zeros(shape=(nn), dtype=np.float32)
+    # end if 'OBSERVATIONERRORCOVARIANCE' in dataIn:
+
+    # AT_LINE 59 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+    # AT_LINE 92 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+    indx = np.where(dataIn["pressure".upper()] > 0)[0]
+    if len(indx) > 3:
+        for kk in range(0, len(i_nameList)):
+            # AT_LINE 98 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+            myname = i_name + "_" + i_nameList[kk]
+            if i_nameList[kk].lower() == "species":
+                myname = i_name
+
+            indloc_key_name = ""
+            indlocOut_key_name = ""
+
+            if i_nameList[kk] in dataIn:
+                indloc_key_name = i_nameList[kk]
+
+            if myname in dataIn:
+                indlocOut_key_name = myname
+
+            # indloc = tag_loc(data, i_nameList[kk])
+            # indlocp = tag_loc(data, i_pressureList[kk])
+            # indlocOut = tag_loc(data, myname)
+
+            indlocPrior = -1
+            indlocInitial = -1
+            indlocPrior_key_name = ""
+            indlocInitial_key_name = ""
+            indlocPriorOut_key_name = ""
+            indlocInitialOut_key_name = ""
+            if i_nameList[kk].lower() == "species":
+                if "constraintvector".upper() in dataIn:
+                    indlocPrior = list(dataIn.keys()).index("constraintvector".upper())
+                    indlocPrior_key_name = "constraintvector".upper()
+
+                if "initial".upper() in dataIn:
+                    indlocInitial = list(dataIn.keys()).index("initial".upper())
+                    indlocInitial_key_name = "initial".upper()
+
+                if (myname + "_constraintvector").upper() in dataIn:
+                    indlocPriorOut_key_name = (myname + "_constraintvector").upper()
+
+                if (myname + "_initial").upper() in dataIn:
+                    indlocInitialOut_key_name = (myname + "_initial").upper()
+            else:
+                if i_nameList[kk] + "constraintvector".upper() in dataIn:
+                    indlocPrior = list(dataIn.keys()).index(
+                        i_nameList[kk] + "_constraintvector".upper()
+                    )
+                    indlocPrior_key_name = i_nameList[kk] + "constraintvector".upper()
+
+                if i_nameList[kk] + "initial".upper() in dataIn:
+                    indlocInitial = list(dataIn.keys()).index(
+                        i_nameList[kk] + "_initial".upper()
+                    )
+                    indlocInitial_key_name = i_nameList[kk] + "initial".upper()
+
+                if (myname + "_constraintvector").upper() in dataIn:
+                    indlocPriorOut_key_name = (myname + "_constraintvector").upper()
+
+                if (myname + "_initial").upper() in dataIn:
+                    indlocInitialOut_key_name = (myname + "_initial").upper()
+
+            # AT_LINE 117 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+            pressure = dataIn[i_pressureList[kk]]
+
+            # For some strange reason, the shape of pressure can be 2-dimensions.  If that is the case, reduce to 1.
+            if len(pressure.shape) == 2 and pressure.shape[1] == 1:
+                pressure = np.reshape(pressure, (pressure.shape[0]))
+
+            value = dataIn[i_nameList[kk]]
+            indp = np.where((pressure <= i_pressureMax) & (pressure >= i_pressureMin))[
+                0
+            ]
+
+            # interpolate to a fine grid on log() scale or linear() if
+            # linear type specified
+            # AT_LINE 128 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+            if len(indp) > 1:
+                # AT_LINE 134 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                # use pressureMax in calculate_xco2 but need to ensure
+                # that pressureMin == 0
+
+                indxx = np.where(pressure >= 0)[0]
+                pwfLayer = []
+
+                # AT_LINE 138 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                # x = calculate_xco2(value[indxx], pressure[indxx], pwfLevel = pwfLevel, pressureMax = pressureMax)
+
+                # Something seems odd.  Sometimes the shape of value here is (67, 1).
+                # Check to see if the 2nd index is 1, we use index of [0] to get all values.
+                if len(value.shape) == 2 and value.shape[1] == 1:
+                    value = np.reshape(
+                        value, (value.shape[0])
+                    )  # Change shape from (67,1) to (67,)
+
+                # AT_LINE 139 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                (x, pwfLevel, pwfLayer) = calculate_xco2(
+                    value[indxx], pressure[indxx], i_pressureMax
+                )
+                dataIn[indlocOut_key_name] = x
+
+                # AT_LINE 143 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                ind = -1
+                if (myname + "_pwf").upper() in dataIn:
+                    ind = list(dataIn.keys()).index((myname + "_pwf").upper())
+                dataIn[(myname + "_pwf").upper()][indx] = pwfLevel[:]
+
+                # initial and constraint
+                # AT_LINE 146 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                if indlocPrior >= 0:
+                    value = dataIn[indlocPrior_key_name]
+                    # Something seems odd.  Sometimes the shape of value here is (67, 1).
+                    # Check to see if the 2nd index is 1, we use index of [0] to get all values.
+                    if len(value.shape) == 2 and value.shape[1] == 1:
+                        value = np.reshape(
+                            value, (value.shape[0])
+                        )  # Change shape from (67,1) to (67,)
+
+                    (x, pwfLevel, pwfLayer) = calculate_xco2(
+                        value[indxx], pressure[indxx], i_pressureMax
+                    )
+                    dataIn[indlocPriorOut_key_name] = x
+                # if indlocPrior >= 0:
+
+                # AT_LINE 153 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                if indlocInitial >= 0:
+                    value = dataIn[indlocInitial_key_name]
+                    # Something seems odd.  Sometimes the shape of value here is (67, 1).
+                    # Check to see if the 2nd index is 1, we use index of [0] to get all values.
+                    if len(value.shape) == 2 and value.shape[1] == 1:
+                        value = np.reshape(
+                            value, (value.shape[0])
+                        )  # Change shape from (67,1) to (67,)
+
+                    (x, pwfLevel, pwfLayer) = calculate_xco2(
+                        value[indxx], pressure[indxx], i_pressureMax
+                    )
+                    # Not sure if this is correct.
+                    dataIn[indlocInitialOut_key_name] = x
+                # end if indlocInitial >= 0:
+
+                # AT_LINE 159 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                # aa = [-999]  # We need a list of at least one in case we need to get the length of aa.
+                aa = np.zeros(
+                    shape=(1, 1), dtype=np.float32
+                )  # We need a matrix of list of at least one by 1 in case we need to get the length of aa.
+                aa.fill(-999)
+
+                # add column averaging kernel
+                # first get full AK and pressure and pwf
+                if i_nameList[kk].lower() == "species":
+                    aa = dataIn["averagingkernel".upper()]
+                    pwf = dataIn["column750_pwf".upper()]
+                    indx1 = 0
+                else:
+                    # indx1 = tag_loc(data, list[kk]+'_averagingkernel')
+                    indx1 = -1
+                    if i_nameList[kk] + "_averagingkernel".upper() in dataIn:
+                        indx1 = list(dataIn.keys()).index(
+                            i_nameList[kk] + "_averagingkernel".upper()
+                        )
+
+                    if indx1 < 0:
+                        print(
+                            function_name,
+                            "'Warning!  AK not found: '"
+                            + i_nameList[kk]
+                            + "_averagingkernel".upper(),
+                        )
+                        assert False
+                    else:
+                        aa = dataIn[i_nameList[kk] + "_averagingkernel".upper()]
+
+                        if i_pressureList[kk].lower() != "pressure":
+                            # indx2 = tag_loc(data, myname + '_pwf')
+                            # pwf = data[jj].(indx2)
+                            pwf = dataIn[(myname + "_pwf").upper()]
+                        else:
+                            # indx2 = tag_loc(data, name + '_pwf')
+                            pwf = dataIn[(i_name + "_pwf").upper()]
+                        # end else portion of if i_pressureList[kk]) != 'pressure':
+                    # end else portion of if indx1 < 0:
+                # end else portion of if i_nameList[kk].lower() == 'species':
+
+                if len(aa.shape) == 3 and aa.shape[2] == 1:
+                    aa = np.reshape(
+                        aa, (aa.shape[0], aa.shape[1])
+                    )  # Change aa shape from (67, 67, 1) to ((67, 67,)
+
+                # AT_LINE 183 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                if indx1 >= 0 and ((np.where(aa > -990))[0])[0] >= 0:
+                    pp = pressure
+                    indp = np.where((aa[9, :] >= -990) & (pp >= -990))
+                    if len(indp) == 0:
+                        if len(aa[9, :] > 9):
+                            indp = np.where((aa[10, :] >= -990) & (pp >= -999))[0]
+
+                    # IF indp[0] LT 0 AND N_ELEMENTS(aa[9,*]) GT 9 THEN indp = where(aa[10,*] GE -990 AND pp GE -990)
+                    valid_pressure_index = np.where(pp >= -990)[0]
+                    aa = utilGeneral.ManualArrayGetWithRHSIndices(
+                        aa, indp[0], valid_pressure_index
+                    )
+
+                    pp = pp[indp[0]]
+                    pwf = pwf[indp[0]]
+
+                    # AT_LINE 192 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+                    # need pwf for whole profile
+
+                    # (uu, pwfLevel, pwfLayer) = calculate_xco2(pp*0+1700.0,pressure[indxx])
+                    # The line above is a bug, comment out and put corrected code in next line.
+                    (uu, pwfLevel, pwfLayer) = calculate_xco2(pp * 0 + 1700.0, pp)
+
+                    indpx = np.where(pp <= 750)[0]
+
+                    fraction = np.sum(pwfLevel[indpx]) / np.sum(pwfLevel)
+
+                    # ak_column = (pwf ## aa)/(pwflevel)*fraction
+                    # ak_column0 = (pwf ## aa)
+                    ak_column = np.matmul(aa, pwf) / (pwfLevel) * fraction
+                    ak_column0 = np.matmul(aa, pwf)
+
+                    # has issues at very top, where values are very small and
+                    # pwf is very small
+                    ind = np.where(
+                        (np.abs(ak_column0) < 0.002) & (np.abs(ak_column) >= 0.5)
+                    )[0]
+                    if len(ind) > 0:
+                        ak_column[ind] = 0.0
+
+                    ind = -1
+                    if (myname + "_averagingkernel").upper() in dataIn:
+                        ind = list(dataIn.keys()).index(
+                            myname + "_averagingkernel".upper()
+                        )
+                    if (ind) >= 0:
+                        dataIn[myname + "_averagingkernel".upper()][indp[0]] = (
+                            ak_column[:]
+                        )
+
+                    # calculate column error
+                    if "OBSERVATIONERRORCOVARIANCE" in dataIn:
+                        # get VMR
+                        value = dataIn[indloc_key_name]
+
+                        # get column value
+                        valueColumn = dataIn[indlocOut_key_name]
+
+                        # get pwf
+                        # test = calculate_xco2(value[indp], pressure[indp], pwfLevel = pwfLevel)
+                        (test, pwfLevel, pwfLayer) = calculate_xco2(
+                            value[indp[0]], pressure[indxx]
+                        )
+
+                        # calculate errorObs
+                        # errorObs = sqrt(pwfLevel ## data[jj].Observationerrorcovariance[indp,indp,*] ## transpose(pwfLevel)) * valueColumn
+                        temp_obs_cov = utilGeneral.ManualArrayGetWithRHSIndices(
+                            dataIn["Observationerrorcovariance".upper()],
+                            indp[0],
+                            indp[0],
+                        )
+                        errorObs = (
+                            np.sqrt(
+                                np.matmul(
+                                    np.matmul(np.transpose(pwfLevel), temp_obs_cov),
+                                    pwfLevel,
+                                )
+                            )
+                            * valueColumn
+                        )
+                        if not np.all(np.isfinite(errorObs)):
+                            errorObs = 2
+
+                        # if finite(errorObs) EQ 0 THEN errorObs = 2
+                        ind = -1
+                        if (i_name + "_ObservationError").upper() in dataIn:
+                            dataIn[i_name + "_ObservationError".upper()] = errorObs
+
+                        # calculate error (total error)
+                        # error = sqrt(pwfLevel ## data[jj].totalerrorcovariance[indp,indp,*] ## transpose(pwfLevel)) * valueColumn
+                        temp_total_cov = utilGeneral.ManualArrayGetWithRHSIndices(
+                            dataIn["totalerrorcovariance".upper()], indp[0], indp[0]
+                        )
+                        error = (
+                            np.sqrt(
+                                np.matmul(
+                                    np.matmul(np.transpose(pwfLevel), temp_total_cov),
+                                    pwfLevel,
+                                )
+                            )
+                            * valueColumn
+                        )
+                        if not np.all(np.isfinite(errorObs)):
+                            error = 10
+                        dataIn[(i_name + "_Error").upper()] = error
+                    # end if 'OBSERVATIONERRORCOVARIANCE' in dataIn:
+                # end if indx1 >= 0 and ((np.where(aa > -990))[0])[0] >= 0:
+            # end if len(indp) > 1:
+            # AT_LINE 237 src_ms-2018-12-10/TOOLS/add_column.pro add_column
+        # end for kk in range(0,len(i_nameList))
+    # end if len(indx) > 3:
+
+    # We return dataIn because we had modified it in this function.
+    return dataIn
+
+
+def products_add_pan_fields(lite_directory: Path, dataInOut):
+    # Temp
+    from .muses_py import nc_read_variable, UtilGeneral
+
+    utilGeneral = UtilGeneral()
+
+    # Note that all keys in dataInOut dictionary are uppercased.
+
+    # The shape of a few arrays: 'pressure'.upper(), 'altitude'.upper() and 'airDensity'.upper() may be funky, we reshape it to just one dimension.
+    if (
+        len(dataInOut["pressure".upper()].shape) == 2
+        and dataInOut["pressure".upper()].shape[1] == 1
+    ):
+        dataInOut["pressure".upper()] = np.reshape(
+            dataInOut["pressure".upper()], (dataInOut["pressure".upper()].shape[0])
+        )
+
+    if (
+        len(dataInOut["altitude".upper()].shape) == 2
+        and dataInOut["altitude".upper()].shape[1] == 1
+    ):
+        dataInOut["altitude".upper()] = np.reshape(
+            dataInOut["altitude".upper()], (dataInOut["altitude".upper()].shape[0])
+        )
+
+    if (
+        len(dataInOut["airDensity".upper()].shape) == 2
+        and dataInOut["airDensity".upper()].shape[1] == 1
+    ):
+        dataInOut["airDensity".upper()] = np.reshape(
+            dataInOut["airDensity".upper()], (dataInOut["airDensity".upper()].shape[0])
+        )
+
+    # AT_LINE 123 Lite/products_add_fields.pro
+    mult_factor = 1e9
+
+    # 1 = good
+    # 0 = bad
+    # pan_mask = cdf_read(liteDirectory+'pan_mask-margin2.-cutoff0.004.nc')
+    fn = lite_directory / "pan_mask-margin2.-cutoff0.004.nc"
+
+    # Read the 3 separate variables. Note the variable names are all uppercased.
+    (_, MASK_VAR, _) = nc_read_variable(str(fn), "MASK")
+
+    # Because we are reading NetCDF from Python, the shape of MASK_VAR is (360, 180) and shape of LATITUDES_VAR is (180,) and LONGITUDES_VAR is (360,),
+    # we have to transpose MASK_VAR from (360, 180) to (180,360)
+    MASK_VAR = MASK_VAR.transpose()
+    my_mask = MASK_VAR[
+        int(dataInOut["latitude".upper()]) + 90,
+        int(dataInOut["longitude".upper()]) + 180,
+    ]
+
+    if "PAN_desert_QA".upper() not in dataInOut:
+        dataInOut["PAN_desert_QA".upper()] = np.int32(
+            1 - my_mask
+        )  # Convert to int32 so the writer can have the correct size.
+
+    # averages
+    if "average_800_TROPOPAUSE".upper() not in dataInOut:
+        dataInOut["average_800_TROPOPAUSE".upper()] = np.asarray([-999.0])
+
+    if "average_800_TROPOPAUSEprior".upper() not in dataInOut:
+        dataInOut["average_800_TROPOPAUSEprior".upper()] = np.asarray([-999.0])
+
+    indp = np.where(
+        (dataInOut["pressure".upper()] > 200) & (dataInOut["pressure".upper()] <= 826)
+    )[0]
+
+    if len(indp) > 0:
+        dataInOut["average_800_TROPOPAUSE".upper()] = (
+            np.mean(dataInOut["species".upper()][indp]) * mult_factor
+        )
+        dataInOut["average_800_TROPOPAUSEprior".upper()] = (
+            np.mean(dataInOut["constraintVector".upper()][indp]) * mult_factor
+        )
+
+    # AT_LINE 123 src_ms-2019-05-29/Lite/products_add_fields.pro
+    # column averages
+    if "xPAN800".upper() not in dataInOut:
+        dataInOut["xPAN800".upper()] = -999.0
+        dataInOut["xPAN800_prior".upper()] = -999.0
+        dataInOut["xPAN800_errorObs".upper()] = -999.0
+        dataInOut["xPAN800_errorSmoothing".upper()] = -999.0
+        dataInOut["xPAN800_AK".upper()] = np.ndarray(shape=(67), dtype=np.float32)
+        dataInOut["xPAN800_AK".upper()].fill(-999.0)
+
+        dataInOut["xPAN".upper()] = -999.0
+        dataInOut["xPAN_prior".upper()] = -999.0
+        dataInOut["xPAN_errorObs".upper()] = -999.0
+        dataInOut["xPAN_errorSmoothing".upper()] = -999.0
+        dataInOut["xPAN_AK".upper()] = np.ndarray(shape=(67), dtype=np.float32)
+        dataInOut["xPAN_AK".upper()].fill(-999.0)
+    # end if 'xPAN800'.upper() not in dataInOut:
+
+    # AT_LINE 140 src_ms-2019-05-29/Lite/products_add_fields.pro
+    indp = np.where(
+        (
+            (dataInOut["pressure".upper()] >= 200)
+            & (dataInOut["pressure".upper()] <= 826)
+        )
+        & (dataInOut["species".upper()] > -990)
+    )[0]
+    if len(indp) > 0:
+        indp = np.where(dataInOut["species".upper()] > -990)[0]
+
+        indpx = np.where(
+            (dataInOut["pressure".upper()][indp] < 200)
+            | (dataInOut["pressure".upper()][indp] > 820)
+        )[0]
+
+        vmr = dataInOut["species".upper()][indp]
+        xa = dataInOut["constraintVector".upper()][indp]
+
+        minIndex = 0
+        maxIndex = 0
+        minPressure = np.asarray([200])
+        maxPressure = np.asarray([800])
+        linearFlag = True
+
+        pressureArr = dataInOut["pressure".upper()][indp]
+        if len(pressureArr.shape) == 2 and pressureArr.shape[1] == 1:
+            pressureArr = np.reshape(pressureArr, (pressureArr.shape[0]))
+
+        result = column_integrate(
+            vmr,
+            dataInOut["airDensity".upper()][indp],
+            dataInOut["altitude".upper()][indp],
+            minIndex,
+            maxIndex,
+            linearFlag,
+            pressureArr,
+            minPressure,
+            maxPressure,
+        )
+        dataInOut["xpan800".upper()] = result.column / result.columnAir * mult_factor
+
+        resultprior = column_integrate(
+            xa,
+            dataInOut["airdensity".upper()][indp],
+            dataInOut["altitude".upper()][indp],
+            minIndex,
+            maxIndex,
+            linearFlag,
+            pressureArr,
+            minPressure,
+            maxPressure,
+        )
+        dataInOut["xpan800_prior".upper()] = (
+            resultprior.column / resultprior.columnAir * mult_factor
+        )
+
+        # map layer to level
+        # do not specify pressure range
+        resultAll = column_integrate(
+            vmr,
+            dataInOut["airdensity".upper()][indp],
+            dataInOut["altitude".upper()][indp],
+            minIndex,
+            maxIndex,
+            linearFlag,
+        )
+
+        resultAllprior = column_integrate(
+            xa,
+            dataInOut["airdensity".upper()][indp],
+            dataInOut["altitude".upper()][indp],
+            minIndex,
+            maxIndex,
+            linearFlag,
+        )
+
+        dataInOut["xpan".upper()] = resultAll.column / resultAll.columnAir * mult_factor
+        dataInOut["xpan_prior".upper()] = (
+            resultAllprior.column / resultAllprior.columnAir * mult_factor
+        )
+
+        # calculate air mass ratio for indpx (800 to 200) versus
+        # indp (all non-fill)
+
+        # calculate pwf for 800 to 200 (pwflevel) and whole column (pwflevel0)
+        pwf = resultAllprior.columnAirLayer / np.sum(resultAllprior.columnAirLayer)
+
+        # pwflevel0 = pwf ## resultAllprior.level_to_layer
+        pwflevel0 = np.matmul(resultAllprior.level_to_layer, pwf)
+
+        pwflevel = copy.deepcopy(pwflevel0)
+        pwflevel[indpx] = 0
+        my_factor = np.sum(pwflevel) / np.sum(pwflevel0)
+        pwflevel = pwflevel / np.sum(pwflevel)
+
+        # full column AK
+        AK0 = utilGeneral.ManualArrayGetWithRHSIndices(
+            dataInOut["averagingkernel".upper()], indp, indp
+        )
+        dataInOut["xPAN_AK".upper()][indp] = np.matmul(AK0, pwflevel0) / pwflevel0
+
+        # 800 to 200 column AK
+        AK = utilGeneral.ManualArrayGetWithRHSIndices(
+            dataInOut["averagingkernel".upper()], indp, indp
+        )
+        AK[:, indpx] = 0
+
+        # dataInOut['xPAN800_AK'.upper()][indp] = (pwflevel ## AK ) / pwflevel0 * my_factor
+        dataInOut["xPAN800_AK".upper()][indp] = (
+            np.matmul(AK, pwflevel) / pwflevel0 * my_factor
+        )
+
+        # derivative full column... for collapsing errors
+        derivative0 = resultAll.derivative
+        if not linearFlag:
+            derivative0 = derivative0 * vmr
+
+        # derivative partial column
+        derivative = derivative0
+        derivative[indpx] = 0
+
+        # errors
+        errorObs = utilGeneral.ManualArrayGetWithRHSIndices(
+            dataInOut["OBSERVATIONERRORCOVARIANCE"], indp, indp
+        )
+        errorSmooth = (
+            utilGeneral.ManualArrayGetWithRHSIndices(
+                dataInOut["TOTALERRORCOVARIANCE"], indp, indp
+            )
+            - errorObs
+        )
+
+        # calculate error
+        # In Python 3.8 this could be written as:
+        # np.sqrt(derivative0 @ errorObs @ derivative0.T) / resultAll.columnAir * mult_factor
+        # np.sqrt(derivative0 @ errorSmooth @ derivative0.T) / resultAll.columnAir * mult_factor
+        dataInOut["xPAN_errorObs".upper()] = (
+            np.sqrt(
+                np.matmul(np.matmul(derivative0.transpose(), errorObs), derivative0)
+            )
+            / resultAll.columnAir
+            * mult_factor
+        )
+        dataInOut["xPAN_errorSmoothing".upper()] = (
+            np.sqrt(
+                np.matmul(np.matmul(derivative0.transpose(), errorSmooth), derivative0)
+            )
+            / resultAll.columnAir
+            * mult_factor
+        )
+
+        # calculate error
+
+        # IDL:
+        # dataInOut['xPAN800_errorObs'.upper()] = sqrt(derivative ## errorObs ## transpose(derivative)) / result.columnAir * mult
+        # dataInOut['xPAN800_errorSmoothing'.upper()] = sqrt(derivative ## errorSmooth ## transpose(derivative)) / result.columnAir*mult
+
+        # In Python 3.8 this could be written as:
+        # np.sqrt(derivative @ errorObs @ derivative.T) / resultAll.columnAir * mult_factor
+        dataInOut["xPAN800_errorObs".upper()] = (
+            np.sqrt(np.matmul(np.matmul(derivative.transpose(), errorObs), derivative))
+            / result.columnAir
+            * mult_factor
+        )
+
+        # In Python 3.8 this could be written as:
+        # np.sqrt(derivative @ errorSmooth @ derivative.T) / resultAll.columnAir * mult_factor
+        dataInOut["xPAN800_errorSmoothing".upper()] = (
+            np.sqrt(
+                np.matmul(np.matmul(derivative.transpose(), errorSmooth), derivative)
+            )
+            / result.columnAir
+            * mult_factor
+        )
+    # end if len(indp) > 0:
+
+    return dataInOut
+
+
+def get_half_ak_points(ak_row, pm_sub):
+    # Temp
+    from .muses_py import idl_interpol_1d
+
+    # This function returns pm_sub values interpolated to the locations of max(ak_row) / 2.
+    # It can be used whenever one wants to find the coordinates (pm_sub) of the half-maximum
+    # values of an array (ak_row), IF the array varies smoothly and has only one peak
+
+    p_bound = np.zeros(shape=(2), dtype=np.float32)
+
+    max_id = np.argmax(ak_row)
+    ak_2 = 0.5 * np.amax(ak_row)
+    num_points = pm_sub.size
+
+    # Find half-value on left side of peak
+    p_bound[0] = pm_sub[0]
+    for ip in range(
+        0, max_id + 1
+    ):  # PYTHON_NOTE: We add 1 to max_id because PYTHON's slice does not include the end.
+        if (ak_2 >= ak_row[ip]) and (ak_2 <= ak_row[ip + 1]):
+            p_bound[0] = idl_interpol_1d(
+                pm_sub[ip : ip + 1 + 1], ak_row[ip : ip + 1 + 1], ak_2
+            )  # PYTHON_NOTE: We add 1 to ip+1 because PYTHON's slice does not include the end.
+            break
+        # end if ((ak_2 >= ak_row[ip]) and (ak_2 <= ak_row[ip+1])):
+    # end for ip in range(0, max_id+1)
+
+    # Find half-value on right side of peak
+    for ip in range(max_id, num_points - 1):
+        if (ak_2 <= ak_row[ip]) and (ak_2 >= ak_row[ip + 1]):
+            p_bound[1] = idl_interpol_1d(
+                pm_sub[ip : ip + 1 + 1], ak_row[ip : ip + 1 + 1], ak_2
+            )
+            break
+        # end if ((ak_2 <= ak_row[ip]) and (ak_2 >= ak_row[ip+1])):
+    # end for ip in range(max_id, num_points):
+
+    return p_bound
+
+
+def get_rtvmr_grid(rtvak, pm_sub, molec, dof_thr=0):
+    # IDL_LEGACY_NOTE: This function get_rtvmr_grid is the same as get_rtvmr_grid program in Lite/get_rtvmr_grid.pro file.
+    function_name = "get_rtvmr_grid: "
+
+    # If the shape of pm_sub is [x, 1], we change it to [x]
+    if len(pm_sub.shape) == 2 and pm_sub.shape[1] == 1:
+        pm_sub = np.reshape(pm_sub, (pm_sub.shape[0]))
+
+    o_cgrid = None
+    o_fwhm = None
+    o_ntrop = None
+    o_p_bot = None
+    o_p_top = None
+
+    # AT_LINE 55 Lite/get_rtvmr_grid.pro
+    if molec == "CH4":
+        ak_min = 0.7
+        p_min = 30.0
+    elif molec == "CO2":
+        ak_min = 0.2
+        p_min = 30.0
+    elif molec == "NH3":
+        ak_min = 0.1
+        p_min = 500.0
+    elif molec == "CH3OH":
+        ak_min = 0.1
+        p_min = 500.0
+    elif molec == "HCOOH":
+        ak_min = 0.1
+        p_min = 500.0
+    else:
+        print(function_name, "ERROR: molec not supported", molec)
+        assert False
+
+    # AT_LINE 78 Lite/get_rtvmr_grid.pro
+    # determine total dofs
+    if dof_thr == 0:
+        dof_thr = 1.25
+
+    dofs_tot = np.trace(rtvak)
+    if dofs_tot > dof_thr:
+        o_ntrop = 2
+    else:
+        o_ntrop = 1
+
+    o_fwhm = np.zeros(shape=(o_ntrop), dtype=np.float32)
+    o_p_top = np.zeros(shape=(o_ntrop), dtype=np.float32)
+    o_p_bot = np.zeros(shape=(o_ntrop), dtype=np.float32)
+
+    # AT_LINE 88 Lite/get_rtvmr_grid.pro
+    # calculate the sum of the rows as well as the cumulative sum of the trace of the
+    # AK on forward model and retrieval grids
+    # (cumulative sum of trace starts from the bottom of the profile and works up)
+    diagrtv = np.copy(np.diagonal(rtvak))
+    nrtv = diagrtv.size
+    cumtr = np.zeros(shape=(nrtv), dtype=np.float32)
+    aksum = np.zeros(shape=(nrtv), dtype=np.float32)
+
+    # AT_LINE 95 Lite/get_rtvmr_grid.pro
+    for ii in range(nrtv):
+        aksum[ii] = np.sum(rtvak[:, ii])
+        cumtr[ii] = np.sum(diagrtv[0 : ii + 1])
+
+    # AT_LINE 100 Lite/get_rtvmr_grid.pro
+    # calculate 1st, 2nd derivatives of the cumulative sum of the trace to determine anchor points
+    dev1 = np.diff(cumtr) / np.diff(np.log(pm_sub))
+    dev2 = np.diff(cumtr) / dev1
+
+    # AT_LINE 105 Lite/get_rtvmr_grid.pro
+    # make sure that the AK has some levels where the sum of the row of the AK goes above ak_sum
+    gsum = np.where((aksum > ak_min) & (pm_sub > p_min))[0]
+    dof = 0
+
+    # AT_LINE 107 Lite/get_rtvmr_grid.pro
+    # AT_LINE 109 Lite/get_rtvmr_grid.pro src_ms-2018-12-10/Lite/get_rtvmr_grid.pro
+    if len(gsum) > 1:
+        dof = cumtr[nrtv - 1]
+
+        # calculate 5 levels if degrees of freedom is greater than dof_thr
+        # otherwise use 4 levels
+
+        # l3 is the "anchor point". Make sure that it lies at a sensibly high altitude.
+        top_inds = np.where(cumtr > 0.5 * cumtr[nrtv - 1])[0]
+        top_inds = top_inds[0 : len(top_inds) - 1]
+
+        # put the anchor point at the point where the increase in the cumulative trace with
+        # altitude slows down
+        # We had initially set the test for dev2 gt 0, but after looking at a number of
+        # profiles, decided that -20 was a better threshold for some of the more rounded turn-arounds
+        dum3 = np.where(dev2[top_inds] > -20)[0]
+        if len(dum3) == 0:
+            l3 = top_inds[0]
+        else:
+            l3 = top_inds[dum3[0]]
+
+        # AT_LINE 126 Lite/get_rtvmr_grid.pro
+        # AT_LINE 130 Lite/get_rtvmr_grid.pro src_ms-2018-12-10/Lite/get_rtvmr_grid.pro
+        # place the two tropospheric levels based on the information available between
+        # surface and anchor point
+        if dof > dof_thr:
+            # if anchor point is too low, shift up
+            if l3 < 3:
+                l3 = 3
+                l2 = 2
+                l1 = 1
+            else:
+                # AT_LINE 138 Lite/get_rtvmr_grid.pro
+                l1 = np.argmin(np.abs(cumtr - 0.4 * cumtr[l3]))
+                l2 = np.argmin(np.abs(cumtr - 0.8 * cumtr[l3]))
+
+            if l1 == 0:
+                l1 = 1
+
+            if l1 == l2:
+                l2 = l2 + 1
+
+            if l2 == l3:
+                l3 = l2 + 1
+
+            # set up a new set of optimized 5 levels
+            # (surface, two trop levels, anchor point, TOA)
+            newlev = np.asarray(
+                [pm_sub[0], pm_sub[l1], pm_sub[l2], pm_sub[l3], pm_sub[nrtv - 1]]
+            )
+
+            # get range of validity for retrieval around l1 and l2 points
+            ak_row_l1 = rtvak[:, l1]
+            p_bound = get_half_ak_points(ak_row_l1, pm_sub)
+
+            o_p_bot[0] = p_bound[0]
+            o_p_top[0] = p_bound[1]
+            if o_p_bot[0] > pm_sub[0]:
+                o_p_bot[0] = pm_sub[0]
+
+            ak_row_l2 = rtvak[:, l2]
+            p_bound = get_half_ak_points(ak_row_l2, pm_sub)
+            o_p_bot[1] = p_bound[0]
+            o_p_top[1] = p_bound[1]
+        else:  # dofs lt dof_thr
+            # if anchor point is too low, shift up
+            # AT_LINE 164 Lite/get_rtvmr_grid.pro
+            if l3 < 2:
+                l3 = 2
+                l1 = 1
+            else:
+                l1 = np.argmin(np.abs(cumtr - 0.5 * cumtr[l3]))
+
+            if l1 == 0:
+                l1 = 1
+
+            if l3 == l1:
+                l3 = l3 + 1
+
+            # set up a new set of optimized 4 levels
+            # (surface, one trop point, anchor point, TOA)
+            newlev = np.asarray([pm_sub[0], pm_sub[l1], pm_sub[l3], pm_sub[nrtv - 1]])
+
+            # get range of validity for retrieval around l1
+            ak_row_l1 = rtvak[:, l1]
+            p_bound = get_half_ak_points(ak_row_l1, pm_sub)
+            o_p_bot = p_bound[0]
+            o_p_top = p_bound[1]
+            if o_p_bot > pm_sub[0]:
+                o_p_bot = pm_sub[0]
+        # end else of if dof > dof_thr:
+
+        o_cgrid = newlev
+    else:  # if len(gsum) > 1:
+        # test for points with sum of row gt ak_min
+        # if the TES measurement doesn't have enough information, then set values to bad values
+        o_cgrid = np.asarray([-999.0])
+    # end else part of if len(gsum) > 1:
+
+    return (o_cgrid, o_fwhm, o_ntrop, o_p_bot, o_p_top)
 
 
 __all__ = ["CdfWriteLiteTes"]
