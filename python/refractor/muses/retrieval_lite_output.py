@@ -42,7 +42,7 @@ class CdfWriteLiteTes:
             smap = current_state.state_mapping(StateElementIdentifier(species_name))
             linear = isinstance(smap, rf.StateMappingLinear)
         self.product_cleanup(data1, species_name)
-        (data1, data2) = self.products_add_fields(
+        data1 = self.products_add_fields(
             data1,
             species_name,
             data2,
@@ -952,7 +952,7 @@ class CdfWriteLiteTes:
         dataAnc: dict[str, Any],
         instrument: list[str],
         lite_directory: Path,
-    ) -> None:
+    ) -> dict[str, Any]:
         # Temp
         from .muses_py import (
             products_bias_correct,
@@ -1069,12 +1069,14 @@ class CdfWriteLiteTes:
 
             # now add in N2O data to CH4 lite product
             if "n2o_species".upper() not in dataIn:
-                dataIn["n2o_species".upper()] = copy.deepcopy(data2["SPECIES"])
+                if data2 is not None:
+                    dataIn["n2o_species".upper()] = copy.deepcopy(data2["SPECIES"])
 
             if "n2o_constraintVector".upper() not in dataIn:
-                dataIn["n2o_constraintVector".upper()] = copy.deepcopy(
-                    data2["CONSTRAINTVECTOR"]
-                )
+                if data2 is not None:
+                    dataIn["n2o_constraintVector".upper()] = copy.deepcopy(
+                        data2["CONSTRAINTVECTOR"]
+                    )
 
             if "n2o_averagingKernel".upper() not in dataIn:
                 if data2 is not None:
@@ -1089,9 +1091,10 @@ class CdfWriteLiteTes:
                     )
 
             if "n2o_dofs".upper() not in dataIn:
-                dataIn["n2o_dofs".upper()] = copy.deepcopy(
-                    data2["degreesOfFreedomForSignal".upper()]
-                )
+                if data2 is not None:
+                    dataIn["n2o_dofs".upper()] = copy.deepcopy(
+                        data2["degreesOfFreedomForSignal".upper()]
+                    )
 
             # if original species exists, e.g. for AIRS above, then do not do n2o correction
             # n2o correction:
@@ -1283,7 +1286,8 @@ class CdfWriteLiteTes:
 
             for jj in range(0, len(my_names)):
                 if my_names[jj] not in dataIn:
-                    dataIn[my_names[jj]] = copy.deepcopy(data2[my_names[7:]])
+                    if data2 is not None:
+                        dataIn[my_names[jj]] = copy.deepcopy(data2[my_names[jj][7:]])
 
             my_names = [
                 "H2O_INITIAL".upper(),
@@ -1293,14 +1297,17 @@ class CdfWriteLiteTes:
 
             for jj in range(0, len(my_names)):
                 if my_names[jj] not in dataIn:
-                    dataIn[my_names[jj]] = copy.deepcopy(data2[my_names[4:]])
+                    if data2 is not None:
+                        dataIn[my_names[jj]] = copy.deepcopy(data2[my_names[jj][4:]])
 
             # add values
             if "H2O_SPECIES" not in dataIn:
-                dataIn["H2O_SPECIES"] = copy.deepcopy(data2["SPECIES"])
+                if data2 is not None:
+                    dataIn["H2O_SPECIES"] = copy.deepcopy(data2["SPECIES"])
 
             if "H2O_CONSTRAINTVECTOR" not in dataIn:
-                dataIn["H2O_CONSTRAINTVECTOR"] = data2["CONSTRAINTVECTOR"]
+                if data2 is not None:
+                    dataIn["H2O_CONSTRAINTVECTOR"] = data2["CONSTRAINTVECTOR"]
 
             # v08 bias correction. Retain the retrieved HDO value as hdo_original.
             # AT_LINE 595 Lite/products_add_fields.pro
@@ -1325,7 +1332,7 @@ class CdfWriteLiteTes:
             # there are a very small # of cases where the AK has too many fill values
             # don't take these out or will mess up alignment, but set VMR values to fill
             if (dataIn["averagingkernel".upper()][20, 20] < -990) or (
-                data2["averagingkernel".upper()][20, 20] < -990
+                data2 is not None and data2["averagingkernel".upper()][20, 20] < -990
             ):
                 if "run".upper() in dataIn:
                     raise RuntimeError("Not implemented")
@@ -1371,7 +1378,8 @@ class CdfWriteLiteTes:
                     / dataIn["constraintVector".upper()][indp[0 : len(indp) - 1]]
                 )
                 if np.amax(test1) > 1000:
-                    data2["Quality".upper()] = 0
+                    if data2 is not None:
+                        data2["Quality".upper()] = 0
                     dataIn["Quality".upper()] = 0
                     count = count + 1
 
@@ -1382,12 +1390,14 @@ class CdfWriteLiteTes:
             if len(indp) > 0:
                 test = np.where(dataIn["constraintVector".upper()][indp] <= 1e-16)[0]
                 if len(test) > 0:
-                    data2["Quality".upper()] = 0
+                    if data2 is not None:
+                        data2["Quality".upper()] = 0
                     dataIn["Quality".upper()] = 0
                     count = count + 1
 
             # have to calculate RH on 66-level grid, as T and H2O have different
             # retrieval levels.
+            assert data2 is not None
             dataIn["tatm".upper()] = copy.deepcopy(data2["species".upper()])
             dataIn["h2o".upper()] = copy.deepcopy(dataIn["species".upper()])
             indp = np.where(data2["pressure".upper()] > 0)[0]
@@ -1398,7 +1408,6 @@ class CdfWriteLiteTes:
             RH = np.zeros(shape=(num_pressures), dtype=np.float32)
             RH_xa = np.zeros(shape=(num_pressures), dtype=np.float32)
             dRHdT = np.zeros(shape=(num_pressures), dtype=np.float64)
-            dRHdlnH2O = np.zeros(shape=(num_pressures), dtype=np.float64)
             TATM_xa = data2["constraintVector".upper()][indp]
             H2O_xa = dataIn["constraintVector".upper()][indp]
 
@@ -1515,8 +1524,7 @@ class CdfWriteLiteTes:
 
             # H2O and TATM propagated errors
             dRHdTMatrix = np.diag(dRHdT)
-            dRHdlnH2O = RH
-            dRHdlnH2OMatrix = np.diag(dRHdlnH2O)
+            dRHdlnH2OMatrix = np.diag(RH)
 
             temp_sum = np.matmul(
                 np.matmul(dRHdlnH2OMatrix, H2OTOTALERRORCOVARIANCE), dRHdlnH2OMatrix
@@ -1591,8 +1599,7 @@ class CdfWriteLiteTes:
                 dataIn["LANDFLAG".upper()][ind] = 1
             # end if 'SURFACETYPEFOOTPRINT' in dataIn:
         # end if 'landflag' not in dataIn:
-        # We may return more as I understand this code.
-        return (dataIn, data2)
+        return dataIn
 
 
 __all__ = ["CdfWriteLiteTes"]
