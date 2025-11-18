@@ -109,11 +109,6 @@ mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
 mpy_read_all_tes = partial(muses_py_wrapper_keep, "read_all_tes")
 
 # ---- Below are things to replace ----
-# Used in cloud_result_summary, we need to replace
-mpy_get_one_map = partial(muses_py_wrapper, "get_one_map")
-mpy_ccurve_jessica = partial(muses_py_wrapper, "ccurve_jessica")
-mpy_quality_deviation = partial(muses_py_wrapper, "quality_deviation")
-
 # Used in column_result_summary
 mpy_column = partial(muses_py_wrapper, "column")
 
@@ -205,14 +200,9 @@ mpy_get_tropomi_ils = partial(muses_py_wrapper, "get_tropomi_ils")
 mpy_get_omi_ils_fastconv = partial(muses_py_wrapper, "get_omi_ils_fastconv")
 mpy_get_tropomi_ils_fastconv = partial(muses_py_wrapper, "get_tropomi_ils_fastconv")
 
-mpy_products_cleanup = partial(muses_py_wrapper, "products_cleanup")
 mpy_products_add_fields = partial(muses_py_wrapper, "products_add_fields")
 mpy_products_map_pressures = partial(muses_py_wrapper, "products_map_pressures")
-mpy_products_combine_hdo = partial(muses_py_wrapper, "products_combine_hdo")
 mpy_products_add_rtvmr = partial(muses_py_wrapper, "products_add_rtvmr")
-mpy_products_set_quality = partial(muses_py_wrapper, "products_set_quality")
-mpy_read_all_tes_cache = partial(muses_py_wrapper, "read_all_tes_cache")
-mpy_tes_file_get_struct = partial(muses_py_wrapper, "tes_file_get_struct")
 
 # Functions we can keep
 __all__ = [
@@ -259,7 +249,6 @@ __all__ = [
 # Ones we want to replace
 __all__.extend(
     [
-        "mpy_ccurve_jessica",
         "mpy_cdf_read_tes_frequency",
         "mpy_column",
         "mpy_emis_source_citation",
@@ -267,7 +256,6 @@ __all__.extend(
         "mpy_get_omi_ils",
         "mpy_get_omi_ils_fastconv",
         "mpy_get_omi_o3xsec",
-        "mpy_get_one_map",
         "mpy_get_tropomi_ils",
         "mpy_get_tropomi_ils_fastconv",
         "mpy_get_tropomi_o3xsec",
@@ -279,7 +267,6 @@ __all__.extend(
         "mpy_mw_frequency_needed",
         "mpy_my_interpolate",
         "mpy_my_total",
-        "mpy_quality_deviation",
         "mpy_radiance_apodize",
         "mpy_read_airs_l1b",
         "mpy_read_nasa_cris_fsr",
