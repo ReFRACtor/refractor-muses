@@ -137,3 +137,10 @@ def test_capture_airs_irk(isolated_dir, osp_dir, gmao_dir, airs_irk_test_in_dir)
     r = MusesRunDir(airs_irk_test_in_dir, osp_dir, gmao_dir, skip_obs_link=True)
     rs = RetrievalStrategy(None)
     run_capture(rs, r.run_dir, airs_irk_test_in_dir)
+
+
+@pytest.mark.capture_test
+def test_capture_tes(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
+    r = MusesRunDir(tes_test_in_dir, osp_dir, gmao_dir, skip_obs_link=True)
+    rs = RetrievalStrategy(None)
+    run_capture(rs, r.run_dir, tes_test_in_dir)

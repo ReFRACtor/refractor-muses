@@ -23,7 +23,8 @@ if not have_muses_py:
     def __getattr__(name: str) -> Any:
         raise NameError("py_retrieve is not available, so can't import '%s'" % name)
 
-if not have_muses_py:    
+
+if not have_muses_py:
     pyoss_dir = "no_py_retrieve"
 
 # Modules in py-retrieve that don't actually load correctly, or that

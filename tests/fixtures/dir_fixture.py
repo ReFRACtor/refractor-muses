@@ -90,6 +90,11 @@ def tes_test_expected_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def tes_test_expected_retrieval_output_dir(test_base_path):
+    return test_base_path / "tes/expected/sounding_1_retrieval_output"
+
+
+@pytest.fixture(scope="session")
 def tropomi_band7_test_in_dir(test_base_path):
     return test_base_path / "tropomi_band7/in/sounding_1"
 
@@ -135,6 +140,11 @@ def joint_tropomi_test_expected_dir(test_base_path):
 
 
 @pytest.fixture(scope="session")
+def joint_tropomi_test_expected_retrieval_output_dir(test_base_path):
+    return test_base_path / "cris_tropomi/expected/sounding_1_retrieval_output"
+
+
+@pytest.fixture(scope="session")
 def joint_tropomi_test_refractor_expected_dir(test_base_path):
     return test_base_path / "cris_tropomi/expected/sounding_1_refractor"
 
@@ -147,6 +157,11 @@ def joint_omi_test_in_dir(test_base_path):
 @pytest.fixture(scope="session")
 def joint_omi_test_expected_dir(test_base_path):
     return test_base_path / "airs_omi/expected/sounding_1"
+
+
+@pytest.fixture(scope="session")
+def joint_omi_test_expected_retrieval_output_dir(test_base_path):
+    return test_base_path / "airs_omi/expected/sounding_1_retrieval_output"
 
 
 @pytest.fixture(scope="session")
@@ -167,6 +182,11 @@ def airs_irk_test_in_dir(test_base_path):
 @pytest.fixture(scope="session")
 def airs_irk_test_expected_dir(test_base_path):
     return test_base_path / "airs_omi/expected/sounding_1_irk"
+
+
+@pytest.fixture(scope="session")
+def airs_irk_test_expected_retrieval_output_dir(test_base_path):
+    return test_base_path / "airs_omi/expected/sounding_1_irk_retrieval_output"
 
 
 @pytest.fixture(scope="session")

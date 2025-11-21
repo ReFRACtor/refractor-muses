@@ -14,6 +14,14 @@ from refractor.muses import (
 import pytest
 from pathlib import Path
 
+# ---------------------------------------------------------------------
+# Note that it is hard to fully test the output generation, the code is
+# very coupled. It would be good to rewrite this at some point, but for
+# now we really can only fully test everything in full runs. We have
+# some tests in end_to_end/retrieval_output_end_to_end_test, you can try
+# running that to more fully tests this
+# ---------------------------------------------------------------------
+
 
 @pytest.fixture(scope="function")
 def joint_tropomi_output(
