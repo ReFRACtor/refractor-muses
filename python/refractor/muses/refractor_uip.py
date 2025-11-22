@@ -1631,6 +1631,26 @@ class RefractorUip:
 
         self.uip = o_uip.as_dict(o_uip)
 
+    def setup_oss(self):
+        '''We sometimes create a UIP and never use it for a OSS forward model. This
+        doesn't normally happen in an actual retrieval, but occurs in unit tests
+        (e.g., the retrieval_output_end_to_end_test tests). The setup of the OSS
+        take a little time. We are talking only 3-4 seconds, but this adds up in a test
+        (e.g., Cris tropomi test calls this 10 times). This isn't huge, but is annoying
+        in a unit test. It isn't too hard  to just delay this on first use. So while we
+        use to do the setup in create_uip, now we delay this.
+
+        Note this can be called multiple times. We only do the setup if we haven't already
+        do it, so it is safe to just call this before doing any OSS call.'''
+        if "oss_dir_lut" in self.uip:
+            return
+        with osswrapper(self.uip) as owrap:
+            if owrap.oss_dir_lut is not None:
+                self.uip["oss_dir_lut"] = owrap.oss_dir_lut
+                self.uip["oss_jacobianList"] = owrap.oss_jacobianList
+                self.uip["oss_frequencyList"] = owrap.oss_frequencyList
+                self.uip["oss_frequencyListFull"] = owrap.oss_frequencyListFull
+
     @classmethod
     def create_uip(
         cls,
@@ -1956,14 +1976,6 @@ class RefractorUip:
                 uip[f"uip_{k}"]["jacobians"] = np.array(
                     list(dict.fromkeys(uip[f"uip_{k}"]["jacobians"]))
                 )
-
-        # Copy some of the oss stuff to the top level
-        with osswrapper(uip) as owrap:
-            if owrap.oss_dir_lut is not None:
-                uip["oss_dir_lut"] = owrap.oss_dir_lut
-                uip["oss_jacobianList"] = owrap.oss_jacobianList
-                uip["oss_frequencyList"] = owrap.oss_frequencyList
-                uip["oss_frequencyListFull"] = owrap.oss_frequencyListFull
 
         # Create instrument list
         uip["instrumentList"] = []

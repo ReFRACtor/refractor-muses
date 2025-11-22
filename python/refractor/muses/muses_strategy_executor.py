@@ -324,7 +324,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 if hasattr(obs, "muses_py_dict"):
                     o_xxx[str(iname)] = obs.muses_py_dict
         with muses_py_call(self.run_dir):
-            return RefractorUip.create_uip(
+            rf_uip = RefractorUip.create_uip(
                 fake_state_info,
                 fake_table,
                 mwin,
@@ -341,6 +341,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 only_create_instrument=instrument,
                 pointing_angle=pointing_angle,
             )
+            return rf_uip
 
     def create_forward_model(self) -> rf.ForwardModel:
         """Create a forward model for the current step."""

@@ -107,6 +107,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
+        self.rf_uip.setup_oss()
         with osswrapper(self.rf_uip.uip):
             rad, jac = mpy_fm_oss_stack(self.rf_uip.uip_all(self.instrument_name))
         # This is for the full set of frequences that fm_oss_stack works with
