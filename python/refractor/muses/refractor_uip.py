@@ -1631,7 +1631,7 @@ class RefractorUip:
 
         self.uip = o_uip.as_dict(o_uip)
 
-    def setup_oss(self):
+    def setup_oss(self) -> None:
         '''We sometimes create a UIP and never use it for a OSS forward model. This
         doesn't normally happen in an actual retrieval, but occurs in unit tests
         (e.g., the retrieval_output_end_to_end_test tests). The setup of the OSS

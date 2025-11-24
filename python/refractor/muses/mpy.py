@@ -109,8 +109,6 @@ mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
 mpy_read_all_tes = partial(muses_py_wrapper_keep, "read_all_tes")
 
 # ---- Below are things to replace ----
-# Used in column_result_summary
-mpy_column = partial(muses_py_wrapper, "column")
 
 # Used in error_analysis, should replace
 mpy_get_vector = partial(muses_py_wrapper, "get_vector")
@@ -244,7 +242,6 @@ __all__ = [
 __all__.extend(
     [
         "mpy_cdf_read_tes_frequency",
-        "mpy_column",
         "mpy_emis_source_citation",
         "mpy_get_emis_dispatcher",
         "mpy_get_omi_ils",

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .mpy import mpy_column
+from .muses_altitude_pge import MusesAltitudePge
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
@@ -127,18 +127,14 @@ class ColumnResultSummary:
 
                     mapType = retrievalInfo.mapType[ispecie]
 
-                    linear = 0
-                    if mapType.lower() == "linear":
-                        linear = 1
-                    if mapType.lower() == "linearpca":
-                        linear = 1
+                    linear = mapType.lower() in ("linear", "linearpca")
 
                     indSpecie = loc
                     indH2O = stateInfo.species.index("H2O")
                     indTATM = stateInfo.species.index("TATM")
 
                     # AT_LINE 357 Write_Retrieval_Summary.pro
-                    x = mpy_column(
+                    x = MusesAltitudePge.column(
                         stateInfo.constraint["values"][indSpecie, :],
                         stateInfo.constraint["pressure"],
                         stateInfo.constraint["values"][indTATM, :],
@@ -148,13 +144,12 @@ class ColumnResultSummary:
                         minPressure,
                         maxPressure,
                         linear,
-                        pge=None,
                     )
 
                     self._columnPrior[ij, indcol] = x["column"]
 
                     # AT_LINE 368 Write_Retrieval_Summary.pro
-                    x = mpy_column(
+                    x = MusesAltitudePge.column(
                         stateInfo.initial["values"][indSpecie, :],
                         stateInfo.initial["pressure"],
                         stateInfo.initial["values"][indTATM, :],
@@ -164,13 +159,12 @@ class ColumnResultSummary:
                         minPressure,
                         maxPressure,
                         linear,
-                        pge=None,
                     )
 
                     self._columnInitial[ij, indcol] = x["column"]
 
                     # AT_LINE 379 Write_Retrieval_Summary.pro
-                    x = mpy_column(
+                    x = MusesAltitudePge.column(
                         stateInfo.initialInitial["values"][indSpecie, :],
                         stateInfo.initialInitial["pressure"],
                         stateInfo.initialInitial["values"][indTATM, :],
@@ -180,13 +174,12 @@ class ColumnResultSummary:
                         minPressure,
                         maxPressure,
                         linear,
-                        pge=None,
                     )
 
                     self._columnInitialInitial[ij, indcol] = x["column"]
 
                     # AT_LINE 390 Write_Retrieval_Summary.pro
-                    x = mpy_column(
+                    x = MusesAltitudePge.column(
                         stateInfo.current["values"][indSpecie, :],
                         stateInfo.current["pressure"],
                         stateInfo.current["values"][indTATM, :],
@@ -196,14 +189,13 @@ class ColumnResultSummary:
                         minPressure,
                         maxPressure,
                         linear,
-                        pge=None,
                     )
 
                     self._column[ij, indcol] = x["column"]
 
                     # AT_LINE 400 Write_Retrieval_Summary.pro
                     # air column
-                    x = mpy_column(
+                    x = MusesAltitudePge.column(
                         stateInfo.current["values"][indSpecie, :] * 0 + 1,
                         stateInfo.current["pressure"],
                         stateInfo.current["values"][indTATM, :],
@@ -213,7 +205,6 @@ class ColumnResultSummary:
                         minPressure,
                         maxPressure,
                         linear,
-                        pge=None,
                     )
 
                     self._columnAir[ij] = x["columnAir"]
@@ -231,7 +222,7 @@ class ColumnResultSummary:
                     # true values
                     # only for synthetic data
                     if have_true:
-                        x = mpy_column(
+                        x = MusesAltitudePge.column(
                             stateInfo.true["values"][indSpecie, :],
                             stateInfo.true["pressure"],
                             stateInfo.true["values"][indTATM, :],
@@ -241,7 +232,6 @@ class ColumnResultSummary:
                             minPressure,
                             maxPressure,
                             linear,
-                            pge=None,
                         )
 
                         self._columnTrue[ij, indcol] = x["column"]
