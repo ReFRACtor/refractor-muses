@@ -1632,7 +1632,7 @@ class RefractorUip:
         self.uip = o_uip.as_dict(o_uip)
 
     def setup_oss(self) -> None:
-        '''We sometimes create a UIP and never use it for a OSS forward model. This
+        """We sometimes create a UIP and never use it for a OSS forward model. This
         doesn't normally happen in an actual retrieval, but occurs in unit tests
         (e.g., the retrieval_output_end_to_end_test tests). The setup of the OSS
         take a little time. We are talking only 3-4 seconds, but this adds up in a test
@@ -1641,7 +1641,7 @@ class RefractorUip:
         use to do the setup in create_uip, now we delay this.
 
         Note this can be called multiple times. We only do the setup if we haven't already
-        do it, so it is safe to just call this before doing any OSS call.'''
+        do it, so it is safe to just call this before doing any OSS call."""
         if "oss_dir_lut" in self.uip:
             return
         with osswrapper(self.uip) as owrap:

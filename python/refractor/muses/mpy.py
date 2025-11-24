@@ -114,25 +114,6 @@ mpy_read_all_tes = partial(muses_py_wrapper_keep, "read_all_tes")
 mpy_get_vector = partial(muses_py_wrapper, "get_vector")
 mpy_my_total = partial(muses_py_wrapper, "my_total")
 
-# Uses in muses_observation. It would be good to bring this over, but the input
-# code is fairly lengthy. We'll want to look at this at some point.
-mpy_read_airs_l1b = partial(muses_py_wrapper, "read_airs_l1b")
-mpy_read_tes_l1b = partial(muses_py_wrapper, "read_tes_l1b")
-mpy_radiance_apodize = partial(muses_py_wrapper, "radiance_apodize")
-mpy_cdf_read_tes_frequency = partial(muses_py_wrapper, "cdf_read_tes_frequency")
-mpy_read_noaa_cris_fsr = partial(muses_py_wrapper, "read_noaa_cris_fsr")
-mpy_read_nasa_cris_fsr = partial(muses_py_wrapper, "read_nasa_cris_fsr")
-mpy_read_tropomi = partial(muses_py_wrapper, "read_tropomi")
-mpy_read_tropomi_surface_altitude = partial(
-    muses_py_wrapper, "read_tropomi_surface_altitude"
-)
-mpy_read_omi = partial(muses_py_wrapper, "read_omi")
-
-# muses_optical_depth
-mpy_get_tropomi_o3xsec = partial(muses_py_wrapper, "get_tropomi_o3xsec")
-mpy_get_omi_o3xsec = partial(muses_py_wrapper, "get_omi_o3xsec")
-
-
 # osp_reader, should replace
 mpy_make_interpolation_matrix_susan = partial(
     muses_py_wrapper, "make_interpolation_matrix_susan"
@@ -147,6 +128,24 @@ mpy_struct_combine = partial(muses_py_wrapper, "struct_combine")
 # qa_data_handle, should replace
 mpy_write_quality_flags = partial(muses_py_wrapper, "write_quality_flags")
 
+# retrieval_array, should replace
+mpy_make_maps = partial(muses_py_wrapper, "make_maps")
+
+
+# Uses in muses_observation. It would be good to bring this over, but the input
+# code is fairly lengthy. We'll want to look at this at some point.
+mpy_read_airs_l1b = partial(muses_py_wrapper, "read_airs_l1b")
+mpy_read_tes_l1b = partial(muses_py_wrapper, "read_tes_l1b")
+mpy_radiance_apodize = partial(muses_py_wrapper, "radiance_apodize")
+mpy_cdf_read_tes_frequency = partial(muses_py_wrapper, "cdf_read_tes_frequency")
+mpy_read_noaa_cris_fsr = partial(muses_py_wrapper, "read_noaa_cris_fsr")
+mpy_read_nasa_cris_fsr = partial(muses_py_wrapper, "read_nasa_cris_fsr")
+mpy_read_tropomi = partial(muses_py_wrapper, "read_tropomi")
+mpy_read_tropomi_surface_altitude = partial(
+    muses_py_wrapper, "read_tropomi_surface_altitude"
+)
+mpy_read_omi = partial(muses_py_wrapper, "read_omi")
+
 # used in state_element_climatology
 mpy_make_interpolation_matrix_susan = partial(
     muses_py_wrapper, "make_interpolation_matrix_susan"
@@ -156,9 +155,6 @@ mpy_supplier_nh3_type_cris = partial(muses_py_wrapper, "supplier_nh3_type_cris")
 mpy_supplier_nh3_type_tes = partial(muses_py_wrapper, "supplier_nh3_type_tes")
 mpy_supplier_nh3_type_airs = partial(muses_py_wrapper, "supplier_nh3_type_airs")
 mpy_supplier_hcooh_type = partial(muses_py_wrapper, "supplier_hcooh_type")
-
-# retrieval_array, should replace
-mpy_make_maps = partial(muses_py_wrapper, "make_maps")
 
 
 # used in state_element_freq, should get replaced
@@ -246,10 +242,8 @@ __all__.extend(
         "mpy_get_emis_dispatcher",
         "mpy_get_omi_ils",
         "mpy_get_omi_ils_fastconv",
-        "mpy_get_omi_o3xsec",
         "mpy_get_tropomi_ils",
         "mpy_get_tropomi_ils_fastconv",
-        "mpy_get_tropomi_o3xsec",
         "mpy_get_vector",
         "mpy_idl_interpol_1d",
         "mpy_make_interpolation_matrix_susan",

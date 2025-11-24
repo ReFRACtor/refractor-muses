@@ -33,7 +33,9 @@ def cris_tropomi_old_shandle(
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
     if not have_muses_py:
-        pytest.skip("skipped because we don't have muses-py available, needed for this test")
+        pytest.skip(
+            "skipped because we don't have muses-py available, needed for this test"
+        )
     logger.remove()
     r = MusesRunDir(
         joint_tropomi_test_in_dir,
@@ -94,7 +96,9 @@ def tropomi_swir_old_shandle(
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
     if not have_muses_py:
-        pytest.skip("skipped because we don't have muses-py available, needed for this test")
+        pytest.skip(
+            "skipped because we don't have muses-py available, needed for this test"
+        )
     logger.remove()
     r = MusesRunDir(
         tropomi_band7_test_in_dir2,
@@ -148,7 +152,9 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
     if not have_muses_py:
-        pytest.skip("skipped because we don't have muses-py available, needed for this test")
+        pytest.skip(
+            "skipped because we don't have muses-py available, needed for this test"
+        )
     logger.remove()
     r = MusesRunDir(
         joint_omi_test_in_dir,
@@ -200,8 +206,11 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
         sinfo,
     )
 
+
 @pytest.fixture(scope="function")
-def airs_omi_old_shandle_ok_no_muses_py(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
+def airs_omi_old_shandle_ok_no_muses_py(
+    osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir
+):
     """Like airs_omi_old_shandle, but if we don't have muses-py we just skip the state
     element. Useful for tests that can run without actually have the old state element (e.g.,
     the various state_element_single_test etc.)."""
@@ -268,7 +277,9 @@ def tes_old_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
     if not have_muses_py:
-        pytest.skip("skipped because we don't have muses-py available, needed for this test")
+        pytest.skip(
+            "skipped because we don't have muses-py available, needed for this test"
+        )
     logger.remove()
     r = MusesRunDir(
         tes_test_in_dir,

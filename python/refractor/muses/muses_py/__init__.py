@@ -5,7 +5,7 @@
 # would get a serious reorganization.
 
 try:
-    #raise ImportError()
+    # raise ImportError()
     import py_retrieve.app  # type: ignore
 
     have_muses_py = True

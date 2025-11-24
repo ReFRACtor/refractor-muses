@@ -5,6 +5,7 @@ import sys
 import scipy
 from typing import Any
 
+
 class MusesAltitudePge:
     """We already have height objects in our ReFRACtor forward model, but muses-py
     had it own calculation of this. So we can match old data, we duplicate this
@@ -242,113 +243,140 @@ class MusesAltitudePge:
         return res
 
     def column_integrate(
-            self,
-            vmr : np.ndarray,
-            min_index : int =0,
-            max_index : int =0,
-            linear_flag : bool=False) -> dict[str, Any]:
+        self,
+        vmr: np.ndarray,
+        min_index: int = 0,
+        max_index: int = 0,
+        linear_flag: bool = False,
+    ) -> dict[str, Any]:
         if max_index == 0:
             max_index = len(self.altitude) - 1
 
-        if max_index > len(self.altitude)-1:
+        if max_index > len(self.altitude) - 1:
             raise RuntimeError("max_index must be less than number altitude elements")
 
         columnAirTotal = 0
         columnTotal = 0
-        columnLayer = np.zeros(shape=(len(self.altitude)-1), dtype=np.float32)
-        columnAirLayer = np.zeros(shape=(len(self.altitude)-1), dtype=np.float32)
-        vmrLayer = np.zeros(shape=(len(self.altitude)-1), dtype=np.float32)
+        columnLayer = np.zeros(shape=(len(self.altitude) - 1), dtype=np.float32)
+        columnAirLayer = np.zeros(shape=(len(self.altitude) - 1), dtype=np.float32)
+        vmrLayer = np.zeros(shape=(len(self.altitude) - 1), dtype=np.float32)
 
-        for jj in range(min_index+1, max_index+1):
-            x1 = self.air_density[jj-1] * np.float64(vmr[jj-1])
-            x2 = self.air_density[jj] * np.float64(vmr[jj])        
+        for jj in range(min_index + 1, max_index + 1):
+            x1 = self.air_density[jj - 1] * np.float64(vmr[jj - 1])
+            x2 = self.air_density[jj] * np.float64(vmr[jj])
             dz = self.altitude[jj] - self.altitude[jj - 1]
-            dz *= 100 # Convert to centimeters
+            dz *= 100  # Convert to centimeters
             if x1 == x2:
                 x1 = x2 * 1.0001
 
             # column for species
-            columnLayer[jj - 1] = dz / np.log(np.abs(x1 / x2)) * (x1-x2)
+            columnLayer[jj - 1] = dz / np.log(np.abs(x1 / x2)) * (x1 - x2)
 
             # column for air
-            x1d = self.air_density[jj-1]
+            x1d = self.air_density[jj - 1]
             x2d = self.air_density[jj]
-            columnAirLayer[jj-1] = dz / np.log(np.abs(x1d / x2d)) * (x1d-x2d)
+            columnAirLayer[jj - 1] = dz / np.log(np.abs(x1d / x2d)) * (x1d - x2d)
 
             if linear_flag:
-                HV = (vmr[jj] - vmr[jj-1]) / dz
-                HP = (np.log(x2d, dtype=np.float64) - np.log(x1d, dtype=np.float64)) / dz
+                HV = (vmr[jj] - vmr[jj - 1]) / dz
+                HP = (
+                    np.log(x2d, dtype=np.float64) - np.log(x1d, dtype=np.float64)
+                ) / dz
 
-                # sometimes HP will be very small, i.e. practically 0.0 and that trips the calculation below   
+                # sometimes HP will be very small, i.e. practically 0.0 and that trips the calculation below
                 if HP == 0.0:
                     HP = sys.float_info.min
 
                 # override log calculations
-                columnLayer[jj-1] = (x2-x1) / HP - HV * (x2d-x1d) / HP / HP
+                columnLayer[jj - 1] = (x2 - x1) / HP - HV * (x2d - x1d) / HP / HP
             # end: if linear_flag:
 
-            columnAirTotal = columnAirTotal + columnAirLayer[jj-1]
-            columnTotal = columnTotal + columnLayer[jj-1]
-            vmrLayer[jj-1] = columnLayer[jj-1] / columnAirLayer[jj-1]
-            if not np.isfinite(columnLayer[jj-1]):
+            columnAirTotal = columnAirTotal + columnAirLayer[jj - 1]
+            columnTotal = columnTotal + columnLayer[jj - 1]
+            vmrLayer[jj - 1] = columnLayer[jj - 1] / columnAirLayer[jj - 1]
+            if not np.isfinite(columnLayer[jj - 1]):
                 raise RuntimeError("NaN in column")
 
         n = len(vmr)
-        derivative = np.zeros(shape=(n), dtype=np.float64) # derivative of dcolumn/dvmr
-        level_to_layer = np.zeros(shape=(n, n-1), dtype=np.float64) # map from levels to layers
+        derivative = np.zeros(shape=(n), dtype=np.float64)  # derivative of dcolumn/dvmr
+        level_to_layer = np.zeros(
+            shape=(n, n - 1), dtype=np.float64
+        )  # map from levels to layers
 
         for jj in range(1, n):
-            x1 = self.air_density[jj-1] * vmr[jj-1]
+            x1 = self.air_density[jj - 1] * vmr[jj - 1]
             x2 = self.air_density[jj] * vmr[jj]
-            dz = self.altitude[jj] - self.altitude[jj-1]
-            dz *= 100 # Convert to centimeters
+            dz = self.altitude[jj] - self.altitude[jj - 1]
+            dz *= 100  # Convert to centimeters
 
-            term1 = np.log(np.abs(x1/x2))
+            term1 = np.log(np.abs(x1 / x2))
             term2 = x1 - x2
-            derivative[jj] = derivative[jj] - dz / term1 * self.air_density[jj] + dz / term1 / term1 * term2 / vmr[jj]
-            derivative[jj-1] = derivative[jj-1] + dz / term1 * self.air_density[jj-1] - dz / term1 / term1 * term2 / vmr[jj-1]
+            derivative[jj] = (
+                derivative[jj]
+                - dz / term1 * self.air_density[jj]
+                + dz / term1 / term1 * term2 / vmr[jj]
+            )
+            derivative[jj - 1] = (
+                derivative[jj - 1]
+                + dz / term1 * self.air_density[jj - 1]
+                - dz / term1 / term1 * term2 / vmr[jj - 1]
+            )
 
-            # since above is d(column gas)/dvmr, change to 
+            # since above is d(column gas)/dvmr, change to
             # d(layer # vmr) / d(levelvmr) by dividing by the air density for this layer.
-            # air density for this layer: take above column measurements where vmr = 1.  
+            # air density for this layer: take above column measurements where vmr = 1.
             # The dz cancels
-            x1d = self.air_density[jj-1]
+            x1d = self.air_density[jj - 1]
             x2d = self.air_density[jj]
-            factor = np.log(np.abs(x1d/x2d))/(x1d-x2d)
+            factor = np.log(np.abs(x1d / x2d)) / (x1d - x2d)
 
-            level_to_layer[jj, jj-1] = level_to_layer[jj, jj-1] + (1/term1/term1*term2/vmr[jj] - 1/term1*self.air_density[jj])*factor
-            level_to_layer[jj-1, jj-1] = level_to_layer[jj-1, jj-1] + (1/term1*self.air_density[jj-1] - 1/term1/term1*term2/vmr[jj-1])*factor
+            level_to_layer[jj, jj - 1] = (
+                level_to_layer[jj, jj - 1]
+                + (
+                    1 / term1 / term1 * term2 / vmr[jj]
+                    - 1 / term1 * self.air_density[jj]
+                )
+                * factor
+            )
+            level_to_layer[jj - 1, jj - 1] = (
+                level_to_layer[jj - 1, jj - 1]
+                + (
+                    1 / term1 * self.air_density[jj - 1]
+                    - 1 / term1 / term1 * term2 / vmr[jj - 1]
+                )
+                * factor
+            )
 
         derivativeLayer = np.matmul(derivative, level_to_layer)
 
         result = {
-            'columnLayer': columnLayer,       
-            'column': columnTotal,       
-            'derivative': derivative,        
-            'level_to_layer': level_to_layer, 
-            'derivativeLayer': derivativeLayer,
-            'columnAirLayer': columnAirLayer, 
-            'columnAir': columnAirTotal
-        } 
+            "columnLayer": columnLayer,
+            "column": columnTotal,
+            "derivative": derivative,
+            "level_to_layer": level_to_layer,
+            "derivativeLayer": derivativeLayer,
+            "columnAirLayer": columnAirLayer,
+            "columnAir": columnAirTotal,
+        }
 
         return result
-    
 
     # This can almost just be a member function of MusesAltitudePge. But we may adjust
     # the layers, adding some if needed. So instead, we have this as a class method since
     # it is so closely related.
     @classmethod
     def column(
-            cls,
-            vmr_in : np.ndarray,
-            pressure_in: np.ndarray,
-            tatm_in: np.ndarray,
-            h2o_in : np.ndarray,
-            surface_altitude : float,
-            latitude : float,
-            min_pressure : float | None=None,
-            max_pressure : float | None=None,
-            linear : bool = False) -> dict[str, Any]:
+        cls,
+        vmr_in: np.ndarray,
+        pressure_in: np.ndarray,
+        tatm_in: np.ndarray,
+        h2o_in: np.ndarray,
+        surface_altitude: float,
+        latitude: float,
+        min_pressure: float | None = None,
+        max_pressure: float | None = None,
+        linear: bool = False,
+    ) -> dict[str, Any]:
         # We may add layers if needed, so copy input in case we change it.
         pressure = pressure_in.copy()
         vmr = vmr_in.copy()
@@ -383,52 +411,72 @@ class MusesAltitudePge:
             # note need to make changes if layervmr=1
             pressure0 = np.copy(pressure)
             ind = np.where(pressure > max_pressure)[0]
-            from_max_pres = pressure[np.amax(ind)+1:]
+            from_max_pres = pressure[np.amax(ind) + 1 :]
             pressure = pressure[ind]
             pressure = np.append(pressure, max_pressure)
             pressure = np.append(pressure, from_max_pres)
             tatm = idl_interpol_1d(tatm, np.log(pressure0), np.log(pressure))
-            h2o = np.exp(idl_interpol_1d(np.log(h2o), np.log(pressure0), np.log(pressure)))
+            h2o = np.exp(
+                idl_interpol_1d(np.log(h2o), np.log(pressure0), np.log(pressure))
+            )
 
             if linear:
                 vmr = idl_interpol_1d(vmr, np.log(pressure0), np.log(pressure))
             else:
-                vmr = np.exp(idl_interpol_1d(np.log(vmr), np.log(pressure0), np.log(pressure)))
+                vmr = np.exp(
+                    idl_interpol_1d(np.log(vmr), np.log(pressure0), np.log(pressure))
+                )
 
         if mindp > 0.1:
             # add in new pressure, interpolate to it
             pressure0 = pressure.copy()  # Make a copy and leave original pressure alone because we will be modifying the left hand side.
             ind = np.where(pressure > min_pressure)[0]
-            if len(ind) == 0:  # min_pressure could be e.g. 500, larger than 485, a possible surface pressure, so use surface value so as not to get an error.
+            if (
+                len(ind) == 0
+            ):  # min_pressure could be e.g. 500, larger than 485, a possible surface pressure, so use surface value so as not to get an error.
                 ind = np.array([0])
-            from_max_pres = pressure[np.amax(ind)+1:]  # Get a view of portion of pressure array this before it gets destroyed.
+            from_max_pres = pressure[
+                np.amax(ind) + 1 :
+            ]  # Get a view of portion of pressure array this before it gets destroyed.
 
             pressure = pressure[ind]
             pressure = np.append(pressure, min_pressure)
             pressure = np.append(pressure, from_max_pres)
 
             tatm = idl_interpol_1d(tatm, np.log(pressure0), np.log(pressure))
-            h2o = np.exp(idl_interpol_1d(np.log(h2o), np.log(pressure0), np.log(pressure)))
+            h2o = np.exp(
+                idl_interpol_1d(np.log(h2o), np.log(pressure0), np.log(pressure))
+            )
 
             if linear:
                 vmr = idl_interpol_1d(vmr, np.log(pressure0), np.log(pressure))
             else:
-                vmr = np.exp(idl_interpol_1d(np.log(vmr), np.log(pressure0), np.log(pressure)))
+                vmr = np.exp(
+                    idl_interpol_1d(np.log(vmr), np.log(pressure0), np.log(pressure))
+                )
 
         ind_max = int(np.argmin(np.abs(min_pressure - pressure)))
         ind_min = int(np.argmin(np.abs(max_pressure - pressure)))
 
-        result = MusesAltitudePge(pressure, tatm, h2o, surface_altitude, latitude, tes_pge=True)
+        result = MusesAltitudePge(
+            pressure, tatm, h2o, surface_altitude, latitude, tes_pge=True
+        )
 
         result2 = result.column_integrate(
-            vmr, min_index=ind_min, max_index=ind_max, linear_flag=linear)
+            vmr, min_index=ind_min, max_index=ind_max, linear_flag=linear
+        )
 
-        myresult = result.__dict__ |  result2
+        myresult = result.__dict__ | result2
 
         return myresult
 
 
-def idl_interpol_1d(i_vector: np.ndarray, i_abscissaValues : np.ndarray, i_abscissaResult : np.ndarray) -> np.ndarray:
-    return scipy.interpolate.interp1d(i_abscissaValues, i_vector, fill_value="extrapolate")(i_abscissaResult)
+def idl_interpol_1d(
+    i_vector: np.ndarray, i_abscissaValues: np.ndarray, i_abscissaResult: np.ndarray
+) -> np.ndarray:
+    return scipy.interpolate.interp1d(
+        i_abscissaValues, i_vector, fill_value="extrapolate"
+    )(i_abscissaResult)
+
 
 __all__ = ["MusesAltitudePge"]
