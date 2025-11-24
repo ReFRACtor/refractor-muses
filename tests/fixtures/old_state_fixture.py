@@ -20,6 +20,7 @@ from refractor.muses import (
     StateInfo,
 )
 from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
+from refractor.muses.muses_py import have_muses_py
 from loguru import logger
 import sys
 
@@ -31,6 +32,8 @@ def cris_tropomi_old_shandle(
     """Set up the old state info, and return a handle"""
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
+    if not have_muses_py:
+        pytest.skip("skipped because we don't have muses-py available, needed for this test")
     logger.remove()
     r = MusesRunDir(
         joint_tropomi_test_in_dir,
@@ -90,6 +93,8 @@ def tropomi_swir_old_shandle(
     """Set up the old state info, and return a handle"""
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
+    if not have_muses_py:
+        pytest.skip("skipped because we don't have muses-py available, needed for this test")
     logger.remove()
     r = MusesRunDir(
         tropomi_band7_test_in_dir2,
@@ -142,6 +147,8 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
     """Set up the old state info, and return a handle"""
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
+    if not have_muses_py:
+        pytest.skip("skipped because we don't have muses-py available, needed for this test")
     logger.remove()
     r = MusesRunDir(
         joint_omi_test_in_dir,
@@ -193,12 +200,75 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
         sinfo,
     )
 
+@pytest.fixture(scope="function")
+def airs_omi_old_shandle_ok_no_muses_py(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
+    """Like airs_omi_old_shandle, but if we don't have muses-py we just skip the state
+    element. Useful for tests that can run without actually have the old state element (e.g.,
+    the various state_element_single_test etc.)."""
+    # The setup is really noisy with the logger. Since we aren't actually testing this,
+    # suppress this just so we can see what we actually care about
+    logger.remove()
+    r = MusesRunDir(
+        joint_omi_test_in_dir,
+        osp_dir,
+        gmao_dir,
+    )
+    # The old state element stuff assumes it is in the run directory
+    os.chdir(r.run_dir)
+    tfilename = r.run_dir / "Table.asc"
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        tfilename, osp_dir=osp_dir, gmao_dir=gmao_dir
+    )
+    measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
+    strat = MusesStrategyStepList.create_from_strategy_file(tfilename, osp_dir=osp_dir)
+    strat.notify_update_target(measurement_id)
+    measurement_id.filter_list_dict = strat.filter_list_dict
+    obs_hset = ObservationHandleSet()
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("AIRS"), MusesAirsObservation
+        )
+    )
+    obs_hset.add_handle(
+        MusesObservationHandlePickleSave(
+            InstrumentIdentifier("OMI"), MusesOmiObservation
+        )
+    )
+    obs_hset.notify_update_target(measurement_id)
+    smeta = SoundingMetadata.create_from_measurement_id(
+        measurement_id,
+        strat.instrument_name[0],
+        obs_hset.observation(
+            strat.instrument_name[0], None, None, None, osp_dir=osp_dir
+        ),
+    )
+    h = None
+    if have_muses_py:
+        h = state_element_old_wrapper_handle
+        state_element_old_wrapper_handle.notify_update_target(
+            measurement_id, rconfig, strat, obs_hset, smeta
+        )
+    sinfo = StateInfo()
+    sinfo.notify_update_target(measurement_id, rconfig, strat, obs_hset)
+    logger.add(sys.stderr, level="DEBUG")
+    return (
+        h,
+        measurement_id,
+        rconfig,
+        strat,
+        obs_hset,
+        smeta,
+        sinfo,
+    )
+
 
 @pytest.fixture(scope="function")
 def tes_old_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
     """Set up the old state info, and return a handle"""
     # The setup is really noisy with the logger. Since we aren't actually testing this,
     # suppress this just so we can see what we actually care about
+    if not have_muses_py:
+        pytest.skip("skipped because we don't have muses-py available, needed for this test")
     logger.remove()
     r = MusesRunDir(
         tes_test_in_dir,
