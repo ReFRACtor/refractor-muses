@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .mpy import mpy_my_total, mpy_fm_oss_stack, mpy_tropomi_fm, mpy_omi_fm
+from .mpy import mpy_fm_oss_stack, mpy_tropomi_fm, mpy_omi_fm
 from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
 from .refractor_capture_directory import muses_py_call
@@ -435,7 +435,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             & (frequency <= self.irk_average_freq_range[1])
         )[0]
 
-        irk_array = 1e4 * np.pi * mpy_my_total(jacWeighted[:, indf], 1)
+        irk_array = 1e4 * np.pi * self.my_total(jacWeighted[:, indf], True)
 
         minn, maxx = self.flux_freq_range
 
@@ -450,7 +450,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             if (
                 len(ind) > 1
             ):  # We only calculate irk_segs and freq_segs if there are more than 1 values in ind vector.
-                irk_segs[:, ii] = 1e4 * np.pi * mpy_my_total(jacWeighted[:, ind], 1)
+                irk_segs[:, ii] = 1e4 * np.pi * self.my_total(jacWeighted[:, ind], True)
                 freq_segs[ii] = np.mean(frequency[ind])
         # end for ii in range(nf):
 
@@ -571,6 +571,16 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             )  # o_results_irk
         # end for ispecies in range(len(jacobian_speciesIn)):
         return o_results_irk
+
+    def my_total(self, matrix_in: np.ndarray, ave_index: bool = False) -> np.ndarray:
+        size_out = matrix_in.shape[0] if ave_index else matrix_in.shape[1]
+        arrayOut = np.ndarray(shape=(size_out,), dtype=np.float64)
+        for ii in range(size_out):
+            my_vector = matrix_in[ii, :] if ave_index else matrix_in[:, ii]
+            # Filter our -999 values
+            val = np.sum(my_vector[np.abs(my_vector - (-999)) > 0.1])
+            arrayOut[ii] = val
+        return arrayOut
 
     def _find_bin(self, x: float, y: np.ndarray) -> np.ndarray:
         # IDL_LEGACY_NOTE: This function _find_bin is the same as findbin in run_irk.pro file.

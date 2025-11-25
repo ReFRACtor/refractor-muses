@@ -39,30 +39,27 @@ mpy_fm_oss_stack = partial(muses_py_wrapper_keep, "fm_oss_stack")
 mpy_tropomi_fm = partial(muses_py_wrapper_keep, "tropomi_fm")
 mpy_omi_fm = partial(muses_py_wrapper_keep, "omi_fm")
 
-# This is used in muses_levmar_solver. I'm not sure, it would be nice to have this
-# in refractor so we don't require muses-py to solve. But at the same time, this is
-# a pretty central function in muses-py. For now, we import this.
-mpy_levmar_nllsq_elanor = partial(muses_py_wrapper_keep, "levmar_nllsq_elanor")
-
-# muses_spectral_window - these are used for comparison code and can stay
+# Used in muses_spectral_window - these are used for comparison code only and can stay
 mpy_table_get_spectral_filename = partial(
     muses_py_wrapper_keep, "table_get_spectral_filename"
 )
 mpy_table_new_mw_from_step = partial(muses_py_wrapper_keep, "table_new_mw_from_step")
 mpy_radiance_get_indices = partial(muses_py_wrapper_keep, "radiance_get_indices")
 
-# order_species, we can keep this as we have a work around for muses_py not being available
+# Used by order_species, we can keep this as we have a work around for
+# muses_py not being available
 mpy_ordered_species_list = partial(muses_py_wrapper_keep, "ordered_species_list")
 mpy_atmospheric_species_list = partial(
     muses_py_wrapper_keep, "atmospheric_species_list"
 )
 
-# retrieval_output, only used to create the data file so we can keep these
+# Used by retrieval_output, only used to create internal data files so
+# we can keep these
 mpy_cdf_var_attributes = muses_py.cdf_var_attributes if have_muses_py else {}
 mpy_cdf_var_names = partial(muses_py_wrapper_keep, "cdf_var_names")
 mpy_cdf_var_map = partial(muses_py_wrapper_keep, "cdf_var_map")
 
-# osswrapper, can keep
+# Used in osswrapper, can keep
 mpy_register_observer_function = partial(
     muses_py_wrapper_keep, "register_observer_function"
 )
@@ -70,10 +67,8 @@ mpy_pyoss_dir = muses_py.pyoss_dir if have_muses_py else ""
 mpy_fm_oss_init = partial(muses_py_wrapper_keep, "fm_oss_init")
 mpy_fm_oss_windows = partial(muses_py_wrapper_keep, "fm_oss_windows")
 mpy_fm_oss_delete = partial(muses_py_wrapper_keep, "fm_oss_delete")
-# refractor_capture_directory, have handling for no muses_py so we can keep
-mpy_cli_options = muses_py.cli_options if have_muses_py else None
 
-# refractor_uip. We can keep all this, only use UIP for old muses-py forward models.
+# Used by refractor_uip. We can keep all this, only use UIP for old muses-py forward models.
 mpy_update_uip = partial(muses_py_wrapper_keep, "update_uip")
 mpy_script_retrieval_ms = partial(muses_py_wrapper_keep, "script_retrieval_ms")
 mpy_get_omi_radiance = partial(muses_py_wrapper_keep, "get_omi_radiance")
@@ -93,26 +88,32 @@ mpy_make_uip_omi = partial(muses_py_wrapper_keep, "make_uip_omi")
 mpy_make_uip_tropomi = partial(muses_py_wrapper_keep, "make_uip_tropomi")
 mpy_make_uip_oco2 = partial(muses_py_wrapper_keep, "make_uip_oco2")
 
-# retrieval_strategy - can keep as we only call with have_muses_py
+# Used in retrieval_strategy - can keep as we only call with have_muses_py
 mpy_register_replacement_function = partial(
     muses_py_wrapper_keep, "register_replacement_function"
 )
 
+# Used by refractor_capture_directory, have handling for no muses_py so we can keep
+mpy_cli_options = muses_py.cli_options if have_muses_py else None
+
 # Used by the various output classes. There should all get replaced, but
-# the code is a bit involved.
+# the code is a bit involved. I don't think these results get used actually,
+# so we may also just remove this.
 mpy_plot_results = partial(muses_py_wrapper_keep, "plot_results")
 mpy_plot_radiance = partial(muses_py_wrapper_keep, "plot_radiance")
 
-# Uses in tes file. We can keep this, it is optional reading using muses_py as a way to
+# Used in tes file. We can keep this, it is optional reading using muses_py as a way to
 # test our handling of the  tes files
 
 mpy_read_all_tes = partial(muses_py_wrapper_keep, "read_all_tes")
 
-# ---- Below are things to replace ----
+# This is used in muses_levmar_solver. I'm not sure, it would be nice to have this
+# in refractor so we don't require muses-py to solve. But at the same time, this is
+# a pretty central function in muses-py. For now, we import this.
 
-# Used in error_analysis, should replace
-mpy_get_vector = partial(muses_py_wrapper, "get_vector")
-mpy_my_total = partial(muses_py_wrapper, "my_total")
+mpy_levmar_nllsq_elanor = partial(muses_py_wrapper_keep, "levmar_nllsq_elanor")
+
+# ---- Below are things to replace ----
 
 # osp_reader, should replace
 mpy_make_interpolation_matrix_susan = partial(
@@ -129,7 +130,7 @@ mpy_write_quality_flags = partial(muses_py_wrapper, "write_quality_flags")
 mpy_make_maps = partial(muses_py_wrapper, "make_maps")
 
 
-# Uses in muses_observation. It would be good to bring this over, but the input
+# Used in muses_observation. It would be good to bring this over, but the input
 # code is fairly lengthy. We'll want to look at this at some point.
 mpy_read_airs_l1b = partial(muses_py_wrapper, "read_airs_l1b")
 mpy_read_tes_l1b = partial(muses_py_wrapper, "read_tes_l1b")
@@ -231,13 +232,11 @@ __all__.extend(
         "mpy_cdf_read_tes_frequency",
         "mpy_emis_source_citation",
         "mpy_get_emis_dispatcher",
-        "mpy_get_vector",
         "mpy_idl_interpol_1d",
         "mpy_make_interpolation_matrix_susan",
         "mpy_make_maps",
         "mpy_mw_frequency_needed",
         "mpy_my_interpolate",
-        "mpy_my_total",
         "mpy_radiance_apodize",
         "mpy_read_airs_l1b",
         "mpy_read_nasa_cris_fsr",

@@ -1,8 +1,4 @@
 from __future__ import annotations
-from .mpy import (
-    mpy_get_vector,
-    mpy_my_total,
-)
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .refractor_uip import AttrDictAdapter
@@ -115,33 +111,21 @@ class ErrorAnalysis:
 
         ret_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
         con_vector = np.zeros(shape=(retrieval.n_totalParametersFM), dtype=np.float64)
-        FM_Flag = True
-        INITIAL_Flag = True
-        TRUE_Flag = False
-        CONSTRAINT_Flag = False
 
         for ispecie in range(retrieval.n_species):
             species_name = retrieval.species[ispecie]
             ind1FM = retrieval.parameterStartFM[ispecie]
             ind2FM = retrieval.parameterEndFM[ispecie]
 
-            ret_vector[ind1FM : ind2FM + 1] = mpy_get_vector(
+            ret_vector[ind1FM : ind2FM + 1] = self.get_vector(
                 retrieval_result.resultsList,
                 retrieval,
                 species_name,
-                FM_Flag,
-                INITIAL_Flag,
-                TRUE_Flag,
-                CONSTRAINT_Flag,
             )
-            con_vector[ind1FM : ind2FM + 1] = mpy_get_vector(
+            con_vector[ind1FM : ind2FM + 1] = self.get_vector(
                 retrieval.constraintVector,
                 retrieval,
                 species_name,
-                FM_Flag,
-                INITIAL_Flag,
-                TRUE_Flag,
-                CONSTRAINT_Flag,
             )
 
             if (
@@ -265,7 +249,7 @@ class ErrorAnalysis:
             indMe0 = np.where(species_list_fs == species)[0]
 
             if len(indMe0) > 1:
-                ss = mpy_my_total(abs(Sa[indMe0, :]), 0)
+                ss = self.my_total(abs(Sa[indMe0, :]), False)
                 indMe = np.where(ss > 0)[0]
                 indYou = np.where(ss == 0)[0]
             else:
@@ -710,6 +694,92 @@ class ErrorAnalysis:
     @property
     def ch4_evs(self) -> np.ndarray:
         return self._ch4_evs
+
+    def my_total(self, matrix_in: np.ndarray, ave_index: bool = False) -> np.ndarray:
+        size_out = matrix_in.shape[0] if ave_index else matrix_in.shape[1]
+        arrayOut = np.ndarray(shape=(size_out,), dtype=np.float64)
+        for ii in range(size_out):
+            my_vector = matrix_in[ii, :] if ave_index else matrix_in[:, ii]
+            # Filter our -999 values
+            val = np.sum(my_vector[np.abs(my_vector - (-999)) > 0.1])
+            arrayOut[ii] = val
+        return arrayOut
+
+    def get_vector(
+        self,
+        i_vector: np.ndarray,
+        i_retrieval: FakeRetrievalInfo,
+        i_species: str,
+    ) -> np.ndarray:
+        ii = i_retrieval.species.index(i_species)
+        nn = i_retrieval.n_parametersFM[ii]
+        mm = i_retrieval.n_parameters[ii]
+
+        start = i_retrieval.parameterStart[ii]
+        endd = i_retrieval.parameterEnd[ii]
+
+        startFM = i_retrieval.parameterStartFM[ii]
+        endFM = i_retrieval.parameterEndFM[ii]
+        defaultUnretrievedValues = i_retrieval.initialGuessListFM[startFM : endFM + 1]
+
+        o_vector = np.asarray(i_vector[start : endd + 1])
+
+        if nn == 1 and mm == 1:
+            my_map = {"toState": np.asarray([1]), "toPars": np.asarray([1])}
+        else:
+            assert i_retrieval.mapToState is not None
+            assert i_retrieval.mapToParameters is not None
+            my_map = {
+                "toState": i_retrieval.mapToState[
+                    start : endd + 1, startFM : endFM + 1
+                ],
+                "toPars": i_retrieval.mapToParameters[
+                    startFM : endFM + 1, start : endd + 1
+                ],
+            }
+
+        if i_retrieval.mapType[ii].lower() == "log":
+            # TODO: Should we add TROPOMI to this condition to make it more obvious
+            if (
+                i_species in ("CLOUDEXT", "EMIS", "CALSCALE", "CALOFFSET")
+                or "TROPOMI" in i_species
+                or "OMI" in i_species
+            ):
+                vectorF = my_map["toState"].T @ o_vector
+                indRet = np.where(vectorF != 0)[0]
+                indDefault = np.where(vectorF == 0)[0]
+                # populate retrieved values
+                vectorF[indRet] = np.exp(my_map["toState"].T @ o_vector)[indRet]
+                # populate unretrieved values (get from initial guess)
+                if len(indDefault) > 0:
+                    vectorF[indDefault] = np.exp(defaultUnretrievedValues[indDefault])
+                if (
+                    i_species == "CLOUDEXT"
+                    and len(vectorF) >= 12
+                    and vectorF[1] == 0.01
+                ):
+                    raise RuntimeError("vectorF")
+                o_vector = vectorF
+            else:
+                o_vector = np.exp(my_map["toState"].T @ o_vector)
+        elif i_retrieval.mapType[ii].lower() == "linear":
+            o_vector = my_map["toState"].T @ o_vector
+        elif i_retrieval.mapType[ii].lower() == "linearscale":
+            xa = i_retrieval.constraintVectorListFM[startFM : endFM + 1]
+            o_vector = xa + o_vector[0]
+        elif i_retrieval.mapType[ii].lower() == "linearpca":
+            xa = i_retrieval.constraintVectorListFM[startFM : endFM + 1]
+            o_vector = xa + my_map["toState"].T @ o_vector
+        elif i_retrieval.mapType[ii].lower() == "logscale":
+            xa = i_retrieval.constraintVectorListFM[startFM : endFM + 1]
+            o_vector = xa * o_vector[0]
+        elif i_retrieval.mapType[ii].lower() == "logpca":
+            xa = i_retrieval.constraintVectorListFM[startFM : endFM + 1]
+            o_vector = np.exp(np.log(xa) + my_map["toState"].T @ o_vector)
+        else:
+            raise RuntimeError("Unknown map type")
+
+        return o_vector
 
 
 __all__ = [
