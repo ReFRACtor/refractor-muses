@@ -49,12 +49,6 @@ if _typing.TYPE_CHECKING:
         FullGrid2dArray,
     )
     from .misc import osp_setup
-    from .mpy import (
-        mpy_get_omi_ils,
-        mpy_get_tropomi_ils,
-        mpy_get_omi_ils_fastconv,
-        mpy_get_tropomi_ils_fastconv,
-    )
 
     from .muses_observation import (
         MeasurementId,

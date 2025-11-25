@@ -18,7 +18,6 @@ from .mpy import (
     mpy_make_uip_tropomi,
     mpy_make_uip_oco2,
     mpy_make_maps,
-    mpy_struct_combine,
 )
 
 from .replace_function_helper import register_replacement_function_in_block
@@ -37,6 +36,7 @@ from collections.abc import MutableMapping
 import copy
 from pathlib import Path
 import math
+import itertools
 from typing import Any, Generator, Self, Iterator, cast
 import typing
 
@@ -279,7 +279,16 @@ class RefractorUip:
         # uip_all
         if "jacobians" in self.uip:
             return self.uip
-        return mpy_struct_combine(self.uip, self.uip[f"uip_{instrument_name}"])
+        # This is similar to just d1 | d2, but the logic is a little different. In particular,
+        # the left side of duplicates is chosen rather than the right side, and some
+        # items are copied depending on the type.'''
+        res = {}
+        for k, v in itertools.chain(
+            self.uip.items(), self.uip[f"uip_{instrument_name}"].items()
+        ):
+            if k not in res:
+                res[k] = v.copy() if type(v) in (np.ndarray, list, dict) else v
+        return res
 
     @property
     def run_dir(self) -> Path:

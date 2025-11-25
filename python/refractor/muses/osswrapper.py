@@ -6,13 +6,14 @@ from .mpy import (
     mpy_fm_oss_init,
     mpy_fm_oss_windows,
     mpy_fm_oss_delete,
-    mpy_struct_combine,
 )
+import itertools
 from .replace_function_helper import suppress_replacement
 import os
 import copy
 from contextlib import contextmanager
 import sys
+import numpy as np
 from types import TracebackType
 from typing import Any, Self, Generator
 
@@ -129,7 +130,7 @@ class osswrapper:
                         # with some of our test data based on where we are
                         # in the processing.
                         self.uip.pop("frequencyList", None)
-                        uip_all = mpy_struct_combine(self.uip, self.uip[f"uip_{inst}"])
+                        uip_all = self.struct_combine(self.uip, self.uip[f"uip_{inst}"])
                         # Special handling for the first time through, working
                         # around what is a bug or "feature" of the OSS code
                         if osswrapper.first_oss_initialize:
@@ -178,6 +179,16 @@ class osswrapper:
             self.oss_frequencyList = None
             self.oss_frequencyListFull = None
         return self
+
+    def struct_combine(self, d1: dict[str, Any], d2: dict[str, Any]) -> dict[str, Any]:
+        """This is similar to just d1 | d2, but the logic is a little different. In particular,
+        the left side of duplicates is chosen rather than the right side, and some
+        items are copied depending on the type."""
+        res = {}
+        for k, v in itertools.chain(d1.items(), d2.items()):
+            if k not in res:
+                res[k] = v.copy() if type(v) in (np.ndarray, list, dict) else v
+        return res
 
     def __exit__(
         self,

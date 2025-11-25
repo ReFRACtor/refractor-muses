@@ -122,9 +122,6 @@ mpy_supplier_constraint_matrix_ssuba = partial(
     muses_py_wrapper, "supplier_constraint_matrix_ssuba"
 )
 
-
-mpy_struct_combine = partial(muses_py_wrapper, "struct_combine")
-
 # qa_data_handle, should replace
 mpy_write_quality_flags = partial(muses_py_wrapper, "write_quality_flags")
 
@@ -186,12 +183,6 @@ mpy_supplier_fm_pressures = partial(muses_py_wrapper, "supplier_fm_pressures")
 # Used in state_element_single, should get replaced
 mpy_my_interpolate = partial(muses_py_wrapper, "my_interpolate")
 
-# omi_fm_object_creator. Should replace, but is a bit of a long function.
-mpy_get_omi_ils = partial(muses_py_wrapper, "get_omi_ils")
-mpy_get_tropomi_ils = partial(muses_py_wrapper, "get_tropomi_ils")
-mpy_get_omi_ils_fastconv = partial(muses_py_wrapper, "get_omi_ils_fastconv")
-mpy_get_tropomi_ils_fastconv = partial(muses_py_wrapper, "get_tropomi_ils_fastconv")
-
 # Functions we can keep
 __all__ = [
     "mpy_atmosphere_level",
@@ -240,10 +231,6 @@ __all__.extend(
         "mpy_cdf_read_tes_frequency",
         "mpy_emis_source_citation",
         "mpy_get_emis_dispatcher",
-        "mpy_get_omi_ils",
-        "mpy_get_omi_ils_fastconv",
-        "mpy_get_tropomi_ils",
-        "mpy_get_tropomi_ils_fastconv",
         "mpy_get_vector",
         "mpy_idl_interpol_1d",
         "mpy_make_interpolation_matrix_susan",
@@ -259,7 +246,6 @@ __all__.extend(
         "mpy_read_tes_l1b",
         "mpy_read_tropomi",
         "mpy_read_tropomi_surface_altitude",
-        "mpy_struct_combine",
         "mpy_supplier_constraint_matrix_ssuba",
         "mpy_supplier_fm_pressures",
         "mpy_supplier_hcooh_type",
