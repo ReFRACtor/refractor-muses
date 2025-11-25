@@ -1,6 +1,5 @@
 from __future__ import annotations
 from .mpy import (
-    mpy_make_interpolation_matrix_susan,
     mpy_supplier_shift_profile,
     mpy_supplier_nh3_type_cris,
     mpy_supplier_nh3_type_tes,
@@ -19,6 +18,7 @@ from .retrieval_array import FullGridMappedArray
 from .tes_file import TesFile
 from pathlib import Path
 import numpy as np
+import math
 import h5py  # type: ignore
 from loguru import logger
 from typing import Any, Self
@@ -210,7 +210,7 @@ class StateElementFromClimatology(StateElementOspFile):
             vmr = vmr * yearly_multiplier
 
         if linear_interp:
-            my_map = mpy_make_interpolation_matrix_susan(pressure, pressure_list_fm)
+            my_map = cls.make_interpolation_matrix_susan(pressure, pressure_list_fm)
             vmr = np.exp(np.matmul(my_map, np.log(vmr)))
         else:
             # For types HCOOH, NH3 and CH3OH shifting the vmr rather
@@ -223,6 +223,40 @@ class StateElementFromClimatology(StateElementOspFile):
             # us to do here.
             vmr = mpy_supplier_shift_profile(vmr, pressure, pressure_list_fm)
         return vmr.view(FullGridMappedArray), type_name
+
+    @classmethod
+    def make_interpolation_matrix_susan(
+        cls, xFrom: np.ndarray, xTo: np.ndarray
+    ) -> np.ndarray:
+        num_xFrom = xFrom.size
+        num_xTo = xTo.size
+
+        my_matrix = np.zeros(
+            shape=(num_xTo, num_xFrom), dtype=np.float64
+        )  # shape=(63,87)
+
+        small = np.max(xFrom) / 10000
+
+        for ii in range(0, num_xTo):
+            # Find bracketing locations.
+            distance = xTo[ii] - xFrom
+            absDistance = np.absolute(xTo[ii] - xFrom)
+
+            sub1 = np.where((distance + small) >= 0)[0]
+            index1 = sub1[np.argmin(absDistance[sub1])]
+            sub2 = np.where((small - distance) >= 0)[0]
+            index2 = sub2[np.argmin(absDistance[sub2])]
+
+            a = xFrom[index1]
+            b = xFrom[index2]
+
+            if math.isclose(b - a, 0.0, rel_tol=1e-6):
+                my_matrix[ii, index1] = 1
+            else:
+                my_matrix[ii, index1] = (b - xTo[ii]) / (b - a)
+                my_matrix[ii, index2] = (xTo[ii] - a) / (b - a)
+
+        return my_matrix
 
 
 class StateElementFromClimatologyCh3oh(StateElementFromClimatology):

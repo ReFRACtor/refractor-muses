@@ -1,14 +1,16 @@
 from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 from .tes_file import TesFile
-from .mpy import mpy_write_quality_flags
 from .fake_state_info import FakeStateInfo
 from loguru import logger
 import abc
 import os
+import numpy as np
 from pathlib import Path
+from typing import Any
 import typing
 import pandas as pd
+import texttable  # type: ignore
 
 if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
@@ -182,22 +184,203 @@ class MusesPyQaDataHandle(QaDataHandle):
         results. A good result returns "GOOD".
         """
         logger.debug(f"Doing QA calculation using {self.__class__.__name__}")
-        qa_outname = Path(
-            self.run_dir,
-            f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}",
-            "StepAnalysis",
-            "QualityFlags.asc",
-        )
         fstate_info = FakeStateInfo(retrieval_result.current_state)
-        master = mpy_write_quality_flags(
-            qa_outname,
-            str(self.quality_flag_file_name(current_strategy_step)),
+        master = self.write_quality_flags(
+            QaFlagValueFile(self.quality_flag_file_name(current_strategy_step)),
             retrieval_result,
             fstate_info,
-            writeOutput=False,
         )
         logger.info(f"Master Quality: {master}")
         return master
+
+    def write_quality_flags(
+        self,
+        qa_flag_value: QaFlagValue,
+        results: RetrievalResult,
+        stateInfo: FakeStateInfo,
+    ) -> str:
+        strs = [
+            "radianceResidualRMS",
+            "radianceResidualMean",
+            "TSUR-Tatm[0]",
+            "TSUR_vs_Apriori",
+            "CLOUD_MEAN",
+            "PCLOUD",
+            "Desert_Emiss_QA",
+            "EMIS_MEAN",
+            "CLOUD_VAR",
+            "STOPCODE",
+            "KdotDL",
+            "LdotDL",
+            "Calscale_mean",
+            "H2O_H2O_Quality",
+            "Emission_Layer_Flag",
+            "Ozone_Ccurve_Flag",
+            "ResidualNormFinal",
+            "ResidualNormInitial",
+            "radianceMaximumSNR",
+            "TATM_Propagated",
+            "O3_Propagated",
+            "H2O_Propagated",
+            "Deviation_QA",
+            "Ozone_Slope_QA",
+            "OMI_cloudFraction",
+            "TROPOMI_cloudFraction",
+            "O3_columnErrorDU",
+            "O3_tropo_consistency",
+        ]
+
+        ind = np.where(results.deviation_QA > -990)[0]
+        if len(ind) == 0:
+            deviation_QA = 1.0
+        else:
+            deviation_QA = int(np.sum(results.deviation_QA[ind])) / len(ind)
+
+        values_list = [
+            results.radianceResidualRMS[0],
+            results.radianceResidualMean[0],
+            0,
+            0,
+            results.cloudODAve,
+            stateInfo.current["PCLOUD"][0],
+            results.Desert_Emiss_QA,
+            results.emisDev,
+            results.cloudODVar,
+            results.stopCode,
+            results.KDotDL,
+            results.LDotDL,
+            results.calscaleMean,
+            results.H2O_H2OQuality,
+            results.emissionLayer,
+            results.ozoneCcurve,
+            results.residualNormFinal,
+            results.residualNormInitial,
+            results.radianceMaximumSNR,
+            results.propagatedTATMQA,
+            results.propagatedO3QA,
+            results.propagatedH2OQA,
+            deviation_QA,
+            results.ozone_slope_QA,
+            results.omi_cloudfraction,
+            results.tropomi_cloudfraction,
+            results.O3_columnErrorDU,
+            results.O3_tropo_consistency,
+        ]
+
+        if stateInfo.current["TSUR"] >= 1:
+            values_list[2] = (
+                stateInfo.current["TSUR"]
+                - stateInfo.current["values"][stateInfo.species.index("TATM"), 0]
+            )
+            values_list[3] = stateInfo.current["TSUR"] - stateInfo.constraint["TSUR"]
+
+        ind_radiance = np.where(results.radianceResidualRMS > -990)[0]
+        ind_both = []
+        for ii in range(0, len(ind_radiance)):
+            if results.filter_list[ii] != "ALL":
+                # Only keep the index if it is not 'ALL'
+                ind_both.append(ind_radiance[ii])
+
+        # The values in ind_both are the indices we want.
+        ind = np.asarray(ind_both)
+        if len(ind) > 1:
+            for jj in range(0, len(ind)):
+                my_filter = results.filter_list[ind[jj]]
+                strs.append(f"radianceResidualRMS_{my_filter}")
+                strs.append(f"radianceResidualMean_{my_filter}")
+                values_list.append(results.radianceResidualRMS[ind[jj]])
+                values_list.append(results.radianceResidualMean[ind[jj]])
+
+        # read in quality flags from file
+        cutoffMin = []
+        cutoffMax = []
+        useForMaster = []
+
+        col = qa_flag_value.qa_flag_name
+        minn = qa_flag_value.cutoff_min
+        maxx = qa_flag_value.cutoff_max
+        use_v = qa_flag_value.use_for_master
+        col = [s.lower() for s in col]
+
+        # Convert col to lowercase, so we can do a case insensitive search for our str
+        for s in strs:
+            if s == "STOPCODE":
+                cutoffMin.append(0.0)
+                cutoffMax.append(0.0)
+                useForMaster.append(False)
+            else:
+                i = col.index(s.lower())
+                cutoffMin.append(minn[i])
+                cutoffMax.append(maxx[i])
+                useForMaster.append(use_v[i])
+
+        resultsQuality = self.calculate_quality_flags(
+            values_list, cutoffMin, cutoffMax, useForMaster, strs
+        )
+        return resultsQuality["master"]
+
+    def calculate_quality_flags(
+        self,
+        values: list[float],
+        cutoffMin: list[float],
+        cutoffMax: list[float],
+        useForMaster: list[bool],
+        strs_data: list[str],
+    ) -> dict[str, Any]:
+        # pass in values, cutoffs, and whether used for master flag
+        # returns flags (GOOD/BAD), and master flag (GOOD/BAD)
+        # need propagated flag
+
+        n = len(values)
+        flag_list = ["    "] * n
+        master = 0
+
+        for ii in range(0, n):
+            if (values[ii] < cutoffMin[ii] or values[ii] > cutoffMax[ii]) and cutoffMax[
+                ii
+            ] >= -998:
+                if useForMaster[ii]:
+                    master = master + 1
+
+                flag_list[ii] = "BAD"
+            else:
+                flag_list[ii] = "GOOD"
+
+        print_table = texttable.Texttable()
+        print_table.set_deco(texttable.Texttable.HEADER)
+        print_table.set_cols_dtype(["t", "f", "f", "f", "t", "i"])
+        print_table.set_cols_align(["l", "r", "r", "r", "l", "r"])
+        print_table.set_cols_valign(["m", "m", "m", "m", "m", "m"])
+
+        rows: list[Any] = [
+            ["name", "value", "cutoffMin", "cutoffMax", "flag", "use for master"],
+        ]
+
+        for ii in range(0, n):
+            if useForMaster[ii]:
+                rows.append(
+                    [
+                        strs_data[ii],
+                        values[ii],
+                        cutoffMin[ii],
+                        cutoffMax[ii],
+                        flag_list[ii],
+                        useForMaster[ii],
+                    ]
+                )
+
+        print_table.add_rows(rows)
+
+        logger.info(f"Quality flag table\n{print_table.draw()}")
+        # end if strs_data is not None:
+
+        masterFlag = "GOOD"
+        if master >= 1:
+            masterFlag = "BAD"
+
+        result = {"flag": flag_list, "master": masterFlag}
+
+        return result
 
 
 # For now, just fall back to the old muses-py code.

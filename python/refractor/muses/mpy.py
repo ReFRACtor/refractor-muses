@@ -115,17 +115,6 @@ mpy_levmar_nllsq_elanor = partial(muses_py_wrapper_keep, "levmar_nllsq_elanor")
 
 # ---- Below are things to replace ----
 
-# osp_reader, should replace
-mpy_make_interpolation_matrix_susan = partial(
-    muses_py_wrapper, "make_interpolation_matrix_susan"
-)
-mpy_supplier_constraint_matrix_ssuba = partial(
-    muses_py_wrapper, "supplier_constraint_matrix_ssuba"
-)
-
-# qa_data_handle, should replace
-mpy_write_quality_flags = partial(muses_py_wrapper, "write_quality_flags")
-
 # retrieval_array, should replace
 mpy_make_maps = partial(muses_py_wrapper, "make_maps")
 
@@ -145,9 +134,6 @@ mpy_read_tropomi_surface_altitude = partial(
 mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 
 # used in state_element_climatology
-mpy_make_interpolation_matrix_susan = partial(
-    muses_py_wrapper, "make_interpolation_matrix_susan"
-)
 mpy_supplier_shift_profile = partial(muses_py_wrapper, "supplier_shift_profile")
 mpy_supplier_nh3_type_cris = partial(muses_py_wrapper, "supplier_nh3_type_cris")
 mpy_supplier_nh3_type_tes = partial(muses_py_wrapper, "supplier_nh3_type_tes")
@@ -233,7 +219,6 @@ __all__.extend(
         "mpy_emis_source_citation",
         "mpy_get_emis_dispatcher",
         "mpy_idl_interpol_1d",
-        "mpy_make_interpolation_matrix_susan",
         "mpy_make_maps",
         "mpy_mw_frequency_needed",
         "mpy_my_interpolate",
@@ -245,7 +230,6 @@ __all__.extend(
         "mpy_read_tes_l1b",
         "mpy_read_tropomi",
         "mpy_read_tropomi_surface_altitude",
-        "mpy_supplier_constraint_matrix_ssuba",
         "mpy_supplier_fm_pressures",
         "mpy_supplier_hcooh_type",
         "mpy_supplier_nh3_type_airs",
@@ -253,6 +237,5 @@ __all__.extend(
         "mpy_supplier_nh3_type_tes",
         "mpy_supplier_shift_profile",
         "mpy_supplier_surface_pressure",
-        "mpy_write_quality_flags",
     ]
 )

@@ -1,16 +1,15 @@
 # This contains various support routines for reading OSP data.
 from __future__ import annotations
-from .mpy import (
-    mpy_make_interpolation_matrix_susan,
-    mpy_supplier_constraint_matrix_ssuba,
-)
 from .tes_file import TesFile
 import collections.abc
 import numpy as np
+import scipy
 import os
+import math
 from pathlib import Path
 from typing import Any, Self, Iterator
 from functools import cache
+from loguru import logger
 import re
 from .identifier import StateElementIdentifier, RetrievalType
 import typing
@@ -71,12 +70,45 @@ class CovarianceMatrix:
         # TODO - short term convert to float32, just so we can directly compare
         # with muses-py. We'll change this to float64, but good to do that as a single
         # step so we don't mix in other changes
-        m = mpy_make_interpolation_matrix_susan(
+        m = self.make_interpolation_matrix_susan(
             np.log(p.astype(np.float32)), np.log(pressure_level)
         )
         return np.matmul(
             np.matmul(m, self.original_cov.astype(np.float32)), m.transpose()
         )
+
+    def make_interpolation_matrix_susan(
+        self, xFrom: np.ndarray, xTo: np.ndarray
+    ) -> np.ndarray:
+        num_xFrom = xFrom.size
+        num_xTo = xTo.size
+
+        my_matrix = np.zeros(
+            shape=(num_xTo, num_xFrom), dtype=np.float64
+        )  # shape=(63,87)
+
+        small = np.max(xFrom) / 10000
+
+        for ii in range(0, num_xTo):
+            # Find bracketing locations.
+            distance = xTo[ii] - xFrom
+            absDistance = np.absolute(xTo[ii] - xFrom)
+
+            sub1 = np.where((distance + small) >= 0)[0]
+            index1 = sub1[np.argmin(absDistance[sub1])]
+            sub2 = np.where((small - distance) >= 0)[0]
+            index2 = sub2[np.argmin(absDistance[sub2])]
+
+            a = xFrom[index1]
+            b = xFrom[index2]
+
+            if math.isclose(b - a, 0.0, rel_tol=1e-6):
+                my_matrix[ii, index1] = 1
+            else:
+                my_matrix[ii, index1] = (b - xTo[ii]) / (b - a)
+                my_matrix[ii, index2] = (xTo[ii] - a) / (b - a)
+
+        return my_matrix
 
 
 class OspFileHandle:
@@ -372,14 +404,14 @@ class OspSpeciesReader(OspFileHandle):
                     StateElementIdentifier("CALSCALE"),
                     StateElementIdentifier("CALOFFSET"),
                 ):
-                    cov = mpy_supplier_constraint_matrix_ssuba(
-                        np.zeros((0,)),
-                        "",
-                        None,
+                    assert map_to_parameter_matrix is not None
+                    assert pressure_list_fm is not None
+                    assert pressure_list is not None
+                    cov = self.supplier_constraint_matrix_ssuba(
                         map_to_parameter_matrix,
                         pressure_list_fm,
                         pressure_list,
-                        str(self._abs_path(t["sSubaFilename"])),
+                        self._abs_path(t["sSubaFilename"]),
                     )
                 else:
                     d2 = np.array(TesFile(self._abs_path(t["sSubaFilename"])).table)
@@ -450,6 +482,119 @@ class OspSpeciesReader(OspFileHandle):
     @cache
     def read_dir(cls, species_directory: Path) -> Self:
         return cls(species_directory)
+
+    def make_interpolation_matrix_susan(
+        self, xFrom: np.ndarray, xTo: np.ndarray
+    ) -> np.ndarray:
+        num_xFrom = xFrom.size
+        num_xTo = xTo.size
+
+        my_matrix = np.zeros(
+            shape=(num_xTo, num_xFrom), dtype=np.float64
+        )  # shape=(63,87)
+
+        small = np.max(xFrom) / 10000
+
+        for ii in range(0, num_xTo):
+            # Find bracketing locations.
+            distance = xTo[ii] - xFrom
+            absDistance = np.absolute(xTo[ii] - xFrom)
+
+            sub1 = np.where((distance + small) >= 0)[0]
+            index1 = sub1[np.argmin(absDistance[sub1])]
+            sub2 = np.where((small - distance) >= 0)[0]
+            index2 = sub2[np.argmin(absDistance[sub2])]
+
+            a = xFrom[index1]
+            b = xFrom[index2]
+
+            if math.isclose(b - a, 0.0, rel_tol=1e-6):
+                my_matrix[ii, index1] = 1
+            else:
+                my_matrix[ii, index1] = (b - xTo[ii]) / (b - a)
+                my_matrix[ii, index2] = (xTo[ii] - a) / (b - a)
+
+        return my_matrix
+
+    def supplier_constraint_matrix_ssuba(
+        self,
+        i_mapToParameters: np.ndarray,
+        i_pressureFM: np.ndarray,
+        i_pressure: np.ndarray,
+        i_filename: Path,
+    ) -> np.ndarray:
+        # Set up sizes.
+        num_retrievalPressures = len(i_pressure)
+
+        o_constraintMatrix = np.zeros(
+            shape=(num_retrievalPressures, num_retrievalPressures), dtype=np.float64
+        )
+
+        t = TesFile(i_filename)
+        assert t.table is not None
+        pressureSa = np.array(t.table["Pressure"]).astype(np.float32)
+        sSubaMatrix = np.array(t.table)[:, 3:].astype(np.float32)
+
+        pressureSa[pressureSa == 0] = 0.1
+
+        if pressureSa[0] < i_pressureFM[0]:
+            pressureSa[0] = i_pressureFM[0]
+
+        converted_array = self.make_interpolation_matrix_susan(
+            np.log(pressureSa), np.log(i_pressureFM)
+        )
+
+        sSuba2Matrix = np.matmul(
+            np.matmul(converted_array, sSubaMatrix), converted_array.transpose()
+        )
+
+        sSuba3Matrix = np.matmul(
+            i_mapToParameters.transpose(), np.matmul(sSuba2Matrix, i_mapToParameters)
+        )
+        sSubaMatrix = sSuba3Matrix
+
+        o_constraintMatrix = np.linalg.inv(sSubaMatrix)
+
+        # stop gap for CO2
+        dd = np.diag(o_constraintMatrix)
+        ind = np.where(dd < 0)[0]
+        if len(ind) > 0:
+            logger.warning("Negative constraint.  Setting to inverse diagonal")
+            o_constraintMatrix = np.diag(1 / np.diag(sSubaMatrix))
+
+        if o_constraintMatrix.size > 1:
+            o_constraintMatrix = self.positive_definite(o_constraintMatrix)
+
+            # now make symmetric and check Positive_Definiteness again.
+            o_constraintMatrix = (o_constraintMatrix + o_constraintMatrix.T) / 2
+            o_constraintMatrix = self.positive_definite(o_constraintMatrix)
+
+            # now make symmetric and check Positive_Definiteness again.
+            o_constraintMatrix = (o_constraintMatrix + o_constraintMatrix.T) / 2
+            o_constraintMatrix = self.positive_definite(o_constraintMatrix)
+
+        return o_constraintMatrix
+
+    def positive_definite(self, matrixIn: np.ndarray) -> np.ndarray:
+        # make the pos def. form of A
+        (v, w) = scipy.linalg.eigh(matrixIn)
+
+        v[v <= 0] = min(np.abs(v[v > 0])) / 1000000.0
+        # Now see if any ev's are too big - if so, make them smaller.
+
+        v[v > 1e8] = 1e8
+
+        # sometimes values are very near zero and it is numerically unstable.
+        x = max(v)
+        y = min(v)
+
+        if y / x < 1e-11:
+            y = np.where(v < x / 1e11)[0]
+            v[y] = x / 1e11
+
+        E = np.diag(v)
+
+        return np.dot(np.dot(w, E), np.linalg.inv(w))
 
 
 class OspL2SetupControlInitial(collections.abc.Mapping, OspFileHandle):
