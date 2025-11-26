@@ -1,9 +1,9 @@
 from __future__ import annotations
-from .mpy import mpy_supplier_surface_pressure, mpy_supplier_fm_pressures
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .identifier import StateElementIdentifier
 from .gmao_reader import GmaoReader
 from .retrieval_array import FullGridMappedArray
+from .muses_altitude_pge import MusesAltitudePge
 from .state_element import (
     StateElementWithCreateHandle,
     StateElementHandleSet,
@@ -185,14 +185,25 @@ class StateElementFromGmaoPressure(StateElementOspFile):
         if sounding_metadata is None:
             return None
         gmao = GmaoReader(sounding_metadata, gmao_dir)
-        surface_pressure = mpy_supplier_surface_pressure(
-            sounding_metadata.surface_altitude.value,
+        # TODO Verify that this calculation is correct. It matches what muses-py does,
+        # but the height of zero instead of sounding_metadata.surface_altitude.value looks
+        # a little suspicious
+        alt = MusesAltitudePge(
+            gmao.pressure,
             gmao.tatm,
             gmao.h2o,
-            gmao.pressure,
+            0,  # This really is suppose to be 0. I'm not 100% sure why, but this is what is
+            # found in supplier_surface_pressure. I'm guess the gmao.pressure is relative
+            # to a height of 0?
             sounding_metadata.latitude.value,
+            tes_pge=True,
         )
-        pressure = mpy_supplier_fm_pressures(pressure0, surface_pressure)
+        surface_pressure = alt.surface_pressure(
+            sounding_metadata.surface_altitude.value
+        )
+        pressure = cls.supplier_fm_pressures(pressure0, surface_pressure).view(
+            FullGridMappedArray
+        )
         return cls(
             StateElementIdentifier("pressure"),
             pressure,
@@ -204,6 +215,50 @@ class StateElementFromGmaoPressure(StateElementOspFile):
             Path(retrieval_config["covarianceDirectory"]),
             selem_wrapper=selem_wrapper,
         )
+
+    @classmethod
+    def supplier_fm_pressures(
+        cls, i_standardPressureLevels: np.ndarray, i_surfacePressure: float
+    ) -> np.ndarray:
+        surfacePressure = i_surfacePressure
+
+        x = np.amin(np.abs(i_standardPressureLevels - i_surfacePressure))
+
+        if x < 0.01:
+            ind_out = np.argmin(np.abs(i_standardPressureLevels - i_surfacePressure))
+            surfacePressure = i_standardPressureLevels[ind_out]
+
+        n = np.where(i_standardPressureLevels == surfacePressure)[0]
+
+        # now set proper FM levels.  Cutoff bottom levels > surface pressure
+        # Surface pressure may be between levels OR on a level
+        if len(n) > 0:
+            # surface pressure = some TES pressure
+            o_pressure = i_standardPressureLevels[
+                i_surfacePressure >= i_standardPressureLevels
+            ]
+            num_pressures = len(o_pressure)
+        else:
+            # surface pressure between TES pressure levels
+            pres = np.where(i_surfacePressure >= i_standardPressureLevels)[0]
+            num_pressures = len(i_standardPressureLevels)
+
+            if (pres[0] - 1) >= 0:
+                o_pressure = i_standardPressureLevels[pres[0] - 1 : num_pressures]
+
+            if (pres[0] - 1) < 0:
+                o_pressure = i_standardPressureLevels[:]
+
+            # set lowest value = surface pressure
+            o_pressure[0] = i_surfacePressure
+
+        # if lowest 2 pressure are now too close, keep the lower pressure.
+        if (o_pressure[0] / o_pressure[1]) < 1.001:
+            num_pressures = len(o_pressure)
+            o_pressure = o_pressure[1:num_pressures]  # items 1 through num_pressures-1
+            o_pressure[0] = i_surfacePressure
+
+        return o_pressure
 
 
 class StateElementFromGmaoPsur(StateElementOspFile):

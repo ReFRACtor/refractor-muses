@@ -133,14 +133,6 @@ mpy_read_tropomi_surface_altitude = partial(
 )
 mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 
-# used in state_element_climatology
-mpy_supplier_shift_profile = partial(muses_py_wrapper, "supplier_shift_profile")
-mpy_supplier_nh3_type_cris = partial(muses_py_wrapper, "supplier_nh3_type_cris")
-mpy_supplier_nh3_type_tes = partial(muses_py_wrapper, "supplier_nh3_type_tes")
-mpy_supplier_nh3_type_airs = partial(muses_py_wrapper, "supplier_nh3_type_airs")
-mpy_supplier_hcooh_type = partial(muses_py_wrapper, "supplier_hcooh_type")
-
-
 # used in state_element_freq, should get replaced
 def mpy_get_emis_dispatcher(*args: Any, **kwargs: Any) -> Any:
     funcname = "get_emis_dispatcher"
@@ -162,13 +154,6 @@ def mpy_emis_source_citation(*args: Any, **kwargs: Any) -> Any:
 
 mpy_mw_frequency_needed = partial(muses_py_wrapper, "mw_frequency_needed")
 mpy_idl_interpol_1d = partial(muses_py_wrapper, "mpy_idl_interpol_1d")
-
-# used in state_element_gmao, should get replaced
-mpy_supplier_surface_pressure = partial(muses_py_wrapper, "supplier_surface_pressure")
-mpy_supplier_fm_pressures = partial(muses_py_wrapper, "supplier_fm_pressures")
-
-# Used in state_element_single, should get replaced
-mpy_my_interpolate = partial(muses_py_wrapper, "my_interpolate")
 
 # Functions we can keep
 __all__ = [
@@ -221,7 +206,6 @@ __all__.extend(
         "mpy_idl_interpol_1d",
         "mpy_make_maps",
         "mpy_mw_frequency_needed",
-        "mpy_my_interpolate",
         "mpy_radiance_apodize",
         "mpy_read_airs_l1b",
         "mpy_read_nasa_cris_fsr",
@@ -230,12 +214,5 @@ __all__.extend(
         "mpy_read_tes_l1b",
         "mpy_read_tropomi",
         "mpy_read_tropomi_surface_altitude",
-        "mpy_supplier_fm_pressures",
-        "mpy_supplier_hcooh_type",
-        "mpy_supplier_nh3_type_airs",
-        "mpy_supplier_nh3_type_cris",
-        "mpy_supplier_nh3_type_tes",
-        "mpy_supplier_shift_profile",
-        "mpy_supplier_surface_pressure",
     ]
 )

@@ -1,6 +1,5 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from .mpy import mpy_my_interpolate
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .tes_file import TesFile
 from .identifier import StateElementIdentifier, InstrumentIdentifier
@@ -13,6 +12,7 @@ from .state_element_osp import StateElementOspFileFixedValue
 from .retrieval_array import FullGridMappedArray
 from pathlib import Path
 import numpy as np
+import scipy
 from typing import Any, Self
 import typing
 
@@ -96,7 +96,7 @@ class StateElementFromSingle(StateElementOspFile):
         value_fm = np.array(fatm.table[str(sid)]).view(FullGridMappedArray)
         pressure = fatm.table["Pressure"]
         value_fm = np.exp(
-            mpy_my_interpolate(
+            cls.my_interpolate(
                 np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)
             )
         )
@@ -104,6 +104,86 @@ class StateElementFromSingle(StateElementOspFile):
             FullGridMappedArray
         )
         return OspSetupReturn(value_fm)
+
+    @classmethod
+    def my_interpolate(
+        cls, initialY: np.ndarray, initialX: np.ndarray, finalX: np.ndarray
+    ) -> np.ndarray:
+        # TODO This seems overly complicated. Worth going through this at some point and
+        # possibly cleaning this up, I'm not sure this is much more than just a
+        # scipy.interpolate.
+        if len(initialY) == 1:
+            o_finalY = finalX
+            o_finalY[:] = initialY[0]
+            return o_finalY
+        N0 = len(initialX)
+        N = len(finalX)
+
+        o_finalY = np.zeros(finalX.shape)
+
+        # If the initialX and finalX exactly agree, then transfer
+        # values from initialY to finalY.
+        ii = 0
+        while ii <= len(initialY) - 1:
+            nn = np.where(initialX[ii] == finalX)[0]
+            if len(nn) >= 0:
+                o_finalY[nn] = initialY[ii]
+            ii = ii + 1
+
+        # note:  start, stop are range of original data
+        # startf, stopf are range of final data
+        start_range = -1
+        stop_range = -1
+
+        for ii in range(0, N0):
+            # get first index of a nonzero value in this segment
+            if (initialY[ii] != 0 and np.abs(initialY[ii] + 999) > 0.1) and (
+                start_range == -1
+            ):
+                start_range = ii
+
+            # We see if this is the last nonzero value in this segment
+            # (or the last data value and non-zero)
+            # if so, we calculate range to iterpolate to, then interpolate.
+            if (start_range != -1) and (
+                (ii == N0 - 1) or np.abs(initialY[ii] + 999) < 0.1
+            ):
+                stop_range = ii - 1
+                if initialY[ii] != 0 or np.abs(initialY[ii] + 999) < 0.1:
+                    stop_range = ii
+
+                # calculate the indices of the final values to interpolate to,
+                # (all final x values inside the initial x range)
+                # (the initial x range is increased by 1%)
+                stopf = -1
+                startf = -1
+                for jj in range(0, N):
+                    if (finalX[jj] - initialX[start_range] * 0.99) * (
+                        finalX[jj] - initialX[stop_range] * 1.01
+                    ) <= 0:
+                        if startf == -1:
+                            startf = jj
+                        stopf = jj
+
+                    if (finalX[jj] - initialX[start_range] * 1.01) * (
+                        finalX[jj] - initialX[stop_range] * 0.99
+                    ) <= 0:
+                        if startf == -1:
+                            startf = jj
+                        stopf = jj
+                # interpolate using IDL INTERPOL function and 'good' ranges.
+                if (stopf >= startf) and (stopf != -1) and (start_range != stop_range):
+                    o_finalY = scipy.interpolate.interp1d(
+                        initialX[start_range : stop_range + 1],
+                        initialY[start_range : stop_range + 1],
+                        fill_value="extrapolate",
+                    )(finalX[startf : stopf + 1])
+                    # PYTHON_NOTE: We have to reduce the size of o_finalY here.
+                    o_finalY = o_finalY[startf : stopf + 1]
+                    start_range = -1
+                    stop_range = -1
+
+        return o_finalY
 
 
 class StateElementFromCalibration(StateElementFromSingle):

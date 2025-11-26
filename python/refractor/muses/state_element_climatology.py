@@ -1,12 +1,4 @@
 from __future__ import annotations
-from .mpy import (
-    mpy_supplier_shift_profile,
-    mpy_supplier_nh3_type_cris,
-    mpy_supplier_nh3_type_tes,
-    mpy_supplier_nh3_type_airs,
-    mpy_supplier_hcooh_type,
-    mpy_my_interpolate,
-)
 from .state_element_osp import StateElementOspFile, OspSetupReturn
 from .identifier import StateElementIdentifier, InstrumentIdentifier
 from .observation_handle import mpy_radiance_from_observation_list
@@ -18,6 +10,7 @@ from .retrieval_array import FullGridMappedArray
 from .tes_file import TesFile
 from pathlib import Path
 import numpy as np
+import scipy
 import math
 import h5py  # type: ignore
 from loguru import logger
@@ -221,7 +214,7 @@ class StateElementFromClimatology(StateElementOspFile):
             # that. We have the logic for this in the various
             # StateElements, so we just do what "linear_interp" tells
             # us to do here.
-            vmr = mpy_supplier_shift_profile(vmr, pressure, pressure_list_fm)
+            vmr = cls.supplier_shift_profile(vmr, pressure, pressure_list_fm)
         return vmr.view(FullGridMappedArray), type_name
 
     @classmethod
@@ -257,6 +250,62 @@ class StateElementFromClimatology(StateElementOspFile):
                 my_matrix[ii, index2] = (xTo[ii] - a) / (b - a)
 
         return my_matrix
+
+    @classmethod
+    def bt(cls, frequency: float, rad: float) -> float:
+        """converts from radiance (W/cm2/cm-1/sr) to BT (erg/sec/cm2/cm-1/sr)"""
+        planck = 6.626176e-27
+        clight = 2.99792458e10
+        boltz = 1.380662e-16
+        radcn1 = 2.0 * planck * clight * clight * 1.0e-07
+        radcn2 = planck * clight / boltz
+        return radcn2 * frequency / math.log(1 + (radcn1 * frequency**3 / rad))
+
+    @classmethod
+    def bt_vec(cls, frequency: np.ndarray, rad: np.ndarray) -> np.ndarray:
+        """converts from radiance (W/cm2/cm-1/sr) to BT (erg/sec/cm2/cm-1/sr)"""
+        planck = 6.626176e-27
+        clight = 2.99792458e10
+        boltz = 1.380662e-16
+        radcn1 = 2.0 * planck * clight * clight * 1.0e-07
+        radcn2 = planck * clight / boltz
+        return np.array(
+            [
+                radcn2
+                * frequency[i]
+                / math.log(1 + (radcn1 * frequency[i] ** 3 / rad[i]))
+                for i in range(frequency.shape[0])
+            ]
+        )
+
+    @classmethod
+    def supplier_shift_profile(
+        cls, profileIn: np.ndarray, pressureIn: np.ndarray, pressureOut: np.ndarray
+    ) -> np.ndarray:
+        # NH3, CH3OH shift profile rather than cutting it off at the
+        # surface.  if pressure > 1000 mb, then interpolate the profile.
+        # if pressure < 1000 mb, then add p to all levels except TOA,
+        # where p + surface pressure = 1000
+
+        if np.max(pressureOut) >= 990.0:
+            log_profileIn = np.log(profileIn)
+            log_pressureIn = np.log(pressureIn)
+            log_pressureOut = np.log(pressureOut)
+        else:
+            # pretend surface pressure is at 1000 mb, and interpolate profile to pressures
+            pp = 1000 - np.max(pressureOut)
+            pressureTemp = pressureOut + pp
+
+            # keep TOA (top of atmosphere)
+            pressureTemp[len(pressureTemp) - 1] = pressureOut[len(pressureOut) - 1]
+
+            log_profileIn = np.log(profileIn)
+            log_pressureIn = np.log(pressureIn)
+            log_pressureOut = np.log(pressureTemp)
+        x = scipy.interpolate.interp1d(
+            log_pressureIn, log_profileIn, fill_value="extrapolate"
+        )(log_pressureOut)
+        return np.exp(x)
 
 
 class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
@@ -310,7 +359,7 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             value_fm = np.array(fatm.table["CH3OH"]).view(FullGridMappedArray)
             pressure = fatm.table["Pressure"]
             value_fm = np.exp(
-                mpy_my_interpolate(
+                cls.my_interpolate(
                     np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)
                 )
             )
@@ -332,6 +381,86 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
             create_kwargs=create_kwargs,
         )
         return r
+
+    @classmethod
+    def my_interpolate(
+        cls, initialY: np.ndarray, initialX: np.ndarray, finalX: np.ndarray
+    ) -> np.ndarray:
+        # TODO This seems overly complicated. Worth going through this at some point and
+        # possibly cleaning this up, I'm not sure this is much more than just a
+        # scipy.interpolate.
+        if len(initialY) == 1:
+            o_finalY = finalX
+            o_finalY[:] = initialY[0]
+            return o_finalY
+        N0 = len(initialX)
+        N = len(finalX)
+
+        o_finalY = np.zeros(finalX.shape)
+
+        # If the initialX and finalX exactly agree, then transfer
+        # values from initialY to finalY.
+        ii = 0
+        while ii <= len(initialY) - 1:
+            nn = np.where(initialX[ii] == finalX)[0]
+            if len(nn) >= 0:
+                o_finalY[nn] = initialY[ii]
+            ii = ii + 1
+
+        # note:  start, stop are range of original data
+        # startf, stopf are range of final data
+        start_range = -1
+        stop_range = -1
+
+        for ii in range(0, N0):
+            # get first index of a nonzero value in this segment
+            if (initialY[ii] != 0 and np.abs(initialY[ii] + 999) > 0.1) and (
+                start_range == -1
+            ):
+                start_range = ii
+
+            # We see if this is the last nonzero value in this segment
+            # (or the last data value and non-zero)
+            # if so, we calculate range to iterpolate to, then interpolate.
+            if (start_range != -1) and (
+                (ii == N0 - 1) or np.abs(initialY[ii] + 999) < 0.1
+            ):
+                stop_range = ii - 1
+                if initialY[ii] != 0 or np.abs(initialY[ii] + 999) < 0.1:
+                    stop_range = ii
+
+                # calculate the indices of the final values to interpolate to,
+                # (all final x values inside the initial x range)
+                # (the initial x range is increased by 1%)
+                stopf = -1
+                startf = -1
+                for jj in range(0, N):
+                    if (finalX[jj] - initialX[start_range] * 0.99) * (
+                        finalX[jj] - initialX[stop_range] * 1.01
+                    ) <= 0:
+                        if startf == -1:
+                            startf = jj
+                        stopf = jj
+
+                    if (finalX[jj] - initialX[start_range] * 1.01) * (
+                        finalX[jj] - initialX[stop_range] * 0.99
+                    ) <= 0:
+                        if startf == -1:
+                            startf = jj
+                        stopf = jj
+                # interpolate using IDL INTERPOL function and 'good' ranges.
+                if (stopf >= startf) and (stopf != -1) and (start_range != stop_range):
+                    o_finalY = scipy.interpolate.interp1d(
+                        initialX[start_range : stop_range + 1],
+                        initialY[start_range : stop_range + 1],
+                        fill_value="extrapolate",
+                    )(finalX[startf : stopf + 1])
+                    # PYTHON_NOTE: We have to reduce the size of o_finalY here.
+                    o_finalY = o_finalY[startf : stopf + 1]
+                    start_range = -1
+                    stop_range = -1
+
+        return o_finalY
 
 
 class StateElementFromClimatologyHdo(StateElementFromClimatology):
@@ -419,9 +548,9 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
         tatm0 = state_info[StateElementIdentifier("TATM")].constraint_vector_fm[0]
         nh3type: str | None = None
         for ins, sfunc in [
-            (InstrumentIdentifier("CRIS"), mpy_supplier_nh3_type_cris),
-            (InstrumentIdentifier("TES"), mpy_supplier_nh3_type_tes),
-            (InstrumentIdentifier("AIRS"), mpy_supplier_nh3_type_airs),
+            (InstrumentIdentifier("CRIS"), cls.supplier_nh3_type_cris),
+            (InstrumentIdentifier("TES"), cls.supplier_nh3_type_tes),
+            (InstrumentIdentifier("AIRS"), cls.supplier_nh3_type_airs),
         ]:
             if ins in strategy.instrument_name:
                 olist = [
@@ -468,6 +597,199 @@ class StateElementFromClimatologyNh3(StateElementFromClimatology):
             create_kwargs=create_kwargs,
         )
 
+    @classmethod
+    def supplier_nh3_type_airs(
+        cls, radiance: dict[str, Any], TSUR: float, TATM0: float, surfaceType: str
+    ) -> str:
+        # This implements the logic described in the DFM by Mark Shephard et
+        # al., to select "unpolluted", "moderate", or "polluted" NH3 case, and
+        # choose the corresponding profile and constraint matrix.  Once these
+        # are selected, they are shifted so the values are the same near the
+        # surface no matter what pressure the surface is at.
+        # update to version 9 of DFM 3/17/2010
+        #
+        # THis version works for CrIS data: JUne 2018
+        # Karen Cady-Pereira
+
+        freq = np.asarray(radiance["frequency"])
+        rad = np.asarray(radiance["radiance"])
+
+        indb = np.argmin(np.abs(freq - 981.186))  # used for v4, v5 and v6
+        indn = np.argmin(np.abs(freq - 967.5))
+
+        bt_bkgd = float(np.mean(cls.bt(freq[indb], rad[indb])))
+        bt_nh3 = float(np.mean(cls.bt(freq[indn], rad[indn])))
+
+        snr = -0.991 + 12.454 * (bt_bkgd - bt_nh3)
+        if bt_bkgd < 278.0:
+            snr = 0.0
+
+        if snr <= -6.0:
+            ind = 2
+        if snr > -6.0 and snr <= -2.0:
+            ind = 1
+        if snr > -2.0 and snr <= 2.0:
+            ind = 0
+        if snr > 2.0 and snr <= 3.0:
+            ind = 1
+        if snr > 3.0:
+            ind = 2
+        if surfaceType.upper() == "OCEAN" and snr < -6.0:
+            ind = 1  # v5
+
+        if TSUR < 278:
+            ind = 0
+
+        # ind = 0: unpolluted
+        # ind = 1: moderate
+        # ind = 2: polluted
+
+        nh3types = ["CLN", "MOD", "ENH"]
+        o_nh3type = nh3types[ind]
+        return o_nh3type
+
+    @classmethod
+    def supplier_nh3_type_cris(
+        cls, radiance: dict[str, Any], TSUR: float, TATM0: float, surfaceType: str
+    ) -> str:
+        # This implements the logic described in the DFM by Mark Shephard et
+        # al., to select "unpolluted", "moderate", or "polluted" NH3 case, and
+        # choose the corresponding profile and constraint matrix.  Once these
+        # are selected, they are shifted so the values are the same near the
+        # surface no matter what pressure the surface is at.
+        # update to version 9 of DFM 3/17/2010
+
+        # This version works for CrIS data: June 2018
+        # Karen Cady-Pereira
+
+        freq = radiance["frequency"]
+        rad = radiance["radiance"]
+
+        indb = np.where(freq == 981.25)[0]
+        indn = np.where(freq == 967.5)[0]
+
+        bt_bkgd = float(np.mean(cls.bt_vec(freq[indb], rad[indb])))
+        bt_nh3 = float(np.mean(cls.bt_vec(freq[indn], rad[indn])))
+
+        snr = -0.991 + 12.454 * (bt_bkgd - bt_nh3)
+
+        if bt_bkgd < 278.0:
+            snr = 0.0
+
+        # update... I had snr = 2.9 and it was unassigned
+        if snr <= -6.0:
+            ind = 2
+
+        if snr > -6.0 and snr <= -2.0:
+            ind = 1
+
+        if snr > -2.0 and snr <= 2.0:
+            ind = 0
+
+        if snr > 2.0 and snr <= 3.0:
+            ind = 1
+
+        if snr > 3.0:
+            ind = 2
+
+        if TSUR < 278:
+            ind = 0
+
+        # ind = 0: unpolluted
+        # ind = 1: moderate
+        # ind = 2: polluted
+
+        nh3types = ["CLN", "MOD", "ENH"]
+        o_nh3type = nh3types[ind]
+        return o_nh3type
+
+    @classmethod
+    def supplier_nh3_type_tes(
+        cls, radiance: dict[str, Any], TSUR: float, TATM0: float, surfaceType: str
+    ) -> str:
+        # IDL_LEGACY_NOTE: This function supplier_nh3_type_cris is the same as Supplier_NH3_type_tes in Supplier_NH3_type_tes.pro file.
+
+        # ; This implements the logic described in the DFM by Mark Shephard et
+        # ; al., to select "unpolluted","moderate", or "polluted" NH3 case, and
+        # ; choose the corresponding profile and constraint matrix.  Once these
+        # ; are selected, they are shifted so the values are the same near the
+        # ; surface no matter what pressure the surface is at.
+        # ; update to version 9 of DFM 3/17/2010
+
+        # ; This modifies the nominal values already put in for NH3 in the
+        # ; "retrieval" structure
+
+        TC = TSUR - TATM0
+
+        freq = radiance["frequency"]
+        rad = radiance["radiance"]
+        nesr = radiance["NESR"]
+
+        indb = np.where((freq > 968.35) * (freq < 968.49))[0]
+        indn = np.where((freq > 967.27) * (freq < 967.41))[0]
+
+        bt_bkgd = np.mean(cls.bt_vec(freq[indb], rad[indb]))
+        bt_nh3 = np.mean(cls.bt_vec(freq[indn], rad[indn]))
+
+        # calculate dBT/dR analytically using planck function (from Karen)
+        x = (
+            1.1911e-12
+            * np.mean(freq[indn])
+            * np.mean(freq[indn])
+            * np.mean(freq[indn])
+            / np.mean(rad[indn])
+        )
+        dBTdR = (
+            1.4388
+            * np.mean(freq[indn])
+            * x
+            / (np.log(x + 1.0) * np.log(x + 1.0) * (x + 1.0) * np.mean(rad[indn]))
+        )
+        # NEdT = NESR * dBT / dR
+        NEdT = np.mean(nesr[indn]) / np.sqrt(3) * dBTdR
+        snr = (bt_bkgd - bt_nh3) / NEdT
+
+        # [unpolluted, moderate, polluted]
+        a = [0.001, 0.225, 0.762]
+        b = [0.116, -0.126, 0.270]
+
+        nn = len(a)
+        d = np.zeros(nn, dtype=np.float64)
+        for ii in range(0, nn):
+            x = (snr + TC / a[ii] - b[ii]) / (a[ii] + 1.0 / a[ii])
+            y = a[ii] * x + b[ii]
+            d[ii] = np.sqrt((x - TC) * (x - TC) + (y - snr) * (y - snr))
+
+        ind = np.where(d == np.min(d))[0][0]
+
+        # special cases in table 2
+        # Condition	Type
+        # SNR < 1.0	Unpolluted
+        # -3.<SNR<3. AND -2<TC<2	Unpolluted << update 1/2012
+        # 3.<SNR<5. AND 0.<TC<4.	Moderate
+        # 0.<SNR<3. AND 2.<TC<4.	Moderate
+
+        if np.abs(snr) < 1.0:
+            ind = 0
+        if (np.abs(snr) < 3.0) and (np.abs(TC) < 2):  # R12.1
+            ind = 0
+        if (np.abs(snr) > 3.0) and (np.abs(snr) < 5) and (TC > 0) and (TC < 4):
+            ind = 1
+        if (np.abs(snr) > 0.0) and (np.abs(snr) < 3.0) and (TC > 2) and (TC < 4):
+            ind = 1
+        if surfaceType.upper() == "OCEAN":  # R12.2
+            ind = 0
+        if TSUR < 278:
+            ind = 0
+
+        # ind = 0: unpolluted
+        # ind = 1: moderate
+        # ind = 2: polluted
+
+        nh3types = ["CLN", "MOD", "ENH"]
+        o_nh3type = nh3types[ind]
+        return o_nh3type
+
 
 class StateElementFromClimatologyHcooh(StateElementFromClimatology):
     """HCOOH initial guess."""
@@ -513,7 +835,7 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
                     observation_handle_set.observation(ins, None, None, None),
                 ]
                 rad = mpy_radiance_from_observation_list(olist, full_band=True)
-                hcoohtype = mpy_supplier_hcooh_type(rad)
+                hcoohtype = cls.supplier_hcooh_type(rad)
                 break
         if hcoohtype is None:
             hcoohtype = "MOD"
@@ -557,6 +879,79 @@ class StateElementFromClimatologyHcooh(StateElementFromClimatology):
             constraint_vector_fm=constraint_vector_fm,
             create_kwargs=create_kwargs,
         )
+
+    @classmethod
+    def supplier_hcooh_type(cls, radiance: dict[str, Any]) -> str:
+        # Here is a brief outline of the steps required to select the
+        # a priori profile:
+        # 1. Calculate the brightness temperature mean over the HCOOH
+        #    window (1108.88,1109.06): BT_LINE
+        # 2. Repeat for the clear window (1105.04,1105.16): BT_CLEAR.
+        # 3. Calculate the difference: BT_DIFF=BT_CLEAR-BT_LINE, where
+        #    BT_DIFF is the estimated HCOOH signal.
+        # 4. Estimate the SNR: SNR = -0.1398+2.6301*BT_DIFF.
+        # 5. If -0.6<SNR<0.8, a priori is clean, otherwise it is
+        #    enhanced.
+
+        freq = np.asarray(radiance["frequency"])
+        rad = np.asarray(radiance["radiance"])
+
+        indb = []
+        for i in range(0, len(freq)):
+            if freq[i] >= 1108.87 and freq[i] <= 1109.07:
+                indb.append(i)
+
+        indc = []
+        for i in range(0, len(freq)):
+            if freq[i] >= 1105.03 and freq[i] <= 1105.17:
+                indc.append(i)
+
+        # To follow the convention of IDL, if the where clauses
+        # returns no elements, we set variables indb and indc to the
+        # last index.  Because of the next 4 lines, the length of both
+        # indb and indc will never be zero size.
+        if len(indb) == 0:
+            indb = [-1]
+
+        if len(indc) == 0:
+            indc = [-1]
+
+        # Because we don't want the function bt() to divide by zero,
+        # we need to check to see if any values in rad array
+        # containing zero.
+        num_zeros_in_rad = 0
+        for ii, b_index in enumerate(indb):
+            if math.isclose(rad[b_index], 0.0, rel_tol=1e-6):
+                num_zeros_in_rad = num_zeros_in_rad + 1
+
+        if num_zeros_in_rad > 0:
+            bt_line = 0
+        else:
+            bt_line = np.mean(cls.bt_vec(freq[indb], rad[indb]))
+
+        if len(indc) == 0:
+            bt_clear = 0
+        else:
+            # Because we don't want the function bt() to divide by
+            # zero, we need to check to see if any values in rad array
+            # containing zero.
+            num_zeros_in_rad = 0
+            for ii, c_index in enumerate(indc):
+                if math.isclose(rad[c_index], 0.0, rel_tol=1e-6):
+                    num_zeros_in_rad = num_zeros_in_rad + 1
+
+            if num_zeros_in_rad > 0:
+                bt_clear = 0
+            else:
+                bt_clear = np.mean(cls.bt_vec(freq[indc], rad[indc]))
+
+        SNR = -0.1398 + 2.6301 * (bt_line - bt_clear)
+
+        o_type = "ENH"
+        if SNR > -0.6 and SNR < 0.8:
+            o_type = "CLN"
+
+        return o_type
 
 
 for sid in [

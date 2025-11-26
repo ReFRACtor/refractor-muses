@@ -242,6 +242,16 @@ class MusesAltitudePge:
             )
         return res
 
+    def surface_pressure(self, surface_altitude: float) -> float:
+        """Calculate surface pressure, the way mpy.supplier_surface_pressure does."""
+        spress = np.exp(
+            idl_interpol_1d(
+                np.log(self.pressure), self.altitude, np.array([surface_altitude])
+            )[0]
+        )
+        # TODO - do we really want to round this? This is what muses-py does
+        return np.round(spress, 4)
+
     def column_integrate(
         self,
         vmr: np.ndarray,
