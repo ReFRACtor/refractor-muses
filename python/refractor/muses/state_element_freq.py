@@ -3,8 +3,6 @@ import refractor.framework as rf  # type: ignore
 from .mpy import (
     mpy_get_emis_dispatcher,
     mpy_emis_source_citation,
-    mpy_mw_frequency_needed,
-    mpy_idl_interpol_1d,
 )
 from .state_element import (
     StateElementWithCreateHandle,
@@ -20,6 +18,8 @@ from .identifier import StateElementIdentifier, RetrievalType
 from .tes_file import TesFile
 import numpy as np
 from pathlib import Path
+import scipy
+from loguru import logger
 import typing
 from typing import Any
 
@@ -69,6 +69,126 @@ class StateElementFreqShared(StateElementOspFile):
             self._pressure_list_fm = self.spectral_domain.data.view(FullGridMappedArray)
         else:
             self._pressure_list_fm = None
+
+    # TODO This seems to be doing something pretty similar to rf.SpectralWindow.
+    # we should replace this at some point, but for now leave this here since I'm
+    # not sure about all the special cases in this function
+    def mw_frequency_needed(
+        self,
+        i_mw: list[dict[str, Any]],
+        frequency: np.ndarray,
+        i_stepType: RetrievalType | None = None,
+        i_freqMode: str | None = None,
+    ) -> np.ndarray:
+        # Determine which of frequency array needed to cover mw windows
+        # return array with 1 if needed 0 if not.  For EMIS and cloud
+        # retrieval pars.  Returns an array the same size as the input
+        # frequency array with 1 if needed, 0 if not
+
+        if np.count_nonzero(frequency == 0) > 0:
+            raise RuntimeError("Frequency array contains zeroes")
+
+        # Populate specifies whether each frequency is needed.  It is the same
+        # size as frequency and 1 if needed, 0 if not.
+        o_populate = np.zeros(frequency.shape)
+
+        nn = len(i_mw)
+
+        # Loop through each micro window.
+        for jj in range(nn):
+            # if monoextend not set can use 1.44 (maximum)
+            # get frequencies inside windows
+            indv = []
+            for gg in range(frequency.shape[0]):
+                if (
+                    frequency[gg] > i_mw[jj]["start"]
+                    and frequency[gg] < i_mw[jj]["endd"]
+                ):
+                    indv.append(gg)
+
+            if len(indv) > 0:
+                # window spans more than one frequency
+                ind = np.asarray(indv)
+                o_populate[ind] = 1
+                o_populate[ind - 1] = 1
+                if max(ind) < len(o_populate) - 1:
+                    o_populate[ind + 1] = 1
+            else:
+                # whole window (start to end) between 2 EMIS frequencies
+                ind = np.where(
+                    (frequency[0:-1] - i_mw[jj]["start"])
+                    * (frequency[1:] - i_mw[jj]["start"])
+                    < 0
+                )[0]
+                if ind.size == 0:
+                    o_populate[0] = 1
+                    o_populate[-1] = 1
+                else:
+                    o_populate[ind] = 1
+                    o_populate[ind + 1] = 1
+
+        temp_populate = []
+        for ii in range(len(o_populate)):
+            temp_populate.append(o_populate[ii])
+
+        # if special type, e.g. bracket, select appropriate frequencies
+        # i_stepType = 'bt_ig_refine'; # FOR_DEVELOPER_TESTING_FLAG
+        # i_freqMode = '100';          # FOR_DEVELOPER_TESTING_FLAG
+        if i_stepType is not None:
+            if i_stepType == RetrievalType("bt_ig_refine") and i_freqMode is not None:
+                # This is to pick out min and max only.
+                if i_freqMode.lower() == "bracket":
+                    # It is possible that the where clause next will
+                    # produce zero elements.  So we first check before
+                    # applying the np.amin()
+                    not_zero_indices = np.where(o_populate != 0)[0]
+                    if len(not_zero_indices) == 0:
+                        logger.warning(
+                            "Where clause 'np.where(o_populate != 0)' returned 0 elements"
+                        )
+                    else:
+                        # Get the smallest of the indices where the value is not 0.
+                        ind1 = np.asarray(np.amin(np.where(o_populate != 0)[0]))
+                        # Get the largest  of the indices where the value is not 0.
+                        ind2 = np.asarray(np.amax(np.where(o_populate != 0)[0]))
+
+                        o_populate[:] = 0  # Set all elements to 0 first.
+                        o_populate[ind1] = 1
+                        o_populate[ind2] = 1
+
+                # To check if i_freqMode is a number, we go ahead and
+                # perform a conversion.  If successful, it is a number.
+                # this is to pick out every hundred points
+                try:
+                    converted_number = float(i_freqMode)
+                    numberFlag = True
+                except ValueError:
+                    numberFlag = False
+                    converted_number = 0.0
+                if numberFlag:
+                    ind = (np.where(o_populate != 0))[0]
+                    last = frequency[
+                        ind[0]
+                    ]  # The first number where the o_populate value is not 0.
+                    for ii in range(1, len(ind)):
+                        if (frequency[ind[ii]] - last) < converted_number:
+                            o_populate[ind[ii]] = 0
+                        else:
+                            last = frequency[ind[ii]]
+
+                    indv = []
+                    for gg in range(len(o_populate)):
+                        if o_populate[gg] != 0:
+                            indv.append(gg)
+                    o_populate[indv] = 1
+
+        # Value of populate can be > 1.  Set all values > 1 to 1
+        ind = (np.where(o_populate > 1))[0]
+        n = len(ind)
+        if n > 0:
+            o_populate[np.asarray(ind)] = 1
+
+        return o_populate
 
 
 class StateElementEmis(StateElementFreqShared):
@@ -128,7 +248,7 @@ class StateElementEmis(StateElementFreqShared):
         self._fill_in_state_mapping()
         assert self.spectral_domain is not None
         # TODO See about doing this directly
-        wflag = mpy_mw_frequency_needed(
+        wflag = self.mw_frequency_needed(
             self.microwindows,
             self.spectral_domain.data,
         )
@@ -286,7 +406,7 @@ class StateElementCloudExt(StateElementFreqShared):
             return
         self._fill_in_state_mapping()
         assert self.spectral_domain is not None
-        wflag = mpy_mw_frequency_needed(
+        wflag = self.mw_frequency_needed(
             self.microwindows,
             self.spectral_domain.data,
             self.retrieval_type,
@@ -375,11 +495,10 @@ class StateElementCloudExt(StateElementFreqShared):
                 if ind.size > 0:
                     varr[self.fm_update_flag] = res[self.fm_update_flag]
                     varr[ind.min(), ind.max() + 1] = np.exp(
-                        mpy_idl_interpol_1d(
-                            np.log(res[self.fm_update_flag]),
+                        scipy.interpolate.interp1d(
                             self.spectral_domain.data[self.fm_update_flag],
-                            self.spectral_domain.data[ind.min(), ind.max() + 1],
-                        )
+                            np.log(res[self.fm_update_flag]),
+                        )(self.spectral_domain.data[ind.min(), ind.max() + 1])
                     )
             else:
                 varr[:] = ave
@@ -396,7 +515,7 @@ class StateElementCloudExt(StateElementFreqShared):
             return super().updated_fm_flag
         # bt_ig_refine is handled differently
         assert self.spectral_domain is not None
-        wflag = mpy_mw_frequency_needed(
+        wflag = self.mw_frequency_needed(
             self.microwindows,
             self.spectral_domain.data,
             self.retrieval_type,

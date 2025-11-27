@@ -133,6 +133,7 @@ mpy_read_tropomi_surface_altitude = partial(
 )
 mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 
+
 # used in state_element_freq, should get replaced
 def mpy_get_emis_dispatcher(*args: Any, **kwargs: Any) -> Any:
     funcname = "get_emis_dispatcher"
@@ -150,10 +151,6 @@ def mpy_emis_source_citation(*args: Any, **kwargs: Any) -> Any:
             f"muses_py is not available, so we can't call the function {funcname}"
         )
     return muses_py.get_emis_uwis.UwisCamelOptions.emis_source_citation(*args, **kwargs)
-
-
-mpy_mw_frequency_needed = partial(muses_py_wrapper, "mw_frequency_needed")
-mpy_idl_interpol_1d = partial(muses_py_wrapper, "mpy_idl_interpol_1d")
 
 # Functions we can keep
 __all__ = [
@@ -203,9 +200,7 @@ __all__.extend(
         "mpy_cdf_read_tes_frequency",
         "mpy_emis_source_citation",
         "mpy_get_emis_dispatcher",
-        "mpy_idl_interpol_1d",
         "mpy_make_maps",
-        "mpy_mw_frequency_needed",
         "mpy_radiance_apodize",
         "mpy_read_airs_l1b",
         "mpy_read_nasa_cris_fsr",
