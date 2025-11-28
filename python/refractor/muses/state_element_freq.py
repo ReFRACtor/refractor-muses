@@ -217,6 +217,7 @@ class StateElementEmis(StateElementFreqShared):
             sounding_metadata.year,
             sounding_metadata.month,
             spectral_domain.data,
+            retrieval_config.osp_abs_dir,
             retrieval_config.get("CAMEL_Coef_Directory"),
             retrieval_config.get("CAMEL_Lab_Directory"),
         )
@@ -359,6 +360,7 @@ class StateElementNativeEmis(StateElementFreqShared):
             sounding_metadata.year,
             sounding_metadata.month,
             spectral_domain_in.data,
+            retrieval_config.osp_abs_dir,
             retrieval_config.get("CAMEL_Coef_Directory"),
             retrieval_config.get("CAMEL_Lab_Directory"),
         )

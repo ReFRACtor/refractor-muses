@@ -155,6 +155,10 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
         # skip this, we'll at least try that for now.
         return res
 
+    @property
+    def osp_abs_dir(self) -> Path:
+        return self.abs_dir("../OSP/.")
+
     def abs_dir(self, v: Any) -> Any:
         """Convert values like ../OSP to the osp_dir passed in. Expand
         user ~ and environment variables. Convert relative paths to

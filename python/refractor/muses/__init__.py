@@ -49,7 +49,6 @@ if _typing.TYPE_CHECKING:
         FullGrid2dArray,
     )
     from .misc import osp_setup
-
     from .muses_observation import (
         MeasurementId,
         MusesObservation,

@@ -7,27 +7,17 @@ from glob import glob
 from pathlib import Path
 import netCDF4 as ncdf
 import numpy as np
+import scipy
 from scipy.io import readsav
 from .misc import greatcircle
+from .tes_file import TesFile
 from loguru import logger
-from typing import Any, cast
-
-# Temp
-from .muses_py import (
-    UtilGeneral,
-    UtilMath,
-    read_all_tes,
-    tes_file_get_column,
-    read_all_tes_cache,
-    idl_interpol_1d,
-    nc_read_variable,
-    hdf5_read_variable,
-)
+from typing import Any, cast, Iterator
 
 # This is complicated enough that we have copied this over from muses-py, and edited things
 # to work with muses. We will probably just leave this in place, the code is pretty clean.
-
-utilGen = UtilGeneral()
+# We rely on muses_py calls for the version 1 support. I don't think we'll run into this
+# much in practice, so it isn't worth porting this over. We can revisit this if needed.
 
 
 class CamelError(Exception):
@@ -99,6 +89,7 @@ def get_emis_dispatcher(
     i_year: int,
     i_month: int,
     freq: np.ndarray,
+    osp_dir: Path,
     camel_coef_dir: str | os.PathLike[str] | None = None,
     camel_lab_dir: str | os.PathLike[str] | None = None,
 ) -> dict:
@@ -183,12 +174,12 @@ def get_emis_dispatcher(
 
     if emis_type == UwisCamelOptions.V1_UWIS:
         native_emis = get_emis_uwis(
-            i_latitude, i_longitude, i_year, i_month
+            i_latitude, i_longitude, i_year, i_month, osp_dir
         )  # need to update with altitude
     elif i_oceanFlag == 1:
         # The CAMEL databases do not include emissivity over ocean. This should be identical to how ocean/lake
         # emissivity is gotten in UWis (v1).
-        native_emis = get_water_emis(i_altitude)
+        native_emis = get_water_emis(i_altitude, osp_dir)
     elif emis_type == UwisCamelOptions.V2_CAMEL:
         try:
             assert camel_lab_dir is not None
@@ -210,7 +201,7 @@ def get_emis_dispatcher(
             # are probably also treating a land sounding as water, so which water type we use isn't the largest concern.
             # Some test cases (e.g. test_targets/cris/20160818_009_42_05_5) fail with a CAMEL search radius of 10, so we
             # need this fallback. -JLL
-            native_emis = get_water_emis(i_altitude)
+            native_emis = get_water_emis(i_altitude, osp_dir)
 
     elif emis_type == UwisCamelOptions.V2_CAMEL_CLIM:
         try:
@@ -227,15 +218,15 @@ def get_emis_dispatcher(
                 )
             )
             # See note above in the V2_CAMEL except block.
-            native_emis = get_water_emis(i_altitude)
+            native_emis = get_water_emis(i_altitude, osp_dir)
     else:
         raise NotImplementedError(
             f'Emissivity type "{emis_type.value}" has not been implemented'
         )
 
-    instr_emis = idl_interpol_1d(
-        native_emis["emissivity"], native_emis["wavenumber"], freq
-    )
+    instr_emis = scipy.interpolate.interp1d(
+        native_emis["wavenumber"], native_emis["emissivity"], fill_value="extrapolate"
+    )(freq)
     dist_to_tgt = native_emis.pop("camel_offset_distance_km", np.nan)
     ind = freq < np.amin(native_emis["wavenumber"])
     if ind.sum() > 0:
@@ -423,7 +414,7 @@ class CamelIndexTransform:
         return idx, gc_distance
 
     def get_grid_indices_nearest_lat_lon(
-        self, tgt_lat: float, tgt_lon: float, search_grid_radius: float = 10
+        self, tgt_lat: float, tgt_lon: float, search_grid_radius: int = 10
     ) -> tuple[int, int]:
         """
         Find the linear index for the CAMEL land grid cell closest to a given lat lon
@@ -441,7 +432,7 @@ class CamelIndexTransform:
         closest_sq_dist_deg = np.inf
         ilat_final: None | int = None
         ilon_final: None | int = None
-        for jlat, jlon, _, _ in utilGen.iter_subgrid_indices(
+        for jlat, jlon, _, _ in self.iter_subgrid_indices(
             ilat,
             ilon,
             search_grid_radius,
@@ -473,6 +464,112 @@ class CamelIndexTransform:
         assert ilat_final is not None
         assert ilon_final is not None
         return ilat_final, ilon_final
+
+    def iter_subgrid_indices(
+        self,
+        center_lon_idx: int,
+        center_lat_idx: int,
+        radius_lon: int,
+        radius_lat: int,
+        size_lon: int,
+        size_lat: int,
+    ) -> Iterator[tuple[int, int, int, int]]:
+        """Index iterator to select a subset from an equirectangular
+        lat/lon grid
+
+        This will yield the indices for a rectangular subset of cells
+        within a larger equirectangular (i.e. constant lat/lon across
+        rows/columns) grid. If the subset runs into the edge of the
+        parent grid, it will wrap. In the longitudinal direction, the
+        index will just move around to the other side (i.e. if behaves
+        as if the index goes N-2, N-1, 0, 1 for an N-long
+        dimension). In the latitudinal direction, it assumes that we
+        are going over the pole, and so the next grid will be the one
+        at the same latitude but 180 deg away in longitude.
+
+        Parameters
+        ----------
+        center_lon_idx, center_lat_idx
+            The array indices in the longitude and latitude
+            dimensions, respectively, of the parent array that define
+            the center of the rectangular subset.
+
+        radius_lon, radius_lat
+            The number of grid cells away from the center one to
+            traverse in the longitude and latitude dimensions. Giving
+            2 and 1, respectively, for these will produce a 5x3
+            subset.
+
+        size_lon, size_lat
+            The length of th parent array in the longitude and
+            latitude dimensions.
+
+        Returns
+        -------
+        iterator
+            Returns four integers in each iteration: `i_grid`,
+            `j_grid`, `i_sub`, and `j_sub`.  The `i_` values are
+            longitude indices, `j_` are latitude indices. The `grid`
+            indices index the parent grid, the `sub` ones index the
+            subset. That is, assuming your arrays have longitude in
+            the first dimension, `sub[i_sub, j_sub] = parent[i_grid,
+            j_grid]`.
+
+        """
+        if center_lon_idx >= size_lon or center_lon_idx < 0:
+            raise ValueError(
+                "Center longitude index cannot be outside the range [0, size_lon)"
+            )
+        if center_lat_idx >= size_lat or center_lat_idx < 0:
+            raise ValueError(
+                "Center latitude index cannot be outside the range [0, size_lat)"
+            )
+
+        # In the loops:
+        #   - i/j are internal indices that control how far from the center we are
+        #   - i_sub/j_sub are the indices in the subset array we're looping over
+        #   - i_grid/j_grid are the indices in the original (full) array we're subsetting
+        for i, i_sub in zip(
+            range(center_lon_idx - radius_lon, center_lon_idx + radius_lon + 1),
+            range(2 * radius_lon + 1),
+        ):
+            # The longitude index is easy - since longitude wraps 360
+            # -> 0, any time we are outside the range of allowed
+            # indices, the modulus operator wraps us around like
+            # crossing the date line
+            i_grid = i % size_lon
+
+            for j, j_sub in zip(
+                range(center_lat_idx - radius_lat, center_lat_idx + radius_lat + 1),
+                range(2 * radius_lat + 1),
+            ):
+                # Latitude is trickier to wrap, because we're going
+                # over the poles, so we don't actually go from max
+                # index to min index. Instead we need to get the box
+                # over the pole, same latitude, but 180 deg.  opposite
+                # longitude. Thus, we do want to repeat the 0 or
+                # (size_lat - 1) latitude index when it wraps.
+                #
+                # Note that the way I'm finding the box 180 away in
+                # longitude is an estimate; it might be a little off
+                # depending on the integer rounding. However, for the
+                # box nearest the pole, those boxes are small little
+                # wedges, so the error shouldn't be too large, and if
+                # we get far enough away from it for the rounding to
+                # matter, we're so far from our target lat/lon that
+                # the distance error is already pretty large.
+                j_grid = center_lat_idx + j
+                if j < 0:
+                    j_grid = -j - 1
+                    i_grid2 = (i_grid + size_lon // 2) % size_lon
+                elif j >= size_lat:
+                    j_grid = size_lat - (j - size_lat + 1)
+                    i_grid2 = (i_grid + size_lon // 2) % size_lon
+                else:
+                    j_grid = j
+                    i_grid2 = i_grid
+
+                yield i_grid2, j_grid, i_sub, j_sub
 
 
 class AbstractCamelHsr(ABC):
@@ -872,30 +969,21 @@ class CamelClimatologyHsr(AbstractCamelHsr):
         return total_emis
 
 
-def get_water_emis(
-    surfaceAltitude: float, tes_emis_dir: str = "../OSP/EMIS/EMIS_UWIS/"
-) -> dict[str, Any]:
-    if (os.getenv("MUSES_DEFAULT_RUN_DIR", "") != "") and (
-        not os.path.isabs(tes_emis_dir)
-    ):
-        tes_emis_dir = (
-            os.getenv("MUSES_DEFAULT_RUN_DIR", "") + os.path.sep + tes_emis_dir
-        )
-
+def get_water_emis(surfaceAltitude: float, osp_dir: Path) -> dict[str, Any]:
+    tes_emis_dir = osp_dir / "EMIS/EMIS_UWIS"
     if surfaceAltitude > 0.2:
         # Assume we're looking at freshwater when the altitude is above 200 m
-        emissivity_file = os.path.join(tes_emis_dir, "Emissivity_Lake.asc")
+        emissivity_file = tes_emis_dir / "Emissivity_Lake.asc"
         surface_type = "Lake"
     else:
-        emissivity_file = os.path.join(tes_emis_dir, "Emissivity_Ocean.asc")
+        emissivity_file = tes_emis_dir / "Emissivity_Ocean.asc"
         surface_type = "Ocean"
 
-    _, fileID = read_all_tes(emissivity_file)
-
-    wavenumber = np.asarray(
-        [float(i) for i in tes_file_get_column(fileID, "Frequency")]
-    )
-    emis = np.asarray([float(i) for i in tes_file_get_column(fileID, "Emissivity")])
+    t = TesFile(emissivity_file)
+    if t.table is None:
+        raise RuntimeError(f"Trouble reading file {emissivity_file}")
+    wavenumber = np.array(t.table["Frequency"])
+    emis = np.array(t.table["Emissivity"])
 
     return {"wavenumber": wavenumber, "emissivity": emis, "surfaceType": surface_type}
 
@@ -910,6 +998,7 @@ def get_emis_uwis(
     lonin: float,
     year: int,
     month: int,
+    osp_dir: Path,
     surfaceAltitude: None | np.ndarray = None,
     filenameSave: None | str = None,
     watertype: None | str = None,
@@ -918,6 +1007,13 @@ def get_emis_uwis(
     filelats: None | np.ndarray = None,
     filelons: None | np.ndarray = None,
 ) -> dict[str, Any]:
+    from .mpy import (
+        mpy_nc_read_variable,
+        mpy_read_all_tes_cache,
+        mpy_tes_file_get_column,
+        mpy_hdf5_read_variable,
+    )
+
     # IDL_LEGACY_NOTE: This function get_emis_uwis is the same as get_emis_uwis in TOOLS/EMIS_UWIS/get_emis_uwis.pro file.
 
     # only for TIR: 699 - 2774 cm-1
@@ -941,22 +1037,22 @@ def get_emis_uwis(
     # surface altitude in km  If EMIS is negative then sets to
     # freshwater EMIS if z>0.2 and set to ocean if z<0.2.
 
-    tes_emis_dir = "../OSP/EMIS/EMIS_UWIS/"
+    tes_emis_dir = osp_dir / "EMIS/EMIS_UWIS/"
 
     # According to Eva Borjas, 2007 is the best year for this dataset
     if year >= 2013:
         year = 2007
 
     if filelats is None or filelons is None:
-        ncfile = tes_emis_dir + "global_emis_inf10_location_small.nc"
-        (_, filelats) = hdf5_read_variable(ncfile, "LAT")
-        (_, filelons) = hdf5_read_variable(ncfile, "LON")
+        ncfile = str(tes_emis_dir / "global_emis_inf10_location_small.nc")
+        (_, filelats) = mpy_hdf5_read_variable(ncfile, "LAT")
+        (_, filelons) = mpy_hdf5_read_variable(ncfile, "LON")
 
     lon_int = abs(filelons[0] - filelons[1])
     lat_int = abs(filelats[0] - filelats[1])
 
     filename = (
-        tes_emis_dir
+        str(tes_emis_dir)
         + "global_emis_inf10*"
         + str("{0:04d}".format(int(year)))
         + "-"
@@ -972,7 +1068,7 @@ def get_emis_uwis(
     else:
         # if not found, use 2007
         filename = (
-            tes_emis_dir
+            str(tes_emis_dir)
             + "global_emis_inf10*"
             + str("{0:04d}".format(int(2007)))
             + "-"
@@ -1031,23 +1127,23 @@ def get_emis_uwis(
         scale_factor_wvn = 1.0
         scale_factor_emis = 1.0
 
-        (_, wavenumber0, o_variable_attributes_dict) = nc_read_variable(
+        (_, wavenumber0, o_variable_attributes_dict) = mpy_nc_read_variable(
             ncfile, "wavenumber"
         )
         scale_factor_wvn = o_variable_attributes_dict["scale_factor"]
 
-        (_, emis0, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis1")
+        (_, emis0, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis1")
         scale_factor_emis = o_variable_attributes_dict["scale_factor"]
 
-        (_, emis1, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis2")
-        (_, emis2, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis3")
-        (_, emis3, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis4")
-        (_, emis4, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis5")
-        (_, emis5, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis6")
-        (_, emis6, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis7")
-        (_, emis7, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis8")
-        (_, emis8, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis9")
-        (_, emis9, o_variable_attributes_dict) = nc_read_variable(ncfile, "emis10")
+        (_, emis1, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis2")
+        (_, emis2, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis3")
+        (_, emis3, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis4")
+        (_, emis4, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis5")
+        (_, emis5, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis6")
+        (_, emis6, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis7")
+        (_, emis7, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis8")
+        (_, emis8, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis9")
+        (_, emis9, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis10")
 
         # Apply the scale factor to all applicable arrays.
         wavenumber0 = wavenumber0 * scale_factor_wvn
@@ -1142,13 +1238,13 @@ def get_emis_uwis(
         # save "D", PCM_NEW, PCU, PCM, wavenumber, all assuming on the 416
         # point grid.
         if matrices is None:
-            filenamex = tes_emis_dir + "matrices.dat"
+            filenamex = str(tes_emis_dir) + "matrices.dat"
             logger.info("filenamex: ", filenamex)
 
             # check re-doing versus re-using
             fnames = glob(filenamex)
             if len(fnames) == 0:
-                logger.error("RESTORE", tes_emis_dir + "pcs.dat")
+                logger.error("RESTORE", str(tes_emis_dir) + "pcs.dat")
                 logger.error("WARN_NOT_IMPLEMENTED_YET")
                 assert False
                 # restore, tes_emis_dir+'pcs.dat'        ;eigenvectors (PC.U) and eigenvalues (PC.M) of the 123 selected laboratory spectra on HSR
@@ -1217,16 +1313,16 @@ def get_emis_uwis(
                 watertype = "Lake"
 
                 # fresh water
-                logger.info("reading: ", tes_emis_dir + "Emissivity_Lake.asc")
-                (read_status, fileID) = read_all_tes_cache(
-                    tes_emis_dir + "Emissivity_Lake.asc"
+                logger.info("reading: ", str(tes_emis_dir) + "Emissivity_Lake.asc")
+                (read_status, fileID) = mpy_read_all_tes_cache(
+                    str(tes_emis_dir) + "Emissivity_Lake.asc"
                 )
 
                 wavenumber = np.asarray(
-                    [float(i) for i in tes_file_get_column(fileID, "Frequency")]
+                    [float(i) for i in mpy_tes_file_get_column(fileID, "Frequency")]
                 )
                 emis = np.asarray(
-                    [float(i) for i in tes_file_get_column(fileID, "Emissivity")]
+                    [float(i) for i in mpy_tes_file_get_column(fileID, "Emissivity")]
                 )
 
                 surfaceType = "Lake"
@@ -1243,16 +1339,16 @@ def get_emis_uwis(
                 result = waterresult
             else:
                 # ocean
-                logger.info("reading: ", tes_emis_dir + "Emissivity_Ocean.asc")
-                (read_status, fileID) = read_all_tes_cache(
-                    tes_emis_dir + "Emissivity_Ocean.asc"
+                logger.info("reading: ", str(tes_emis_dir) + "Emissivity_Ocean.asc")
+                (read_status, fileID) = mpy_read_all_tes_cache(
+                    str(tes_emis_dir) + "Emissivity_Ocean.asc"
                 )
 
                 wavenumber = np.asarray(
-                    [float(i) for i in tes_file_get_column(fileID, "Frequency")]
+                    [float(i) for i in mpy_tes_file_get_column(fileID, "Frequency")]
                 )
                 emis = np.asarray(
-                    [float(i) for i in tes_file_get_column(fileID, "Emissivity")]
+                    [float(i) for i in mpy_tes_file_get_column(fileID, "Emissivity")]
                 )
 
                 surfaceType = "Ocean"
@@ -1283,6 +1379,7 @@ def get_emis_uwis(
             lonin,
             2007,
             month,
+            osp_dir,
             surfaceAltitude,
             filenameSave,
             watertype,
@@ -1298,6 +1395,7 @@ def get_emis_uwis(
             lonin,
             2007,
             month,
+            osp_dir,
             surfaceAltitude,
             filenameSave,
             watertype,
@@ -1319,9 +1417,9 @@ def get_emis_uwis(
 def _bilinear(
     p_matrix: np.ndarray, latind: int, lonind: int, FILLVALUE: None | float = None
 ) -> np.ndarray:
-    utilMath = UtilMath()
-    o_interpolated_array = utilMath.bilinear(p_matrix, latind, lonind, FILLVALUE)
-    return o_interpolated_array
+    from .mpy import mpy_bilinear
+
+    return mpy_bilinear(p_matrix, latind, lonind, FILLVALUE)
 
 
 def _restore_matrices_variable(i_filename: str) -> dict[str, np.ndarray]:
