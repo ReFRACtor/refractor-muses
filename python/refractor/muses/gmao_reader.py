@@ -4,7 +4,7 @@ import h5py  # type: ignore
 import numpy as np
 import scipy
 import datetime
-import math
+from .misc import greatcircle
 from pathlib import Path
 from loguru import logger
 import typing
@@ -51,7 +51,7 @@ class GmaoReader:
             # Don't bother looking at latitude unless we are with 2.0 in longitude
             if lonv >= smeta.longitude.value - 2 and lonv <= smeta.longitude.value + 2:
                 for j, latv in enumerate(lat):
-                    d = self.greatcircle(
+                    d = greatcircle(
                         latv,
                         lonv,
                         smeta.latitude.value,
@@ -196,29 +196,6 @@ class GmaoReader:
                 if res[v].shape[0] == 1:
                     res[v] = res[v][0]
         return res
-
-    def greatcircle(
-        self, lat_deg1: float, lon_deg1: float, lat_deg2: float, lon_deg2: float
-    ) -> float:
-        """Return great circle distance in meters"""
-        x1 = math.radians(lat_deg1)
-        y1 = math.radians(lon_deg1)
-        x2 = math.radians(lat_deg2)
-        y2 = math.radians(lon_deg2)
-
-        # Compute using the Haversine formula.
-        a = math.sin((x2 - x1) / 2.0) ** 2.0 + (
-            math.cos(x1) * math.cos(x2) * (math.sin((y2 - y1) / 2.0) ** 2.0)
-        )
-
-        # Great circle distance in radians
-        angle = 2.0 * math.asin(min(1.0, math.sqrt(a)))
-
-        # Each degree on a great circle of Earth is 60 nautical miles.
-        distance = 60.0 * angle
-        conversion_factor = 0.5390007480064188  # nautical miles -> kilometers
-        distance = (distance / conversion_factor) * 1000
-        return distance
 
     def interpol_1d(
         self, yin: np.ndarray, xin: np.ndarray, xout: np.ndarray

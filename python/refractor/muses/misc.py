@@ -2,6 +2,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import tempfile
 import os
+import math
 from typing import Generator
 
 
@@ -33,3 +34,30 @@ def osp_setup(
             yield
     finally:
         os.chdir(curdir)
+
+
+def greatcircle(
+    lat_deg1: float, lon_deg1: float, lat_deg2: float, lon_deg2: float
+) -> float:
+    """Return great circle distance in meters"""
+    x1 = math.radians(lat_deg1)
+    y1 = math.radians(lon_deg1)
+    x2 = math.radians(lat_deg2)
+    y2 = math.radians(lon_deg2)
+
+    # Compute using the Haversine formula.
+    a = math.sin((x2 - x1) / 2.0) ** 2.0 + (
+        math.cos(x1) * math.cos(x2) * (math.sin((y2 - y1) / 2.0) ** 2.0)
+    )
+
+    # Great circle distance in radians
+    angle = 2.0 * math.asin(min(1.0, math.sqrt(a)))
+
+    # Each degree on a great circle of Earth is 60 nautical miles.
+    distance = 60.0 * math.degrees(angle)
+    conversion_factor = 0.5390007480064188  # nautical miles -> kilometers
+    distance = (distance / conversion_factor) * 1000
+    return distance
+
+
+__all__ = ["osp_setup", "greatcircle"]

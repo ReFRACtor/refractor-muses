@@ -1,9 +1,6 @@
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from .mpy import (
-    mpy_get_emis_dispatcher,
-    mpy_emis_source_citation,
-)
+from .get_emis_uwis import UwisCamelOptions, get_emis_dispatcher
 from .state_element import (
     StateElementWithCreateHandle,
     StateElementHandleSet,
@@ -211,7 +208,7 @@ class StateElementEmis(StateElementFreqShared):
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
         emis_type = retrieval_config["TIR_EMIS_Source"]
-        uwis_data = mpy_get_emis_dispatcher(
+        uwis_data = get_emis_dispatcher(
             emis_type,
             sounding_metadata.latitude.value,
             sounding_metadata.longitude.value,
@@ -228,7 +225,7 @@ class StateElementEmis(StateElementFreqShared):
         # native_emis = uwis_data['native_emis']
         # native_emis_wavenumber = uwis_data['native_wavenumber']
         camel_distance = uwis_data["dist_to_tgt"]
-        prior_source = mpy_emis_source_citation(emis_type)
+        prior_source = UwisCamelOptions.emis_source_citation(emis_type)
         create_kwargs = {
             "spectral_domain": spectral_domain,
             "metadata": {
@@ -353,7 +350,7 @@ class StateElementNativeEmis(StateElementFreqShared):
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
         emis_type = retrieval_config["TIR_EMIS_Source"]
-        uwis_data = mpy_get_emis_dispatcher(
+        uwis_data = get_emis_dispatcher(
             emis_type,
             sounding_metadata.latitude.value,
             sounding_metadata.longitude.value,
