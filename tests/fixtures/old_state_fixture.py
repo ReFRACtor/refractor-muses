@@ -20,7 +20,7 @@ from refractor.muses import (
     StateInfo,
 )
 from refractor.old_py_retrieve_wrapper import state_element_old_wrapper_handle
-from refractor.muses.muses_py import have_muses_py
+from refractor.muses_py import have_muses_py
 from loguru import logger
 import sys
 

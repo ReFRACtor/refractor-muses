@@ -1,4 +1,4 @@
-import refractor.muses.muses_py as mpy
+import refractor.muses_py as mpy
 import pytest
 
 # Marker that skips a test if we don't have muses-py

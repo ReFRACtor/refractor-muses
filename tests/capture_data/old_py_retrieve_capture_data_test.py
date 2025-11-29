@@ -9,7 +9,7 @@ from refractor.muses import (
 )
 import pytest
 import os
-import refractor.muses.muses_py as mpy
+import refractor.muses_py as mpy
 
 
 def load_muses_retrieval_step(

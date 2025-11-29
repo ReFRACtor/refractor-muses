@@ -59,7 +59,7 @@ def test_create_muses_cris_observation(
 
 @require_muses_py
 def test_cris_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
-    import refractor.muses.muses_py as mpy
+    import refractor.muses_py as mpy
 
     filename = (
         joint_tropomi_test_in_dir.parent

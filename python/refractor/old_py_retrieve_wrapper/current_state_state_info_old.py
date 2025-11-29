@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 import numpy as np
 from pathlib import Path

@@ -13,7 +13,7 @@ from refractor.muses import (
     TesFile,
     PropagatedQA,
 )
-import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.muses_py as mpy  # type: ignore
 from loguru import logger
 import copy
 from pathlib import Path

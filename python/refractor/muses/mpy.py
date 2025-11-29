@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import muses_py  # type: ignore
+import refractor.muses_py as muses_py  # type: ignore
 from functools import partial
 from typing import Any
 

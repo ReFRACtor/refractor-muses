@@ -3,7 +3,7 @@
 # type: ignore
 
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     RefractorUip,

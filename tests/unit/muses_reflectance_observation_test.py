@@ -173,7 +173,7 @@ def test_omi_bad_sample(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
 
 @require_muses_py
 def test_tropomi_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir):
-    import refractor.muses.muses_py as mpy
+    import refractor.muses_py as mpy
 
     filename_dict = {
         "CLOUD": str(
@@ -220,7 +220,7 @@ def test_tropomi_steps(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
 
 @require_muses_py
 def test_omi_steps(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
-    import refractor.muses.muses_py as mpy
+    import refractor.muses_py as mpy
 
     filename = (
         joint_omi_test_in_dir.parent

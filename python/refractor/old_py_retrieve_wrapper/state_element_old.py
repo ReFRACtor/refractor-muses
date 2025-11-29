@@ -7,7 +7,7 @@
 # mypy: disable-error-code="used-before-def"
 
 from __future__ import annotations  # We can remove this when we upgrade to python 3.9
-import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.muses_py as mpy  # type: ignore
 from .state_info_old import (
     StateElementOld,
     StateElementHandleOld,

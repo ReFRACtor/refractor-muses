@@ -11,7 +11,7 @@ from refractor.muses import (
     MusesCrisObservation,
 )
 from refractor.old_py_retrieve_wrapper import StateInfoOld, CurrentStateStateInfoOld
-import refractor.muses.muses_py as mpy
+import refractor.muses_py as mpy
 from fixtures.require_check import require_muses_py
 import pprint
 import pytest

@@ -58,7 +58,7 @@ def test_create_muses_airs_observation(
 
 @require_muses_py
 def test_airs_steps(isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir):
-    import refractor.muses.muses_py as mpy
+    import refractor.muses_py as mpy
 
     filename = (
         joint_omi_test_in_dir.parent

@@ -1,5 +1,5 @@
 from __future__ import annotations
-import refractor.muses.muses_py as mpy  # type: ignore
+import refractor.muses_py as mpy  # type: ignore
 from refractor.muses import (
     register_replacement_function_in_block,
     RefractorCaptureDirectory,

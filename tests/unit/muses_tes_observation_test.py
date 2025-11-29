@@ -93,7 +93,7 @@ def test_create_muses_tes_observation(isolated_dir, osp_dir, gmao_dir, tes_test_
 
 @require_muses_py
 def test_tes_steps(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
-    import refractor.muses.muses_py as mpy
+    import refractor.muses_py as mpy
 
     filename = (
         tes_test_in_dir.parent / "TES-Aura_L1B-Nadir_FP2B_r0000002147-o00978_F04_07.h5"

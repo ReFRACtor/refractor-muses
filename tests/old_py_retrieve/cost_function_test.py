@@ -14,7 +14,7 @@ from fixtures.residual_fm import (
 from fixtures.require_check import require_muses_py
 from refractor.omi import OmiForwardModelHandle
 from refractor.tropomi import TropomiForwardModelHandle
-import refractor.muses.muses_py as mpy
+import refractor.muses_py as mpy
 import pytest
 import numpy as np
 import numpy.testing as npt

@@ -101,7 +101,7 @@ class CdfWriteLiteTes:
 
     def products_add_rtvmr(self, dataInOut: dict[str, Any], species_name: str) -> None:
         # Temp
-        from .muses_py import make_maps
+        from refractor.muses_py import make_maps
 
         dof_thr = 0.0
         if species_name == "CH4":
@@ -259,7 +259,7 @@ class CdfWriteLiteTes:
         species_name: str,
     ) -> tuple[dict[str, Any], list[float]]:
         # Temp
-        from .muses_py import make_maps, supplier_retrieval_levels_tes
+        from refractor.muses_py import make_maps, supplier_retrieval_levels_tes
 
         o_dataOut = copy.deepcopy(dataIn)
 
@@ -1587,7 +1587,7 @@ class CdfWriteLiteTes:
 
 def products_bias_correct(dataIn, biasIn, hdoFlag=False):
     # IDL_LEGACY_NOTE: This function products_bias_correct is the same as products_bias_correct function in TOOLS/products_bias_correct.pro file.
-    from .muses_py import UtilGeneral
+    from refractor.muses_py import UtilGeneral
 
     function_name = "products_bias_correct: "
 
@@ -1698,7 +1698,7 @@ def column_integrate(
     minPressure=np.empty([0]),
     maxPressure=np.empty([0]),
 ):
-    from .muses_py import idl_interpol_1d
+    from refractor.muses_py import idl_interpol_1d
 
     # IDL_LEGACY_NOTE: This function column_integrate is the same as column_integrate function in  TOOLS/atmosphere.pro file.
     function_name = "column_integrate: "
@@ -1891,7 +1891,7 @@ def add_column(
     i_pwflevel=[],
 ):
     # Temp
-    from .muses_py import calculate_xco2, UtilGeneral
+    from refracto.muses_py import calculate_xco2, UtilGeneral
 
     # IDL_LEGACY_NOTE: This function add_column is the same as add_column function in TOOLS/add_column.pro file.
     function_name = "add_column: "
@@ -2261,7 +2261,7 @@ def add_column(
 
 def products_add_pan_fields(lite_directory: Path, dataInOut):
     # Temp
-    from .muses_py import nc_read_variable, UtilGeneral
+    from refractor.muses_py import nc_read_variable, UtilGeneral
 
     utilGeneral = UtilGeneral()
 
@@ -2535,7 +2535,7 @@ def products_add_pan_fields(lite_directory: Path, dataInOut):
 
 def get_half_ak_points(ak_row, pm_sub):
     # Temp
-    from .muses_py import idl_interpol_1d
+    from refractor.muses_py import idl_interpol_1d
 
     # This function returns pm_sub values interpolated to the locations of max(ak_row) / 2.
     # It can be used whenever one wants to find the coordinates (pm_sub) of the half-maximum

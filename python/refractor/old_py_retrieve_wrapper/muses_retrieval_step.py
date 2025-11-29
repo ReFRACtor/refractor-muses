@@ -3,7 +3,7 @@
 # type: ignore
 
 from __future__ import annotations
-import refractor.muses.muses_py as mpy
+import refractor.muses_py as mpy
 from refractor.muses import (
     register_replacement_function_in_block,
     RefractorCaptureDirectory,
