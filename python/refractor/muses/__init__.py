@@ -31,12 +31,11 @@ if _typing.TYPE_CHECKING:
     # Note we guard this with the standard "if typing.TYPE_CHECKING", so this code doesn't
     # appear in real python usage of this module.
     from .refractor_fm_object_creator import RefractorFmObjectCreator
-    from .forward_model_handle import ForwardModelHandle
+    from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
     from .muses_raman import MusesRaman, SurfaceAlbedo
     from .muses_spectral_window import MusesSpectralWindow
     from .current_state import (
         CurrentState,
-        CurrentStateUip,
         PropagatedQA,
     )
     from .state_info import StateInfo
@@ -48,7 +47,8 @@ if _typing.TYPE_CHECKING:
         RetrievalGrid2dArray,
         FullGrid2dArray,
     )
-    from .misc import osp_setup
+    from .misc import osp_setup, AttrDictAdapter, ResultIrk
+
     from .muses_observation import (
         MeasurementId,
         MusesObservation,
@@ -89,8 +89,9 @@ if _typing.TYPE_CHECKING:
         StateElementIdentifier,
         StrategyStepIdentifier,
     )
+    from .fake_state_info import FakeStateInfo
+    from .fake_retrieval_info import FakeRetrievalInfo
     from .filter_metadata import FileFilterMetadata, DictFilterMetadata
-    from .refractor_uip import RefractorUip, AttrDictAdapter
     from .replace_function_helper import (
         suppress_replacement,
         register_replacement_function_in_block,

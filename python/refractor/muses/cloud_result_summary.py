@@ -3,7 +3,7 @@ from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
 from .identifier import StateElementIdentifier
 from .muses_altitude_pge import MusesAltitudePge
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 import numpy as np
 import math
 import typing

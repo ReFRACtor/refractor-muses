@@ -9,10 +9,10 @@ from refractor.muses import (
     MusesTropomiObservation,
     MusesOmiObservation,
     MusesSpectralWindow,
-    RefractorUip,
     InstrumentIdentifier,
     FilterIdentifier,
 )
+from refractor.muses_py_fm import RefractorUip
 import refractor.framework as rf
 import pickle
 import numpy.testing as npt

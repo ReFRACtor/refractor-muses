@@ -4,7 +4,7 @@ import numpy as np
 import typing
 
 if typing.TYPE_CHECKING:
-    import refractor.muses
+    import refractor.muses_py_fm
 
 
 class MusesRayInfo:
@@ -30,7 +30,7 @@ class MusesRayInfo:
 
     def __init__(
         self,
-        rf_uip: refractor.muses.RefractorUip,
+        rf_uip: refractor.muses_py_fm.RefractorUip,
         instrument_name: str,
         pressure: rf.Pressure,
         set_pointing_angle_zero: bool = True,

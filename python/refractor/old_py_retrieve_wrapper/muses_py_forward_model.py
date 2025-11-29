@@ -6,12 +6,11 @@ from __future__ import annotations
 import refractor.muses_py as mpy  # type: ignore
 import refractor.framework as rf  # type: ignore
 from refractor.muses import (
-    RefractorUip,
-    osswrapper,
     suppress_replacement,
     register_replacement_function_in_block,
     muses_py_call,
 )
+from refractor.muses_py_fm import RefractorUip, osswrapper
 import os
 import pickle
 import tempfile

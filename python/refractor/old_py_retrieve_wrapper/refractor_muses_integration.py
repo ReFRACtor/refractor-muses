@@ -6,8 +6,8 @@ from __future__ import annotations
 import refractor.muses_py as mpy
 from refractor.muses import (
     register_replacement_function_in_block,
-    RefractorUip,
 )
+from refractor.muses_py_fm import RefractorUip
 from .muses_retrieval_step import MusesRetrievalStep
 from .muses_forward_model_step import MusesForwardModelStep
 from .retrieval_info import RetrievalInfo

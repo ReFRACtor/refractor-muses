@@ -13,7 +13,7 @@ from .mpy import (
     mpy_read_tropomi_surface_altitude,
     mpy_read_omi,
 )
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 import os
 import numpy as np
 import refractor.framework as rf  # type: ignore

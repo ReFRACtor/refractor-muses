@@ -2,7 +2,6 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     CurrentStateDict,
-    CurrentStateUip,
     RetrievalStrategy,
     MusesRunDir,
     ProcessLocation,
@@ -12,6 +11,7 @@ from refractor.muses import (
     FullGridMappedArray,
     FullGridMappedArrayFromRetGrid,
 )
+from refractor.muses_py_fm import CurrentStateUip
 import pytest
 import numpy.testing as npt
 import numpy as np

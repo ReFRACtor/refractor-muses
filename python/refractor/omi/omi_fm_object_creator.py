@@ -27,8 +27,8 @@ if typing.TYPE_CHECKING:
         CurrentState,
         MeasurementId,
         MusesObservation,
-        RefractorUip,
     )
+    from refractor.muses_py_fm import RefractorUip
 
 
 class OmiSurfaceAlbedo(SurfaceAlbedo):

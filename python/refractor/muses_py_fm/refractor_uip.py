@@ -19,11 +19,17 @@ from .mpy import (
     mpy_make_uip_oco2,
     mpy_make_maps,
 )
-
-from .replace_function_helper import register_replacement_function_in_block
-from .refractor_capture_directory import RefractorCaptureDirectory, muses_py_call
+from refractor.muses import (
+    AttrDictAdapter,
+    register_replacement_function_in_block,
+    RefractorCaptureDirectory,
+    muses_py_call,
+    InstrumentIdentifier,
+    FilterIdentifier,
+    FakeStateInfo,
+    FakeRetrievalInfo,
+)
 from .osswrapper import osswrapper
-from .identifier import InstrumentIdentifier, FilterIdentifier
 import refractor.framework as rf  # type: ignore
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
@@ -32,17 +38,11 @@ import logging
 import numpy as np
 import pickle
 from collections import UserDict, defaultdict
-from collections.abc import MutableMapping
 import copy
 from pathlib import Path
 import math
 import itertools
-from typing import Any, Generator, Self, Iterator, cast
-import typing
-
-if typing.TYPE_CHECKING:
-    from .fake_state_info import FakeStateInfo
-    from .fake_retrieval_info import FakeRetrievalInfo
+from typing import Any, Generator, Self, cast
 
 if have_muses_py:
 
@@ -99,54 +99,6 @@ def _all_output_disabled() -> Generator[None, None, None]:
                 yield
     finally:
         logging.disable(previous_level)
-
-
-class AttrDictAdapter(MutableMapping):
-    """muses-py often uses ObjectView, which makes dictionary object access the
-    values using attributes. This is just syntactic sugar, but it is used in a lot
-    of places. This is essentially like the old attrdict library - but this has been
-    deprecated. This is a simple adapter to do the same thing. This is used for example
-    by the muses-py uip."""
-
-    def __init__(self, data: dict[str, Any]) -> None:
-        self.__dict__ = data
-
-    # ObjectView has these two functions, supply since lower level routines may look
-    # for these.
-    @classmethod
-    def as_dict(cls, obj: AttrDictAdapter | dict[str, Any]) -> dict[str, Any]:
-        if isinstance(obj, dict):
-            return obj
-        return obj.__dict__
-
-    @classmethod
-    def as_object(cls, obj: AttrDictAdapter | dict[str, Any]) -> AttrDictAdapter:
-        if isinstance(obj, dict):
-            return AttrDictAdapter(obj)
-        return obj
-
-    def __getitem__(self, key: str) -> Any:
-        return self.__dict__[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.__dict__[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.__dict__[key]
-
-    def __iter__(self) -> Iterator[Any]:
-        return iter(self.__dict__)
-
-    def __len__(self) -> int:
-        return len(self.__dict__)
-
-    def __getattr__(self, name: str) -> Any:
-        # Just defined to make mypy happy. We shouldn't actually call this
-        raise AttributeError(f"{name} not found")
-
-    def __setattr__(self, name: str, v: Any) -> None:
-        # Just defined to make mypy happy. We don't actually do anything special
-        super().__setattr__(name, v)
 
 
 class RefractorCache(UserDict):

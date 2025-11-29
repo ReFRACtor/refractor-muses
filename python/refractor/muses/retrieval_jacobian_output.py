@@ -5,7 +5,7 @@ import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation
 from .order_species import is_atmospheric_species
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 from pathlib import Path
 import numpy as np
 import typing

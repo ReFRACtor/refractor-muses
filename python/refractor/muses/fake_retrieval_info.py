@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 import refractor.framework as rf  # type: ignore
 import numpy as np
 import typing

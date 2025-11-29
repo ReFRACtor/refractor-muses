@@ -1,6 +1,6 @@
 # This is has some old py-retrieve UIP fixtures
 import pytest
-from refractor.muses import RefractorUip
+from refractor.muses_py_fm import RefractorUip
 
 
 def load_uip(dir_in, step_number=1, osp_dir=None, gmao_dir=None):

@@ -12,7 +12,7 @@ from .identifier import (
     StateElementIdentifier,
     InstrumentIdentifier,
 )
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 from .retrieval_lite_output import CdfWriteLiteTes
 from netCDF4 import Dataset
 from pathlib import Path

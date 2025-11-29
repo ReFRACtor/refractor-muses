@@ -1,12 +1,11 @@
 from refractor.muses import (
     CostFunctionCreator,
     MeasurementIdFile,
-    RefractorUip,
     RetrievalConfiguration,
     muses_py_call,
-    osswrapper,
     InstrumentIdentifier,
 )
+from refractor.muses_py_fm import RefractorUip, osswrapper
 from fixtures.residual_fm import (
     joint_omi_residual_fm_jac,
     joint_tropomi_residual_fm_jac,

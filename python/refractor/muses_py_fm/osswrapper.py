@@ -8,7 +8,7 @@ from .mpy import (
     mpy_fm_oss_delete,
 )
 import itertools
-from .replace_function_helper import suppress_replacement
+from refractor.muses import suppress_replacement
 import os
 import copy
 from contextlib import contextmanager

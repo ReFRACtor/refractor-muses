@@ -2,7 +2,7 @@ from __future__ import annotations
 import refractor.framework as rf  # type: ignore
 from .identifier import StateElementIdentifier
 from .tes_file import TesFile
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 from pathlib import Path
 import numpy as np
 import copy
@@ -1891,7 +1891,7 @@ def add_column(
     i_pwflevel=[],
 ):
     # Temp
-    from refracto.muses_py import calculate_xco2, UtilGeneral
+    from refractor.muses_py import calculate_xco2, UtilGeneral
 
     # IDL_LEGACY_NOTE: This function add_column is the same as add_column function in TOOLS/add_column.pro file.
     function_name = "add_column: "

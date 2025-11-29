@@ -1,7 +1,6 @@
 from __future__ import annotations
 from functools import cached_property
 from refractor.muses import (
-    RefractorUip,
     ForwardModelHandle,
     CurrentState,
     InstrumentIdentifier,
@@ -15,7 +14,8 @@ from typing import Callable, Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.muses import MeasurementId, MusesObservation, RefractorUip
+    from refractor.muses import MeasurementId, MusesObservation
+    from refractor.muses_py_fm import RefractorUip
 
 
 class TropomiSwirFmObjectCreator(TropomiFmObjectCreator):

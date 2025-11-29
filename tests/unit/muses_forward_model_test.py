@@ -1,10 +1,12 @@
 from refractor.muses import (
+    MeasurementIdDict,
+    InstrumentIdentifier,
+)
+from refractor.muses_py_fm import (
     MusesCrisForwardModel,
     MusesAirsForwardModel,
     MusesTropomiForwardModel,
     MusesOmiForwardModel,
-    MeasurementIdDict,
-    InstrumentIdentifier,
 )
 import pickle
 

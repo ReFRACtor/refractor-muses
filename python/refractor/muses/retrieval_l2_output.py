@@ -5,7 +5,7 @@ import os
 import copy
 from .retrieval_output import RetrievalOutput, CdfWriteTes, extra_l2_output
 from .identifier import InstrumentIdentifier, ProcessLocation, StateElementIdentifier
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 from .muses_altitude_pge import MusesAltitudePge
 
 from pathlib import Path

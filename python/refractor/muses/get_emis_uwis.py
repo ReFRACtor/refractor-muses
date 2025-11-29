@@ -6,7 +6,7 @@ import os
 from glob import glob
 from pathlib import Path
 import netCDF4 as ncdf
-import h5py # type: ignore
+import h5py  # type: ignore
 import numpy as np
 import scipy
 from scipy.io import readsav
@@ -1001,7 +1001,6 @@ def get_emis_uwis(
     filelats: None | np.ndarray = None,
     filelons: None | np.ndarray = None,
 ) -> dict[str, Any]:
-
     # IDL_LEGACY_NOTE: This function get_emis_uwis is the same as get_emis_uwis in TOOLS/EMIS_UWIS/get_emis_uwis.pro file.
 
     # only for TIR: 699 - 2774 cm-1
@@ -1115,9 +1114,7 @@ def get_emis_uwis(
         scale_factor_wvn = 1.0
         scale_factor_emis = 1.0
 
-        wavenumber0, o_variable_attributes_dict = nc_read_variable(
-            ncfile, "wavenumber"
-        )
+        wavenumber0, o_variable_attributes_dict = nc_read_variable(ncfile, "wavenumber")
         scale_factor_wvn = o_variable_attributes_dict["scale_factor"]
 
         emis0, o_variable_attributes_dict = nc_read_variable(ncfile, "emis1")
@@ -1392,12 +1389,15 @@ def _bilinear(
 
     return mpy_bilinear(p_matrix, latind, lonind, FILLVALUE)
 
-def nc_read_variable(i_filename : str, i_variable_name :str) -> tuple[np.ndarray, dict[str, Any]]:
+
+def nc_read_variable(
+    i_filename: str, i_variable_name: str
+) -> tuple[np.ndarray, dict[str, Any]]:
     # Read a specific variable into memory and returned the variable along with any variable attributes.
     try:
-        nci = ncdf.Dataset(Path(i_filename).resolve(), mode='r')
-        nci.set_auto_maskandscale(False)  
-    
+        nci = ncdf.Dataset(Path(i_filename).resolve(), mode="r")
+        nci.set_auto_maskandscale(False)
+
         o_variable_attributes_dict = nci[i_variable_name].__dict__
         o_variable_data = nci[i_variable_name][:]
     finally:

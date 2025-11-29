@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 import refractor.framework as rf  # type: ignore
-from refractor.muses import RefractorUip
+from refractor.muses_py_fm import RefractorUip
 import numpy as np
 
 # Older interface for observations, which wraps around muses-py code

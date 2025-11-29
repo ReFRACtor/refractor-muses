@@ -3,7 +3,7 @@ from loguru import logger
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import ProcessLocation, InstrumentIdentifier, StateElementIdentifier
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 import numpy as np
 import math
 import typing
@@ -12,7 +12,7 @@ from typing import Any, Callable
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
     from .retrieval_strategy_step import RetrievalStrategyStep
-    from .muses_forward_model import ResultIrk
+    from .misc import ResultIrk
     from .current_state import PropagatedQA
 
 

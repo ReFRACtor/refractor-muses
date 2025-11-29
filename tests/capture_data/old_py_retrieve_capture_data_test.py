@@ -5,8 +5,8 @@ from refractor.old_py_retrieve_wrapper import (
 )
 from refractor.muses import (
     MusesRunDir,
-    RefractorUip,
 )
+from refractor.muses_py_fm import RefractorUip
 import pytest
 import os
 import refractor.muses_py as mpy

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from .fake_state_info import FakeStateInfo
 from .fake_retrieval_info import FakeRetrievalInfo
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 import numpy as np
 import math
 from loguru import logger

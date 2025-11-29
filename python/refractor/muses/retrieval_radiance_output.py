@@ -4,7 +4,7 @@ from loguru import logger
 import os
 from .retrieval_output import RetrievalOutput
 from .identifier import InstrumentIdentifier, ProcessLocation
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 from pathlib import Path
 import numpy as np
 import typing

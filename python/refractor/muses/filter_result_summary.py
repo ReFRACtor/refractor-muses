@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .identifier import FilterIdentifier
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 
 
 class FilterResultSummary:

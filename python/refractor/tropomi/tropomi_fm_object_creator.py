@@ -2,7 +2,6 @@ from __future__ import annotations
 from functools import cached_property, lru_cache
 from refractor.muses import (
     RefractorFmObjectCreator,
-    RefractorUip,
     ForwardModelHandle,
     MusesRaman,
     CurrentState,
@@ -21,7 +20,8 @@ from typing import Callable, Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.muses import MeasurementId, MusesObservation, RefractorUip
+    from refractor.muses import MeasurementId, MusesObservation
+    from refractor.muses_py_fm import RefractorUip
 
 
 class TropomiSurfaceAlbedo(SurfaceAlbedo):

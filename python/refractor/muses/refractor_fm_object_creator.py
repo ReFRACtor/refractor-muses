@@ -2,7 +2,6 @@ from __future__ import annotations
 from functools import cached_property, lru_cache
 from .muses_optical_depth import MusesOpticalDepth
 from .muses_spectrum_sampling import MusesSpectrumSampling
-from .muses_forward_model import RefractorForwardModel
 from .identifier import StateElementIdentifier
 import refractor.framework as rf  # type: ignore
 import os
@@ -20,7 +19,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier
-    from refractor.muses.refractor_uip import RefractorUip
+    from refractor.muses_py_fm import RefractorUip
 
 
 class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
@@ -880,10 +879,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         )
         res.add_cloud_handling_object(self.pressure)
         res.add_cloud_handling_object(self.ground)
-        if False:
-            # Add a wrapper in python, so we can get timings include ReFRACtor
-            res = RefractorForwardModel(res)
-        # logger.debug("Forward Model: %s", res)
         return res
 
     @lru_cache(maxsize=None)

@@ -1,23 +1,27 @@
 from __future__ import annotations
 from .mpy import mpy_fm_oss_stack, mpy_tropomi_fm, mpy_omi_fm
-from .forward_model_handle import ForwardModelHandle, ForwardModelHandleSet
 from .osswrapper import osswrapper
-from .refractor_capture_directory import muses_py_call
-from .muses_tes_observation import MusesTesObservation
-from .identifier import InstrumentIdentifier
+from refractor.muses import (
+    ForwardModelHandle,
+    ForwardModelHandleSet,
+    muses_py_call,
+    MusesTesObservation,
+    InstrumentIdentifier,
+    CurrentState,
+    MeasurementId,
+    MusesObservation,
+    ResultIrk,
+)
 import refractor.framework as rf  # type: ignore
 from functools import cached_property
 from loguru import logger
 import numpy as np
 import copy
-from collections import UserDict
 import typing
 from typing import Callable, Any, TypeVar
 
 if typing.TYPE_CHECKING:
-    from .muses_observation import MeasurementId, MusesObservation
     from .refractor_uip import RefractorUip
-    from .current_state import CurrentState
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
 # ForwardModel
@@ -152,94 +156,6 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
                 a = rf.ArrayAd_double_1(rad[gmask])
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
-
-
-class ResultIrk(UserDict):
-    """This holds the results of IRK. This is basically just a dict,
-    with a few extra functions. We can perhaps create a proper class
-    at some point, but right now there isn't much of a need for this.
-    The old py-retrieve code that uses ResultIrk is expecting a dict."""
-
-    def __getattr__(self, nm: str) -> Any:
-        if nm in self.data:
-            return self[nm]
-        raise AttributeError()
-
-    def __setattr__(self, nm: str, value: Any) -> None:
-        if nm in ("data",):
-            super().__setattr__(nm, value)
-        if nm in self.data:
-            self[nm] = value
-        else:
-            super().__setattr__(nm, value)
-
-    def get_state(self) -> dict[str, Any]:
-        res = dict(copy.deepcopy(self.data))
-        for k in res.keys():
-            if k in (
-                "fluxSegments",
-                "freqSegments",
-                "fluxSegments_l1b",
-                "freqSegments_irk",
-            ):
-                res[k] = res[k].tolist()
-            if k == "radiances":
-                for k2 in ("radarr_fm", "freq_fm", "rad_L1b", "freq_L1b"):
-                    res[k][k2] = res[k][k2].tolist()
-            if k not in (
-                "flux",
-                "flux_l1b",
-                "fluxSegments",
-                "freqSegments",
-                "fluxSegments_l1b",
-                "freqSegments_irk",
-                "radiances",
-            ):
-                for k2 in (
-                    "irfk",
-                    "lirfk",
-                    "pressure",
-                    "irfk_segs",
-                    "lirfk_segs",
-                    "vmr",
-                ):
-                    if res[k][k2] is None:
-                        res[k][k2] = None
-                    else:
-                        res[k][k2] = res[k][k2].tolist()
-        return res
-
-    def set_state(self, d: dict[str, Any]) -> None:
-        self.data = d
-        for k in self.data.keys():
-            if k in (
-                "fluxSegments",
-                "freqSegments",
-                "fluxSegments_l1b",
-                "freqSegments_irk",
-            ):
-                self.data[k] = np.array(self.data[k])
-            if k == "radiances":
-                for k2 in ("radarr_fm", "freq_fm", "rad_L1b", "freq_L1b"):
-                    self.data[k][k2] = np.array(self.data[k][k2])
-            if k not in (
-                "flux",
-                "flux_l1b",
-                "fluxSegments",
-                "freqSegments",
-                "fluxSegments_l1b",
-                "freqSegments_irk",
-                "radiances",
-            ):
-                for k2 in (
-                    "irfk",
-                    "lirfk",
-                    "pressure",
-                    "irfk_segs",
-                    "lirfk_segs",
-                    "vmr",
-                ):
-                    self.data[k][k2] = np.array(self.data[k][k2])
 
 
 class MusesForwardModelIrk(MusesOssForwardModelBase):
@@ -827,13 +743,15 @@ class MusesForwardModelHandle(ForwardModelHandle):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
 
+    # Type type is actually correct, but mypy is confused because RefractorUip comes
+    # from two places
     def forward_model(
         self,
         instrument_name: InstrumentIdentifier,
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,  # type: ignore[override]
         **kwargs: Any,
     ) -> None | rf.ForwardModel:
         if instrument_name != self.instrument_name:

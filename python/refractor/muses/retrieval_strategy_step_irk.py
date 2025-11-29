@@ -1,6 +1,6 @@
 from __future__ import annotations
 from .retrieval_strategy_step import RetrievalStrategyStep, RetrievalStrategyStepSet
-from .muses_forward_model import ResultIrk
+from .misc import ResultIrk
 from .identifier import RetrievalType, ProcessLocation
 from loguru import logger
 from typing import Any

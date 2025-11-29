@@ -1,7 +1,6 @@
 from __future__ import annotations
 from .cost_function import CostFunction
-from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
-from .current_state import CurrentState, CurrentStateUip
+from .current_state import CurrentState
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
 from .retrieval_array import RetrievalGridArray
@@ -17,7 +16,7 @@ import numpy as np
 if typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
     from .muses_observation import MusesObservation, MeasurementId
-    from .refractor_uip import RefractorUip
+    from refractor.muses_py_fm import RefractorUip
     from .retrieval_strategy import RetrievalStrategy
     from .identifier import InstrumentIdentifier
     from .state_info import StateElement
@@ -161,6 +160,11 @@ class CostFunctionCreator:
         class would normally create. This isn't something you would
         normally use for "real", this is just to support testing.
         """
+        from refractor.muses_py_fm import (
+            CurrentStateUip,
+            MaxAPosterioriSqrtConstraintUpdateUip,
+        )
+
         # Keep track of this, in case we create one so we know to attach this to
         # the state vector
         self._rf_uip = {}
@@ -339,10 +343,12 @@ class CostFunctionCreator:
         used for backwards testing, the slightly klunky design doesn't
         seem like much of a problem.
         """
+        from refractor.muses_py_fm import CurrentStateUip
+
         cstate = CurrentStateUip(rf_uip, ret_info)
         return self.cost_function(
-            rf_uip.instrument,
-            cstate,
+            rf_uip.instrument,  # type:ignore[arg-type]
+            cstate,  # type:ignore[arg-type]
             None,
             rf_uip_func=lambda instrument_name: rf_uip,
             obs_list=obs_list,

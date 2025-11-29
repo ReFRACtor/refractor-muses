@@ -6,7 +6,7 @@ from .radiance_result_summary import RadianceResultSummary
 from .cloud_result_summary import CloudResultSummary
 from .column_result_summary import ColumnResultSummary
 from .error_analysis import ErrorAnalysis
-from .refractor_uip import AttrDictAdapter
+from .misc import AttrDictAdapter
 import math
 import numpy as np
 import typing

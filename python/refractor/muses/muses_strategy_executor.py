@@ -11,7 +11,7 @@ from .muses_strategy import (
     CurrentStrategyStep,
 )
 from .observation_handle import ObservationHandleSet
-from .refractor_uip import RefractorUip, AttrDictAdapter
+from .misc import AttrDictAdapter
 from .identifier import StateElementIdentifier, ProcessLocation
 from .muses_strategy import MusesStrategyHandleSet
 from .spectral_window_handle import SpectralWindowHandleSet
@@ -41,6 +41,7 @@ if typing.TYPE_CHECKING:
     from .identifier import InstrumentIdentifier, FilterIdentifier
     from .state_info import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
+    from refractor.muses_py_fm import RefractorUip
 
 
 @contextmanager
@@ -271,6 +272,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         used by the IRK calculation.
 
         """
+        from refractor.muses_py_fm import RefractorUip
+
         logger.debug(f"Creating rf_uip for {instrument}")
         cstep = self.current_strategy_step
         if obs_list is None:
@@ -325,10 +328,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                     o_xxx[str(iname)] = obs.muses_py_dict
         with muses_py_call(self.run_dir):
             rf_uip = RefractorUip.create_uip(
-                fake_state_info,
+                fake_state_info,  # type: ignore[arg-type]
                 fake_table,
                 mwin,
-                rinfo,
+                rinfo,  # type: ignore[arg-type]
                 o_xxx["AIRS"],
                 o_xxx["TES"],
                 o_xxx["CRIS"],
@@ -338,7 +341,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 jacobian_speciesIn=[str(i) for i in jacobian_speciesIn]
                 if jacobian_speciesIn is not None
                 else None,
-                only_create_instrument=instrument,
+                only_create_instrument=instrument,  # type: ignore[arg-type]
                 pointing_angle=pointing_angle,
             )
             return rf_uip

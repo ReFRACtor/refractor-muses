@@ -8,7 +8,7 @@ import typing
 if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId, MusesObservation
     from .current_state import CurrentState
-    from .refractor_uip import RefractorUip
+    from refractor.muses_py_fm import RefractorUip
     from .identifier import InstrumentIdentifier
 
 

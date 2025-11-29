@@ -10,7 +10,6 @@ from refractor.muses import (
     MeasurementId,
     MusesObservation,
     MusesRunDir,
-    RefractorUip,
     RetrievalConfiguration,
     RetrievalStrategy,
     RetrievalStrategyCaptureObserver,
@@ -18,6 +17,7 @@ from refractor.muses import (
     StateElementIdentifier,
     modify_strategy_table,
 )
+from refractor.muses_py_fm import RefractorUip
 from refractor.old_py_retrieve_wrapper import (
     RetrievableStateElementOld,
     StateInfoOld,
