@@ -354,10 +354,8 @@ class StateElementFromClimatologyCh3oh(StateElementFromClimatology):
                 Path(retrieval_config["Single_State_Directory"])
                 / "State_AtmProfiles.asc"
             )
-            if fatm.table is None:
-                return None
-            value_fm = np.array(fatm.table["CH3OH"]).view(FullGridMappedArray)
-            pressure = fatm.table["Pressure"]
+            value_fm = np.array(fatm.checked_table["CH3OH"]).view(FullGridMappedArray)
+            pressure = fatm.checked_table["Pressure"]
             value_fm = np.exp(
                 cls.my_interpolate(
                     np.log(value_fm), np.log(pressure), np.log(pressure_list_fm)

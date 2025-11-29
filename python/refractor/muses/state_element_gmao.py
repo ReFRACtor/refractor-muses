@@ -174,9 +174,7 @@ class StateElementFromGmaoPressure(StateElementOspFile):
         fatm = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_AtmProfiles.asc"
         )
-        if fatm.table is None:
-            return None
-        pressure0 = np.array(fatm.table["Pressure"])
+        pressure0 = np.array(fatm.checked_table["Pressure"])
         gmao_dir = (
             retrieval_config.gmao_dir
             if retrieval_config.gmao_dir is not None

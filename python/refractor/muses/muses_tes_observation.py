@@ -358,13 +358,9 @@ class MusesTesObservation(MusesObservationImp):
             if func == "NORTON_BEER":
                 strength = mid["NortonBeerApodizationStrength"]
                 sdef = TesFile(mid["defaultSpectralWindowsDefinitionFilename"])
-                if sdef.table is None:
-                    raise RuntimeError(
-                        "Trouble reading defaultSpectralWindowsDefinitionFilename"
-                    )
-                maxopd = np.array(sdef.table["MAXOPD"])
-                flt = np.array(sdef.table["FILTER"])
-                spacing = np.array(sdef.table["RET_FRQ_SPC"])
+                maxopd = np.array(sdef.checked_table["MAXOPD"])
+                flt = np.array(sdef.checked_table["FILTER"])
+                spacing = np.array(sdef.checked_table["RET_FRQ_SPC"])
                 cls._apodization(o_tes, func, strength, flt, maxopd, spacing)
             obs = cls(o_tes, sdesc)
         # Note that TES has a particularly complicated spectral window needed

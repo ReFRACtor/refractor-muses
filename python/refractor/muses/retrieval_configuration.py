@@ -157,7 +157,7 @@ class RetrievalConfiguration(collections.abc.MutableMapping):
 
     @property
     def osp_abs_dir(self) -> Path:
-        return self.abs_dir("../OSP/.")
+        return Path(self.abs_dir("../OSP/.")).resolve()
 
     def abs_dir(self, v: Any) -> Any:
         """Convert values like ../OSP to the osp_dir passed in. Expand

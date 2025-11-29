@@ -115,6 +115,17 @@ class TesFile(collections.abc.Mapping):
             self.table = None
 
     @property
+    def checked_table(self) -> pd.DataFrame:
+        """We often read a file that should have a table in it. While we can check
+        if table is None, we do this often enough that it is nice to have checked version
+        of this."""
+        if self.table is None:
+            raise RuntimeError(
+                f"Trouble reading file {self.file_name}, expected a table but didn't find it"
+            )
+        return self.table
+
+    @property
     def shape(self) -> list[int]:
         """Return the shape of the table. Note this comes from the
         metadata 'Data_Size', not the actual table.

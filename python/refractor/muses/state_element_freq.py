@@ -199,12 +199,10 @@ class StateElementEmis(StateElementFreqShared):
         f = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc"
         )
-        if f.table is None:
-            raise RuntimeError("Trouble reading file")
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
         # initial guess that got replaced
-        spectral_domain = rf.SpectralDomain(f.table["Frequency"], rf.Unit("nm"))
+        spectral_domain = rf.SpectralDomain(f.checked_table["Frequency"], rf.Unit("nm"))
         # Use get_emis_uwis to get the emissivity. This matches what
         # script_retrieval_setup_ms does.
         emis_type = retrieval_config["TIR_EMIS_Source"]
@@ -339,12 +337,12 @@ class StateElementNativeEmis(StateElementFreqShared):
         f = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_Emissivity_IR.asc"
         )
-        if f.table is None:
-            raise RuntimeError("Trouble reading file")
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
         # initial guess that got replaced
-        spectral_domain_in = rf.SpectralDomain(f.table["Frequency"], rf.Unit("nm"))
+        spectral_domain_in = rf.SpectralDomain(
+            f.checked_table["Frequency"], rf.Unit("nm")
+        )
         # Despite the name frequency, this is actually wavelength. Also, we don't actually
         # read the Emissivity column. I'm guessing this was an older way to get the
         # initial guess that got replaced
@@ -388,11 +386,11 @@ class StateElementCloudExt(StateElementFreqShared):
         f = TesFile(
             Path(retrieval_config["Single_State_Directory"]) / "State_Cloud_IR.asc"
         )
-        if f.table is None:
-            raise RuntimeError("Trouble reading file")
         # Despite the name frequency, this is actually wavelength.
-        spectral_domain = rf.SpectralDomain(f.table["Frequencies"], rf.Unit("nm"))
-        value_fm = np.array(f.table["verticalEXT"]).view(FullGridMappedArray)
+        spectral_domain = rf.SpectralDomain(
+            f.checked_table["Frequencies"], rf.Unit("nm")
+        )
+        value_fm = np.array(f.checked_table["verticalEXT"]).view(FullGridMappedArray)
         create_kwargs = {"spectral_domain": spectral_domain}
         return OspSetupReturn(
             value_fm=value_fm,

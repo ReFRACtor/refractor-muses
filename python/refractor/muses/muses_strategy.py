@@ -627,10 +627,8 @@ class MusesStrategyStepList(MusesStrategyImp):
         """Create a MusesStrategyStepList from a strategy table file."""
         res = cls(spectral_window_handle_set)
         fin = TesFile(filename)
-        if fin.table is None:
-            raise RuntimeError(f"Trouble reading {filename}")
         i2 = -1
-        for i, row in fin.table.iterrows():
+        for i, row in fin.checked_table.iterrows():
             i2 += 1
             cost_function_params: dict[str, Any] = {
                 "max_iter": int(row["maxNumIterations"]),

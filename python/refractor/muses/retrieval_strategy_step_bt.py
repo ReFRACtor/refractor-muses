@@ -95,23 +95,19 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             return
 
         cfile = TesFile(retrieval_config["CloudParameterFilename"])
-        if cfile.table is None:
-            raise RuntimeError(
-                f"File {retrieval_config['CloudParameterFilename']} has no data table"
-            )
-        BTLow = np.array(cfile.table["BT_low"])
-        BTHigh = np.array(cfile.table["BT_high"])
+        BTLow = np.array(cfile.checked_table["BT_low"])
+        BTHigh = np.array(cfile.checked_table["BT_high"])
         # This is either 0 (for don't update) or 1 (for update)
-        tsurIG = np.array(cfile.table["TSUR_IG"])
+        tsurIG = np.array(cfile.checked_table["TSUR_IG"])
 
-        cloudIG = np.array(cfile.table["CLOUDEXT_IG"])
+        cloudIG = np.array(cfile.checked_table["CLOUDEXT_IG"])
         row = np.where((bt_diff >= BTLow) & (bt_diff <= BTHigh))[0]
         if row.size == 0:
             raise RuntimeError(
                 f"No entry in file, {cfile.file_name} For BT difference of {bt_diff}"
             )
 
-        btdata["species_igr"] = np.array(cfile.table["SPECIES_IGR"])[row]
+        btdata["species_igr"] = np.array(cfile.checked_table["SPECIES_IGR"])[row]
 
         # for IGR and TSUR modification for TSUR, must be daytime land
         if (

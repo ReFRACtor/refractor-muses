@@ -6,6 +6,7 @@ import os
 from glob import glob
 from pathlib import Path
 import netCDF4 as ncdf
+import h5py # type: ignore
 import numpy as np
 import scipy
 from scipy.io import readsav
@@ -192,9 +193,7 @@ def get_emis_dispatcher(
             )
         except CamelLandFlagError:
             logger.info(
-                "Could not find CAMEL emissivity near lat = {}, lon = {}, defaulting to ocean emissivity".format(
-                    i_latitude, i_longitude
-                )
+                f"Could not find CAMEL emissivity near lat = {i_latitude}, lon = {i_longitude}, defaulting to ocean emissivity"
             )
             # This isn't quite ideal; `get_water_emis` differentiates between ocean and lake emissivity based on altitude
             # so if we have an elevated sounding over ocean, it might get treated as lake. However, if that's the case, we
@@ -213,9 +212,7 @@ def get_emis_dispatcher(
             )
         except CamelLandFlagError:
             logger.info(
-                "Could not find CAMEL emissivity near lat = {}, lon = {}, defaulting to ocean emissivity".format(
-                    i_latitude, i_longitude
-                )
+                f"Could not find CAMEL emissivity near lat = {i_latitude}, lon = {i_latitude}, defaulting to ocean emissivity"
             )
             # See note above in the V2_CAMEL except block.
             native_emis = get_water_emis(i_altitude, osp_dir)
@@ -458,8 +455,7 @@ class CamelIndexTransform:
             )
 
         logger.info(
-            f"Selected lat = {self._grid_lat[ilat_final]}, lon = {self._grid_lon[ilon_final]} "
-            f"for target lat = {tgt_lat}, lon = {tgt_lon}"
+            f"Selected lat = {self._grid_lat[ilat_final]}, lon = {self._grid_lon[ilon_final]} for target lat = {tgt_lat}, lon = {tgt_lon}"
         )
         assert ilat_final is not None
         assert ilon_final is not None
@@ -980,10 +976,8 @@ def get_water_emis(surfaceAltitude: float, osp_dir: Path) -> dict[str, Any]:
         surface_type = "Ocean"
 
     t = TesFile(emissivity_file)
-    if t.table is None:
-        raise RuntimeError(f"Trouble reading file {emissivity_file}")
-    wavenumber = np.array(t.table["Frequency"])
-    emis = np.array(t.table["Emissivity"])
+    wavenumber = np.array(t.checked_table["Frequency"])
+    emis = np.array(t.checked_table["Emissivity"])
 
     return {"wavenumber": wavenumber, "emissivity": emis, "surfaceType": surface_type}
 
@@ -1007,12 +1001,6 @@ def get_emis_uwis(
     filelats: None | np.ndarray = None,
     filelons: None | np.ndarray = None,
 ) -> dict[str, Any]:
-    from .mpy import (
-        mpy_nc_read_variable,
-        mpy_read_all_tes_cache,
-        mpy_tes_file_get_column,
-        mpy_hdf5_read_variable,
-    )
 
     # IDL_LEGACY_NOTE: This function get_emis_uwis is the same as get_emis_uwis in TOOLS/EMIS_UWIS/get_emis_uwis.pro file.
 
@@ -1044,16 +1032,16 @@ def get_emis_uwis(
         year = 2007
 
     if filelats is None or filelons is None:
-        ncfile = str(tes_emis_dir / "global_emis_inf10_location_small.nc")
-        (_, filelats) = mpy_hdf5_read_variable(ncfile, "LAT")
-        (_, filelons) = mpy_hdf5_read_variable(ncfile, "LON")
+        with h5py.File(tes_emis_dir / "global_emis_inf10_location_small.nc", "r") as f:
+            filelats = f["LAT"][:]
+            filelons = f["LON"][:]
 
     lon_int = abs(filelons[0] - filelons[1])
     lat_int = abs(filelats[0] - filelats[1])
 
     filename = (
         str(tes_emis_dir)
-        + "global_emis_inf10*"
+        + "/global_emis_inf10*"
         + str("{0:04d}".format(int(year)))
         + "-"
         + str("{0:02d}".format(int(month)))
@@ -1069,7 +1057,7 @@ def get_emis_uwis(
         # if not found, use 2007
         filename = (
             str(tes_emis_dir)
-            + "global_emis_inf10*"
+            + "/global_emis_inf10*"
             + str("{0:04d}".format(int(2007)))
             + "-"
             + str("{0:02d}".format(int(month)))
@@ -1127,37 +1115,37 @@ def get_emis_uwis(
         scale_factor_wvn = 1.0
         scale_factor_emis = 1.0
 
-        (_, wavenumber0, o_variable_attributes_dict) = mpy_nc_read_variable(
+        wavenumber0, o_variable_attributes_dict = nc_read_variable(
             ncfile, "wavenumber"
         )
         scale_factor_wvn = o_variable_attributes_dict["scale_factor"]
 
-        (_, emis0, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis1")
+        emis0, o_variable_attributes_dict = nc_read_variable(ncfile, "emis1")
         scale_factor_emis = o_variable_attributes_dict["scale_factor"]
 
-        (_, emis1, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis2")
-        (_, emis2, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis3")
-        (_, emis3, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis4")
-        (_, emis4, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis5")
-        (_, emis5, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis6")
-        (_, emis6, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis7")
-        (_, emis7, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis8")
-        (_, emis8, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis9")
-        (_, emis9, o_variable_attributes_dict) = mpy_nc_read_variable(ncfile, "emis10")
+        emis1, _ = nc_read_variable(ncfile, "emis2")
+        emis2, _ = nc_read_variable(ncfile, "emis3")
+        emis3, _ = nc_read_variable(ncfile, "emis4")
+        emis4, _ = nc_read_variable(ncfile, "emis5")
+        emis5, _ = nc_read_variable(ncfile, "emis6")
+        emis6, _ = nc_read_variable(ncfile, "emis7")
+        emis7, _ = nc_read_variable(ncfile, "emis8")
+        emis8, _ = nc_read_variable(ncfile, "emis9")
+        emis9, _ = nc_read_variable(ncfile, "emis10")
 
         # Apply the scale factor to all applicable arrays.
         wavenumber0 = wavenumber0 * scale_factor_wvn
         FILLVALUE = FILLVALUE * scale_factor_emis
-        emis0 = np.float64(emis0 * scale_factor_emis)
-        emis1 = np.float64(emis1 * scale_factor_emis)
-        emis2 = np.float64(emis2 * scale_factor_emis)
-        emis3 = np.float64(emis3 * scale_factor_emis)
-        emis4 = np.float64(emis4 * scale_factor_emis)
-        emis5 = np.float64(emis5 * scale_factor_emis)
-        emis6 = np.float64(emis6 * scale_factor_emis)
-        emis7 = np.float64(emis7 * scale_factor_emis)
-        emis8 = np.float64(emis8 * scale_factor_emis)
-        emis9 = np.float64(emis9 * scale_factor_emis)
+        emis0 = emis0 * scale_factor_emis
+        emis1 = emis1 * scale_factor_emis
+        emis2 = emis2 * scale_factor_emis
+        emis3 = emis3 * scale_factor_emis
+        emis4 = emis4 * scale_factor_emis
+        emis5 = emis5 * scale_factor_emis
+        emis6 = emis6 * scale_factor_emis
+        emis7 = emis7 * scale_factor_emis
+        emis8 = emis8 * scale_factor_emis
+        emis9 = emis9 * scale_factor_emis
         filenameSave = filename
     # end if found == 0:
 
@@ -1238,15 +1226,13 @@ def get_emis_uwis(
         # save "D", PCM_NEW, PCU, PCM, wavenumber, all assuming on the 416
         # point grid.
         if matrices is None:
-            filenamex = str(tes_emis_dir) + "matrices.dat"
-            logger.info("filenamex: ", filenamex)
+            filenamex = str(tes_emis_dir / "matrices.dat")
+            logger.info(f"filenamex: {filenamex}")
 
             # check re-doing versus re-using
             fnames = glob(filenamex)
             if len(fnames) == 0:
-                logger.error("RESTORE", str(tes_emis_dir) + "pcs.dat")
-                logger.error("WARN_NOT_IMPLEMENTED_YET")
-                assert False
+                raise RuntimeError("Not implemented yet")
                 # restore, tes_emis_dir+'pcs.dat'        ;eigenvectors (PC.U) and eigenvalues (PC.M) of the 123 selected laboratory spectra on HSR
                 # restore, tes_emis_dir+'pcs_modres.dat' ;eigenvectors (PCU_NEW) and eigenvalues (PCM_NEW) of the 123 selected laboratory spectra on the ten hinge point resolution
                 # restore, tes_emis_dir+'hsr_wavenum.dat';wavenumbers of the HSR
@@ -1302,8 +1288,7 @@ def get_emis_uwis(
         # caching to avoid reloading the emissivity. Not sure how much that matters for speed, we
         # shouldn't be calling this very much in the same process.
         if surfaceAltitude is not None and surfaceAltitude.size > 0:
-            logger.error("Water scene.  Must include altitude (in km) parameter")
-            assert False
+            raise RuntimeError("Water scene.  Must include altitude (in km) parameter")
 
         if surfaceAltitude is not None and surfaceAltitude[0] > 0.2:
             if watertype == "Lake":
@@ -1313,17 +1298,10 @@ def get_emis_uwis(
                 watertype = "Lake"
 
                 # fresh water
-                logger.info("reading: ", str(tes_emis_dir) + "Emissivity_Lake.asc")
-                (read_status, fileID) = mpy_read_all_tes_cache(
-                    str(tes_emis_dir) + "Emissivity_Lake.asc"
-                )
+                t = TesFile(tes_emis_dir / "Emissivity_Lake.asc")
 
-                wavenumber = np.asarray(
-                    [float(i) for i in mpy_tes_file_get_column(fileID, "Frequency")]
-                )
-                emis = np.asarray(
-                    [float(i) for i in mpy_tes_file_get_column(fileID, "Emissivity")]
-                )
+                wavenumber = np.asarray(t.checked_table["Frequency"])
+                emis = np.asarray(t.checked_table["Emissivity"])
 
                 surfaceType = "Lake"
                 result = {
@@ -1339,17 +1317,10 @@ def get_emis_uwis(
                 result = waterresult
             else:
                 # ocean
-                logger.info("reading: ", str(tes_emis_dir) + "Emissivity_Ocean.asc")
-                (read_status, fileID) = mpy_read_all_tes_cache(
-                    str(tes_emis_dir) + "Emissivity_Ocean.asc"
-                )
+                t = TesFile(tes_emis_dir / "Emissivity_Ocean.asc")
 
-                wavenumber = np.asarray(
-                    [float(i) for i in mpy_tes_file_get_column(fileID, "Frequency")]
-                )
-                emis = np.asarray(
-                    [float(i) for i in mpy_tes_file_get_column(fileID, "Emissivity")]
-                )
+                wavenumber = np.asarray(t.checked_table["Frequency"])
+                emis = np.asarray(t.checked_table["Emissivity"])
 
                 surfaceType = "Ocean"
                 result = {
@@ -1420,6 +1391,19 @@ def _bilinear(
     from .mpy import mpy_bilinear
 
     return mpy_bilinear(p_matrix, latind, lonind, FILLVALUE)
+
+def nc_read_variable(i_filename : str, i_variable_name :str) -> tuple[np.ndarray, dict[str, Any]]:
+    # Read a specific variable into memory and returned the variable along with any variable attributes.
+    try:
+        nci = ncdf.Dataset(Path(i_filename).resolve(), mode='r')
+        nci.set_auto_maskandscale(False)  
+    
+        o_variable_attributes_dict = nci[i_variable_name].__dict__
+        o_variable_data = nci[i_variable_name][:]
+    finally:
+        nci.close()
+
+    return (o_variable_data, o_variable_attributes_dict)
 
 
 def _restore_matrices_variable(i_filename: str) -> dict[str, np.ndarray]:

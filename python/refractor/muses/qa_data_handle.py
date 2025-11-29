@@ -53,9 +53,7 @@ class QaFlagValueFile(QaFlagValue):
     # but we can revisit this if needed, and perhaps change this interface.
     def __init__(self, fname: str | os.PathLike[str]):
         self.d = TesFile(fname)
-        if self.d.table is None:
-            raise RuntimeError(f"Trouble reading file {fname}")
-        self.tbl: pd.DataFrame = self.d.table
+        self.tbl: pd.DataFrame = self.d.checked_table
 
     @property
     def qa_flag_name(self) -> list[str]:

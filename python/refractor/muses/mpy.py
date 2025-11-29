@@ -119,11 +119,6 @@ def mpy_bilinear(*args: Any, **kwargs: Any) -> Any:
     return muses_py.UtilMath().bilinear(*args, **kwargs)
 
 
-mpy_nc_read_variable = partial(muses_py_wrapper_keep, "nc_read_variable")
-mpy_hdf5_read_variable = partial(muses_py_wrapper_keep, "hdf5_read_variable")
-mpy_tes_file_get_column = partial(muses_py_wrapper_keep, "tes_file_get_column")
-mpy_read_all_tes_cache = partial(muses_py_wrapper_keep, "read_all_tes_cache")
-
 # This is used in muses_levmar_solver. I'm not sure, it would be nice to have this
 # in refractor so we don't require muses-py to solve. But at the same time, this is
 # a pretty central function in muses-py. For now, we import this.
@@ -166,7 +161,6 @@ __all__ = [
     "mpy_fm_oss_windows",
     "mpy_get_omi_radiance",
     "mpy_get_tropomi_radiance",
-    "mpy_hdf5_read_variable",
     "mpy_levmar_nllsq_elanor",
     "mpy_make_uip_airs",
     "mpy_make_uip_cris",
@@ -175,7 +169,6 @@ __all__ = [
     "mpy_make_uip_omi",
     "mpy_make_uip_tes",
     "mpy_make_uip_tropomi",
-    "mpy_nc_read_variable",
     "mpy_nir_match_wavelength_edges",
     "mpy_oco2_get_wavelength",
     "mpy_omi_fm",
@@ -188,13 +181,11 @@ __all__ = [
     "mpy_radiance_get_indices",
     "mpy_raylayer_nadir",
     "mpy_read_all_tes",
-    "mpy_read_all_tes_cache",
     "mpy_register_observer_function",
     "mpy_register_replacement_function",
     "mpy_script_retrieval_ms",
     "mpy_table_get_spectral_filename",
     "mpy_table_new_mw_from_step",
-    "mpy_tes_file_get_column",
     "mpy_tropomi_fm",
     "mpy_update_uip",
 ]
