@@ -34,11 +34,6 @@ muses_py_wrapper_keep = muses_py_wrapper
 # don't actually need to replace this. Fine that we depend on muses_py here.
 mpy_radiance_data = partial(muses_py_wrapper_keep, "radiance_data")
 
-# Used in muses_forward_model. We don't want to replace these, the dependency is ok.
-mpy_fm_oss_stack = partial(muses_py_wrapper_keep, "fm_oss_stack")
-mpy_tropomi_fm = partial(muses_py_wrapper_keep, "tropomi_fm")
-mpy_omi_fm = partial(muses_py_wrapper_keep, "omi_fm")
-
 # Used in muses_spectral_window - these are used for comparison code only and can stay
 mpy_table_get_spectral_filename = partial(
     muses_py_wrapper_keep, "table_get_spectral_filename"
@@ -59,35 +54,6 @@ mpy_cdf_var_attributes = muses_py.cdf_var_attributes if have_muses_py else {}
 mpy_cdf_var_names = partial(muses_py_wrapper_keep, "cdf_var_names")
 mpy_cdf_var_map = partial(muses_py_wrapper_keep, "cdf_var_map")
 
-# Used in osswrapper, can keep
-mpy_register_observer_function = partial(
-    muses_py_wrapper_keep, "register_observer_function"
-)
-mpy_pyoss_dir = muses_py.pyoss_dir if have_muses_py else ""
-mpy_fm_oss_init = partial(muses_py_wrapper_keep, "fm_oss_init")
-mpy_fm_oss_windows = partial(muses_py_wrapper_keep, "fm_oss_windows")
-mpy_fm_oss_delete = partial(muses_py_wrapper_keep, "fm_oss_delete")
-
-# Used by refractor_uip. We can keep all this, only use UIP for old muses-py forward models.
-mpy_update_uip = partial(muses_py_wrapper_keep, "update_uip")
-mpy_script_retrieval_ms = partial(muses_py_wrapper_keep, "script_retrieval_ms")
-mpy_get_omi_radiance = partial(muses_py_wrapper_keep, "get_omi_radiance")
-mpy_get_tropomi_radiance = partial(muses_py_wrapper_keep, "get_tropomi_radiance")
-mpy_atmosphere_level = partial(muses_py_wrapper_keep, "atmosphere_level")
-mpy_raylayer_nadir = partial(muses_py_wrapper_keep, "raylayer_nadir")
-mpy_pressure_sigma = partial(muses_py_wrapper_keep, "pressure_sigma")
-mpy_oco2_get_wavelength = partial(muses_py_wrapper_keep, "oco2_get_wavelength")
-mpy_nir_match_wavelength_edges = partial(
-    muses_py_wrapper_keep, "nir_match_wavelength_edges"
-)
-mpy_make_uip_master = partial(muses_py_wrapper_keep, "make_uip_master")
-mpy_make_uip_airs = partial(muses_py_wrapper_keep, "make_uip_airs")
-mpy_make_uip_cris = partial(muses_py_wrapper_keep, "make_uip_cris")
-mpy_make_uip_tes = partial(muses_py_wrapper_keep, "make_uip_tes")
-mpy_make_uip_omi = partial(muses_py_wrapper_keep, "make_uip_omi")
-mpy_make_uip_tropomi = partial(muses_py_wrapper_keep, "make_uip_tropomi")
-mpy_make_uip_oco2 = partial(muses_py_wrapper_keep, "make_uip_oco2")
-
 # Used in retrieval_strategy - can keep as we only call with have_muses_py
 mpy_register_replacement_function = partial(
     muses_py_wrapper_keep, "register_replacement_function"
@@ -95,6 +61,7 @@ mpy_register_replacement_function = partial(
 
 # Used by refractor_capture_directory, have handling for no muses_py so we can keep
 mpy_cli_options = muses_py.cli_options if have_muses_py else None
+mpy_pyoss_dir = muses_py.pyoss_dir if have_muses_py else ""
 
 # Used by the various output classes. There should all get replaced, but
 # the code is a bit involved. I don't think these results get used actually,
@@ -148,46 +115,23 @@ mpy_read_omi = partial(muses_py_wrapper, "read_omi")
 
 # Functions we can keep
 __all__ = [
-    "mpy_atmosphere_level",
     "mpy_atmospheric_species_list",
     "mpy_bilinear",
     "mpy_cdf_var_attributes",
     "mpy_cdf_var_map",
     "mpy_cdf_var_names",
     "mpy_cli_options",
-    "mpy_fm_oss_delete",
-    "mpy_fm_oss_init",
-    "mpy_fm_oss_stack",
-    "mpy_fm_oss_windows",
-    "mpy_get_omi_radiance",
-    "mpy_get_tropomi_radiance",
     "mpy_levmar_nllsq_elanor",
-    "mpy_make_uip_airs",
-    "mpy_make_uip_cris",
-    "mpy_make_uip_master",
-    "mpy_make_uip_oco2",
-    "mpy_make_uip_omi",
-    "mpy_make_uip_tes",
-    "mpy_make_uip_tropomi",
-    "mpy_nir_match_wavelength_edges",
-    "mpy_oco2_get_wavelength",
-    "mpy_omi_fm",
     "mpy_ordered_species_list",
     "mpy_plot_radiance",
     "mpy_plot_results",
-    "mpy_pressure_sigma",
     "mpy_pyoss_dir",
     "mpy_radiance_data",
     "mpy_radiance_get_indices",
-    "mpy_raylayer_nadir",
     "mpy_read_all_tes",
-    "mpy_register_observer_function",
     "mpy_register_replacement_function",
-    "mpy_script_retrieval_ms",
     "mpy_table_get_spectral_filename",
     "mpy_table_new_mw_from_step",
-    "mpy_tropomi_fm",
-    "mpy_update_uip",
 ]
 # Ones we want to replace
 __all__.extend(
