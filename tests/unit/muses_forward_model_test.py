@@ -23,7 +23,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
     )
     obs_cris.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
-    fm = MusesCrisForwardModel(rf_uip, obs_cris, mid)
+    fm = MusesCrisForwardModel(rf_uip, obs_cris, mid, rs.strategy_executor._rf_uip_func)
     print(pickle.loads(pickle.dumps(obs_cris)))
     print(pickle.loads(pickle.dumps(fm)))
     s = fm.radiance(0)
@@ -64,7 +64,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
     )
     obs_tropomi.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
-    fm = MusesTropomiForwardModel(rf_uip, obs_tropomi, mid)
+    fm = MusesTropomiForwardModel(rf_uip, obs_tropomi, mid, rs.strategy_executor._rf_uip_func)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -102,7 +102,7 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
     )
     obs_airs.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
-    fm = MusesAirsForwardModel(rf_uip, obs_airs, mid)
+    fm = MusesAirsForwardModel(rf_uip, obs_airs, mid, rs.strategy_executor._rf_uip_func)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -141,7 +141,7 @@ def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
     )
     obs_omi.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
-    fm = MusesOmiForwardModel(rf_uip, obs_omi, mid)
+    fm = MusesOmiForwardModel(rf_uip, obs_omi, mid, rs.strategy_executor._rf_uip_func)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

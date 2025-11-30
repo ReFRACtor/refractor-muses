@@ -178,6 +178,14 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
         self.qa_data_handle_set.notify_update_target(self.measurement_id)
+        # Awkward, we'll remove this in a bit. But start by forwarding this so we
+        # can work on removing this coupling
+        for p in sorted(
+            self.rs.forward_model_handle_set.handle_set.keys(), reverse=True
+        ):
+            for h in self.rs.forward_model_handle_set.handle_set[p]:
+                if hasattr(h, "set_rf_uip_func"):
+                    h.set_rf_uip_func(self._rf_uip_func)
 
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
@@ -238,17 +246,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self._rf_uip_func,
             do_systematic=do_systematic,
             jacobian_speciesIn=jacobian_speciesIn,
-        )
-
-    def rf_uip_irk(
-        self, obs: MusesObservation, pointing_angle: rf.DoubleWithUnit
-    ) -> RefractorUip:
-        return self._rf_uip_func(
-            obs.instrument_name,
-            obs_list=[
-                obs,
-            ],
-            pointing_angle=pointing_angle,
         )
 
     def _rf_uip_func(
