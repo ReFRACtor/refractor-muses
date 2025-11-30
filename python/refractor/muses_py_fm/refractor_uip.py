@@ -1625,7 +1625,7 @@ class RefractorUip:
         i_omi: dict[str, Any] | None,
         i_tropomi: dict[str, Any] | None,
         i_oco2: dict[str, Any] | None,
-        jacobian_speciesIn: list[str] | None = None,
+        jacobian_species_in: list[str] | None = None,
         only_create_instrument: InstrumentIdentifier | None = None,
         pointing_angle: rf.DoubleWithUnit | None = None,
     ) -> RefractorUip:
@@ -1684,8 +1684,8 @@ class RefractorUip:
         else:
             i_table = copy.deepcopy(i_strategy_table)
 
-        if jacobian_speciesIn:
-            jacobian_speciesNames = jacobian_speciesIn
+        if jacobian_species_in:
+            jacobian_speciesNames = jacobian_species_in
         else:
             jacobian_speciesNames = retrieval_info.species[0 : retrieval_info.n_species]
         # If requested, replace the pointing angle that is used. Note this
@@ -1802,13 +1802,13 @@ class RefractorUip:
         if "AIRS" in inst_to_window:
             # For who knows what bizarre reason. the arguments are
             # different here if we are calling from run_forward_model. We
-            # trigger off having jacobian_speciesIn. I think this might
+            # trigger off having jacobian_species_in. I think this might
             # have something to do with the BT retrieval handling, which seems
             # to have been crammed in breaking stuff. We need to conform
             # to the existing code
             if i_airs is None:
                 raise RuntimeError("Need to supply i_airs")
-            if jacobian_speciesIn is None:
+            if jacobian_species_in is None:
                 uip["uip_AIRS"] = mpy_make_uip_airs(
                     i_state,
                     i_state.current,
@@ -1836,13 +1836,13 @@ class RefractorUip:
         if "CRIS" in inst_to_window:
             # For who knows what bizarre reason. the arguments are
             # different here if we are calling from run_forward_model. We
-            # trigger off having jacobian_speciesIn.I think this might
+            # trigger off having jacobian_species_in.I think this might
             # have something to do with the BT retrieval handling, which seems
             # to have been crammed in breaking stuff. We need to conform
             # to the existing code
             if i_cris is None:
                 raise RuntimeError("Need to supply i_cris")
-            if jacobian_speciesIn is None:
+            if jacobian_species_in is None:
                 uip["uip_CRIS"] = mpy_make_uip_cris(
                     i_state,
                     i_state.current,

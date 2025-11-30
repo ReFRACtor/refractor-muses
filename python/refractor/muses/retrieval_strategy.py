@@ -393,7 +393,7 @@ class RetrievalStrategy:
         do_systematic: bool = False,
         include_bad_sample: bool = False,
         use_empty_apriori: bool = False,
-        jacobian_speciesIn: list[StateElementIdentifier] | None = None,
+        jacobian_species_in: list[StateElementIdentifier] | None = None,
     ) -> CostFunction:
         """Create cost function"""
         # This gets uses in
@@ -404,7 +404,7 @@ class RetrievalStrategy:
             do_systematic=do_systematic,
             include_bad_sample=include_bad_sample,
             use_empty_apriori=use_empty_apriori,
-            jacobian_speciesIn=jacobian_speciesIn,
+            jacobian_species_in=jacobian_species_in,
         )
 
     def save_pickle(

@@ -64,7 +64,9 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
     )
     obs_tropomi.spectral_window.include_bad_sample = True
     mid = MeasurementIdDict({}, {})
-    fm = MusesTropomiForwardModel(rf_uip, obs_tropomi, mid, rs.strategy_executor._rf_uip_func)
+    fm = MusesTropomiForwardModel(
+        rf_uip, obs_tropomi, mid, rs.strategy_executor._rf_uip_func
+    )
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

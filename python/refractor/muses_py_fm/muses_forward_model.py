@@ -12,12 +12,15 @@ from refractor.muses import (
     MeasurementId,
     MusesObservation,
     ResultIrk,
+    CostFunction,
 )
+from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 import refractor.framework as rf  # type: ignore
 from functools import cached_property
 from loguru import logger
 import numpy as np
 import copy
+from weakref import WeakSet
 import typing
 from typing import Callable, Any, TypeVar
 
@@ -69,7 +72,7 @@ class MusesForwardModelBase(rf.ForwardModel):
     def __setstate__(self, state: dict[str, Any]) -> None:
         self.__dict__ = state
         # This is a placeholder. Hopefully we can have rf_uip_func handled a different way.
-        self.rf_uip_func = None # type: ignore[assignment]
+        self.rf_uip_func = None  # type: ignore[assignment]
 
     def bad_sample_mask(self, sensor_index: int) -> np.ndarray:
         bmask = self.obs.bad_sample_mask(sensor_index)
@@ -96,6 +99,33 @@ class MusesForwardModelBase(rf.ForwardModel):
             [self.obs.spectral_domain(i).data for i in range(self.obs.num_channels)]
         )
         return rf.SpectralDomain(sd, rf.Unit("nm"))
+
+    # Want to add rf_uip only once. We share the rf_uip between forward models when we
+    # do a joint retrieval, because the UIP needs to have the full state vector.
+    already_added_as_observer : WeakSet[RefractorUip] = WeakSet()
+
+    def notify_cost_function(self, cfunc: CostFunction) -> None:
+        # Attach to CostFunction, so uip gets updated when the parameter change
+        if (
+            self.rf_uip.basis_matrix is not None
+            and self.rf_uip not in MusesForwardModelBase.already_added_as_observer
+        ):
+            # A note on the lifetime here. For the CostFunction, if we
+            # have a UIP than the UIP state observer is *required*. If we pickle
+            # and reload the cost function, it should have the UIP and observer.
+            # So we use "add_observer_and_keep_reference".
+            #
+            # This is in contrast to the StateElement observers. The
+            # StateElement these are outside of the CostFunction. You can
+            # have a CostFunction without any StateElement, if we pickle and reload
+            # we don't want to pull all the StateElement along. So for this
+            # we use "add_observer" which uses weak pointers - we notify if the
+            # object is still there but don't carry around it lifetime and if the
+            # object is deleted then we just don't notify it.
+            cfunc.max_a_posteriori.add_observer_and_keep_reference(
+                MaxAPosterioriSqrtConstraintUpdateUip(self.rf_uip)
+            )
+            MusesForwardModelBase.already_added_as_observer.add(self.rf_uip)
 
 
 # Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
@@ -219,10 +249,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         given angle. If pointing_angle is 0, we also return dEdOD."""
         rf_uip_pointing = self.rf_uip_func(
             self.obs.instrument_name,
-            obs_list=[
-                self.obs,
-            ],
-            pointing_angle=pointing_angle,
+            [self.obs,], False, None, pointing_angle
         )
         rf_uip_original = self.rf_uip
         try:
@@ -876,6 +903,8 @@ class MusesForwardModelHandle(ForwardModelHandle):
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,  # type: ignore[override]
         **kwargs: Any,
     ) -> None | rf.ForwardModel:
+        do_systematic : bool = kwargs.get("do_systematic", False)
+        jacobian_species_in: list[StateElementIdentifier] | None = kwargs.get("jacobian_species_in", None)
         if instrument_name != self.instrument_name:
             return None
         if rf_uip_func is None:

@@ -100,6 +100,7 @@ if _typing.TYPE_CHECKING:
     from .refractor_capture_directory import RefractorCaptureDirectory
     from .retrieval_result import RetrievalResult
     from .spectral_window_handle import SpectralWindowHandleSet
+    from .cost_function import CostFunction
     from .cost_function_creator import CostFunctionCreator
     from .priority_handle_set import PriorityHandleSet
     from .retrieval_configuration import RetrievalConfiguration

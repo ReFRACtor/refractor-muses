@@ -7,8 +7,8 @@ from fixtures.compare_run import compare_run
 
 # Use refractor forward model, or use py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
-# run_refractor = False
-run_refractor = True
+run_refractor = False
+# run_refractor = True
 
 
 @pytest.mark.compare_test

@@ -11,8 +11,8 @@ from refractor.muses import (
 
 # Use refractor forward model, or use py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
-# run_refractor = False
-run_refractor = True
+run_refractor = False
+# run_refractor = True
 
 # Can use the older py_retrieve matching objects
 match_py_retrieve = False

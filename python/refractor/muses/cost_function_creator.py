@@ -18,7 +18,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from refractor.muses_py_fm import RefractorUip
     from .retrieval_strategy import RetrievalStrategy
-    from .identifier import InstrumentIdentifier
+    from .identifier import InstrumentIdentifier, StateElementIdentifier
     from .state_info import StateElement
 
 
@@ -111,6 +111,8 @@ class CostFunctionCreator:
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         use_empty_apriori: bool = False,
+        do_systematic: bool = False,
+        jacobian_species_in: None | list[StateElementIdentifier] = None,
         **kwargs: Any,
     ) -> CostFunction:
         """Return cost function for the RetrievalStrategy. This also
@@ -162,7 +164,6 @@ class CostFunctionCreator:
         """
         from refractor.muses_py_fm import (
             CurrentStateUip,
-            MaxAPosterioriSqrtConstraintUpdateUip,
         )
 
         # Keep track of this, in case we create one so we know to attach this to
@@ -177,19 +178,11 @@ class CostFunctionCreator:
             include_bad_sample=include_bad_sample,
             obs_list=obs_list,
             use_empty_apriori=use_empty_apriori,
+            do_systematic=do_systematic,
+            jacobian_species_in=jacobian_species_in,
             **kwargs,
         )
         cfunc = CostFunction(*args)
-        # If we have an UIP, then update this when the parameters get
-        # updated.  Note the rf_uip.basis_matrix is None handles the
-        # degenerate case of when we have no parameters, for example
-        # for RetrievalStrategyStepBT. Any time we have parameters,
-        # the basis_matrix shouldn't be None.
-        for uip in self._rf_uip.values():
-            if uip.basis_matrix is not None:
-                cfunc.max_a_posteriori.add_observer_and_keep_reference(
-                    MaxAPosterioriSqrtConstraintUpdateUip(uip)
-                )
         # Attach StateElement to get notified when current state changes.
         #
         # A note on the different lifetimes. For the CostFunction, if we
@@ -234,6 +227,8 @@ class CostFunctionCreator:
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         use_empty_apriori: bool = False,
+        do_systematic: bool = False,
+        jacobian_species_in: None | list[StateElementIdentifier] = None,
         **kwargs: Any,
     ) -> tuple[
         list[InstrumentIdentifier],
@@ -278,6 +273,8 @@ class CostFunctionCreator:
                 self.obs_list[i],
                 fm_sv,
                 rf_uip_func,
+                do_systematic=do_systematic,
+                jacobian_species_in=jacobian_species_in,
                 **kwargs,
             )
             self.fm_list.append(fm)

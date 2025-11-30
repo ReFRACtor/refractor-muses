@@ -240,12 +240,12 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def rf_uip_func_cost_function(
         self,
         do_systematic: bool,
-        jacobian_speciesIn: list[StateElementIdentifier] | None,
+        jacobian_species_in: list[StateElementIdentifier] | None,
     ) -> Callable[[InstrumentIdentifier | None], RefractorUip]:
         return functools.partial(
             self._rf_uip_func,
             do_systematic=do_systematic,
-            jacobian_speciesIn=jacobian_speciesIn,
+            jacobian_species_in=jacobian_species_in,
         )
 
     def _rf_uip_func(
@@ -253,7 +253,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         instrument: InstrumentIdentifier,
         obs_list: list[MusesObservation] | None = None,
         do_systematic: bool = False,
-        jacobian_speciesIn: None | list[StateElementIdentifier] = None,
+        jacobian_species_in: None | list[StateElementIdentifier] = None,
         pointing_angle: rf.DoubleWithUnit | None = None,
     ) -> RefractorUip:
         """To reduce coupling, you can give the instrument name to
@@ -335,8 +335,8 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 o_xxx["OMI"],
                 o_xxx["TROPOMI"],
                 o_xxx["OCO2"],
-                jacobian_speciesIn=[str(i) for i in jacobian_speciesIn]
-                if jacobian_speciesIn is not None
+                jacobian_species_in=[str(i) for i in jacobian_species_in]
+                if jacobian_species_in is not None
                 else None,
                 only_create_instrument=instrument,  # type: ignore[arg-type]
                 pointing_angle=pointing_angle,
@@ -367,7 +367,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         do_systematic: bool = False,
         include_bad_sample: bool = False,
         use_empty_apriori: bool = False,
-        jacobian_speciesIn: None | list[StateElementIdentifier] = None,
+        jacobian_species_in: None | list[StateElementIdentifier] = None,
     ) -> CostFunction:
         """Create a CostFunction, for use either in retrieval or just
         for running the forward model (the CostFunction is a little
@@ -382,17 +382,19 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         # bad samples. But right now the existing py-retrieve code
         # requires this is a few places.
         cstate: CurrentState = self.current_state
-        if do_systematic or jacobian_speciesIn is not None:
+        if do_systematic or jacobian_species_in is not None:
             cstate = self.current_state.current_state_override(
-                do_systematic, retrieval_state_element_override=jacobian_speciesIn
+                do_systematic, retrieval_state_element_override=jacobian_species_in
             )
         return self.cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,
             cstate,
             self.current_strategy_step.spectral_window_dict,
-            self.rf_uip_func_cost_function(do_systematic, jacobian_speciesIn),
+            self.rf_uip_func_cost_function(do_systematic, jacobian_species_in),
             include_bad_sample=include_bad_sample,
             use_empty_apriori=use_empty_apriori,
+            do_systematic=do_systematic,
+            jacobian_species_in=jacobian_species_in,
             **self.kwargs,
         )
 
