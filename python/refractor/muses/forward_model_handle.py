@@ -39,6 +39,11 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
         # Default is to do nothing
         pass
 
+    def notify_start_cost_function(self) -> None:
+        """Clear any caching needed to start creating the CostFunction"""
+        # Default is to do nothing
+        pass
+
     @abc.abstractmethod
     def forward_model(
         self,
@@ -78,6 +83,11 @@ class ForwardModelHandleSet(CreatorHandleSet):
 
     def __init__(self) -> None:
         super().__init__("forward_model")
+
+    def notify_start_cost_function(self) -> None:
+        for p in sorted(self.handle_set.keys(), reverse=True):
+            for h in self.handle_set[p]:
+                h.notify_start_cost_function()
 
     def forward_model(
         self,

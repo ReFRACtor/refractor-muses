@@ -126,6 +126,11 @@ class MeasurementIdFile(MeasurementId):
         self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
 
+    def __hash__(self) -> int:
+        # We need a unique hash to separate MeasurementIds. I think just using the
+        # absolute file name will do that.
+        return hash(self.fname.absolute())
+
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
         """The complete list of filters we will be processing (so for
