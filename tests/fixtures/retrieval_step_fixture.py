@@ -233,7 +233,7 @@ def tropomi_fm_object_creator_step_0(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(
+    uip = rs.strategy_executor.rf_uip_func_cost_function()(
         InstrumentIdentifier("TROPOMI")
     )
     res = TropomiFmObjectCreator(
@@ -302,7 +302,7 @@ def tropomi_fm_object_creator_swir_step(
         ),
         use_oss=use_oss,
         oss_training_data=oss_training_data,
-        rf_uip_func=rs.strategy_executor.rf_uip_func_cost_function(False, None),
+        rf_uip_func=rs.strategy_executor.rf_uip_func_cost_function(),
         osp_dir=josh_osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
@@ -327,7 +327,7 @@ def tropomi_fm_object_creator_step_1(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(
+    uip = rs.strategy_executor.rf_uip_func_cost_function()(
         InstrumentIdentifier("TROPOMI")
     )
     res = TropomiFmObjectCreator(
@@ -401,7 +401,7 @@ def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(
+    uip = rs.strategy_executor.rf_uip_func_cost_function()(
         InstrumentIdentifier("OMI")
     )
     res = OmiFmObjectCreator(

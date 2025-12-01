@@ -72,7 +72,7 @@ def test_current_state_dict():
 
 def test_current_state_uip(joint_tropomi_step_12):
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
+    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     cs = CurrentStateUip(rf_uip)
     print(cs.fm_sv_loc)
     print(cs.fm_state_vector_size)

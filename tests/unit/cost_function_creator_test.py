@@ -3,7 +3,7 @@ from refractor.muses import CostFunctionCreator, InstrumentIdentifier
 
 def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
+    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs = [
         rs.observation_handle_set.observation(
             InstrumentIdentifier("CRIS"),
@@ -32,7 +32,7 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
 
 def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
+    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs = [
         rs.observation_handle_set.observation(
             InstrumentIdentifier("AIRS"),

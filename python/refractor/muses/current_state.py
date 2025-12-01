@@ -26,6 +26,7 @@ if typing.TYPE_CHECKING:
     from .state_info import StateElement, StateElementHandleSet
     from .record_and_play_func import CurrentStateRecordAndPlay
     from .sounding_metadata import SoundingMetadata
+    from .cost_function import CostFunction
 
 
 class PropagatedQA:
@@ -868,6 +869,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
         raise NotImplementedError()
+
+    def notify_cost_function(
+        self, cfunc: CostFunction, use_empty_apriori: bool
+    ) -> None:
+        pass
 
     def notify_start_retrieval(
         self,

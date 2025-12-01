@@ -24,7 +24,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
     from .muses_strategy import MusesStrategy, CurrentStrategyStep
     from .retrieval_configuration import RetrievalConfiguration
-    from .cost_function_creator import CostFunctionStateElementNotify
+    from .current_state_state_info import CostFunctionStateElementNotify
     from .sounding_metadata import SoundingMetadata
     from .state_info import StateInfo
 
@@ -126,7 +126,7 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     def __init__(self, state_element_id: StateElementIdentifier):
         self._state_element_id = state_element_id
-        # Used to get notify_parameter_update called with CostFunction parameter
+        # Used to get notify_parameter_update called when the CostFunction parameter
         # gets changed
         self._cost_function_notify_helper: CostFunctionStateElementNotify | None = None
 

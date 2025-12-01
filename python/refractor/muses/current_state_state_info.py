@@ -14,10 +14,12 @@ import numpy as np
 import scipy  # type: ignore
 import refractor.framework as rf  # type: ignore
 import numpy.testing as npt
+import weakref
 from pathlib import Path
 from copy import copy
 from loguru import logger
 import typing
+from typing import cast
 
 if typing.TYPE_CHECKING:
     from .current_state import PropagatedQA
@@ -29,6 +31,25 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
     from .state_info import StateElement
     from .cross_state_element import CrossStateElementHandleSet
+    from .cost_function import CostFunction
+
+
+class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
+    """Small adapter class to map framework observer to notify StateElement
+    when parameters change"""
+
+    def __init__(self, selem: StateElement, slc: slice):
+        super().__init__()
+        self.slc = slc
+        # We want this object to be kept alive, but not force selem to
+        # be kept alive. This set of references does that
+        self.selem = weakref.ref(selem)
+        selem._cost_function_notify_helper = self
+
+    def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
+        s = self.selem()
+        if s is not None:
+            s.notify_parameter_update(mstand.parameters[self.slc])
 
 
 class CurrentStateStateInfo(CurrentState):
@@ -560,6 +581,35 @@ class CurrentStateStateInfo(CurrentState):
     def cross_state_element_handle_set(self, val: CrossStateElementHandleSet) -> None:
         self._state_info.cross_state_element_handle_set = val
 
+    def notify_cost_function(
+        self, cfunc: CostFunction, use_empty_apriori: bool
+    ) -> None:
+        if use_empty_apriori:
+            # Skip if we have use_empty_apriori.
+            # TODO Fix this handling, the use_empty_apriori is kind of awkward, see
+            # CostFunctionCreator
+            return
+
+        # Attach StateElement to get notified when current state changes.
+        #
+        # A note on the different lifetimes. For the CostFunction, if we
+        # have a UIP than the UIP state observer is *required*. If we pickle
+        # and reload the cost function, it should have the UIP and observer.
+        # So we use "add_observer_and_keep_reference". However, for the
+        # StateElement these are outside of the CostFunction. You can
+        # have a CostFunction without any StateElement, if we pickle and reload
+        # we don't want to pull all the StateElement along. So for this
+        # we use "add_observer" which uses weak pointers - we notify if the
+        # object is still there but don't carry around it lifetime and if the
+        # object is deleted then we just don't notify it.
+        for sid in self.retrieval_state_element_id:
+            cfunc.max_a_posteriori.add_observer(
+                CostFunctionStateElementNotify(
+                    self.state_element(sid),
+                    cast(slice, self.retrieval_sv_slice(sid)),
+                )
+            )
+
     def notify_update_target(
         self,
         measurement_id: MeasurementId,
@@ -636,4 +686,5 @@ class CurrentStateStateInfo(CurrentState):
 
 __all__ = [
     "CurrentStateStateInfo",
+    "CostFunctionStateElementNotify",
 ]

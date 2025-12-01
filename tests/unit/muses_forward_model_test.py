@@ -13,7 +13,7 @@ import pickle
 
 def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
+    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
         rs.current_state,
@@ -53,7 +53,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
 
 def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
+    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs_tropomi = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
         rs.current_state,
@@ -94,7 +94,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
 
 def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
+    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
         rs.current_state,
@@ -132,7 +132,7 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
 
 def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
+    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs_omi = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
         rs.current_state,
