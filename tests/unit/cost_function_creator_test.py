@@ -22,11 +22,10 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
             osp_dir=osp_dir,
         ),
     ]
-    creator = CostFunctionCreator()
 
     # We test using this else where. Here, just make sure we can
     # call the creation function.
-    cf = creator.cost_function_from_uip(rf_uip, obs, None)
+    cf = rs.cost_function_creator.cost_function_from_uip(rf_uip, obs, None)
     print(cf)
 
 
@@ -49,9 +48,8 @@ def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):
             osp_dir=osp_dir,
         ),
     ]
-    creator = CostFunctionCreator()
 
     # We test using this else where. Here, just make sure we can
     # call the creation function.
-    cf = creator.cost_function_from_uip(rf_uip, obs, None)
+    cf = rs.cost_function_creator.cost_function_from_uip(rf_uip, obs, None)
     print(cf)

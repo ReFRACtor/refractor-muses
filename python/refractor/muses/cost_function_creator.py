@@ -9,8 +9,7 @@ import copy
 from loguru import logger
 from collections.abc import Callable
 import typing
-import weakref
-from typing import Any, cast
+from typing import Any
 import numpy as np
 
 if typing.TYPE_CHECKING:
@@ -18,26 +17,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from refractor.muses_py_fm import RefractorUip
     from .retrieval_strategy import RetrievalStrategy
-    from .identifier import InstrumentIdentifier, StateElementIdentifier
-    from .state_info import StateElement
-
-
-class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
-    """Small adapter class to map framework observer to notify StateElement
-    when parameters change"""
-
-    def __init__(self, selem: StateElement, slc: slice):
-        super().__init__()
-        self.slc = slc
-        # We want this object to be kept alive, but not force selem to
-        # be kept alive. This set of references does that
-        self.selem = weakref.ref(selem)
-        selem._cost_function_notify_helper = self
-
-    def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
-        s = self.selem()
-        if s is not None:
-            s.notify_parameter_update(mstand.parameters[self.slc])
+    from .identifier import InstrumentIdentifier
 
 
 class CostFunctionCreator:
@@ -73,35 +53,6 @@ class CostFunctionCreator:
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
 
-    def _rf_uip_func_wrap(
-        self, instrument: InstrumentIdentifier | None
-    ) -> RefractorUip:
-        """We need to keep a copy of the UIP if it gets creates by a lower
-        level routine, so that we can attach this to the state vector."""
-        if self._rf_uip_func is None:
-            raise RuntimeError("Need _rf_uip_func to not be None")
-        if None in self._rf_uip:
-            return self._rf_uip[None]
-        if instrument not in self._rf_uip:
-            # If we have multiple instruments that need the UIP (e..g,
-            # a py-retrieve like retrieval with a joint AIRS OMI step), then
-            # recreate the UIP for all the instruments. This is needed to
-            # have the update happen correctly - we can't update just half
-            # of the UIP.
-            if len(self._rf_uip) > 0:
-                new_uip = self._rf_uip_func(None)
-                k = list(self._rf_uip.keys())[0]
-                v = self._rf_uip[k]
-                v.uip = new_uip.uip
-                self._rf_uip: dict[None | InstrumentIdentifier, RefractorUip] = {}
-                self._rf_uip[None] = v
-            else:
-                self._rf_uip[instrument] = self._rf_uip_func(instrument)
-        if None in self._rf_uip:
-            return self._rf_uip[None]
-        else:
-            return self._rf_uip[instrument]
-
     def cost_function(
         self,
         instrument_name_list: list[InstrumentIdentifier],
@@ -111,8 +62,6 @@ class CostFunctionCreator:
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         use_empty_apriori: bool = False,
-        do_systematic: bool = False,
-        jacobian_species_in: None | list[StateElementIdentifier] = None,
         **kwargs: Any,
     ) -> CostFunction:
         """Return cost function for the RetrievalStrategy. This also
@@ -120,7 +69,7 @@ class CostFunctionCreator:
         when the cost function parameters are updated.
 
         You can optional leave off the augmented/apriori piece. This is
-        useful if you are just running to forward model. The muses-py
+        useful if you are just running a forward model. The muses-py
         code requires this in some cases, because it hasn't calculated
         an apriori (special handling for retrieval steps "bt" and
         "forward_model").
@@ -162,48 +111,21 @@ class CostFunctionCreator:
         class would normally create. This isn't something you would
         normally use for "real", this is just to support testing.
         """
-        from refractor.muses_py_fm import (
-            CurrentStateUip,
-        )
 
-        # Keep track of this, in case we create one so we know to attach this to
-        # the state vector
-        self._rf_uip = {}
-        self._rf_uip_func = rf_uip_func
+        self.forward_model_handle_set.notify_start_cost_function()
+
         args = self._forward_model(
             instrument_name_list,
             current_state,
             spec_win_dict,
-            self._rf_uip_func_wrap,
+            rf_uip_func,
             include_bad_sample=include_bad_sample,
             obs_list=obs_list,
             use_empty_apriori=use_empty_apriori,
-            do_systematic=do_systematic,
-            jacobian_species_in=jacobian_species_in,
             **kwargs,
         )
         cfunc = CostFunction(*args)
-        # Attach StateElement to get notified when current state changes.
-        #
-        # A note on the different lifetimes. For the CostFunction, if we
-        # have a UIP than the UIP state observer is *required*. If we pickle
-        # and reload the cost function, it should have the UIP and observer.
-        # So we use "add_observer_and_keep_reference". However, for the
-        # StateElement these are outside of the CostFunction. You can
-        # have a CostFunction without any StateElement, if we pickle and reload
-        # we don't want to pull all the StateElement along. So for this
-        # we use "add_observer" which uses weak pointers - we notify if the
-        # object is still there but don't carry around it lifetime and if the
-        # object is deleted then we just don't notify it.
-        # skip for CurrentStateUip, we already handle the UIP separately.
-        if not isinstance(current_state, CurrentStateUip) and not use_empty_apriori:
-            for sid in current_state.retrieval_state_element_id:
-                cfunc.max_a_posteriori.add_observer(
-                    CostFunctionStateElementNotify(
-                        current_state.state_element(sid),
-                        cast(slice, current_state.retrieval_sv_slice(sid)),
-                    )
-                )
+        current_state.notify_cost_function(cfunc, use_empty_apriori)
 
         # TODO
         # If we are using use_empty_apriori, then our initial guess is just a
@@ -227,8 +149,6 @@ class CostFunctionCreator:
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         use_empty_apriori: bool = False,
-        do_systematic: bool = False,
-        jacobian_species_in: None | list[StateElementIdentifier] = None,
         **kwargs: Any,
     ) -> tuple[
         list[InstrumentIdentifier],
@@ -273,8 +193,6 @@ class CostFunctionCreator:
                 self.obs_list[i],
                 fm_sv,
                 rf_uip_func,
-                do_systematic=do_systematic,
-                jacobian_species_in=jacobian_species_in,
                 **kwargs,
             )
             self.fm_list.append(fm)
@@ -353,4 +271,6 @@ class CostFunctionCreator:
         )
 
 
-__all__ = ["CostFunctionCreator", "CostFunctionStateElementNotify"]
+__all__ = [
+    "CostFunctionCreator",
+]

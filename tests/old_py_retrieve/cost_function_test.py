@@ -76,10 +76,9 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
         osp_dir=osp_dir,
         write_tropomi_radiance_pickle=True,
     )
-    creator = CostFunctionCreator()
     obs_cris.spectral_window.include_bad_sample = True
     obs_tropomi.spectral_window.include_bad_sample = True
-    cfunc = creator.cost_function_from_uip(rf_uip, [obs_cris, obs_tropomi], None)
+    cfunc = rs.cost_function_creator.cost_function_from_uip(rf_uip, [obs_cris, obs_tropomi], None)
     (
         o_radiance,
         jac_fm,
@@ -145,10 +144,9 @@ def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
         osp_dir=osp_dir,
         write_omi_radiance_pickle=True,
     )
-    creator = CostFunctionCreator()
     obs_airs.spectral_window.include_bad_sample = True
     obs_omi.spectral_window.include_bad_sample = True
-    cfunc = creator.cost_function_from_uip(rf_uip, [obs_airs, obs_omi], None)
+    cfunc = rs.cost_function_creator.cost_function_from_uip(rf_uip, [obs_airs, obs_omi], None)
     (
         o_radiance,
         jac_fm,
@@ -211,7 +209,6 @@ def test_residual_fm_jac_tropomi(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
     rf_uip.run_dir = rrefractor.run_dir
-    creator = CostFunctionCreator()
     obs_cris, obs_tropomi = joint_tropomi_obs_step_12
     # Set observation parameters to match what is in the UIP
     obs_tropomi.init(
@@ -221,6 +218,12 @@ def test_residual_fm_jac_tropomi(
             rf_uip.tropomi_params["radsqueeze_BAND3"],
         ]
     )
+    creator = CostFunctionCreator()
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        "Table.asc", osp_dir=osp_dir
+    )
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]})
+    creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
         [obs_cris, obs_tropomi],
@@ -295,7 +298,6 @@ def test_residual_fm_jac_omi(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
     rf_uip.run_dir = rrefractor.run_dir
-    creator = CostFunctionCreator()
     obs_airs, obs_omi = joint_omi_obs_step_8
     # Set observation parameters to match what is in the UIP
     obs_omi.init(
@@ -308,6 +310,12 @@ def test_residual_fm_jac_omi(
             rf_uip.omi_params["odwav_slope_uv2"],
         ]
     )
+    creator = CostFunctionCreator()
+    rconfig = RetrievalConfiguration.create_from_strategy_file(
+        "Table.asc", osp_dir=osp_dir
+    )
+    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]})
+    creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
         [obs_airs, obs_omi],
@@ -377,10 +385,10 @@ def test_residual_fm_jac_omi2(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
     rf_uip.run_dir = rrefractor.run_dir
-    creator = CostFunctionCreator()
     ihandle = OmiForwardModelHandle(
         use_pca=False, use_lrad=False, lrad_second_order=False
     )
+    creator = CostFunctionCreator()
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     rconf = RetrievalConfiguration.create_from_strategy_file(
         joint_omi_test_in_dir / "Table.asc", osp_dir=osp_dir
@@ -426,10 +434,10 @@ def test_residual_fm_jac_tropomi2(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
     rf_uip.run_dir = rrefractor.run_dir
-    creator = CostFunctionCreator()
     ihandle = TropomiForwardModelHandle(
         use_pca=False, use_lrad=False, lrad_second_order=False
     )
+    creator = CostFunctionCreator()
     creator.forward_model_handle_set.add_handle(ihandle, priority_order=100)
     obslist = joint_tropomi_obs_step_12
     rconf = RetrievalConfiguration.create_from_strategy_file(

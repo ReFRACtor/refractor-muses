@@ -239,13 +239,13 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def rf_uip_func_cost_function(
         self,
-        do_systematic: bool,
-        jacobian_species_in: list[StateElementIdentifier] | None,
+        do_systematic: bool = False,
+        jacobian_species_in: list[StateElementIdentifier] | None = None,        
     ) -> Callable[[InstrumentIdentifier | None], RefractorUip]:
         return functools.partial(
             self._rf_uip_func,
             do_systematic=do_systematic,
-            jacobian_species_in=jacobian_species_in,
+            jacobian_species_in=jacobian_species_in,            
         )
 
     def _rf_uip_func(
@@ -253,7 +253,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         instrument: InstrumentIdentifier,
         obs_list: list[MusesObservation] | None = None,
         do_systematic: bool = False,
-        jacobian_species_in: None | list[StateElementIdentifier] = None,
+        jacobian_species_in: None | list[StateElementIdentifier] = None,        
         pointing_angle: rf.DoubleWithUnit | None = None,
     ) -> RefractorUip:
         """To reduce coupling, you can give the instrument name to
@@ -273,6 +273,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
         logger.debug(f"Creating rf_uip for {instrument}")
         cstep = self.current_strategy_step
+        cstate = self.current_state
+        mid = self.measurement_id
+        assert mid is not None
         if obs_list is None:
             obs_list = []
             for iname in cstep.instrument_name:
@@ -287,10 +290,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         # Dummy strategy table, with the information needed by
         # RefractorUip.create_uip
         fake_table = {
-            "preferences": self.retrieval_config,
+            "preferences": mid,
             "vlidort_dir": str(
-                self.run_dir
-                / f"Step{self.current_strategy_step.strategy_step.step_number:02d}_{self.current_strategy_step.strategy_step.step_name}/vlidort/"
+                mid["run_dir"]
+                / f"Step{cstep.strategy_step.step_number:02d}_{cstep.strategy_step.step_name}/vlidort/"
             ),
             "numRows": cstep.strategy_step.step_number,
             "numColumns": 1,
@@ -298,9 +301,10 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             "labels1": "retrievalType",
             "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
         }
-        fake_state_info = FakeStateInfo(self.current_state, obs_list=obs_list)
-        # fake_retrieval_info = FakeRetrievalInfo(self.current_state, use_state_mapping=True)
-        fake_retrieval_info = FakeRetrievalInfo(self.current_state)
+        fake_state_info = FakeStateInfo(cstate, obs_list=obs_list)
+        # fake_retrieval_info = FakeRetrievalInfo(cstate, use_state_mapping=True)
+        fake_retrieval_info = FakeRetrievalInfo(cstate)
+        #if cstate.do_systematic:
         if do_systematic:
             rinfo: AttrDictAdapter | FakeRetrievalInfo = (
                 fake_retrieval_info.retrieval_info_systematic
@@ -323,7 +327,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             if str(iname) in o_xxx:
                 if hasattr(obs, "muses_py_dict"):
                     o_xxx[str(iname)] = obs.muses_py_dict
-        with muses_py_call(self.run_dir):
+        with muses_py_call(mid["run_dir"]):
             rf_uip = RefractorUip.create_uip(
                 fake_state_info,  # type: ignore[arg-type]
                 fake_table,
@@ -336,7 +340,11 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
                 o_xxx["TROPOMI"],
                 o_xxx["OCO2"],
                 jacobian_species_in=[str(i) for i in jacobian_species_in]
-                if jacobian_species_in is not None
+                if jacobian_species_in is not None                
+                #jacobian_species_in=[
+                #    str(i) for i in cstate.retrieval_state_element_override
+                #]
+                #if cstate.retrieval_state_element_override is not None
                 else None,
                 only_create_instrument=instrument,  # type: ignore[arg-type]
                 pointing_angle=pointing_angle,
@@ -359,7 +367,7 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.current_state,
             obs,
             fm_sv,
-            self.rf_uip_func_cost_function(False, None),
+            self.rf_uip_func_cost_function(),
         )
 
     def create_cost_function(
@@ -393,8 +401,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.rf_uip_func_cost_function(do_systematic, jacobian_species_in),
             include_bad_sample=include_bad_sample,
             use_empty_apriori=use_empty_apriori,
-            do_systematic=do_systematic,
-            jacobian_species_in=jacobian_species_in,
             **self.kwargs,
         )
 

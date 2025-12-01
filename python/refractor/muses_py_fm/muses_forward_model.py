@@ -7,7 +7,6 @@ from refractor.muses import (
     muses_py_call,
     MusesTesObservation,
     InstrumentIdentifier,
-    StateElementIdentifier,
     CurrentState,
     MeasurementId,
     MusesObservation,
@@ -20,7 +19,7 @@ from functools import cached_property
 from loguru import logger
 import numpy as np
 import copy
-from weakref import WeakSet
+from weakref import WeakSet, WeakKeyDictionary
 import typing
 from typing import Callable, Any, TypeVar
 
@@ -47,8 +46,6 @@ class MusesForwardModelBase(rf.ForwardModel):
             [
                 InstrumentIdentifier,
                 list[MusesObservation] | None,
-                bool,
-                list[StateElementIdentifier] | None,
                 rf.DoubleWithUnit | None,
             ],
             RefractorUip,
@@ -102,7 +99,7 @@ class MusesForwardModelBase(rf.ForwardModel):
 
     # Want to add rf_uip only once. We share the rf_uip between forward models when we
     # do a joint retrieval, because the UIP needs to have the full state vector.
-    already_added_as_observer : WeakSet[RefractorUip] = WeakSet()
+    already_added_as_observer: WeakSet[RefractorUip] = WeakSet()
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         # Attach to CostFunction, so uip gets updated when the parameter change
@@ -116,9 +113,9 @@ class MusesForwardModelBase(rf.ForwardModel):
             # So we use "add_observer_and_keep_reference".
             #
             # This is in contrast to the StateElement observers. The
-            # StateElement these are outside of the CostFunction. You can
-            # have a CostFunction without any StateElement, if we pickle and reload
-            # we don't want to pull all the StateElement along. So for this
+            # StateElements are outside of the CostFunction. You can
+            # have a CostFunction without any StateElements, if we pickle and reload
+            # we don't want to pull all the StateElements along. So for this
             # we use "add_observer" which uses weak pointers - we notify if the
             # object is still there but don't carry around it lifetime and if the
             # object is deleted then we just don't notify it.
@@ -249,7 +246,10 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         given angle. If pointing_angle is 0, we also return dEdOD."""
         rf_uip_pointing = self.rf_uip_func(
             self.obs.instrument_name,
-            [self.obs,], False, None, pointing_angle
+            [
+                self.obs,
+            ],
+            pointing_angle,
         )
         rf_uip_original = self.rf_uip
         try:
@@ -568,8 +568,6 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
             [
                 InstrumentIdentifier,
                 list[MusesObservation] | None,
-                bool,
-                list[StateElementIdentifier] | None,
                 rf.DoubleWithUnit | None,
             ],
             RefractorUip,
@@ -644,8 +642,6 @@ class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
             [
                 InstrumentIdentifier,
                 list[MusesObservation] | None,
-                bool,
-                list[StateElementIdentifier] | None,
                 rf.DoubleWithUnit | None,
             ],
             RefractorUip,
@@ -672,8 +668,6 @@ class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
             [
                 InstrumentIdentifier,
                 list[MusesObservation] | None,
-                bool,
-                list[StateElementIdentifier] | None,
                 rf.DoubleWithUnit | None,
             ],
             RefractorUip,
@@ -702,8 +696,6 @@ class MusesCrisForwardModel(MusesForwardModelIrk):
             [
                 InstrumentIdentifier,
                 list[MusesObservation] | None,
-                bool,
-                list[StateElementIdentifier] | None,
                 rf.DoubleWithUnit | None,
             ],
             RefractorUip,
@@ -736,8 +728,6 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
             [
                 InstrumentIdentifier,
                 list[MusesObservation] | None,
-                bool,
-                list[StateElementIdentifier] | None,
                 rf.DoubleWithUnit | None,
             ],
             RefractorUip,
@@ -799,8 +789,6 @@ class MusesTesForwardModel(MusesForwardModelIrk):
             [
                 InstrumentIdentifier,
                 list[MusesObservation] | None,
-                bool,
-                list[StateElementIdentifier] | None,
                 rf.DoubleWithUnit | None,
             ],
             RefractorUip,
@@ -863,8 +851,6 @@ class MusesForwardModelHandle(ForwardModelHandle):
                 [
                     InstrumentIdentifier,
                     list[MusesObservation] | None,
-                    bool,
-                    list[StateElementIdentifier] | None,
                     rf.DoubleWithUnit | None,
                 ],
                 RefractorUip,
@@ -877,14 +863,62 @@ class MusesForwardModelHandle(ForwardModelHandle):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
 
+    # For joint forward models, we need to share the RefractorUip between them.
+    # So store any we have created, to update as needed.
+    rf_uip_created: WeakKeyDictionary[
+        MeasurementId, dict[None | InstrumentIdentifier, RefractorUip]
+    ] = WeakKeyDictionary()
+
+    def rf_uip_func_wrap(
+        self,
+        instrument: InstrumentIdentifier | None,
+        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip],
+    ) -> RefractorUip:
+        """We need to have a single common rf_uip for a joint retrieval step.
+        This function handles the logic for that."""
+        if self.measurement_id is None:
+            raise RuntimeError("Need to call notify_update_target before rf_uip_func_wrap")
+        if self.measurement_id not in MusesForwardModelHandle.rf_uip_created:
+            MusesForwardModelHandle.rf_uip_created[self.measurement_id] = {}
+        rf_uip_dict = MusesForwardModelHandle.rf_uip_created[self.measurement_id]
+        if None in rf_uip_dict:
+            return rf_uip_dict[None]
+        if instrument not in rf_uip_dict:
+            # If we have multiple instruments that need the UIP (e..g,
+            # a py-retrieve like retrieval with a joint AIRS OMI step), then
+            # recreate the UIP for all the instruments. This is needed to
+            # have the update happen correctly - we can't update just half
+            # of the UIP.
+            if len(rf_uip_dict) > 0:
+                new_uip = rf_uip_func(None)
+                k = list(rf_uip_dict.keys())[0]
+                v = rf_uip_dict[k]
+                v.uip = new_uip.uip
+                MusesForwardModelHandle.rf_uip_created[self.measurement_id] = (
+                    rf_uip_dict
+                )
+                rf_uip_dict[None] = v
+            else:
+                rf_uip_dict[instrument] = rf_uip_func(instrument)
+        if None in rf_uip_dict:
+            return rf_uip_dict[None]
+        else:
+            return rf_uip_dict[instrument]
+
+    def notify_start_cost_function(self) -> None:
+        """Clear any caching needed to start creating the CostFunction"""
+        if (
+            self.measurement_id is not None
+            and self.measurement_id in MusesForwardModelHandle.rf_uip_created
+        ):
+            del MusesForwardModelHandle.rf_uip_created[self.measurement_id]
+
     def set_rf_uip_func(
         self,
         f: Callable[
             [
                 InstrumentIdentifier,
                 list[MusesObservation] | None,
-                bool,
-                list[StateElementIdentifier] | None,
                 rf.DoubleWithUnit | None,
             ],
             RefractorUip,
@@ -903,8 +937,6 @@ class MusesForwardModelHandle(ForwardModelHandle):
         rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,  # type: ignore[override]
         **kwargs: Any,
     ) -> None | rf.ForwardModel:
-        do_systematic : bool = kwargs.get("do_systematic", False)
-        jacobian_species_in: list[StateElementIdentifier] | None = kwargs.get("jacobian_species_in", None)
         if instrument_name != self.instrument_name:
             return None
         if rf_uip_func is None:
@@ -913,7 +945,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
         # Note MeasurementId also has access to all the stuff in
         # RetrievalConfiguration
         return self.cls(
-            rf_uip_func(instrument_name),
+            self.rf_uip_func_wrap(instrument_name, rf_uip_func),
             obs,
             self.measurement_id,
             self.rf_uip_func,
