@@ -249,6 +249,8 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             [
                 self.obs,
             ],
+            False,
+            None,
             pointing_angle,
         )
         rf_uip_original = self.rf_uip
