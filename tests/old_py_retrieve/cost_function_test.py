@@ -60,7 +60,6 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
     work to maintain this old compatibility function than it is worth.
     """
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
         rs.current_state,
@@ -78,7 +77,16 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
     )
     obs_cris.spectral_window.include_bad_sample = True
     obs_tropomi.spectral_window.include_bad_sample = True
-    cfunc = rs.cost_function_creator.cost_function_from_uip(rf_uip, [obs_cris, obs_tropomi], None)
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        None,
+        [obs_cris, obs_tropomi],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
+    cfunc = rs.cost_function_creator.cost_function_from_uip(
+        rf_uip, [obs_cris, obs_tropomi], None
+    )
     (
         o_radiance,
         jac_fm,
@@ -128,7 +136,6 @@ def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
     work to maintain this old compatibility function than it is worth.
     """
     rs, rstep, _ = joint_omi_step_8
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(None)
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
         rs.current_state,
@@ -146,7 +153,16 @@ def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
     )
     obs_airs.spectral_window.include_bad_sample = True
     obs_omi.spectral_window.include_bad_sample = True
-    cfunc = rs.cost_function_creator.cost_function_from_uip(rf_uip, [obs_airs, obs_omi], None)
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        None,
+        [obs_airs, obs_omi],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
+    cfunc = rs.cost_function_creator.cost_function_from_uip(
+        rf_uip, [obs_airs, obs_omi], None
+    )
     (
         o_radiance,
         jac_fm,

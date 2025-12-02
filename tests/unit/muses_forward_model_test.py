@@ -7,13 +7,13 @@ from refractor.muses_py_fm import (
     MusesAirsForwardModel,
     MusesTropomiForwardModel,
     MusesOmiForwardModel,
+    RefractorUip,
 )
 import pickle
 
 
 def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
         rs.current_state,
@@ -22,8 +22,15 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
         osp_dir=osp_dir,
     )
     obs_cris.spectral_window.include_bad_sample = True
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        InstrumentIdentifier("CRIS"),
+        [obs_cris],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
     mid = MeasurementIdDict({}, {})
-    fm = MusesCrisForwardModel(rf_uip, obs_cris, mid, rs.strategy_executor._rf_uip_func)
+    fm = MusesCrisForwardModel(rf_uip, obs_cris, mid)
     print(pickle.loads(pickle.dumps(obs_cris)))
     print(pickle.loads(pickle.dumps(fm)))
     s = fm.radiance(0)
@@ -53,7 +60,14 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
 
 def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
+    obs_cris = rs.observation_handle_set.observation(
+        InstrumentIdentifier("CRIS"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("CRIS")],
+        None,
+        osp_dir=osp_dir,
+        write_tropomi_radiance_pickle=True,
+    )
     obs_tropomi = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
         rs.current_state,
@@ -62,10 +76,20 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
         osp_dir=osp_dir,
         write_tropomi_radiance_pickle=True,
     )
+    obs_cris.spectral_window.include_bad_sample = True
     obs_tropomi.spectral_window.include_bad_sample = True
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        None,
+        [obs_cris, obs_tropomi],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
     mid = MeasurementIdDict({}, {})
     fm = MusesTropomiForwardModel(
-        rf_uip, obs_tropomi, mid, rs.strategy_executor._rf_uip_func
+        rf_uip,
+        obs_tropomi,
+        mid,
     )
     s = fm.radiance(0)
     rad = s.spectral_range.data
@@ -94,7 +118,6 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
 
 def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
         rs.current_state,
@@ -103,8 +126,15 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
         osp_dir=osp_dir,
     )
     obs_airs.spectral_window.include_bad_sample = True
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        InstrumentIdentifier("AIRS"),
+        [obs_airs],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
     mid = MeasurementIdDict({}, {})
-    fm = MusesAirsForwardModel(rf_uip, obs_airs, mid, rs.strategy_executor._rf_uip_func)
+    fm = MusesAirsForwardModel(rf_uip, obs_airs, mid)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -132,7 +162,14 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
 
 def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
+    obs_airs = rs.observation_handle_set.observation(
+        InstrumentIdentifier("AIRS"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("AIRS")],
+        None,
+        osp_dir=osp_dir,
+        write_omi_radiance_pickle=True,
+    )
     obs_omi = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
         rs.current_state,
@@ -141,9 +178,17 @@ def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
         osp_dir=osp_dir,
         write_omi_radiance_pickle=True,
     )
+    obs_airs.spectral_window.include_bad_sample = True
     obs_omi.spectral_window.include_bad_sample = True
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        None,
+        [obs_airs, obs_omi],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
     mid = MeasurementIdDict({}, {})
-    fm = MusesOmiForwardModel(rf_uip, obs_omi, mid, rs.strategy_executor._rf_uip_func)
+    fm = MusesOmiForwardModel(rf_uip, obs_omi, mid)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

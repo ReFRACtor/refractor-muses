@@ -12,6 +12,7 @@ from refractor.muses import (
     MusesTesObservation,
     InstrumentIdentifier,
 )
+from refractor.muses_py_fm import RefractorUip
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
 from pathlib import Path
@@ -233,21 +234,24 @@ def tropomi_fm_object_creator_step_0(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function()(
-        InstrumentIdentifier("TROPOMI")
+    obs = rs.observation_handle_set.observation(
+        InstrumentIdentifier("TROPOMI"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+        None,
+        osp_dir=osp_dir,
+    )
+    uip = RefractorUip.create_uip_from_refractor_objects(
+        InstrumentIdentifier("TROPOMI"),
+        [obs],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
     )
     res = TropomiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
-        rs.observation_handle_set.observation(
-            InstrumentIdentifier("TROPOMI"),
-            rs.current_state,
-            rs.current_strategy_step.spectral_window_dict[
-                InstrumentIdentifier("TROPOMI")
-            ],
-            None,
-            osp_dir=osp_dir,
-        ),
+        obs,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
         rf_uip_func=lambda instrument: uip,
@@ -288,21 +292,27 @@ def tropomi_fm_object_creator_swir_step(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
+    obs = rs.observation_handle_set.observation(
+        InstrumentIdentifier("TROPOMI"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+        None,
+        osp_dir=josh_osp_dir,
+    )
+    uip = RefractorUip.create_uip_from_refractor_objects(
+        InstrumentIdentifier("TROPOMI"),
+        [obs],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
     res = TropomiSwirFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
-        rs.observation_handle_set.observation(
-            InstrumentIdentifier("TROPOMI"),
-            rs.current_state,
-            rs.current_strategy_step.spectral_window_dict[
-                InstrumentIdentifier("TROPOMI")
-            ],
-            None,
-            osp_dir=josh_osp_dir,
-        ),
+        obs,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
-        rf_uip_func=rs.strategy_executor.rf_uip_func_cost_function(),
+        rf_uip_func=lambda instrument: uip,
         osp_dir=josh_osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
@@ -327,21 +337,25 @@ def tropomi_fm_object_creator_step_1(
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function()(
-        InstrumentIdentifier("TROPOMI")
+    obs = rs.observation_handle_set.observation(
+        InstrumentIdentifier("TROPOMI"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+        None,
+        osp_dir=osp_dir,
+    )
+
+    uip = RefractorUip.create_uip_from_refractor_objects(
+        InstrumentIdentifier("TROPOMI"),
+        [obs],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
     )
     res = TropomiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
-        rs.observation_handle_set.observation(
-            InstrumentIdentifier("TROPOMI"),
-            rs.current_state,
-            rs.current_strategy_step.spectral_window_dict[
-                InstrumentIdentifier("TROPOMI")
-            ],
-            None,
-            osp_dir=osp_dir,
-        ),
+        obs,
         rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
     )
@@ -365,19 +379,25 @@ def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function(False, None)(
-        InstrumentIdentifier("OMI")
+    obs = rs.observation_handle_set.observation(
+        InstrumentIdentifier("OMI"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
+        None,
+        osp_dir=osp_dir,
+    )
+
+    uip = RefractorUip.create_uip_from_refractor_objects(
+        InstrumentIdentifier("OMI"),
+        [obs],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
     )
     res = OmiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
-        rs.observation_handle_set.observation(
-            InstrumentIdentifier("OMI"),
-            rs.current_state,
-            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
-            None,
-            osp_dir=osp_dir,
-        ),
+        obs,
         rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
     )
@@ -401,19 +421,24 @@ def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         include_ret_state=False,
     )
     os.chdir(rs.run_dir)
-    uip = rs.strategy_executor.rf_uip_func_cost_function()(
-        InstrumentIdentifier("OMI")
+    obs = rs.observation_handle_set.observation(
+        InstrumentIdentifier("OMI"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
+        None,
+        osp_dir=osp_dir,
+    )
+    uip = RefractorUip.create_uip_from_refractor_objects(
+        InstrumentIdentifier("OMI"),
+        [obs],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
     )
     res = OmiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
-        rs.observation_handle_set.observation(
-            InstrumentIdentifier("OMI"),
-            rs.current_state,
-            rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
-            None,
-            osp_dir=osp_dir,
-        ),
+        obs,
         rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
     )

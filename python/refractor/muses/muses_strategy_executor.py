@@ -11,12 +11,9 @@ from .muses_strategy import (
     CurrentStrategyStep,
 )
 from .observation_handle import ObservationHandleSet
-from .misc import AttrDictAdapter
 from .identifier import StateElementIdentifier, ProcessLocation
 from .muses_strategy import MusesStrategyHandleSet
 from .spectral_window_handle import SpectralWindowHandleSet
-from .fake_state_info import FakeStateInfo
-from .fake_retrieval_info import FakeRetrievalInfo
 from .retrieval_strategy_step import RetrievalStepCaptureObserver
 from .record_and_play_func import CurrentStateRecordAndPlay
 import refractor.framework as rf  # type: ignore
@@ -34,7 +31,7 @@ from typing import Callable, Generator, Any
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
-    from .muses_observation import MusesObservation, MeasurementId
+    from .muses_observation import MeasurementId
     from .cost_function import CostFunction
     from .retrieval_configuration import RetrievalConfiguration
     from .cost_function_creator import CostFunctionCreator
@@ -178,14 +175,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
         self.qa_data_handle_set.notify_update_target(self.measurement_id)
-        # Awkward, we'll remove this in a bit. But start by forwarding this so we
-        # can work on removing this coupling
-        for p in sorted(
-            self.rs.forward_model_handle_set.handle_set.keys(), reverse=True
-        ):
-            for h in self.rs.forward_model_handle_set.handle_set[p]:
-                if hasattr(h, "set_rf_uip_func"):
-                    h.set_rf_uip_func(self._rf_uip_func)
 
     @property
     def retrieval_config(self) -> RetrievalConfiguration:
@@ -240,116 +229,18 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
     def rf_uip_func_cost_function(
         self,
         do_systematic: bool = False,
-        jacobian_species_in: list[StateElementIdentifier] | None = None,        
+        jacobian_species_in: list[StateElementIdentifier] | None = None,
     ) -> Callable[[InstrumentIdentifier | None], RefractorUip]:
-        return functools.partial(
-            self._rf_uip_func,
-            do_systematic=do_systematic,
-            jacobian_species_in=jacobian_species_in,            
-        )
-
-    def _rf_uip_func(
-        self,
-        instrument: InstrumentIdentifier,
-        obs_list: list[MusesObservation] | None = None,
-        do_systematic: bool = False,
-        jacobian_species_in: None | list[StateElementIdentifier] = None,        
-        pointing_angle: rf.DoubleWithUnit | None = None,
-    ) -> RefractorUip:
-        """To reduce coupling, you can give the instrument name to
-        use.
-
-        You can also pass in the observation list. Normally this
-        function can just create this for you using our
-        observation_handle_set. But the AIRS IRK creates a fake TES
-        observation, which we want to be able to pass in.
-
-        Also the pointing angle can be passed in, to use this instead
-        of the pointing angle found in the state_info. Again, this is
-        used by the IRK calculation.
-
-        """
         from refractor.muses_py_fm import RefractorUip
 
-        logger.debug(f"Creating rf_uip for {instrument}")
-        cstep = self.current_strategy_step
-        cstate = self.current_state
-        mid = self.measurement_id
-        assert mid is not None
-        if obs_list is None:
-            obs_list = []
-            for iname in cstep.instrument_name:
-                if instrument is None or iname == instrument:
-                    obs = self.observation_handle_set.observation(
-                        iname, None, cstep.spectral_window_dict[iname], None
-                    )
-                    obs_list.append(obs)
-        mwin = []
-        for obs in obs_list:
-            mwin.extend(obs.spectral_window.muses_microwindows())
-        # Dummy strategy table, with the information needed by
-        # RefractorUip.create_uip
-        fake_table = {
-            "preferences": mid,
-            "vlidort_dir": str(
-                mid["run_dir"]
-                / f"Step{cstep.strategy_step.step_number:02d}_{cstep.strategy_step.step_name}/vlidort/"
-            ),
-            "numRows": cstep.strategy_step.step_number,
-            "numColumns": 1,
-            "step": cstep.strategy_step.step_number,
-            "labels1": "retrievalType",
-            "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
-        }
-        fake_state_info = FakeStateInfo(cstate, obs_list=obs_list)
-        # fake_retrieval_info = FakeRetrievalInfo(cstate, use_state_mapping=True)
-        fake_retrieval_info = FakeRetrievalInfo(cstate)
-        #if cstate.do_systematic:
-        if do_systematic:
-            rinfo: AttrDictAdapter | FakeRetrievalInfo = (
-                fake_retrieval_info.retrieval_info_systematic
-            )
-        else:
-            rinfo = fake_retrieval_info
-
-        # Maybe an update happens in the UIP, that doesn't get propogated back to
-        # state_info? See if we can figure out what is changed here
-        o_xxx = {
-            "AIRS": None,
-            "TES": None,
-            "CRIS": None,
-            "OMI": None,
-            "TROPOMI": None,
-            "OCO2": None,
-        }
-        for obs in obs_list:
-            iname = obs.instrument_name
-            if str(iname) in o_xxx:
-                if hasattr(obs, "muses_py_dict"):
-                    o_xxx[str(iname)] = obs.muses_py_dict
-        with muses_py_call(mid["run_dir"]):
-            rf_uip = RefractorUip.create_uip(
-                fake_state_info,  # type: ignore[arg-type]
-                fake_table,
-                mwin,
-                rinfo,  # type: ignore[arg-type]
-                o_xxx["AIRS"],
-                o_xxx["TES"],
-                o_xxx["CRIS"],
-                o_xxx["OMI"],
-                o_xxx["TROPOMI"],
-                o_xxx["OCO2"],
-                jacobian_species_in=[str(i) for i in jacobian_species_in]
-                if jacobian_species_in is not None                
-                #jacobian_species_in=[
-                #    str(i) for i in cstate.retrieval_state_element_override
-                #]
-                #if cstate.retrieval_state_element_override is not None
-                else None,
-                only_create_instrument=instrument,  # type: ignore[arg-type]
-                pointing_angle=pointing_angle,
-            )
-            return rf_uip
+        return functools.partial(
+            RefractorUip.create_uip_from_refractor_objects,
+            cstep=self.current_strategy_step,
+            cstate=self.current_state,
+            rconf=self.measurement_id,
+            do_systematic=do_systematic,
+            jacobian_species_in=jacobian_species_in,
+        )
 
     def create_forward_model(self) -> rf.ForwardModel:
         """Create a forward model for the current step."""

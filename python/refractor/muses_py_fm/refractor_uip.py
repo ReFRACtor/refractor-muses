@@ -28,10 +28,17 @@ from refractor.muses import (
     FilterIdentifier,
     FakeStateInfo,
     FakeRetrievalInfo,
+    StateElementIdentifier,
+    RetrievalConfiguration,
+    MeasurementId,
+    CurrentStrategyStep,
+    CurrentState,
+    MusesObservation,
 )
 from .osswrapper import osswrapper
 import refractor.framework as rf  # type: ignore
 import os
+from loguru import logger
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
 import logging
@@ -1611,6 +1618,97 @@ class RefractorUip:
                 self.uip["oss_jacobianList"] = owrap.oss_jacobianList
                 self.uip["oss_frequencyList"] = owrap.oss_frequencyList
                 self.uip["oss_frequencyListFull"] = owrap.oss_frequencyListFull
+
+    # TODO See if we can get rid of the do_systematic and jacobian_species_in
+    @classmethod
+    def create_uip_from_refractor_objects(
+        cls,
+        instrument: InstrumentIdentifier,
+        obs_list: list[MusesObservation],
+        cstep: CurrentStrategyStep,
+        cstate: CurrentState,
+        rconf: MeasurementId | RetrievalConfiguration,
+        do_systematic: bool = False,
+        jacobian_species_in: None | list[StateElementIdentifier] = None,
+        pointing_angle: rf.DoubleWithUnit | None = None,
+    ) -> RefractorUip:
+        """Create a RefractorUIP from the higher level refractor.muses objects.
+
+        To reduce coupling, you can give the instrument name to
+        use.
+
+        Also the pointing angle can be passed in, to use this instead
+        of the pointing angle found in the state_info. This is
+        used by the IRK calculation.
+        """
+        logger.debug(f"Creating rf_uip for {instrument}")
+        assert rconf is not None
+        mwin = []
+        for obs in obs_list:
+            mwin.extend(obs.spectral_window.muses_microwindows())
+        # Dummy strategy table, with the information needed by
+        # RefractorUip.create_uip
+        fake_table = {
+            "preferences": rconf,
+            "vlidort_dir": str(
+                rconf["run_dir"]
+                / f"Step{cstep.strategy_step.step_number:02d}_{cstep.strategy_step.step_name}/vlidort/"
+            ),
+            "numRows": cstep.strategy_step.step_number,
+            "numColumns": 1,
+            "step": cstep.strategy_step.step_number,
+            "labels1": "retrievalType",
+            "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
+        }
+        fake_state_info = FakeStateInfo(cstate, obs_list=obs_list)
+        # fake_retrieval_info = FakeRetrievalInfo(cstate, use_state_mapping=True)
+        fake_retrieval_info = FakeRetrievalInfo(cstate)
+        # if cstate.do_systematic:
+        if do_systematic:
+            rinfo: AttrDictAdapter | FakeRetrievalInfo = (
+                fake_retrieval_info.retrieval_info_systematic
+            )
+        else:
+            rinfo = fake_retrieval_info
+
+        # Maybe an update happens in the UIP, that doesn't get propogated back to
+        # state_info? See if we can figure out what is changed here
+        o_xxx = {
+            "AIRS": None,
+            "TES": None,
+            "CRIS": None,
+            "OMI": None,
+            "TROPOMI": None,
+            "OCO2": None,
+        }
+        for obs in obs_list:
+            iname = obs.instrument_name
+            if str(iname) in o_xxx:
+                if hasattr(obs, "muses_py_dict"):
+                    o_xxx[str(iname)] = obs.muses_py_dict
+        with muses_py_call(rconf["run_dir"]):
+            rf_uip = RefractorUip.create_uip(
+                fake_state_info,  # type: ignore[arg-type]
+                fake_table,
+                mwin,
+                rinfo,  # type: ignore[arg-type]
+                o_xxx["AIRS"],
+                o_xxx["TES"],
+                o_xxx["CRIS"],
+                o_xxx["OMI"],
+                o_xxx["TROPOMI"],
+                o_xxx["OCO2"],
+                jacobian_species_in=[str(i) for i in jacobian_species_in]
+                if jacobian_species_in is not None
+                # jacobian_species_in=[
+                #    str(i) for i in cstate.retrieval_state_element_override
+                # ]
+                # if cstate.retrieval_state_element_override is not None
+                else None,
+                only_create_instrument=instrument,  # type: ignore[arg-type]
+                pointing_angle=pointing_angle,
+            )
+            return rf_uip
 
     @classmethod
     def create_uip(

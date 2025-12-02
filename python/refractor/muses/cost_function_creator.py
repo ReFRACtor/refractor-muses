@@ -265,7 +265,7 @@ class CostFunctionCreator:
             rf_uip.instrument,  # type:ignore[arg-type]
             cstate,  # type:ignore[arg-type]
             None,
-            rf_uip_func=lambda instrument_name: rf_uip,
+            rf_uip_func = lambda instrument_name, obs_list: rf_uip,
             obs_list=obs_list,
             **kwargs,
         )

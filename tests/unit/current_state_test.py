@@ -10,8 +10,9 @@ from refractor.muses import (
     FullGridArray,
     FullGridMappedArray,
     FullGridMappedArrayFromRetGrid,
+    InstrumentIdentifier,
 )
-from refractor.muses_py_fm import CurrentStateUip
+from refractor.muses_py_fm import CurrentStateUip, RefractorUip
 import pytest
 import numpy.testing as npt
 import numpy as np
@@ -70,9 +71,33 @@ def test_current_state_dict():
     npt.assert_allclose(mp.retrieval_indexes, [0, 2])
 
 
-def test_current_state_uip(joint_tropomi_step_12):
+def test_current_state_uip(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
+    obs_cris = rs.observation_handle_set.observation(
+        InstrumentIdentifier("CRIS"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("CRIS")],
+        None,
+        osp_dir=osp_dir,
+        write_tropomi_radiance_pickle=True,
+    )
+    obs_tropomi = rs.observation_handle_set.observation(
+        InstrumentIdentifier("TROPOMI"),
+        rs.current_state,
+        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
+        None,
+        osp_dir=osp_dir,
+        write_tropomi_radiance_pickle=True,
+    )
+    obs_cris.spectral_window.include_bad_sample = True
+    obs_tropomi.spectral_window.include_bad_sample = True
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        None,
+        [obs_cris, obs_tropomi],
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
     cs = CurrentStateUip(rf_uip)
     print(cs.fm_sv_loc)
     print(cs.fm_state_vector_size)

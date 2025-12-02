@@ -1,9 +1,9 @@
-from refractor.muses import CostFunctionCreator, InstrumentIdentifier
+from refractor.muses import InstrumentIdentifier
+from refractor.muses_py_fm import RefractorUip
 
 
 def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs = [
         rs.observation_handle_set.observation(
             InstrumentIdentifier("CRIS"),
@@ -22,6 +22,13 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
             osp_dir=osp_dir,
         ),
     ]
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        None,
+        obs,
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
 
     # We test using this else where. Here, just make sure we can
     # call the creation function.
@@ -31,7 +38,6 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
 
 def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
-    rf_uip = rs.strategy_executor.rf_uip_func_cost_function()(None)
     obs = [
         rs.observation_handle_set.observation(
             InstrumentIdentifier("AIRS"),
@@ -48,6 +54,13 @@ def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):
             osp_dir=osp_dir,
         ),
     ]
+    rf_uip = RefractorUip.create_uip_from_refractor_objects(
+        None,
+        obs,
+        rs.current_strategy_step,
+        rs.current_state,
+        rs.retrieval_config,
+    )
 
     # We test using this else where. Here, just make sure we can
     # call the creation function.
