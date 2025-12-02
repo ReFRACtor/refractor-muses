@@ -92,9 +92,7 @@ def test_current_state_uip(joint_tropomi_step_12, osp_dir):
     obs_cris.spectral_window.include_bad_sample = True
     obs_tropomi.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        None,
         [obs_cris, obs_tropomi],
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )

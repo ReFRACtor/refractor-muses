@@ -2,6 +2,7 @@ import numpy as np
 import numpy.testing as npt
 from refractor.muses import MusesOpticalDepth
 from refractor.old_py_retrieve_wrapper import MusesOpticalDepthFile
+from refractor.muses_py_fm import RefractorUip
 import refractor.framework as rf
 from fixtures.require_check import require_muses_py
 import pytest
@@ -40,7 +41,12 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1, osp_dir):
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
-    uip = tropomi_fm_object_creator_step_1.rf_uip_func("TROPOMI")
+    uip = RefractorUip.create_uip_from_refractor_objects(
+        [tropomi_fm_object_creator_step_1.observation],
+        tropomi_fm_object_creator_step_1.current_state,
+        tropomi_fm_object_creator_step_1.measurement_id,
+    )
+
     uip.uip_tropomi["jacobians"] = [
         "O3",
     ]

@@ -19,6 +19,7 @@ from .retrieval_array import (
 
 if typing.TYPE_CHECKING:
     from .retrieval_configuration import RetrievalConfiguration
+    from .identifier import RetrievalType, StrategyStepIdentifier
     from .muses_observation import MeasurementId
     from .muses_strategy import CurrentStrategyStep
     from .muses_strategy import MusesStrategy
@@ -864,6 +865,16 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         still remove the need for this that would be good.
 
         """
+        raise NotImplementedError()
+
+    @property
+    def strategy_step(self) -> StrategyStepIdentifier:
+        """Similar to step_directory, step_number is used by RefractorUip. Supply that."""
+        raise NotImplementedError()
+
+    @property
+    def retrieval_type(self) -> RetrievalType:
+        """Similar to step_directory, retrieval_type is used by RefractorUip. Supply that."""
         raise NotImplementedError()
 
     @property

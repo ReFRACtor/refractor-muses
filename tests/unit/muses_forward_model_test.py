@@ -23,9 +23,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
     )
     obs_cris.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        InstrumentIdentifier("CRIS"),
         [obs_cris],
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )
@@ -79,9 +77,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
     obs_cris.spectral_window.include_bad_sample = True
     obs_tropomi.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        None,
         [obs_cris, obs_tropomi],
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )
@@ -127,9 +123,7 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
     )
     obs_airs.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        InstrumentIdentifier("AIRS"),
         [obs_airs],
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )
@@ -181,9 +175,7 @@ def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
     obs_airs.spectral_window.include_bad_sample = True
     obs_omi.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        None,
         [obs_airs, obs_omi],
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )

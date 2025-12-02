@@ -19,7 +19,7 @@ import h5py  # type: ignore
 
 # for netCDF3 support which is not supported in h5py
 from netCDF4 import Dataset
-from typing import Callable, Any
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -28,7 +28,6 @@ if typing.TYPE_CHECKING:
         MeasurementId,
         MusesObservation,
     )
-    from refractor.muses_py_fm import RefractorUip
 
 
 class OmiSurfaceAlbedo(SurfaceAlbedo):
@@ -939,7 +938,6 @@ class OmiForwardModelHandle(ForwardModelHandle):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs: Any,
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("OMI"):
@@ -951,7 +949,6 @@ class OmiForwardModelHandle(ForwardModelHandle):
             current_state,
             self.measurement_id,
             obs,
-            rf_uip_func=rf_uip_func,
             fm_sv=fm_sv,
             **self.creator_kwargs,
         )

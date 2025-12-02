@@ -10,7 +10,7 @@ from loguru import logger
 import numpy as np
 import abc
 import copy
-from typing import Callable, Any
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
@@ -19,7 +19,6 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier
-    from refractor.muses_py_fm import RefractorUip
 
 
 class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
@@ -55,8 +54,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         measurement_id: MeasurementId,
         instrument_name: InstrumentIdentifier,
         observation: MusesObservation,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip]
-        | None = None,
         fm_sv: rf.StateVector | None = None,
         # Values, so we can flip between using pca and not
         use_pca: bool = True,
@@ -85,11 +82,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
              anything that might be a real, unexpected
              difference. Normally you want to the default False value,
              but for testing purposes you might want to turn this on.
-
-        rf_uip_func - To support all oy_retrieve code, we can take a
-            function to generate a UIP. This should take the
-            instrument name as an argument and return a
-            RefractorUip. This is only called if we need the UIP.
 
         """
         self.use_pca = use_pca
@@ -134,9 +126,6 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
                 ],
             )
 
-        # This is only needed by the old py-retrieve forward models
-        self.rf_uip_func = rf_uip_func
-
         self.filter_list = self.observation.filter_list
         self.num_channels = self.observation.num_channels
 
@@ -164,11 +153,15 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
     def ray_info(self) -> MusesRayInfo:
         """Return MusesRayInfo."""
         from refractor.old_py_retrieve_wrapper import MusesRayInfo
+        from refractor.muses_py_fm import RefractorUip
 
-        if self.rf_uip_func is None:
-            raise RuntimeError("Need to supply rf_uip_func to get ray_info")
+        rf_uip = RefractorUip.create_uip_from_refractor_objects(
+            [self.observation],
+            self.current_state,  # type: ignore[arg-type]
+            self.measurement_id,  # type: ignore[arg-type]
+        )
         return MusesRayInfo(
-            self.rf_uip_func(self.instrument_name),
+            rf_uip,
             str(self.instrument_name),
             self.pressure,
         )
@@ -429,11 +422,16 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         pgrid_v = self.pressure_fm.pressure_grid().value.value
         if self.match_py_retrieve:
             from refractor.old_py_retrieve_wrapper import MusesRayInfo
+            from refractor.muses_py_fm import RefractorUip
 
-            if self.rf_uip_func is None:
-                raise RuntimeError("Need to supply rf_uip_func to get MusesRayInfo")
+            rf_uip = RefractorUip.create_uip_from_refractor_objects(
+                [self.observation],
+                self.current_state,  # type: ignore[arg-type]
+                self.measurement_id,  # type: ignore[arg-type]
+            )
+
             rinfo = MusesRayInfo(
-                self.rf_uip_func(self.instrument_name),
+                rf_uip,
                 str(self.instrument_name),
                 self.pressure_fm,
             )

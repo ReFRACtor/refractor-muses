@@ -12,7 +12,6 @@ from refractor.muses import (
     MusesTesObservation,
     InstrumentIdentifier,
 )
-from refractor.muses_py_fm import RefractorUip
 from refractor.tropomi import TropomiFmObjectCreator, TropomiSwirFmObjectCreator
 from refractor.omi import OmiFmObjectCreator
 from pathlib import Path
@@ -241,20 +240,12 @@ def tropomi_fm_object_creator_step_0(
         None,
         osp_dir=osp_dir,
     )
-    uip = RefractorUip.create_uip_from_refractor_objects(
-        InstrumentIdentifier("TROPOMI"),
-        [obs],
-        rs.current_strategy_step,
-        rs.current_state,
-        rs.retrieval_config,
-    )
     res = TropomiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
         obs,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
-        rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
@@ -299,20 +290,12 @@ def tropomi_fm_object_creator_swir_step(
         None,
         osp_dir=josh_osp_dir,
     )
-    uip = RefractorUip.create_uip_from_refractor_objects(
-        InstrumentIdentifier("TROPOMI"),
-        [obs],
-        rs.current_strategy_step,
-        rs.current_state,
-        rs.retrieval_config,
-    )
     res = TropomiSwirFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
         obs,
         use_oss=use_oss,
         oss_training_data=oss_training_data,
-        rf_uip_func=lambda instrument: uip,
         osp_dir=josh_osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
@@ -345,18 +328,10 @@ def tropomi_fm_object_creator_step_1(
         osp_dir=osp_dir,
     )
 
-    uip = RefractorUip.create_uip_from_refractor_objects(
-        InstrumentIdentifier("TROPOMI"),
-        [obs],
-        rs.current_strategy_step,
-        rs.current_state,
-        rs.retrieval_config,
-    )
     res = TropomiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
         obs,
-        rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
@@ -387,18 +362,10 @@ def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         osp_dir=osp_dir,
     )
 
-    uip = RefractorUip.create_uip_from_refractor_objects(
-        InstrumentIdentifier("OMI"),
-        [obs],
-        rs.current_strategy_step,
-        rs.current_state,
-        rs.retrieval_config,
-    )
     res = OmiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
         obs,
-        rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,
@@ -428,18 +395,10 @@ def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         None,
         osp_dir=osp_dir,
     )
-    uip = RefractorUip.create_uip_from_refractor_objects(
-        InstrumentIdentifier("OMI"),
-        [obs],
-        rs.current_strategy_step,
-        rs.current_state,
-        rs.retrieval_config,
-    )
     res = OmiFmObjectCreator(
         rs.current_state,
         rs.measurement_id,
         obs,
-        rf_uip_func=lambda instrument: uip,
         osp_dir=osp_dir,
     )
     # Put RetrievalStrategy and RetrievalStrategyStep into OmiFmObjectCreator,

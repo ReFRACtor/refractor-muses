@@ -17,14 +17,12 @@ from refractor.muses import (
     StateElementIdentifier,
     modify_strategy_table,
 )
-from refractor.muses_py_fm import RefractorUip
 from refractor.old_py_retrieve_wrapper import (
     RetrievableStateElementOld,
     StateInfoOld,
     SingleSpeciesHandleOld,
     RetrievalInfo,
 )
-from typing import Callable
 import subprocess
 from loguru import logger
 import pytest
@@ -186,7 +184,6 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs,
     ):
         if instrument_name != InstrumentIdentifier("TROPOMI"):
@@ -195,7 +192,6 @@ class ScaledTropomiForwardModelHandle(ForwardModelHandle):
             current_state,
             self.measurement_id,
             obs,
-            rf_uip_func=rf_uip_func,
             fm_sv=fm_sv,
             **self.creator_kwargs,
         )

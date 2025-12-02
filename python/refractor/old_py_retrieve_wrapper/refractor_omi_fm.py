@@ -56,7 +56,6 @@ class RefractorOmiFm(RefractorTropOrOmiFm):
                 CurrentStateUip(self.rf_uip),
                 self.measurement_id,
                 self._obs,
-                rf_uip_func=lambda instrument_name: self.rf_uip,
                 match_py_retrieve=True,
                 **self.obj_creator_args,
             )

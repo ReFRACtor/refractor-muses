@@ -22,12 +22,11 @@ import copy
 import os
 from loguru import logger
 import time
-import functools
 import numpy as np
 import numpy.testing as npt
 from pathlib import Path
 import typing
-from typing import Callable, Generator, Any
+from typing import Generator, Any
 
 if typing.TYPE_CHECKING:
     from .retrieval_strategy import RetrievalStrategy
@@ -38,7 +37,6 @@ if typing.TYPE_CHECKING:
     from .identifier import InstrumentIdentifier, FilterIdentifier
     from .state_info import StateElementHandleSet
     from .cross_state_element import CrossStateElementHandleSet
-    from refractor.muses_py_fm import RefractorUip
 
 
 @contextmanager
@@ -226,22 +224,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         """The SpectralWindowHandleSet to use for getting MusesSpectralWindow."""
         return self._spectral_window_handle_set
 
-    def rf_uip_func_cost_function(
-        self,
-        do_systematic: bool = False,
-        jacobian_species_in: list[StateElementIdentifier] | None = None,
-    ) -> Callable[[InstrumentIdentifier | None], RefractorUip]:
-        from refractor.muses_py_fm import RefractorUip
-
-        return functools.partial(
-            RefractorUip.create_uip_from_refractor_objects,
-            cstep=self.current_strategy_step,
-            cstate=self.current_state,
-            rconf=self.measurement_id,
-            do_systematic=do_systematic,
-            jacobian_species_in=jacobian_species_in,
-        )
-
     def create_forward_model(self) -> rf.ForwardModel:
         """Create a forward model for the current step."""
         if len(self.current_strategy_step.instrument_name) != 1:
@@ -258,7 +240,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.current_state,
             obs,
             fm_sv,
-            self.rf_uip_func_cost_function(),
         )
 
     def create_cost_function(
@@ -289,7 +270,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             self.current_strategy_step.instrument_name,
             cstate,
             self.current_strategy_step.spectral_window_dict,
-            self.rf_uip_func_cost_function(do_systematic, jacobian_species_in),
             include_bad_sample=include_bad_sample,
             use_empty_apriori=use_empty_apriori,
             **self.kwargs,

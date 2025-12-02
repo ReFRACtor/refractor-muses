@@ -31,7 +31,6 @@ from refractor.muses import (
     StateElementIdentifier,
     RetrievalConfiguration,
     MeasurementId,
-    CurrentStrategyStep,
     CurrentState,
     MusesObservation,
 )
@@ -1623,13 +1622,9 @@ class RefractorUip:
     @classmethod
     def create_uip_from_refractor_objects(
         cls,
-        instrument: InstrumentIdentifier,
         obs_list: list[MusesObservation],
-        cstep: CurrentStrategyStep,
         cstate: CurrentState,
         rconf: MeasurementId | RetrievalConfiguration,
-        do_systematic: bool = False,
-        jacobian_species_in: None | list[StateElementIdentifier] = None,
         pointing_angle: rf.DoubleWithUnit | None = None,
     ) -> RefractorUip:
         """Create a RefractorUIP from the higher level refractor.muses objects.
@@ -1641,8 +1636,13 @@ class RefractorUip:
         of the pointing angle found in the state_info. This is
         used by the IRK calculation.
         """
-        logger.debug(f"Creating rf_uip for {instrument}")
-        assert rconf is not None
+        logger.debug(f"Creating rf_uip for {[obs.instrument_name for obs in obs_list]}")
+        # Special case for CurrentStateUip, we just return a copy of UIP. This is useful
+        # for unit testing where we get the UIP from another source but what to pretend
+        # that we are doing normal processing.
+        if hasattr(cstate, "rf_uip"):
+            logger.info("Copying uip from cstate rather than creating")
+            return copy.deepcopy(cstate.rf_uip)
         mwin = []
         for obs in obs_list:
             mwin.extend(obs.spectral_window.muses_microwindows())
@@ -1650,21 +1650,17 @@ class RefractorUip:
         # RefractorUip.create_uip
         fake_table = {
             "preferences": rconf,
-            "vlidort_dir": str(
-                rconf["run_dir"]
-                / f"Step{cstep.strategy_step.step_number:02d}_{cstep.strategy_step.step_name}/vlidort/"
-            ),
-            "numRows": cstep.strategy_step.step_number,
+            "vlidort_dir": str(cstate.step_directory / "vlidort") + "/",
+            "numRows": cstate.strategy_step.step_number,
             "numColumns": 1,
-            "step": cstep.strategy_step.step_number,
+            "step": cstate.strategy_step.step_number,
             "labels1": "retrievalType",
-            "data": [cstep.retrieval_type.lower()] * cstep.strategy_step.step_number,
+            "data": [cstate.retrieval_type.lower()] * cstate.strategy_step.step_number,
         }
         fake_state_info = FakeStateInfo(cstate, obs_list=obs_list)
         # fake_retrieval_info = FakeRetrievalInfo(cstate, use_state_mapping=True)
         fake_retrieval_info = FakeRetrievalInfo(cstate)
-        # if cstate.do_systematic:
-        if do_systematic:
+        if cstate.do_systematic:
             rinfo: AttrDictAdapter | FakeRetrievalInfo = (
                 fake_retrieval_info.retrieval_info_systematic
             )
@@ -1698,14 +1694,11 @@ class RefractorUip:
                 o_xxx["OMI"],
                 o_xxx["TROPOMI"],
                 o_xxx["OCO2"],
-                jacobian_species_in=[str(i) for i in jacobian_species_in]
-                if jacobian_species_in is not None
-                # jacobian_species_in=[
-                #    str(i) for i in cstate.retrieval_state_element_override
-                # ]
-                # if cstate.retrieval_state_element_override is not None
+                jacobian_species_in=[
+                    str(i) for i in cstate.retrieval_state_element_override
+                ]
+                if cstate.retrieval_state_element_override is not None
                 else None,
-                only_create_instrument=instrument,  # type: ignore[arg-type]
                 pointing_angle=pointing_angle,
             )
             return rf_uip

@@ -23,6 +23,7 @@ from typing import cast
 
 if typing.TYPE_CHECKING:
     from .current_state import PropagatedQA
+    from .identifier import RetrievalType, StrategyStepIdentifier
     from .sounding_metadata import SoundingMetadata
     from .retrieval_configuration import RetrievalConfiguration
     from .muses_strategy import CurrentStrategyStep
@@ -69,6 +70,9 @@ class CurrentStateStateInfo(CurrentState):
         )
         self.do_systematic = False
         self._step_directory: None | Path = None
+        self._strategy_step: None | StrategyStepIdentifier = None
+        self._retrieval_type: None | RetrievalType = None
+
         # When doing initial development, we matched against old state info stuff
         # This is normally not used, but have in place in case we need to diagnose
         # some problem
@@ -350,6 +354,20 @@ class CurrentStateStateInfo(CurrentState):
         if self._step_directory is None:
             raise RuntimeError("Set step directory first")
         return self._step_directory
+
+    @property
+    def strategy_step(self) -> StrategyStepIdentifier:
+        """Similar to step_directory, step_number is used by RefractorUip. Supply that."""
+        if self._strategy_step is None:
+            raise RuntimeError("Set strategy step identifier first")
+        return self._strategy_step
+
+    @property
+    def retrieval_type(self) -> RetrievalType:
+        """Similar to step_directory, retrieval_type is used by RefractorUip. Supply that."""
+        if self._retrieval_type is None:
+            raise RuntimeError("Set retrieval type first")
+        return self._retrieval_type
 
     @property
     def propagated_qa(self) -> PropagatedQA:
@@ -643,6 +661,8 @@ class CurrentStateStateInfo(CurrentState):
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
+            self._strategy_step = current_strategy_step.strategy_step
+            self._retrieval_type = current_strategy_step.retrieval_type
             # Temp, until we move all this into the StateElements
             self.setup_previous_aposteriori_cov_fm(
                 self._covariance_state_element_name, current_strategy_step
@@ -670,6 +690,8 @@ class CurrentStateStateInfo(CurrentState):
                 retrieval_config["run_dir"]
                 / f"Step{current_strategy_step.strategy_step.step_number:02d}_{current_strategy_step.strategy_step.step_name}"
             )
+            self._strategy_step = current_strategy_step.strategy_step
+            self._retrieval_type = current_strategy_step.retrieval_type
             self._state_info.notify_start_step(
                 current_strategy_step,
                 retrieval_config,

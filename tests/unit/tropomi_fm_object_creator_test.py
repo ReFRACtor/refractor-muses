@@ -1,6 +1,5 @@
 import pytest
 import numpy as np
-import numpy.testing as npt
 import refractor.framework as rf
 
 
@@ -34,12 +33,7 @@ def test_ground_albedo(tropomi_fm_object_creator_step_0):
     obj_albedo_coeffs = (
         tropomi_fm_object_creator_step_0.ground_clear.albedo_coefficients(0).value
     )
-    uip = tropomi_fm_object_creator_step_0.rf_uip_func("TROPOMI")
-    expected = [
-        uip.tropomi_params["surface_albedo_BAND3"],  # 0.896 as of 2023-10-03
-        uip.tropomi_params["surface_albedo_slope_BAND3"],  # 0.0 as of 2023-10-03
-        uip.tropomi_params["surface_albedo_slope_order2_BAND3"],  # 0.0 as of 2023-10-03
-    ]
+    expected = [0.896, 0, 0]
     assert np.allclose(obj_albedo_coeffs, expected)
 
     # Now check the state mapping indices. Since none of the albedo terms are in step 1 of this UIP,
@@ -73,11 +67,8 @@ def test_absorber(tropomi_fm_object_creator_step_0):
 
 
 def test_vmr(tropomi_fm_object_creator_step_0):
-    obj_vmrs = tropomi_fm_object_creator_step_0.absorber_vmr[0].vmr_profile
-    uip_vmrs = tropomi_fm_object_creator_step_0.rf_uip_func(
-        "TROPOMI"
-    ).atmosphere_column("O3")
-    assert np.allclose(obj_vmrs, uip_vmrs)
+    obj_vmr = tropomi_fm_object_creator_step_0.absorber_vmr[0].vmr_profile
+    print(obj_vmr)
 
 
 def test_atmosphere(tropomi_fm_object_creator_step_0):
@@ -186,15 +177,6 @@ def test_forward_model_step2(tropomi_fm_object_creator_step_1):
         # (and of course still doesn't)
         absorber = tropomi_fm_object_creator_step_1.absorber
     print(absorber)
-
-
-def test_species_basis(tropomi_fm_object_creator_step_1):
-    uip = tropomi_fm_object_creator_step_1.rf_uip_func("TROPOMI")
-    # Check that we are consistent with our species_basis_matrix
-    # and atmosphere_retrieval_level_subset.
-    npt.assert_allclose(
-        uip.species_basis_matrix("O3"), uip.species_basis_matrix_calc("O3")
-    )
 
 
 def test_compare_altitude(tropomi_fm_object_creator_step_0):

@@ -23,9 +23,7 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
         ),
     ]
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        None,
         obs,
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )
@@ -55,9 +53,7 @@ def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):
         ),
     ]
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        None,
         obs,
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )

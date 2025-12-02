@@ -2,6 +2,7 @@ from __future__ import annotations
 import numpy as np
 from pathlib import Path
 from copy import copy
+import re
 from .refractor_uip import AttrDictAdapter, RefractorUip
 from refractor.muses import (
     RetrievalGridArray,
@@ -13,6 +14,8 @@ from refractor.muses import (
     CurrentState,
     StateElement,
     SoundingMetadata,
+    StrategyStepIdentifier,
+    RetrievalType,
 )
 
 
@@ -39,6 +42,32 @@ class CurrentStateUip(CurrentState):
         self._initial_guess = rf_uip.current_state_x
         self._basis_matrix = rf_uip.basis_matrix
         self.ret_info = ret_info
+
+    @property
+    def step_directory(self) -> Path:
+        """Return the step directory. This is a bit odd, but it is
+        needed by MusesOpticalDepthFile. Since the current state
+        depends on the step we are using, it isn't ridiculous to have
+        this here. However if we find a better home for or better
+        still remove the need for this that would be good.
+
+        """
+        return self.rf_uip.step_directory
+
+    @property
+    def strategy_step(self) -> StrategyStepIdentifier:
+        """Similar to step_directory, step_number is used by RefractorUip. Supply that."""
+        t = re.match(r"Step(\d+)_(.*)", self.step_directory.name)
+        return StrategyStepIdentifier(int(t[1]), t[2])
+
+    @property
+    def retrieval_type(self) -> RetrievalType:
+        """Similar to step_directory, retrieval_type is used by RefractorUip. Supply that."""
+        # I don't think this actually matters. This only seems to get checked if it
+        # is BT, and it doesn't seem to do anything. So set to default, we can revisit
+        # this if needed. This class is only used for unit tests, so it doesn't matter
+        # if the BT case isn't handled correctly, since we don't use that in unit tests
+        return RetrievalType("default")
 
     @property
     def initial_guess(self) -> RetrievalGridArray:
@@ -170,10 +199,6 @@ class CurrentStateUip(CurrentState):
         raise NotImplementedError()
 
     @property
-    def step_directory(self) -> Path:
-        return self.rf_uip.step_directory
-
-    @property
     def sounding_metadata(self) -> SoundingMetadata:
         raise NotImplementedError()
 
@@ -199,6 +224,8 @@ class CurrentStateUip(CurrentState):
                     o_uip.surface_temperature,
                 ]
             )
+        elif str(state_element_id) == "PSUR":
+            res = np.array([o_uip.atmosphere[0,0]])
         elif str(state_element_id) == "EMIS":
             res = np.array(o_uip.emissivity["value"])
         elif str(state_element_id) == "PTGANG":

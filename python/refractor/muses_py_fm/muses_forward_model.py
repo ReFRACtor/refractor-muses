@@ -12,7 +12,6 @@ from refractor.muses import (
     MusesObservation,
     ResultIrk,
     CostFunction,
-    CurrentStrategyStep,
 )
 from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 from .refractor_uip import RefractorUip
@@ -22,7 +21,7 @@ from loguru import logger
 import numpy as np
 import copy
 from weakref import WeakSet, WeakKeyDictionary
-from typing import Callable, Any, TypeVar
+from typing import Any, TypeVar
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
 # ForwardModel
@@ -219,18 +218,15 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
 
     def irk_radiance(
         self,
-        cstep: CurrentStrategyStep,
         cstate: CurrentState,
         pointing_angle: rf.DoubleWithUnit,
     ) -> tuple[rf.Spectrum, None | np.ndarray]:
         """Calculate radiance/jacobian for the IRK calculation, for the
         given angle. If pointing_angle is 0, we also return dEdOD."""
         rf_uip_pointing = RefractorUip.create_uip_from_refractor_objects(
-            self.obs.instrument_name,
             [
                 self.obs,
             ],
-            cstep,
             cstate,
             self.measurement_id,
             False,
@@ -253,7 +249,7 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
             self.rf_uip = rf_uip_original
         return r, dEdOD
 
-    def irk(self, cstep: CurrentStrategyStep, current_state: CurrentState) -> ResultIrk:
+    def irk(self, current_state: CurrentState) -> ResultIrk:
         """This was originally the run_irk.py code from py-retrieve. We
         have our own copy of this so we can clean this code up a bit.
         """
@@ -265,12 +261,12 @@ class MusesForwardModelIrk(MusesOssForwardModelBase):
         for gi_angle in self.irk_angle():
             if gi_angle == 0.0:
                 r, dEdOD = self.irk_radiance(
-                    cstep, current_state, rf.DoubleWithUnit(0.0, "deg")
+                    current_state, rf.DoubleWithUnit(0.0, "deg")
                 )
                 frequency = r.spectral_domain.data
             else:
                 r, _ = self.irk_radiance(
-                    cstep, current_state, rf.DoubleWithUnit(gi_angle, "deg")
+                    current_state, rf.DoubleWithUnit(gi_angle, "deg")
                 )
             radiance.append(r.spectral_range.data)
             jacobian.append(r.spectral_range.data_ad.jacobian.transpose())
@@ -707,7 +703,6 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
 
     def irk_radiance(
         self,
-        cstep: CurrentStrategyStep,
         cstate: CurrentState,
         pointing_angle: rf.DoubleWithUnit,
     ) -> tuple[rf.Spectrum, None | np.ndarray]:
@@ -720,7 +715,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         try:
             self.obs = self.irk_obs
             self.instrument_name = InstrumentIdentifier("TES")
-            return super().irk_radiance(cstep, cstate, pointing_angle)
+            return super().irk_radiance(cstate, pointing_angle)
         finally:
             self.obs = obs_original
             self.instrument_name = InstrumentIdentifier("AIRS")
@@ -802,7 +797,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
         self,
         instrument: InstrumentIdentifier,
         obs: MusesObservation,
-        rf_uip_func: Callable[[InstrumentIdentifier | None, list[MusesObservation]], RefractorUip],
+        cstate: CurrentState,
     ) -> RefractorUip:
         """We need to have a single common rf_uip for a joint retrieval step.
         This function handles the logic for that."""
@@ -822,12 +817,16 @@ class MusesForwardModelHandle(ForwardModelHandle):
             # recreate the UIP for all the instruments. This is needed to
             # have the update happen correctly - we can't update just half
             # of the UIP.
-            new_uip = rf_uip_func(None, obslist)
+            new_uip = RefractorUip.create_uip_from_refractor_objects(
+                obslist, cstate, self.measurement_id
+            )
             # We need to update rf_uip in place, rather than use the new one. This
             # is because we already have a MusesForwardModel using this.
             rf_uip.uip = new_uip.uip
         else:
-            rf_uip = rf_uip_func(instrument, [obs])
+            rf_uip = RefractorUip.create_uip_from_refractor_objects(
+                [obs], cstate, self.measurement_id
+            )
         MusesForwardModelHandle.rf_uip_created[self.measurement_id] = (rf_uip, obslist)
         return rf_uip
 
@@ -847,18 +846,15 @@ class MusesForwardModelHandle(ForwardModelHandle):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,  # type: ignore[override]
         **kwargs: Any,
     ) -> None | rf.ForwardModel:
         if instrument_name != self.instrument_name:
-            return None
-        if rf_uip_func is None:
             return None
         logger.debug(f"Creating forward model {self.cls.__name__}")
         # Note MeasurementId also has access to all the stuff in
         # RetrievalConfiguration
         return self.cls(
-            self.rf_uip_func_wrap(instrument_name, obs, rf_uip_func),
+            self.rf_uip_func_wrap(instrument_name, obs, current_state),
             obs,
             self.measurement_id,
             **kwargs,

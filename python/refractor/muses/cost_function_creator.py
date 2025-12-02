@@ -7,7 +7,6 @@ from .retrieval_array import RetrievalGridArray
 import refractor.framework as rf  # type: ignore
 import copy
 from loguru import logger
-from collections.abc import Callable
 import typing
 from typing import Any
 import numpy as np
@@ -58,7 +57,6 @@ class CostFunctionCreator:
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         use_empty_apriori: bool = False,
@@ -118,7 +116,6 @@ class CostFunctionCreator:
             instrument_name_list,
             current_state,
             spec_win_dict,
-            rf_uip_func,
             include_bad_sample=include_bad_sample,
             obs_list=obs_list,
             use_empty_apriori=use_empty_apriori,
@@ -145,7 +142,6 @@ class CostFunctionCreator:
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         use_empty_apriori: bool = False,
@@ -192,7 +188,6 @@ class CostFunctionCreator:
                 current_state,
                 self.obs_list[i],
                 fm_sv,
-                rf_uip_func,
                 **kwargs,
             )
             self.fm_list.append(fm)
@@ -265,7 +260,6 @@ class CostFunctionCreator:
             rf_uip.instrument,  # type:ignore[arg-type]
             cstate,  # type:ignore[arg-type]
             None,
-            rf_uip_func = lambda instrument_name, obs_list: rf_uip,
             obs_list=obs_list,
             **kwargs,
         )

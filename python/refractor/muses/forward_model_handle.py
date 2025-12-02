@@ -2,13 +2,12 @@ from __future__ import annotations
 from .creator_handle import CreatorHandleSet, CreatorHandle
 import refractor.framework as rf  # type: ignore
 import abc
-from typing import Callable, Any
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId, MusesObservation
     from .current_state import CurrentState
-    from refractor.muses_py_fm import RefractorUip
     from .identifier import InstrumentIdentifier
 
 
@@ -51,7 +50,6 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs: Any,
     ) -> rf.ForwardModel | None:
         """Return ForwardModel if we can process the given
@@ -63,14 +61,6 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
         Because we sometimes need the metadata we also pass in the
         MusesObservation that goes with the given instrument name.
-
-        The wrapped py-retrieve ForwardModel need the UIP
-        structure. We don't normally create this, but pass in a
-        function that can be used to get the UIP if needed.  This
-        should only be used for py-retrieve code, the UIP doesn't have
-        all the information in our CurrentState object - only what was
-        in py-retrieve.
-
         """
         raise NotImplementedError()
 
@@ -95,7 +85,6 @@ class ForwardModelHandleSet(CreatorHandleSet):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs: Any,
     ) -> rf.ForwardModel | None:
         """Create a ForwardModel for the given instrument.
@@ -106,18 +95,9 @@ class ForwardModelHandleSet(CreatorHandleSet):
 
         Because we sometimes need the metadata we also pass in the
         MusesObservation that goes with the given instrument name.
-
-        The wrapped py-retrieve ForwardModel need the UIP
-        structure. We don't normally create this, but pass in a
-        function that can be used to get the UIP if needed.  This
-        should only be used for py-retrieve code, the UIP doesn't have
-        all the information in our CurrentState object - only what was
-        in py-retrieve.
         """
 
-        return self.handle(
-            instrument_name, current_state, obs, fm_sv, rf_uip_func, **kwargs
-        )
+        return self.handle(instrument_name, current_state, obs, fm_sv, **kwargs)
 
 
 __all__ = [

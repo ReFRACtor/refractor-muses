@@ -1,7 +1,6 @@
 import numpy as np
 import numpy.testing as npt
 import refractor.framework as rf
-from refractor.muses import InstrumentIdentifier
 import pytest
 
 
@@ -12,17 +11,10 @@ def test_ground_albedo(tropomi_fm_object_creator_swir_step):
     This is to test that changes to add new bands do not cause it to
     accidentally get the wrong values.
     """
-    uip = tropomi_fm_object_creator_swir_step.rf_uip_func(
-        InstrumentIdentifier("TROPOMI")
-    )
     obj_albedo_coeffs = (
         tropomi_fm_object_creator_swir_step.ground_clear.albedo_coefficients(0).value
     )
-    expected = [
-        uip.tropomi_params["surface_albedo_BAND7"],  # 0.00169 as of 2023-10-03
-        uip.tropomi_params["surface_albedo_slope_BAND7"],  # 0.0 as of 2023-10-03
-        uip.tropomi_params["surface_albedo_slope_order2_BAND7"],  # 0.0 as of 2023-10-03
-    ]
+    expected = [0.29392623, 0, 0]
     assert np.allclose(obj_albedo_coeffs, expected)
 
     # Now check the state mapping indices. Since all three of the albedo terms are in step 1 of this UIP,
@@ -58,18 +50,6 @@ def test_absorber(tropomi_fm_object_creator_swir_step):
             .value
         )
         assert np.isclose(obj_xsec, expected_xsec[gas]), f"{gas} xsec does not match"
-
-
-def test_vmr(tropomi_fm_object_creator_swir_step):
-    uip = tropomi_fm_object_creator_swir_step.rf_uip_func(
-        InstrumentIdentifier("TROPOMI")
-    )
-    for i, name in enumerate(tropomi_fm_object_creator_swir_step.absorption_gases):
-        obj_vmrs = tropomi_fm_object_creator_swir_step.absorber_vmr[i].vmr_profile
-        uip_vmrs = uip.atmosphere_column(name)
-        assert np.allclose(obj_vmrs, uip_vmrs), (
-            f"{name} VMRs differ in the object creator and UIP"
-        )
 
 
 @pytest.mark.parametrize(

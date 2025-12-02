@@ -16,12 +16,11 @@ from loguru import logger
 import numpy as np
 import re
 from pathlib import Path
-from typing import Callable, Any
+from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
     from refractor.muses import MeasurementId, MusesObservation
-    from refractor.muses_py_fm import RefractorUip
 
 
 class TropomiSurfaceAlbedo(SurfaceAlbedo):
@@ -928,7 +927,6 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         current_state: CurrentState,
         obs: MusesObservation,
         fm_sv: rf.StateVector,
-        rf_uip_func: Callable[[InstrumentIdentifier | None], RefractorUip] | None,
         **kwargs: Any,
     ) -> rf.ForwardModel:
         if instrument_name != InstrumentIdentifier("TROPOMI"):
@@ -940,7 +938,6 @@ class TropomiForwardModelHandle(ForwardModelHandle):
             current_state,
             self.measurement_id,
             obs,
-            rf_uip_func=rf_uip_func,
             fm_sv=fm_sv,
             **self.creator_kwargs,
         )
