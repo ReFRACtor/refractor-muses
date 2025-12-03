@@ -20,7 +20,6 @@ from functools import cached_property
 from loguru import logger
 import numpy as np
 import copy
-from weakref import WeakSet, WeakKeyDictionary
 from typing import Any, TypeVar
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
@@ -74,16 +73,9 @@ class MusesForwardModelBase(rf.ForwardModel):
         )
         return rf.SpectralDomain(sd, rf.Unit("nm"))
 
-    # Want to add rf_uip only once. We share the rf_uip between forward models when we
-    # do a joint retrieval, because the UIP needs to have the full state vector.
-    already_added_as_observer: WeakSet[RefractorUip] = WeakSet()
-
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         # Attach to CostFunction, so uip gets updated when the parameter change
-        if (
-            self.rf_uip.basis_matrix is not None
-            and self.rf_uip not in MusesForwardModelBase.already_added_as_observer
-        ):
+        if self.rf_uip.basis_matrix is not None:
             # A note on the lifetime here. For the CostFunction, if we
             # have a UIP than the UIP state observer is *required*. If we pickle
             # and reload the cost function, it should have the UIP and observer.
@@ -99,7 +91,6 @@ class MusesForwardModelBase(rf.ForwardModel):
             cfunc.max_a_posteriori.add_observer_and_keep_reference(
                 MaxAPosterioriSqrtConstraintUpdateUip(self.rf_uip)
             )
-            MusesForwardModelBase.already_added_as_observer.add(self.rf_uip)
 
 
 # Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
@@ -785,59 +776,6 @@ class MusesForwardModelHandle(ForwardModelHandle):
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id
 
-    # For joint forward models, we need to share the RefractorUip between them.
-    # So store any we have created, to update as needed.
-    rf_uip_created: WeakKeyDictionary[
-        MeasurementId, tuple[None | RefractorUip, list[MusesObservation]]
-    ] = WeakKeyDictionary()
-
-    def rf_uip_func_wrap(
-        self,
-        instrument: InstrumentIdentifier,
-        obs: MusesObservation,
-        cstate: CurrentState,
-    ) -> RefractorUip:
-        """We need to have a single common rf_uip for a joint retrieval step.
-        This function handles the logic for that."""
-        if self.measurement_id is None:
-            raise RuntimeError(
-                "Need to call notify_update_target before rf_uip_func_wrap"
-            )
-        if self.measurement_id not in MusesForwardModelHandle.rf_uip_created:
-            MusesForwardModelHandle.rf_uip_created[self.measurement_id] = (None, [])
-        rf_uip, obslist = MusesForwardModelHandle.rf_uip_created[self.measurement_id]
-        if rf_uip is not None and instrument in [t.instrument_name for t in obslist]:
-            return rf_uip
-        obslist.append(obs)
-        if rf_uip is not None:
-            # If we have multiple instruments that need the UIP (e..g,
-            # a py-retrieve like retrieval with a joint AIRS OMI step), then
-            # recreate the UIP for all the instruments. This is needed to
-            # have the update happen correctly - we can't update just half
-            # of the UIP.
-            new_uip = RefractorUip.create_uip_from_refractor_objects(
-                obslist, cstate, self.measurement_id
-            )
-            # We need to update rf_uip in place, rather than use the new one. This
-            # is because we already have a MusesForwardModel using this.
-            rf_uip.uip = new_uip.uip
-        else:
-            rf_uip = RefractorUip.create_uip_from_refractor_objects(
-                [obs], cstate, self.measurement_id
-            )
-        MusesForwardModelHandle.rf_uip_created[self.measurement_id] = (rf_uip, obslist)
-        return rf_uip
-
-    def notify_start_cost_function(self) -> None:
-        """Clear any caching needed to start creating the CostFunction"""
-        if (
-            self.measurement_id is not None
-            and self.measurement_id in MusesForwardModelHandle.rf_uip_created
-        ):
-            del MusesForwardModelHandle.rf_uip_created[self.measurement_id]
-
-    # Type type is actually correct, but mypy is confused because RefractorUip comes
-    # from two places
     def forward_model(
         self,
         instrument_name: InstrumentIdentifier,
@@ -848,11 +786,19 @@ class MusesForwardModelHandle(ForwardModelHandle):
     ) -> None | rf.ForwardModel:
         if instrument_name != self.instrument_name:
             return None
+        if self.measurement_id is None:
+            raise RuntimeError("Need to call notify_update_target before forward_model")
         logger.debug(f"Creating forward model {self.cls.__name__}")
         # Note MeasurementId also has access to all the stuff in
         # RetrievalConfiguration
         return self.cls(
-            self.rf_uip_func_wrap(instrument_name, obs, current_state),
+            RefractorUip.create_uip_from_refractor_objects(
+                [
+                    obs,
+                ],
+                current_state,
+                self.measurement_id,
+            ),
             obs,
             self.measurement_id,
             **kwargs,

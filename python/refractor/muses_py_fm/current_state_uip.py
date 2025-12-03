@@ -58,6 +58,8 @@ class CurrentStateUip(CurrentState):
     def strategy_step(self) -> StrategyStepIdentifier:
         """Similar to step_directory, step_number is used by RefractorUip. Supply that."""
         t = re.match(r"Step(\d+)_(.*)", self.step_directory.name)
+        if t is None:
+            raise RuntimeError(f"Don't recognize {self.step_directory.name}")
         return StrategyStepIdentifier(int(t[1]), t[2])
 
     @property
@@ -225,7 +227,7 @@ class CurrentStateUip(CurrentState):
                 ]
             )
         elif str(state_element_id) == "PSUR":
-            res = np.array([o_uip.atmosphere[0,0]])
+            res = np.array([o_uip.atmosphere[0, 0]])
         elif str(state_element_id) == "EMIS":
             res = np.array(o_uip.emissivity["value"])
         elif str(state_element_id) == "PTGANG":

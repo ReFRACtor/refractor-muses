@@ -28,7 +28,6 @@ from refractor.muses import (
     FilterIdentifier,
     FakeStateInfo,
     FakeRetrievalInfo,
-    StateElementIdentifier,
     RetrievalConfiguration,
     MeasurementId,
     CurrentState,
@@ -1223,10 +1222,15 @@ class RefractorUip:
                 # If we didn't include AIRS or CRIS, this might be the wrong
                 # size. Just resize this, it doesn't actually get used without AIRS
                 # or CRIS
-                if(o_uip.cloud["extinction"].shape[0] == 2 and
-                   len(ind_fm) > 2):
+                if o_uip.cloud["extinction"].shape[0] == 2 and len(ind_fm) > 2:
                     o_uip.cloud["extinction"].resize((len(ind_fm),))
-                    o_uip.cloud["frequency"] = list(np.linspace(o_uip.cloud["frequency"][0], o_uip.cloud["frequency"][1], len(ind_fm)))
+                    o_uip.cloud["frequency"] = list(
+                        np.linspace(
+                            o_uip.cloud["frequency"][0],
+                            o_uip.cloud["frequency"][1],
+                            len(ind_fm),
+                        )
+                    )
                 for jj in range(len(ind_fm)):
                     my_ind = ind_fm[0] + jj
                     if update_arr[my_ind] == 1:
@@ -1668,7 +1672,8 @@ class RefractorUip:
             "numColumns": 1,
             "step": cstate2.strategy_step.step_number,
             "labels1": "retrievalType",
-            "data": [cstate2.retrieval_type.lower()] * cstate2.strategy_step.step_number,
+            "data": [cstate2.retrieval_type.lower()]
+            * cstate2.strategy_step.step_number,
         }
         fake_state_info = FakeStateInfo(cstate2, obs_list=obs_list)
         # fake_retrieval_info = FakeRetrievalInfo(cstate, use_state_mapping=True)

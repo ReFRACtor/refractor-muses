@@ -93,7 +93,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
     rf_uip.setup_oss()
-    with osswrapper(rf_uip.uip) as owrap:
+    with osswrapper(rf_uip.uip):
         with muses_py_call(rf_uip.run_dir):
             (
                 o_radiance2,

@@ -2,7 +2,6 @@ import numpy as np
 import numpy.testing as npt
 from refractor.muses import MusesOpticalDepth
 from refractor.old_py_retrieve_wrapper import MusesOpticalDepthFile
-from refractor.muses_py_fm import RefractorUip
 import refractor.framework as rf
 from fixtures.require_check import require_muses_py
 import pytest

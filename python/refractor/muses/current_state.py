@@ -3,7 +3,7 @@ import refractor.framework as rf  # type: ignore
 import numpy as np
 import abc
 from pathlib import Path
-from copy import deepcopy
+from copy import deepcopy, copy
 import typing
 from .muses_altitude_pge import MusesAltitudePge
 from .identifier import StateElementIdentifier

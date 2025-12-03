@@ -110,8 +110,6 @@ class CostFunctionCreator:
         normally use for "real", this is just to support testing.
         """
 
-        self.forward_model_handle_set.notify_start_cost_function()
-
         args = self._forward_model(
             instrument_name_list,
             current_state,
