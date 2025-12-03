@@ -1659,7 +1659,7 @@ class RefractorUip:
         # some point, the logic is convoluted. For now, duplicate what muses-py has.
         # We create our various fake objects with the *original* cstate, but then
         # have handling to override this is the refractor creation code.
-        cstate2 = cstate.current_state_override(False, None)
+        cstate2 = cstate.current_state_override(False)
         # Dummy strategy table, with the information needed by
         # RefractorUip.create_uip
         fake_table = {

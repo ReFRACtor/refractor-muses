@@ -20,7 +20,7 @@ from .muses_strategy_executor import (
 from .spectral_window_handle import SpectralWindowHandleSet
 from .qa_data_handle import QaDataHandleSet
 from .cost_function_creator import CostFunctionCreator
-from .identifier import ProcessLocation, StateElementIdentifier
+from .identifier import ProcessLocation
 from .mpy import mpy_register_replacement_function
 from loguru import logger
 import os
@@ -31,6 +31,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from .forward_model_handle import ForwardModelHandleSet
+    from .forward_model_combine import ForwardModelCombine
     from .observation_handle import ObservationHandleSet
     from .current_state import CurrentState
     from .muses_strategy_executor import CurrentStrategyStep
@@ -392,7 +393,6 @@ class RetrievalStrategy:
         self,
         do_systematic: bool = False,
         include_bad_sample: bool = False,
-        jacobian_species_in: list[StateElementIdentifier] | None = None,
     ) -> CostFunction:
         """Create cost function"""
         # This gets uses in
@@ -402,7 +402,17 @@ class RetrievalStrategy:
         return self.strategy_executor.create_cost_function(
             do_systematic=do_systematic,
             include_bad_sample=include_bad_sample,
-            jacobian_species_in=jacobian_species_in,
+        )
+
+    def create_forward_model_combine(
+        self,
+        do_systematic: bool = False,
+        include_bad_sample: bool = False,
+    ) -> ForwardModelCombine:
+        """Create ForwardModelCombine"""
+        return self.strategy_executor.create_forward_model_combine(
+            do_systematic=do_systematic,
+            include_bad_sample=include_bad_sample,
         )
 
     def save_pickle(

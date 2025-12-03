@@ -104,60 +104,23 @@ class CostFunction(rf.NLLSMaxAPosteriori):
                     f"retrieval_sv_constraint_vector size of {self.retrieval_sv_constraint_vector.shape[0]} should match column size of basis matrix of {basis_matrix.shape[0]} x {basis_matrix.shape[1]}"
                 )
 
-        # We can encounter empty retrieval_sv. This actually makes sense, but the mechanics
-        # of MaxAPosterioriSqrtConstraint doesn't handle a empty vector. So create a
-        # size 1 that we tack on. This doesn't matter in practice, because we set this to
-        # have 0 weight. We handle this tacked on piece below.
-        #
-        # TODO Note a cleaner way to handle this would be to have just a forward model
-        # version of this without the cost function - this is what we do. But for now
-        # use our MaxAPosterioriSqrtConstraint since we have that but not a joint
-        # forward model.
-        if self.retrieval_sv_constraint_vector.shape[0] > 0:
-            mstand = rf.MaxAPosterioriSqrtConstraint(
-                fm_list,
-                obs_list,
-                self.fm_sv,
-                self.retrieval_sv_constraint_vector,
-                self.retrieval_sv_sqrt_constraint,
-                mapping,
-            )
-        else:
-            self.fm_sv = rf.StateVector()
-            self.fm_sv.observer_claimed_size = 1
-            mstand = rf.MaxAPosterioriSqrtConstraint(
-                fm_list,
-                obs_list,
-                self.fm_sv,
-                np.zeros((1,)),
-                np.zeros((1, 1)),
-                rf.StateMappingLinear(),
-            )
+        mstand = rf.MaxAPosterioriSqrtConstraint(
+            fm_list,
+            obs_list,
+            self.fm_sv,
+            self.retrieval_sv_constraint_vector,
+            self.retrieval_sv_sqrt_constraint,
+            mapping,
+        )
         super().__init__(mstand)
         # Some of the forward models need to know when we have a cost function. In
         # particular, the MusesForwardModels need to know this to attach the UIP
         # correctly. However, our general rf.ForwardModel doesn't have this, since
-        # it is completely uncoupled from the CostFunction. Notify the model that
+        # it is completely uncoupled from the CostFunction. Notify the forward models that
         # have a notify_cost_function function, but skip the rest.
         for fm in fm_list:
             if hasattr(fm, "notify_cost_function"):
                 fm.notify_cost_function(self)
-
-    def _v_parameters(self, val: np.ndarray | None = None) -> None | np.ndarray:
-        # Handle degenerate case. Note _v_parameters is overloaded in C++, so we
-        # have one function that handles both version (since python doesn't do overloading).
-        # Trigger off of val is None to separate get and set versions of _v_parameters
-
-        # Get
-        if val is None:
-            if self.retrieval_sv_constraint_vector.shape[0] > 0:
-                return super()._v_parameters()
-            return np.zeros((0,))
-
-        # Set
-        if self.retrieval_sv_constraint_vector.shape[0] > 0:
-            return super()._v_parameters(val)
-        return super()._v_parameters(np.zeros((1,)))
 
     @property
     def obs_list(self) -> list[rf.Observation]:

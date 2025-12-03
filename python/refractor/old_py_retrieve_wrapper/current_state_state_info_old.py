@@ -50,16 +50,8 @@ class CurrentStateStateInfoOld(CurrentState):
         retrieval_info: RetrievalInfo | None = None,
         step_directory: str | os.PathLike[str] | None = None,
     ) -> None:
-        """The retrieval_state_element_override is an odd argument, it
-        overrides the retrieval_state_element_id in RetrievalInfo with a
-        different set. It isn't clear why this is handled this way -
-        why doesn't RetrievalInfo just figure out the right
-        retrieval_state_element_id list?  But for now, do it the same way
-        as py-retrieve. This seems to only be used in the
-        RetrievalStrategyStepBT - I'm guessing this was a kludge put
-        in to support this retrieval step.
-
-        In addition, the CurrentState can also be used when we are
+        """
+        The CurrentState can also be used when we are
         calculating the "systematic" jacobian. This create a
         StateVector with a different set of state elements.  This
         isn't used to do a retrieval, but rather to just calculate a
@@ -69,9 +61,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
         super().__init__()
         self._state_info = state_info
-        self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
-            None
-        )
         self.do_systematic = False
         self._step_directory = (
             Path(step_directory) if step_directory is not None else None
@@ -89,10 +78,8 @@ class CurrentStateStateInfoOld(CurrentState):
     def current_state_override(
         self,
         do_systematic: bool,
-        retrieval_state_element_override: None | list[StateElementIdentifier],
     ) -> CurrentState:
         res = copy(self)
-        res.retrieval_state_element_override = retrieval_state_element_override
         res.do_systematic = do_systematic
         res.clear_cache()
         return res
@@ -273,8 +260,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
-        if self.retrieval_state_element_override is not None:
-            return self.retrieval_state_element_override
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         if self.do_systematic:
@@ -285,8 +270,6 @@ class CurrentStateStateInfoOld(CurrentState):
 
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
-        if self.retrieval_state_element_override is not None:
-            return self.retrieval_state_element_override
         if self.retrieval_info is None:
             raise RuntimeError("retrieval_info is None")
         return [

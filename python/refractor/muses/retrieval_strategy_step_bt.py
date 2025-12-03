@@ -39,7 +39,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             return False
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         logger.info("Running run_forward_model ...")
-        self.cfunc = rs.create_cost_function()
+        self.fm = rs.create_forward_model_combine()
         self.calculate_bt(
             rs.retrieval_config,
             rs.strategy,
@@ -63,17 +63,12 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         #
         # I'm not actually sure that is true, we filter out bad samples. But
         # regardless, use the mean like py-retrieve does.
-        frequency = np.concatenate(
-            [
-                fm.spectral_domain_all().data
-                for fm in self.cfunc.max_a_posteriori.forward_model
-            ]
-        )
+        frequency = self.fm.spectral_domain_all().data
         radiance_bt_obs = self.bt(
-            np.mean(frequency), np.mean(self.cfunc.max_a_posteriori.measurement)
+            np.mean(frequency), np.mean(self.fm.obs_radiance_all())
         )
         radiance_bt_fit = self.bt(
-            np.mean(frequency), np.mean(self.cfunc.max_a_posteriori.model)
+            np.mean(frequency), np.mean(self.fm.radiance_all().spectral_range.data)
         )
         btdata: dict[str, Any] = {}
         btdata["diff"] = radiance_bt_fit - radiance_bt_obs

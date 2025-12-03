@@ -134,7 +134,7 @@ class StateElementOldWrapper(StateElement):
     @property
     def sys_sv_length(self) -> int:
         cstate = self._current_state_old.current_state_override(
-            do_systematic=True, retrieval_state_element_override=None
+            do_systematic=True,
         )
         if self.state_element_id not in cstate.fm_sv_loc:
             return 0

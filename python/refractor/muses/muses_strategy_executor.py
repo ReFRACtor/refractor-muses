@@ -29,6 +29,7 @@ import typing
 from typing import Generator, Any
 
 if typing.TYPE_CHECKING:
+    from .forward_model_combine import ForwardModelCombine
     from .retrieval_strategy import RetrievalStrategy
     from .muses_observation import MeasurementId
     from .cost_function import CostFunction
@@ -242,16 +243,32 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             fm_sv,
         )
 
+    def create_forward_model_combine(
+        self,
+        do_systematic: bool = False,
+        include_bad_sample: bool = False,
+    ) -> ForwardModelCombine:
+        """Like create_cost_function, but create just a ForwardModelCombine instead of
+        a full CostFunction."""
+        cstate: CurrentState = self.current_state
+        if do_systematic:
+            cstate = self.current_state.current_state_override(
+                do_systematic,
+            )
+        return self.cost_function_creator.forward_model(
+            self.current_strategy_step.instrument_name,
+            cstate,
+            self.current_strategy_step.spectral_window_dict,
+            include_bad_sample=include_bad_sample,
+            **self.kwargs,
+        )
+
     def create_cost_function(
         self,
         do_systematic: bool = False,
         include_bad_sample: bool = False,
-        jacobian_species_in: None | list[StateElementIdentifier] = None,
     ) -> CostFunction:
-        """Create a CostFunction, for use either in retrieval or just
-        for running the forward model (the CostFunction is a little
-        overkill for just a forward model run, but it has all the
-        pieces needed so no reason not to just generate everything).
+        """Create a CostFunction for use in a retrieval.
 
         If do_systematic is True, then we use the systematic species list.
 
@@ -261,9 +278,9 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         # bad samples. But right now the existing py-retrieve code
         # requires this is a few places.
         cstate: CurrentState = self.current_state
-        if do_systematic or jacobian_species_in is not None:
+        if do_systematic:
             cstate = self.current_state.current_state_override(
-                do_systematic, retrieval_state_element_override=jacobian_species_in
+                do_systematic,
             )
         return self.cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,

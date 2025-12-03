@@ -79,10 +79,8 @@ class CurrentStateStateInfo(CurrentState):
     def current_state_override(
         self,
         do_systematic: bool,
-        retrieval_state_element_override: None | list[StateElementIdentifier],
     ) -> CurrentState:
         res = copy(self)
-        res.retrieval_state_element_override = retrieval_state_element_override
         res.do_systematic = do_systematic
         res.clear_cache()
         return res
@@ -93,15 +91,8 @@ class CurrentStateStateInfo(CurrentState):
         cstate = self._current_state_old
         if cstate is None:
             return
-        if (
-            self.retrieval_state_element_override
-            != cstate.retrieval_state_element_override
-            or self.do_systematic != cstate.do_systematic
-        ):
+        if self.do_systematic != cstate.do_systematic:
             cstate.do_systematic = self.do_systematic
-            cstate.retrieval_state_element_override = (
-                self.retrieval_state_element_override
-            )
             cstate.clear_cache()
 
     @property
@@ -413,8 +404,6 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
-        if self.retrieval_state_element_override is not None:
-            return self.retrieval_state_element_override
         res = self._sys_element_id if self.do_systematic else self._retrieval_element_id
         return res
 

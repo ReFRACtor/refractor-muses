@@ -4,6 +4,7 @@ from .current_state import CurrentState
 from .forward_model_handle import ForwardModelHandleSet
 from .observation_handle import ObservationHandleSet
 from .retrieval_array import RetrievalGridArray
+from .forward_model_combine import ForwardModelCombine
 import refractor.framework as rf  # type: ignore
 import copy
 from loguru import logger
@@ -52,6 +53,27 @@ class CostFunctionCreator:
         self.forward_model_handle_set.notify_update_target(self.measurement_id)
         self.observation_handle_set.notify_update_target(self.measurement_id)
 
+    def forward_model(
+        self,
+        instrument_name_list: list[InstrumentIdentifier],
+        current_state: CurrentState,
+        spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
+        include_bad_sample: bool = False,
+        obs_list: list[MusesObservation] | None = None,
+        **kwargs: Any,
+    ) -> ForwardModelCombine:
+        """This is like the cost_function call, but instead of a full CostFunction we
+        just return a ForwardModelCombine to get the forward model and observation data."""
+        _, fmlist, obslist, fm_sv, _, _, _ = self._forward_model(
+            instrument_name_list,
+            current_state,
+            spec_win_dict,
+            include_bad_sample=include_bad_sample,
+            obs_list=obs_list,
+            **kwargs,
+        )
+        return ForwardModelCombine(fmlist, obslist, fm_sv)
+
     def cost_function(
         self,
         instrument_name_list: list[InstrumentIdentifier],
@@ -65,12 +87,6 @@ class CostFunctionCreator:
         attaches all the StateElement in CurrentState to be notified
         when the cost function parameters are updated.
 
-        You can optional leave off the augmented/apriori piece. This is
-        useful if you are just running a forward model. The muses-py
-        code requires this in some cases, because it hasn't calculated
-        an apriori (special handling for retrieval steps "bt" and
-        "forward_model").
-
         This takes the list of instrument names that make up this
         particular retrieval step, the current state information (see
         CurrentState class for description), and a dict going from the
@@ -81,26 +97,6 @@ class CostFunctionCreator:
         to the passed in MusesSpectralWindow. As a convenience, None
         can be passed in which uses the full band. Normally you don't
         want this, but it can be convenient for testing.
-
-        The muses-py versions of the ForwardModel depend on a
-        RefractorUip structure. To support these older ForwardModel,
-        and function is passed in that can be called to return the
-        RefractorUip to use. We have this as a function, so we can
-        avoid creating the RefractorUip if we don't need it. The
-        RefractorUip shouldn't be used otherwise, it only has
-        information that was needed by the old ForwardModel, and it is
-        a convoluted way to pass the information around. Basically the
-        uip + muses-py code is a old structural programming way to
-        have a ForwardModel object.  We also don't just generate the
-        UIP internally when needed because it depends on other
-        muses-py structures that we don't have access to (by design,
-        to reduce coupling in our code).  If you know you aren't using
-        a muses-py ForwardModel, it is fine to just pass this as
-        None. It is possible that this argument will go away if we
-        move far enough away from the old muses-py code - however for
-        the near future we want to be able maintain the ability to run
-        the old code to test against and diagnose any issues with
-        ReFRACtor.
 
         It can also be useful in some testing scenarios to have the
         Observation created by some other method, so you can

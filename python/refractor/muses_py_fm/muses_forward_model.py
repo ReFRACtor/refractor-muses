@@ -159,6 +159,10 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
                     # I think this is related to adding the H2O species even when
                     # we have no jacobian, combined with having a placeholder size
                     # 1 parameter when we don't have any jacobians.
+                    #
+                    # We don't actually use the jacobian for BT in refractor any
+                    # longer, so this weird behavior isn't actually that important
+                    # any more.
                     jac = jac.transpose()[:, 0:1]
                 else:
                     jac = np.matmul(sub_basis_matrix, jac).transpose()
