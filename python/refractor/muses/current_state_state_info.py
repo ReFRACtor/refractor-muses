@@ -65,10 +65,6 @@ class CurrentStateStateInfo(CurrentState):
 
         super().__init__()
         self._state_info = StateInfo()
-        self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
-            None
-        )
-        self.do_systematic = False
         self._step_directory: None | Path = None
         self._strategy_step: None | StrategyStepIdentifier = None
         self._retrieval_type: None | RetrievalType = None

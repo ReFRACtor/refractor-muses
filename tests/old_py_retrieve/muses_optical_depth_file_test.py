@@ -20,7 +20,7 @@ class AbsorberVmrToUip(rf.CacheInvalidatedObserver):
         self.invalidate_cache()
 
     def invalidate_cache(self):
-        """Called with self.absorber_vmr changes"""
+        """Called when self.absorber_vmr changes"""
         # Get the VMR, and put into the right place in the UIP.
         # Note that the UIP always has just the VMR, so even if absorber_vmr
         # uses a state vector of log(vmr) or something like that we want
@@ -41,12 +41,7 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1, osp_dir):
     # Don't look at temperature jacobian right now, it doesn't actually
     # work correctly and has been removed from the production strategy tables.
     # Our older test data has this in, but just remove it
-    uip = RefractorUip.create_uip_from_refractor_objects(
-        [tropomi_fm_object_creator_step_1.observation],
-        tropomi_fm_object_creator_step_1.current_state,
-        tropomi_fm_object_creator_step_1.measurement_id,
-    )
-
+    uip = obj_creator.ray_info.rf_uip
     uip.uip_tropomi["jacobians"] = [
         "O3",
     ]

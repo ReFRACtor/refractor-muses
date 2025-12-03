@@ -156,14 +156,6 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
 
 def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
-    obs_airs = rs.observation_handle_set.observation(
-        InstrumentIdentifier("AIRS"),
-        rs.current_state,
-        rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("AIRS")],
-        None,
-        osp_dir=osp_dir,
-        write_omi_radiance_pickle=True,
-    )
     obs_omi = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
         rs.current_state,
@@ -172,10 +164,9 @@ def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
         osp_dir=osp_dir,
         write_omi_radiance_pickle=True,
     )
-    obs_airs.spectral_window.include_bad_sample = True
     obs_omi.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        [obs_airs, obs_omi],
+        [obs_omi],
         rs.current_state,
         rs.retrieval_config,
     )

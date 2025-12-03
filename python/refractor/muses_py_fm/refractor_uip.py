@@ -1220,6 +1220,13 @@ class RefractorUip:
             elif "RESSCALE" == specie:
                 o_uip.res_scale = fm_vec[ind_fm][0]
             elif "CLOUDEXT" == specie:
+                # If we didn't include AIRS or CRIS, this might be the wrong
+                # size. Just resize this, it doesn't actually get used without AIRS
+                # or CRIS
+                if(o_uip.cloud["extinction"].shape[0] == 2 and
+                   len(ind_fm) > 2):
+                    o_uip.cloud["extinction"].resize((len(ind_fm),))
+                    o_uip.cloud["frequency"] = list(np.linspace(o_uip.cloud["frequency"][0], o_uip.cloud["frequency"][1], len(ind_fm)))
                 for jj in range(len(ind_fm)):
                     my_ind = ind_fm[0] + jj
                     if update_arr[my_ind] == 1:
@@ -1646,20 +1653,26 @@ class RefractorUip:
         mwin = []
         for obs in obs_list:
             mwin.extend(obs.spectral_window.muses_microwindows())
+        # This logic looks weird here, because it is. But this is how muses-py handled
+        # the systematic and jacobian_species_in override. We should clean this up at
+        # some point, the logic is convoluted. For now, duplicate what muses-py has.
+        # We create our various fake objects with the *original* cstate, but then
+        # have handling to override this is the refractor creation code.
+        cstate2 = cstate.current_state_override(False, None)
         # Dummy strategy table, with the information needed by
         # RefractorUip.create_uip
         fake_table = {
             "preferences": rconf,
-            "vlidort_dir": str(cstate.step_directory / "vlidort") + "/",
-            "numRows": cstate.strategy_step.step_number,
+            "vlidort_dir": str(cstate2.step_directory / "vlidort") + "/",
+            "numRows": cstate2.strategy_step.step_number,
             "numColumns": 1,
-            "step": cstate.strategy_step.step_number,
+            "step": cstate2.strategy_step.step_number,
             "labels1": "retrievalType",
-            "data": [cstate.retrieval_type.lower()] * cstate.strategy_step.step_number,
+            "data": [cstate2.retrieval_type.lower()] * cstate2.strategy_step.step_number,
         }
-        fake_state_info = FakeStateInfo(cstate, obs_list=obs_list)
+        fake_state_info = FakeStateInfo(cstate2, obs_list=obs_list)
         # fake_retrieval_info = FakeRetrievalInfo(cstate, use_state_mapping=True)
-        fake_retrieval_info = FakeRetrievalInfo(cstate)
+        fake_retrieval_info = FakeRetrievalInfo(cstate2)
         if cstate.do_systematic:
             rinfo: AttrDictAdapter | FakeRetrievalInfo = (
                 fake_retrieval_info.retrieval_info_systematic
@@ -1775,10 +1788,16 @@ class RefractorUip:
         else:
             i_table = copy.deepcopy(i_strategy_table)
 
-        if jacobian_species_in:
+        # py-retrieve handles calls form the historical run_forward_model as different,
+        # it doesn't update the parameters at all. This is really kind of klunky, but
+        # I'm guessing this was done to shoe horn in the BT retrieval step. We duplicate
+        # this functionality here.
+        if jacobian_species_in is not None:
             jacobian_speciesNames = jacobian_species_in
+            is_forward_model = True
         else:
             jacobian_speciesNames = retrieval_info.species[0 : retrieval_info.n_species]
+            is_forward_model = False
         # If requested, replace the pointing angle that is used. Note this
         # really is mixed units down below, TES is in radians while others are
         # in degrees. We have already copied i_state, so we don't need to worry
@@ -1899,7 +1918,7 @@ class RefractorUip:
             # to the existing code
             if i_airs is None:
                 raise RuntimeError("Need to supply i_airs")
-            if jacobian_species_in is None:
+            if not is_forward_model:
                 uip["uip_AIRS"] = mpy_make_uip_airs(
                     i_state,
                     i_state.current,
@@ -1933,7 +1952,7 @@ class RefractorUip:
             # to the existing code
             if i_cris is None:
                 raise RuntimeError("Need to supply i_cris")
-            if jacobian_species_in is None:
+            if not is_forward_model:
                 uip["uip_CRIS"] = mpy_make_uip_cris(
                     i_state,
                     i_state.current,

@@ -176,6 +176,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             None
         )
         self._retrieval_state_vector_size = -1
+        self.do_systematic = False
+        self.retrieval_state_element_override: None | list[StateElementIdentifier] = (
+            None
+        )
         # Temp
         self._posteriori_slice: dict[StateElementIdentifier, slice] = {}
         self._previous_posteriori_cov_fm = np.zeros((0, 0))
@@ -192,6 +196,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         jacobian and/or overrides the retrieval_state_element_override. This is actually
         a bit awkward, but it is how muses-py was set up. This is only used in a few places,
         so we'll go ahead and use the same logic here."""
+        # Handle the degenerate case
+        if not do_systematic and retrieval_state_element_override is None:
+            return copy(self)
+        # Otherwise, we don't handle this in this base class
         raise NotImplementedError()
 
     def height(self) -> rf.ArrayWithUnit_double_1:

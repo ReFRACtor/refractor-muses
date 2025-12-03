@@ -79,7 +79,6 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
     obs_tropomi.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
         [obs_cris, obs_tropomi],
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )
@@ -93,7 +92,8 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
         o_measured_radiance_omi,
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
-    with osswrapper(rf_uip.uip):
+    rf_uip.setup_oss()
+    with osswrapper(rf_uip.uip) as owrap:
         with muses_py_call(rf_uip.run_dir):
             (
                 o_radiance2,
@@ -154,7 +154,6 @@ def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
     obs_omi.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
         [obs_airs, obs_omi],
-        rs.current_strategy_step,
         rs.current_state,
         rs.retrieval_config,
     )
@@ -168,6 +167,7 @@ def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
         o_measured_radiance_omi,
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
+    rf_uip.setup_oss()
     with osswrapper(rf_uip.uip):
         with muses_py_call(rf_uip.run_dir):
             (
