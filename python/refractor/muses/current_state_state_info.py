@@ -106,16 +106,8 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def initial_guess(self) -> RetrievalGridArray:
-        # TODO
-        # By convention, muses-py returns a length 1 array even if we don't
-        # have any retrieval_state_element_id. I think this was just to avoid
-        # zero size arrays in IDL. But python is fine with this. For now conform
-        # to muses-py since it is expected in various places. We should clean this
-        # up at some point by tracking down where this gets used and handling empty
-        # arrays - it is cleaner than having a "special rule". But for now, conform
-        # to the convention
         if len(self.retrieval_state_element_id) == 0:
-            res = np.zeros((1,))
+            res = np.zeros((0,))  # np.concatenate doesn't work with zero size
         else:
             self.match_old()
             res = np.concatenate(
@@ -134,16 +126,8 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def initial_guess_full(self) -> FullGridArray:
-        # TODO
-        # By convention, muses-py returns a length 1 array even if we don't
-        # have any retrieval_state_element_id. I think this was just to avoid
-        # zero size arrays in IDL. But python is fine with this. For now conform
-        # to muses-py since it is expected in various places. We should clean this
-        # up at some point by tracking down where this gets used and handling empty
-        # arrays - it is cleaner than having a "special rule". But for now, conform
-        # to the convention
         if len(self.retrieval_state_element_id) == 0:
-            res = np.zeros((1,))
+            res = np.zeros((0,))  # np.concatenate doesn't work with zero size
         else:
             self.match_old()
             res = np.concatenate(
@@ -209,16 +193,9 @@ class CurrentStateStateInfo(CurrentState):
             )
 
     def constraint_vector(self, fix_negative: bool = True) -> RetrievalGridArray:
-        # TODO
-        # By convention, muses-py returns a length 1 array even if we don't
-        # have any retrieval_state_element_id. I think this was just to avoid
-        # zero size arrays in IDL. But python is fine with this. For now conform
-        # to muses-py since it is expected in various places. We should clean this
-        # up at some point by tracking down where this gets used and handling empty
-        # arrays - it is cleaner than having a "special rule". But for now, conform
-        # to the convention
         if len(self.retrieval_state_element_id) == 0:
-            res = np.zeros((1,)).view(RetrievalGridArray)
+            # np.concatenate doesn't work with zero size, so handle degenerate case
+            res = np.zeros((0,)).view(RetrievalGridArray)
         else:
             self.match_old()
             resv: list[np.ndarray] = []
@@ -247,16 +224,9 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def constraint_vector_full(self) -> FullGridArray:
-        # TODO
-        # By convention, muses-py returns a length 1 array even if we don't
-        # have any retrieval_state_element_id. I think this was just to avoid
-        # zero size arrays in IDL. But python is fine with this. For now conform
-        # to muses-py since it is expected in various places. We should clean this
-        # up at some point by tracking down where this gets used and handling empty
-        # arrays - it is cleaner than having a "special rule". But for now, conform
-        # to the convention
         if len(self.retrieval_state_element_id) == 0:
-            res = np.zeros((1,)).view(FullGridArray)
+            # np.concatenate doesn't work with zero size, so handle degenerate case
+            res = np.zeros((0,)).view(FullGridArray)
         else:
             self.match_old()
             res = np.concatenate(
@@ -464,22 +434,10 @@ class CurrentStateStateInfo(CurrentState):
             self._fm_state_vector_size = 0
             self.match_old()
             for sid in self.retrieval_state_element_id:
-                # As a convention, if plen is 0 py-retrieve pads this
-                # to 1, although the state vector isn't actually used
-                # - it does get set. I think this is to avoid having a
-                # 0 size state vector. We should perhaps clean this up
-                # as some point, there isn't anything wrong with a
-                # zero size state vector (although this might have
-                # been a problem with IDL). But for now, use the
-                # py-retrieve convention. This can generally only
-                # happen if we have retrieval_state_element_override
-                # set, i.e., we are doing RetrievalStrategyStepBT.
                 if self.do_systematic:
                     plen = self._state_info[sid].sys_sv_length
                 else:
                     plen = self._state_info[sid].forward_model_sv_length
-                if plen == 0:
-                    plen = 1
                 self._fm_sv_loc[sid] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc
@@ -549,19 +507,7 @@ class CurrentStateStateInfo(CurrentState):
             self._retrieval_sv_loc = {}
             self._retrieval_state_vector_size = 0
             for sid in self.retrieval_state_element_id:
-                # As a convention, if plen is 0 py-retrieve pads this
-                # to 1, although the state vector isn't actually used
-                # - it does get set. I think this is to avoid having a
-                # 0 size state vector. We should perhaps clean this up
-                # as some point, there isn't anything wrong with a
-                # zero size state vector (although this might have
-                # been a problem with IDL). But for now, use the
-                # py-retrieve convention. This can generally only
-                # happen if we have retrieval_state_element_override
-                # set, i.e., we are doing RetrievalStrategyStepBT.
                 plen = self._state_info[sid].step_initial_ret.shape[0]
-                if plen == 0:
-                    plen = 1
                 self._retrieval_sv_loc[sid] = (
                     self._retrieval_state_vector_size,
                     plen,
@@ -595,15 +541,7 @@ class CurrentStateStateInfo(CurrentState):
     def cross_state_element_handle_set(self, val: CrossStateElementHandleSet) -> None:
         self._state_info.cross_state_element_handle_set = val
 
-    def notify_cost_function(
-        self, cfunc: CostFunction, use_empty_apriori: bool
-    ) -> None:
-        if use_empty_apriori:
-            # Skip if we have use_empty_apriori.
-            # TODO Fix this handling, the use_empty_apriori is kind of awkward, see
-            # CostFunctionCreator
-            return
-
+    def notify_cost_function(self, cfunc: CostFunction) -> None:
         # Attach StateElement to get notified when current state changes.
         #
         # A note on the different lifetimes. For the CostFunction, if we

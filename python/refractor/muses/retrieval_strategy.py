@@ -392,7 +392,6 @@ class RetrievalStrategy:
         self,
         do_systematic: bool = False,
         include_bad_sample: bool = False,
-        use_empty_apriori: bool = False,
         jacobian_species_in: list[StateElementIdentifier] | None = None,
     ) -> CostFunction:
         """Create cost function"""
@@ -403,7 +402,6 @@ class RetrievalStrategy:
         return self.strategy_executor.create_cost_function(
             do_systematic=do_systematic,
             include_bad_sample=include_bad_sample,
-            use_empty_apriori=use_empty_apriori,
             jacobian_species_in=jacobian_species_in,
         )
 

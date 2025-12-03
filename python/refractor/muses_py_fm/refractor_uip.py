@@ -1622,7 +1622,6 @@ class RefractorUip:
                 self.uip["oss_frequencyList"] = owrap.oss_frequencyList
                 self.uip["oss_frequencyListFull"] = owrap.oss_frequencyListFull
 
-    # TODO See if we can get rid of the do_systematic and jacobian_species_in
     @classmethod
     def create_uip_from_refractor_objects(
         cls,
@@ -1656,7 +1655,7 @@ class RefractorUip:
         for obs in obs_list:
             mwin.extend(obs.spectral_window.muses_microwindows())
         # This logic looks weird here, because it is. But this is how muses-py handled
-        # the systematic and jacobian_species_in override. We should clean this up at
+        # the systematic override. We should clean this up at
         # some point, the logic is convoluted. For now, duplicate what muses-py has.
         # We create our various fake objects with the *original* cstate, but then
         # have handling to override this is the refractor creation code.
@@ -1710,11 +1709,7 @@ class RefractorUip:
                 o_xxx["OMI"],
                 o_xxx["TROPOMI"],
                 o_xxx["OCO2"],
-                jacobian_species_in=[
-                    str(i) for i in cstate.retrieval_state_element_override
-                ]
-                if cstate.retrieval_state_element_override is not None
-                else None,
+                None,
                 pointing_angle=pointing_angle,
             )
             return rf_uip
@@ -1732,7 +1727,6 @@ class RefractorUip:
         i_omi: dict[str, Any] | None,
         i_tropomi: dict[str, Any] | None,
         i_oco2: dict[str, Any] | None,
-        jacobian_species_in: list[str] | None = None,
         only_create_instrument: InstrumentIdentifier | None = None,
         pointing_angle: rf.DoubleWithUnit | None = None,
     ) -> RefractorUip:
@@ -1791,16 +1785,8 @@ class RefractorUip:
         else:
             i_table = copy.deepcopy(i_strategy_table)
 
-        # py-retrieve handles calls form the historical run_forward_model as different,
-        # it doesn't update the parameters at all. This is really kind of klunky, but
-        # I'm guessing this was done to shoe horn in the BT retrieval step. We duplicate
-        # this functionality here.
-        if jacobian_species_in is not None:
-            jacobian_speciesNames = jacobian_species_in
-            is_forward_model = True
-        else:
-            jacobian_speciesNames = retrieval_info.species[0 : retrieval_info.n_species]
-            is_forward_model = False
+        jacobian_speciesNames = retrieval_info.species[0 : retrieval_info.n_species]
+
         # If requested, replace the pointing angle that is used. Note this
         # really is mixed units down below, TES is in radians while others are
         # in degrees. We have already copied i_state, so we don't need to worry
@@ -1913,70 +1899,49 @@ class RefractorUip:
         for w in i_windows:
             inst_to_window[w["instrument"]].append(w)
         if "AIRS" in inst_to_window:
-            # For who knows what bizarre reason. the arguments are
-            # different here if we are calling from run_forward_model. We
-            # trigger off having jacobian_species_in. I think this might
-            # have something to do with the BT retrieval handling, which seems
-            # to have been crammed in breaking stuff. We need to conform
-            # to the existing code
             if i_airs is None:
                 raise RuntimeError("Need to supply i_airs")
-            if not is_forward_model:
-                uip["uip_AIRS"] = mpy_make_uip_airs(
-                    i_state,
-                    i_state.current,
-                    i_table,
-                    inst_to_window["AIRS"],
-                    uip["jacobians_all"],
-                    uip["speciesListFM"],
-                    None,
-                    i_airs["radiance"],
-                    i_modifyCloudFreq=True,
-                )
-            else:
-                uip["uip_AIRS"] = mpy_make_uip_airs(
-                    i_state,
-                    i_state.current,
-                    i_table,
-                    inst_to_window["AIRS"],
-                    "",
-                    uip["jacobians_all"],
-                    None,
-                    i_airs["radiance"],
-                    i_modifyCloudFreq=True,
-                )
+            uip["uip_AIRS"] = mpy_make_uip_airs(
+                i_state,
+                i_state.current,
+                i_table,
+                inst_to_window["AIRS"],
+                uip["jacobians_all"],
+                # OSS and uip code doesn't handle empty species list. We run
+                # into that with the BT step. So we add a simple H2O species, even
+                # though we don't actually use the resulting jacobian. But put in
+                # so the code is happy
+                uip["speciesListFM"]
+                if len(uip["speciesListFM"]) > 0
+                else [
+                    "H2O",
+                ],
+                None,
+                i_airs["radiance"],
+                i_modifyCloudFreq=True,
+            )
 
         if "CRIS" in inst_to_window:
-            # For who knows what bizarre reason. the arguments are
-            # different here if we are calling from run_forward_model. We
-            # trigger off having jacobian_species_in.I think this might
-            # have something to do with the BT retrieval handling, which seems
-            # to have been crammed in breaking stuff. We need to conform
-            # to the existing code
             if i_cris is None:
                 raise RuntimeError("Need to supply i_cris")
-            if not is_forward_model:
-                uip["uip_CRIS"] = mpy_make_uip_cris(
-                    i_state,
-                    i_state.current,
-                    i_table,
-                    inst_to_window["CRIS"],
-                    uip["jacobians_all"],
-                    uip["speciesListFM"],
-                    i_cris["radianceStruct".upper()],
-                    i_modifyCloudFreq=True,
-                )
-            else:
-                uip["uip_CRIS"] = mpy_make_uip_cris(
-                    i_state,
-                    i_state.current,
-                    i_table,
-                    inst_to_window["CRIS"],
-                    "",
-                    uip["jacobians_all"],
-                    i_cris["radianceStruct".upper()],
-                    i_modifyCloudFreq=True,
-                )
+            uip["uip_CRIS"] = mpy_make_uip_cris(
+                i_state,
+                i_state.current,
+                i_table,
+                inst_to_window["CRIS"],
+                uip["jacobians_all"],
+                # OSS and uip code doesn't handle empty species list. We run
+                # into that with the BT step. So we add a simple H2O species, even
+                # though we don't actually use the resulting jacobian. But put in
+                # so the code is happy
+                uip["speciesListFM"]
+                if len(uip["speciesListFM"]) > 0
+                else [
+                    "H2O",
+                ],
+                i_cris["radianceStruct".upper()],
+                i_modifyCloudFreq=True,
+            )
 
         if "TES" in inst_to_window:
             if i_tes is None:

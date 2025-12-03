@@ -161,7 +161,10 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
                     jac = np.matmul(sub_basis_matrix, jac).transpose()
                 a = rf.ArrayAd_double_1(rad[gmask], jac[gmask, :])
             else:
-                a = rf.ArrayAd_double_1(rad[gmask])
+                # Special handling, we put a jacobian of size 1 in as a placeholder.
+                # MaxAPosterioriSqrtConstraint doesn't handle a zero size jacobian, so
+                # as a easy work around we tack on a 1x1 jacobian
+                a = rf.ArrayAd_double_1(rad[gmask], np.zeros((1,1)))
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
 

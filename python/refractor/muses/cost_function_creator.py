@@ -59,7 +59,6 @@ class CostFunctionCreator:
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
-        use_empty_apriori: bool = False,
         **kwargs: Any,
     ) -> CostFunction:
         """Return cost function for the RetrievalStrategy. This also
@@ -116,20 +115,17 @@ class CostFunctionCreator:
             spec_win_dict,
             include_bad_sample=include_bad_sample,
             obs_list=obs_list,
-            use_empty_apriori=use_empty_apriori,
             **kwargs,
         )
         cfunc = CostFunction(*args)
-        current_state.notify_cost_function(cfunc, use_empty_apriori)
+        current_state.notify_cost_function(cfunc)
 
-        # TODO
-        # If we are using use_empty_apriori, then our initial guess is just a
-        # set of zeros. This is really kind of arcane, but muses-py
-        # has special handling in the BT strategy step and systematic jacobians.
-        # Conform to that for now,
-        # although it would be nice to remove this special handling at some point
-        # when we have all the larger stuff sorted out.
-        if use_empty_apriori:
+        # Special handling for do_systematic. I think that just as a convention
+        # the jacobian is for the FullGridArray rather than RetrievalGridArray.
+        # However the constraint_vector and sqrt_constraint are for the
+        # RetrievalGridArray. We should sort that out, but for now just get the
+        # right size for use in the cost function.
+        if current_state.do_systematic:
             cfunc.parameters = np.zeros((cfunc.fm_sv.observer_claimed_size,))
         else:
             cfunc.parameters = current_state.initial_guess
@@ -142,7 +138,6 @@ class CostFunctionCreator:
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
-        use_empty_apriori: bool = False,
         **kwargs: Any,
     ) -> tuple[
         list[InstrumentIdentifier],
@@ -190,25 +185,21 @@ class CostFunctionCreator:
             )
             self.fm_list.append(fm)
         fm_sv.observer_claimed_size = current_state.fm_state_vector_size
-        # Leave off the apriori part if requested
-        if use_empty_apriori:
-            # TODO
-            # Note by convention muses-py using a length 1 array here. I think
-            # we can eventually relax that, but right now that is assumed in a few
-            # places. This was probably to avoid zero size arrays, but there isn't
-            # any actually problem in python with those. But for now, fit muses-py
-            # convention
+        smap = current_state.state_mapping_retrieval_to_fm
+        retrieval_sv_apriori = current_state.constraint_vector(fix_negative=True)
+        retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
+        # Special handling for do_systematic. I think that just as a convention
+        # the jacobian is for the FullGridArray rather than RetrievalGridArray.
+        # However the constraint_vector and sqrt_constraint are for the
+        # RetrievalGridArray. We should sort that out, but for now just get the
+        # right size for use in the cost function.
+        if current_state.do_systematic:
             retrieval_sv_apriori = np.zeros((current_state.fm_state_vector_size,)).view(
                 RetrievalGridArray
             )
             retrieval_sv_sqrt_constraint = np.zeros(
                 (current_state.fm_state_vector_size, current_state.fm_state_vector_size)
             ).view(RetrievalGridArray)
-            smap = rf.StateMappingLinear()
-        else:
-            smap = current_state.state_mapping_retrieval_to_fm
-            retrieval_sv_apriori = current_state.constraint_vector(fix_negative=True)
-            retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
         return (
             instrument_name_list,
             self.fm_list,

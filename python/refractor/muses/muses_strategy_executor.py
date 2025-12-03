@@ -246,7 +246,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
         self,
         do_systematic: bool = False,
         include_bad_sample: bool = False,
-        use_empty_apriori: bool = False,
         jacobian_species_in: None | list[StateElementIdentifier] = None,
     ) -> CostFunction:
         """Create a CostFunction, for use either in retrieval or just
@@ -271,7 +270,6 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             cstate,
             self.current_strategy_step.spectral_window_dict,
             include_bad_sample=include_bad_sample,
-            use_empty_apriori=use_empty_apriori,
             **self.kwargs,
         )
 

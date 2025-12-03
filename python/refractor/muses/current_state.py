@@ -889,9 +889,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     def state_element_handle_set(self) -> StateElementHandleSet:
         raise NotImplementedError()
 
-    def notify_cost_function(
-        self, cfunc: CostFunction, use_empty_apriori: bool
-    ) -> None:
+    def notify_cost_function(self, cfunc: CostFunction) -> None:
         pass
 
     def notify_start_retrieval(
