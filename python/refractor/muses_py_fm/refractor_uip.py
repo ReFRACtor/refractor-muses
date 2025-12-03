@@ -1220,24 +1220,17 @@ class RefractorUip:
                 o_uip.res_scale = fm_vec[ind_fm][0]
             elif "CLOUDEXT" == specie:
                 # If we didn't include AIRS or CRIS, this might be the wrong
-                # size. Just resize this, it doesn't actually get used without AIRS
-                # or CRIS
+                # size. Skip updating in this case.
                 if o_uip.cloud["extinction"].shape[0] == 2 and len(ind_fm) > 2:
-                    o_uip.cloud["extinction"].resize((len(ind_fm),))
-                    o_uip.cloud["frequency"] = list(
-                        np.linspace(
-                            o_uip.cloud["frequency"][0],
-                            o_uip.cloud["frequency"][1],
-                            len(ind_fm),
-                        )
-                    )
-                for jj in range(len(ind_fm)):
-                    my_ind = ind_fm[0] + jj
-                    if update_arr[my_ind] == 1:
-                        fm_vec[my_ind] = math.exp(fm_vec[my_ind])
-                        if fm_vec[my_ind] > 20:
-                            fm_vec[my_ind] = 20
-                        o_uip.cloud["extinction"][jj] = fm_vec[my_ind]
+                    pass
+                else:
+                    for jj in range(len(ind_fm)):
+                        my_ind = ind_fm[0] + jj
+                        if update_arr[my_ind] == 1:
+                            fm_vec[my_ind] = math.exp(fm_vec[my_ind])
+                            if fm_vec[my_ind] > 20:
+                                fm_vec[my_ind] = 20
+                            o_uip.cloud["extinction"][jj] = fm_vec[my_ind]
 
             elif "PCLOUD" == specie:
                 fm_vec[ind_fm] = np.exp(fm_vec[ind_fm][0])
@@ -1640,10 +1633,15 @@ class RefractorUip:
     ) -> RefractorUip:
         """Create a RefractorUIP from the higher level refractor.muses objects.
 
-        To reduce coupling, you can give the instrument name to
-        use.
+        This takes a list of observations. This can either have one observation
+        to create a UIP for one instrument, or multiple to create joint UIP for
+        multiple instruments (e.g., AIRS and OMI). py-retrieve created one
+        UIP for joint retrievals, however for ReFRACtor we create 2 UIPS, one
+        for each instrument. This has some duplication, and 2 UIPS that need to
+        be updated. But it make for cleaner logic at the MusesForwardModel level
+        where we don't need to worry about creating a joint UIP.
 
-        Also the pointing angle can be passed in, to use this instead
+        The pointing angle can be passed in, to use this instead
         of the pointing angle found in the state_info. This is
         used by the IRK calculation.
         """
