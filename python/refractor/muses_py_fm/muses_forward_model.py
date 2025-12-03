@@ -156,15 +156,15 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
                     # Only one column has data, although oss returns a larger
                     # jacobian. Note that fm_wrapper just "knows" this, it
                     # would be nice if this wasn't sort of magic knowledge.
+                    # I think this is related to adding the H2O species even when
+                    # we have no jacobian, combined with having a placeholder size
+                    # 1 parameter when we don't have any jacobians.
                     jac = jac.transpose()[:, 0:1]
                 else:
                     jac = np.matmul(sub_basis_matrix, jac).transpose()
                 a = rf.ArrayAd_double_1(rad[gmask], jac[gmask, :])
             else:
-                # Special handling, we put a jacobian of size 1 in as a placeholder.
-                # MaxAPosterioriSqrtConstraint doesn't handle a zero size jacobian, so
-                # as a easy work around we tack on a 1x1 jacobian
-                a = rf.ArrayAd_double_1(rad[gmask], np.zeros((1,1)))
+                a = rf.ArrayAd_double_1(rad[gmask])
             sr = rf.SpectralRange(a, rf.Unit("sr^-1"))
         return rf.Spectrum(sd, sr)
 

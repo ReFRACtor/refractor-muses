@@ -1953,7 +1953,15 @@ class RefractorUip:
                 inst_to_window["TES"],
                 i_tes["radianceStruct"],
                 "",
-                uip["jacobians_all"],
+                # OSS and uip code doesn't handle empty species list. We run
+                # into that with the BT step. So we add a simple H2O species, even
+                # though we don't actually use the resulting jacobian. But put in
+                # so the code is happy
+                uip["jacobians_all"]
+                if len(uip["jacobians_all"]) > 0
+                else [
+                    "H2O",
+                ],
             )
         if "OMI" in inst_to_window:
             uip["uip_OMI"] = mpy_make_uip_omi(
