@@ -140,7 +140,7 @@ class RefractorUip:
 
     We have replaced this class in ReFRACtor, and don't use it. The one
     exception is in calling the old py-retrieve forward models.
-    MusesStrategyExecutor handles this, creating the UIP if we have a
+    MusesForwardModelHandle handles this, creating the UIP if we have a
     forward model that needs this but otherwise not creating it. Perhaps
     at some point we will completely drop the py-retrieve forward models
     and this can go away. But for now, we provide support for this.

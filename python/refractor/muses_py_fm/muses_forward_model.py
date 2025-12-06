@@ -75,6 +75,10 @@ class MusesForwardModelBase(rf.ForwardModel):
 
     def notify_cost_function(self, cfunc: CostFunction) -> None:
         # Attach to CostFunction, so uip gets updated when the parameter change
+        #
+        # Note, we can't just attach to the fm_sv when we create the MusesForwardModel.
+        # The UIP takes in parameters on the RetrievalGridArray, *not*
+        # FullGridMappedArray like the Refractor
         if self.rf_uip.basis_matrix is not None:
             # A note on the lifetime here. For the CostFunction, if we
             # have a UIP than the UIP state observer is *required*. If we pickle
@@ -116,6 +120,18 @@ class RefractorForwardModel(rf.ForwardModel):
 class MusesOssForwardModelBase(MusesForwardModelBase):
     """Common behavior for the OSS based forward models"""
 
+    def __init__(
+        self,
+        rf_uip: RefractorUip,
+        instrument_name: InstrumentIdentifier,
+        obs: MusesObservation,
+        measurement_id: MeasurementId,
+        have_fake_jac_in_oss: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(rf_uip, instrument_name, obs, measurement_id, **kwargs)
+        self.have_fake_jac_in_oss = have_fake_jac_in_oss
+
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         if sensor_index != 0:
             raise ValueError("sensor_index must be 0")
@@ -151,21 +167,9 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
             sub_basis_matrix = self.rf_uip.instrument_sub_basis_matrix(
                 self.instrument_name
             )
-            if jac is not None and jac.ndim > 0:
-                if self.rf_uip.is_bt_retrieval:
-                    # Only one column has data, although oss returns a larger
-                    # jacobian. Note that fm_wrapper just "knows" this, it
-                    # would be nice if this wasn't sort of magic knowledge.
-                    # I think this is related to adding the H2O species even when
-                    # we have no jacobian, combined with having a placeholder size
-                    # 1 parameter when we don't have any jacobians.
-                    #
-                    # We don't actually use the jacobian for BT in refractor any
-                    # longer, so this weird behavior isn't actually that important
-                    # any more.
-                    jac = jac.transpose()[:, 0:1]
-                else:
-                    jac = np.matmul(sub_basis_matrix, jac).transpose()
+            # See MusesForwardModelHandle for a discussion of have_fake_jac_in_oss
+            if jac is not None and jac.ndim > 0 and not self.have_fake_jac_in_oss:
+                jac = np.matmul(sub_basis_matrix, jac).transpose()
                 a = rf.ArrayAd_double_1(rad[gmask], jac[gmask, :])
             else:
                 a = rf.ArrayAd_double_1(rad[gmask])
@@ -648,6 +652,7 @@ class MusesCrisForwardModel(MusesForwardModelIrk):
         rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
+        have_fake_jac_in_oss: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -655,6 +660,7 @@ class MusesCrisForwardModel(MusesForwardModelIrk):
             InstrumentIdentifier("CRIS"),
             obs,
             measurement_id,
+            have_fake_jac_in_oss=have_fake_jac_in_oss,
             **kwargs,
         )
 
@@ -671,6 +677,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
         rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
+        have_fake_jac_in_oss: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -678,6 +685,7 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
             InstrumentIdentifier("AIRS"),
             obs,
             measurement_id,
+            have_fake_jac_in_oss=have_fake_jac_in_oss,
             **kwargs,
         )
 
@@ -725,6 +733,7 @@ class MusesTesForwardModel(MusesForwardModelIrk):
         rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
+        have_fake_jac_in_oss: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -732,6 +741,7 @@ class MusesTesForwardModel(MusesForwardModelIrk):
             InstrumentIdentifier("TES"),
             obs,
             measurement_id,
+            have_fake_jac_in_oss=have_fake_jac_in_oss,
             **kwargs,
         )
 
@@ -796,18 +806,40 @@ class MusesForwardModelHandle(ForwardModelHandle):
         if self.measurement_id is None:
             raise RuntimeError("Need to call notify_update_target before forward_model")
         logger.debug(f"Creating forward model {self.cls.__name__}")
+        rf_uip = RefractorUip.create_uip_from_refractor_objects(
+            [
+                obs,
+            ],
+            current_state,
+            self.measurement_id,
+        )
+        # Note, we can't just attach to the fm_sv when we create the MusesForwardModel.
+        # The UIP takes in parameters on the RetrievalGridArray, *not*
+        # FullGridMappedArray like the ReFRACtor. This is handled in notify_cost_function
+        # (see MusesForwardModelBase), which gets called when the CostFunction is created.
+
+        # There is special handling for an empty set of retrieval element (which we
+        # run into in the BT step). It turns out the OSS code doesn't handle an empty
+        # set of jacobians, it requires at least one. py-retrieve just adds a H2O
+        # jacobian so there is something to calculate. However, we shouldn't actually
+        # return that. So look for this condition and mark it, we'll then handle this
+        # in the radiance call.
+        uip_all = rf_uip.uip_all(str(self.instrument_name))
+        if (
+            uip_all["rts"] == ["OSS"]
+            and "H2O" in [str(i) for i in uip_all["jacobians"]]
+            and "H2O" not in uip_all["jacobians_all"]
+        ):
+            have_fake_jac_in_oss = True
+        else:
+            have_fake_jac_in_oss = False
         # Note MeasurementId also has access to all the stuff in
         # RetrievalConfiguration
         return self.cls(
-            RefractorUip.create_uip_from_refractor_objects(
-                [
-                    obs,
-                ],
-                current_state,
-                self.measurement_id,
-            ),
+            rf_uip,
             obs,
             self.measurement_id,
+            have_fake_jac_in_oss=have_fake_jac_in_oss,
             **kwargs,
         )
 

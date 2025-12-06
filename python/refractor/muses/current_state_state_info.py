@@ -418,6 +418,11 @@ class CurrentStateStateInfo(CurrentState):
     ) -> FullGridMappedArray:
         return self.state_element(state_element_id).value_fm
 
+    def state_value_full(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridArray:
+        return self.state_element(state_element_id).value_full
+
     def state_step_initial_value(
         self, state_element_id: StateElementIdentifier | str
     ) -> FullGridMappedArray:

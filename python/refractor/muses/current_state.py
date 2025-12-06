@@ -6,6 +6,7 @@ from pathlib import Path
 from copy import deepcopy
 import typing
 import itertools
+from loguru import logger
 from .muses_altitude_pge import MusesAltitudePge
 from .identifier import StateElementIdentifier
 from scipy.linalg import block_diag, svd  # type: ignore
@@ -574,7 +575,12 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         """Create a StateVector that we can then attach various pieces
         of the Forward model to. This gives this the right initial size,
         assigns it the current values from the state_value, and an initial
-        state vector name."""
+        state vector name.
+
+        Note that the StateVector is in terms of the FullGridArray always. For
+        the cost function, our input is in terms of the RetrievalGridArray, but
+        the mapping for RetrievalGridArray -> FullGridArray is handled in
+        MaxAPosterioriSqrtConstraint."""
         selem_list = (
             self.systematic_state_element_id
             if self.use_systematic
@@ -582,21 +588,32 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         )
         res = rf.StateVector()
         if len(selem_list) > 0:
-            sv_val = np.concatenate([self.state_value(selem) for selem in selem_list])
+            sv_val = np.concatenate(
+                [self.state_value_full(selem) for selem in selem_list]
+            )
             res.observer_claimed_size = len(sv_val)
             res.update_state(sv_val)
             res.default_state_vector_name = list(
                 itertools.chain.from_iterable(
                     [
                         [
-                            f"{str(selem)} {i + 1}"
-                            for i in range(len(self.state_value(selem)))
+                            self._sv_name(selem, i)
+                            for i in range(len(self.state_value_full(selem)))
                         ]
                         for selem in selem_list
                     ]
                 )
             )
+            logger.info("setup_fm_state_vector")
+            logger.info(res)
         return res
+
+    def _sv_name(self, selem: StateElementIdentifier, i: int) -> str:
+        """Pull out the sv_name, just because it is a little long of an expression"""
+        smap = self.state_mapping(selem)
+        if smap.name == "linear":
+            return f"{str(selem)} {i + 1}"
+        return f"{smap.name} {str(selem)} {i + 1}"
 
     @abc.abstractproperty
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
@@ -669,6 +686,24 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         change underneath you when the StateElement is updated.
         """
         raise NotImplementedError()
+
+    def state_value_full(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> FullGridArray:
+        """Return the full state value for the given state element
+        name.  Just as a convention we always return a np.array, so if
+        there is only one value put that in a length 1 np.array.
+
+        Also, the value returned is generally the *same*
+        np.ndarray as used internally. Generally this is fine, the values tend
+        to get used right away so there is no reason to return a copy. However
+        if you are stashing the value for an internal state or something like that,
+        you will want to make a copy of the returned value so it doesn't mysteriously
+        change underneath you when the StateElement is updated.
+        """
+        return self.state_value(state_element_id).to_full(
+            self.state_mapping(state_element_id)
+        )
 
     @abc.abstractmethod
     def state_step_initial_value(

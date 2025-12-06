@@ -1,4 +1,5 @@
 from __future__ import annotations
+import refractor.framework as rf  # type: ignore
 import numpy as np
 from pathlib import Path
 from copy import copy
@@ -213,6 +214,21 @@ class CurrentStateUip(CurrentState):
         self, state_element_id: StateElementIdentifier | str
     ) -> np.ndarray | None:
         raise NotImplementedError()
+
+    def state_mapping(
+        self, state_element_id: StateElementIdentifier | str
+    ) -> rf.StateMapping:
+        """StateMapping used by the forward model (so taking the FullGridArray
+        to FullGridMappedArray)"""
+        mtype = str(
+            np.array(self.rf_uip.uip["mapTypeListFM"])[
+                np.array(self.rf_uip.uip["speciesListFM"]) == str(state_element_id)
+            ][0]
+        )
+        if mtype.lower() == "log":
+            return rf.StateMappingLog()
+        else:
+            return rf.StateMappingLinear()
 
     def state_value(
         self, state_element_id: StateElementIdentifier | str
