@@ -5,6 +5,7 @@ import abc
 from pathlib import Path
 from copy import deepcopy
 import typing
+import itertools
 from .muses_altitude_pge import MusesAltitudePge
 from .identifier import StateElementIdentifier
 from scipy.linalg import block_diag, svd  # type: ignore
@@ -584,7 +585,17 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             sv_val = np.concatenate([self.state_value(selem) for selem in selem_list])
             res.observer_claimed_size = len(sv_val)
             res.update_state(sv_val)
-        # TODO Add state name
+            res.default_state_vector_name = list(
+                itertools.chain.from_iterable(
+                    [
+                        [
+                            f"{str(selem)} {i + 1}"
+                            for i in range(len(self.state_value(selem)))
+                        ]
+                        for selem in selem_list
+                    ]
+                )
+            )
         return res
 
     @abc.abstractproperty
