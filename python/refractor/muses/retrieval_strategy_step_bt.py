@@ -65,10 +65,13 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         # regardless, use the mean like py-retrieve does.
         frequency = self.fm.spectral_domain_all().data
         radiance_bt_obs = self.bt(
-            np.mean(frequency), np.mean(self.fm.obs_radiance_all())
+            np.mean(frequency), np.mean(self.fm.obs_radiance_all().spectral_range.data)
         )
+        # True here means skip the jacobian calculation. This doesn't actually matter
+        # for the OSS FM that always calculate the jacobian, but might matter in the future
+        # with different forward models
         radiance_bt_fit = self.bt(
-            np.mean(frequency), np.mean(self.fm.radiance_all().spectral_range.data)
+            np.mean(frequency), np.mean(self.fm.radiance_all(True).spectral_range.data)
         )
         btdata: dict[str, Any] = {}
         btdata["diff"] = radiance_bt_fit - radiance_bt_obs

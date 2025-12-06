@@ -1644,7 +1644,9 @@ class RefractorUip:
         of the pointing angle found in the state_info. This is
         used by the IRK calculation.
         """
-        logger.debug(f"Creating rf_uip for {[obs.instrument_name for obs in obs_list]}")
+        logger.debug(
+            f"Creating rf_uip for {[str(obs.instrument_name) for obs in obs_list]}"
+        )
         # Special case for CurrentStateUip, we just return a copy of UIP. This is useful
         # for unit testing where we get the UIP from another source but what to pretend
         # that we are doing normal processing.
@@ -1654,36 +1656,27 @@ class RefractorUip:
         mwin = []
         for obs in obs_list:
             mwin.extend(obs.spectral_window.muses_microwindows())
-        # This logic looks weird here, because it is. But this is how muses-py handled
-        # the systematic override. We should clean this up at
-        # some point, the logic is convoluted. For now, duplicate what muses-py has.
-        # We create our various fake objects with the *original* cstate, but then
-        # have handling to override this is the refractor creation code.
-        cstate2 = cstate.current_state_override(False)
         # Dummy strategy table, with the information needed by
         # RefractorUip.create_uip
         fake_table = {
             "preferences": rconf,
-            "vlidort_dir": str(cstate2.step_directory / "vlidort") + "/",
-            "numRows": cstate2.strategy_step.step_number,
+            "vlidort_dir": str(cstate.step_directory / "vlidort") + "/",
+            "numRows": cstate.strategy_step.step_number,
             "numColumns": 1,
-            "step": cstate2.strategy_step.step_number,
+            "step": cstate.strategy_step.step_number,
             "labels1": "retrievalType",
-            "data": [cstate2.retrieval_type.lower()]
-            * cstate2.strategy_step.step_number,
+            "data": [cstate.retrieval_type.lower()] * cstate.strategy_step.step_number,
         }
-        fake_state_info = FakeStateInfo(cstate2, obs_list=obs_list)
+        fake_state_info = FakeStateInfo(cstate, obs_list=obs_list)
         # fake_retrieval_info = FakeRetrievalInfo(cstate, use_state_mapping=True)
-        fake_retrieval_info = FakeRetrievalInfo(cstate2)
-        if cstate.do_systematic:
+        fake_retrieval_info = FakeRetrievalInfo(cstate)
+        if cstate.use_systematic:
             rinfo: AttrDictAdapter | FakeRetrievalInfo = (
                 fake_retrieval_info.retrieval_info_systematic
             )
         else:
             rinfo = fake_retrieval_info
 
-        # Maybe an update happens in the UIP, that doesn't get propogated back to
-        # state_info? See if we can figure out what is changed here
         o_xxx = {
             "AIRS": None,
             "TES": None,

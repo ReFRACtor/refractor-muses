@@ -98,8 +98,7 @@ class RefractorFmObjectCreator(object, metaclass=abc.ABCMeta):
         if fm_sv:
             self.fm_sv = fm_sv
         else:
-            self.fm_sv = rf.StateVector()
-            self.fm_sv.observer_claimed_size = current_state.fm_state_vector_size
+            self.fm_sv = current_state.setup_fm_state_vector()
         self.current_state = current_state
         # Note MeasurementId also has access to all the stuff in
         # RetrievalConfiguration

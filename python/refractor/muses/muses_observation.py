@@ -879,7 +879,12 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
             raise RuntimeError("Call notify_update_target first")
         might_save = self.existing_obs is None
         res = super().observation(
-            instrument_name, current_state, spec_win, fm_sv, osp_dir, **kwargs
+            instrument_name,
+            current_state,
+            spec_win,
+            fm_sv,
+            osp_dir,
+            **kwargs,
         )
         if res is not None and might_save and self.existing_obs is not None:
             pname = self.measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"

@@ -391,27 +391,22 @@ class RetrievalStrategy:
 
     def create_cost_function(
         self,
-        do_systematic: bool = False,
-        include_bad_sample: bool = False,
     ) -> CostFunction:
         """Create cost function"""
         # This gets uses in
         # RetrievalStrategyStep and perhaps we should just pass the
         # strategy_executor to the constructor.  But for now, make
         # explicit that we need this.
-        return self.strategy_executor.create_cost_function(
-            do_systematic=do_systematic,
-            include_bad_sample=include_bad_sample,
-        )
+        return self.strategy_executor.create_cost_function()
 
     def create_forward_model_combine(
         self,
-        do_systematic: bool = False,
+        use_systematic: bool = False,
         include_bad_sample: bool = False,
     ) -> ForwardModelCombine:
         """Create ForwardModelCombine"""
         return self.strategy_executor.create_forward_model_combine(
-            do_systematic=do_systematic,
+            use_systematic=use_systematic,
             include_bad_sample=include_bad_sample,
         )
 

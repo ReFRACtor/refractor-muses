@@ -200,7 +200,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         self.notify_update_target(None)
         self.slv: None | MusesLevmarSolver = None
         self.cfunc: None | CostFunction = None
-        self.cfunc_sys: None | CostFunction = None
+        self.jacobian_sys: None | np.ndarray = None
 
     def notify_update_target(self, rs: RetrievalStrategy | None) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
@@ -218,11 +218,11 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         to actually run the retrieval.
 
         """
-        res: dict[str, Any] = {"slv": None, "cfunc_sys": None}
+        res: dict[str, Any] = {"slv": None, "jacobian_sys": None}
         if self.slv is not None:
             res["slv"] = self.slv.get_state()
-        if self.cfunc_sys is not None:
-            res["cfunc_sys"] = self.cfunc_sys.get_state()
+        if self.jacobian_sys is not None:
+            res["jacobian_sys"] = self.jacobian_sys.tolist()
         return res
 
     def retrieval_step_body(
@@ -271,21 +271,28 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
         #
         # For right now, these are required, we would need to update
         # the error analysis to work without bad samples
-        jacobian_sys = None
+        self.jacobian_sys = None
         if len(rs.current_state.systematic_state_element_id) > 0:
-            self.cfunc_sys = rs.create_cost_function(
-                do_systematic=True,
-                include_bad_sample=True,
-            )
             if self._saved_state is not None:
                 # Skip forward model if we have a saved state.
-                self.cfunc_sys.set_state(self._saved_state["cfunc_sys"])
-            logger.info("Running run_forward_model for systematic jacobians ...")
-            jacobian_sys = (
-                self.cfunc_sys.max_a_posteriori.model_measure_diff_jacobian.transpose()[
+                self.jacobian_sys = np.array(self._saved_state["jacobian_sys"])
+            else:
+                logger.info("Running run_forward_model for systematic jacobians ...")
+                fm_sys = rs.create_forward_model_combine(
+                    use_systematic=True,
+                    include_bad_sample=True,
+                )
+                self.jacobian_sys = fm_sys.model_measure_diff_jacobian().transpose()[
                     np.newaxis, :, :
                 ]
-            )
+                # Sanity check, if we need to look at this
+                if False:
+                    assert (
+                        self.jacobian_sys[:, :, self.cfunc.good_point()].shape[-1]
+                        == self.cfunc.max_a_posteriori.model_measure_diff_jacobian_fm.transpose().shape[
+                            -1
+                        ]
+                    )
         rs.notify_update(
             ProcessLocation("systematic_jacobian"), retrieval_strategy_step=self
         )
@@ -300,7 +307,7 @@ class RetrievalStrategyStepRetrieve(RetrievalStrategyStep):
             self.radiance_full(rs),
             rs.current_state.propagated_qa,
             rs.qa_data_handle_set,
-            jacobian_sys=jacobian_sys,
+            jacobian_sys=self.jacobian_sys,
         )
         rs.notify_update(
             ProcessLocation("retrieval step"), retrieval_strategy_step=self

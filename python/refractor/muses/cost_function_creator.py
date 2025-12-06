@@ -10,7 +10,6 @@ import copy
 from loguru import logger
 import typing
 from typing import Any
-import numpy as np
 
 if typing.TYPE_CHECKING:
     from .muses_spectral_window import MusesSpectralWindow
@@ -58,28 +57,34 @@ class CostFunctionCreator:
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
+        use_systematic: bool = False,
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         **kwargs: Any,
     ) -> ForwardModelCombine:
         """This is like the cost_function call, but instead of a full CostFunction we
         just return a ForwardModelCombine to get the forward model and observation data."""
-        _, fmlist, obslist, fm_sv, _, _, _ = self._forward_model(
-            instrument_name_list,
-            current_state,
-            spec_win_dict,
-            include_bad_sample=include_bad_sample,
-            obs_list=obs_list,
-            **kwargs,
-        )
-        return ForwardModelCombine(fmlist, obslist, fm_sv)
+        original_use_systematic = current_state.use_systematic
+        try:
+            current_state.use_systematic = use_systematic
+            _, fmlist, obslist, fm_sv, _, _, _ = self._forward_model(
+                instrument_name_list,
+                current_state,
+                spec_win_dict,
+                use_systematic=use_systematic,
+                include_bad_sample=include_bad_sample,
+                obs_list=obs_list,
+                **kwargs,
+            )
+            return ForwardModelCombine(fmlist, obslist, fm_sv)
+        finally:
+            current_state.use_systematic = original_use_systematic
 
     def cost_function(
         self,
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
-        include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         **kwargs: Any,
     ) -> CostFunction:
@@ -109,22 +114,13 @@ class CostFunctionCreator:
             instrument_name_list,
             current_state,
             spec_win_dict,
-            include_bad_sample=include_bad_sample,
             obs_list=obs_list,
             **kwargs,
         )
         cfunc = CostFunction(*args)
         current_state.notify_cost_function(cfunc)
 
-        # Special handling for do_systematic. I think that just as a convention
-        # the jacobian is for the FullGridArray rather than RetrievalGridArray.
-        # However the constraint_vector and sqrt_constraint are for the
-        # RetrievalGridArray. We should sort that out, but for now just get the
-        # right size for use in the cost function.
-        if current_state.do_systematic:
-            cfunc.parameters = np.zeros((cfunc.fm_sv.observer_claimed_size,))
-        else:
-            cfunc.parameters = current_state.initial_guess
+        cfunc.parameters = current_state.initial_guess
         return cfunc
 
     def _forward_model(
@@ -132,6 +128,7 @@ class CostFunctionCreator:
         instrument_name_list: list[InstrumentIdentifier],
         current_state: CurrentState,
         spec_win_dict: dict[InstrumentIdentifier, MusesSpectralWindow] | None,
+        use_systematic: bool = False,
         include_bad_sample: bool = False,
         obs_list: list[MusesObservation] | None = None,
         **kwargs: Any,
@@ -145,7 +142,7 @@ class CostFunctionCreator:
         rf.StateMapping,
     ]:
         self.obs_list = []
-        fm_sv = rf.StateVector()
+        fm_sv = current_state.setup_fm_state_vector()
         if obs_list is not None:
             self.obs_list = obs_list
         else:
@@ -159,6 +156,7 @@ class CostFunctionCreator:
                         else None
                     ),
                     fm_sv,
+                    use_systematic=use_systematic,
                     **kwargs,
                 )
                 # TODO Would probably be good to remove
@@ -177,25 +175,13 @@ class CostFunctionCreator:
                 current_state,
                 self.obs_list[i],
                 fm_sv,
+                use_systematic=use_systematic,
                 **kwargs,
             )
             self.fm_list.append(fm)
-        fm_sv.observer_claimed_size = current_state.fm_state_vector_size
         smap = current_state.state_mapping_retrieval_to_fm
         retrieval_sv_apriori = current_state.constraint_vector(fix_negative=True)
         retrieval_sv_sqrt_constraint = current_state.sqrt_constraint.transpose()
-        # Special handling for do_systematic. I think that just as a convention
-        # the jacobian is for the FullGridArray rather than RetrievalGridArray.
-        # However the constraint_vector and sqrt_constraint are for the
-        # RetrievalGridArray. We should sort that out, but for now just get the
-        # right size for use in the cost function.
-        if current_state.do_systematic:
-            retrieval_sv_apriori = np.zeros((current_state.fm_state_vector_size,)).view(
-                RetrievalGridArray
-            )
-            retrieval_sv_sqrt_constraint = np.zeros(
-                (current_state.fm_state_vector_size, current_state.fm_state_vector_size)
-            ).view(RetrievalGridArray)
         return (
             instrument_name_list,
             self.fm_list,

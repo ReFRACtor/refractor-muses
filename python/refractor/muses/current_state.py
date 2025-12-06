@@ -3,7 +3,7 @@ import refractor.framework as rf  # type: ignore
 import numpy as np
 import abc
 from pathlib import Path
-from copy import deepcopy, copy
+from copy import deepcopy
 import typing
 from .muses_altitude_pge import MusesAltitudePge
 from .identifier import StateElementIdentifier
@@ -158,6 +158,15 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     that doesn't really depend on where we are getting the
     information.
 
+    When we do a retrieval, we use the set of retrieval_state_element_id in
+    our forward state vector. For error analysis a systematic jacobian is
+    also generated, using a list of error interferents as the
+    systematic_state_element_id. For the handful of fm functions
+    (e.g. add_fm_state_vector_if_needed, setup_fm_state_vector) it can be
+    useful to just toggle between these two sets. We have the member
+    parameter use_systematic, which is normally False but can be changed
+    to True to use the systematic jacobian instead. See for example
+    CostFunctionCreator.create_forward_model.
     """
 
     # Can check against old state element stuff, if the StateInfo has this.
@@ -176,26 +185,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
             None
         )
         self._retrieval_state_vector_size = -1
-        self.do_systematic = False
+        self.use_systematic = False
         # Temp
         self._posteriori_slice: dict[StateElementIdentifier, slice] = {}
         self._previous_posteriori_cov_fm = np.zeros((0, 0))
         self.record: None | CurrentStateRecordAndPlay = None
-
-    # TODO Replace this awkward interface. Only used in a couple of places, should
-    # have a simpler interface.
-    def current_state_override(self, do_systematic: bool) -> CurrentState:
-        """Create a variation of the current state that does a
-        systematic jacobian. This is actually a bit awkward, but it is
-        how muses-py was set up. This is only used in a few places, so
-        we'll go ahead and use the same logic here.
-
-        """
-        # Handle the degenerate case
-        if not do_systematic:
-            return copy(self)
-        # Otherwise, we don't handle this in this base class
-        raise NotImplementedError()
 
     def height(self) -> rf.ArrayWithUnit_double_1:
         """We already have height objects for our forward model, but this particular
@@ -558,15 +552,40 @@ class CurrentState(object, metaclass=abc.ABCMeta):
 
         """
         pstart = None
+        sv_loc = self.sys_sv_loc if self.use_systematic else self.fm_sv_loc
         for sname in state_element_id_list:
-            if sname in self.fm_sv_loc:
-                ps, _ = self.fm_sv_loc[sname]
+            if sname in sv_loc:
+                ps, _ = sv_loc[sname]
                 if pstart is None or ps < pstart:
                     pstart = ps
         if pstart is not None:
-            fm_sv.observer_claimed_size = pstart
-            for obj in obj_list:
-                fm_sv.add_observer(obj)
+            # We set the final size in setup_fm_state_vector, so we want to
+            # keep that value after adding any new elements
+            original_size = fm_sv.observer_claimed_size
+            try:
+                fm_sv.observer_claimed_size = pstart
+                for obj in obj_list:
+                    fm_sv.add_observer(obj)
+            finally:
+                fm_sv.observer_claimed_size = original_size
+
+    def setup_fm_state_vector(self) -> rf.StateVector:
+        """Create a StateVector that we can then attach various pieces
+        of the Forward model to. This gives this the right initial size,
+        assigns it the current values from the state_value, and an initial
+        state vector name."""
+        selem_list = (
+            self.systematic_state_element_id
+            if self.use_systematic
+            else self.retrieval_state_element_id
+        )
+        res = rf.StateVector()
+        if len(selem_list) > 0:
+            sv_val = np.concatenate([self.state_value(selem) for selem in selem_list])
+            res.observer_claimed_size = len(sv_val)
+            res.update_state(sv_val)
+        # TODO Add state name
+        return res
 
     @abc.abstractproperty
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:

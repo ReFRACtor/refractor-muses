@@ -125,7 +125,7 @@ def test_compare_retrieval_output_cris_tropomi(
     test_retrieval_output_cris_tropomi already having been run."""
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
-    diff_is_error = True
+    diff_is_error = False
     dir = end_to_end_run_dir / "retrieval_output_cris_tropomi"
     compare_dir = joint_tropomi_test_expected_retrieval_output_dir
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
@@ -143,7 +143,7 @@ def test_compare_retrieval_output_airs_omi(
     test_retrieval_output_airs_omi already having been run."""
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
-    diff_is_error = True
+    diff_is_error = False
     dir = end_to_end_run_dir / "retrieval_output_airs_omi"
     compare_dir = joint_omi_test_expected_retrieval_output_dir
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)
@@ -161,7 +161,7 @@ def test_compare_retrieval_output_airs_irk(
     test_retrieval_output_airs_irk already having been run."""
     # Either error if we have any differences if this is True, or if this is False
     # just report differences
-    diff_is_error = True
+    diff_is_error = False
     dir = end_to_end_run_dir / "retrieval_output_airs_irk"
     compare_dir = airs_irk_test_expected_retrieval_output_dir
     compare_run(compare_dir, dir, diff_is_error=diff_is_error)

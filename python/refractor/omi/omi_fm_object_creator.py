@@ -222,7 +222,11 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                         )
                     )
                 res[filter_name] = r
-                self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, r)
+                self.current_state.add_fm_state_vector_if_needed(
+                    self.fm_sv,
+                    selem,
+                    r,
+                )
             else:
                 # If we don't have EOF data, use all zeros. This should go
                 # away, this is just so we can start using the EOF before
@@ -235,7 +239,11 @@ class OmiFmObjectCreator(RefractorFmObjectCreator):
                         )
                     )
                 res[filter_name] = r
-                self.current_state.add_fm_state_vector_if_needed(self.fm_sv, selem, r)
+                self.current_state.add_fm_state_vector_if_needed(
+                    self.fm_sv,
+                    selem,
+                    r,
+                )
 
         return res
 

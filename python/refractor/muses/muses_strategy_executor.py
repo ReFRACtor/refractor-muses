@@ -3,7 +3,6 @@ from .misc import osp_setup
 from contextlib import contextmanager
 from .refractor_capture_directory import muses_py_call
 from .retrieval_strategy_step import RetrievalStrategyStepSet
-from .current_state import CurrentState
 from .current_state_state_info import CurrentStateStateInfo
 from .qa_data_handle import QaDataHandleSet
 from .muses_strategy import (
@@ -245,48 +244,28 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
 
     def create_forward_model_combine(
         self,
-        do_systematic: bool = False,
+        use_systematic: bool = False,
         include_bad_sample: bool = False,
     ) -> ForwardModelCombine:
         """Like create_cost_function, but create just a ForwardModelCombine instead of
         a full CostFunction."""
-        cstate: CurrentState = self.current_state
-        if do_systematic:
-            cstate = self.current_state.current_state_override(
-                do_systematic,
-            )
         return self.cost_function_creator.forward_model(
             self.current_strategy_step.instrument_name,
-            cstate,
+            self.current_state,
             self.current_strategy_step.spectral_window_dict,
+            use_systematic=use_systematic,
             include_bad_sample=include_bad_sample,
             **self.kwargs,
         )
 
     def create_cost_function(
         self,
-        do_systematic: bool = False,
-        include_bad_sample: bool = False,
     ) -> CostFunction:
-        """Create a CostFunction for use in a retrieval.
-
-        If do_systematic is True, then we use the systematic species list.
-
-        """
-        # TODO Would probably be good to remove include_bad_sample, it
-        # isn't clear that we ever want to run the forward model for
-        # bad samples. But right now the existing py-retrieve code
-        # requires this is a few places.
-        cstate: CurrentState = self.current_state
-        if do_systematic:
-            cstate = self.current_state.current_state_override(
-                do_systematic,
-            )
+        """Create a CostFunction for use in a retrieval."""
         return self.cost_function_creator.cost_function(
             self.current_strategy_step.instrument_name,
-            cstate,
+            self.current_state,
             self.current_strategy_step.spectral_window_dict,
-            include_bad_sample=include_bad_sample,
             **self.kwargs,
         )
 

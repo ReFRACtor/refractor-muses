@@ -16,7 +16,6 @@ import refractor.framework as rf  # type: ignore
 import numpy.testing as npt
 import weakref
 from pathlib import Path
-from copy import copy
 from loguru import logger
 import typing
 from typing import cast
@@ -76,31 +75,11 @@ class CurrentStateStateInfo(CurrentState):
         # Temp, while until we move previous_aposteriori_cov_fm to StateElements
         self._covariance_state_element_name: list[StateElementIdentifier] = []
 
-    def current_state_override(
-        self,
-        do_systematic: bool,
-    ) -> CurrentState:
-        res = copy(self)
-        res.do_systematic = do_systematic
-        res.clear_cache()
-        return res
-
-    def match_old(self) -> None:
-        """A kludge to handle current_state_override with our old state info stuff.
-        Temporarily, ensure that the two are in sync"""
-        cstate = self._current_state_old
-        if cstate is None:
-            return
-        if self.do_systematic != cstate.do_systematic:
-            cstate.do_systematic = self.do_systematic
-            cstate.clear_cache()
-
     @property
     def initial_guess(self) -> RetrievalGridArray:
         if len(self.retrieval_state_element_id) == 0:
             res = np.zeros((0,))  # np.concatenate doesn't work with zero size
         else:
-            self.match_old()
             res = np.concatenate(
                 [
                     self._state_info[sid].step_initial_ret
@@ -120,7 +99,6 @@ class CurrentStateStateInfo(CurrentState):
         if len(self.retrieval_state_element_id) == 0:
             res = np.zeros((0,))  # np.concatenate doesn't work with zero size
         else:
-            self.match_old()
             res = np.concatenate(
                 [
                     self._state_info[sid].step_initial_full
@@ -137,9 +115,6 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def constraint_matrix(self) -> RetrievalGrid2dArray:
-        if self.do_systematic:
-            return np.zeros((1, 1)).view(RetrievalGrid2dArray)
-        self.match_old()
         # Note that we handle the cross terms after this. In
         # particular, the constraint_matrix for H2OxH2O here will be
         # without considering HDO being available. This gets changed
@@ -174,21 +149,17 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def sqrt_constraint(self) -> RetrievalGridArray:
-        if self.do_systematic:
-            return np.eye(len(self.initial_guess)).view(RetrievalGridArray)
-        else:
-            return (
-                (self.sqrt_matrix(self.constraint_matrix))
-                .transpose()
-                .view(RetrievalGridArray)
-            )
+        return (
+            (self.sqrt_matrix(self.constraint_matrix))
+            .transpose()
+            .view(RetrievalGridArray)
+        )
 
     def constraint_vector(self, fix_negative: bool = True) -> RetrievalGridArray:
         if len(self.retrieval_state_element_id) == 0:
             # np.concatenate doesn't work with zero size, so handle degenerate case
             res = np.zeros((0,)).view(RetrievalGridArray)
         else:
-            self.match_old()
             resv: list[np.ndarray] = []
             for sid in self.retrieval_state_element_id:
                 selem = self._state_info[sid]
@@ -219,7 +190,6 @@ class CurrentStateStateInfo(CurrentState):
             # np.concatenate doesn't work with zero size, so handle degenerate case
             res = np.zeros((0,)).view(FullGridArray)
         else:
-            self.match_old()
             res = np.concatenate(
                 [
                     self._state_info[sid].constraint_vector_full
@@ -251,7 +221,6 @@ class CurrentStateStateInfo(CurrentState):
             )
         )
         for sid in self.retrieval_state_element_id:
-            self.match_old()
             tvalue = self._state_info[sid].true_value_ret
             if tvalue is not None:
                 res[self.retrieval_sv_slice(sid)] = tvalue
@@ -269,7 +238,6 @@ class CurrentStateStateInfo(CurrentState):
                 )
             )
         )
-        self.match_old()
         for sid in self.retrieval_state_element_id:
             tvalue = self._state_info[sid].true_value_full
             if tvalue is not None:
@@ -278,9 +246,6 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def basis_matrix(self) -> np.ndarray | None:
-        if self.do_systematic:
-            return None
-        self.match_old()
         blist = [
             self._state_info[sid].basis_matrix
             for sid in self.retrieval_state_element_id
@@ -293,9 +258,6 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def map_to_parameter_matrix(self) -> np.ndarray | None:
-        if self.do_systematic:
-            return None
-        self.match_old()
         mlist = [
             self._state_info[sid].map_to_parameter_matrix
             for sid in self.retrieval_state_element_id
@@ -344,7 +306,6 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def updated_fm_flag(self) -> FullGridArray:
-        self.match_old()
         return np.concatenate(
             [
                 self._state_info[sid].updated_fm_flag
@@ -375,7 +336,6 @@ class CurrentStateStateInfo(CurrentState):
                 retrieval_initial_fm,
                 true_value_fm,
             )
-        self.match_old()
         self._state_info[state_element_id].update_state_element(
             value_fm=value_fm,
             constraint_vector_fm=constraint_vector_fm,
@@ -404,8 +364,8 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
-        res = self._sys_element_id if self.do_systematic else self._retrieval_element_id
-        return res
+        # res = self._sys_element_id if self.do_systematic else self._retrieval_element_id
+        return self._retrieval_element_id
 
     @property
     def systematic_state_element_id(self) -> list[StateElementIdentifier]:
@@ -421,9 +381,9 @@ class CurrentStateStateInfo(CurrentState):
         if self._fm_sv_loc is None:
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
-            self.match_old()
             for sid in self.retrieval_state_element_id:
-                if self.do_systematic:
+                # if self.do_systematic:
+                if False:
                     plen = self._state_info[sid].sys_sv_length
                 else:
                     plen = self._state_info[sid].forward_model_sv_length
@@ -438,7 +398,6 @@ class CurrentStateStateInfo(CurrentState):
     def state_element(
         self, state_element_id: StateElementIdentifier | str
     ) -> StateElement:
-        self.match_old()
         sid = (
             StateElementIdentifier(state_element_id)
             if isinstance(state_element_id, str)
@@ -491,7 +450,6 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def retrieval_sv_loc(self) -> dict[StateElementIdentifier, tuple[int, int]]:
-        self.match_old()
         if self._retrieval_sv_loc is None:
             self._retrieval_sv_loc = {}
             self._retrieval_state_vector_size = 0
@@ -577,7 +535,6 @@ class CurrentStateStateInfo(CurrentState):
         if self.record is not None:
             self.record.notify_start_retrieval()
         if current_strategy_step is not None:
-            self.match_old()
             self._retrieval_element_id = current_strategy_step.retrieval_elements
             self._sys_element_id = current_strategy_step.error_analysis_interferents
             self._step_directory = (
@@ -606,7 +563,6 @@ class CurrentStateStateInfo(CurrentState):
         if current_strategy_step is not None:
             if self.record is not None:
                 self.record.notify_start_step()
-            self.match_old()
             self._retrieval_element_id = current_strategy_step.retrieval_elements
             self._sys_element_id = current_strategy_step.error_analysis_interferents
             self._step_directory = (
@@ -625,7 +581,6 @@ class CurrentStateStateInfo(CurrentState):
     def notify_step_solution(self, xsol: RetrievalGridArray) -> None:
         if self.record is not None:
             self.record.record("notify_step_solution", xsol)
-        self.match_old()
         self._state_info.notify_step_solution(xsol, self)
 
 
