@@ -1,5 +1,4 @@
 from __future__ import annotations
-from .refractor_capture_directory import muses_py_call
 from .tes_file import TesFile
 import shutil
 from loguru import logger
@@ -97,6 +96,8 @@ class MusesRunDir:
         plots: bool = False,
     ) -> None:
         """Do a run of py_retrieve. Note this is a full run."""
+        from refractor.muses_py_fm import muses_py_call
+
         with muses_py_call(self.run_dir):
             from py_retrieve.cli import cli  # type: ignore
 

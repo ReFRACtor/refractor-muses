@@ -23,7 +23,6 @@ from refractor.muses import (
     AttrDictAdapter,
     register_replacement_function_in_block,
     RefractorCaptureDirectory,
-    muses_py_call,
     InstrumentIdentifier,
     FilterIdentifier,
     FakeStateInfo,
@@ -33,7 +32,7 @@ from refractor.muses import (
     CurrentState,
     MusesObservation,
 )
-from .osswrapper import osswrapper
+from .muses_py_call import muses_py_call
 import refractor.framework as rf  # type: ignore
 import os
 from loguru import logger
@@ -1602,26 +1601,6 @@ class RefractorUip:
 
         self.uip = o_uip.as_dict(o_uip)
 
-    def setup_oss(self) -> None:
-        """We sometimes create a UIP and never use it for a OSS forward model. This
-        doesn't normally happen in an actual retrieval, but occurs in unit tests
-        (e.g., the retrieval_output_end_to_end_test tests). The setup of the OSS
-        take a little time. We are talking only 3-4 seconds, but this adds up in a test
-        (e.g., Cris tropomi test calls this 10 times). This isn't huge, but is annoying
-        in a unit test. It isn't too hard  to just delay this on first use. So while we
-        use to do the setup in create_uip, now we delay this.
-
-        Note this can be called multiple times. We only do the setup if we haven't already
-        do it, so it is safe to just call this before doing any OSS call."""
-        if "oss_dir_lut" in self.uip:
-            return
-        with osswrapper(self.uip) as owrap:
-            if owrap.oss_dir_lut is not None:
-                self.uip["oss_dir_lut"] = owrap.oss_dir_lut
-                self.uip["oss_jacobianList"] = owrap.oss_jacobianList
-                self.uip["oss_frequencyList"] = owrap.oss_frequencyList
-                self.uip["oss_frequencyListFull"] = owrap.oss_frequencyListFull
-
     @classmethod
     def create_uip_from_refractor_objects(
         cls,
@@ -1690,6 +1669,7 @@ class RefractorUip:
             if str(iname) in o_xxx:
                 if hasattr(obs, "muses_py_dict"):
                     o_xxx[str(iname)] = obs.muses_py_dict
+        # Try removing this muses_py_call
         with muses_py_call(rconf["run_dir"]):
             rf_uip = RefractorUip.create_uip(
                 fake_state_info,  # type: ignore[arg-type]
@@ -1705,6 +1685,7 @@ class RefractorUip:
                 None,
                 pointing_angle=pointing_angle,
             )
+            rf_uip.run_dir = rconf["run_dir"]
             return rf_uip
 
     @classmethod

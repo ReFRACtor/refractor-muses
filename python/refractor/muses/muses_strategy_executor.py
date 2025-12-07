@@ -1,7 +1,5 @@
 from __future__ import annotations
-from .misc import osp_setup
 from contextlib import contextmanager
-from .refractor_capture_directory import muses_py_call
 from .retrieval_strategy_step import RetrievalStrategyStepSet
 from .current_state_state_info import CurrentStateStateInfo
 from .qa_data_handle import QaDataHandleSet
@@ -359,11 +357,10 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
 
     def set_step(self, step_number: int) -> None:
         """Go to the given step."""
-        with muses_py_call(self.run_dir):
-            self.restart()
-            while self.current_strategy_step.strategy_step.step_number < step_number:
-                self.notify_start_step(skip_initial_guess_update=True)
-                self.next_step()
+        self.restart()
+        while self.current_strategy_step.strategy_step.step_number < step_number:
+            self.notify_start_step(skip_initial_guess_update=True)
+            self.next_step()
 
     def next_step(self) -> None:
         """Advance to the next step."""
@@ -414,10 +411,7 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         particular step.
         """
         with log_timing():
-            # Currently the initialization etc. code assumes we are in the run directory.
-            # Hopefully we can remove this in the future, but for now we need this
-            with muses_py_call(self.run_dir):
-                self.execute_retrieval_body(stop_at_step=stop_at_step)
+            self.execute_retrieval_body(stop_at_step=stop_at_step)
 
     def execute_retrieval_body(self, stop_at_step: None | int = None) -> None:
         """Run through all the steps, i.e., do a full retrieval.
@@ -449,43 +443,18 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def continue_retrieval(self, stop_after_step: None | int = None) -> None:
         """After saving a pickled step, you can continue the processing starting
         at that step to diagnose a problem."""
-        with muses_py_call(self.run_dir):
-            while not self.is_done():
-                self.notify_start_step()
-                self.notify_update(ProcessLocation("starting run_step"))
-                self.run_step()
-                if (
-                    stop_after_step is not None
-                    and stop_after_step
-                    == self.current_strategy_step.strategy_step.step_number
-                ):
-                    return
-                self.next_step()
-            self.notify_update("retrieval done")
-
-    @contextmanager
-    def chdir_run_dir(self) -> Generator[None, None, None]:
-        """A number of muses-py routines assume they are in the directory
-        that the strategy table lives in. This gives a nice way to ensure
-        that is the case. Uses this as a context manager
-        """
-        # If we have an osp_dir, then set up a temporary directory with the OSP
-        # set up.
-        # TODO Would be nice to remove this. I think we'll need to look into
-        # py-retrieval to do this, but this temporary directory is really an
-        # kludge - it would be nice to handle relative paths in the strategy
-        # table directly.
-        if self.osp_dir is not None:
-            with osp_setup(osp_dir=self.osp_dir):
-                yield
-        else:
-            # Otherwise we assume that this is in a run directory
-            curdir = os.getcwd()
-            try:
-                os.chdir(self.run_dir)
-                yield
-            finally:
-                os.chdir(curdir)
+        while not self.is_done():
+            self.notify_start_step()
+            self.notify_update(ProcessLocation("starting run_step"))
+            self.run_step()
+            if (
+                stop_after_step is not None
+                and stop_after_step
+                == self.current_strategy_step.strategy_step.step_number
+            ):
+                return
+            self.next_step()
+        self.notify_update("retrieval done")
 
     def load_step_info(
         self,

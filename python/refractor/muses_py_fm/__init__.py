@@ -32,6 +32,7 @@ if _typing.TYPE_CHECKING:
     from .refractor_uip import RefractorUip
     from .current_state_uip import CurrentStateUip
     from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
+    from .muses_py_call import muses_py_call
 
 del _i
 del _re

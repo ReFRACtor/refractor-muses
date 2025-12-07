@@ -10,7 +10,6 @@ from .mpy import (
 import itertools
 from refractor.muses import suppress_replacement
 import os
-import copy
 from contextlib import contextmanager
 import sys
 import numpy as np
@@ -79,8 +78,11 @@ class osswrapper:
     another function that uses the osswrapper and the OSS initialization
     will only happen once.
 
-    Note that if we do the initialization, the uip passed in is modified
-    to add oss_jacobianList. This duplicates what muses-py does.
+    Note that if we do the initialization, the uip passed in is
+    modified to add oss_jacobianList, oss_dir_lut, oss_frequencyList
+    and oss_frequencyListFull.  This duplicates what muses-py does,
+    and this is really like an internal way to pass these variables
+    around, so this isn't really a problem.
 
     We also interact with muse py to catch calls to fm_oss_init and
     fm_oss_delete done outside of ReFRACtor (e.g., in run_retrieval).
@@ -96,6 +98,7 @@ class osswrapper:
     initialize + delete followed by a second initialization. This should
     probably get sorted out at some point, but for now we just work around
     this.
+
     """
 
     have_oss = False
@@ -106,7 +109,6 @@ class osswrapper:
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
-        self.uip = copy.deepcopy(self.uip)
         self.need_cleanup = False
 
     @classmethod
@@ -120,10 +122,19 @@ class osswrapper:
         uip_all = None
         if not osswrapper.have_oss:
             for inst in ("CRIS", "AIRS", "TES"):
+                # I don't think the logic here is correct if we have multiple
+                # instruments. But I don't think we error have more than one,
+                # so we can just assume that here. Revisit if needed.
                 if f"uip_{inst}" in self.uip:
                     # Suppress warning message print out, it clutters output
-                    # with suppress_stdout():
-                    if True:
+                    # if True:
+                    with suppress_stdout():
+                        # Used by fm_oss_load to point to the pyoss library.
+                        # This is a wrapper, that is created in py-retrieve
+                        # (in setup.py, as a C extension). We determine the
+                        # location in muses_py __init__, and just need to set
+                        # it here. Kind of a round about way, but this is deep
+                        # in py-retrieve and we don't want to change how it works.
                         os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy_pyoss_dir
                         # Delete frequencyList if found. I don't think we
                         # run into that in actual muses-py runs, but we do
@@ -173,6 +184,10 @@ class osswrapper:
             self.oss_jacobianList = uip_all["oss_jacobianList"]
             self.oss_frequencyList = uip_all["oss_frequencyList"]
             self.oss_frequencyListFull = uip_all["oss_frequencyListFull"]
+            self.uip["oss_dir_lut"] = self.oss_dir_lut
+            self.uip["oss_jacobianList"] = self.oss_jacobianList
+            self.uip["oss_frequencyList"] = self.oss_frequencyList
+            self.uip["oss_frequencyListFull"] = self.oss_frequencyListFull
         else:
             self.oss_dir_lut = None
             self.oss_jacobianList = None

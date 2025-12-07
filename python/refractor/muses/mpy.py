@@ -59,10 +59,6 @@ mpy_register_replacement_function = partial(
     muses_py_wrapper_keep, "register_replacement_function"
 )
 
-# Used by refractor_capture_directory, have handling for no muses_py so we can keep
-mpy_cli_options = muses_py.cli_options if have_muses_py else None
-mpy_pyoss_dir = muses_py.pyoss_dir if have_muses_py else ""
-
 # Used by the various output classes. There should all get replaced, but
 # the code is a bit involved. I don't think these results get used actually,
 # so we may also just remove this.
@@ -120,12 +116,10 @@ __all__ = [
     "mpy_cdf_var_attributes",
     "mpy_cdf_var_map",
     "mpy_cdf_var_names",
-    "mpy_cli_options",
     "mpy_levmar_nllsq_elanor",
     "mpy_ordered_species_list",
     "mpy_plot_radiance",
     "mpy_plot_results",
-    "mpy_pyoss_dir",
     "mpy_radiance_data",
     "mpy_radiance_get_indices",
     "mpy_read_all_tes",

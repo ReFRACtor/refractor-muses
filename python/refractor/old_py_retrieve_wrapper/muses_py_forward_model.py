@@ -8,9 +8,8 @@ import refractor.framework as rf  # type: ignore
 from refractor.muses import (
     suppress_replacement,
     register_replacement_function_in_block,
-    muses_py_call,
 )
-from refractor.muses_py_fm import RefractorUip, osswrapper
+from refractor.muses_py_fm import RefractorUip, osswrapper, muses_py_call
 import os
 import pickle
 import tempfile

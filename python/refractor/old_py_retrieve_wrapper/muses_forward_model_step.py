@@ -3,8 +3,8 @@ import refractor.muses_py as mpy  # type: ignore
 from refractor.muses import (
     register_replacement_function_in_block,
     RefractorCaptureDirectory,
-    muses_py_call,
 )
+from refractor.muses_py_fm import muses_py_call
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io

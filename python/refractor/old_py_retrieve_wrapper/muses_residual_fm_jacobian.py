@@ -7,9 +7,8 @@ import refractor.muses_py as mpy  # type: ignore
 from refractor.muses import (
     register_replacement_function_in_block,
     RefractorCaptureDirectory,
-    muses_py_call,
 )
-from refractor.muses_py_fm import osswrapper
+from refractor.muses_py_fm import osswrapper, muses_py_call
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
 import logging
