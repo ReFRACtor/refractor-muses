@@ -127,8 +127,8 @@ class osswrapper:
                 # so we can just assume that here. Revisit if needed.
                 if f"uip_{inst}" in self.uip:
                     # Suppress warning message print out, it clutters output
-                    # if True:
-                    with suppress_stdout():
+                    if True:  # Turn off if debugging, since we can't see anything
+                    #with suppress_stdout():
                         # Used by fm_oss_load to point to the pyoss library.
                         # This is a wrapper, that is created in py-retrieve
                         # (in setup.py, as a C extension). We determine the

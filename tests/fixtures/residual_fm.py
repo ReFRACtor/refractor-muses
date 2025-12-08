@@ -11,7 +11,7 @@ def _muses_residual_fm_jac(
     osp_dir=None,
     gmao_dir=None,
     path=".",
-    change_to_dir=True,
+    change_to_dir=False,
 ):
     """This reads parameters that can be use to call the py-retrieve function
     residual_fm_jac. See muses_capture in refractor-muses for collecting this.

@@ -51,7 +51,7 @@ def test_muses_optical_depth_file(tropomi_fm_object_creator_step_1, osp_dir):
         obj_creator.altitude,
         obj_creator.absorber_vmr,
         obj_creator.num_channels,
-        "./Step01_O3-Band3/vlidort/input",
+        uip.run_dir / "Step01_O3-Band3/vlidort/input",
     )
     print(mod)
     mod2 = MusesOpticalDepth(

@@ -85,35 +85,27 @@ class CurrentStateRecordAndPlay:
         """Play back the function calls and also take the strategy to the given
         step number. We can either stop at the start of the step, and play back
         everything for the step and stop before the next step."""
-        # The old state info stuff assumes we are in the run directory. We can
-        # probably move away from this once we are using all our new stuff, but
-        # for now we need to be in this directory
-        curdir = os.getcwd()
-        try:
-            os.chdir(retrieval_config["run_dir"])
-            strategy.restart()
-            current_state.notify_start_retrieval(
+        strategy.restart()
+        current_state.notify_start_retrieval(
+            strategy.current_strategy_step(), retrieval_config
+        )
+        while not strategy.is_done():
+            current_state.notify_start_step(
                 strategy.current_strategy_step(), retrieval_config
             )
-            while not strategy.is_done():
-                current_state.notify_start_step(
-                    strategy.current_strategy_step(), retrieval_config
-                )
-                cstrat = strategy.current_strategy_step()
-                if cstrat is None:
-                    raise RuntimeError("This shouldn't be able to happen")
-                i = cstrat.strategy_step.step_number
-                if i == step_number and at_start_step:
-                    return
-                self._full_record[i].replay(
-                    current_state,
-                    {"current_strategy_step": strategy.current_strategy_step()},
-                )
-                if i == step_number:
-                    return
-                strategy.next_step(current_state)
-        finally:
-            os.chdir(curdir)
+            cstrat = strategy.current_strategy_step()
+            if cstrat is None:
+                raise RuntimeError("This shouldn't be able to happen")
+            i = cstrat.strategy_step.step_number
+            if i == step_number and at_start_step:
+                return
+            self._full_record[i].replay(
+                current_state,
+                {"current_strategy_step": strategy.current_strategy_step()},
+            )
+            if i == step_number:
+                return
+            strategy.next_step(current_state)
 
 
 __all__ = ["RecordAndPlayFunc", "CurrentStateRecordAndPlay"]

@@ -1,5 +1,6 @@
 from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
 from fixtures.require_check import require_muses_py
+import os
 import pytest
 
 
@@ -7,6 +8,10 @@ import pytest
 @require_muses_py
 def test_muses_strategy_old(joint_omi_step_8):
     rs, rsetp, kwargs = joint_omi_step_8
+    # Old strategy table code assumes we are in the run dir. Our new
+    # refractor version doesn't have that limit, but we are testing the
+    # old one here.
+    os.chdir(rs.run_dir)
     stable = MusesStrategyOldStrategyTable(
         rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
     )

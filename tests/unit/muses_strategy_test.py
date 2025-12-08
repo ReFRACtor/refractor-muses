@@ -1,11 +1,15 @@
 from refractor.muses import MusesStrategyStepList
 from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
 from fixtures.require_check import require_muses_py
-
+import os
 
 @require_muses_py
 def test_muses_strategy_file(joint_omi_step_8):
     rs, rsetp, kwargs = joint_omi_step_8
+    # Old strategy table code assumes we are in the run dir. Our new
+    # refractor version doesn't have that limit, but we are testing against
+    # the old one here.
+    os.chdir(rs.run_dir)
     # Comare with old py-retrieve code
     stable = MusesStrategyStepList.create_from_strategy_file(
         rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set

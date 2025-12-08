@@ -332,30 +332,25 @@ class RefractorTropOrOmiFmBase:
     ):
         """This goes with uip_from_muses_retrieval_step, it turns around
         and calls tropomi_fm/omi_fm with the saved data."""
-        curdir = os.getcwd()
-        try:
-            rf_uip = RefractorUip.load_uip(
-                pickle_file,
-                path=path,
-                change_to_dir=True,
-                osp_dir=osp_dir,
-                gmao_dir=gmao_dir,
-            )
-            self.basis_matrix = rf_uip.basis_matrix
-            self.run_dir = rf_uip.run_dir
+        rf_uip = RefractorUip.load_uip(
+            pickle_file,
+            path=path,
+            osp_dir=osp_dir,
+            gmao_dir=gmao_dir,
+        )
+        self.basis_matrix = rf_uip.basis_matrix
+        self.run_dir = rf_uip.run_dir
+        with muses_py_call(
+                self.run_dir,
+            debug=self.py_retrieve_debug,
+            vlidort_nstokes=self.py_retrieve_vlidort_nstokes,
+            vlidort_nstreams=self.py_retrieve_vlidort_nstreams,
+        ):
             with osswrapper(rf_uip.uip):
-                with muses_py_call(
-                    ".",
-                    debug=self.py_retrieve_debug,
-                    vlidort_nstokes=self.py_retrieve_vlidort_nstokes,
-                    vlidort_nstreams=self.py_retrieve_vlidort_nstreams,
-                ):
-                    if self.func_name == "tropomi_fm":
-                        return self.tropomi_fm(rf_uip.uip_all("TROPOMI"))
-                    else:
-                        return self.omi_fm(rf_uip.uip_all("OMI"))
-        finally:
-            os.chdir(curdir)
+                if self.func_name == "tropomi_fm":
+                    return self.tropomi_fm(rf_uip.uip_all("TROPOMI"))
+                else:
+                    return self.omi_fm(rf_uip.uip_all("OMI"))
 
     @property
     def vlidort_input(self):

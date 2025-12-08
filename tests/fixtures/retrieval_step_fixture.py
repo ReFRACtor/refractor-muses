@@ -158,7 +158,6 @@ def joint_omi_step_8(isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir):
     rs, rstep, kwargs = set_up_run_to_location(
         joint_omi_test_in_dir, 8, "retrieval input", osp_dir, gmao_dir
     )
-    os.chdir(rs.run_dir)
     return rs, rstep, kwargs
 
 
@@ -167,7 +166,6 @@ def omi_step_0(isolated_dir, omi_test_in_dir, osp_dir, gmao_dir):
     rs, rstep, kwargs = set_up_run_to_location(
         omi_test_in_dir, 0, "retrieval input", osp_dir, gmao_dir
     )
-    os.chdir(rs.run_dir)
     return rs, rstep, kwargs
 
 
@@ -181,7 +179,6 @@ def joint_tropomi_step_12(
     rs, rstep, kwargs = set_up_run_to_location(
         joint_tropomi_test_in_dir, 12, "retrieval input", osp_dir, gmao_dir
     )
-    os.chdir(rs.run_dir)
     return rs, rstep, kwargs
 
 
@@ -195,7 +192,6 @@ def joint_tropomi_step_12_output(
     rs, rstep, kwargs = set_up_run_to_location(
         joint_tropomi_test_in_dir, 12, "retrieval step", osp_dir, gmao_dir
     )
-    os.chdir(rs.run_dir)
     return rs, rstep, kwargs
 
 
@@ -209,7 +205,6 @@ def airs_irk_step_6(
     rs, rstep, kwargs = set_up_run_to_location(
         airs_irk_test_in_dir, 6, "IRK step", osp_dir, gmao_dir
     )
-    os.chdir(rs.run_dir)
     return rs, rstep, kwargs
 
 
@@ -232,7 +227,6 @@ def tropomi_fm_object_creator_step_0(
         gmao_dir,
         include_ret_state=False,
     )
-    os.chdir(rs.run_dir)
     obs = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
         rs.current_state,
@@ -282,7 +276,6 @@ def tropomi_fm_object_creator_swir_step(
         gmao_dir,
         include_ret_state=False,
     )
-    os.chdir(rs.run_dir)
     obs = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
         rs.current_state,
@@ -319,7 +312,6 @@ def tropomi_fm_object_creator_step_1(
         gmao_dir,
         include_ret_state=False,
     )
-    os.chdir(rs.run_dir)
     obs = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
         rs.current_state,
@@ -353,7 +345,6 @@ def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         gmao_dir,
         include_ret_state=False,
     )
-    os.chdir(rs.run_dir)
     obs = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
         rs.current_state,
@@ -387,7 +378,6 @@ def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         gmao_dir,
         include_ret_state=False,
     )
-    os.chdir(rs.run_dir)
     obs = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
         rs.current_state,

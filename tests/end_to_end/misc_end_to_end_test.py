@@ -17,7 +17,6 @@ def test_run_fabiano_refractor(isolated_dir, osp_dir, gmao_dir, end_to_end_run_d
         / "compare_fabiano_refractor/20200701_204_05_29_0/retrieval_step_10.pkl",
         osp_dir=osp_dir,
         gmao_dir=gmao_dir,
-        change_to_dir=True,
     )
     rs.continue_retrieval()
 
@@ -29,7 +28,6 @@ def test_run_fabiano_vlidort(isolated_dir, osp_dir, gmao_dir, end_to_end_run_dir
         / "compare_fabiano_refractor_vlidort/20200701_204_05_29_0/retrieval_step_10.pkl",
         osp_dir=osp_dir,
         gmao_dir=gmao_dir,
-        change_to_dir=True,
     )
     rs.continue_retrieval()
 

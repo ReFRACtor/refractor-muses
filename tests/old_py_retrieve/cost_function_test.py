@@ -91,8 +91,8 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
         o_measured_radiance_omi,
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
-    with osswrapper(rf_uip.uip):
-        with muses_py_call(rf_uip.run_dir):
+    with muses_py_call(rf_uip.run_dir):
+        with osswrapper(rf_uip.uip):
             (
                 o_radiance2,
                 jac_fm2,
@@ -165,8 +165,8 @@ def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
         o_measured_radiance_omi,
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
-    with osswrapper(rf_uip.uip):
-        with muses_py_call(rf_uip.run_dir):
+    with muses_py_call(rf_uip.run_dir):
+        with osswrapper(rf_uip.uip):
             (
                 o_radiance2,
                 jac_fm2,
@@ -212,7 +212,6 @@ def test_residual_fm_jac_tropomi(
     We can probably eventually remove this - at some point it may be more
     work to maintain this old compatibility function than it is worth.
     """
-    curdir = os.path.curdir
     rrefractor = joint_tropomi_residual_fm_jac(
         osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="refractor"
     )
@@ -231,9 +230,9 @@ def test_residual_fm_jac_tropomi(
     )
     creator = CostFunctionCreator()
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        "Table.asc", osp_dir=osp_dir
+         rf_uip.run_dir / "Table.asc", osp_dir=osp_dir
     )
-    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]})
+    mid = MeasurementIdFile(rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]})
     creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
@@ -244,7 +243,6 @@ def test_residual_fm_jac_tropomi(
         cfunc.residual_fm_jacobian(**rrefractor.params)
     )
 
-    os.chdir(curdir)
     rmuses_py = joint_tropomi_residual_fm_jac(
         osp_dir, gmao_dir, joint_tropomi_test_in_dir, path="muses_py"
     )
@@ -298,7 +296,6 @@ def test_residual_fm_jac_omi(
     We can probably eventually remove this - at some point it may be more
     work to maintain this old compatibility function than it is worth.
     """
-    curdir = os.path.curdir
     rrefractor = joint_omi_residual_fm_jac(
         osp_dir, gmao_dir, joint_omi_test_in_dir, path="refractor"
     )
@@ -323,9 +320,9 @@ def test_residual_fm_jac_omi(
     )
     creator = CostFunctionCreator()
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-        "Table.asc", osp_dir=osp_dir
+         rf_uip.run_dir / "Table.asc", osp_dir=osp_dir
     )
-    mid = MeasurementIdFile("Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]})
+    mid = MeasurementIdFile(rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]})
     creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
@@ -336,7 +333,6 @@ def test_residual_fm_jac_omi(
         cfunc.residual_fm_jacobian(**rrefractor.params)
     )
 
-    os.chdir(curdir)
     rmuses_py = joint_omi_residual_fm_jac(
         osp_dir, gmao_dir, joint_omi_test_in_dir, path="muses_py"
     )

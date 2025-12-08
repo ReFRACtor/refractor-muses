@@ -6,7 +6,6 @@ from refractor.muses_py_fm import RefractorUip
 def load_uip(dir_in, step_number=1, osp_dir=None, gmao_dir=None):
     return RefractorUip.load_uip(
         f"{dir_in}/uip_step_{step_number}.pkl",
-        change_to_dir=True,
         osp_dir=osp_dir,
         gmao_dir=gmao_dir,
     )

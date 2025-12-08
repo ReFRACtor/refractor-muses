@@ -3,7 +3,7 @@ from refractor.old_py_retrieve_wrapper import MusesRetrievalStep
 
 
 def load_muses_retrieval_step(
-    dir_in, step_number=1, osp_dir=None, gmao_dir=None, change_to_dir=True
+    dir_in, step_number=1, osp_dir=None, gmao_dir=None, change_to_dir=False
 ):
     """This reads parameters that can be use to call the py-retrieve function
     run_retrieval. See muses_capture in refractor-muses for collecting this.

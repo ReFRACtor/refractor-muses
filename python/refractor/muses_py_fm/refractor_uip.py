@@ -402,9 +402,16 @@ class RefractorUip:
         from a pickle file, extracts the saved directory, and optionally
         changes to that directory."""
         uip = pickle.load(open(save_pickle_file, "rb"))
-        uip.capture_directory.extract_directory(
-            path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir
-        )
+        # In testing, we may have already created the directory. If it there, skip
+        # setting up
+        if not uip.capture_directory.runbase.exists():
+            uip.capture_directory.extract_directory(
+                path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir
+            )
+        else:
+            # Side effect of extract_directory is to set run_dir to absolute path. If
+            # we don't do the extraction, we still need to set the run_dir.
+            uip.run_dir = (uip.capture_directory.rundir / uip.capture_directory.runbase).absolute()
         return uip
 
     def instrument_sub_basis_matrix(
@@ -604,29 +611,37 @@ class RefractorUip:
         microwindows. You can request instead the full set of values for a given
         sensor index.
         """
-        if str(instrument_name) == "OMI":
-            rad = mpy_get_omi_radiance(self.omi_params)
-        elif str(instrument_name) == "TROPOMI":
-            rad = mpy_get_tropomi_radiance(self.tropomi_params)
-        else:
-            raise RuntimeError(f"Invalid instrument_name {instrument_name}")
-        if not full_freq:
-            freqindex = self.freq_index(instrument_name)
-        else:
-            offset = [
-                i
-                for i in range(len(self.uip["microwindows_all"]))
-                if self.uip["microwindows_all"][i]["instrument"] == str(instrument_name)
-            ][0]
-            freqindex = self.freqfilter(instrument_name, sensor_index + offset)
-        return {
-            "wavelength": rad["wavelength"][freqindex],
-            "measured_radiance_field": rad["normalized_rad"][freqindex],
-            "measured_nesr": rad["nesr"][freqindex],
-            "normwav_jac": rad["normwav_jac"][freqindex],
-            "odwav_jac": rad["odwav_jac"][freqindex],
-            "odwav_slope_jac": rad["odwav_slope_jac"][freqindex],
-        }
+        # The py-retrieve radiances read from a pickle file. This is from a relative
+        # path ./Input. So we need to be in the run directory for these to work
+        # correctly
+        curdir = os.getcwd()
+        try:
+            os.chdir(self.run_dir)
+            if str(instrument_name) == "OMI":
+                rad = mpy_get_omi_radiance(self.omi_params)
+            elif str(instrument_name) == "TROPOMI":
+                rad = mpy_get_tropomi_radiance(self.tropomi_params)
+            else:
+                raise RuntimeError(f"Invalid instrument_name {instrument_name}")
+            if not full_freq:
+                freqindex = self.freq_index(instrument_name)
+            else:
+                offset = [
+                    i
+                    for i in range(len(self.uip["microwindows_all"]))
+                    if self.uip["microwindows_all"][i]["instrument"] == str(instrument_name)
+                ][0]
+                freqindex = self.freqfilter(instrument_name, sensor_index + offset)
+            return {
+                "wavelength": rad["wavelength"][freqindex],
+                "measured_radiance_field": rad["normalized_rad"][freqindex],
+                "measured_nesr": rad["nesr"][freqindex],
+                "normwav_jac": rad["normwav_jac"][freqindex],
+                "odwav_jac": rad["odwav_jac"][freqindex],
+                "odwav_slope_jac": rad["odwav_slope_jac"][freqindex],
+            }
+        finally:
+            os.chdir(curdir)
 
     def nfreq_mw(
         self, mw_index: int, instrument_name: InstrumentIdentifier | str
@@ -1669,24 +1684,22 @@ class RefractorUip:
             if str(iname) in o_xxx:
                 if hasattr(obs, "muses_py_dict"):
                     o_xxx[str(iname)] = obs.muses_py_dict
-        # Try removing this muses_py_call
-        with muses_py_call(rconf["run_dir"]):
-            rf_uip = RefractorUip.create_uip(
-                fake_state_info,  # type: ignore[arg-type]
-                fake_table,
-                mwin,
-                rinfo,  # type: ignore[arg-type]
-                o_xxx["AIRS"],
-                o_xxx["TES"],
-                o_xxx["CRIS"],
-                o_xxx["OMI"],
-                o_xxx["TROPOMI"],
-                o_xxx["OCO2"],
-                None,
-                pointing_angle=pointing_angle,
-            )
-            rf_uip.run_dir = rconf["run_dir"]
-            return rf_uip
+        rf_uip = RefractorUip.create_uip(
+            fake_state_info,  # type: ignore[arg-type]
+            fake_table,
+            mwin,
+            rinfo,  # type: ignore[arg-type]
+            o_xxx["AIRS"],
+            o_xxx["TES"],
+            o_xxx["CRIS"],
+            o_xxx["OMI"],
+            o_xxx["TROPOMI"],
+            o_xxx["OCO2"],
+            None,
+            pointing_angle=pointing_angle,
+        )
+        rf_uip.run_dir = rconf["run_dir"]
+        return rf_uip
 
     @classmethod
     def create_uip(
