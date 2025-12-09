@@ -900,7 +900,9 @@ class MusesTropomiObservation(MusesReflectanceObservation):
             obs = cls(o_tropomi, sdesc, filter_list, coeff=coeff, mp=mp)
 
         if write_tropomi_radiance_pickle:
-            # Save file needed by py-retrieve VLIDORT code
+            # Save file needed by py-retrieve VLIDORT code. Note this *isn't*
+            # needed by MusesForwardModel, rather this is to support older
+            # old_py_retrieve_wrapper code if needed.
             pfname = os.path.normpath(
                 f"{mid['initialGuessDirectory']}/../Radiance_TROPOMI_.pkl"
             )
@@ -1173,7 +1175,9 @@ class MusesOmiObservation(MusesReflectanceObservation):
             obs = cls(o_omi, sdesc, filter_list, coeff=coeff, mp=mp)
 
         if write_omi_radiance_pickle:
-            # Save file needed by py-retrieve VLIDORT code
+            # Save file needed by py-retrieve VLIDORT code. Note this *isn't*
+            # needed by MusesForwardModel, rather this is to support older
+            # old_py_retrieve_wrapper code if needed.
             pfname = os.path.normpath(
                 f"{mid['initialGuessDirectory']}/../Radiance_OMI_.pkl"
             )

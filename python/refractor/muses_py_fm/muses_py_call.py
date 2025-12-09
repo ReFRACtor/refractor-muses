@@ -40,6 +40,9 @@ def muses_py_call(
     debug: bool = False,
     vlidort_nstokes: int = 2,
     vlidort_nstreams: int = 4,
+    # For MusesForwardModel, we don't need to be in the rundir. But for a number
+    # of old_py_retrieve tests, we do since we are using older code
+    change_to_rundir: bool = False,
 ) -> Generator[None, None, None]:
     """There is some cookie cutter code needed to call a py_retrieve function.
     We collect that here as a context manager, so you can just do something
@@ -73,9 +76,10 @@ def muses_py_call(
         # This gets uses on a couple of top level py-retrieve functions.
         # (script_retrieval_setup_ms.py, get_emis_uwis.py. I don't think
         # we call either of these anywhere anymore, but go ahead and set
-        # this anyways since I don't think it hurts.
+        # this anyways since it doesn't hurt.
         os.environ["MUSES_DEFAULT_RUN_DIR"] = os.path.abspath(str(rundir))
-        os.chdir(rundir)
+        if change_to_rundir:
+            os.chdir(rundir)
         if have_muses_py:
             assert mpy_cli_options is not None
             # These variables control running vlidort and ring (the raman scattering

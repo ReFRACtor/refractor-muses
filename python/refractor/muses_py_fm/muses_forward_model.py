@@ -571,11 +571,13 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
                 jac, rad, _, success_flag = mpy_tropomi_fm(
                     self.rf_uip.uip_all(self.instrument_name),
                     i_osp_dir=self.measurement_id.osp_abs_dir,
+                    i_obs = self.obs.muses_py_dict,
                 )
             elif self.instrument_name == InstrumentIdentifier("OMI"):
                 jac, rad, _, success_flag = mpy_omi_fm(
                     self.rf_uip.uip_all(self.instrument_name),
                     i_osp_dir=self.measurement_id.osp_abs_dir,
+                    i_obs = self.obs.muses_py_dict,
                 )
             else:
                 raise RuntimeError(

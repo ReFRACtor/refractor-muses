@@ -92,15 +92,10 @@ if args.refractor_config:
     sys.modules["refractor_config"] = module
     rs = module.rs
 else:
-    # This is needed by the fall back of using  py-retrieve forward models.
-    # The write_tropomi_radiance_pickle and write_omi_radiance_pickle is needed
-    # by the py-retrieve forward models (which get the radiance values through
-    # a pickle file).
     rs = refractor.muses.RetrievalStrategy(filename=None,
                                            writeOutput=write_debug_output,
-                                           writePlots=args.plots,
-                                           write_tropomi_radiance_pickle=True,
-                                           write_omi_radiance_pickle=True)
+                                           writePlots=args.plots
+                                           )
 
 def retrieve_wrap(rs, target_dir, in_process=False):
     '''Wrapper so we can run a sounding in a separate process, so any memory leaks

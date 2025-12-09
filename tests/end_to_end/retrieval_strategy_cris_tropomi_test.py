@@ -50,7 +50,6 @@ def test_retrieval_strategy_cris_tropomi(
         r.run_dir / "Table.asc",
         writeOutput=True,
         writePlots=True,
-        write_tropomi_radiance_pickle=not run_refractor,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")

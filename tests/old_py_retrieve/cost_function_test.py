@@ -14,6 +14,7 @@ from refractor.omi import OmiForwardModelHandle
 from refractor.tropomi import TropomiForwardModelHandle
 import refractor.muses_py as mpy
 import pytest
+import os
 import numpy as np
 import numpy.testing as npt
 
@@ -90,7 +91,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, osp_dir):
         o_measured_radiance_omi,
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
-    with muses_py_call(rf_uip.run_dir):
+    with muses_py_call(rf_uip.run_dir, change_to_rundir=True):
         with osswrapper(rf_uip.uip):
             (
                 o_radiance2,
@@ -164,7 +165,7 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, osp_dir):
         o_measured_radiance_omi,
         o_measured_radiance_tropomi,
     ) = cfunc.fm_wrapper(rf_uip.uip, None, {})
-    with muses_py_call(rf_uip.run_dir):
+    with muses_py_call(rf_uip.run_dir, change_to_rundir=True):
         with osswrapper(rf_uip.uip):
             (
                 o_radiance2,
@@ -218,6 +219,7 @@ def test_residual_fm_jac_tropomi(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
     rf_uip.run_dir = rrefractor.run_dir
+    os.chdir(rf_uip.run_dir)
     obs_cris, obs_tropomi = joint_tropomi_obs_step_12
     # Set observation parameters to match what is in the UIP
     obs_tropomi.init(
@@ -307,6 +309,7 @@ def test_residual_fm_jac_omi(
         rrefractor.params["uip"], rrefractor.params["ret_info"]["basis_matrix"]
     )
     rf_uip.run_dir = rrefractor.run_dir
+    os.chdir(rf_uip.run_dir)
     obs_airs, obs_omi = joint_omi_obs_step_8
     # Set observation parameters to match what is in the UIP
     obs_omi.init(

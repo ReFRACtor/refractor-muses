@@ -84,7 +84,6 @@ def test_simulated_obs(isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_di
         swin_dict[InstrumentIdentifier("TROPOMI")],
         None,
         osp_dir=osp_dir,
-        write_tropomi_radiance_pickle=True,
     )
     rad = [
         copy.copy(obs.radiance(0).spectral_range.data),

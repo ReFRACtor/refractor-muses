@@ -60,7 +60,6 @@ def test_retrieval_strategy_airs_omi(
     )
     rs = RetrievalStrategy(
         r.run_dir / "Table.asc",
-        write_omi_radiance_pickle=not run_refractor,
     )
     try:
         lognum = logger.add(dir / "retrieve.log")

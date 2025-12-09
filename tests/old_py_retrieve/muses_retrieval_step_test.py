@@ -21,7 +21,7 @@ def test_muse_retrieval_step(isolated_dir, omi_test_in_dir, osp_dir, gmao_dir):
 def test_muse_retrieval_run_step(isolated_dir, osp_dir, gmao_dir, omi_test_in_dir):
     m = MusesRetrievalStep.load_retrieval_step(
         omi_test_in_dir / "run_retrieval_step_2.pkl",
-        change_to_dir=False,
+        change_to_dir=True,
         osp_dir=osp_dir,
         gmao_dir=gmao_dir,
     )

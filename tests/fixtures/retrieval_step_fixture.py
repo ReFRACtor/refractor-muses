@@ -43,6 +43,7 @@ def set_up_run_to_location(
     gmao_dir: str | Path,
     include_ret_state=True,
     osp_sym_link: bool = False,
+    include_run_dir = True,
 ):
     """Set up directory and run the given step number to the given
     location.
@@ -73,10 +74,13 @@ def set_up_run_to_location(
     # interested in debugging the setup, turn this off. We turn this back on
     # at the end, so the log messages are for the things actually in our tests.
     logger.remove()
-    r = MusesRunDir(dir, osp_dir, gmao_dir, osp_sym_link=osp_sym_link)
-    # TODO Short term turn off checking values. This is temporary, we will replace the
-    # old state info stuff in a bit
-    # CurrentState.check_old_state_element_value = False
+    # We would like to be able to run things without needing a run directory. To
+    # test this, we can skip creating the run directory.
+    if include_run_dir:
+        r = MusesRunDir(dir, osp_dir, gmao_dir, osp_sym_link=osp_sym_link)
+        run_dir = r.run_dir
+    else:
+        run_dir = dir
     rs = RetrievalStrategy(None, osp_dir=osp_dir)
     obs_hset = rs.observation_handle_set
     obs_hset.add_handle(
@@ -109,7 +113,7 @@ def set_up_run_to_location(
         ),
         priority_order=2,
     )
-    rs.update_target(r.run_dir / "Table.asc")
+    rs.update_target(run_dir / "Table.asc")
     rstep, kwargs = run_step_to_location(
         rs, step_number, dir, location, include_ret_state=include_ret_state
     )
@@ -160,6 +164,14 @@ def joint_omi_step_8(isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir):
     )
     return rs, rstep, kwargs
 
+@pytest.fixture(scope="function")
+def joint_omi_step_8_no_run_dir(joint_omi_test_in_dir, osp_dir, gmao_dir):
+    rs, rstep, kwargs = set_up_run_to_location(
+        joint_omi_test_in_dir, 8, "retrieval input", osp_dir, gmao_dir,
+        include_run_dir=False
+    )
+    return rs, rstep, kwargs
+
 
 @pytest.fixture(scope="function")
 def joint_omi_step_8_osp_sym_link(
@@ -193,6 +205,18 @@ def joint_tropomi_step_12(
 ):
     rs, rstep, kwargs = set_up_run_to_location(
         joint_tropomi_test_in_dir, 12, "retrieval input", osp_dir, gmao_dir
+    )
+    return rs, rstep, kwargs
+
+@pytest.fixture(scope="function")
+def joint_tropomi_step_12_no_run_dir(
+    joint_tropomi_test_in_dir,
+    osp_dir,
+    gmao_dir,
+):
+    rs, rstep, kwargs = set_up_run_to_location(
+        joint_tropomi_test_in_dir, 12, "retrieval input", osp_dir, gmao_dir,
+        include_run_dir=False
     )
     return rs, rstep, kwargs
 

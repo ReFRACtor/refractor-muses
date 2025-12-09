@@ -10,10 +10,10 @@ from refractor.muses_py_fm import (
     RefractorUip,
 )
 import pickle
+import subprocess
 
-
-def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
-    rs, rstep, _ = joint_tropomi_step_12
+def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
+    rs, rstep, _ = joint_tropomi_step_12_no_run_dir
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
         rs.current_state,
@@ -56,7 +56,8 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
         print(uncer.shape)
 
 
-def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
+# Remove subprocess.run before isolated_dir        
+def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir, isolated_dir):
     rs, rstep, _ = joint_tropomi_step_12
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
@@ -64,7 +65,6 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("CRIS")],
         None,
         osp_dir=osp_dir,
-        write_tropomi_radiance_pickle=True,
     )
     obs_tropomi = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
@@ -72,7 +72,6 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
         osp_dir=osp_dir,
-        write_tropomi_radiance_pickle=True,
     )
     obs_cris.spectral_window.include_bad_sample = True
     obs_tropomi.spectral_window.include_bad_sample = True
@@ -87,6 +86,8 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
         obs_tropomi,
         mid,
     )
+    if False:
+        subprocess.run(f"rm -r ./*", shell=True)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -112,8 +113,8 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
         print(uncer.shape)
 
 
-def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
-    rs, rstep, _ = joint_omi_step_8
+def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
+    rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
         rs.current_state,
@@ -154,7 +155,8 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
         print(uncer.shape)
 
 
-def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
+# Remove subprocess.run before isolated_dir        
+def test_muses_omi_forward_model(joint_omi_step_8, osp_dir, isolated_dir):
     rs, rstep, _ = joint_omi_step_8
     obs_omi = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
@@ -162,7 +164,6 @@ def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
         None,
         osp_dir=osp_dir,
-        write_omi_radiance_pickle=True,
     )
     obs_omi.spectral_window.include_bad_sample = True
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
@@ -172,6 +173,8 @@ def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
     )
     mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
     fm = MusesOmiForwardModel(rf_uip, obs_omi, mid)
+    if False:
+        subprocess.run(f"rm -r ./*", shell=True)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

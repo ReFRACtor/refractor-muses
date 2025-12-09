@@ -345,6 +345,7 @@ class RefractorTropOrOmiFmBase:
             debug=self.py_retrieve_debug,
             vlidort_nstokes=self.py_retrieve_vlidort_nstokes,
             vlidort_nstreams=self.py_retrieve_vlidort_nstreams,
+            change_to_rundir=True,
         ):
             with osswrapper(rf_uip.uip):
                 if self.func_name == "tropomi_fm":
@@ -428,7 +429,7 @@ class RefractorTropOrOmiFmBase:
             f = self.tropomi_fm
         else:
             f = self.omi_fm
-        with muses_py_call(self.run_dir):
+        with muses_py_call(self.run_dir, change_to_rundir=True):
             jac, rad0, meas_rad0, _ = f(self.rf_uip.uip)
             r = np.copy(retrieval_vec_0)
             r[index] += delta

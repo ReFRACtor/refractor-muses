@@ -49,7 +49,6 @@ def test_create_muses_cris_observation(
         swin_dict[InstrumentIdentifier("CRIS")],
         None,
         osp_dir=osp_dir,
-        write_tropomi_radiance_pickle=True,
     )
     print(obs.spectral_domain(0).data)
     print(obs.radiance(0).spectral_range.data)
