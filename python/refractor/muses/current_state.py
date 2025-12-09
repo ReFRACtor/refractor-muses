@@ -105,7 +105,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
        This is unmapped (e.g., it might be log(vmr)).
 
     4. the "full state vector mapped" is the "full state vector" but with
-       the mapping applied - so a log retrieval item is mapped to vmr.
+       the mapping applied - so a log(vmr) retrieval item is mapped to vmr.
 
     5. The "object state" is the subset of the "forward model state
        vector" needed by a particular object in our ForwardModel or
@@ -160,15 +160,33 @@ class CurrentState(object, metaclass=abc.ABCMeta):
     that doesn't really depend on where we are getting the
     information.
 
-    When we do a retrieval, we use the set of retrieval_state_element_id in
-    our forward state vector. For error analysis a systematic jacobian is
-    also generated, using a list of error interferents as the
-    systematic_state_element_id. For the handful of fm functions
-    (e.g. add_fm_state_vector_if_needed, setup_fm_state_vector) it can be
-    useful to just toggle between these two sets. We have the member
-    parameter use_systematic, which is normally False but can be changed
-    to True to use the systematic jacobian instead. See for example
+    When we do a retrieval, we use the set of
+    retrieval_state_element_id in our forward state vector. For error
+    analysis a systematic jacobian is also generated, using a list of
+    error interferents as the systematic_state_element_id. For the
+    handful of fm functions (e.g. add_fm_state_vector_if_needed,
+    setup_fm_state_vector) it can be useful to just toggle between
+    these two sets. We have the member parameter use_systematic, which
+    is normally False but can be changed to True to use the systematic
+    jacobian instead. See for example
     CostFunctionCreator.create_forward_model.
+
+    While we could have written the code for most things to directly
+    use the StateInfo with StateElements, we originally had this
+    intermediate "CurrentState" class so we can interact with the old
+    py-retrieve state info (which is represented in a very different way),
+    and also use a RefractorUip as a way to get the state info without
+    a full StateInfo.
+
+    This is less important now that we have pulled out the muses-py dependency,
+    but it seems like a good separation to maintain as least for now. The
+    StateInfo and StateElements should be looked at as low level implementation
+    details, but most class should interact with the state info through a
+    CurrentState object.
+
+    We can determine over time if we want to remove this distinction, if the
+    extra level of indirection is a good separation or needless complication. But
+    for now, we maintain this separate.
     """
 
     # Can check against old state element stuff, if the StateInfo has this.
@@ -580,7 +598,7 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         Note that the StateVector is in terms of the FullGridArray always. For
         the cost function, our input is in terms of the RetrievalGridArray, but
         the mapping for RetrievalGridArray -> FullGridArray is handled in
-        MaxAPosterioriSqrtConstraint."""
+        MaxAPosterioriSqrtConstraint, not the rf.StateVector"""
         selem_list = (
             self.systematic_state_element_id
             if self.use_systematic
@@ -645,8 +663,9 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         belongs in CurrentState or not, but there isn't another
         obvious place for this so for now we'll have this here.
 
-        Perhaps this can migrate to the MuseObservation or MeasurementId if we decide
-        that makes more sense.
+        Perhaps this can migrate to the MuseObservation or
+        MeasurementId if we decide that makes more sense.
+
         """
         raise NotImplementedError()
 
@@ -684,6 +703,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if you are stashing the value for an internal state or something like that,
         you will want to make a copy of the returned value so it doesn't mysteriously
         change underneath you when the StateElement is updated.
+
+        We also generally have the numpy writable flag set to False, so trying
+        to edit the array will trigger an error. If you need to modify the
+        value, just make a copy of the array and edit that.
         """
         raise NotImplementedError()
 
@@ -700,6 +723,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if you are stashing the value for an internal state or something like that,
         you will want to make a copy of the returned value so it doesn't mysteriously
         change underneath you when the StateElement is updated.
+
+
+        We also generally have the numpy writable flag set to False, so trying
+        to edit the array will trigger an error. If you need to modify the
+        value, just make a copy of the array and edit that.
         """
         return self.state_value(state_element_id).to_full(
             self.state_mapping(state_element_id)
@@ -719,6 +747,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if you are stashing the value for an internal state or something like that,
         you will want to make a copy of the returned value so it doesn't mysteriously
         change underneath you when the StateElement is updated.
+
+
+        We also generally have the numpy writable flag set to False, so trying
+        to edit the array will trigger an error. If you need to modify the
+        value, just make a copy of the array and edit that.
         """
         raise NotImplementedError()
 
@@ -738,6 +771,10 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if you are stashing the value for an internal state or something like that,
         you will want to make a copy of the returned value so it doesn't mysteriously
         change underneath you when the StateElement is updated.
+
+        We also generally have the numpy writable flag set to False, so trying
+        to edit the array will trigger an error. If you need to modify the
+        value, just make a copy of the array and edit that.
         """
         raise NotImplementedError()
 
@@ -755,6 +792,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if you are stashing the value for an internal state or something like that,
         you will want to make a copy of the returned value so it doesn't mysteriously
         change underneath you when the StateElement is updated.
+
+
+        We also generally have the numpy writable flag set to False, so trying
+        to edit the array will trigger an error. If you need to modify the
+        value, just make a copy of the array and edit that.
         """
         raise NotImplementedError()
 
@@ -799,9 +841,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         covariance_state_element_name: list[StateElementIdentifier],
         current_strategy_step: CurrentStrategyStep,
     ) -> None:
-        """Kludge, pass in list of elements. This will go away, but right now
-        we do this. Also the update_initial_guess is needed by the old state element wrappers,
-        this can go away with new ones"""
+        """Kludge, pass in list of elements. This will go away, but
+        right now we do this. Also the update_initial_guess is needed
+        by the old state element wrappers, this can go away with new
+        ones
+        """
         pstart = 0
         for sid in covariance_state_element_name:
             selem = deepcopy(self.state_element(sid))
@@ -921,6 +965,11 @@ class CurrentState(object, metaclass=abc.ABCMeta):
         if you are stashing the value for an internal state or something like that,
         you will want to make a copy of the returned value so it doesn't mysteriously
         change underneath you when the StateElement is updated.
+
+
+        We also generally have the numpy writable flag set to False, so trying
+        to edit the array will trigger an error. If you need to modify the
+        value, just make a copy of the array and edit that.
         """
         raise NotImplementedError()
 

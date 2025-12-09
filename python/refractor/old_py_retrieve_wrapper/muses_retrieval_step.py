@@ -132,8 +132,11 @@ class MusesRetrievalStep:
         res.run_path = os.path.abspath(path)
         refractor_sounding_dir = Path(save_pickle_file).parent.absolute()
         res.capture_directory.extract_directory(
-            path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir,
-            include_osp=True
+            path=path,
+            change_to_dir=change_to_dir,
+            osp_dir=osp_dir,
+            gmao_dir=gmao_dir,
+            include_osp=True,
         )
         _, d = mpy.read_all_tes(
             str(Path(res.run_retrieval_path) / "Measurement_ID.asc")

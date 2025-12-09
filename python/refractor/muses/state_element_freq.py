@@ -29,6 +29,47 @@ if typing.TYPE_CHECKING:
 class StateElementFreqShared(StateElementOspFile):
     """Handful of functions common to StateElementEmis and StateElementCloudExt"""
 
+    def __init__(
+        self,
+        state_element_id: StateElementIdentifier,
+        pressure_list_fm: FullGridMappedArray | None,
+        value_fm: FullGridMappedArray,
+        constraint_vector_fm: FullGridMappedArray,
+        latitude: float,
+        surface_type: str,
+        species_directory: Path,
+        covariance_directory: Path,
+        spectral_domain: rf.SpectralDomain | None = None,
+        selem_wrapper: Any | None = None,
+        cov_is_constraint: bool = False,
+        poltype: str | None = None,
+        poltype_used_constraint: bool = True,
+        diag_cov: bool = False,
+        diag_directory: Path | None = None,
+        metadata: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            state_element_id,
+            pressure_list_fm,
+            value_fm,
+            constraint_vector_fm,
+            latitude,
+            surface_type,
+            species_directory,
+            covariance_directory,
+            spectral_domain=spectral_domain,
+            selem_wrapper=selem_wrapper,
+            cov_is_constraint=cov_is_constraint,
+            poltype=poltype,
+            poltype_used_constraint=poltype_used_constraint,
+            diag_cov=diag_cov,
+            diag_directory=diag_directory,
+            metadata=metadata,
+        )
+        # A few things get handled differently for the BT IG refine step, so track
+        # that
+        self.is_bt_ig_refine = False
+
     def _fill_in_constraint(self) -> None:
         if self._constraint_matrix is not None:
             return
@@ -508,9 +549,9 @@ class StateElementCloudExt(StateElementFreqShared):
 
     @property
     def updated_fm_flag(self) -> FullGridMappedArray:
+        # bt_ig_refine is handled differently
         if not self.is_bt_ig_refine:
             return super().updated_fm_flag
-        # bt_ig_refine is handled differently
         assert self.spectral_domain is not None
         wflag = self.mw_frequency_needed(
             self.microwindows,

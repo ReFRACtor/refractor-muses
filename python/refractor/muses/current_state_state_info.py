@@ -55,8 +55,6 @@ class CostFunctionStateElementNotify(rf.ObserverMaxAPosterioriSqrtConstraint):
 class CurrentStateStateInfo(CurrentState):
     """Implementation of CurrentState that uses our StateInfo."""
 
-    # TODO - We use the CurrentStateStateInfoOld as scaffolding as we
-    # work out this code. This should go away.
     def __init__(
         self,
     ) -> None:
@@ -364,7 +362,6 @@ class CurrentStateStateInfo(CurrentState):
 
     @property
     def retrieval_state_element_id(self) -> list[StateElementIdentifier]:
-        # res = self._sys_element_id if self.do_systematic else self._retrieval_element_id
         return self._retrieval_element_id
 
     @property
@@ -382,11 +379,7 @@ class CurrentStateStateInfo(CurrentState):
             self._fm_sv_loc = {}
             self._fm_state_vector_size = 0
             for sid in self.retrieval_state_element_id:
-                # if self.do_systematic:
-                if False:
-                    plen = self._state_info[sid].sys_sv_length
-                else:
-                    plen = self._state_info[sid].forward_model_sv_length
+                plen = self._state_info[sid].forward_model_sv_length
                 self._fm_sv_loc[sid] = (self._fm_state_vector_size, plen)
                 self._fm_state_vector_size += plen
         return self._fm_sv_loc

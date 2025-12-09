@@ -32,26 +32,33 @@ class OspSetupReturn(NamedTuple):
 
 
 class StateElementOspFile(StateElementWithCreate):
-    """This implementation of StateElement gets the apriori/initial guess as a hard coded
-    value, and the constraint_matrix and apriori_cov_fm from OSP files. This seems a
-    bit convoluted to me - why not just have all the values given in the python configuration
-    file? But this is the way muses-py works, and at the very least we need to implementation
-    for backwards testing.  We may replace this StateElement, there doesn't seem to be any
-    good reason to spread everything across multiple files.
+    """This implementation of StateElement gets the apriori/initial
+    guess as a hard coded value, and the constraint_matrix and
+    apriori_cov_fm from OSP files. This seems a bit convoluted to me -
+    why not just have all the values given in the python configuration
+    file? But this is the way muses-py works, and at the very least we
+    need to implementation for backwards testing.  We may replace this
+    StateElement, there doesn't seem to be any good reason to spread
+    everything across multiple files.
 
-    In some cases, we have the species in the covariance species_directory but not the
-    covariance_directory. You can optionally request that we just use the constraint
-    matrix as the apriori_cov_fm.
+    In some cases, we have the species in the covariance
+    species_directory but not the covariance_directory. You can
+    optionally request that we just use the constraint matrix as the
+    apriori_cov_fm.
 
-    Also, muses-py has the bad habit of not actually having files and/or valid files for
-    all the state elements. For example, for AIRS OMI TATM points to a nonexistent constraint
-    matrix file.  muses-py doesn't run into problems because it only reads the files when things
-    are used in a retrieval.
+    Also, muses-py has the bad habit of not actually having files
+    and/or valid files for all the state elements. For example, for
+    AIRS OMI TATM points to a nonexistent constraint matrix file.
+    muses-py doesn't run into problems because it only reads the files
+    when things are used in a retrieval.
 
-    We need to duplicate this functionality, so things are read on first use rather than in the
-    constructor. This gives the bad behavior that trying to look at constraint_matrix for the
-    wrong StateElement may suddenly give you an error. Unfortunately, we can't avoid this - this
-    is how the OSP files are set up and how muses-py works.
+    We need to duplicate this functionality, so things are read on
+    first use rather than in the constructor. This gives the bad
+    behavior that trying to look at constraint_matrix for the wrong
+    StateElement may suddenly give you an error. Unfortunately, we
+    can't avoid this - this is how the OSP files are set up and how
+    muses-py works.
+
     """
 
     def __init__(
@@ -114,12 +121,6 @@ class StateElementOspFile(StateElementWithCreate):
                 0.0,
             ]
         )  # Filled in with notify_start_step.
-        # This is to support testing. We currently have a way of populate StateInfoOld when
-        # we restart a step, but not StateInfo. Longer term we will fix this, but short term
-        # just propagate any values in selem_wrapper to this class
-        if False and selem_wrapper is not None:
-            if selem_wrapper.value_str is None:
-                value_fm = selem_wrapper.value_fm
         super().__init__(
             state_element_id,
             value_fm,
@@ -130,11 +131,6 @@ class StateElementOspFile(StateElementWithCreate):
             selem_wrapper=selem_wrapper,
             spectral_domain=spectral_domain,
         )
-        if selem_wrapper is not None:
-            if False and selem_wrapper.value_str is None:
-                self._step_initial_fm = selem_wrapper.value_fm.astype(
-                    np.float64, copy=True
-                )
         if self.poltype is not None:
             self._metadata["poltype"] = self.poltype
         if metadata is not None:
@@ -264,8 +260,9 @@ class StateElementOspFile(StateElementWithCreate):
 
     def need_retrieval_initial_fm_from_cycle(self) -> bool:
         if self._need_retrieval_initial_fm_from_cycle is None:
-            # muses-py is bad about not having OSP files for elements that it doesn't actuall
-            # retrieve. We assume if this happens that we don't retrieve the element, and don't
+            # muses-py is bad about not having OSP files for elements
+            # that it doesn't actually retrieve. We assume if this
+            # happens that we don't retrieve the element, and don't
             # need to cycle.
             try:
                 self._need_retrieval_initial_fm_from_cycle = (
@@ -294,7 +291,8 @@ class StateElementOspFile(StateElementWithCreate):
     @classmethod
     def _setup_create(  # type: ignore[override]
         cls,
-        **kwargs: Any,  # Mark as kwarg only, to make mypy happy when down stream
+        **kwargs: Any,
+        # Mark as kwarg only, to make mypy happy when down stream
         # classes ignore arguments
         # List of arguments
         # pressure_list_fm: FullGridMappedArray,
@@ -333,10 +331,11 @@ class StateElementOspFile(StateElementWithCreate):
     ) -> Self | None:
         if retrieval_config is None or sounding_metadata is None:
             raise RuntimeError("Need retrieval_config and sounding_metadata")
-        # Get pressure from StateInfo, creating if needed. This is probably
-        # StateElementFromGmaoPressure (the current default), but could
-        # conceivably be something else. Note that the pressure needs to create
-        # itself without needing this create function, so we don't get an infinite recursion
+        # Get pressure from StateInfo, creating if needed. This is
+        # probably StateElementFromGmaoPressure (the current default),
+        # but could conceivably be something else. Note that the
+        # pressure needs to create itself without needing this create
+        # function, so we don't get an infinite recursion
 
         if sid is not None and sid == StateElementIdentifier("pressure"):
             # Avoid infinite recursion, if we are called for "pressure" we

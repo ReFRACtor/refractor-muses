@@ -122,6 +122,15 @@ class StateElement(object, metaclass=abc.ABCMeta):
     how to maintain its state, instead we just tell it when things happen and the
     classes decide what to do with that information. So we have "notify_step_solution" rather
     than "update _value_fm to this value".
+
+    muses-py had a bad habit of updating things as side effects in functions. This is
+    bad, behavior changes depending on what functions you happen to have called
+    previously. To prevent this from happening, the various arrays returned by for
+    example value_fm have the numpy writable flags set to False. So if a function
+    mistakenly tries to update a array that is shared with the StateElement, you
+    will get an error. You can just make your own copy of numpy array to change if
+    you need to, but actually updates to StateElement needs to go through the
+    various notify_xxx functions.
     """
 
     def __init__(self, state_element_id: StateElementIdentifier):
@@ -189,10 +198,6 @@ class StateElement(object, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def forward_model_sv_length(self) -> int:
-        raise NotImplementedError()
-
-    @abc.abstractproperty
-    def sys_sv_length(self) -> int:
         raise NotImplementedError()
 
     @property
@@ -568,20 +573,12 @@ class StateElementImplementation(StateElement):
         self._sold = selem_wrapper
         if self._sold is not None and hasattr(self._sold, "update_initial_guess"):
             self.update_initial_guess = self._update_initial_guess
-        self.is_bt_ig_refine = False
         self._current_strategy_step: StrategyStepIdentifier | None = None
 
     def notify_parameter_update(self, param_subset: np.ndarray) -> None:
-        # Skip if we aren't actually retrieving. This fits with the hokey way that
-        # muses-py handles the BT and systematic jacobian steps. We should clean this
-        # up an some point, this is all unnecessarily obscure
-        # TODO - Fix this logic
+        # Skip if we aren't actually retrieving.
         if not self._retrieved_this_step:
             return
-        # if self._value_fm is not None and self.value.shape[0] != param_subset.shape[0]:
-        #    raise RuntimeError(
-        #        f"param_subset doesn't match value size {param_subset.shape[0]} vs {self.value.shape[0]}"
-        #    )
         # Short term skip so we can compare to old state element
         if False:
             self._value_fm = param_subset.view(RetrievalGridArray).to_fm(
@@ -682,7 +679,7 @@ class StateElementImplementation(StateElement):
         that we map identically to 0. This is a way to hold some of the forward model
         elements constant. This is currently just done for EMIS and CLOUDEXT.
 
-        Note this is pretty much the same idea and updated_fm_flag, however we keep these
+        Note this is pretty much the same idea as updated_fm_flag, however we keep these
         distinct. This is more to match the old muses-py behavior, somewhat confusingly these
         flags don't always have the same values.
 
@@ -697,21 +694,8 @@ class StateElementImplementation(StateElement):
 
     @property
     def forward_model_sv_length(self) -> int:
-        if self._retrieved_this_step:
-            res = self.apriori_cov_fm.shape[0]
-        else:
-            # By convention muses-py uses a size 1 all zero size if we aren't actually
-            # retrieving this. This fits with the hokey way that
-            # muses-py handles the BT and systematic jacobian steps. We should clean this
-            # up an some point, this is all unnecessarily obscure
-            res = 1
-        self._check_result(res, "forward_model_sv_length")
-        return res
-
-    @property
-    def sys_sv_length(self) -> int:
         res = self.apriori_cov_fm.shape[0]
-        self._check_result(res, "sys_sv_length")
+        self._check_result(res, "forward_model_sv_length")
         return res
 
     @property
@@ -994,7 +978,11 @@ class StateElementImplementation(StateElement):
 class StateElementFillValueHandle(StateElementHandle):
     """There are a few state element (like OMICLOUDFRACTION) that get created even
     when we don't have the instrument data. These should just return a StateElement
-    with fill values. This handle is for these."""
+    with fill values. This handle is for these.
+
+    This is really just to support FakeStateInfo, there are things filled in even when
+    we don't have that instrument or use that StateElement elsewhere. We will probably
+    eventually remove FakeStateInfo, and this class can go away."""
 
     def __init__(
         self,

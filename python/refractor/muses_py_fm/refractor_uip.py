@@ -410,7 +410,7 @@ class RefractorUip:
                 change_to_dir=change_to_dir,
                 osp_dir=osp_dir,
                 gmao_dir=gmao_dir,
-                include_osp=True
+                include_osp=True,
             )
         else:
             # Side effect of extract_directory is to set run_dir to absolute path. If

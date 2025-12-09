@@ -124,7 +124,10 @@ class MusesResidualFmJacobian:
         saved directory, and optionally changes to that directory."""
         res = pickle.load(open(save_pickle_file, "rb"))
         res.capture_directory.extract_directory(
-            path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir,
-            include_osp=True
+            path=path,
+            change_to_dir=change_to_dir,
+            osp_dir=osp_dir,
+            gmao_dir=gmao_dir,
+            include_osp=True,
         )
         return res
