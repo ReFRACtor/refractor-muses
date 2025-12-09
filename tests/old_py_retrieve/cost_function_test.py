@@ -16,7 +16,6 @@ import refractor.muses_py as mpy
 import pytest
 import numpy as np
 import numpy.testing as npt
-import os
 
 # The CostFunction is definitely a central object in the ReFRACtor
 # code. However these tests check support for the old py-retrieve
@@ -47,7 +46,7 @@ import os
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
-def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
+def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, osp_dir):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
 
@@ -58,7 +57,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
     We can probably eventually remove this - at some point it may be more
     work to maintain this old compatibility function than it is worth.
     """
-    rs, rstep, _ = joint_tropomi_step_12
+    rs, rstep, _ = joint_tropomi_step_12_osp_sym_link
     obs_cris = rs.observation_handle_set.observation(
         InstrumentIdentifier("CRIS"),
         rs.current_state,
@@ -121,7 +120,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12, osp_dir):
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
-def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
+def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, osp_dir):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
 
@@ -132,7 +131,7 @@ def test_fm_wrapper_omi(joint_omi_step_8, osp_dir):
     We can probably eventually remove this - at some point it may be more
     work to maintain this old compatibility function than it is worth.
     """
-    rs, rstep, _ = joint_omi_step_8
+    rs, rstep, _ = joint_omi_step_8_osp_sym_link
     obs_airs = rs.observation_handle_set.observation(
         InstrumentIdentifier("AIRS"),
         rs.current_state,
@@ -230,9 +229,11 @@ def test_residual_fm_jac_tropomi(
     )
     creator = CostFunctionCreator()
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-         rf_uip.run_dir / "Table.asc", osp_dir=osp_dir
+        rf_uip.run_dir / "Table.asc", osp_dir=osp_dir
     )
-    mid = MeasurementIdFile(rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]})
+    mid = MeasurementIdFile(
+        rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
+    )
     creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
@@ -320,9 +321,11 @@ def test_residual_fm_jac_omi(
     )
     creator = CostFunctionCreator()
     rconfig = RetrievalConfiguration.create_from_strategy_file(
-         rf_uip.run_dir / "Table.asc", osp_dir=osp_dir
+        rf_uip.run_dir / "Table.asc", osp_dir=osp_dir
     )
-    mid = MeasurementIdFile(rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]})
+    mid = MeasurementIdFile(
+        rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
+    )
     creator.notify_update_target(mid)
     cfunc = creator.cost_function_from_uip(
         rf_uip,

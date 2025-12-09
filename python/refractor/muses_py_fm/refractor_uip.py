@@ -406,12 +406,18 @@ class RefractorUip:
         # setting up
         if not uip.capture_directory.runbase.exists():
             uip.capture_directory.extract_directory(
-                path=path, change_to_dir=change_to_dir, osp_dir=osp_dir, gmao_dir=gmao_dir
+                path=path,
+                change_to_dir=change_to_dir,
+                osp_dir=osp_dir,
+                gmao_dir=gmao_dir,
+                include_osp=True
             )
         else:
             # Side effect of extract_directory is to set run_dir to absolute path. If
             # we don't do the extraction, we still need to set the run_dir.
-            uip.run_dir = (uip.capture_directory.rundir / uip.capture_directory.runbase).absolute()
+            uip.run_dir = (
+                uip.capture_directory.rundir / uip.capture_directory.runbase
+            ).absolute()
         return uip
 
     def instrument_sub_basis_matrix(
@@ -629,7 +635,8 @@ class RefractorUip:
                 offset = [
                     i
                     for i in range(len(self.uip["microwindows_all"]))
-                    if self.uip["microwindows_all"][i]["instrument"] == str(instrument_name)
+                    if self.uip["microwindows_all"][i]["instrument"]
+                    == str(instrument_name)
                 ][0]
                 freqindex = self.freqfilter(instrument_name, sensor_index + offset)
             return {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from refractor.muses import (
     StateElementIdentifier,
+    StateElement,
     StateElementFromGmaoPressure,
     StateElementFromGmaoPsur,
     StateElementFromGmaoTropopausePressure,
@@ -8,15 +9,31 @@ from refractor.muses import (
     StateElementFromGmaoH2O,
     StateElementFromGmaoTsur,
 )
+import pickle
 import numpy.testing as npt
+from pathlib import Path
 
 
-def test_state_element_from_gmao_pressure(airs_omi_old_shandle):
-    h_old, measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
+def check_selem(selem: StateElement, fexpect: Path, save: bool = False) -> None:
+    # We validated the results against the old state elements from muses-py.
+    # Remove that so we don't depend on having muses-py available, but we want to
+    # know if the value has changed indicating a possible problem.
+    if save:
+        pickle.dump(
+            {
+                "value_fm": selem.value_fm,
+                "constraint_vector_fm": selem.constraint_vector_fm,
+            },
+            open(fexpect, "wb"),
+        )
+    expected = pickle.load(open(fexpect, "rb"))
+    npt.assert_allclose(selem.constraint_vector_fm, expected["constraint_vector_fm"])
+    npt.assert_allclose(selem.value_fm, expected["value_fm"])
+
+
+def test_state_element_from_gmao_pressure(airs_omi_shandle, unit_test_expected_dir):
+    measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_shandle
     sid = "pressure"
-    sold = h_old.state_element(StateElementIdentifier(sid))
-    sold_value_fm = sold.value_fm
-    sold_constraint_vector_fm = sold.constraint_vector_fm
     s = StateElementFromGmaoPressure.create(
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
@@ -25,8 +42,11 @@ def test_state_element_from_gmao_pressure(airs_omi_old_shandle):
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
-    npt.assert_allclose(s.value_fm, sold_value_fm)
+    check_selem(
+        s,
+        unit_test_expected_dir / "state_element_gmao" / "pressure_expect.pkl",
+        save=False,
+    )
     # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
@@ -36,12 +56,11 @@ def test_state_element_from_gmao_pressure(airs_omi_old_shandle):
     assert s.poltype_used_constraint
 
 
-def test_state_element_from_gmao_tropopause_pressure(airs_omi_old_shandle):
-    h_old, measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
+def test_state_element_from_gmao_tropopause_pressure(
+    airs_omi_shandle, unit_test_expected_dir
+):
+    measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_shandle
     sid = "gmaoTropopausePressure"
-    sold = h_old.state_element(StateElementIdentifier(sid))
-    sold_value_fm = sold.value_fm
-    sold_constraint_vector_fm = sold.constraint_vector_fm
     s = StateElementFromGmaoTropopausePressure.create(
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
@@ -50,8 +69,13 @@ def test_state_element_from_gmao_tropopause_pressure(airs_omi_old_shandle):
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
-    npt.assert_allclose(s.value_fm, sold_value_fm)
+    check_selem(
+        s,
+        unit_test_expected_dir
+        / "state_element_gmao"
+        / "tropopause_pressure_expect.pkl",
+        save=False,
+    )
     # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
@@ -61,12 +85,9 @@ def test_state_element_from_gmao_tropopause_pressure(airs_omi_old_shandle):
     assert s.poltype_used_constraint
 
 
-def test_state_element_from_gmao_tatm(airs_omi_old_shandle):
-    h_old, measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
+def test_state_element_from_gmao_tatm(airs_omi_shandle, unit_test_expected_dir):
+    measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_shandle
     sid = "TATM"
-    sold = h_old.state_element(StateElementIdentifier(sid))
-    sold_value_fm = sold.value_fm
-    sold_constraint_vector_fm = sold.constraint_vector_fm
     s = StateElementFromGmaoTatm.create(
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
@@ -75,8 +96,10 @@ def test_state_element_from_gmao_tatm(airs_omi_old_shandle):
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
-    npt.assert_allclose(s.value_fm, sold_value_fm)
+    check_selem(
+        s, unit_test_expected_dir / "state_element_gmao" / "tatm_expect.pkl", save=False
+    )
+
     # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
@@ -86,12 +109,9 @@ def test_state_element_from_gmao_tatm(airs_omi_old_shandle):
     assert s.poltype_used_constraint
 
 
-def test_state_element_from_gmao_h2o(airs_omi_old_shandle):
-    h_old, measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
+def test_state_element_from_gmao_h2o(airs_omi_shandle, unit_test_expected_dir):
+    measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_shandle
     sid = "H2O"
-    sold = h_old.state_element(StateElementIdentifier(sid))
-    sold_value_fm = sold.value_fm
-    sold_constraint_vector_fm = sold.constraint_vector_fm
     s = StateElementFromGmaoH2O.create(
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
@@ -100,8 +120,9 @@ def test_state_element_from_gmao_h2o(airs_omi_old_shandle):
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
-    npt.assert_allclose(s.value_fm, sold_value_fm)
+    check_selem(
+        s, unit_test_expected_dir / "state_element_gmao" / "h2o_expect.pkl", save=False
+    )
     # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
@@ -111,12 +132,9 @@ def test_state_element_from_gmao_h2o(airs_omi_old_shandle):
     assert s.poltype_used_constraint
 
 
-def test_state_element_from_gmao_tsur(airs_omi_old_shandle):
-    h_old, measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
+def test_state_element_from_gmao_tsur(airs_omi_shandle, unit_test_expected_dir):
+    measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_shandle
     sid = "TSUR"
-    sold = h_old.state_element(StateElementIdentifier(sid))
-    sold_value_fm = sold.value_fm
-    sold_constraint_vector_fm = sold.constraint_vector_fm
     s = StateElementFromGmaoTsur.create(
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
@@ -125,8 +143,9 @@ def test_state_element_from_gmao_tsur(airs_omi_old_shandle):
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
-    npt.assert_allclose(s.value_fm, sold_value_fm)
+    check_selem(
+        s, unit_test_expected_dir / "state_element_gmao" / "tsur_expect.pkl", save=False
+    )
     # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
@@ -136,12 +155,9 @@ def test_state_element_from_gmao_tsur(airs_omi_old_shandle):
     assert s.poltype_used_constraint
 
 
-def test_state_element_from_gmao_psur(airs_omi_old_shandle):
-    h_old, measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_old_shandle
+def test_state_element_from_gmao_psur(airs_omi_shandle, unit_test_expected_dir):
+    measurement_id, rconfig, strat, obs_hset, smeta, sinfo = airs_omi_shandle
     sid = "PSUR"
-    # sold = h_old.state_element(StateElementIdentifier(sid))
-    # sold_value_fm = sold.value_fm
-    # sold_constraint_vector_fm = sold.constraint_vector_fm
     s = StateElementFromGmaoPsur.create(
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
@@ -150,11 +166,10 @@ def test_state_element_from_gmao_psur(airs_omi_old_shandle):
     )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    # The old element doesn't seem to actually have the right psur, it seems
-    # to be identically zero. I don't think this was ever used. Don't bother
-    # tracking down, just skip check.
-    # npt.assert_allclose(s.constraint_vector_fm, sold_constraint_vector_fm)
-    # npt.assert_allclose(s.value_fm, sold_value_fm)
+    check_selem(
+        s, unit_test_expected_dir / "state_element_gmao" / "psur_expect.pkl", save=False
+    )
+
     # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None

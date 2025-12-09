@@ -6,8 +6,8 @@ import pytest
 
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
-def test_muses_strategy_old(joint_omi_step_8):
-    rs, rsetp, kwargs = joint_omi_step_8
+def test_muses_strategy_old(joint_omi_step_8_osp_sym_link):
+    rs, rsetp, kwargs = joint_omi_step_8_osp_sym_link
     # Old strategy table code assumes we are in the run dir. Our new
     # refractor version doesn't have that limit, but we are testing the
     # old one here.

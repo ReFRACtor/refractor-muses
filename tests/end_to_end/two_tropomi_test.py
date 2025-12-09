@@ -28,7 +28,7 @@ def test_two_tropomi(
     MPI version of py-retrieve works, and we need to make sure any caching
     etc. gets cleared out from the first sounding to the second."""
     r = MusesRunDir(tropomi_test_in_dir, osp_dir, gmao_dir)
-    r2 = MusesRunDir(tropomi_test_in_dir3, osp_dir, gmao_dir, skip_sym_link=True)
+    r2 = MusesRunDir(tropomi_test_in_dir3, osp_dir, gmao_dir)
 
     rs = RetrievalStrategy(
         None,

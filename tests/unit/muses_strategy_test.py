@@ -3,9 +3,10 @@ from refractor.old_py_retrieve_wrapper import MusesStrategyOldStrategyTable
 from fixtures.require_check import require_muses_py
 import os
 
+
 @require_muses_py
-def test_muses_strategy_file(joint_omi_step_8):
-    rs, rsetp, kwargs = joint_omi_step_8
+def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
+    rs, rsetp, kwargs = joint_omi_step_8_osp_sym_link
     # Old strategy table code assumes we are in the run dir. Our new
     # refractor version doesn't have that limit, but we are testing against
     # the old one here.

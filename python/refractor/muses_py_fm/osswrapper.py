@@ -7,6 +7,7 @@ from .mpy import (
     mpy_fm_oss_windows,
     mpy_fm_oss_delete,
 )
+from pathlib import Path
 import itertools
 from refractor.muses import suppress_replacement
 import os
@@ -104,11 +105,14 @@ class osswrapper:
     have_oss = False
     first_oss_initialize = True
 
-    def __init__(self, uip: dict[str, Any]) -> None:
+    def __init__(
+        self, uip: dict[str, Any], osp_dir: str | os.PathLike[str] | None = None
+    ) -> None:
         if hasattr(uip, "as_dict"):
             self.uip = uip.as_dict(uip)
         else:
             self.uip = uip
+        self.osp_dir = Path(osp_dir) if osp_dir is not None else None
         self.need_cleanup = False
 
     @classmethod
@@ -128,7 +132,7 @@ class osswrapper:
                 if f"uip_{inst}" in self.uip:
                     # Suppress warning message print out, it clutters output
                     if True:  # Turn off if debugging, since we can't see anything
-                    #with suppress_stdout():
+                        # with suppress_stdout():
                         # Used by fm_oss_load to point to the pyoss library.
                         # This is a wrapper, that is created in py-retrieve
                         # (in setup.py, as a C extension). We determine the
@@ -147,7 +151,11 @@ class osswrapper:
                         if osswrapper.first_oss_initialize:
                             with suppress_replacement("fm_oss_init"):
                                 (_, frequencyListFullOSS, jacobianList) = (
-                                    mpy_fm_oss_init(AttrDictAdapter(uip_all), inst)
+                                    mpy_fm_oss_init(
+                                        AttrDictAdapter(uip_all),
+                                        inst,
+                                        i_osp_dir=self.osp_dir,
+                                    )
                                 )
                             # This can potentially change oss_frequencyList.
                             # Neither py-retrieve or refractor is set up to handle
@@ -164,7 +172,7 @@ class osswrapper:
                             osswrapper.first_oss_initialize = False
                         with suppress_replacement("fm_oss_init"):
                             (_, frequencyListFullOSS, jacobianList) = mpy_fm_oss_init(
-                                AttrDictAdapter(uip_all), inst
+                                AttrDictAdapter(uip_all), inst, i_osp_dir=self.osp_dir
                             )
                             self.uip["oss_jacobianList"] = jacobianList
                         # This can potentially change oss_frequencyList.

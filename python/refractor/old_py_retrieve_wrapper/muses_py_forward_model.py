@@ -341,7 +341,7 @@ class RefractorTropOrOmiFmBase:
         self.basis_matrix = rf_uip.basis_matrix
         self.run_dir = rf_uip.run_dir
         with muses_py_call(
-                self.run_dir,
+            self.run_dir,
             debug=self.py_retrieve_debug,
             vlidort_nstokes=self.py_retrieve_vlidort_nstokes,
             vlidort_nstreams=self.py_retrieve_vlidort_nstreams,

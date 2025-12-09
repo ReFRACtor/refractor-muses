@@ -74,6 +74,10 @@ class MeasurementId(collections.abc.Mapping):
     def __len__(self) -> int:
         raise NotImplementedError
 
+    @property
+    def osp_abs_dir(self) -> Path | None:
+        return None
+
 
 class MeasurementIdDict(MeasurementId):
     """Implementation of MeasurementId that uses a dict"""
@@ -82,9 +86,15 @@ class MeasurementIdDict(MeasurementId):
         self,
         measurement_dict: dict,
         filter_list_dict: dict[InstrumentIdentifier, list[FilterIdentifier]],
+        osp_dir: str | os.PathLike[str] | None = None,
     ) -> None:
         self.measurement_dict = measurement_dict
         self._filter_list_dict = filter_list_dict
+        self.osp_dir = Path(osp_dir).absolute() if osp_dir is not None else None
+
+    @property
+    def osp_abs_dir(self) -> Path | None:
+        return self.osp_dir
 
     @property
     def filter_list_dict(self) -> dict[InstrumentIdentifier, list[FilterIdentifier]]:
@@ -125,6 +135,10 @@ class MeasurementIdFile(MeasurementId):
         self._p = TesFile(self.fname)
         self._filter_list_dict = filter_list_dict
         self._retrieval_config = retrieval_config
+
+    @property
+    def osp_abs_dir(self) -> Path | None:
+        return self._retrieval_config.osp_abs_dir
 
     def __hash__(self) -> int:
         # We need a unique hash to separate MeasurementIds. I think just using the

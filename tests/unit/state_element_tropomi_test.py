@@ -11,8 +11,10 @@ import numpy as np
 import numpy.testing as npt
 
 
-def test_tropomi_cloud_fraction_state_element(cris_tropomi_old_shandle):
-    _, _, rconfig, strat, obs_hset, smeta, sinfo = cris_tropomi_old_shandle
+def test_tropomi_cloud_fraction_state_element(
+    cris_tropomi_shandle, unit_test_expected_dir
+):
+    _, rconfig, strat, obs_hset, smeta, sinfo = cris_tropomi_shandle
     selem = StateElementTropomiCloudFraction.create(
         StateElementIdentifier("TROPOMICLOUDFRACTION"),
         retrieval_config=rconfig,
@@ -27,8 +29,10 @@ def test_tropomi_cloud_fraction_state_element(cris_tropomi_old_shandle):
     npt.assert_allclose(selem.retrieval_initial_fm, vexpect)
 
 
-def test_tropomi_cloud_pressure_state_element(cris_tropomi_old_shandle):
-    _, _, rconfig, strat, obs_hset, smeta, sinfo = cris_tropomi_old_shandle
+def test_tropomi_cloud_pressure_state_element(
+    cris_tropomi_shandle, unit_test_expected_dir
+):
+    _, rconfig, strat, obs_hset, smeta, sinfo = cris_tropomi_shandle
     selem = StateElementTropomiCloudPressure.create(
         StateElementIdentifier("TROPOMICLOUDPRESSURE"),
         retrieval_config=rconfig,
@@ -43,8 +47,10 @@ def test_tropomi_cloud_pressure_state_element(cris_tropomi_old_shandle):
     npt.assert_allclose(selem.retrieval_initial_fm, vexpect)
 
 
-def test_tropomi_surface_alebdo_band7_state_element(tropomi_swir_old_shandle):
-    _, _, rconfig, strat, obs_hset, smeta, sinfo = tropomi_swir_old_shandle
+def test_tropomi_surface_alebdo_band7_state_element(
+    tropomi_swir_shandle, unit_test_expected_dir
+):
+    _, rconfig, strat, obs_hset, smeta, sinfo = tropomi_swir_shandle
     selem = StateElementTropomiSurfaceAlbedo.create(
         StateElementIdentifier("TROPOMISURFACEALBEDOBAND7"),
         retrieval_config=rconfig,
@@ -65,8 +71,10 @@ def test_tropomi_surface_alebdo_band7_state_element(tropomi_swir_old_shandle):
     npt.assert_allclose(selem.retrieval_initial_fm, vexpect)
 
 
-def test_tropomi_surface_albedo_state_element(cris_tropomi_old_shandle):
-    _, _, rconfig, strat, obs_hset, smeta, sinfo = cris_tropomi_old_shandle
+def test_tropomi_surface_albedo_state_element(
+    cris_tropomi_shandle, unit_test_expected_dir
+):
+    _, rconfig, strat, obs_hset, smeta, sinfo = cris_tropomi_shandle
     selem = StateElementTropomiSurfaceAlbedo.create(
         StateElementIdentifier("TROPOMISURFACEALBEDOBAND3"),
         retrieval_config=rconfig,

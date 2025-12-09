@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 import refractor.muses
+import refractor.muses_py_fm
 import refractor.omi
 import refractor.tropomi
 from loguru import logger

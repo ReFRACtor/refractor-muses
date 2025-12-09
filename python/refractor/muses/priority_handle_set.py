@@ -141,6 +141,7 @@ class PriorityHandleSet(collections.abc.Set):
                     res = r
             if could_handle:
                 return res
+        breakpoint()
         raise NoHandleFound(
             "No handle was found. args=%s, keywords=%s" % (args, keywords)
         )

@@ -1,4 +1,3 @@
-import os
 import pytest
 from refractor.muses import (
     MusesRunDir,
@@ -43,6 +42,7 @@ def set_up_run_to_location(
     osp_dir: str | Path,
     gmao_dir: str | Path,
     include_ret_state=True,
+    osp_sym_link: bool = False,
 ):
     """Set up directory and run the given step number to the given
     location.
@@ -73,7 +73,7 @@ def set_up_run_to_location(
     # interested in debugging the setup, turn this off. We turn this back on
     # at the end, so the log messages are for the things actually in our tests.
     logger.remove()
-    r = MusesRunDir(dir, osp_dir, gmao_dir)
+    r = MusesRunDir(dir, osp_dir, gmao_dir, osp_sym_link=osp_sym_link)
     # TODO Short term turn off checking values. This is temporary, we will replace the
     # old state info stuff in a bit
     # CurrentState.check_old_state_element_value = False
@@ -162,6 +162,21 @@ def joint_omi_step_8(isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir):
 
 
 @pytest.fixture(scope="function")
+def joint_omi_step_8_osp_sym_link(
+    isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir
+):
+    rs, rstep, kwargs = set_up_run_to_location(
+        joint_omi_test_in_dir,
+        8,
+        "retrieval input",
+        osp_dir,
+        gmao_dir,
+        osp_sym_link=True,
+    )
+    return rs, rstep, kwargs
+
+
+@pytest.fixture(scope="function")
 def omi_step_0(isolated_dir, omi_test_in_dir, osp_dir, gmao_dir):
     rs, rstep, kwargs = set_up_run_to_location(
         omi_test_in_dir, 0, "retrieval input", osp_dir, gmao_dir
@@ -178,6 +193,24 @@ def joint_tropomi_step_12(
 ):
     rs, rstep, kwargs = set_up_run_to_location(
         joint_tropomi_test_in_dir, 12, "retrieval input", osp_dir, gmao_dir
+    )
+    return rs, rstep, kwargs
+
+
+@pytest.fixture(scope="function")
+def joint_tropomi_step_12_osp_sym_link(
+    isolated_dir,
+    joint_tropomi_test_in_dir,
+    osp_dir,
+    gmao_dir,
+):
+    rs, rstep, kwargs = set_up_run_to_location(
+        joint_tropomi_test_in_dir,
+        12,
+        "retrieval input",
+        osp_dir,
+        gmao_dir,
+        osp_sym_link=True,
     )
     return rs, rstep, kwargs
 

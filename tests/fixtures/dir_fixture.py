@@ -200,3 +200,21 @@ def end_to_end_run_dir():
     # Create directory if it isn't already there
     res.mkdir(parents=True, exist_ok=True)
     return res
+
+
+@pytest.fixture(scope="session")
+def refractor_config_file():
+    res = (
+        Path(os.path.dirname(__file__)).parent.parent
+        / "muses_config"
+        / "refractor_config.py"
+    )
+    return res
+
+
+@pytest.fixture(scope="session")
+def unit_test_expected_dir():
+    res = Path(os.path.dirname(__file__)).parent / "expected"
+    # Create directory if it isn't already there
+    res.mkdir(parents=True, exist_ok=True)
+    return res

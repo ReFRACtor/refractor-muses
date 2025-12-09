@@ -27,7 +27,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12, osp_dir):
         rs.current_state,
         rs.retrieval_config,
     )
-    mid = MeasurementIdDict({}, {})
+    mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
     fm = MusesCrisForwardModel(rf_uip, obs_cris, mid)
     print(pickle.loads(pickle.dumps(obs_cris)))
     print(pickle.loads(pickle.dumps(fm)))
@@ -81,7 +81,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12, osp_dir):
         rs.current_state,
         rs.retrieval_config,
     )
-    mid = MeasurementIdDict({}, {})
+    mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
     fm = MusesTropomiForwardModel(
         rf_uip,
         obs_tropomi,
@@ -127,7 +127,7 @@ def test_muses_airs_forward_model(joint_omi_step_8, osp_dir):
         rs.current_state,
         rs.retrieval_config,
     )
-    mid = MeasurementIdDict({}, {})
+    mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
     fm = MusesAirsForwardModel(rf_uip, obs_airs, mid)
     s = fm.radiance(0)
     rad = s.spectral_range.data
@@ -170,7 +170,7 @@ def test_muses_omi_forward_model(joint_omi_step_8, osp_dir):
         rs.current_state,
         rs.retrieval_config,
     )
-    mid = MeasurementIdDict({}, {})
+    mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
     fm = MusesOmiForwardModel(rf_uip, obs_omi, mid)
     s = fm.radiance(0)
     rad = s.spectral_range.data

@@ -1,32 +1,47 @@
 from __future__ import annotations
 from refractor.muses import (
     StateElementIdentifier,
+    StateElement,
     StateElementPcloud,
     StateElementFromSingle,
     StateElementFromCalibration,
-    StateElementOldInitialValue,
 )
-import numpy.testing as npt
 import pytest
+import pickle
+import numpy.testing as npt
+from pathlib import Path
 
 
-def test_state_element_pcloud(airs_omi_old_shandle_ok_no_muses_py):
-    h_old, _, rconfig, strat, _, smeta, sinfo = airs_omi_old_shandle_ok_no_muses_py
+def check_selem(selem: StateElement, fexpect: Path, save: bool = False) -> None:
+    # We validated the results against the old state elements from muses-py.
+    # Remove that so we don't depend on having muses-py available, but we want to
+    # know if the value has changed indicating a possible problem.
+    if save:
+        pickle.dump(
+            {
+                "value_fm": selem.value_fm,
+                "constraint_vector_fm": selem.constraint_vector_fm,
+            },
+            open(fexpect, "wb"),
+        )
+    expected = pickle.load(open(fexpect, "rb"))
+    npt.assert_allclose(selem.constraint_vector_fm, expected["constraint_vector_fm"])
+    npt.assert_allclose(selem.value_fm, expected["value_fm"])
+
+
+def test_state_element_pcloud(airs_omi_shandle, unit_test_expected_dir):
+    _, rconfig, strat, _, smeta, sinfo = airs_omi_shandle
     s = StateElementPcloud.create(
         retrieval_config=rconfig, sounding_metadata=smeta, state_info=sinfo
     )
-    if h_old is not None:
-        sold = h_old.state_element(StateElementIdentifier("PCLOUD"))
-        sold_value_fm = sold.value_fm
-        # This is value_fm before we have cycled through all the strategy
-        # steps
-        sold_constraint_vector_fm = sold.constraint_vector_fm
-        npt.assert_allclose(sold_value_fm, sold_constraint_vector_fm)
-        npt.assert_allclose(s.value_fm, sold_constraint_vector_fm)
-        npt.assert_allclose(s.value_fm, sold_value_fm)
+    check_selem(
+        s,
+        unit_test_expected_dir / "state_element_single" / "pcloud_expect.pkl",
+        save=False,
+    )
+
     # Cycle through strategy steps, and check value_fm after that
     # strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    # npt.assert_allclose(s.value_fm, sold_value_fm)
     # Check an number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
@@ -38,29 +53,21 @@ def test_state_element_pcloud(airs_omi_old_shandle_ok_no_muses_py):
 
 
 @pytest.mark.parametrize("sid", ("SO2", "NH3", "OCS", "HCOOH", "N2"))
-def test_state_element_from_single(airs_omi_old_shandle_ok_no_muses_py, sid):
-    h_old, _, rconfig, strat, _, smeta, sinfo = airs_omi_old_shandle_ok_no_muses_py
+def test_state_element_from_single(airs_omi_shandle, unit_test_expected_dir, sid):
+    _, rconfig, strat, _, smeta, sinfo = airs_omi_shandle
     s = StateElementFromSingle.create(
         sid=StateElementIdentifier(sid),
         retrieval_config=rconfig,
         sounding_metadata=smeta,
         state_info=sinfo,
     )
-    if h_old is not None:
-        sold = h_old.state_element(StateElementIdentifier(sid))
-        sold_value_fm = sold.value_fm
-        # This is value_fm before we have cycled through all the strategy
-        # steps
-        sold_constraint_vector_fm = sold.constraint_vector_fm
-        # NH3 has separate logic to override the value in some cases. Skip checking
-        # against sold - we don't agree but that is ok because this particular handle
-        # doesn't get used in this test case
-        if sid != "NH3":
-            npt.assert_allclose(s.value_fm, sold_constraint_vector_fm)
+    check_selem(
+        s,
+        unit_test_expected_dir / "state_element_single" / f"{sid}_expect.pkl",
+        save=False,
+    )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    if h_old is not None and sid != "NH3":
-        npt.assert_allclose(s.value_fm, sold_value_fm)
     # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
@@ -81,10 +88,8 @@ def test_state_element_from_single(airs_omi_old_shandle_ok_no_muses_py, sid):
         "residualScale",
     ),
 )
-def test_state_element_from_calibration(airs_omi_old_shandle, sid):
-    h_old, _, rconfig, strat, _, smeta, sinfo = airs_omi_old_shandle
-    sold = h_old.state_element(StateElementIdentifier(sid))
-    sold_value_fm = sold.value_fm
+def test_state_element_from_calibration(airs_omi_shandle, unit_test_expected_dir, sid):
+    _, rconfig, strat, _, smeta, sinfo = airs_omi_shandle
     # The calibration isn't actually listed in Species_List_From_Single, so go ahead
     # and add it so we can test handling if it was there.
     rconfig["Species_List_From_Single"] = f"{rconfig['Species_List_From_Single']},{sid}"
@@ -94,10 +99,13 @@ def test_state_element_from_calibration(airs_omi_old_shandle, sid):
         sounding_metadata=smeta,
         state_info=sinfo,
     )
-    # npt.assert_allclose(s.value_fm, sold_constraint_vector_fm)
+    check_selem(
+        s,
+        unit_test_expected_dir / "state_element_single" / f"{sid}_expect.pkl",
+        save=False,
+    )
     # Cycle through strategy steps, and check value_fm after that
     strat.retrieval_initial_fm_from_cycle(s, rconfig)
-    npt.assert_allclose(s.value_fm, sold_value_fm)
     # Check a number of things we set in StateElementOsp, just to make sure
     # we match stuff
     assert s.spectral_domain is None
@@ -105,32 +113,3 @@ def test_state_element_from_calibration(airs_omi_old_shandle, sid):
     assert s.poltype is None
     assert s.poltype_used_constraint
     assert s.metadata == {}
-
-
-@pytest.mark.skip
-@pytest.mark.parametrize(
-    "sid", ("calibrationScale", "calibrationOffset", "residualScale", "scalePressure")
-)
-def test_state_element_from_default(airs_omi_old_shandle, sid):
-    h_old, _, rconfig, strat, _, smeta, sinfo = airs_omi_old_shandle
-    # sold = h_old.state_element(StateElementIdentifier(sid))
-    s = StateElementOldInitialValue.create(
-        retrieval_config=rconfig,
-        sounding_metadata=smeta,
-        sid=StateElementIdentifier(sid),
-    )
-    print(s.value_fm)
-    print(s.value_fm.shape)
-    print(s.spectral_domain)
-    if s.spectral_domain is not None:
-        print(s.spectral_domain.data)
-    # residual scale fixed at 40 zeros
-    # scale pressure fixed at 0.1
-    # calibration offset fixed at 300 zeros
-    # calibration scale is zeros, not sure how size is calculated (25)
-    # Comes from CalibrationState in StateElementOld
-    # calibrationpars num_frequencies
-    # From /bigdata/smyth/OSP/OSP/L2_Setup/ops/L2_Setup/State_CalibrationData.asc
-    # See get_on_state.py for getting the file name
-    # These values could come form the calibration data file, however they seem to be
-    # held to 0

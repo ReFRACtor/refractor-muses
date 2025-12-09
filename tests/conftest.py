@@ -34,6 +34,9 @@ skip = pytest.mark.skip
 # Marker for long tests. Only run with --run-long
 long_test = pytest.mark.long_test
 
+# Marker for long tests. Only run with --run-long-executable
+long_executable_test = pytest.mark.long_executable_test
+
 # Marker for long tests. Only run with --run-compare
 compare_test = pytest.mark.compare_test
 
@@ -57,6 +60,11 @@ os.environ["MUSES_FAKE_CREATION_DATE"] = "FAKE_DATE"
 
 def pytest_addoption(parser):
     parser.addoption("--run-long", action="store_true", help="run long tests")
+    parser.addoption(
+        "--run-long-executable",
+        action="store_true",
+        help="run long tests, top level executable",
+    )
     parser.addoption("--run-only-long", action="store_true", help="run only long tests")
     parser.addoption("--run-compare", action="store_true", help="run compare tests")
     parser.addoption(
@@ -77,6 +85,13 @@ def pytest_addoption(parser):
 
 
 def pytest_collection_modifyitems(config, items):
+    if not config.getoption("--run-long-executable"):
+        skip_long_executable_test = pytest.mark.skip(
+            reason="need --run-long-executable option to run"
+        )
+        for item in items:
+            if "long_executable_test" in item.keywords:
+                item.add_marker(skip_long_executable_test)
     if not config.getoption("--run-long") and not config.getoption("--run-only-long"):
         skip_long_test = pytest.mark.skip(reason="need --run-long option to run")
         for item in items:
@@ -125,8 +140,9 @@ pytest_plugins = [
     "fixtures.dir_fixture",
     "fixtures.misc_fixture",
     "fixtures.retrieval_step_fixture",
-    "fixtures.old_state_fixture",
+    "fixtures.state_fixture",
     # Fixtures only used in old_py_retrieve
+    "fixtures.old_state_fixture",
     "fixtures.stand_alone_obs_fixture",
     "fixtures.rf_uip_fixture",
     "fixtures.muses_retrieval_step_fixture",

@@ -22,8 +22,8 @@ class MusesRunDir:
         osp_dir: str | os.PathLike[str],
         gmao_dir: str | os.PathLike[str],
         path_prefix: str | os.PathLike[str] = ".",
-        skip_sym_link: bool = False,
-        skip_obs_link: bool = False,
+        osp_sym_link: bool = False,
+        obs_sym_link: bool = True,
     ) -> None:
         """Set up a run directory in the given path_prefix with the
         data saved in a sounding 1 save directory (e.g.,
@@ -36,12 +36,18 @@ class MusesRunDir:
         sid = open(refractor_sounding_dir / "sounding.txt").read().rstrip()
         self.run_dir = path_prefix / f"{sid}"
         subprocess.run(["mkdir", "-p", str(self.run_dir)])
-        if not skip_sym_link:
+        if osp_sym_link:
+            # The old py-retrieve code used relative paths to find the OSP and GMAO.
+            # We want to move away from that, we don't want a specific directory structure
+            # So we don't have this done in most places, to make sure no code depends on
+            # it. However some old_py_retrieve_wrapper code purposely uses old code to
+            # compare our new code against. For these cases, we need to old symbolic links.
             (path_prefix / "OSP").symlink_to(osp_dir)
             (path_prefix / "GMAO").symlink_to(gmao_dir)
         for f in ("Table", "DateTime"):
             shutil.copy(refractor_sounding_dir / f"{f}.asc", self.run_dir / f"{f}.asc")
-        if not skip_obs_link:
+        if obs_sym_link:
+            # Needed by py-retrieve OMI and TROPOMI code
             for f2 in refractor_sounding_dir.glob("*_obs.pkl"):
                 (self.run_dir / f2.name).symlink_to(f2)
         for f in ("PRECONV_2STOKES", "rayTable-NADIR", "observationTable-NADIR"):
