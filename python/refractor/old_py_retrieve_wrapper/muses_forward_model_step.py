@@ -2,9 +2,9 @@ from __future__ import annotations
 import refractor.muses_py as mpy  # type: ignore
 from refractor.muses import (
     register_replacement_function_in_block,
-    RefractorCaptureDirectory,
 )
 from refractor.muses_py_fm import muses_py_call
+from .pyretrieve_capture_directory import PyRetrieveCaptureDirectory
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
@@ -59,7 +59,7 @@ class MusesForwardModelStep:
 
     def __init__(self, params: list[Any] | None = None):
         self.params = params
-        self.capture_directory = RefractorCaptureDirectory()
+        self.capture_directory = PyRetrieveCaptureDirectory()
         self.run_path: None | Path = None
 
     @property
@@ -73,7 +73,7 @@ class MusesForwardModelStep:
 
     def run_forward_model(self) -> dict[str, Any]:
         """Run the retrieval step with the saved parameters"""
-        with muses_py_call(self.run_forward_model_path):
+        with muses_py_call(self.run_forward_model_path, include_pyoss=True):
             return mpy.run_forward_model(**self.params)
 
     @classmethod
@@ -92,7 +92,7 @@ class MusesForwardModelStep:
         # somehow into a base class. But right now we only have a
         # few lasses, so this probably isn't worth it. So we are currently
         # just duplicating the code.
-        with muses_py_call(os.path.dirname(strategy_table)):
+        with muses_py_call(os.path.dirname(strategy_table), include_pyoss=True):
             try:
                 with register_replacement_function_in_block(
                     "run_forward_model", _CaptureParams(func_count=step)

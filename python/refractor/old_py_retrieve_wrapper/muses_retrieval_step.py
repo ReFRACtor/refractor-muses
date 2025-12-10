@@ -6,8 +6,8 @@ from __future__ import annotations
 import refractor.muses_py as mpy
 from refractor.muses import (
     register_replacement_function_in_block,
-    RefractorCaptureDirectory,
 )
+from .pyretrieve_capture_directory import PyRetrieveCaptureDirectory
 from refractor.muses_py_fm import muses_py_call
 import os
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
@@ -57,7 +57,7 @@ class MusesRetrievalStep:
 
     def __init__(self, params=None):
         self.params = params
-        self.capture_directory = RefractorCaptureDirectory()
+        self.capture_directory = PyRetrieveCaptureDirectory()
         self.run_path = None
 
     @property
@@ -73,6 +73,7 @@ class MusesRetrievalStep:
         with muses_py_call(
             self.run_retrieval_path,
             vlidort_nstokes=vlidort_nstokes,
+            include_pyoss=True,
         ):
             return mpy.run_retrieval(**self.params)
 
@@ -92,7 +93,7 @@ class MusesRetrievalStep:
         # somehow into a base class. But right now we only have these
         # two classes, so this probably isn't worth it. So we are currently
         # just duplicating the code.
-        with muses_py_call(os.path.dirname(strategy_table)):
+        with muses_py_call(os.path.dirname(strategy_table), include_pyoss=True):
             try:
                 with register_replacement_function_in_block(
                     "run_retrieval", _CaptureParams(func_count=step)

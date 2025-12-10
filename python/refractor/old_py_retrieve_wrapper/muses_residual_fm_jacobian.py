@@ -6,8 +6,8 @@ from __future__ import annotations
 import refractor.muses_py as mpy  # type: ignore
 from refractor.muses import (
     register_replacement_function_in_block,
-    RefractorCaptureDirectory,
 )
+from .pyretrieve_capture_directory import PyRetrieveCaptureDirectory
 from refractor.muses_py_fm import osswrapper, muses_py_call
 from contextlib import redirect_stdout, redirect_stderr, contextmanager
 import io
@@ -54,7 +54,7 @@ class MusesResidualFmJacobian:
 
     def __init__(self, params=None):
         self.params = params
-        self.capture_directory = RefractorCaptureDirectory()
+        self.capture_directory = PyRetrieveCaptureDirectory()
 
     @property
     def run_dir(self):
@@ -66,7 +66,7 @@ class MusesResidualFmJacobian:
         vlidort_nstokes=2,
     ):
         """Run the retrieval step with the saved parameters"""
-        with muses_py_call(self.run_dir, vlidort_nstokes=vlidort_nstokes):
+        with muses_py_call(self.run_dir, vlidort_nstokes=vlidort_nstokes, include_pyoss=True):
             with osswrapper(self.params["uip"]):
                 return mpy.residual_fm_jacobian(**self.params)
 
@@ -93,7 +93,7 @@ class MusesResidualFmJacobian:
                 else:
                     rstep.run_retrieval()
         except _FakeParamsExecption as e:
-            res = cls(params=e.params)
+            res = cls(params=dict(e.params))
         if capture_directory:
             # Not needed, residual_fm_jacobian creates this itself
             vlidort_input = None

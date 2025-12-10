@@ -22,7 +22,6 @@ from .mpy import (
 from refractor.muses import (
     AttrDictAdapter,
     register_replacement_function_in_block,
-    RefractorCaptureDirectory,
     InstrumentIdentifier,
     FilterIdentifier,
     FakeStateInfo,
@@ -188,6 +187,7 @@ class RefractorUip:
         """Constructor. This takes the uip structure (the muses-py dictionary)
         and a basis_matrix if available
         """
+        from refractor.old_py_retrieve_wrapper import PyRetrieveCaptureDirectory
         # Depending on where this is called from, uip may be a dict or
         # an ObjectView. Just to make things simpler, we always store this
         # as a dict.
@@ -202,7 +202,7 @@ class RefractorUip:
         # just check by inspection if the UIP is changed in any
         # muses-py code self.uip = ConstantDict(self.uip)
         self.basis_matrix = basis_matrix
-        self.capture_directory = RefractorCaptureDirectory()
+        self.capture_directory = PyRetrieveCaptureDirectory()
         # Note the UIP is really just a reformatting of information found
         # in the state_info. We'd like to get away from using the UIP for
         # ReFRACtor, it is a needless complication. But we aren't ready to
@@ -410,7 +410,6 @@ class RefractorUip:
                 change_to_dir=change_to_dir,
                 osp_dir=osp_dir,
                 gmao_dir=gmao_dir,
-                include_osp=True,
             )
         else:
             # Side effect of extract_directory is to set run_dir to absolute path. If
@@ -1656,7 +1655,7 @@ class RefractorUip:
             f"Creating rf_uip for {[str(obs.instrument_name) for obs in obs_list]}"
         )
         # Special case for CurrentStateUip, we just return a copy of UIP. This is useful
-        # for unit testing where we get the UIP from another source but what to pretend
+        # for unit testing where we get the UIP from another source but want to pretend
         # that we are doing normal processing.
         if hasattr(cstate, "rf_uip"):
             logger.info("Copying uip from cstate rather than creating")

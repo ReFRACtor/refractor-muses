@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Generator
 import shutil
 from functools import cache
-from .mpy import have_muses_py, mpy_cli_options
+from .mpy import have_muses_py, mpy_cli_options, mpy_pyoss_dir
 
 
 @cache
@@ -43,6 +43,11 @@ def muses_py_call(
     # For MusesForwardModel, we don't need to be in the rundir. But for a number
     # of old_py_retrieve tests, we do since we are using older code
     change_to_rundir: bool = False,
+    # Normally osswrapper handles setting MUSES_PYOSS_LIBRARY_DIR, since this
+    # is just needed by oss which we normally wrap. But for some old pyretrieve
+    # code, we don't do that. So optionally handle MUSES_PYOSS_LIBRARY_DIR here,
+    # just for support of old_py_retrieve_wrapper code.
+    include_pyoss: bool = False
 ) -> Generator[None, None, None]:
     """There is some cookie cutter code needed to call a py_retrieve function.
     We collect that here as a context manager, so you can just do something
@@ -72,6 +77,8 @@ def muses_py_call(
         old_debug = mpy_cli_options.get("debug")
         old_vlidort_nstokes = mpy_cli_options.vlidort.get("nstokes")
         old_vlidort_nstreams = mpy_cli_options.vlidort.get("nstreams")
+        if include_pyoss:
+            os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy_pyoss_dir
     try:
         # This gets uses on a couple of top level py-retrieve functions.
         # (script_retrieval_setup_ms.py, get_emis_uwis.py. I don't think
