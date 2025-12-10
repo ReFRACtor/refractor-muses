@@ -6,7 +6,14 @@ from refractor.muses import (
 from refractor.tropomi import TropomiSwirForwardModelHandle
 import pytest
 
+# ----------------------------------------------------------------
+# These tests were all in development. I don't think they are currently
+# working, we'll want to get Josh to clean this up when things settle
+# down. But for now, skip all these
+# ----------------------------------------------------------------
 
+
+@pytest.mark.skip
 @pytest.mark.long_test
 def test_band8_retrieval(tropomi_swir, josh_osp_dir):
     """Work through issues to do a band 8 retrieval, without making

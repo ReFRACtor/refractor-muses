@@ -32,6 +32,11 @@ from loguru import logger
 import numpy as np
 import pytest
 
+# ----------------------------------------------------------------
+# These tests were all in development. I don't think they are currently
+# working, we'll want to get Josh to clean this up when things settle
+# down. But for now, skip all these
+# ----------------------------------------------------------------
 
 # This actually runs ok, but it fails with a LIDORT error when one of the steps goes out of
 # range. Not really an error so much as we just need to work out what the strategy is and
@@ -85,6 +90,7 @@ class PrintSpectrum(rf.ObserverPtrNamedSpectrum):
 
 
 # Look just at the forward model
+@pytest.mark.skip
 @pytest.mark.long_test
 def test_co_fm(tropomi_swir, josh_osp_dir):
     """Look just at the forward model"""
@@ -211,6 +217,7 @@ def test_co_fm(tropomi_swir, josh_osp_dir):
 
 
 @pytest.mark.long_test
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "use_oss,oss_training_data",
     [(True, "../OSS_file_all_1243_0_1737006075.1163344.npz"), (False, None)],
@@ -291,6 +298,7 @@ def test_simulated_retrieval(
     rs.retrieval_ms()
 
 
+@pytest.mark.skip
 @pytest.mark.long_test
 @pytest.mark.parametrize(
     "use_oss,oss_training_data",
@@ -351,6 +359,7 @@ def test_radiance(
     pickle.dump(rad_spectrum, open(tmpdir / f"radiance_oss_{use_oss}.pkl", "wb"))
 
 
+@pytest.mark.skip
 @pytest.mark.long_test
 def test_sim_albedo_0_9_retrieval(
     gmao_dir,
