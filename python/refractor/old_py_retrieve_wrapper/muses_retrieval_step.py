@@ -20,7 +20,7 @@ if mpy.have_muses_py:
 
     class _FakeParamsExecption(Exception):
         def __init__(self, params):
-            self.params = params
+            self.params = dict(params)
 
     class _CaptureParams(mpy.ReplaceFunctionObject):
         def __init__(self, func_count=1):
@@ -63,7 +63,7 @@ class MusesRetrievalStep:
     @property
     def run_retrieval_path(self):
         """The path we run run_retrieval in."""
-        return self.run_path + "/" + self.capture_directory.runbase
+        return self.run_path / self.capture_directory.runbase
 
     def run_retrieval(
         self,
@@ -93,7 +93,7 @@ class MusesRetrievalStep:
         # somehow into a base class. But right now we only have these
         # two classes, so this probably isn't worth it. So we are currently
         # just duplicating the code.
-        with muses_py_call(os.path.dirname(strategy_table), include_pyoss=True):
+        with muses_py_call(os.path.dirname(strategy_table), include_pyoss=True, change_to_rundir=True):
             try:
                 with register_replacement_function_in_block(
                     "run_retrieval", _CaptureParams(func_count=step)

@@ -210,7 +210,7 @@ def test_capture_initial_tropomi(
     tropomi_test_in_dir,
 ):
     capoutdir = tropomi_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(
@@ -246,7 +246,7 @@ def test_capture_initial_omi(
     omi_test_in_dir,
 ):
     capoutdir = omi_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(
@@ -288,7 +288,7 @@ def test_capture_initial_joint_omi(
 ):
     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
     capoutdir = joint_omi_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(
@@ -330,7 +330,7 @@ def test_capture_initial_joint_tropomi(
 ):
     os.environ["MUSES_PYOSS_LIBRARY_DIR"] = mpy.pyoss_dir
     capoutdir = joint_tropomi_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(
@@ -366,7 +366,7 @@ def test_capture_initial_tropomi_band7(
     tropomi_band7_test_in_dir,
 ):
     capoutdir = tropomi_band7_test_in_dir
-    r = MusesRunDir(capoutdir, osp_dir, gmao_dir)
+    r = MusesRunDir(capoutdir, osp_dir, gmao_dir, osp_sym_link=True)
     fname = r.run_dir / "Table.asc"
     if do_uip:
         RefractorUip.create_from_table(

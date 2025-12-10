@@ -321,7 +321,7 @@ class RefractorUip:
         #
         # A better long term solution it to get muses-py to add a function
         # call.
-        with muses_py_call(os.path.dirname(strategy_table)):
+        with muses_py_call(os.path.dirname(strategy_table), include_pyoss=True, change_to_rundir=True):
             try:
                 cfun = _CaptureUip(func_count=step)
                 with register_replacement_function_in_block("run_retrieval", cfun):
