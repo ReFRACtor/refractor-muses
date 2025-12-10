@@ -122,7 +122,7 @@ def test_capture_omi_retrieval_strategy(
 def test_capture_airs_omi_retrieval_strategy(
     isolated_dir, osp_dir, gmao_dir, joint_omi_test_in_dir
 ):
-    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir,obs_sym_link=False)
+    r = MusesRunDir(joint_omi_test_in_dir, osp_dir, gmao_dir, obs_sym_link=False)
     rs = RetrievalStrategy(None)
     ihandle = OmiForwardModelHandle(
         use_pca=True, use_lrad=False, lrad_second_order=False

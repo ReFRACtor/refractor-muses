@@ -188,6 +188,7 @@ class RefractorUip:
         and a basis_matrix if available
         """
         from refractor.old_py_retrieve_wrapper import PyRetrieveCaptureDirectory
+
         # Depending on where this is called from, uip may be a dict or
         # an ObjectView. Just to make things simpler, we always store this
         # as a dict.
@@ -1629,7 +1630,7 @@ class RefractorUip:
         cstate: CurrentState,
         rconf: MeasurementId | RetrievalConfiguration,
         pointing_angle: rf.DoubleWithUnit | None = None,
-        vlidort_dir: None | str | os.PathLike[str] = None
+        vlidort_dir: None | str | os.PathLike[str] = None,
     ) -> RefractorUip:
         """Create a RefractorUIP from the higher level refractor.muses objects.
 
@@ -1667,7 +1668,9 @@ class RefractorUip:
         # RefractorUip.create_uip
         fake_table = {
             "preferences": rconf,
-            "vlidort_dir": str(cstate.step_directory / "vlidort") + "/" if vlidort_dir is None else str(Path(vlidort_dir).absolute()) + "/",
+            "vlidort_dir": str(cstate.step_directory / "vlidort") + "/"
+            if vlidort_dir is None
+            else str(Path(vlidort_dir).absolute()) + "/",
             "numRows": cstate.strategy_step.step_number,
             "numColumns": 1,
             "step": cstate.strategy_step.step_number,

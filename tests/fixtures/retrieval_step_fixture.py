@@ -43,7 +43,7 @@ def set_up_run_to_location(
     gmao_dir: str | Path,
     include_ret_state=True,
     osp_sym_link: bool = False,
-    include_run_dir = True,
+    include_run_dir=True,
 ):
     """Set up directory and run the given step number to the given
     location.
@@ -164,11 +164,16 @@ def joint_omi_step_8(isolated_dir, joint_omi_test_in_dir, osp_dir, gmao_dir):
     )
     return rs, rstep, kwargs
 
+
 @pytest.fixture(scope="function")
 def joint_omi_step_8_no_run_dir(joint_omi_test_in_dir, osp_dir, gmao_dir):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_omi_test_in_dir, 8, "retrieval input", osp_dir, gmao_dir,
-        include_run_dir=False
+        joint_omi_test_in_dir,
+        8,
+        "retrieval input",
+        osp_dir,
+        gmao_dir,
+        include_run_dir=False,
     )
     return rs, rstep, kwargs
 
@@ -208,6 +213,7 @@ def joint_tropomi_step_12(
     )
     return rs, rstep, kwargs
 
+
 @pytest.fixture(scope="function")
 def joint_tropomi_step_12_no_run_dir(
     joint_tropomi_test_in_dir,
@@ -215,8 +221,12 @@ def joint_tropomi_step_12_no_run_dir(
     gmao_dir,
 ):
     rs, rstep, kwargs = set_up_run_to_location(
-        joint_tropomi_test_in_dir, 12, "retrieval input", osp_dir, gmao_dir,
-        include_run_dir=False
+        joint_tropomi_test_in_dir,
+        12,
+        "retrieval input",
+        osp_dir,
+        gmao_dir,
+        include_run_dir=False,
     )
     return rs, rstep, kwargs
 

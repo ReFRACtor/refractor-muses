@@ -66,7 +66,9 @@ class MusesResidualFmJacobian:
         vlidort_nstokes=2,
     ):
         """Run the retrieval step with the saved parameters"""
-        with muses_py_call(self.run_dir, vlidort_nstokes=vlidort_nstokes, include_pyoss=True):
+        with muses_py_call(
+            self.run_dir, vlidort_nstokes=vlidort_nstokes, include_pyoss=True
+        ):
             with osswrapper(self.params["uip"]):
                 return mpy.residual_fm_jacobian(**self.params)
 

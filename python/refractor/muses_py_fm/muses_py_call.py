@@ -47,7 +47,7 @@ def muses_py_call(
     # is just needed by oss which we normally wrap. But for some old pyretrieve
     # code, we don't do that. So optionally handle MUSES_PYOSS_LIBRARY_DIR here,
     # just for support of old_py_retrieve_wrapper code.
-    include_pyoss: bool = False
+    include_pyoss: bool = False,
 ) -> Generator[None, None, None]:
     """There is some cookie cutter code needed to call a py_retrieve function.
     We collect that here as a context manager, so you can just do something

@@ -22,7 +22,6 @@ import tempfile
 import numpy as np
 import copy
 from typing import Any, TypeVar
-import typing
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
 # ForwardModel
@@ -43,7 +42,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         vlidort_tempdir: None | tempfile.TemporaryDirectory = None,
         **kwargs: Any,
     ) -> None:
-        '''vlidort_tempdir can be passed in. This should be the same as what
+        """vlidort_tempdir can be passed in. This should be the same as what
         was used in RefractorUip when we pass in the vlidort_dir. We don't
         actually do anything with vlidort_tempdir, just maintain the lifetime so
         that as long as this MusesForwardModel exists we still have the tempdir.
@@ -52,7 +51,7 @@ class MusesForwardModelBase(rf.ForwardModel):
         Note the directory is under 1MB usually, so you don't need to be too concerned
         about where this goes. You can just use the normal mkdtemp() logic used
         by tempfile.TemporaryDirectory.
-        '''
+        """
         super().__init__()
         self.instrument_name = instrument_name
         self.rf_uip = rf_uip
@@ -143,8 +142,7 @@ class MusesOssForwardModelBase(MusesForwardModelBase):
         have_fake_jac_in_oss: bool = False,
         **kwargs: Any,
     ) -> None:
-        super().__init__(rf_uip, instrument_name, obs, measurement_id,
-                         **kwargs)
+        super().__init__(rf_uip, instrument_name, obs, measurement_id, **kwargs)
         self.have_fake_jac_in_oss = have_fake_jac_in_oss
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
@@ -569,8 +567,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
         **kwargs: Any,
     ) -> None:
         MusesForwardModelBase.__init__(
-            self, rf_uip, instrument_name, obs, measurement_id,
-            **kwargs
+            self, rf_uip, instrument_name, obs, measurement_id, **kwargs
         )
         self.vlidort_nstreams = vlidort_nstreams
         self.vlidort_nstokes = vlidort_nstokes
@@ -587,15 +584,15 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
                 jac, rad, _, success_flag = mpy_tropomi_fm(
                     self.rf_uip.uip_all(self.instrument_name),
                     i_osp_dir=self.measurement_id.osp_abs_dir,
-                    i_obs = self.obs.muses_py_dict,
-                    skip_raman_copy=True
+                    i_obs=self.obs.muses_py_dict,
+                    skip_raman_copy=True,
                 )
             elif self.instrument_name == InstrumentIdentifier("OMI"):
                 jac, rad, _, success_flag = mpy_omi_fm(
                     self.rf_uip.uip_all(self.instrument_name),
                     i_osp_dir=self.measurement_id.osp_abs_dir,
-                    i_obs = self.obs.muses_py_dict,
-                    skip_raman_copy=True
+                    i_obs=self.obs.muses_py_dict,
+                    skip_raman_copy=True,
                 )
             else:
                 raise RuntimeError(
@@ -802,14 +799,17 @@ C = TypeVar("C", bound=rf.ForwardModel)
 
 class MusesForwardModelHandle(ForwardModelHandle):
     def __init__(
-            self, instrument_name: InstrumentIdentifier, cls: type[C],
-            use_vlidort_temp_dir:bool = False, **creator_kwargs: Any
+        self,
+        instrument_name: InstrumentIdentifier,
+        cls: type[C],
+        use_vlidort_temp_dir: bool = False,
+        **creator_kwargs: Any,
     ) -> None:
         self.creator_kwargs = creator_kwargs
         self.instrument_name = instrument_name
         self.cls = cls
         self.measurement_id: MeasurementId | None = None
-        self.use_vlidort_temp_dir=use_vlidort_temp_dir
+        self.use_vlidort_temp_dir = use_vlidort_temp_dir
 
     def notify_update_target(self, measurement_id: MeasurementId) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
@@ -828,13 +828,13 @@ class MusesForwardModelHandle(ForwardModelHandle):
         # The UIP takes in parameters on the RetrievalGridArray, *not*
         # FullGridMappedArray like the ReFRACtor. This is handled in notify_cost_function
         # (see MusesForwardModelBase), which gets called when the CostFunction is created.
-        
+
         if instrument_name != self.instrument_name:
             return None
         if self.measurement_id is None:
             raise RuntimeError("Need to call notify_update_target before forward_model")
         logger.debug(f"Creating forward model {self.cls.__name__}")
-        vlidort_tempdir=None
+        vlidort_tempdir = None
         if self.use_vlidort_temp_dir:
             vlidort_tempdir = tempfile.TemporaryDirectory()
         rf_uip = RefractorUip.create_uip_from_refractor_objects(
@@ -843,7 +843,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
             ],
             current_state,
             self.measurement_id,
-            vlidort_dir=vlidort_tempdir.name if vlidort_tempdir is not None else None
+            vlidort_dir=vlidort_tempdir.name if vlidort_tempdir is not None else None,
         )
         # There is special handling for an empty set of retrieval element (which we
         # run into in the BT step). It turns out the OSS code doesn't handle an empty
@@ -851,7 +851,7 @@ class MusesForwardModelHandle(ForwardModelHandle):
         # jacobian so there is something to calculate. However, we shouldn't actually
         # return that. So look for this condition and mark it, we'll then handle this
         # in the radiance call.
-        
+
         uip_all = rf_uip.uip_all(str(self.instrument_name))
         if (
             uip_all["rts"] == ["OSS"]
@@ -887,13 +887,17 @@ ForwardModelHandleSet.add_default_handle(
     priority_order=-1,
 )
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel,
-                            use_vlidort_temp_dir=True),
+    MusesForwardModelHandle(
+        InstrumentIdentifier("TROPOMI"),
+        MusesTropomiForwardModel,
+        use_vlidort_temp_dir=True,
+    ),
     priority_order=-1,
 )
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel,
-                            use_vlidort_temp_dir=True),
+    MusesForwardModelHandle(
+        InstrumentIdentifier("OMI"), MusesOmiForwardModel, use_vlidort_temp_dir=True
+    ),
     priority_order=-1,
 )
 

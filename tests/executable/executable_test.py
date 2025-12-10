@@ -20,7 +20,7 @@ def test_py_retrieve_airs_omi(
         joint_omi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir, osp_sym_link=True
     )
     subprocess.run(
-        f"MUSES_RING_CLI=$CONDA_PREFIX/bin MUSES_VLIDORT_CLI=$CONDA_PREFIX/bin py-retrieve --targets {r.run_dir}",
+        f"py-retrieve --targets {r.run_dir}",
         shell=True,
         check=True,
     )
@@ -40,7 +40,7 @@ def test_py_retrieve_cris_tropomi(
         joint_tropomi_test_in_dir, osp_dir, gmao_dir, path_prefix=dir, osp_sym_link=True
     )
     subprocess.run(
-        f"MUSES_RING_CLI=$CONDA_PREFIX/bin MUSES_VLIDORT_CLI=$CONDA_PREFIX/bin py-retrieve --targets {r.run_dir}",
+        f"py-retrieve --targets {r.run_dir}",
         shell=True,
         check=True,
     )
