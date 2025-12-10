@@ -1630,6 +1630,7 @@ class RefractorUip:
         cstate: CurrentState,
         rconf: MeasurementId | RetrievalConfiguration,
         pointing_angle: rf.DoubleWithUnit | None = None,
+        vlidort_dir: None | str | os.PathLike[str] = None
     ) -> RefractorUip:
         """Create a RefractorUIP from the higher level refractor.muses objects.
 
@@ -1644,6 +1645,12 @@ class RefractorUip:
         The pointing angle can be passed in, to use this instead
         of the pointing angle found in the state_info. This is
         used by the IRK calculation.
+
+        Note that this creates the step vlidort input and output directories,
+        and populates the input with the O3Xsec* files if we have tropomi or
+        omi in the instrument list. You can optionally pass in a directory to
+        use to redirect this. In particular, we can pass in a temp directory if
+        we want to run this without a run dir.
         """
         logger.debug(
             f"Creating rf_uip for {[str(obs.instrument_name) for obs in obs_list]}"
@@ -1661,7 +1668,7 @@ class RefractorUip:
         # RefractorUip.create_uip
         fake_table = {
             "preferences": rconf,
-            "vlidort_dir": str(cstate.step_directory / "vlidort") + "/",
+            "vlidort_dir": str(cstate.step_directory / "vlidort") + "/" if vlidort_dir is None else str(Path(vlidort_dir).absolute()) + "/",
             "numRows": cstate.strategy_step.step_number,
             "numColumns": 1,
             "step": cstate.strategy_step.step_number,
