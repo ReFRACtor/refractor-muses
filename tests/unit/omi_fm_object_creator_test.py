@@ -107,7 +107,6 @@ def test_fm_run_step2(omi_fm_object_creator_step_1):
                 InstrumentIdentifier("OMI")
             ],
             None,
-            osp_dir=omi_fm_object_creator_step_1.osp_dir,
         ),
         osp_dir=omi_fm_object_creator_step_1.osp_dir,
         use_pca=True,

@@ -124,7 +124,7 @@ def test_retrieval_cris(
         )
         rs.add_observer(rscap)
         rscap2 = RetrievalStrategyCaptureObserver(
-            "retrieval_result", "systematic_jacobian"
+            "retrieval_result", "retrieval step"
         )
         rs.add_observer(rscap2)
         rs.retrieval_ms()

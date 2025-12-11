@@ -77,7 +77,6 @@ class StateElementOmiCloudFraction(StateElementOspFile):
             None,
             None,
             None,
-            osp_dir=retrieval_config.osp_dir,
         )
         value_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
         return OspSetupReturn(
@@ -106,7 +105,6 @@ class StateElementOmiSurfaceAlbedo(StateElementOspFile):
                 None,
                 None,
                 None,
-                osp_dir=retrieval_config.osp_dir,
             ),
         )
         value_fm = np.array([obs.monthly_minimum_surface_reflectance]).view(

@@ -78,14 +78,12 @@ def test_current_state_uip(joint_tropomi_step_12, osp_dir):
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("CRIS")],
         None,
-        osp_dir=osp_dir,
     )
     obs_tropomi = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        osp_dir=osp_dir,
     )
     obs_cris.spectral_window.include_bad_sample = True
     obs_tropomi.spectral_window.include_bad_sample = True

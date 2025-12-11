@@ -208,7 +208,6 @@ class StateInfo(UserDict):
                 None,
                 None,
                 None,
-                osp_dir=retrieval_config.osp_dir,
             ),
         )
         if self._current_state_old is not None:

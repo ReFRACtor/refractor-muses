@@ -81,7 +81,6 @@ class StateElementTropomiCloudFraction(StateElementOspFile):
             None,
             None,
             None,
-            osp_dir=retrieval_config.osp_dir,
         )
         value_fm = np.array([obs.cloud_fraction]).view(FullGridMappedArray)
         return OspSetupReturn(
@@ -118,7 +117,6 @@ class StateElementTropomiCloudPressure(StateElementWithCreate):
             None,
             None,
             None,
-            osp_dir=retrieval_config.osp_dir,
         )
         value_fm = np.array([obs.cloud_pressure.value]).view(FullGridMappedArray)
         return cls(
@@ -151,7 +149,6 @@ class StateElementTropomiSurfaceAlbedo(StateElementOspFile):
             None,
             None,
             None,
-            osp_dir=retrieval_config.osp_dir,
         )
         value_fm = np.array(
             [

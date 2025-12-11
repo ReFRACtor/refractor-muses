@@ -281,7 +281,6 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def __init__(
         self,
         rs: RetrievalStrategy,
-        osp_dir: None | str | os.PathLike[str] = None,
         muses_strategy_handle_set: None | MusesStrategyHandleSet = None,
         retrieval_strategy_step_set: None | RetrievalStrategyStepSet = None,
         spectral_window_handle_set: None | SpectralWindowHandleSet = None,
@@ -297,14 +296,13 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             **rs.keyword_arguments,
         )
         self._strategy: MusesStrategy | None = None
-        self.osp_dir: Path | None = Path(osp_dir) if osp_dir is not None else None
         self.measurement_id: MeasurementId | None = None
 
     def notify_update_target(self, measurement_id: MeasurementId) -> None:
         super().notify_update_target(measurement_id)
         self._strategy = self.muses_strategy_handle_set.muses_strategy(
             measurement_id,
-            osp_dir=self.osp_dir,
+            osp_dir=measurement_id.osp_abs_dir,
             spectral_window_handle_set=self.spectral_window_handle_set,
         )
         self.strategy.notify_update_target(measurement_id)

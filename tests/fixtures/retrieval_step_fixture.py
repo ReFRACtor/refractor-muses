@@ -299,7 +299,6 @@ def tropomi_fm_object_creator_step_0(
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        osp_dir=osp_dir,
     )
     res = TropomiFmObjectCreator(
         rs.current_state,
@@ -348,7 +347,7 @@ def tropomi_fm_object_creator_swir_step(
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        osp_dir=josh_osp_dir,
+        #osp_dir=josh_osp_dir,
     )
     res = TropomiSwirFmObjectCreator(
         rs.current_state,
@@ -384,7 +383,6 @@ def tropomi_fm_object_creator_step_1(
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        osp_dir=osp_dir,
     )
 
     res = TropomiFmObjectCreator(
@@ -417,7 +415,6 @@ def omi_fm_object_creator_step_0(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
         None,
-        osp_dir=osp_dir,
     )
 
     res = OmiFmObjectCreator(
@@ -450,7 +447,6 @@ def omi_fm_object_creator_step_1(isolated_dir, osp_dir, gmao_dir, omi_test_in_di
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
         None,
-        osp_dir=osp_dir,
     )
     res = OmiFmObjectCreator(
         rs.current_state,

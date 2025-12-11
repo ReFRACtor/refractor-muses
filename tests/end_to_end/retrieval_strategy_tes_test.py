@@ -50,7 +50,7 @@ def test_retrieval_strategy_tes(
         )
         rs.add_observer(rscap)
         rscap2 = RetrievalStrategyCaptureObserver(
-            "retrieval_result", "systematic_jacobian"
+            "retrieval_result", "retrieval step"
         )
         rs.add_observer(rscap2)
         compare_dir = tes_test_expected_dir

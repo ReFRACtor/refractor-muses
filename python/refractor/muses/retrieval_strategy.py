@@ -460,6 +460,8 @@ class RetrievalStrategy:
         )
         res._filename = res.run_dir / res.strategy_table_filename.name
         res._strategy_executor.strategy_table_filename = res._filename
+        res.osp_dir = osp_dir
+        res.gmao_dir = gmao_dir
         res._retrieval_config.osp_dir = osp_dir
         res._retrieval_config.gmao_dir = gmao_dir
         res._retrieval_config.base_dir = res.run_dir

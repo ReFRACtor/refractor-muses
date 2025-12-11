@@ -69,7 +69,7 @@ def test_retrieval_strategy_airs_omi(
         )
         rs.add_observer(rscap)
         rscap2 = RetrievalStrategyCaptureObserver(
-            "retrieval_result", "systematic_jacobian"
+            "retrieval_result", "retrieval step"
         )
         rs.add_observer(rscap2)
         compare_dir = joint_omi_test_expected_dir
@@ -142,3 +142,41 @@ def test_load_step(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
     # rs.continue_retrieval(stop_after_step=step_number)
     logger.add(sys.stderr, level="DEBUG")
     # breakpoint()
+
+def test_run_pickle_1(end_to_end_run_dir, osp_dir, gmao_dir):
+    '''Test loading the pickle files saved in test_retrieval_strategy_airs_omi, rerunning
+    step 5. This is an example of how you might run to debug a problem. This is similar
+    to the current_state_record.pkl / retrieval_state_step_*.json.gz test above. However
+    this is more direct, and something you are more likely to run into while debugging.
+    The rs.load_step_info is more robust way of handling unit test data (where we
+    want to allow changes in code as we modify things), but a little more complicated.
+    '''
+    # We need to have had test_retrieval_strategy_airs_omi run before this step. Check
+    # for the pickle file. If it isn't there, then just skip this test
+    pfile = end_to_end_run_dir / "retrieval_strategy_airs_omi/20160401_231_049_29/retrieval_strategy_retrieval_step_5.pkl"
+    if not pfile.exists():
+        pytest.skip("Need to run retrieval_strategy_airs_omi before running this test")
+
+    rs, kwargs = RetrievalStrategy.load_retrieval_strategy(pfile, end_to_end_run_dir / "retrieval_strategy_airs_omi_pickle", osp_dir=osp_dir, gmao_dir=gmao_dir)
+    # Run step 5, and then stop
+    rs.continue_retrieval(stop_after_step=6)
+
+def test_run_pickle_2(end_to_end_run_dir, osp_dir, gmao_dir):
+    '''Test loading the pickle files saved in test_retrieval_strategy_airs_omi, at the
+    end of step 5. Examine the results.
+    '''
+    # We need to have had test_retrieval_strategy_airs_omi run before this step. Check
+    # for the pickle file. If it isn't there, then just skip this test
+    pfile = end_to_end_run_dir / "retrieval_strategy_airs_omi/20160401_231_049_29/retrieval_result_5.pkl"
+    if not pfile.exists():
+        pytest.skip("Need to run retrieval_strategy_airs_omi before running this test")
+
+    rs, kwargs = RetrievalStrategy.load_retrieval_strategy(pfile, end_to_end_run_dir / "retrieval_strategy_airs_omi_pickle_2", osp_dir=osp_dir, gmao_dir=gmao_dir)
+    # This get passed on by the notify when we pickle this step. This is the same message
+    # that goes to RetrievalOutput. Just check here that we can access this, but you can
+    # do whatever here when debugging
+    rstep = kwargs["retrieval_strategy_step"]
+    print(rstep.results.tropopause_pressure)
+    
+
+    

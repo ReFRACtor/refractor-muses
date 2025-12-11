@@ -51,7 +51,7 @@ def cris_tropomi_shandle(osp_dir, gmao_dir, joint_tropomi_test_in_dir, isolated_
         measurement_id,
         strat.instrument_name[0],
         obs_hset.observation(
-            strat.instrument_name[0], None, None, None, osp_dir=osp_dir
+            strat.instrument_name[0], None, None, None
         ),
     )
     sinfo = StateInfo()
@@ -94,7 +94,7 @@ def tropomi_swir_shandle(
         measurement_id,
         strat.instrument_name[0],
         obs_hset.observation(
-            strat.instrument_name[0], None, None, None, osp_dir=josh_osp_dir
+            strat.instrument_name[0], None, None, None, # osp_dir=josh_osp_dir
         ),
     )
     sinfo = StateInfo()
@@ -140,7 +140,7 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
         measurement_id,
         strat.instrument_name[0],
         obs_hset.observation(
-            strat.instrument_name[0], None, None, None, osp_dir=osp_dir
+            strat.instrument_name[0], None, None, None, 
         ),
     )
     sinfo = StateInfo()
@@ -181,7 +181,7 @@ def tes_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
         measurement_id,
         strat.instrument_name[0],
         obs_hset.observation(
-            strat.instrument_name[0], None, None, None, osp_dir=osp_dir
+            strat.instrument_name[0], None, None, None,
         ),
     )
     sinfo = StateInfo()

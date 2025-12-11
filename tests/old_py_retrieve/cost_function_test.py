@@ -64,14 +64,12 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, osp_dir):
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("CRIS")],
         None,
-        osp_dir=osp_dir,
     )
     obs_tropomi = rs.observation_handle_set.observation(
         InstrumentIdentifier("TROPOMI"),
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        osp_dir=osp_dir,
         write_tropomi_radiance_pickle=True,
     )
     obs_cris.spectral_window.include_bad_sample = True
@@ -138,14 +136,12 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, osp_dir):
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("AIRS")],
         None,
-        osp_dir=osp_dir,
     )
     obs_omi = rs.observation_handle_set.observation(
         InstrumentIdentifier("OMI"),
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
         None,
-        osp_dir=osp_dir,
         write_omi_radiance_pickle=True,
     )
     obs_airs.spectral_window.include_bad_sample = True

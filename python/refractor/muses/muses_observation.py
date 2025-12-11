@@ -793,7 +793,6 @@ class SimulatedObservationHandle(ObservationHandle):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> MusesObservation | None:
         if instrument_name != self.instrument_name:
@@ -845,7 +844,6 @@ class MusesObservationHandle(ObservationHandle):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> MusesObservation | None:
         if instrument_name != self.instrument_name:
@@ -857,7 +855,7 @@ class MusesObservationHandle(ObservationHandle):
             current_state,
             spec_win,
             fm_sv,
-            osp_dir=osp_dir,
+            osp_dir=self.measurement_id.osp_abs_dir,
             **kwargs,
         )
         if self.existing_obs is None:
@@ -886,7 +884,6 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
         current_state: CurrentState | None,
         spec_win: MusesSpectralWindow | None,
         fm_sv: rf.StateVector | None,
-        osp_dir: str | os.PathLike[str] | None = None,
         **kwargs: Any,
     ) -> MusesObservation | None:
         if self.measurement_id is None:
@@ -897,7 +894,6 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
             current_state,
             spec_win,
             fm_sv,
-            osp_dir,
             **kwargs,
         )
         if res is not None and might_save and self.existing_obs is not None:

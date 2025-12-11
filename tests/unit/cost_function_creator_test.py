@@ -10,7 +10,6 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
             rs.current_state,
             rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("CRIS")],
             None,
-            osp_dir=osp_dir,
         ),
         rs.observation_handle_set.observation(
             InstrumentIdentifier("TROPOMI"),
@@ -19,7 +18,6 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
                 InstrumentIdentifier("TROPOMI")
             ],
             None,
-            osp_dir=osp_dir,
         ),
     ]
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
@@ -42,14 +40,12 @@ def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):
             rs.current_state,
             rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("AIRS")],
             None,
-            osp_dir=osp_dir,
         ),
         rs.observation_handle_set.observation(
             InstrumentIdentifier("OMI"),
             rs.current_state,
             rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("OMI")],
             None,
-            osp_dir=osp_dir,
         ),
     ]
     rf_uip = RefractorUip.create_uip_from_refractor_objects(
