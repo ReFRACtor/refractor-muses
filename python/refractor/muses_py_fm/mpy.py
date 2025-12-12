@@ -17,6 +17,7 @@ from typing import Any
 # TODO - Clean up the calls where we don't want the dependency on muses-py
 
 have_muses_py = muses_py.have_muses_py
+# have_muses_py = False
 
 
 def muses_py_wrapper(funcname: str, *args: Any, **kwargs: Any) -> Any:

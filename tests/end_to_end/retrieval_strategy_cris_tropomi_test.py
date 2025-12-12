@@ -123,9 +123,7 @@ def test_retrieval_cris(
             "retrieval_strategy_retrieval_step", "starting run_step"
         )
         rs.add_observer(rscap)
-        rscap2 = RetrievalStrategyCaptureObserver(
-            "retrieval_result", "retrieval step"
-        )
+        rscap2 = RetrievalStrategyCaptureObserver("retrieval_result", "retrieval step")
         rs.add_observer(rscap2)
         rs.retrieval_ms()
     finally:

@@ -13,6 +13,7 @@ from refractor.muses import (
     ResultIrk,
     CostFunction,
 )
+from .uip_updater import MaxAPosterioriSqrtConstraintUpdateUip
 from .refractor_uip import RefractorUip
 import refractor.framework as rf  # type: ignore
 from functools import cached_property
@@ -21,19 +22,6 @@ import tempfile
 import numpy as np
 import copy
 from typing import Any, TypeVar
-
-# Notifier when an update happens in the cost function
-
-
-class FmUpdateUip(rf.ObserverMaxAPosterioriSqrtConstraint):
-    def __init__(self, fm: MusesForwardModelBase) -> None:
-        super().__init__()
-        self.fm = fm
-
-    def notify_update(self, mstand: rf.MaxAPosterioriSqrtConstraint) -> None:
-        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
-        self.fm.update_uip(mstand.parameters)
-
 
 # Adapter to make muses-py forward model calls look like a ReFRACtor
 # ForwardModel
@@ -47,11 +35,11 @@ class MusesForwardModelBase(rf.ForwardModel):
 
     def __init__(
         self,
-        current_state: CurrentState,
+        rf_uip: RefractorUip,
         instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
-        use_vlidort_temp_dir: bool = False,
+        vlidort_tempdir: None | tempfile.TemporaryDirectory = None,
         **kwargs: Any,
     ) -> None:
         """vlidort_tempdir can be passed in. This should be the same as what
@@ -66,75 +54,11 @@ class MusesForwardModelBase(rf.ForwardModel):
         """
         super().__init__()
         self.instrument_name = instrument_name
-        # We save the current_state value, since it might have changed
-        # when we create the UIP. The semantics here is that we create
-        # the UIP when we create the forward model, however we actually
-        # delay that until we create it on first use. However we want to
-        # create the UIP that we *would have* if we had created it now.
-        #
-        # Note for an actual retrieval, there is no reason to delay creating
-        # the UIP now. Instead, we have unit tests that regularly set things
-        # up but don't actually run the forward model. We don't want to pay
-        # the time penalty of creating the UIP and/or require muses-py be
-        # available. So to support that, we have a delayed create on first
-        # use of the UIP.
-        self.current_state = copy.deepcopy(current_state)
+        self.rf_uip = rf_uip
         self.obs = obs
         self.kwargs = kwargs
         self.measurement_id = measurement_id
-        self.vlidort_tempdir: tempfile.TemporaryDirectory | None = None
-        self.use_vlidort_temp_dir = use_vlidort_temp_dir
-        self.have_fake_jac_in_oss = False
-        self.have_create_uip = False
-        self.uip_params : None | np.ndarray = None
-
-    def update_uip(self, parameters: np.ndarray) -> None:
-        if not self.have_create_uip:
-
-            # Delay setting the UIP value until we actually create it. We don't
-            # want to create this now just to set the value
-            self.uip_params = parameters.copy()
-        else:
-            if self.rf_uip.basis_matrix is not None:
-                self.rf_uip.update_uip(parameters)
-
-    @cached_property
-    def rf_uip(self) -> rf.RefractorUip:
-        """Create on on first use."""
-        self.vlidort_tempdir = None
-        if self.use_vlidort_temp_dir:
-            self.vlidort_tempdir = tempfile.TemporaryDirectory()
-        res = RefractorUip.create_uip_from_refractor_objects(
-            [
-                self.obs,
-            ],
-            self.current_state,
-            self.measurement_id,
-            vlidort_dir=self.vlidort_tempdir.name
-            if self.vlidort_tempdir is not None
-            else None,
-        )
-        # There is special handling for an empty set of retrieval element (which we
-        # run into in the BT step). It turns out the OSS code doesn't handle an empty
-        # set of jacobians, it requires at least one. py-retrieve just adds a H2O
-        # jacobian so there is something to calculate. However, we shouldn't actually
-        # return that. So look for this condition and mark it, we'll then handle this
-        # in the radiance call.
-
-        uip_all = res.uip_all(str(self.instrument_name))
-        if (
-            uip_all["rts"] == ["OSS"]
-            and "H2O" in [str(i) for i in uip_all["jacobians"]]
-            and "H2O" not in uip_all["jacobians_all"]
-        ):
-            self.have_fake_jac_in_oss = True
-        else:
-            self.have_fake_jac_in_oss = False
-        self.have_create_uip = True
-        # Set any delayed parameters update
-        if self.uip_params is not None and res.basis_matrix is not None:
-            res.update_uip(self.uip_params)
-        return res
+        self.vlidort_tempdir = vlidort_tempdir
 
     def bad_sample_mask(self, sensor_index: int) -> np.ndarray:
         bmask = self.obs.bad_sample_mask(sensor_index)
@@ -168,20 +92,22 @@ class MusesForwardModelBase(rf.ForwardModel):
         # Note, we can't just attach to the fm_sv when we create the MusesForwardModel.
         # The UIP takes in parameters on the RetrievalGridArray, *not*
         # FullGridMappedArray like the Refractor
-        #
-        # A note on the lifetime here. For the CostFunction, if we
-        # have a UIP than the UIP state observer is *required*. If we pickle
-        # and reload the cost function, it should have the UIP and observer.
-        # So we use "add_observer_and_keep_reference".
-        #
-        # This is in contrast to the StateElement observers. The
-        # StateElements are outside of the CostFunction. You can
-        # have a CostFunction without any StateElements, if we pickle and reload
-        # we don't want to pull all the StateElements along. So for this
-        # we use "add_observer" which uses weak pointers - we notify if the
-        # object is still there but don't carry around it lifetime and if the
-        # object is deleted then we just don't notify it.
-        cfunc.max_a_posteriori.add_observer_and_keep_reference(FmUpdateUip(self))
+        if self.rf_uip.basis_matrix is not None:
+            # A note on the lifetime here. For the CostFunction, if we
+            # have a UIP than the UIP state observer is *required*. If we pickle
+            # and reload the cost function, it should have the UIP and observer.
+            # So we use "add_observer_and_keep_reference".
+            #
+            # This is in contrast to the StateElement observers. The
+            # StateElements are outside of the CostFunction. You can
+            # have a CostFunction without any StateElements, if we pickle and reload
+            # we don't want to pull all the StateElements along. So for this
+            # we use "add_observer" which uses weak pointers - we notify if the
+            # object is still there but don't carry around it lifetime and if the
+            # object is deleted then we just don't notify it.
+            cfunc.max_a_posteriori.add_observer_and_keep_reference(
+                MaxAPosterioriSqrtConstraintUpdateUip(self.rf_uip)
+            )
 
 
 # Wrapper so we can get timing at a top level of ReFRACtor relative to the rest of the code
@@ -206,6 +132,18 @@ class RefractorForwardModel(rf.ForwardModel):
 
 class MusesOssForwardModelBase(MusesForwardModelBase):
     """Common behavior for the OSS based forward models"""
+
+    def __init__(
+        self,
+        rf_uip: RefractorUip,
+        instrument_name: InstrumentIdentifier,
+        obs: MusesObservation,
+        measurement_id: MeasurementId,
+        have_fake_jac_in_oss: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(rf_uip, instrument_name, obs, measurement_id, **kwargs)
+        self.have_fake_jac_in_oss = have_fake_jac_in_oss
 
     def radiance(self, sensor_index: int, skip_jacobian: bool = False) -> rf.Spectrum:
         if sensor_index != 0:
@@ -620,7 +558,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
 
     def __init__(
         self,
-        current_state: CurrentState,
+        rf_uip: RefractorUip,
         instrument_name: InstrumentIdentifier,
         obs: MusesObservation,
         measurement_id: MeasurementId,
@@ -629,13 +567,7 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
         **kwargs: Any,
     ) -> None:
         MusesForwardModelBase.__init__(
-            self,
-            current_state,
-            instrument_name,
-            obs,
-            measurement_id,
-            use_vlidort_temp_dir=True,
-            **kwargs,
+            self, rf_uip, instrument_name, obs, measurement_id, **kwargs
         )
         self.vlidort_nstreams = vlidort_nstreams
         self.vlidort_nstokes = vlidort_nstokes
@@ -699,13 +631,13 @@ class MusesTropomiOrOmiForwardModelBase(MusesForwardModelBase):
 class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
     def __init__(
         self,
-        current_state: CurrentState,
+        rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            current_state,
+            rf_uip,
             InstrumentIdentifier("TROPOMI"),
             obs,
             measurement_id,
@@ -716,13 +648,13 @@ class MusesTropomiForwardModel(MusesTropomiOrOmiForwardModelBase):
 class MusesOmiForwardModel(MusesTropomiOrOmiForwardModelBase):
     def __init__(
         self,
-        current_state: CurrentState,
+        rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            current_state,
+            rf_uip,
             InstrumentIdentifier("OMI"),
             obs,
             measurement_id,
@@ -735,16 +667,18 @@ class MusesCrisForwardModel(MusesForwardModelIrk):
 
     def __init__(
         self,
-        current_state: CurrentState,
+        rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
+        have_fake_jac_in_oss: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            current_state,
+            rf_uip,
             InstrumentIdentifier("CRIS"),
             obs,
             measurement_id,
+            have_fake_jac_in_oss=have_fake_jac_in_oss,
             **kwargs,
         )
 
@@ -758,16 +692,18 @@ class MusesAirsForwardModel(MusesForwardModelIrk):
 
     def __init__(
         self,
-        current_state: CurrentState,
+        rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
+        have_fake_jac_in_oss: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            current_state,
+            rf_uip,
             InstrumentIdentifier("AIRS"),
             obs,
             measurement_id,
+            have_fake_jac_in_oss=have_fake_jac_in_oss,
             **kwargs,
         )
 
@@ -812,22 +748,50 @@ class MusesTesForwardModel(MusesForwardModelIrk):
 
     def __init__(
         self,
-        current_state: CurrentState,
+        rf_uip: RefractorUip,
         obs: MusesObservation,
         measurement_id: MeasurementId,
+        have_fake_jac_in_oss: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(
-            current_state,
+            rf_uip,
             InstrumentIdentifier("TES"),
             obs,
             measurement_id,
+            have_fake_jac_in_oss=have_fake_jac_in_oss,
             **kwargs,
         )
 
     def irk_angle(self) -> list[float]:
         """List of angles in degrees that run forward model for the IRK."""
         return [0.0, 14.5752, 32.5555, 48.1689, 59.0983, 63.6765]
+
+
+class StateVectorPlaceHolder(rf.StateVectorObserver):
+    """Place holder for parts of the StateVector that ReFRACtor objects
+    don't need. Just gives the right name in the state vector, and
+    act as a placeholder for any future stuff."""
+
+    def __init__(self, pstart: int, plen: int, species_name: str) -> None:
+        super().__init__()
+        self.pstart = pstart
+        self.plen = plen
+        self.species_name = species_name
+        self.coeff = None
+
+    def notify_update(self, sv: rf.StateVector) -> None:
+        logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+        self.coeff = sv.state[self.pstart : (self.pstart + self.plen)]
+
+    def state_vector_name(self, sv: rf.StateVector, sv_namev: list[str]) -> None:
+        svnm = [
+            "",
+        ] * len(sv.state)
+        for i in range(self.plen):
+            svnm[i + self.pstart] = f"{self.species_name} coefficient {i + 1}"
+        self.sv_name = svnm
+        super().state_vector_name(sv, sv_namev)
 
 
 C = TypeVar("C", bound=rf.ForwardModel)
@@ -870,12 +834,41 @@ class MusesForwardModelHandle(ForwardModelHandle):
         if self.measurement_id is None:
             raise RuntimeError("Need to call notify_update_target before forward_model")
         logger.debug(f"Creating forward model {self.cls.__name__}")
+        vlidort_tempdir = None
+        if self.use_vlidort_temp_dir:
+            vlidort_tempdir = tempfile.TemporaryDirectory()
+        rf_uip = RefractorUip.create_uip_from_refractor_objects(
+            [
+                obs,
+            ],
+            current_state,
+            self.measurement_id,
+            vlidort_dir=vlidort_tempdir.name if vlidort_tempdir is not None else None,
+        )
+        # There is special handling for an empty set of retrieval element (which we
+        # run into in the BT step). It turns out the OSS code doesn't handle an empty
+        # set of jacobians, it requires at least one. py-retrieve just adds a H2O
+        # jacobian so there is something to calculate. However, we shouldn't actually
+        # return that. So look for this condition and mark it, we'll then handle this
+        # in the radiance call.
+
+        uip_all = rf_uip.uip_all(str(self.instrument_name))
+        if (
+            uip_all["rts"] == ["OSS"]
+            and "H2O" in [str(i) for i in uip_all["jacobians"]]
+            and "H2O" not in uip_all["jacobians_all"]
+        ):
+            have_fake_jac_in_oss = True
+        else:
+            have_fake_jac_in_oss = False
         # Note MeasurementId also has access to all the stuff in
         # RetrievalConfiguration
         return self.cls(
-            current_state,
+            rf_uip,
             obs,
             self.measurement_id,
+            have_fake_jac_in_oss=have_fake_jac_in_oss,
+            vlidort_tempdir=vlidort_tempdir,
             **kwargs,
         )
 
@@ -894,11 +887,17 @@ ForwardModelHandleSet.add_default_handle(
     priority_order=-1,
 )
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiForwardModel),
+    MusesForwardModelHandle(
+        InstrumentIdentifier("TROPOMI"),
+        MusesTropomiForwardModel,
+        use_vlidort_temp_dir=True,
+    ),
     priority_order=-1,
 )
 ForwardModelHandleSet.add_default_handle(
-    MusesForwardModelHandle(InstrumentIdentifier("OMI"), MusesOmiForwardModel),
+    MusesForwardModelHandle(
+        InstrumentIdentifier("OMI"), MusesOmiForwardModel, use_vlidort_temp_dir=True
+    ),
     priority_order=-1,
 )
 

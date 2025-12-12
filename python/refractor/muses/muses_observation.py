@@ -848,6 +848,8 @@ class MusesObservationHandle(ObservationHandle):
     ) -> MusesObservation | None:
         if instrument_name != self.instrument_name:
             return None
+        if self.measurement_id is None:
+            raise RuntimeError("Need to call notify_update_target before observation")
         logger.debug(f"Creating observation using {self.obs_cls.__name__}")
         obs = self.obs_cls.create_from_id(
             self.measurement_id,

@@ -465,9 +465,7 @@ class RetrievalStrategy:
         res._retrieval_config.osp_dir = osp_dir
         res._retrieval_config.gmao_dir = gmao_dir
         res._retrieval_config.base_dir = res.run_dir
-        res._capture_directory.extract_directory(
-            path=path, change_to_dir=change_to_dir
-        )
+        res._capture_directory.extract_directory(path=path, change_to_dir=change_to_dir)
         return res, kwargs
 
 
@@ -498,7 +496,10 @@ class RetrievalStrategyCaptureObserver:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         # I think we always want to store this in the run directory. We can
         # change this if not - but for now assume we always do that
-        fname = retrieval_strategy.run_dir / f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
+        fname = (
+            retrieval_strategy.run_dir
+            / f"{self.basefname}_{retrieval_strategy.strategy_step.step_number}.pkl"
+        )
         # Don't want this class included in the pickle
         retrieval_strategy.remove_observer(self)
         retrieval_strategy.save_pickle(fname, **kwargs)

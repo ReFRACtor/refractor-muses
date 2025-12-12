@@ -7,12 +7,12 @@ from refractor.muses_py_fm import (
     MusesAirsForwardModel,
     MusesTropomiForwardModel,
     MusesOmiForwardModel,
-    RefractorUip,
 )
+from fixtures.require_check import require_muses_py
 import pickle
-import tempfile
 
 
+@require_muses_py
 def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12_no_run_dir
     obs_cris = rs.observation_handle_set.observation(
@@ -22,13 +22,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
         None,
     )
     obs_cris.spectral_window.include_bad_sample = True
-    rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        [obs_cris],
-        rs.current_state,
-        rs.retrieval_config,
-    )
-    mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
-    fm = MusesCrisForwardModel(rf_uip, obs_cris, mid)
+    fm = MusesCrisForwardModel(rs.current_state, obs_cris, rs.measurement_id)
     print(pickle.loads(pickle.dumps(obs_cris)))
     print(pickle.loads(pickle.dumps(fm)))
     s = fm.radiance(0)
@@ -56,7 +50,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
         print(uncer.shape)
 
 
-# Remove subprocess.run before isolated_dir
+@require_muses_py
 def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12_no_run_dir
     obs_tropomi = rs.observation_handle_set.observation(
@@ -66,18 +60,11 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
         None,
     )
     obs_tropomi.spectral_window.include_bad_sample = True
-    vlidort_temp_dir = tempfile.TemporaryDirectory()
-    rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        [obs_tropomi],
-        rs.current_state,
-        rs.retrieval_config,
-        vlidort_dir=vlidort_temp_dir.name,
-    )
-    mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
     fm = MusesTropomiForwardModel(
-        rf_uip, obs_tropomi, mid, vlidort_temp_dir=vlidort_temp_dir
+        rs.current_state,
+        obs_tropomi,
+        rs.measurement_id,
     )
-    vlidort_temp_dir = None
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -103,6 +90,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
         print(uncer.shape)
 
 
+@require_muses_py
 def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
     rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_airs = rs.observation_handle_set.observation(
@@ -112,13 +100,7 @@ def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
         None,
     )
     obs_airs.spectral_window.include_bad_sample = True
-    rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        [obs_airs],
-        rs.current_state,
-        rs.retrieval_config,
-    )
-    mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
-    fm = MusesAirsForwardModel(rf_uip, obs_airs, mid)
+    fm = MusesAirsForwardModel(rs.current_state, obs_airs, rs.measurement_id)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian
@@ -144,7 +126,7 @@ def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
         print(uncer.shape)
 
 
-# Remove subprocess.run before isolated_dir
+@require_muses_py
 def test_muses_omi_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
     rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_omi = rs.observation_handle_set.observation(
@@ -154,16 +136,7 @@ def test_muses_omi_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
         None,
     )
     obs_omi.spectral_window.include_bad_sample = True
-    vlidort_temp_dir = tempfile.TemporaryDirectory()
-    rf_uip = RefractorUip.create_uip_from_refractor_objects(
-        [obs_omi],
-        rs.current_state,
-        rs.retrieval_config,
-        vlidort_dir=vlidort_temp_dir.name,
-    )
-    mid = MeasurementIdDict({}, {}, osp_dir=osp_dir)
-    fm = MusesOmiForwardModel(rf_uip, obs_omi, mid, vlidort_temp_dir=vlidort_temp_dir)
-    vlidort_temp_dir = None
+    fm = MusesOmiForwardModel(rs.current_state, obs_omi, rs.measurement_id)
     s = fm.radiance(0)
     rad = s.spectral_range.data
     jac = s.spectral_range.data_ad.jacobian

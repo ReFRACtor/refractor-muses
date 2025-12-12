@@ -93,7 +93,9 @@ class MusesRetrievalStep:
         # somehow into a base class. But right now we only have these
         # two classes, so this probably isn't worth it. So we are currently
         # just duplicating the code.
-        with muses_py_call(os.path.dirname(strategy_table), include_pyoss=True, change_to_rundir=True):
+        with muses_py_call(
+            os.path.dirname(strategy_table), include_pyoss=True, change_to_rundir=True
+        ):
             try:
                 with register_replacement_function_in_block(
                     "run_retrieval", _CaptureParams(func_count=step)

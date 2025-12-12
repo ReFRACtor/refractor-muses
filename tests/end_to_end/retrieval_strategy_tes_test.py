@@ -49,9 +49,7 @@ def test_retrieval_strategy_tes(
             "retrieval_strategy_retrieval_step", "starting run_step"
         )
         rs.add_observer(rscap)
-        rscap2 = RetrievalStrategyCaptureObserver(
-            "retrieval_result", "retrieval step"
-        )
+        rscap2 = RetrievalStrategyCaptureObserver("retrieval_result", "retrieval step")
         rs.add_observer(rscap2)
         compare_dir = tes_test_expected_dir
         rs.retrieval_ms()

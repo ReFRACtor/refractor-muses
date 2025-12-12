@@ -347,7 +347,7 @@ def tropomi_fm_object_creator_swir_step(
         rs.current_state,
         rs.current_strategy_step.spectral_window_dict[InstrumentIdentifier("TROPOMI")],
         None,
-        #osp_dir=josh_osp_dir,
+        # osp_dir=josh_osp_dir,
     )
     res = TropomiSwirFmObjectCreator(
         rs.current_state,

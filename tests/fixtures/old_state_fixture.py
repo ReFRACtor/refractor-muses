@@ -67,9 +67,7 @@ def cris_tropomi_old_shandle(
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
-        obs_hset.observation(
-            strat.instrument_name[0], None, None, None
-        ),
+        obs_hset.observation(strat.instrument_name[0], None, None, None),
     )
     state_element_old_wrapper_handle.notify_update_target(
         measurement_id, rconfig, strat, obs_hset, smeta
@@ -126,7 +124,10 @@ def tropomi_swir_old_shandle(
         measurement_id,
         strat.instrument_name[0],
         obs_hset.observation(
-            strat.instrument_name[0], None, None, None, # osp_dir=josh_osp_dir
+            strat.instrument_name[0],
+            None,
+            None,
+            None,  # osp_dir=josh_osp_dir
         ),
     )
     state_element_old_wrapper_handle.notify_update_target(
@@ -186,9 +187,7 @@ def airs_omi_old_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
-        obs_hset.observation(
-            strat.instrument_name[0], None, None, None
-        ),
+        obs_hset.observation(strat.instrument_name[0], None, None, None),
     )
     state_element_old_wrapper_handle.notify_update_target(
         measurement_id, rconfig, strat, obs_hset, smeta
@@ -247,9 +246,7 @@ def airs_omi_old_shandle_ok_no_muses_py(
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
-        obs_hset.observation(
-            strat.instrument_name[0], None, None, None
-        ),
+        obs_hset.observation(strat.instrument_name[0], None, None, None),
     )
     h = None
     if have_muses_py:
@@ -306,9 +303,7 @@ def tes_old_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
-        obs_hset.observation(
-            strat.instrument_name[0], None, None, None
-        ),
+        obs_hset.observation(strat.instrument_name[0], None, None, None),
     )
     state_element_old_wrapper_handle.notify_update_target(
         measurement_id, rconfig, strat, obs_hset, smeta
