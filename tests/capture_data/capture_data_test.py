@@ -67,7 +67,7 @@ def run_capture(rs, run_dir, dir):
 
 
 @pytest.mark.capture_test
-def test_capture_tropomi_cris_retrieval_strategy(
+def test_capture_cris_tropomi_retrieval_strategy(
     isolated_dir, osp_dir, gmao_dir, joint_tropomi_test_in_dir
 ):
     r = MusesRunDir(joint_tropomi_test_in_dir, osp_dir, gmao_dir, obs_sym_link=False)
@@ -133,14 +133,18 @@ def test_capture_airs_omi_retrieval_strategy(
 
 
 @pytest.mark.capture_test
-def test_capture_airs_irk(isolated_dir, osp_dir, gmao_dir, airs_irk_test_in_dir):
+def test_capture_airs_irk_retrieval_strategy(
+    isolated_dir, osp_dir, gmao_dir, airs_irk_test_in_dir
+):
     r = MusesRunDir(airs_irk_test_in_dir, osp_dir, gmao_dir, obs_sym_link=False)
     rs = RetrievalStrategy(None)
     run_capture(rs, r.run_dir, airs_irk_test_in_dir)
 
 
 @pytest.mark.capture_test
-def test_capture_tes(isolated_dir, osp_dir, gmao_dir, tes_test_in_dir):
+def test_capture_tes_retrieval_strategy(
+    isolated_dir, osp_dir, gmao_dir, tes_test_in_dir
+):
     r = MusesRunDir(tes_test_in_dir, osp_dir, gmao_dir, obs_sym_link=False)
     rs = RetrievalStrategy(None)
     run_capture(rs, r.run_dir, tes_test_in_dir)

@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 import refractor.framework as rf
+from fixtures.require_check import require_muses_py_fm
 
 
 def test_spec_win(tropomi_fm_object_creator_step_0):
@@ -179,6 +180,7 @@ def test_forward_model_step2(tropomi_fm_object_creator_step_1):
     print(absorber)
 
 
+@require_muses_py_fm
 def test_compare_altitude(tropomi_fm_object_creator_step_0):
     """Compare MuseAltitude and ReFRACtor altitude"""
     alt1 = tropomi_fm_object_creator_step_0.altitude_muses[0]

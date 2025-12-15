@@ -14,8 +14,6 @@ from typing import Any
 # point of that package is to test our code against the old py-retrieve code, so of course
 # it calls muses-py all over. The entire submodule depends on having muses-py available.
 
-# TODO - Clean up the calls where we don't want the dependency on muses-py
-
 have_muses_py = muses_py.have_muses_py
 # have_muses_py = False
 

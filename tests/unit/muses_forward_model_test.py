@@ -1,5 +1,4 @@
 from refractor.muses import (
-    MeasurementIdDict,
     InstrumentIdentifier,
 )
 from refractor.muses_py_fm import (
@@ -8,11 +7,11 @@ from refractor.muses_py_fm import (
     MusesTropomiForwardModel,
     MusesOmiForwardModel,
 )
-from fixtures.require_check import require_muses_py
+from fixtures.require_check import require_muses_py_fm
 import pickle
 
 
-@require_muses_py
+@require_muses_py_fm
 def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12_no_run_dir
     obs_cris = rs.observation_handle_set.observation(
@@ -50,7 +49,7 @@ def test_muses_cris_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
         print(uncer.shape)
 
 
-@require_muses_py
+@require_muses_py_fm
 def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12_no_run_dir
     obs_tropomi = rs.observation_handle_set.observation(
@@ -90,7 +89,7 @@ def test_muses_tropomi_forward_model(joint_tropomi_step_12_no_run_dir, osp_dir):
         print(uncer.shape)
 
 
-@require_muses_py
+@require_muses_py_fm
 def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
     rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_airs = rs.observation_handle_set.observation(
@@ -126,7 +125,7 @@ def test_muses_airs_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
         print(uncer.shape)
 
 
-@require_muses_py
+@require_muses_py_fm
 def test_muses_omi_forward_model(joint_omi_step_8_no_run_dir, osp_dir):
     rs, rstep, _ = joint_omi_step_8_no_run_dir
     obs_omi = rs.observation_handle_set.observation(

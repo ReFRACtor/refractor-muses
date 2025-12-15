@@ -7,6 +7,7 @@ from refractor.muses import (
     RetrievalStrategy,
     MusesRunDir,
 )
+from fixtures.require_check import require_muses_py_fm
 
 # Can use the older py_retrieve matching objects
 match_py_retrieve = False
@@ -14,6 +15,7 @@ match_py_retrieve = False
 
 
 @pytest.mark.long_test
+@require_muses_py_fm
 def test_retrieval_strategy_tes(
     osp_dir,
     gmao_dir,

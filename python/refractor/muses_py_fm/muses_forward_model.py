@@ -86,11 +86,10 @@ class MusesForwardModelBase(rf.ForwardModel):
         self.use_vlidort_temp_dir = use_vlidort_temp_dir
         self.have_fake_jac_in_oss = False
         self.have_create_uip = False
-        self.uip_params : None | np.ndarray = None
+        self.uip_params: None | np.ndarray = None
 
     def update_uip(self, parameters: np.ndarray) -> None:
         if not self.have_create_uip:
-
             # Delay setting the UIP value until we actually create it. We don't
             # want to create this now just to set the value
             self.uip_params = parameters.copy()

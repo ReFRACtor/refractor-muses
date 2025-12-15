@@ -4,6 +4,7 @@ from fixtures.require_check import require_muses_py
 import os
 
 
+# Compare against MusesStrategyOldStrategyTable, so need muses_py
 @require_muses_py
 def test_muses_strategy_file(joint_omi_step_8_osp_sym_link):
     rs, rsetp, kwargs = joint_omi_step_8_osp_sym_link

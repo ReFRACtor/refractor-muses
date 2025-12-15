@@ -8,6 +8,7 @@ from refractor.muses import (
     RetrievalStrategy,
     MusesRunDir,
 )
+from fixtures.require_check import require_muses_py_fm
 
 # Use refractor forward model, or use py-retrieve.
 # Note that there is a separate set of expected results for a refractor run.
@@ -20,6 +21,7 @@ match_py_retrieve = False
 
 
 @pytest.mark.long_test
+@require_muses_py_fm
 def test_retrieval_strategy_cris_tropomi(
     osp_dir,
     gmao_dir,
@@ -87,6 +89,7 @@ def test_retrieval_strategy_cris_tropomi(
 # retrievals that don't show up in cris_tropomi
 @pytest.mark.skip
 @pytest.mark.long_test
+@require_muses_py_fm
 def test_retrieval_cris(
     osp_dir,
     gmao_dir,

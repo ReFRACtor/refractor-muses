@@ -1,13 +1,14 @@
 import numpy as np
 from refractor.old_py_retrieve_wrapper import OmiRadiancePyRetrieve, OmiRadianceToUip
 import refractor.framework as rf
-from fixtures.require_check import require_muses_py
+from fixtures.require_check import require_muses_py, require_muses_py_fm
 import pandas as pd
 import pytest
 
 
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
+@require_muses_py_fm
 def test_omi_radiance(omi_uip_step_2):
     # The initial shift for everything is 0. Change to something so we can test that
     # this actually gets used.

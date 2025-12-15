@@ -17,7 +17,7 @@ import pytest
 import numpy.testing as npt
 import numpy as np
 from fixtures.misc_fixture import all_output_disabled
-from fixtures.require_check import require_muses_py
+from fixtures.require_check import require_muses_py_fm
 from typing import Any
 
 
@@ -72,7 +72,7 @@ def test_current_state_dict():
     npt.assert_allclose(mp.retrieval_indexes, [0, 2])
 
 
-@require_muses_py
+@require_muses_py_fm
 def test_current_state_uip(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
     obs_cris = rs.observation_handle_set.observation(

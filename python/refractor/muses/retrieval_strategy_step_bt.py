@@ -28,9 +28,33 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
     def __init__(self) -> None:
         super().__init__()
         self.notify_update_target(None)
+        self.frequency: None | np.ndarray = None
+        self.obs_rad_all: None | np.ndarray = None
+        self.rad_all: None | np.ndarray = None
 
     def notify_update_target(self, rs: RetrievalStrategy | None) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
+
+    def get_state(self) -> dict[str, Any]:
+        """Return a dictionary of values that can be used by
+        set_state.  This allows us to skip pieces of the retrieval
+        step. This is similar to a pickle serialization (which we also
+        support), but only saves the things that change when we update
+        the parameters.
+
+        This is useful for unit tests of side effects of doing the
+        retrieval step (e.g., generating output files) without needing
+        to actually run the retrieval.
+
+        """
+        res: dict[str, Any] = {"frequency": None, "obs_rad_all": None, "rad_all": None}
+        if self.frequency is not None:
+            res["frequency"] = self.frequency.tolist()
+        if self.obs_rad_all is not None:
+            res["obs_rad_all"] = self.obs_rad_all.tolist()
+        if self.rad_all is not None:
+            res["rad_all"] = self.rad_all.tolist()
+        return res
 
     def retrieval_step_body(
         self, retrieval_type: RetrievalType, rs: RetrievalStrategy, **kwargs: dict
@@ -39,8 +63,8 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
             return False
         logger.debug(f"Call to {self.__class__.__name__}::retrieval_step")
         logger.info("Running run_forward_model ...")
-        self.fm = rs.create_forward_model_combine()
         self.calculate_bt(
+            rs,
             rs.retrieval_config,
             rs.strategy,
             rs.strategy_step.step_number,
@@ -51,6 +75,7 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
 
     def calculate_bt(
         self,
+        rs: RetrievalStrategy,
         retrieval_config: RetrievalConfiguration,
         strategy: MusesStrategy,
         step: int,
@@ -63,16 +88,22 @@ class RetrievalStrategyStepBT(RetrievalStrategyStep):
         #
         # I'm not actually sure that is true, we filter out bad samples. But
         # regardless, use the mean like py-retrieve does.
-        frequency = self.fm.spectral_domain_all().data
-        radiance_bt_obs = self.bt(
-            np.mean(frequency), np.mean(self.fm.obs_radiance_all().spectral_range.data)
-        )
-        # True here means skip the jacobian calculation. This doesn't actually matter
-        # for the OSS FM that always calculate the jacobian, but might matter in the future
-        # with different forward models
-        radiance_bt_fit = self.bt(
-            np.mean(frequency), np.mean(self.fm.radiance_all(True).spectral_range.data)
-        )
+        if self._saved_state is not None:
+            # Skip forward model if we have a saved state.
+            self.frequency = np.array(self._saved_state["frequency"])
+            self.obs_rad_all = np.array(self._saved_state["obs_rad_all"])
+            self.rad_all = np.array(self._saved_state["rad_all"])
+        else:
+            fm = rs.create_forward_model_combine()
+            self.frequency = fm.spectral_domain_all().data
+            self.obs_rad_all = fm.obs_radiance_all().spectral_range.data
+            # True here means skip the jacobian calculation. This doesn't actually matter
+            # for the OSS FM that always calculate the jacobian, but might matter in the future
+            # with different forward models
+            self.rad_all = fm.radiance_all(True).spectral_range.data
+
+        radiance_bt_obs = self.bt(np.mean(self.frequency), np.mean(self.obs_rad_all))
+        radiance_bt_fit = self.bt(np.mean(self.frequency), np.mean(self.rad_all))
         btdata: dict[str, Any] = {}
         btdata["diff"] = radiance_bt_fit - radiance_bt_obs
         btdata["obs"] = radiance_bt_obs

@@ -97,7 +97,6 @@ def test_muses_spectral_window(osp_dir, joint_omi_test_in_dir):
     assert swin.apply(spec, 1).spectral_domain.data.shape[0] == 4
 
 
-@require_muses_py
 def test_muses_spectral_window_microwindows(osp_dir):
     """Test creating a spectral window dictionary and then creating the
     microwindows struct. Compare to using the old muses-py code."""
@@ -165,7 +164,6 @@ def test_muses_spectral_window_microwindows(osp_dir):
     assert len(mono_filter_list) == (337 - 323) * 100
 
 
-@require_muses_py
 def test_microwindows_fname(osp_dir):
     """Compare our name against the old mpy code."""
     viewing_mode = "nadir"

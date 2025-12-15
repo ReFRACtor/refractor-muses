@@ -9,7 +9,7 @@ from fixtures.residual_fm import (
     joint_omi_residual_fm_jac,
     joint_tropomi_residual_fm_jac,
 )
-from fixtures.require_check import require_muses_py
+from fixtures.require_check import require_muses_py, require_muses_py_fm
 from refractor.omi import OmiForwardModelHandle
 from refractor.tropomi import TropomiForwardModelHandle
 import refractor.muses_py as mpy
@@ -47,6 +47,7 @@ import numpy.testing as npt
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
+@require_muses_py_fm
 def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, osp_dir):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
@@ -119,6 +120,7 @@ def test_fm_wrapper_tropomi(joint_tropomi_step_12_osp_sym_link, osp_dir):
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
+@require_muses_py_fm
 def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, osp_dir):
     """Compare the results from our CostFunction with directly calling
     mpy.fm_wrapper.
@@ -191,6 +193,7 @@ def test_fm_wrapper_omi(joint_omi_step_8_osp_sym_link, osp_dir):
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
+@require_muses_py_fm
 def test_residual_fm_jac_tropomi(
     isolated_dir,
     osp_dir,
@@ -278,6 +281,7 @@ def test_residual_fm_jac_tropomi(
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
+@require_muses_py_fm
 def test_residual_fm_jac_omi(
     isolated_dir,
     osp_dir,
@@ -369,6 +373,7 @@ def test_residual_fm_jac_omi(
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
+@require_muses_py_fm
 def test_residual_fm_jac_omi2(
     isolated_dir,
     osp_dir,
@@ -418,6 +423,7 @@ def test_residual_fm_jac_omi2(
 @pytest.mark.long_test
 @pytest.mark.old_py_retrieve_test
 @require_muses_py
+@require_muses_py_fm
 def test_residual_fm_jac_tropomi2(
     isolated_dir,
     osp_dir,

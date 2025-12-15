@@ -1,7 +1,9 @@
 from refractor.muses import InstrumentIdentifier
 from refractor.muses_py_fm import RefractorUip
+from fixtures.require_check import require_muses_py_fm
 
 
+@require_muses_py_fm
 def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
     rs, rstep, _ = joint_tropomi_step_12
     obs = [
@@ -32,6 +34,7 @@ def test_fm_obs_creator_tropomi(joint_tropomi_step_12, osp_dir):
     print(cf)
 
 
+@require_muses_py_fm
 def test_fm_obs_creator_omi(joint_omi_step_8, osp_dir):
     rs, rstep, _ = joint_omi_step_8
     obs = [
