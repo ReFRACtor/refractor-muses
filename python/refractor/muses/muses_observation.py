@@ -783,7 +783,7 @@ class SimulatedObservationHandle(ObservationHandle):
         self.instrument_name = instrument_name
         self.obs = obs
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
 
@@ -832,7 +832,7 @@ class MusesObservationHandle(ObservationHandle):
         self.__dict__ = state
         self.existing_obs = None
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         # Need to read new data when the target changes
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.existing_obs = None
@@ -874,8 +874,8 @@ class MusesObservationHandlePickleSave(MusesObservationHandle):
     then the next time a observation gets read in a unit test we can read the pickle
     file."""
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
-        super().notify_update_target(measurement_id)
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
+        super().notify_update_target(measurement_id, retrieval_config)
         pname = measurement_id["run_dir"] / f"{self.instrument_name}_obs.pkl"
         if pname.exists():
             self.existing_obs = pickle.load(open(pname, "rb"))

@@ -12,6 +12,7 @@ if typing.TYPE_CHECKING:
     from .current_state import CurrentState
     from .muses_spectral_window import MusesSpectralWindow
     from .identifier import InstrumentIdentifier
+    from .retrieval_configuration import RetrievalConfiguration
 
 
 def mpy_radiance_from_observation_list(
@@ -89,7 +90,7 @@ class ObservationHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # Default is to do nothing
         pass

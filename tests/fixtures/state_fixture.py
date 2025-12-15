@@ -33,7 +33,7 @@ def cris_tropomi_shandle(osp_dir, gmao_dir, joint_tropomi_test_in_dir, isolated_
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(tfilename, osp_dir=osp_dir)
-    strat.notify_update_target(measurement_id)
+    strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
     obs_hset.add_handle(
@@ -46,7 +46,7 @@ def cris_tropomi_shandle(osp_dir, gmao_dir, joint_tropomi_test_in_dir, isolated_
             InstrumentIdentifier("TROPOMI"), MusesTropomiObservation
         )
     )
-    obs_hset.notify_update_target(measurement_id)
+    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -81,13 +81,13 @@ def tropomi_swir_shandle(
     strat = MusesStrategyStepList.create_from_strategy_file(
         tfilename, osp_dir=josh_osp_dir
     )
-    strat.notify_update_target(measurement_id)
+    strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
     obs_hset.add_handle(
         MusesObservationHandle(InstrumentIdentifier("TROPOMI"), MusesTropomiObservation)
     )
-    obs_hset.notify_update_target(measurement_id)
+    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -123,7 +123,7 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(tfilename, osp_dir=osp_dir)
-    strat.notify_update_target(measurement_id)
+    strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
     obs_hset.add_handle(
@@ -136,7 +136,7 @@ def airs_omi_shandle(osp_dir, gmao_dir, joint_omi_test_in_dir, isolated_dir):
             InstrumentIdentifier("OMI"), MusesOmiObservation
         )
     )
-    obs_hset.notify_update_target(measurement_id)
+    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],
@@ -172,7 +172,7 @@ def tes_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
     )
     measurement_id = MeasurementIdFile(r.run_dir / "Measurement_ID.asc", rconfig, {})
     strat = MusesStrategyStepList.create_from_strategy_file(tfilename, osp_dir=osp_dir)
-    strat.notify_update_target(measurement_id)
+    strat.notify_update_target(measurement_id, rconfig)
     measurement_id.filter_list_dict = strat.filter_list_dict
     obs_hset = ObservationHandleSet()
     obs_hset.add_handle(
@@ -180,7 +180,7 @@ def tes_shandle(osp_dir, gmao_dir, tes_test_in_dir, isolated_dir):
             InstrumentIdentifier("TES"), MusesTesObservation
         )
     )
-    obs_hset.notify_update_target(measurement_id)
+    obs_hset.notify_update_target(measurement_id, rconfig)
     smeta = SoundingMetadata.create_from_measurement_id(
         measurement_id,
         strat.instrument_name[0],

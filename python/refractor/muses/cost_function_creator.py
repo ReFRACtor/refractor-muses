@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MusesObservation, MeasurementId
     from refractor.muses_py_fm import RefractorUip
     from .retrieval_strategy import RetrievalStrategy
+    from .retrieval_configuration import RetrievalConfiguration
     from .identifier import InstrumentIdentifier
 
 
@@ -35,8 +36,9 @@ class CostFunctionCreator:
             ObservationHandleSet.default_handle_set()
         )
         self.measurement_id: MeasurementId | None = None
+        self.retrieval_config: RetrievalConfiguration | None = None
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
         """Set up for processing a target.
 
         Note we separate this out from the cost_function creator
@@ -49,8 +51,9 @@ class CostFunctionCreator:
         """
         logger.debug(f"Call to {self.__class__.__name__}::notify_update_target")
         self.measurement_id = measurement_id
-        self.forward_model_handle_set.notify_update_target(self.measurement_id)
-        self.observation_handle_set.notify_update_target(self.measurement_id)
+        self.retrieval_config = retrieval_config
+        self.forward_model_handle_set.notify_update_target(self.measurement_id, self.retrieval_config)
+        self.observation_handle_set.notify_update_target(self.measurement_id, self.retrieval_config)
 
     def forward_model(
         self,

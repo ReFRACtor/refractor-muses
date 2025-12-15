@@ -164,17 +164,18 @@ class MusesStrategyExecutorRetrievalStrategyStep(MusesStrategyExecutor):
             )
         else:
             self._qa_data_handle_set = qa_data_handle_set
-
         self.measurement_id: MeasurementId | None = None
+        self.retrieval_config: RetrievalConfiguration | None = None
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(
+        self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
         """Have updated the target we are processing."""
         self.measurement_id = measurement_id
-        self.qa_data_handle_set.notify_update_target(self.measurement_id)
-
-    @property
-    def retrieval_config(self) -> RetrievalConfiguration:
-        return self.rs.retrieval_config
+        self.retrieval_config = retrieval_config
+        self.qa_data_handle_set.notify_update_target(
+            self.measurement_id, self.retrieval_config
+        )
 
     @property
     def state_element_handle_set(self) -> StateElementHandleSet:
@@ -296,22 +297,24 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
             **rs.keyword_arguments,
         )
         self._strategy: MusesStrategy | None = None
-        self.measurement_id: MeasurementId | None = None
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
-        super().notify_update_target(measurement_id)
+    def notify_update_target(
+            self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration
+    ) -> None:
+        super().notify_update_target(measurement_id, retrieval_config)
+        # TODO Replace osp_dir here
         self._strategy = self.muses_strategy_handle_set.muses_strategy(
             measurement_id,
             osp_dir=measurement_id.osp_abs_dir,
             spectral_window_handle_set=self.spectral_window_handle_set,
         )
-        self.strategy.notify_update_target(measurement_id)
+        self.strategy.notify_update_target(measurement_id, retrieval_config)
         # Only do notify_update_target if we already have the filter_list_dict filled in.
         # If we don't just skip this
         if len(measurement_id.filter_list_dict) > 0:
             self.current_state.notify_update_target(
                 measurement_id,
-                self.retrieval_config,
+                retrieval_config,
                 self.strategy,
                 self.observation_handle_set,
             )
@@ -341,12 +344,16 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
     def restart(self) -> None:
         """Set step to the first one."""
         self.strategy.restart()
+        if(self.retrieval_config is None):
+            raise RuntimeError("Call notify_update_target before this function")
         self.current_state.notify_start_retrieval(
             self.current_strategy_step, self.retrieval_config
         )
 
     def notify_start_step(self, skip_initial_guess_update: bool = False) -> None:
         """Called to notify other object that we are on a new retrieval step."""
+        if(self.retrieval_config is None):
+            raise RuntimeError("Call notify_update_target before this function")
         self.current_state.notify_start_step(
             self.current_strategy_step,
             self.retrieval_config,
@@ -474,6 +481,8 @@ class MusesStrategyExecutorMusesStrategy(MusesStrategyExecutorRetrievalStrategyS
         Take a look at the capture_data_test.py examples for how to
         save this data
         """
+        if(self.retrieval_config is None):
+            raise RuntimeError("Call notify_update_target before this function")
         rplay = CurrentStateRecordAndPlay(current_state_replay_file)
         # Note we go to the end of the previous step. We then are ready
         # for the current retrieval step.

@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
     from .retrieval_result import RetrievalResult
     from .muses_strategy import CurrentStrategyStep
     from .muses_observation import MeasurementId
+    from .retrieval_configuration import RetrievalConfiguration
 
 
 class QaFlagValue(object, metaclass=abc.ABCMeta):
@@ -83,7 +84,7 @@ class QaDataHandle(CreatorHandle, metaclass=abc.ABCMeta):
     that a class is intended for this.
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -133,7 +134,7 @@ class MusesPyQaDataHandle(QaDataHandle):
         self.viewing_mode = None
         self.qa_flag_directory = None
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # We'll add grabbing the stuff out of RetrievalConfiguration

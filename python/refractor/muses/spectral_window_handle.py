@@ -10,6 +10,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId
     from .muses_strategy_executor import CurrentStrategyStep
     from .identifier import InstrumentIdentifier, FilterIdentifier
+    from .retrieval_configuration import RetrievalConfiguration
 
 
 class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
@@ -20,7 +21,7 @@ class SpectralWindowHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -138,7 +139,7 @@ class MusesPySpectralWindowHandle(SpectralWindowHandle):
     def __init__(self) -> None:
         self.filter_metadata: None | FilterMetadata = None
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         # We'll add grabbing the stuff out of RetrievalConfiguration in a bit
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")

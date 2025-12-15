@@ -9,6 +9,7 @@ if typing.TYPE_CHECKING:
     from .muses_observation import MeasurementId, MusesObservation
     from .current_state import CurrentState
     from .identifier import InstrumentIdentifier
+    from .retrieval_configuration import RetrievalConfiguration
 
 
 class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
@@ -32,7 +33,7 @@ class ForwardModelHandle(CreatorHandle, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing

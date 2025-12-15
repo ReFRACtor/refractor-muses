@@ -15,7 +15,7 @@ def test_muses_strategy_old(joint_omi_step_8_osp_sym_link):
     stable = MusesStrategyOldStrategyTable(
         rs.run_dir / "Table.asc", rs.osp_dir, rs.spectral_window_handle_set
     )
-    stable.notify_update_target(rs.measurement_id)
+    stable.notify_update_target(rs.measurement_id, rs.retrieval_config)
     print(stable.filter_list_dict)
     print(stable.retrieval_elements)
     print(stable.error_analysis_interferents)

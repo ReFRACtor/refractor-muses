@@ -20,7 +20,7 @@ from typing import Any
 import typing
 
 if typing.TYPE_CHECKING:
-    from refractor.muses import MeasurementId, MusesObservation
+    from refractor.muses import MeasurementId, MusesObservation, RetrievalConfiguration
 
 
 class TropomiSurfaceAlbedo(SurfaceAlbedo):
@@ -916,7 +916,7 @@ class TropomiForwardModelHandle(ForwardModelHandle):
         self.creator_kwargs = creator_kwargs
         self.measurement_id: None | MeasurementId = None
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being retrieved is fixed"""
         logger.debug(f"Call to {self.__class__.__name__}::notify_update")
         self.measurement_id = measurement_id

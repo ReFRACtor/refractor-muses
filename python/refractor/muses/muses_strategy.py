@@ -281,7 +281,7 @@ class MusesStrategyHandle(CreatorHandle, metaclass=abc.ABCMeta):
     between calls, see CreatorHandle for a discussion of this.
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
         """Clear any caching associated with assuming the target being
         retrieved is fixed"""
         # Default is to do nothing
@@ -339,7 +339,7 @@ class MusesStrategy(object, metaclass=abc.ABCMeta):
 
     """
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config : RetrievalConfiguration) -> None:
         pass
 
     @abc.abstractmethod
@@ -565,9 +565,9 @@ class MusesStrategyImp(MusesStrategy):
         """The SpectralWindowHandleSet to use for getting the MusesSpectralWindow."""
         return self._spectral_window_handle_set
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
         self._measurement_id = measurement_id
-        self.spectral_window_handle_set.notify_update_target(self.measurement_id)
+        self.spectral_window_handle_set.notify_update_target(self.measurement_id, retrieval_config)
 
 
 class MusesStrategyFileHandle(MusesStrategyHandle):
@@ -816,8 +816,8 @@ class MusesStrategyStepList(MusesStrategyImp):
             return []
         return [StateElementIdentifier(i) for i in r]
 
-    def notify_update_target(self, measurement_id: MeasurementId) -> None:
-        super().notify_update_target(measurement_id)
+    def notify_update_target(self, measurement_id: MeasurementId, retrieval_config: RetrievalConfiguration) -> None:
+        super().notify_update_target(measurement_id, retrieval_config)
         filter_list_dict_t: dict[
             InstrumentIdentifier, dict[FilterIdentifier, float]
         ] = defaultdict(dict)

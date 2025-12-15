@@ -235,7 +235,7 @@ def test_residual_fm_jac_tropomi(
     mid = MeasurementIdFile(
         rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
     )
-    creator.notify_update_target(mid)
+    creator.notify_update_target(mid, rconfig)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
         [obs_cris, obs_tropomi],
@@ -329,7 +329,7 @@ def test_residual_fm_jac_omi(
     mid = MeasurementIdFile(
         rf_uip.run_dir / "Measurement_ID.asc", rconfig, {"TROPOMI": ["BAND3"]}
     )
-    creator.notify_update_target(mid)
+    creator.notify_update_target(mid, rconfig)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
         [obs_airs, obs_omi],
@@ -409,7 +409,7 @@ def test_residual_fm_jac_omi2(
     )
     flist = {"OMI": ["UV1", "UV2"]}
     mid = MeasurementIdFile(joint_omi_test_in_dir / "Measurement_ID.asc", rconf, flist)
-    creator.notify_update_target(mid)
+    creator.notify_update_target(mid, rconf)
     cfunc = creator.cost_function_from_uip(
         rf_uip,
         joint_omi_obs_step_8,
@@ -462,7 +462,7 @@ def test_residual_fm_jac_tropomi2(
     mid = MeasurementIdFile(
         joint_tropomi_test_in_dir / "Measurement_ID.asc", rconf, flist
     )
-    creator.notify_update_target(mid)
+    creator.notify_update_target(mid, rconf)
     cfunc = creator.cost_function_from_uip(
         rf_uip, obslist, rrefractor.params["ret_info"]
     )

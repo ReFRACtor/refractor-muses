@@ -207,15 +207,21 @@ class RetrievalStrategy:
             self.retrieval_config,
             # Chicken and egg problem for filter_list_dict. We need a MeasurementId
             # to update the strategy_executor, and then need the strategy_executor to
-            # get the filter_list_dict. So we put a dummy in, and this fill this in
+            # get the filter_list_dict. So we put a dummy in, and then fill this in
             # in the next step.
             {},
         )
-        self.strategy_executor.notify_update_target(self.measurement_id)
-        self._measurement_id.filter_list_dict = self.strategy_executor.filter_list_dict
-        self._cost_function_creator.notify_update_target(self.measurement_id)
-        self.strategy_executor.notify_update_target(self.measurement_id)
-        self._retrieval_strategy_step_set.notify_update_target(self)
+        self.strategy_executor.notify_update_target(
+            self.measurement_id, self.retrieval_config
+        )
+        self.measurement_id.filter_list_dict = self.strategy_executor.filter_list_dict
+        self.cost_function_creator.notify_update_target(
+            self.measurement_id, self.retrieval_config
+        )
+        self.strategy_executor.notify_update_target(
+            self.measurement_id, self.retrieval_config
+        )
+        self.retrieval_strategy_step_set.notify_update_target(self)
         self.notify_update(ProcessLocation("update target"))
 
     def script_retrieval_ms(
